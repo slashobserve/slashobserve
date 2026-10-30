@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 30,
-      "imported": 4,
-      "partial": 26,
+      "imported": 14,
+      "partial": 16,
       "placeholder": 0,
       "unverified": 0
     },
@@ -262,12 +262,10 @@
         "row": "Span pipeline",
         "status": "partial",
         "reasons": [
-          "Unit items/sec is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Unit items/sec is not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.unit"
         ],
         "queries": [
           {
@@ -287,13 +285,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Span pipeline",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -312,13 +306,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Span pipeline",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -339,12 +329,10 @@
         "row": "Span pipeline",
         "status": "partial",
         "reasons": [
-          "Unit items/sec is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Unit items/sec is not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.unit"
         ],
         "queries": [
           {
@@ -366,12 +354,10 @@
         "row": "Span pipeline",
         "status": "partial",
         "reasons": [
-          "Unit items/sec is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Unit items/sec is not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.unit"
         ],
         "queries": [
           {
@@ -391,13 +377,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Span pipeline",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -416,13 +398,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Span pipeline",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -443,12 +421,10 @@
         "row": "Log pipeline",
         "status": "partial",
         "reasons": [
-          "Unit items/sec is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Unit items/sec is not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.unit"
         ],
         "queries": [
           {
@@ -470,12 +446,10 @@
         "row": "Log pipeline",
         "status": "partial",
         "reasons": [
-          "Unit items/sec is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Unit items/sec is not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.unit"
         ],
         "queries": [
           {
@@ -495,13 +469,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Log pipeline",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -522,12 +492,10 @@
         "row": "Log pipeline",
         "status": "partial",
         "reasons": [
-          "Unit items/sec is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Unit items/sec is not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.unit"
         ],
         "queries": [
           {
@@ -547,13 +515,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Log pipeline",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -572,13 +536,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Log pipeline",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -599,12 +559,10 @@
         "row": "Metric pipeline",
         "status": "partial",
         "reasons": [
-          "Unit items/sec is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Unit items/sec is not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.unit"
         ],
         "queries": [
           {
@@ -624,13 +582,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Metric pipeline",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -649,13 +603,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Metric pipeline",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -674,13 +624,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Metric pipeline",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",

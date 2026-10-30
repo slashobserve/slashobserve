@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 35,
-      "imported": 0,
-      "partial": 35,
+      "imported": 3,
+      "partial": 32,
       "placeholder": 0,
       "unverified": 0
     },
@@ -45,11 +45,9 @@
         "row": "Principal",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -72,11 +70,9 @@
         "row": "Principal",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -99,11 +95,9 @@
         "row": "Principal",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -133,11 +127,9 @@
         "row": "Principal",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -227,11 +219,9 @@
         "row": "Principal",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -252,13 +242,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Queries detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -293,11 +279,9 @@
         "row": "Queries detail",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -334,11 +318,9 @@
         "row": "Queries detail",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -361,11 +343,9 @@
         "row": "Queries detail",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -386,13 +366,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Queries detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -425,13 +401,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Queries detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -452,11 +424,9 @@
         "row": "Queries detail",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -479,11 +449,9 @@
         "row": "Queries detail",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -520,11 +488,9 @@
         "row": "Answers detail",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -554,11 +520,9 @@
         "row": "Answers detail",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -581,11 +545,9 @@
         "row": "Answers detail",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -608,11 +570,9 @@
         "row": "Cache",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -642,11 +602,9 @@
         "row": "Cache",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -669,11 +627,9 @@
         "row": "Cache",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -696,11 +652,9 @@
         "row": "Cache",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -730,11 +684,9 @@
         "row": "Request list",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -771,11 +723,9 @@
         "row": "Request list",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -805,11 +755,9 @@
         "row": "Request list",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -846,11 +794,9 @@
         "row": "Memory",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -873,11 +819,9 @@
         "row": "Memory",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -907,11 +851,9 @@
         "row": "Memory",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -934,11 +876,9 @@
         "row": "Memory",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -961,11 +901,9 @@
         "row": "Misc",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -988,11 +926,9 @@
         "row": "Misc",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -1015,11 +951,9 @@
         "row": "Misc",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -1049,11 +983,9 @@
         "row": "Misc",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -1083,11 +1015,9 @@
         "row": "Misc",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -1110,11 +1040,9 @@
         "row": "Misc",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -1137,11 +1065,9 @@
         "row": "Misc",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.sort"
         ],
         "queries": [

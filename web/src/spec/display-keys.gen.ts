@@ -3,6 +3,12 @@ export const displayKeysByType: Record<string, readonly string[]> = {
   "timeseries": [
     "legend",
     "legendValues",
+    "legendMode",
+    "legendSortBy",
+    "legendSortDesc",
+    "legendWidth",
+    "legendHideZero",
+    "legendHideEmpty",
     "tooltip"
   ],
   "stat": [
@@ -62,6 +68,12 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "xField",
     "legend",
     "legendValues",
+    "legendMode",
+    "legendSortBy",
+    "legendSortDesc",
+    "legendWidth",
+    "legendHideZero",
+    "legendHideEmpty",
     "tooltip"
   ],
   "xychart": [

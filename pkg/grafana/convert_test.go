@@ -618,25 +618,18 @@ func TestDatasourceVariableReferencesAreKept(t *testing.T) {
 
 const wantLegendTableReason = "Legend tables are not supported; the legend is a plain list."
 
-func TestLegendTablesAreReportedBecauseTheSpecHasNoTableLegend(t *testing.T) {
+func TestLegendTablesAreReportedWhereTheChartHasNoTableLegend(t *testing.T) {
 	cases := []struct {
-		name  string
-		panel func(t *testing.T) (spec.Panel, PanelLine)
-		paths []string
+		name   string
+		legend string
+		paths  []string
 	}{
-		{"table display mode", func(t *testing.T) (spec.Panel, PanelLine) {
-			return convertedPanel(t, panelDoc("timeseries", upTarget+`,"options":{"legend":{"displayMode":"table","placement":"bottom","showLegend":true,"calcs":["mean"]}}`))
-		}, []string{"options.legend.displayMode"}},
-		{"as table flag", func(t *testing.T) (spec.Panel, PanelLine) {
-			return convertedPanel(t, panelDoc("timeseries", upTarget+`,"options":{"legend":{"displayMode":"list","asTable":true,"showLegend":true}}`))
-		}, []string{"options.legend.asTable"}},
-		{"legacy aligned as table", func(t *testing.T) (spec.Panel, PanelLine) {
-			return graphPanel(t, `"legend":{"alignAsTable":true,"show":true}`)
-		}, []string{"legend.alignAsTable"}},
+		{"table display mode", `{"displayMode":"table","placement":"bottom","showLegend":true}`, []string{"options.legend.displayMode"}},
+		{"as table flag", `{"displayMode":"list","asTable":true,"showLegend":true}`, []string{"options.legend.asTable"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, line := tc.panel(t)
+			_, line := convertedPanel(t, panelDoc("barchart", upTarget+`,"options":{"legend":`+tc.legend+`}`))
 			if line.Status != statusPartial || !slices.Equal(line.Paths, tc.paths) || !slices.Contains(line.Reasons, wantLegendTableReason) {
 				t.Fatalf("status %s, paths %v, reasons %v, want %v and %q", line.Status, line.Paths, line.Reasons, tc.paths, wantLegendTableReason)
 			}
@@ -778,7 +771,7 @@ func TestChartPanelTypesImportTheirOptions(t *testing.T) {
 		{
 			name: "trend", typ: "trend",
 			members: `"options":{"xField":"size","legend":{"displayMode":"list","placement":"right","showLegend":true,"calcs":["max","mean"]},"tooltip":{"mode":"none","sort":"none"}}`,
-			display: `{"legend":"right","legendValues":["max","mean"],"tooltip":"hidden","xField":"size"}`,
+			display: `{"legend":"right","legendValues":["max","mean"],"legendMode":"list","tooltip":"hidden","xField":"size"}`,
 		},
 		{
 			name: "xy chart version 1", typ: "xychart",

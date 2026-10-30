@@ -192,6 +192,12 @@ export function formatTogether(
 export type TimeseriesDisplay = {
   legend: "bottom" | "right" | "hidden"
   legendValues: Reducer[]
+  legendMode?: "list" | "table"
+  legendSortBy?: "name" | Reducer
+  legendSortDesc: boolean
+  legendWidth?: number
+  legendHideZero: boolean
+  legendHideEmpty: boolean
   tooltip: "single" | "all" | "hidden"
 }
 
@@ -201,6 +207,12 @@ export function timeseriesDisplay(
   return {
     legend: display.legend as TimeseriesDisplay["legend"],
     legendValues: display.legendValues as Reducer[],
+    legendMode: display.legendMode as TimeseriesDisplay["legendMode"],
+    legendSortBy: display.legendSortBy as TimeseriesDisplay["legendSortBy"],
+    legendSortDesc: display.legendSortDesc as boolean,
+    legendWidth: display.legendWidth as number | undefined,
+    legendHideZero: display.legendHideZero as boolean,
+    legendHideEmpty: display.legendHideEmpty as boolean,
     tooltip: display.tooltip as TimeseriesDisplay["tooltip"],
   }
 }

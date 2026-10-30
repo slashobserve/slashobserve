@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 41,
-      "imported": 9,
-      "partial": 32,
+      "imported": 32,
+      "partial": 9,
       "placeholder": 0,
       "unverified": 0
     },
@@ -178,14 +178,10 @@
         "status": "partial",
         "reasons": [
           "Smoothed or stepped lines are drawn straight.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.defaults.custom.lineInterpolation",
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -206,16 +202,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Overview ($instance)",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -234,16 +223,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Overview ($instance)",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -262,13 +244,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Overview ($instance)",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -287,13 +265,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Overview ($instance)",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -312,16 +286,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resource usage",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -340,16 +307,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resource usage",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -368,16 +328,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resource usage",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -396,16 +349,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resource usage",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -431,16 +377,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resource usage",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -459,16 +398,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resource usage",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -494,16 +426,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resource usage",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -529,13 +454,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resource usage",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -554,13 +475,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resource usage",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -579,13 +496,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resource usage",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -604,13 +517,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resource usage",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -629,13 +538,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resource usage",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -692,12 +597,10 @@
         "row": "Troubleshooting",
         "status": "partial",
         "reasons": [
-          "Moved or resized to fit the grid.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Moved or resized to fit the grid."
         ],
         "paths": [
-          "gridPos",
-          "options.legend.displayMode"
+          "gridPos"
         ],
         "queries": [
           {
@@ -721,16 +624,12 @@
         "reasons": [
           "Moved or resized to fit the grid.",
           "Some Grafana options of this panel are not supported yet.",
-          "Smoothed or stepped lines are drawn straight.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
           "gridPos",
           "fieldConfig.defaults.custom.axisSoftMin",
-          "fieldConfig.defaults.custom.lineInterpolation",
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
+          "fieldConfig.defaults.custom.lineInterpolation"
         ],
         "queries": [
           {
@@ -752,12 +651,10 @@
         "row": "Troubleshooting",
         "status": "partial",
         "reasons": [
-          "Moved or resized to fit the grid.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Moved or resized to fit the grid."
         ],
         "paths": [
-          "gridPos",
-          "options.legend.displayMode"
+          "gridPos"
         ],
         "queries": [
           {
@@ -777,16 +674,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Alerting rules ($instance)",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -805,16 +695,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Alerting rules ($instance)",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -833,16 +716,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Alerting rules ($instance)",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -861,13 +737,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Alerting rules ($instance)",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -886,13 +758,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Alerting rules ($instance)",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -911,16 +779,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Recording rules ($instance)",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -941,14 +802,10 @@
         "row": "Recording rules ($instance)",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
+          "fieldConfig.defaults.custom.spanNulls"
         ],
         "queries": [
           {
@@ -968,13 +825,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Recording rules ($instance)",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1016,12 +869,10 @@
         "row": "Remote write",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "options.legend.displayMode"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -1113,12 +964,10 @@
         "row": "Remote write",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "options.legend.displayMode"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -1469,6 +1318,8 @@
               "legendValues": [
                 "lastNotNull"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           }
@@ -1510,6 +1361,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1538,6 +1391,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1645,6 +1500,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1681,6 +1538,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1710,6 +1569,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1750,6 +1611,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1786,6 +1649,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1827,6 +1692,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1868,6 +1735,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -2127,6 +1996,8 @@
               "legendValues": [
                 "lastNotNull"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -2200,6 +2071,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -2228,6 +2101,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -2256,6 +2131,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "mean",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -2356,6 +2233,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -2384,6 +2263,8 @@
                 "max",
                 "mean"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },

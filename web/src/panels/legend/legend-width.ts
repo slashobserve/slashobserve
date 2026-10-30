@@ -4,6 +4,7 @@ const plainMinPx = 160
 const plainMaxPx = 280
 const plainShare = 0.3
 const tableMaxShare = 0.5
+const chartMinPx = 120
 const containerPadRem = 0.5
 const cellPadRem = 0.75
 const swatchRem = 1
@@ -41,8 +42,12 @@ export function legendTableWidth(
 
 export function rightLegendWidth(
   tableNaturalPx: number | null,
-  panelWidth: number
+  panelWidth: number,
+  configuredPx?: number
 ): number {
+  if (configuredPx !== undefined) {
+    return Math.min(configuredPx, Math.max(0, panelWidth - chartMinPx))
+  }
   if (tableNaturalPx !== null) {
     return Math.min(tableNaturalPx, panelWidth * tableMaxShare)
   }

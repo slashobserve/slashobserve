@@ -70,12 +70,10 @@
         "row": "Resource Usage",
         "status": "partial",
         "reasons": [
-          "Gradient fill is not part of the SlashObserve look.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Gradient fill is not part of the SlashObserve look."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.gradientMode",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.gradientMode"
         ],
         "queries": [
           {
@@ -119,13 +117,11 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Gradient fill is not part of the SlashObserve look."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.defaults.custom.gradientMode",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.gradientMode"
         ],
         "queries": [
           {
@@ -154,12 +150,10 @@
         "row": "Resource Usage",
         "status": "partial",
         "reasons": [
-          "Gradient fill is not part of the SlashObserve look.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Gradient fill is not part of the SlashObserve look."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.gradientMode",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.gradientMode"
         ],
         "queries": [
           {
@@ -181,12 +175,10 @@
         "row": "Resource Usage",
         "status": "partial",
         "reasons": [
-          "Gradient fill is not part of the SlashObserve look.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Gradient fill is not part of the SlashObserve look."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.gradientMode",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.gradientMode"
         ],
         "queries": [
           {
@@ -229,12 +221,10 @@
         "row": "Push Information",
         "status": "partial",
         "reasons": [
-          "Gradient fill is not part of the SlashObserve look.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Gradient fill is not part of the SlashObserve look."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.gradientMode",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.gradientMode"
         ],
         "queries": [
           {
@@ -270,12 +260,10 @@
         "row": "Push Information",
         "status": "partial",
         "reasons": [
-          "Gradient fill is not part of the SlashObserve look.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Gradient fill is not part of the SlashObserve look."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.gradientMode",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.gradientMode"
         ],
         "queries": [
           {
@@ -304,12 +292,10 @@
         "row": "Push Information",
         "status": "partial",
         "reasons": [
-          "Gradient fill is not part of the SlashObserve look.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Gradient fill is not part of the SlashObserve look."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.gradientMode",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.gradientMode"
         ],
         "queries": [
           {

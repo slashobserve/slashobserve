@@ -21,6 +21,7 @@ import type { PanelRenderer, PanelRendererProps } from "../types"
 import { Unsupported } from "../unsupported"
 import { alignFrames, type AlignedFrames } from "./align"
 import { Legend, rootFontSize, type LegendItem } from "../legend/legend"
+import { effectiveLegendMode, legendOrder } from "../legend/legend-model"
 import { LegendTable, useLegendTextMeasure } from "../legend/legend-table"
 import { legendTableWidth, rightLegendWidth } from "../legend/legend-width"
 import {
@@ -418,27 +419,54 @@ export function TimeseriesChart({
     [aligned.series, configs, slots]
   )
 
-  const legendShown = series.length > 1 && options.legend !== "hidden"
+  const legendMode = effectiveLegendMode(options.legendMode, reducers)
+  const order = useMemo(
+    () =>
+      legendOrder(
+        series.map(({ key, label, fieldValues }) => ({
+          key,
+          label,
+          values: fieldValues,
+        })),
+        {
+          mode: legendMode,
+          values: reducers,
+          sortBy: options.legendSortBy,
+          sortDesc: options.legendSortDesc,
+          hideZero: options.legendHideZero,
+          hideEmpty: options.legendHideEmpty,
+        }
+      ),
+    [series, legendMode, reducers, options]
+  )
+  const listed = useMemo(
+    () => order.map((index) => series[index]),
+    [order, series]
+  )
+  const legendShown =
+    series.length > 1 && options.legend !== "hidden" && order.length > 0
   const placement = options.legend === "right" ? "right" : "bottom"
   const hidden = useMemo(
     () => visibleSeries(storedHidden, keys, legendShown),
     [storedHidden, keys, legendShown]
   )
-  const cells = useMemo(() => legendCells(series, reducers), [series, reducers])
+  const cells = useMemo(() => legendCells(listed, reducers), [listed, reducers])
   const rightLegend = legendShown && placement === "right"
   const textMeasure = useLegendTextMeasure()
   const tableWidth = useMemo(() => {
     if (!rightLegend || reducers.length === 0) return null
     const rem = rootFontSize()
     return legendTableWidth(
-      series.map(({ label }) => label),
+      listed.map(({ label }) => label),
       reducers.map((reducer) => reducerLabels[reducer]),
       cells,
       textMeasure(rem),
       rem
     )
-  }, [rightLegend, series, reducers, cells, textMeasure])
-  const legendWidth = rightLegend ? rightLegendWidth(tableWidth, width) : 0
+  }, [rightLegend, listed, reducers, cells, textMeasure])
+  const legendWidth = rightLegend
+    ? rightLegendWidth(tableWidth, width, options.legendWidth)
+    : 0
   const chartWidth = width - legendWidth
   const bottomLegend = legendShown && placement === "bottom"
   const chartHeight = Math.max(0, height - (bottomLegend ? legendHeight : 0))
@@ -517,7 +545,7 @@ export function TimeseriesChart({
     )
     observer.observe(element)
     return () => observer.disconnect()
-  }, [bottomLegend, reducers.length])
+  }, [bottomLegend, legendMode, reducers.length])
 
   useLayoutEffect(() => {
     const container = containerRef.current
@@ -604,7 +632,7 @@ export function TimeseriesChart({
     [toggleKey, stateKey]
   )
 
-  const items: LegendItem[] = series.map((entry) => ({
+  const items: LegendItem[] = listed.map((entry) => ({
     key: entry.key,
     label: entry.label,
     color: entry.color,
@@ -648,11 +676,17 @@ export function TimeseriesChart({
         className="ts-chart shrink-0 overflow-hidden"
         style={{ width: chartWidth, height: chartHeight }}
       />
-      {legendShown && reducers.length > 0 ? (
-        <LegendTable {...legendProps} reducers={reducers} cells={cells} />
+      {legendShown && legendMode === "table" ? (
+        <LegendTable
+          {...legendProps}
+          reducers={reducers}
+          cells={cells}
+          sortBy={options.legendSortBy}
+          sortDesc={options.legendSortDesc}
+        />
       ) : null}
-      {legendShown && reducers.length === 0 ? (
-        <Legend {...legendProps} />
+      {legendShown && legendMode === "list" ? (
+        <Legend {...legendProps} reducers={reducers} cells={cells} />
       ) : null}
     </div>
   )

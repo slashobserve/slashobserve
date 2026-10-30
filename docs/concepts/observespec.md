@@ -114,6 +114,8 @@ The other panel types are:
   The agent may move or delete one but never creates or edits one.
 
 A data panel can also set `timeFrom` and `timeShift` to override the dashboard's time range, `interval` (the same forms as a query's) and `maxDataPoints` to shape the step of its queries, and `display`, a small set of options that depend on its type, such as the legend of a `timeseries` or the `header` of a `table`.
+The legend of a `timeseries` or `trend` panel is a `list` or a `table` (`legendMode`), may show reducer `legendValues`, sorts by a value or by name (`legendSortBy`, `legendSortDesc`), takes a width when it sits on the right (`legendWidth`), and hides all-zero or empty series (`legendHideZero`, `legendHideEmpty`).
+When `legendMode` is absent the legend is a table if `legendValues` is not empty and a list otherwise.
 
 ## Maps, canvases and actions
 

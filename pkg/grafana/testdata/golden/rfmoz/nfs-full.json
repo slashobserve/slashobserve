@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 27,
-      "imported": 0,
-      "partial": 27,
+      "imported": 18,
+      "partial": 9,
       "placeholder": 0,
       "unverified": 0
     },
@@ -45,12 +45,10 @@
         "row": "NFS",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -72,12 +70,10 @@
         "row": "NFS",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -99,12 +95,10 @@
         "row": "NFS",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -133,12 +127,10 @@
         "row": "NFS",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -167,12 +159,10 @@
         "row": "NFS",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -209,13 +199,11 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -245,13 +233,11 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -280,12 +266,10 @@
         "row": "NFS",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -307,12 +291,10 @@
         "row": "NFS",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -353,13 +335,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -378,13 +356,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS v2 Detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -459,13 +433,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS v2 Detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "J",
@@ -540,13 +510,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFSd v2 Detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -614,13 +580,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFSd v2 Detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "I",
@@ -697,13 +659,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS v3 Detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -792,13 +750,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS v3 Detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "L",
@@ -887,13 +841,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFSd v3 Detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -982,13 +932,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFSd v3 Detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "L",
@@ -1070,13 +1016,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS v4 Detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1165,13 +1107,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS v4 Detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "L",
@@ -1260,13 +1198,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS v4 Detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "L",
@@ -1348,13 +1282,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS v4 Detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "L",
@@ -1436,13 +1366,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS v4 Detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "L",
@@ -1524,13 +1450,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS v4 Detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "L",
@@ -1598,13 +1520,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFSd v4 Detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1686,13 +1604,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFSd v4 Detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "L",
@@ -1774,13 +1688,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFSd v4 Detail",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "L",

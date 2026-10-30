@@ -198,6 +198,7 @@
           "fieldConfig.defaults.color",
           "fieldConfig.defaults.custom.lineWidth",
           "options.legend.showLegend",
+          "options.legend.width",
           "options.rowHeight"
         ],
         "queries": [

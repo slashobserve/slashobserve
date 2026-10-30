@@ -32,6 +32,9 @@ export const specDefaults = {
     "timeseries": {
       "legend": "bottom",
       "legendValues": [],
+      "legendSortDesc": false,
+      "legendHideZero": false,
+      "legendHideEmpty": false,
       "tooltip": "single"
     },
     "stat": {
@@ -85,6 +88,9 @@ export const specDefaults = {
     "trend": {
       "legend": "bottom",
       "legendValues": [],
+      "legendSortDesc": false,
+      "legendHideZero": false,
+      "legendHideEmpty": false,
       "tooltip": "single"
     },
     "xychart": {

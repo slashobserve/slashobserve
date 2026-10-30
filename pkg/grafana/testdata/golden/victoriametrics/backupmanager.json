@@ -935,7 +935,8 @@
               "legendValues": [
                 "max",
                 "mean"
-              ]
+              ],
+              "legendMode": "list"
             }
           }
         ]

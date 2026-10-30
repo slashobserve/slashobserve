@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 77,
-      "imported": 36,
-      "partial": 41,
+      "imported": 38,
+      "partial": 39,
       "placeholder": 0,
       "unverified": 0
     },
@@ -281,13 +281,11 @@
         "row": "API",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[1]"
         ],
         "queries": [
           {
@@ -309,13 +307,11 @@
         "row": "API",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[1]"
         ],
         "queries": [
           {
@@ -337,13 +333,11 @@
         "row": "API",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[1]"
         ],
         "queries": [
           {
@@ -365,13 +359,11 @@
         "row": "API",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[1]"
         ],
         "queries": [
           {
@@ -393,13 +385,11 @@
         "row": "API",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[1]"
         ],
         "queries": [
           {
@@ -421,13 +411,11 @@
         "row": "API",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[1]"
         ],
         "queries": [
           {
@@ -462,13 +450,11 @@
         "row": "Cilium",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[1]"
         ],
         "queries": [
           {
@@ -490,13 +476,11 @@
         "row": "Cilium",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[1]"
         ],
         "queries": [
           {
@@ -518,13 +502,11 @@
         "row": "Cilium",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[1]"
         ],
         "queries": [
           {
@@ -544,13 +526,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -660,13 +638,11 @@
         "row": "Cilium",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[1]"
         ],
         "queries": [
           {
@@ -688,13 +664,11 @@
         "row": "Cilium",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[1]"
         ],
         "queries": [
           {
@@ -716,13 +690,11 @@
         "row": "Cilium",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[1]"
         ],
         "queries": [
           {
@@ -744,13 +716,11 @@
         "row": "Cilium",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[1]"
         ],
         "queries": [
           {
@@ -1071,13 +1041,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1756,13 +1722,11 @@
         "row": "Cilium",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[1]"
         ],
         "queries": [
           {
@@ -1784,13 +1748,11 @@
         "row": "Cilium",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[1]"
         ],
         "queries": [
           {
@@ -1812,13 +1774,11 @@
         "row": "Cilium",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[1]"
         ],
         "queries": [
           {
@@ -1840,13 +1800,11 @@
         "row": "Cilium",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[1]"
         ],
         "queries": [
           {
@@ -3972,6 +3930,7 @@
               "legendValues": [
                 "mean"
               ],
+              "legendMode": "list",
               "tooltip": "all"
             }
           },
@@ -4212,7 +4171,8 @@
               "legend": "right",
               "legendValues": [
                 "lastNotNull"
-              ]
+              ],
+              "legendMode": "list"
             }
           },
           {
@@ -4366,6 +4326,7 @@
               "legendValues": [
                 "lastNotNull"
               ],
+              "legendMode": "list",
               "tooltip": "all"
             }
           },
@@ -4406,6 +4367,7 @@
               "legendValues": [
                 "mean"
               ],
+              "legendMode": "list",
               "tooltip": "all"
             }
           },
@@ -4434,6 +4396,7 @@
               "legendValues": [
                 "mean"
               ],
+              "legendMode": "list",
               "tooltip": "all"
             }
           },
@@ -4487,7 +4450,8 @@
               "legendValues": [
                 "mean",
                 "max"
-              ]
+              ],
+              "legendMode": "list"
             }
           },
           {
@@ -4534,7 +4498,8 @@
             "display": {
               "legendValues": [
                 "lastNotNull"
-              ]
+              ],
+              "legendMode": "list"
             }
           },
           {
@@ -4597,6 +4562,7 @@
                 "mean",
                 "max"
               ],
+              "legendMode": "list",
               "tooltip": "all"
             }
           },
@@ -4664,6 +4630,7 @@
                 "max",
                 "min"
               ],
+              "legendMode": "list",
               "tooltip": "all"
             }
           },
@@ -4700,6 +4667,7 @@
             "fill": 10,
             "display": {
               "legend": "right",
+              "legendMode": "table",
               "tooltip": "all"
             }
           },
@@ -4724,6 +4692,7 @@
             "fill": 10,
             "display": {
               "legend": "right",
+              "legendMode": "table",
               "tooltip": "all"
             }
           },
@@ -4810,6 +4779,7 @@
               "legendValues": [
                 "mean"
               ],
+              "legendMode": "list",
               "tooltip": "all"
             }
           },
@@ -4838,6 +4808,7 @@
               "legendValues": [
                 "mean"
               ],
+              "legendMode": "list",
               "tooltip": "all"
             }
           },
@@ -4866,6 +4837,7 @@
               "legendValues": [
                 "mean"
               ],
+              "legendMode": "list",
               "tooltip": "all"
             }
           },
@@ -4894,6 +4866,7 @@
               "legendValues": [
                 "mean"
               ],
+              "legendMode": "list",
               "tooltip": "all"
             }
           },

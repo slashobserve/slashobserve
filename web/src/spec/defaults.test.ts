@@ -184,6 +184,9 @@ describe("spec defaults", () => {
     expect(displayWithDefaults("timeseries", { legend: "right" })).toEqual({
       legend: "right",
       legendValues: [],
+      legendSortDesc: false,
+      legendHideZero: false,
+      legendHideEmpty: false,
       tooltip: "single",
     })
   })
@@ -197,7 +200,14 @@ describe("spec defaults", () => {
   it("displayWithDefaults lets a cleared option fall back to its default", () => {
     expect(
       displayWithDefaults("timeseries", { legend: undefined, tooltip: "all" })
-    ).toEqual({ legend: "bottom", legendValues: [], tooltip: "all" })
+    ).toEqual({
+      legend: "bottom",
+      legendValues: [],
+      legendSortDesc: false,
+      legendHideZero: false,
+      legendHideEmpty: false,
+      tooltip: "all",
+    })
   })
 
   it("displayWithDefaults keeps a __proto__ key as plain data", () => {

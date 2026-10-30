@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 8,
-      "imported": 2,
-      "partial": 6,
+      "imported": 5,
+      "partial": 3,
       "placeholder": 0,
       "unverified": 0
     },
@@ -137,13 +137,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Connection drops",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -162,13 +158,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Connection drops",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -187,13 +179,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network Policy drops",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -214,12 +202,10 @@
         "row": "Network Policy drops",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0]",
-          "options.legend.displayMode"
+          "fieldConfig.overrides[0]"
         ],
         "queries": [
           {

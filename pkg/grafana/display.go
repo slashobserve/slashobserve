@@ -126,6 +126,7 @@ func displayTimeseries(b *panelBuild) {
 	if v, ok := b.value("options.legend.calcs"); ok {
 		d.LegendValues = b.legendValues(v)
 	}
+	b.legendTable(d)
 }
 
 func (b *panelBuild) legendAndTooltip(d *spec.Display) {

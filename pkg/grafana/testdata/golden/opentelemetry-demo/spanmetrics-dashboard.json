@@ -293,14 +293,12 @@
         "reasons": [
           "Exemplars are not supported yet.",
           "Some legend values are not supported yet.",
-          "Smoothed or stepped lines are drawn straight.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
           "targets[0].exemplar",
           "options.legend.calcs",
-          "fieldConfig.defaults.custom.lineInterpolation",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.lineInterpolation"
         ],
         "queries": [
           {

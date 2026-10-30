@@ -49,6 +49,8 @@ type Props = {
   items: LegendItem[]
   reducers: Reducer[]
   cells: string[][]
+  sortBy?: "name" | Reducer
+  sortDesc?: boolean
   hidden: ReadonlySet<string>
   placement: LegendPlacement
   available: number
@@ -61,12 +63,15 @@ export function LegendTable({
   items,
   reducers,
   cells,
+  sortBy,
+  sortDesc = false,
   hidden,
   placement,
   available,
   width,
   onToggle,
 }: Props) {
+  const sorted = sortDesc ? "descending" : "ascending"
   const bottom = placement === "bottom"
   const rem = rootFontSize()
   const header = rowRem * rem
@@ -85,13 +90,18 @@ export function LegendTable({
       <table className="w-full border-separate border-spacing-0 text-xs">
         <thead>
           <tr>
-            <th scope="col" className="sticky top-0 bg-background">
+            <th
+              scope="col"
+              aria-sort={sortBy === "name" ? sorted : undefined}
+              className="sticky top-0 bg-background"
+            >
               <span className="sr-only">Series</span>
             </th>
             {reducers.map((reducer) => (
               <th
                 key={reducer}
                 scope="col"
+                aria-sort={sortBy === reducer ? sorted : undefined}
                 className="sticky top-0 bg-background px-1.5 py-0.5 text-right font-medium whitespace-nowrap text-muted-foreground tabular-nums"
               >
                 {reducerLabels[reducer]}

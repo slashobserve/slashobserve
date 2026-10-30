@@ -142,12 +142,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.spanNulls"
         ],
         "queries": [
           {
@@ -176,12 +174,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.spanNulls"
         ],
         "queries": [
           {
@@ -204,13 +200,11 @@
         "status": "partial",
         "reasons": [
           "Smoothed or stepped lines are drawn straight.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.defaults.custom.lineInterpolation",
-          "fieldConfig.defaults.custom.spanNulls",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.spanNulls"
         ],
         "queries": [
           {
@@ -232,12 +226,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.spanNulls"
         ],
         "queries": [
           {
@@ -281,13 +273,11 @@
         "status": "partial",
         "reasons": [
           "Smoothed or stepped lines are drawn straight.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.defaults.custom.lineInterpolation",
-          "fieldConfig.defaults.custom.spanNulls",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.spanNulls"
         ],
         "queries": [
           {
@@ -309,12 +299,10 @@
         "row": "Proxy Balancer",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.spanNulls"
         ],
         "queries": [
           {
@@ -336,12 +324,10 @@
         "row": "Proxy Balancer",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.spanNulls"
         ],
         "queries": [
           {
@@ -363,12 +349,10 @@
         "row": "Proxy Balancer",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.spanNulls"
         ],
         "queries": [
           {
@@ -397,12 +381,10 @@
         "row": "Proxy Balancer",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.spanNulls"
         ],
         "queries": [
           {
@@ -424,12 +406,10 @@
         "row": "Server Status",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.spanNulls"
         ],
         "queries": [
           {
@@ -458,12 +438,10 @@
         "row": "Server Status",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.spanNulls"
         ],
         "queries": [
           {
@@ -499,12 +477,10 @@
         "row": "Server Status",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.spanNulls"
         ],
         "queries": [
           {
@@ -533,12 +509,10 @@
         "row": "Server Status",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.spanNulls"
         ],
         "queries": [
           {

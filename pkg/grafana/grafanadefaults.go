@@ -230,7 +230,6 @@ var partialReasons = map[string]string{
 	"options.displayMode":                           "Bar styles are drawn in the SlashObserve style.",
 	"options.legend.displayMode":                    legendTableReason,
 	"options.legend.asTable":                        legendTableReason,
-	"legend.alignAsTable":                           legendTableReason,
 	"options.minVizHeight":                          "Size limits are not kept.",
 	"options.minVizWidth":                           "Size limits are not kept.",
 	"options.showThresholdLabels":                   "Threshold labels are not shown.",
@@ -280,12 +279,6 @@ var cosmeticOptions = map[string]cosmeticOption{
 	"options.tooltip.sort": {
 		values: []any{"desc"},
 		why:    "the timeseries tooltip always lists its rows by descending value",
-	},
-	"options.legend.width": {
-		why: "the timeseries legend is a wrapping strip under the plot and has no width",
-	},
-	"legend.sideWidth": {
-		why: "the timeseries legend is a wrapping strip under the plot and has no width",
 	},
 	"fieldConfig.defaults.custom.width": {
 		why: "table columns are sized by the browser from their content and have no fixed width",

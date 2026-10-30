@@ -36,17 +36,64 @@ export const legend: DisplayOption = {
   ],
 }
 
+const legendReducerOptions = [
+  { value: "lastNotNull", label: "Last" },
+  { value: "mean", label: "Mean" },
+  { value: "max", label: "Max" },
+  { value: "min", label: "Min" },
+  { value: "sum", label: "Total" },
+]
+
 export const legendValues: DisplayOption = {
   kind: "reducers",
   key: "legendValues",
   label: "Legend values",
+  options: legendReducerOptions,
+}
+
+export const legendMode: DisplayOption = {
+  kind: "choice",
+  key: "legendMode",
+  label: "Legend mode",
+  absent: "Table when values are shown",
   options: [
-    { value: "lastNotNull", label: "Last" },
-    { value: "mean", label: "Mean" },
-    { value: "max", label: "Max" },
-    { value: "min", label: "Min" },
-    { value: "sum", label: "Total" },
+    { value: "list", label: "List" },
+    { value: "table", label: "Table" },
   ],
+}
+
+export const legendSortBy: DisplayOption = {
+  kind: "choice",
+  key: "legendSortBy",
+  label: "Sort legend by",
+  absent: "Series order",
+  options: [{ value: "name", label: "Name" }, ...legendReducerOptions],
+}
+
+export const legendSortDesc: DisplayOption = {
+  kind: "toggle",
+  key: "legendSortDesc",
+  label: "Sort descending",
+}
+
+export const legendWidth: DisplayOption = {
+  kind: "number",
+  key: "legendWidth",
+  label: "Legend width",
+  hint: "Pixels, for a legend on the right",
+  rule: { min: 40, max: 2000, integer: true },
+}
+
+export const legendHideZero: DisplayOption = {
+  kind: "toggle",
+  key: "legendHideZero",
+  label: "Hide series that are all zero",
+}
+
+export const legendHideEmpty: DisplayOption = {
+  kind: "toggle",
+  key: "legendHideEmpty",
+  label: "Hide series with no values",
 }
 
 export const tooltip: DisplayOption = {

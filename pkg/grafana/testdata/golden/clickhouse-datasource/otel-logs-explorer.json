@@ -373,6 +373,7 @@
               "legendValues": [
                 "sum"
               ],
+              "legendMode": "list",
               "tooltip": "all"
             }
           },
@@ -572,6 +573,7 @@
               "legendValues": [
                 "sum"
               ],
+              "legendMode": "list",
               "tooltip": "all"
             }
           },

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 172,
-      "imported": 13,
-      "partial": 159,
+      "imported": 14,
+      "partial": 158,
       "placeholder": 0,
       "unverified": 0
     },
@@ -413,13 +413,10 @@
         "row": "Basic Net / Disk Info",
         "status": "partial",
         "reasons": [
-          "The series override option transform is not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
-          "seriesOverrides[0].transform",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -446,14 +443,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Basic Net / Disk Info",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "legend.sort",
-          "legend.sortDesc"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -474,12 +466,10 @@
         "row": "CPU Memory Net Disk",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -557,12 +547,10 @@
         "row": "CPU Memory Net Disk",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -641,13 +629,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -676,15 +662,10 @@
         "row": "CPU Memory Net Disk",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -707,15 +688,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Hiding empty series from the legend is not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.hideZero",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -746,13 +723,11 @@
         "reasons": [
           "Axis labels are not supported yet.",
           "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
           "seriesOverrides[0].transform",
-          "legend.alignAsTable",
           "xaxis.show"
         ],
         "queries": [
@@ -783,12 +758,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "xaxis.show"
         ],
         "queries": [
@@ -812,12 +785,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -848,12 +819,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -884,12 +853,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -933,12 +900,10 @@
         "row": "Memory Detail Meminfo",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -975,12 +940,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -1010,12 +973,10 @@
         "row": "Memory Detail Meminfo",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -1044,12 +1005,10 @@
         "row": "Memory Detail Meminfo",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -1086,12 +1045,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -1115,13 +1072,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -1151,12 +1106,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -1179,12 +1132,10 @@
         "row": "Memory Detail Meminfo",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -1220,12 +1171,10 @@
         "row": "Memory Detail Meminfo",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -1254,12 +1203,10 @@
         "row": "Memory Detail Meminfo",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -1296,12 +1243,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -1331,12 +1276,10 @@
         "row": "Memory Detail Meminfo",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -1359,13 +1302,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -1395,13 +1336,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -1431,12 +1370,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -1474,12 +1411,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -1517,12 +1452,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -1553,12 +1486,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -1596,12 +1527,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -1625,12 +1554,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -1661,12 +1588,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -1690,12 +1615,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -1761,12 +1684,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -1811,12 +1732,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -1861,12 +1780,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -1911,12 +1828,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -1961,12 +1876,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2018,12 +1931,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2067,12 +1978,10 @@
         "row": "Memory Detail Vmstat",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -2108,12 +2017,10 @@
         "row": "Memory Detail Vmstat",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -2150,12 +2057,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2186,12 +2091,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2222,12 +2125,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2286,12 +2187,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2329,12 +2228,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2365,12 +2262,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2401,12 +2296,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2437,12 +2330,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2480,12 +2371,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2537,12 +2426,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2573,12 +2460,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2609,12 +2494,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2645,12 +2528,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2681,12 +2562,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2717,12 +2596,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2753,12 +2630,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2789,12 +2664,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2818,12 +2691,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2854,12 +2725,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2883,12 +2752,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2919,12 +2786,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2955,12 +2820,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -2984,12 +2847,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -3013,12 +2874,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -3049,12 +2908,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -3085,12 +2942,10 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.alignAsTable",
           "tooltip.value_type"
         ],
         "queries": [
@@ -3127,12 +2982,10 @@
         "row": "System Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3161,12 +3014,10 @@
         "row": "System Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3188,12 +3039,10 @@
         "row": "System Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3229,12 +3078,10 @@
         "row": "System Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3263,12 +3110,10 @@
         "row": "System Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3297,12 +3142,10 @@
         "row": "System Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3324,12 +3167,10 @@
         "row": "System Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3358,12 +3199,10 @@
         "row": "System Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3392,12 +3231,10 @@
         "row": "System Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3448,15 +3285,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Hiding empty series from the legend is not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.hideZero",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -3486,15 +3319,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Hiding empty series from the legend is not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.hideZero",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -3524,18 +3353,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Hiding empty series from the legend is not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.hideZero",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -3565,18 +3387,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Hiding empty series from the legend is not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.hideZero",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -3605,17 +3420,10 @@
         "row": "Disk Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.hideZero",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3638,18 +3446,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Hiding empty series from the legend is not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.hideZero",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -3678,17 +3479,10 @@
         "row": "Disk Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.hideZero",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3710,17 +3504,10 @@
         "row": "Disk Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.hideZero",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3742,12 +3529,10 @@
         "row": "Disk Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3769,12 +3554,10 @@
         "row": "Filesystem Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3810,14 +3593,10 @@
         "row": "Filesystem Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.hideZero",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3839,12 +3618,10 @@
         "row": "Filesystem Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3873,14 +3650,10 @@
         "row": "Filesystem Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.hideZero",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3902,15 +3675,10 @@
         "row": "Filesystem Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.hideEmpty",
-          "legend.hideZero",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -3933,13 +3701,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -3969,16 +3735,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -4008,16 +3769,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -4047,16 +3803,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -4086,16 +3837,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -4125,16 +3871,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -4164,16 +3905,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -4202,12 +3938,10 @@
         "row": "Network traffic Detail",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -4236,12 +3970,10 @@
         "row": "Network Sockstat",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -4291,12 +4023,10 @@
         "row": "Network Sockstat",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -4332,12 +4062,10 @@
         "row": "Network Sockstat",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -4359,12 +4087,10 @@
         "row": "Network Sockstat",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -4393,12 +4119,10 @@
         "row": "Network Sockstat",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -4435,16 +4159,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -4488,16 +4207,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -4527,16 +4241,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -4566,16 +4275,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -4605,16 +4309,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -4644,16 +4343,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -4682,15 +4376,10 @@
         "row": "Network Netstat",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -4719,15 +4408,10 @@
         "row": "Network Netstat",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -4763,15 +4447,10 @@
         "row": "Network Netstat",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -4814,15 +4493,10 @@
         "row": "Network Netstat",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -4866,16 +4540,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -4954,18 +4623,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "Hiding empty series from the legend is not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "legend.hideZero",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -5022,14 +4684,10 @@
         "row": "Network Netstat TCP",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -5058,14 +4716,10 @@
         "row": "Network Netstat TCP",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -5101,14 +4755,10 @@
         "row": "Network Netstat TCP",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -5151,15 +4801,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -5223,15 +4868,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -5268,16 +4908,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -5327,15 +4962,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -5385,15 +5015,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -5450,15 +5075,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -5529,15 +5149,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -5580,15 +5195,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -5617,15 +5227,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -5668,15 +5273,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -5712,15 +5312,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -5798,15 +5393,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -5870,15 +5460,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -5942,15 +5527,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -5986,15 +5566,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -6030,15 +5605,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -6067,15 +5637,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -6118,15 +5683,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -6155,15 +5715,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -6199,15 +5754,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -6236,15 +5786,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -6273,15 +5818,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -6310,15 +5850,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -6340,15 +5875,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -6377,15 +5907,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -6407,15 +5932,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -6437,15 +5957,10 @@
         "row": "Network Netstat TCP Linux MIPs",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -6496,17 +6011,12 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
           "seriesOverrides[0].transform",
-          "seriesOverrides[1].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[1].transform"
         ],
         "queries": [
           {
@@ -6536,17 +6046,12 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
           "seriesOverrides[0].transform",
-          "seriesOverrides[1].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[1].transform"
         ],
         "queries": [
           {
@@ -6597,16 +6102,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -6636,16 +6136,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -6696,16 +6191,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -6763,16 +6253,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -6837,16 +6322,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -6890,16 +6370,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -6943,16 +6418,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -6996,16 +6466,11 @@
         "status": "partial",
         "reasons": [
           "Axis labels are not supported yet.",
-          "The series override option transform is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option transform is not supported yet."
         ],
         "paths": [
           "yaxes[0].label",
-          "seriesOverrides[0].transform",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc"
+          "seriesOverrides[0].transform"
         ],
         "queries": [
           {
@@ -7048,12 +6513,10 @@
         "row": "Node Exporter",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -7075,12 +6538,10 @@
         "row": "Node Exporter",
         "status": "partial",
         "reasons": [
-          "Axis labels are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Axis labels are not supported yet."
         ],
         "paths": [
-          "yaxes[0].label",
-          "legend.alignAsTable"
+          "yaxes[0].label"
         ],
         "queries": [
           {
@@ -7796,6 +7257,7 @@
               }
             ],
             "display": {
+              "legendWidth": 250,
               "tooltip": "all"
             }
           },
@@ -7992,6 +7454,7 @@
               }
             ],
             "display": {
+              "legendWidth": 350,
               "tooltip": "all"
             }
           }
@@ -8217,6 +7680,8 @@
               }
             ],
             "display": {
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -8245,6 +7710,7 @@
             "max": 100,
             "fill": 40,
             "display": {
+              "legendSortBy": "lastNotNull",
               "tooltip": "all"
             }
           }
@@ -8400,6 +7866,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 250,
               "tooltip": "all"
             }
           },
@@ -8604,6 +8071,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -8741,6 +8209,7 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
               "tooltip": "all"
             }
           },
@@ -8898,7 +8367,8 @@
                 "lastNotNull",
                 "max",
                 "min"
-              ]
+              ],
+              "legendHideZero": true
             }
           },
           {
@@ -9171,6 +8641,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -9320,6 +8791,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -9475,6 +8947,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -9777,6 +9250,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -10225,6 +9699,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -10511,6 +9986,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -11110,6 +10586,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -11492,6 +10969,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -11649,6 +11127,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -11790,6 +11269,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -11936,6 +11416,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -12073,6 +11554,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -12216,6 +11698,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -12353,6 +11836,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -12527,6 +12011,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -12678,6 +12163,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -12833,6 +12319,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -12988,6 +12475,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -13143,6 +12631,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -13305,6 +12794,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -13461,6 +12951,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -13936,6 +13427,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -14079,6 +13571,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -14245,6 +13738,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -14402,6 +13896,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -14545,6 +14040,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -14688,6 +14184,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -14831,6 +14328,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -14980,6 +14478,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -15140,6 +14639,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           }
@@ -15297,6 +14797,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -15439,6 +14940,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -15581,6 +15083,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -15724,6 +15227,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -15867,6 +15371,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -16010,6 +15515,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -16153,6 +15659,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -16290,6 +15797,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -16433,6 +15941,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -16570,6 +16079,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -16713,6 +16223,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -16856,6 +16367,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -16992,6 +16504,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -17129,6 +16642,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -17272,6 +16786,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -17415,6 +16930,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },
@@ -17562,6 +17078,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           }
@@ -18126,7 +17643,8 @@
                 "lastNotNull",
                 "max",
                 "min"
-              ]
+              ],
+              "legendHideZero": true
             }
           },
           {
@@ -18283,7 +17801,8 @@
                 "lastNotNull",
                 "max",
                 "min"
-              ]
+              ],
+              "legendHideZero": true
             }
           },
           {
@@ -18440,7 +17959,10 @@
                 "lastNotNull",
                 "max",
                 "min"
-              ]
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendHideZero": true
             }
           },
           {
@@ -18597,7 +18119,10 @@
                 "lastNotNull",
                 "max",
                 "min"
-              ]
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendHideZero": true
             }
           },
           {
@@ -18750,7 +18275,10 @@
                 "lastNotNull",
                 "max",
                 "min"
-              ]
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendHideZero": true
             }
           },
           {
@@ -18908,7 +18436,10 @@
                 "lastNotNull",
                 "max",
                 "min"
-              ]
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendHideZero": true
             }
           },
           {
@@ -19061,7 +18592,10 @@
                 "lastNotNull",
                 "max",
                 "min"
-              ]
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendHideZero": true
             }
           },
           {
@@ -19214,7 +18748,10 @@
                 "lastNotNull",
                 "max",
                 "min"
-              ]
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendHideZero": true
             }
           },
           {
@@ -19458,6 +18995,7 @@
                 "max",
                 "min"
               ],
+              "legendHideZero": true,
               "tooltip": "all"
             }
           },
@@ -19525,6 +19063,7 @@
                 "max",
                 "min"
               ],
+              "legendHideZero": true,
               "tooltip": "all"
             }
           },
@@ -19567,6 +19106,8 @@
                 "max",
                 "min"
               ],
+              "legendHideZero": true,
+              "legendHideEmpty": true,
               "tooltip": "all"
             }
           }
@@ -19686,6 +19227,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -19767,6 +19309,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -19848,6 +19393,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -19929,6 +19477,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -20010,6 +19561,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -20091,6 +19645,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -20172,6 +19729,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -20289,6 +19849,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -20333,6 +19894,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -20365,6 +19927,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -20403,6 +19966,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -20444,6 +20008,7 @@
                 "max",
                 "min"
               ],
+              "legendWidth": 300,
               "tooltip": "all"
             }
           }
@@ -20520,6 +20085,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -20589,6 +20157,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -20658,6 +20229,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -20726,6 +20300,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -20795,6 +20372,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -20864,6 +20444,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -20902,6 +20485,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -20946,6 +20532,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -20995,6 +20584,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -21045,6 +20637,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendWidth": 300,
               "tooltip": "all"
             }
           },
@@ -21138,6 +20733,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendWidth": 300,
               "tooltip": "all"
             }
           }
@@ -21227,6 +20825,9 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendHideZero": true,
               "tooltip": "all"
             }
           },
@@ -21274,6 +20875,7 @@
                 "max",
                 "min"
               ],
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -21319,6 +20921,7 @@
                 "max",
                 "min"
               ],
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -21367,6 +20970,7 @@
                 "max",
                 "min"
               ],
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           }
@@ -21449,6 +21053,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -21493,6 +21099,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -21562,6 +21170,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -21617,6 +21227,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -21679,6 +21291,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -21753,6 +21367,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -21803,6 +21419,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -21841,6 +21459,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -21891,6 +21511,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -21935,6 +21557,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22014,6 +21638,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22082,6 +21708,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22150,6 +21778,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22194,6 +21824,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22238,6 +21870,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22276,6 +21910,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22326,6 +21962,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22364,6 +22002,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22407,6 +22047,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22445,6 +22087,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22483,6 +22127,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22521,6 +22167,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22553,6 +22201,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22590,6 +22240,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22622,6 +22274,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22653,6 +22307,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22709,6 +22365,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           }
@@ -22768,6 +22426,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22830,6 +22490,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22875,6 +22537,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -22937,6 +22601,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           }
@@ -23056,6 +22722,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -23167,6 +22835,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -23230,6 +22900,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -23293,6 +22965,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -23356,6 +23030,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -23419,6 +23095,8 @@
                 "max",
                 "min"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           }

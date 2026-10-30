@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 8,
-      "imported": 2,
-      "partial": 6,
+      "imported": 8,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -113,13 +113,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -138,13 +134,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -163,13 +155,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -188,13 +176,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -213,13 +197,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -238,13 +218,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "D",
@@ -386,6 +362,7 @@
         "fill": 10,
         "display": {
           "legend": "right",
+          "legendMode": "table",
           "tooltip": "all"
         }
       },
@@ -411,6 +388,7 @@
         "fill": 10,
         "display": {
           "legend": "right",
+          "legendMode": "table",
           "tooltip": "all"
         }
       },
@@ -436,6 +414,7 @@
         "fill": 10,
         "display": {
           "legend": "right",
+          "legendMode": "table",
           "tooltip": "all"
         }
       },
@@ -461,6 +440,7 @@
         "fill": 10,
         "display": {
           "legend": "right",
+          "legendMode": "table",
           "tooltip": "all"
         }
       },
@@ -485,6 +465,7 @@
         "fill": 10,
         "display": {
           "legend": "right",
+          "legendMode": "table",
           "tooltip": "all"
         }
       },
@@ -516,6 +497,7 @@
         "fill": 10,
         "display": {
           "legend": "right",
+          "legendMode": "table",
           "tooltip": "all"
         }
       }
