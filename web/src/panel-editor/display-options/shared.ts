@@ -25,6 +25,20 @@ export const calculation: DisplayOption = {
   label: "Calculation",
 }
 
+export const allValues: DisplayOption = {
+  kind: "toggle",
+  key: "allValues",
+  label: "Show every value",
+}
+
+export const rowLimit: DisplayOption = {
+  kind: "number",
+  key: "limit",
+  label: "Row limit",
+  hint: "Rows shown per field when every value is shown",
+  rule: { min: 1, max: 5000, integer: true },
+}
+
 export const legend: DisplayOption = {
   kind: "choice",
   key: "legend",
@@ -144,3 +158,9 @@ export function fieldOption(
     maxLength: maxFieldNameLength,
   }
 }
+
+export const reduceFields = fieldOption(
+  "fields",
+  "Fields",
+  "A field name or /regex/"
+)

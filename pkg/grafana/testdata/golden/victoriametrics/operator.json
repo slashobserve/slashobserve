@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 23,
-      "imported": 19,
-      "partial": 4,
+      "imported": 20,
+      "partial": 3,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.reduceOptions.fields"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -686,6 +682,7 @@
               }
             ],
             "display": {
+              "fields": "/^version$/",
               "graph": false,
               "textMode": "value"
             }

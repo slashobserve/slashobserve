@@ -66,14 +66,10 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Showing every value instead of one reduced value is not supported yet.",
-          "Size limits are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Size limits are not kept."
         ],
         "paths": [
-          "options.reduceOptions.values",
-          "options.minVizWidth",
-          "options.reduceOptions.fields"
+          "options.minVizWidth"
         ],
         "queries": [
           {
@@ -95,13 +91,10 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Showing every value instead of one reduced value is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.reduceOptions.values",
-          "options.legend.values",
-          "options.reduceOptions.fields"
+          "options.legend.values"
         ],
         "queries": [
           {
@@ -403,6 +396,8 @@
             ],
             "display": {
               "reduce": "sum",
+              "allValues": true,
+              "fields": "/Count/",
               "orientation": "horizontal"
             }
           },
@@ -463,6 +458,8 @@
             ],
             "display": {
               "reduce": "sum",
+              "allValues": true,
+              "fields": "/Count/",
               "pieType": "donut"
             }
           },

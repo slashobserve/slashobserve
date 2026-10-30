@@ -83,6 +83,8 @@ The settings column has:
 - The display options that belong to the chosen type.
   For Time series and Trend panels the legend options are **Legend** (bottom, right or hidden), **Legend values**, **Legend mode** (List or Table, "Table when values are shown" until you choose), **Sort legend by** (Name or one of the legend values, "Series order" until you choose), **Sort descending**, **Legend width** (pixels, for a legend on the right), **Hide series that are all zero** and **Hide series with no values**.
   A series hidden from the legend is still drawn.
+  For Stat, Gauge, Bar gauge and Pie chart panels, **Calculation** picks how each field is reduced to one value.
+  **Show every value** shows one value per row instead, **Row limit** (1 to 5000) caps the rows shown per field, and **Fields** shows a field by name or by a pattern such as `/^cpu/` instead of every number field.
 
 A text panel has a **Content** box instead of queries: Markdown up to 20000 characters, with "HTML is removed.".
 A dashboard list or news panel has only the title and its display options.

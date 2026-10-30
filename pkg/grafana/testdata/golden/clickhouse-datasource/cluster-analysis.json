@@ -50,8 +50,7 @@
         ],
         "paths": [
           "title",
-          "options.justifyMode",
-          "options.reduceOptions.fields"
+          "options.justifyMode"
         ],
         "queries": [
           {
@@ -243,13 +242,11 @@
         "status": "partial",
         "reasons": [
           "This color scheme is not supported yet; series use the default palette.",
-          "Showing every value instead of one reduced value is not supported yet.",
           "Bar styles are drawn in the SlashObserve style.",
           "Size limits are not kept."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[1]",
-          "options.reduceOptions.values",
           "options.displayMode",
           "options.minVizHeight",
           "options.minVizWidth"
@@ -301,12 +298,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Showing every value instead of one reduced value is not supported yet.",
           "Bar styles are drawn in the SlashObserve style.",
           "Size limits are not kept."
         ],
         "paths": [
-          "options.reduceOptions.values",
           "options.displayMode",
           "options.minVizHeight",
           "options.minVizWidth"
@@ -503,6 +498,7 @@
           }
         ],
         "display": {
+          "fields": "/.*/",
           "colorMode": "background",
           "orientation": "horizontal"
         }
@@ -747,6 +743,7 @@
           }
         ],
         "display": {
+          "allValues": true,
           "orientation": "horizontal"
         }
       },
@@ -863,6 +860,7 @@
           }
         ],
         "display": {
+          "allValues": true,
           "orientation": "horizontal"
         }
       },

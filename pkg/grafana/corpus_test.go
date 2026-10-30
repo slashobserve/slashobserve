@@ -27,7 +27,7 @@ const (
 	corpusDir     = "corpus"
 	goldenDir     = "golden"
 	minimumRatio  = 90
-	minimumFull   = 47.6
+	minimumFull   = 47.8
 	fullSlack     = 0.5
 	worklistSize  = 10
 	maxLinePaths  = 100

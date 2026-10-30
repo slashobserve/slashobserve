@@ -1,6 +1,4 @@
 import { decimalsByUnit } from "@/lib/units"
-import type { Reducer } from "@/spec"
-
 import {
   displayValue,
   fieldRange,
@@ -11,8 +9,7 @@ import {
   type LinkScope,
   type ResolvedLink,
 } from "../field-config"
-import { seriesKey, uniqueKey } from "../frames"
-import { reduce } from "../reducers"
+import { reduceItems, reduceOptionsOf, type ReduceItem } from "../reduce-items"
 import {
   thresholdColor,
   thresholdFor,
@@ -37,13 +34,10 @@ export type Gauge = {
   config: FieldConfig
   frame: PreparedFrame
   field: PreparedField
+  row?: number
 }
 
-type Source = {
-  frame: PreparedFrame
-  field: PreparedField
-  config: FieldConfig
-}
+type Source = ReduceItem
 
 const center = 50
 const startAngle = 150
@@ -85,23 +79,10 @@ export function valueFontSize(text: string, withMoreLinks = false): number {
   return valueFit / (textWidth + (withMoreLinks ? moreLinksWidth : 0))
 }
 
-function visibleNumberFields(
-  frames: PreparedFrame[],
-  fields: FieldResolver
-): Source[] {
-  return frames.flatMap((frame) =>
-    frame.fields.flatMap((field) => {
-      if (field.type !== "number") return []
-      const config = fields.configFor(frame, field)
-      return config.hidden ? [] : [{ frame, field, config }]
-    })
-  )
-}
-
 function dataRange(sources: Source[]): { min?: number; max?: number } {
   let min: number | undefined
   let max: number | undefined
-  for (const { field } of sources) {
+  for (const field of new Set(sources.map((source) => source.field))) {
     const range = fieldRange(field)
     if (range.min !== undefined && (min === undefined || range.min < min)) {
       min = range.min
@@ -147,45 +128,44 @@ export function gaugeModel(
   fields: FieldResolver,
   display: Record<string, unknown>
 ): Gauge[] {
-  const sources = visibleNumberFields(frames, fields)
-  const reducer = display.reduce as Reducer
+  const sources = reduceItems(frames, fields, reduceOptionsOf("gauge", display))
   const withMarkers = display.thresholdMarkers === true
   const data = dataRange(sources)
-  const values = sources.map(({ field }) => reduce(field.values, reducer))
   const decimals = decimalsByUnit(
-    sources.map(({ config }, index) => ({
+    sources.map(({ config, value }) => ({
       unit: config.unit,
       decimals: config.decimals,
-      value: values[index],
+      value,
     }))
   )
-  const seen = new Map<string, number>()
-  return sources.map(({ frame, field, config }, index) => {
-    const value = values[index]
-    const { min, max } = rangeFor(config, data)
-    const shown = displayValue(value, config, {
-      decimals: decimals.get(config.unit),
-      fieldMin: min,
-      fieldMax: max,
-    })
-    const thresholdColored = shown.threshold.color === shown.color
-    return {
-      key: uniqueKey(seen, seriesKey(frame, field.name)),
-      name: fields.displayName(frame, field),
-      value,
-      meterValue: clamp(value ?? min, min, max),
-      text: shown.text,
-      color: shown.color,
-      threshold: thresholdColored ? shown.threshold : thresholdFor(null),
-      fraction: value === null ? 0 : clamp((value - min) / (max - min), 0, 1),
-      min,
-      max,
-      markers: withMarkers ? markersFor(config, min, max) : [],
-      config,
-      frame,
-      field,
+  return sources.map(
+    ({ key, label, raw, value, frame, field, config, row }) => {
+      const { min, max } = rangeFor(config, data)
+      const shown = displayValue(raw, config, {
+        decimals: decimals.get(config.unit),
+        fieldMin: min,
+        fieldMax: max,
+      })
+      const thresholdColored = shown.threshold.color === shown.color
+      return {
+        key,
+        name: label,
+        value,
+        meterValue: clamp(value ?? min, min, max),
+        text: shown.text,
+        color: shown.color,
+        threshold: thresholdColored ? shown.threshold : thresholdFor(null),
+        fraction: value === null ? 0 : clamp((value - min) / (max - min), 0, 1),
+        min,
+        max,
+        markers: withMarkers ? markersFor(config, min, max) : [],
+        config,
+        frame,
+        field,
+        row,
+      }
     }
-  })
+  )
 }
 
 export function gaugeLinks(
@@ -199,7 +179,7 @@ export function gaugeLinks(
   const { frame, field } = gauge
   const full: LinkScope = {
     ...scope,
-    row: { frame, index: field.values.length - 1 },
+    row: { frame, index: gauge.row ?? field.values.length - 1 },
     labels: frame.labels,
     seriesName: fields.seriesName(frame, field),
     fieldName: field.name,

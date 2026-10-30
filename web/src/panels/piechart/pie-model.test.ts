@@ -210,3 +210,32 @@ describe("slicePath", () => {
     expect(path).toContain("A 40 40 0 1 1")
   })
 })
+
+describe("pieModel value options", () => {
+  it("draws one slice per row with allValues", () => {
+    const { slices } = build([series("a", [1, 3])], {}, { allValues: true })
+    expect(slices.map((slice) => slice.value)).toEqual([1, 3])
+    expect(slices.map((slice) => slice.percent)).toEqual([25, 75])
+  })
+
+  it("stops at the row limit", () => {
+    const { slices } = build(
+      [series("a", [1, 2, 3])],
+      {},
+      { allValues: true, limit: 2 }
+    )
+    expect(slices).toHaveLength(2)
+  })
+
+  it("draws only the field the fields option names", () => {
+    const frame = series("a", [1], {
+      fields: [
+        { name: "Time", type: "time", values: [0] },
+        { name: "cpu", type: "number", values: [1] },
+        { name: "mem", type: "number", values: [2] },
+      ],
+    })
+    const { slices } = build([frame], {}, { fields: "mem" })
+    expect(slices.map((slice) => slice.value)).toEqual([2])
+  })
+})

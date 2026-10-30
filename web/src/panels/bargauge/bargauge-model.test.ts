@@ -365,3 +365,52 @@ describe("data links", () => {
     ).toEqual([{ title: "Open", href: "/h/new?o=9&v=7", newTab: false }])
   })
 })
+
+describe("bargaugeModel value options", () => {
+  it("draws one bar per row with allValues", () => {
+    const { model } = build([series([10, 40, 90])], {}, { allValues: true })
+    expect(model.bars.map((bar) => bar.value)).toEqual([10, 40, 90])
+  })
+
+  it("stops at the row limit", () => {
+    const { model } = build(
+      [series([10, 40, 90])],
+      {},
+      { allValues: true, limit: 1 }
+    )
+    expect(model.bars.map((bar) => bar.value)).toEqual([10])
+  })
+
+  it("links a row bar to its own row", () => {
+    const link = {
+      title: "Row",
+      url: "/r?v=${__value.raw}&t=${__data.fields.Time}",
+    }
+    const { fields, display, model } = build(
+      [series([10, 40, 90])],
+      { links: [link] } as Partial<DataPanel>,
+      { allValues: true }
+    )
+    const resolved = barLinks(fields, model.bars[1], reducerOf(display), {
+      vars: {},
+      fields,
+    })
+    expect(resolved[0].href).toBe("/r?v=40&t=1")
+  })
+
+  it("shows only the fields a pattern picks", () => {
+    const frame = series(
+      [5],
+      {},
+      {
+        fields: [
+          { name: "Time", type: "time", values: [0] },
+          { name: "cpu", type: "number", values: [1] },
+          { name: "mem", type: "number", values: [2] },
+        ],
+      }
+    )
+    const { model } = build([frame], {}, { fields: "/^m/" })
+    expect(model.bars.map((bar) => bar.value)).toEqual([2])
+  })
+})

@@ -1991,6 +1991,22 @@
                   "reduce": {
                     "$ref": "#/$defs/reducer"
                   },
+                  "allValues": {
+                    "type": "boolean",
+                    "x-omitFromPrompt": true
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5000,
+                    "x-omitFromPrompt": true
+                  },
+                  "fields": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "x-omitFromPrompt": true
+                  },
                   "colorMode": {
                     "enum": [
                       "value",
@@ -2038,6 +2054,22 @@
                   "reduce": {
                     "$ref": "#/$defs/reducer"
                   },
+                  "allValues": {
+                    "type": "boolean",
+                    "x-omitFromPrompt": true
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5000,
+                    "x-omitFromPrompt": true
+                  },
+                  "fields": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "x-omitFromPrompt": true
+                  },
                   "thresholdMarkers": {
                     "type": "boolean"
                   }
@@ -2062,6 +2094,22 @@
                 "properties": {
                   "reduce": {
                     "$ref": "#/$defs/reducer"
+                  },
+                  "allValues": {
+                    "type": "boolean",
+                    "x-omitFromPrompt": true
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5000,
+                    "x-omitFromPrompt": true
+                  },
+                  "fields": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "x-omitFromPrompt": true
                   },
                   "orientation": {
                     "enum": [
@@ -2121,6 +2169,22 @@
                 "properties": {
                   "reduce": {
                     "$ref": "#/$defs/reducer"
+                  },
+                  "allValues": {
+                    "type": "boolean",
+                    "x-omitFromPrompt": true
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5000,
+                    "x-omitFromPrompt": true
+                  },
+                  "fields": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "x-omitFromPrompt": true
                   },
                   "pieType": {
                     "enum": [

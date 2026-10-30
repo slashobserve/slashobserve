@@ -511,3 +511,40 @@ describe("valueFontSize", () => {
     expect(valueFontSize("1234", true)).toBeLessThan(valueFontSize("1234"))
   })
 })
+
+describe("gaugeModel value options", () => {
+  const rows = frame([time, number([10, 40, 90])])
+
+  it("makes one gauge per row with allValues, on one shared range", () => {
+    const gauges = build([rows], {}, { allValues: true })
+    expect(gauges.map((gauge) => gauge.value)).toEqual([10, 40, 90])
+    expect(new Set(gauges.map((gauge) => gauge.max))).toEqual(new Set([90]))
+    expect(new Set(gauges.map((gauge) => gauge.key)).size).toBe(3)
+  })
+
+  it("stops at the row limit", () => {
+    const gauges = build([rows], {}, { allValues: true, limit: 2 })
+    expect(gauges.map((gauge) => gauge.value)).toEqual([10, 40])
+  })
+
+  it("links a row gauge to its own row", () => {
+    const link = {
+      title: "Row",
+      url: "/r?v=${__value.raw}&t=${__data.fields.Time}",
+    }
+    const extra = { links: [link] } as Partial<DataPanel>
+    const gauges = build([rows], extra, { allValues: true })
+    const fields = createFieldResolver(panel(extra))
+    const resolved = gaugeLinks(gauges[1], fields, { vars: {}, fields })
+    expect(resolved[0].href).toBe("/r?v=40&t=2")
+  })
+
+  it("shows only the field the fields option names", () => {
+    const gauges = build(
+      [frame([time, number([1], "cpu"), number([2], "mem")])],
+      {},
+      { fields: "mem" }
+    )
+    expect(gauges.map((gauge) => gauge.value)).toEqual([2])
+  })
+})

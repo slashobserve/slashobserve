@@ -50,8 +50,7 @@
         ],
         "paths": [
           "title",
-          "options.justifyMode",
-          "options.reduceOptions.fields"
+          "options.justifyMode"
         ],
         "queries": [
           {
@@ -180,14 +179,12 @@
         "status": "partial",
         "reasons": [
           "This color scheme is not supported yet; series use the default palette.",
-          "Showing every value instead of one reduced value is not supported yet.",
           "Bar styles are drawn in the SlashObserve style.",
           "Some Grafana options of this panel are not supported yet.",
           "Size limits are not kept."
         ],
         "paths": [
           "fieldConfig.defaults.color",
-          "options.reduceOptions.values",
           "options.displayMode",
           "options.legend.showLegend",
           "options.minVizHeight",
@@ -214,14 +211,12 @@
         "status": "partial",
         "reasons": [
           "This color scheme is not supported yet; series use the default palette.",
-          "Showing every value instead of one reduced value is not supported yet.",
           "Bar styles are drawn in the SlashObserve style.",
           "Some Grafana options of this panel are not supported yet.",
           "Size limits are not kept."
         ],
         "paths": [
           "fieldConfig.defaults.color",
-          "options.reduceOptions.values",
           "options.displayMode",
           "options.legend.showLegend",
           "options.minVizHeight",
@@ -429,13 +424,11 @@
         "status": "partial",
         "reasons": [
           "This color scheme is not supported yet; series use the default palette.",
-          "Showing every value instead of one reduced value is not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Size limits are not kept."
         ],
         "paths": [
           "fieldConfig.defaults.color",
-          "options.reduceOptions.values",
           "options.legend.showLegend",
           "options.minVizHeight",
           "options.minVizWidth"
@@ -561,6 +554,7 @@
           }
         ],
         "display": {
+          "fields": "/.*/",
           "colorMode": "background",
           "orientation": "horizontal"
         }
@@ -737,6 +731,7 @@
           }
         ],
         "display": {
+          "allValues": true,
           "orientation": "horizontal"
         }
       },
@@ -767,6 +762,7 @@
           }
         ],
         "display": {
+          "allValues": true,
           "orientation": "horizontal"
         }
       },
@@ -1071,6 +1067,7 @@
           }
         ],
         "display": {
+          "allValues": true,
           "orientation": "horizontal"
         }
       },

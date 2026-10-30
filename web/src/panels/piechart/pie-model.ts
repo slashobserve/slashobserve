@@ -1,14 +1,8 @@
 import { decimalsByUnit } from "@/lib/units"
-import type { Reducer } from "@/spec"
 
 import { styleForSlot } from "../colors"
-import {
-  displayValue,
-  type FieldConfig,
-  type FieldResolver,
-} from "../field-config"
-import { seriesKey, uniqueKey } from "../frames"
-import { reduce } from "../reducers"
+import { displayValue, type FieldResolver } from "../field-config"
+import { reduceItems, reduceOptionsOf } from "../reduce-items"
 import type { PreparedFrame } from "../transforms"
 
 export type PieType = "pie" | "donut"
@@ -39,10 +33,6 @@ export const donutRatio = 0.6
 
 const fullTurn = Math.PI * 2
 
-function reducerOf(display: Record<string, unknown>): Reducer {
-  return display.reduce as Reducer
-}
-
 export function pieTypeOf(display: Record<string, unknown>): PieType {
   return display.pieType === "donut" ? "donut" : "pie"
 }
@@ -51,37 +41,6 @@ export function legendOf(display: Record<string, unknown>): PieLegend {
   if (display.legend === "bottom") return "bottom"
   if (display.legend === "hidden") return "hidden"
   return "right"
-}
-
-type Entry = {
-  key: string
-  name: string
-  config: FieldConfig
-  value: number | null
-  color: string
-}
-
-function entriesOf(
-  frames: PreparedFrame[],
-  fields: FieldResolver,
-  reducer: Reducer
-): Omit<Entry, "color">[] {
-  const seen = new Map<string, number>()
-  const entries: Omit<Entry, "color">[] = []
-  for (const frame of frames) {
-    for (const field of frame.fields) {
-      if (field.type !== "number") continue
-      const config = fields.configFor(frame, field)
-      if (config.hidden) continue
-      entries.push({
-        key: uniqueKey(seen, seriesKey(frame, field.name)),
-        name: fields.displayName(frame, field),
-        config,
-        value: reduce(field.values, reducer),
-      })
-    }
-  }
-  return entries
 }
 
 function isDrawn(value: number | null): value is number {
@@ -93,7 +52,11 @@ export function pieModel(
   fields: FieldResolver,
   display: Record<string, unknown>
 ): PieModel {
-  const entries = entriesOf(frames, fields, reducerOf(display))
+  const entries = reduceItems(
+    frames,
+    fields,
+    reduceOptionsOf("piechart", display)
+  )
   const decimals = decimalsByUnit(
     entries.map(({ config, value }) => ({
       unit: config.unit,
@@ -108,8 +71,8 @@ export function pieModel(
   const slices: Slice[] = []
   const left: LeftOut[] = []
   let angle = 0
-  entries.forEach(({ key, name, config, value }, index) => {
-    const shown = displayValue(value, config, {
+  entries.forEach(({ key, label: name, config, value, raw }, index) => {
+    const shown = displayValue(raw, config, {
       decimals: decimals.get(config.unit),
     })
     const color = shown.color ?? styleForSlot(index).color
