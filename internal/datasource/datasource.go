@@ -65,6 +65,7 @@ type Query struct {
 	Format    string
 	Variables []Variable
 	Filters   []AdhocFilter
+	GroupBy   []string
 	Limits    Limits
 	Dashboard string
 	User      QueryUser

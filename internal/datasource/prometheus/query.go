@@ -127,6 +127,9 @@ func (d *Datasource) expand(q datasource.Query, r datasource.TimeRange, interval
 			return "", datasource.Errorf(datasource.ErrInvalidQuery, "%s", truncateText(err.Error()))
 		}
 	}
+	if text, err = applyGroupBy(text, q.GroupBy); err != nil {
+		return "", datasource.Errorf(datasource.ErrInvalidQuery, "%s", truncateText(err.Error()))
+	}
 	if _, err := promParser.ParseExpr(text); err != nil {
 		return "", datasource.Errorf(datasource.ErrInvalidQuery, "%s", truncateText(err.Error()))
 	}
