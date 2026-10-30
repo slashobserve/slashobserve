@@ -1,0 +1,16 @@
+hideTimeOverride=true
+options.graphMode=line
+options.justifyMode=center
+options.percentChangeColorMode=inverted
+options.percentChangeColorMode=same_as_value
+options.reduceOptions.calcs=min-max
+options.reduceOptions.fields=all-fields
+options.reduceOptions.fields=value-regex
+options.reduceOptions.limit=10
+options.reduceOptions.values=true
+options.showPercentChange=true
+options.text.percentSize=14
+options.text.titleSize=20
+options.text.valueSize=40
+options.wideLayout=false
+transparent=true
