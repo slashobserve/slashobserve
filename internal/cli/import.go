@@ -186,21 +186,14 @@ func (a *app) runImport(cmd *cobra.Command, args []string) error {
 	}
 	out.line("%s", c.base.JoinPath("dashboards", imported.Dashboard.ID).String())
 	out.notice("Imported %q: %s", text(imported.Import.Title), imported.Import.Report.Counts.line())
-	for _, line := range imported.folderLines() {
-		out.notice("%s", line)
+	out.notice("Folder: %s", text(imported.Dashboard.Folder.Title))
+	if imported.FolderNote != nil {
+		out.warn("%s", text(*imported.FolderNote))
 	}
 	if table := imported.Import.Report.attention(); table != "" {
 		out.notice("%s", table)
 	}
 	return nil
-}
-
-func (d importedDashboard) folderLines() []string {
-	lines := []string{"Folder: " + text(d.Dashboard.Folder.Title)}
-	if d.FolderNote != nil {
-		lines = append(lines, text(*d.FolderNote))
-	}
-	return lines
 }
 
 func unresolvedFrom(err error) error {

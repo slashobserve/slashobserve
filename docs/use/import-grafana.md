@@ -20,7 +20,7 @@ The dashboard goes into a folder, chosen in this order:
 A title matches an existing folder without regard to case.
 A title of `General`, or an export title that is empty or not a valid folder title, means the default; an invalid `folder` in the request is refused with `400 invalid_request`.
 When no folder has the title, an Editor or Admin creates it.
-When a folder has the title but you cannot create dashboards in it, the dashboard goes to your default folder instead, and the response carries a `folder_note` saying so (`observe import` prints it on standard error).
+When a folder has the title but you cannot create dashboards in it, the dashboard goes to your default folder instead, and the response carries a `folder_note` saying so (`observe import` prints it on standard error, even with `-q`).
 The folder is chosen before the dashboard is saved, so an import that then fails can leave a new, empty folder behind; delete it from its settings page.
 
 The request body, with the dashboard JSON as a string, can be at most 8 MiB.
