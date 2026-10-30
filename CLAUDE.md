@@ -96,6 +96,7 @@ Directories are created when their phase starts; this is where things go.
   A min step written as a variable imports as `${name}`, a single-select custom variable of durations used as a min step imports as an interval variable, and `intervalFactor` 2 to 10 is kept.
   Grafana's renamed and retired panel types import as their modern type (`graph`, `table-old`, `singlestat`, `grafana-singlestat-panel`, `datagrid`, `logs-new`, `logstable`, `grafana-piechart-panel`), and `annolist`, `welcome`, `gettingstarted`, `debug`, `live` and `alertGroups` become placeholders with their own reason.
   `grafana-worldmap-panel` imports as `geomap` and `natel-discrete-panel` as `state-timeline`.
+  Altinity whole-query macros (`$rate`, `$columns` and their families) expand on import to plain SQL that returns long rows (time, key, value), so the stored query never depends on Altinity's macro engine; a ClickHouse builder's settings drop silently when its generated SQL is kept.
   Alert lists import as one Prometheus `ALERTS` query, and Grafana-managed or legacy ones become placeholders.
   Canvas element positions are converted to percent of the panel and reported, and no element link or action is imported.
   A dashboard list is a static panel and never needs a datasource match.

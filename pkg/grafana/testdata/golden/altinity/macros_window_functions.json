@@ -30,8 +30,8 @@
     "counts": {
       "total": 24,
       "imported": 0,
-      "partial": 0,
-      "placeholder": 24,
+      "partial": 24,
+      "placeholder": 0,
       "unverified": 0
     },
     "panels": [
@@ -40,22 +40,25 @@
         "grafana_id": 1,
         "grafana_path": "panels[0]",
         "title": "$delta",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $delta builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $delta builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$delta(Value) FROM $table -> SELECT t, max_0 - lagInFrame(max_0, 1, max_0) OVER w AS max_0_Delta FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -64,22 +67,25 @@
         "grafana_id": 2,
         "grafana_path": "panels[1]",
         "title": "$delta - without window functions",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $delta builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $delta builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$delta(Value) FROM $table -> SELECT t, max_0 - lagInFrame(max_0, 1, max_0) OVER w AS max_0_Delta FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -88,22 +94,25 @@
         "grafana_id": 21,
         "grafana_path": "panels[2]",
         "title": "$deltaColumns",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $deltaColumns builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $deltaColumns builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$deltaColumns(Name, Value) FROM $table -> SELECT t, toString(Name) AS Name, max_0 - lagInFrame(max_0, 1, max_0) OVER w AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -112,22 +121,25 @@
         "grafana_id": 22,
         "grafana_path": "panels[3]",
         "title": "$deltaColumns - without window functions",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $deltaColumns builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $deltaColumns builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$deltaColumns(Name, Value) FROM $table -> SELECT t, toString(Name) AS Name, max_0 - lagInFrame(max_0, 1, max_0) OVER w AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -136,22 +148,25 @@
         "grafana_id": 23,
         "grafana_path": "panels[4]",
         "title": "$deltaColumnsAggregated",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $deltaColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $deltaColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$deltaColumnsAggregated(Name, 'test2' AS subName, sum, Value) FROM $table -> SELECT t, toString(Name) AS Name, sum(ValueDelta) AS ValueDeltaAgg FROM (SELECT t, Name, subName, Value - lagInFrame(Value, 1, Value) OVER w AS ValueDelta FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -160,22 +175,25 @@
         "grafana_id": 24,
         "grafana_path": "panels[5]",
         "title": "$deltaColumnsAggregated - without window functions",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $deltaColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $deltaColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$deltaColumnsAggregated(Name, 'test2' AS subName, sum, Value) FROM $table -> SELECT t, toString(Name) AS Name, sum(ValueDelta) AS ValueDeltaAgg FROM (SELECT t, Name, subName, Value - lagInFrame(Value, 1, Value) OVER w AS ValueDelta FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -184,22 +202,25 @@
         "grafana_id": 3,
         "grafana_path": "panels[6]",
         "title": "$increase",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $increase builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $increase builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$increase(Value) FROM $table -> SELECT t, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, 0, max_0 - lagInFrame(max_0, 1, max_0) OVER w) AS max_0_Increase FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -208,22 +229,25 @@
         "grafana_id": 4,
         "grafana_path": "panels[7]",
         "title": "$increase - without window functions",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $increase builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $increase builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$increase(Value) FROM $table -> SELECT t, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, 0, max_0 - lagInFrame(max_0, 1, max_0) OVER w) AS max_0_Increase FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -232,22 +256,25 @@
         "grafana_id": 17,
         "grafana_path": "panels[8]",
         "title": "$increaseColumns",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $increaseColumns builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $increaseColumns builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$increaseColumns(Name, Value) FROM $table -> SELECT t, toString(Name) AS Name, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, 0, max_0 - lagInFrame(max_0, 1, max_0) OVER w) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -256,22 +283,25 @@
         "grafana_id": 18,
         "grafana_path": "panels[9]",
         "title": "$increaseColumns - without window functions",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $increaseColumns builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $increaseColumns builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$increaseColumns(Name, Value) FROM $table -> SELECT t, toString(Name) AS Name, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, 0, max_0 - lagInFrame(max_0, 1, max_0) OVER w) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -280,22 +310,25 @@
         "grafana_id": 19,
         "grafana_path": "panels[10]",
         "title": "$increaseColumnsAggregated",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $increaseColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $increaseColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$increaseColumnsAggregated(Name, 'test2' AS subName, sum, Value) FROM $table -> SELECT t, toString(Name) AS Name, sum(ValueIncrease) AS ValueIncreaseAgg FROM (SELECT t, Name, subName, if((Value - lagInFrame(Value, 1, Value) OVER w) < 0, 0, Value - lagInFrame(Value, 1, Value) OVER w) AS ValueIncrease FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -304,22 +337,25 @@
         "grafana_id": 20,
         "grafana_path": "panels[11]",
         "title": "$increaseColumnsAggregated - without window functions",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $increaseColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $increaseColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$increaseColumnsAggregated(Name, 'test2' AS subName, sum, Value) FROM $table -> SELECT t, toString(Name) AS Name, sum(ValueIncrease) AS ValueIncreaseAgg FROM (SELECT t, Name, subName, if((Value - lagInFrame(Value, 1, Value) OVER w) < 0, 0, Value - lagInFrame(Value, 1, Value) OVER w) AS ValueIncrease FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -328,22 +364,25 @@
         "grafana_id": 5,
         "grafana_path": "panels[12]",
         "title": "$perSecond",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $perSecond builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $perSecond builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$perSecond(Value) FROM $table -> SELECT t, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, nan, (max_0 - lagInFrame(max_0, 1, max_0) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS max_0_PerSecond FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -352,22 +391,25 @@
         "grafana_id": 6,
         "grafana_path": "panels[13]",
         "title": "$perSecond - without window functions",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $perSecond builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $perSecond builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$perSecond(Value) FROM $table -> SELECT t, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, nan, (max_0 - lagInFrame(max_0, 1, max_0) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS max_0_PerSecond FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -376,22 +418,25 @@
         "grafana_id": 13,
         "grafana_path": "panels[14]",
         "title": "$perSecondColumns",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $perSecondColumns builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $perSecondColumns builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$perSecondColumns(Name, Value) FROM $table -> SELECT t, toString(Name) AS Name, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, nan, (max_0 - lagInFrame(max_0, 1, max_0) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -400,22 +445,25 @@
         "grafana_id": 14,
         "grafana_path": "panels[15]",
         "title": "$perSecondColumns - without window functions",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $perSecondColumns builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $perSecondColumns builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$perSecondColumns(Name, Value) FROM $table -> SELECT t, toString(Name) AS Name, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, nan, (max_0 - lagInFrame(max_0, 1, max_0) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -424,22 +472,25 @@
         "grafana_id": 15,
         "grafana_path": "panels[16]",
         "title": "$perSecondColumnsAggregated",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $perSecondColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $perSecondColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$perSecondColumnsAggregated(Name, 'test2' AS subName, sum, Value) FROM $table -> SELECT t, toString(Name) AS Name, sum(ValuePerSecond) AS ValuePerSecondAgg FROM (SELECT t, Name, subName, if((Value - lagInFrame(Value, 1, Value) OVER w) < 0, nan, (Value - lagInFrame(Value, 1, Value) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS ValuePerSecond FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -448,22 +499,25 @@
         "grafana_id": 16,
         "grafana_path": "panels[17]",
         "title": "$perSecondColumnsAggregated - without window functions",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $perSecondColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $perSecondColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$perSecondColumnsAggregated(Name, 'test2' AS subName, sum, Value) FROM $table -> SELECT t, toString(Name) AS Name, sum(ValuePerSecond) AS ValuePerSecondAgg FROM (SELECT t, Name, subName, if((Value - lagInFrame(Value, 1, Value) OVER w) < 0, nan, (Value - lagInFrame(Value, 1, Value) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS ValuePerSecond FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -472,22 +526,25 @@
         "grafana_id": 7,
         "grafana_path": "panels[18]",
         "title": "$rate",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$rate(sum(Value) AS vSumValue) FROM $table -> SELECT t, vSumValue / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS vSumValueRate FROM (SELECT $__timeInterval(EventTime) AS t, sum(Value) AS vSumValue\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -496,22 +553,25 @@
         "grafana_id": 8,
         "grafana_path": "panels[19]",
         "title": "$rate - without window functions",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$rate(sum(Value) AS vSumValue) FROM $table -> SELECT t, vSumValue / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS vSumValueRate FROM (SELECT $__timeInterval(EventTime) AS t, sum(Value) AS vSumValue\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -520,22 +580,25 @@
         "grafana_id": 9,
         "grafana_path": "panels[20]",
         "title": "$rateColumns",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$rateColumns(Name, sum(Value) AS vSumValue) FROM $table -> SELECT t, toString(Name) AS Name, vSumValue / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, sum(Value) AS vSumValue\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY t, Name) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -544,22 +607,25 @@
         "grafana_id": 10,
         "grafana_path": "panels[21]",
         "title": "$rateColumns - without window functions",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$rateColumns(Name, sum(Value) AS vSumValue) FROM $table -> SELECT t, toString(Name) AS Name, vSumValue / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, sum(Value) AS vSumValue\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY t, Name) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -568,22 +634,25 @@
         "grafana_id": 11,
         "grafana_path": "panels[22]",
         "title": "$rateColumnsAggregated",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $rateColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $rateColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$rateColumnsAggregated(Name, if(today() % 2,'subTest1','subTest2') AS SubName, sum, Value) FROM $table -> SELECT t, toString(Name) AS Name, sum(ValueRate) AS ValueRateAgg FROM (SELECT t, Name, SubName, Value / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS ValueRate FROM (SELECT $__timeInterval(EventTime) AS t, Name, if(today() % 2,'subTest1','subTest2') AS SubName, max(Value) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, SubName, t\nORDER BY Name, SubName, t) WINDOW w AS (PARTITION BY Name, SubName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -592,22 +661,25 @@
         "grafana_id": 12,
         "grafana_path": "panels[23]",
         "title": "$rateColumnsAggregated - without window functions",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $rateColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $rateColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$rateColumnsAggregated(Name, if(today() % 2,'subTest1','subTest2') AS SubName, sum, Value) FROM $table -> SELECT t, toString(Name) AS Name, sum(ValueRate) AS ValueRateAgg FROM (SELECT t, Name, SubName, Value / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS ValueRate FROM (SELECT $__timeInterval(EventTime) AS t, Name, if(today() % 2,'subTest1','subTest2') AS SubName, max(Value) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, SubName, t\nORDER BY Name, SubName, t) WINDOW w AS (PARTITION BY Name, SubName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
+            ],
+            "dropped": null
           }
         ]
       }
@@ -624,7 +696,7 @@
     "panels": [
       {
         "id": "p1",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$delta",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -633,12 +705,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $delta builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, max_0 - lagInFrame(max_0, 1, max_0) OVER w AS max_0_Delta FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+          }
+        ]
       },
       {
         "id": "p2",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$delta - without window functions",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -647,12 +723,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $delta builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, max_0 - lagInFrame(max_0, 1, max_0) OVER w AS max_0_Delta FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+          }
+        ]
       },
       {
         "id": "p21",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$deltaColumns",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -661,12 +741,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $deltaColumns builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(Name) AS Name, max_0 - lagInFrame(max_0, 1, max_0) OVER w AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
+          }
+        ]
       },
       {
         "id": "p22",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$deltaColumns - without window functions",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -675,12 +759,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $deltaColumns builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(Name) AS Name, max_0 - lagInFrame(max_0, 1, max_0) OVER w AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
+          }
+        ]
       },
       {
         "id": "p23",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$deltaColumnsAggregated",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -689,12 +777,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $deltaColumnsAggregated builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(Name) AS Name, sum(ValueDelta) AS ValueDeltaAgg FROM (SELECT t, Name, subName, Value - lagInFrame(Value, 1, Value) OVER w AS ValueDelta FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
+          }
+        ]
       },
       {
         "id": "p24",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$deltaColumnsAggregated - without window functions",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -703,12 +795,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $deltaColumnsAggregated builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(Name) AS Name, sum(ValueDelta) AS ValueDeltaAgg FROM (SELECT t, Name, subName, Value - lagInFrame(Value, 1, Value) OVER w AS ValueDelta FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
+          }
+        ]
       },
       {
         "id": "p3",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$increase",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -717,12 +813,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $increase builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, 0, max_0 - lagInFrame(max_0, 1, max_0) OVER w) AS max_0_Increase FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+          }
+        ]
       },
       {
         "id": "p4",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$increase - without window functions",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -731,12 +831,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $increase builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, 0, max_0 - lagInFrame(max_0, 1, max_0) OVER w) AS max_0_Increase FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+          }
+        ]
       },
       {
         "id": "p17",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$increaseColumns",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -745,12 +849,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $increaseColumns builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(Name) AS Name, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, 0, max_0 - lagInFrame(max_0, 1, max_0) OVER w) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
+          }
+        ]
       },
       {
         "id": "p18",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$increaseColumns - without window functions",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -759,12 +867,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $increaseColumns builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(Name) AS Name, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, 0, max_0 - lagInFrame(max_0, 1, max_0) OVER w) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
+          }
+        ]
       },
       {
         "id": "p19",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$increaseColumnsAggregated",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -773,12 +885,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $increaseColumnsAggregated builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(Name) AS Name, sum(ValueIncrease) AS ValueIncreaseAgg FROM (SELECT t, Name, subName, if((Value - lagInFrame(Value, 1, Value) OVER w) < 0, 0, Value - lagInFrame(Value, 1, Value) OVER w) AS ValueIncrease FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
+          }
+        ]
       },
       {
         "id": "p20",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$increaseColumnsAggregated - without window functions",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -787,12 +903,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $increaseColumnsAggregated builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(Name) AS Name, sum(ValueIncrease) AS ValueIncreaseAgg FROM (SELECT t, Name, subName, if((Value - lagInFrame(Value, 1, Value) OVER w) < 0, 0, Value - lagInFrame(Value, 1, Value) OVER w) AS ValueIncrease FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
+          }
+        ]
       },
       {
         "id": "p5",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$perSecond",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -801,12 +921,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $perSecond builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, nan, (max_0 - lagInFrame(max_0, 1, max_0) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS max_0_PerSecond FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+          }
+        ]
       },
       {
         "id": "p6",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$perSecond - without window functions",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -815,12 +939,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $perSecond builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, nan, (max_0 - lagInFrame(max_0, 1, max_0) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS max_0_PerSecond FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+          }
+        ]
       },
       {
         "id": "p13",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$perSecondColumns",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -829,12 +957,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $perSecondColumns builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(Name) AS Name, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, nan, (max_0 - lagInFrame(max_0, 1, max_0) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
+          }
+        ]
       },
       {
         "id": "p14",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$perSecondColumns - without window functions",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -843,12 +975,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $perSecondColumns builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(Name) AS Name, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, nan, (max_0 - lagInFrame(max_0, 1, max_0) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
+          }
+        ]
       },
       {
         "id": "p15",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$perSecondColumnsAggregated",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -857,12 +993,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $perSecondColumnsAggregated builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(Name) AS Name, sum(ValuePerSecond) AS ValuePerSecondAgg FROM (SELECT t, Name, subName, if((Value - lagInFrame(Value, 1, Value) OVER w) < 0, nan, (Value - lagInFrame(Value, 1, Value) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS ValuePerSecond FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
+          }
+        ]
       },
       {
         "id": "p16",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$perSecondColumnsAggregated - without window functions",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -871,12 +1011,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $perSecondColumnsAggregated builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(Name) AS Name, sum(ValuePerSecond) AS ValuePerSecondAgg FROM (SELECT t, Name, subName, if((Value - lagInFrame(Value, 1, Value) OVER w) < 0, nan, (Value - lagInFrame(Value, 1, Value) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS ValuePerSecond FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
+          }
+        ]
       },
       {
         "id": "p7",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$rate",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -885,12 +1029,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, vSumValue / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS vSumValueRate FROM (SELECT $__timeInterval(EventTime) AS t, sum(Value) AS vSumValue\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+          }
+        ]
       },
       {
         "id": "p8",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$rate - without window functions",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -899,12 +1047,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, vSumValue / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS vSumValueRate FROM (SELECT $__timeInterval(EventTime) AS t, sum(Value) AS vSumValue\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+          }
+        ]
       },
       {
         "id": "p9",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$rateColumns",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -913,12 +1065,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(Name) AS Name, vSumValue / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, sum(Value) AS vSumValue\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY t, Name) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
+          }
+        ]
       },
       {
         "id": "p10",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$rateColumns - without window functions",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -927,12 +1083,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(Name) AS Name, vSumValue / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, sum(Value) AS vSumValue\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY t, Name) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
+          }
+        ]
       },
       {
         "id": "p11",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$rateColumnsAggregated",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -941,12 +1101,16 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $rateColumnsAggregated builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(Name) AS Name, sum(ValueRate) AS ValueRateAgg FROM (SELECT t, Name, SubName, Value / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS ValueRate FROM (SELECT $__timeInterval(EventTime) AS t, Name, if(today() % 2,'subTest1','subTest2') AS SubName, max(Value) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, SubName, t\nORDER BY Name, SubName, t) WINDOW w AS (PARTITION BY Name, SubName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
+          }
+        ]
       },
       {
         "id": "p12",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$rateColumnsAggregated - without window functions",
         "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
         "gridPos": {
@@ -955,8 +1119,12 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $rateColumnsAggregated builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(Name) AS Name, sum(ValueRate) AS ValueRateAgg FROM (SELECT t, Name, SubName, Value / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS ValueRate FROM (SELECT $__timeInterval(EventTime) AS t, Name, if(today() % 2,'subTest1','subTest2') AS SubName, max(Value) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, SubName, t\nORDER BY Name, SubName, t) WINDOW w AS (PARTITION BY Name, SubName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
+          }
+        ]
       }
     ]
   }
