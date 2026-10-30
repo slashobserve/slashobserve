@@ -27,7 +27,7 @@ const (
 	corpusDir     = "corpus"
 	goldenDir     = "golden"
 	minimumRatio  = 90
-	minimumFull   = 20.8
+	minimumFull   = 21.4
 	fullSlack     = 0.5
 	worklistSize  = 10
 	maxLinePaths  = 100
@@ -575,8 +575,13 @@ func checkUnits(t *testing.T, res *grafana.Result) {
 		known[u] = true
 	}
 	check := func(id, unit string) {
-		if unit == "" || known[unit] || strings.HasPrefix(unit, "suffix:") || strings.HasPrefix(unit, "prefix:") {
+		if unit == "" || known[unit] {
 			return
+		}
+		for _, form := range []string{"suffix:", "prefix:", "time:", "si:", "count:", "currency:"} {
+			if strings.HasPrefix(unit, form) {
+				return
+			}
 		}
 		t.Errorf("%s has unknown unit %q", id, unit)
 	}

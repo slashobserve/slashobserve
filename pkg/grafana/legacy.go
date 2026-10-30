@@ -58,13 +58,15 @@ func flagOr(m map[string]any, key string, fallback bool) bool {
 
 func (b *panelBuild) legacyUnit(p *spec.FieldProps, v any, path string) {
 	unit, _ := v.(string)
-	switch {
-	case unit == "":
-	case validUnit(unit):
-		p.Unit = unit
-	default:
-		b.partial(path, fmt.Sprintf("Unit %s is not supported yet.", unit))
+	if unit == "" {
+		return
 	}
+	imported, ok := importedUnit(unit)
+	if !ok {
+		b.partial(path, fmt.Sprintf("Unit %s is not supported yet.", unit))
+		return
+	}
+	p.Unit = imported
 }
 
 func (b *panelBuild) legacyDecimals(p *spec.FieldProps, v any) {

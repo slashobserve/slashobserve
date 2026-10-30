@@ -148,7 +148,7 @@
     },
     "unit": {
       "title": "Unit",
-      "description": "A Grafana unit id, or a custom suffix:/prefix: unit.",
+      "description": "A Grafana unit id, or a custom suffix:, prefix:, time:, si:, count: or currency: unit.",
       "anyOf": [
         {
           "enum": [
@@ -269,6 +269,169 @@
         {
           "type": "string",
           "pattern": "^(suffix|prefix):.{1,20}$"
+        },
+        {
+          "x-omitFromPrompt": true,
+          "enum": [
+            "candela",
+            "accMS2",
+            "accFS2",
+            "accG",
+            "degree",
+            "radian",
+            "grad",
+            "arcmin",
+            "arcsec",
+            "areaM2",
+            "areaF2",
+            "areaMI2",
+            "areaKM2",
+            "areaHa",
+            "flops",
+            "mflops",
+            "gflops",
+            "tflops",
+            "pflops",
+            "eflops",
+            "zflops",
+            "yflops",
+            "ppm",
+            "conppb",
+            "conngm3",
+            "conngNm3",
+            "conμgm3",
+            "conμgNm3",
+            "conmgm3",
+            "conmgNm3",
+            "congm3",
+            "congNm3",
+            "conmgdL",
+            "conmmolL",
+            "currencyRUB",
+            "currencyUAH",
+            "currencyBRL",
+            "currencyDKK",
+            "currencyISK",
+            "currencyNOK",
+            "currencySEK",
+            "currencyCZK",
+            "currencyCHF",
+            "currencyPLN",
+            "currencyZAR",
+            "currencyKRW",
+            "currencyIDR",
+            "currencyPHP",
+            "currencyVND",
+            "currencyTRY",
+            "currencyMYR",
+            "currencyXPF",
+            "currencyBGN",
+            "currencyPYG",
+            "currencyUYU",
+            "currencyILS",
+            "currencyBTC",
+            "currencymBTC",
+            "currencyμBTC",
+            "PiBs",
+            "Pibits",
+            "PBs",
+            "Pbits",
+            "megwatt",
+            "gwatt",
+            "Wm2",
+            "voltamp",
+            "kvoltamp",
+            "voltampreact",
+            "kvoltampreact",
+            "watthperkg",
+            "kwattm",
+            "mwatth",
+            "amph",
+            "kamph",
+            "mamph",
+            "ev",
+            "kamp",
+            "kvolt",
+            "ohm",
+            "kohm",
+            "Mohm",
+            "mohm",
+            "farad",
+            "µfarad",
+            "nfarad",
+            "pfarad",
+            "ffarad",
+            "henry",
+            "mhenry",
+            "µhenry",
+            "lumens",
+            "flowgpm",
+            "flowcms",
+            "flowcfs",
+            "flowcfm",
+            "litreh",
+            "flowlpm",
+            "flowmlpm",
+            "lux",
+            "forceNm",
+            "forcekNm",
+            "forceN",
+            "forcekN",
+            "Hs",
+            "KHs",
+            "MHs",
+            "GHs",
+            "THs",
+            "PHs",
+            "EHs",
+            "lengthin",
+            "lengthft",
+            "lengthmi",
+            "massmg",
+            "masslb",
+            "masst",
+            "pressurembar",
+            "pressurebar",
+            "pressurekbar",
+            "pressurepa",
+            "pressurehpa",
+            "pressurekpa",
+            "pressurehg",
+            "pressurepsi",
+            "radbq",
+            "radci",
+            "radgy",
+            "radrad",
+            "radsv",
+            "radmsv",
+            "radusv",
+            "radrem",
+            "radexpckg",
+            "radr",
+            "radsvh",
+            "radmsvh",
+            "radusvh",
+            "rotrpm",
+            "rothz",
+            "rotkhz",
+            "rotrads",
+            "rotdegs",
+            "velocityms",
+            "velocitykmh",
+            "velocitymph",
+            "velocityknot",
+            "mlitre",
+            "litre",
+            "m3",
+            "Nm3",
+            "dm3",
+            "gallons"
+          ]
+        },
+        {
+          "x-omitFromPrompt": true,
+          "type": "string",
+          "pattern": "^(time|si|count|currency):.{1,40}$"
         }
       ]
     },
@@ -1370,13 +1533,22 @@
                     "$ref": "#/$defs/fieldName"
                   },
                   "to": {
-                    "enum": [
-                      "number",
-                      "string",
-                      "time",
-                      "boolean",
-                      "enum",
-                      "other"
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "number",
+                          "string",
+                          "time",
+                          "boolean"
+                        ]
+                      },
+                      {
+                        "x-omitFromPrompt": true,
+                        "enum": [
+                          "enum",
+                          "other"
+                        ]
+                      }
                     ]
                   },
                   "dateFormat": {
@@ -1413,17 +1585,26 @@
               "$ref": "#/$defs/fieldName"
             },
             "format": {
-              "enum": [
-                "upper",
-                "lower",
-                "sentence",
-                "title",
-                "pascal",
-                "camel",
-                "snake",
-                "kebab",
-                "trim",
-                "substring"
+              "anyOf": [
+                {
+                  "enum": [
+                    "upper",
+                    "lower",
+                    "title",
+                    "trim",
+                    "substring"
+                  ]
+                },
+                {
+                  "x-omitFromPrompt": true,
+                  "enum": [
+                    "sentence",
+                    "pascal",
+                    "camel",
+                    "snake",
+                    "kebab"
+                  ]
+                }
               ]
             },
             "start": {
@@ -1599,12 +1780,21 @@
               "$ref": "#/$defs/fieldName"
             },
             "format": {
-              "enum": [
-                "auto",
-                "json",
-                "kvp",
-                "delimiter",
-                "regexp"
+              "anyOf": [
+                {
+                  "enum": [
+                    "auto",
+                    "json",
+                    "kvp"
+                  ]
+                },
+                {
+                  "x-omitFromPrompt": true,
+                  "enum": [
+                    "delimiter",
+                    "regexp"
+                  ]
+                }
               ]
             },
             "replace": {
@@ -1638,11 +1828,13 @@
               }
             },
             "delimiter": {
+              "x-omitFromPrompt": true,
               "type": "string",
               "minLength": 1,
               "maxLength": 10
             },
             "regex": {
+              "x-omitFromPrompt": true,
               "type": "string",
               "minLength": 1,
               "maxLength": 200

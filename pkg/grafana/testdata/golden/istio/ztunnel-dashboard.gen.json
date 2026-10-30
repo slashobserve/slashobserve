@@ -194,12 +194,10 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "Unit qps is not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
           "fieldConfig.defaults.custom.gradientMode",
           "options.legend.displayMode"
         ],
@@ -546,6 +544,7 @@
                 "legend": "Request ({{pod}})"
               }
             ],
+            "unit": "suffix:qps",
             "fill": 10,
             "interval": "5s",
             "display": {

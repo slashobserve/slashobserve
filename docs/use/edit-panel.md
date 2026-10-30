@@ -77,7 +77,7 @@ The settings column has:
 
 - **Panel type**, which can be Time series, Stat, Gauge, Bar gauge, Table, Pie chart, Heatmap, Histogram, State timeline, Logs, Bar chart, Status history, Trend, XY chart, Candlestick, Node graph, Traces, Flame graph, Geomap, Canvas or Alert list.
   Switching type keeps the queries, redraws the preview and drops display options the new type does not have.
-- **Unit**, from the groups it lists, or a custom prefix or suffix.
+- **Unit**, from the groups it lists, or custom text: a prefix, a suffix, a date format, an SI symbol, a count text or a currency symbol.
 - **Thresholds**, up to 10 rows, each with a colour and the value it starts from; the first row can leave the value empty ("Base").
 - **Title**, up to 200 characters.
 - The display options that belong to the chosen type.

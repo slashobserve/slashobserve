@@ -187,8 +187,11 @@ func TestUnits(t *testing.T) {
 	if !slices.Contains(units, "reqps") || !slices.Contains(units, "µs") {
 		t.Fatalf("Units() does not contain reqps and µs: %v", units)
 	}
-	if len(units) != 112 {
-		t.Fatalf("Units() has %d entries, want 112", len(units))
+	if !slices.Contains(units, "radbq") || units[0] != "none" || units[111] != "masskg" {
+		t.Fatalf("Units() does not list today's 112 ids first, then the import-only ones: %v", units)
+	}
+	if len(units) != 265 {
+		t.Fatalf("Units() has %d entries, want 265", len(units))
 	}
 	units[0] = "mutated"
 	if spec.Units()[0] == "mutated" {

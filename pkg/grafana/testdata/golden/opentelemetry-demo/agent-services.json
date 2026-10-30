@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 10,
-      "imported": 1,
-      "partial": 9,
+      "imported": 4,
+      "partial": 6,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -68,13 +64,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -114,13 +106,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -141,11 +129,9 @@
         "row": "Tool calls",
         "status": "partial",
         "reasons": [
-          "Unit items/sec is not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -168,11 +154,9 @@
         "row": "Tool calls",
         "status": "partial",
         "reasons": [
-          "Unit items/sec is not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -195,11 +179,9 @@
         "row": "Chatbot",
         "status": "partial",
         "reasons": [
-          "Unit items/sec is not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -272,11 +254,9 @@
         "row": "LLM performance",
         "status": "partial",
         "reasons": [
-          "Unit items/sec is not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -369,6 +349,7 @@
                 "legend": "Tool calls"
               }
             ],
+            "unit": "suffix:items/sec",
             "thresholds": [
               {
                 "color": "info"
@@ -394,6 +375,7 @@
                 "legend": "Chatbot requests"
               }
             ],
+            "unit": "suffix:items/sec",
             "thresholds": [
               {
                 "color": "ok"
@@ -448,6 +430,7 @@
                 "legend": "LLM calls"
               }
             ],
+            "unit": "suffix:items/sec",
             "thresholds": [
               {
                 "color": "warning"
@@ -486,6 +469,7 @@
                 "legend": "{{gen_ai_tool_name}}"
               }
             ],
+            "unit": "suffix:items/sec",
             "fill": 10,
             "stack": "normal",
             "display": {
@@ -513,6 +497,7 @@
                 "legend": "{{service_name}}"
               }
             ],
+            "unit": "suffix:items/sec",
             "fill": 10,
             "display": {
               "legendValues": [
@@ -552,6 +537,7 @@
                 "legend": "{{service_name}}"
               }
             ],
+            "unit": "suffix:items/sec",
             "fill": 10,
             "display": {
               "legendValues": [
@@ -647,6 +633,7 @@
                 "legend": "{{gen_ai_response_model}}"
               }
             ],
+            "unit": "suffix:items/sec",
             "fill": 10,
             "display": {
               "legendValues": [

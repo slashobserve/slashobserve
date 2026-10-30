@@ -314,3 +314,93 @@ describe("custom units", () => {
     expect(parseUnit("bogus")).toEqual({ kind: "id", id: "none" })
   })
 })
+
+describe("scaled SI units", () => {
+  it.each([
+    [1500, "flops", "1.5 kFLOPS"],
+    [1500, "mflops", "1.5 GFLOPS"],
+    [0.5, "mflops", "500 kFLOPS"],
+    [0.002, "farad", "2 mF"],
+    [1500, "µfarad", "1.5 mF"],
+    [2500, "ffarad", "2.5 pF"],
+    [2200, "ohm", "2.2 kΩ"],
+    [0.5, "kohm", "500 Ω"],
+    [1500, "massmg", "1.5 g"],
+    [2000, "masst", "2 kt"],
+    [1500, "radusv", "1.5 mSv"],
+    [2e9, "Hs", "2 GH/s"],
+    [1500, "KHs", "1.5 MH/s"],
+    [0.003, "litre", "3 mL"],
+    [5, "pressurebar", "5 bar"],
+    [0, "farad", "0 F"],
+    [-2500, "rothz", "-2.5 kHz"],
+  ])("writes %s with %s as %s", (value, unit, expected) => {
+    expect(f(value, unit)).toBe(expected)
+  })
+})
+
+describe("fixed and prefixed units", () => {
+  it.each([
+    [45, "degree", "45°"],
+    [29.92, "pressurehg", '29.92 "Hg'],
+    [3000, "rotrpm", "3,000 rpm"],
+    [9.81, "accMS2", "9.81 m/sec²"],
+    [12, "velocitykmh", "12 km/h"],
+    [4, "areaKM2", "4 km²"],
+    [7, "conmmolL", "7 mmol/L"],
+    [7, "conμgm3", "7 μg/m³"],
+    [0.5, "currencyBTC", "฿0.5"],
+    [2, "currencymBTC", "mBTC2"],
+    [1.5, "PiBs", "1.5 PiB/s"],
+    [1.5, "Pbits", "1.5 Pb/s"],
+  ])("writes %s with %s as %s", (value, unit, expected) => {
+    expect(f(value, unit)).toBe(expected)
+  })
+
+  it("writes ISO currencies through Intl", () => {
+    expect(f(12.5, "currencyRUB")).toContain("12.50")
+    expect(f(12.5, "currencyCHF")).toContain("12.50")
+    expect(f(25_000, "currencySEK")).toContain("25K")
+  })
+})
+
+describe("custom unit forms", () => {
+  it.each([
+    [1500, "count:req", "1.5 K req"],
+    [5, "count:req", "5 req"],
+    [2_500_000, "count: req ", "2.5 Mil req"],
+    [1500, "currency:€", "€1.5 K"],
+    [12, "currency:€", "€12"],
+    [2000, "si:mF", "2 F"],
+    [5, "si:mF", "5 mF"],
+    [0.002, "si:F", "2 mF"],
+    [1500, "si:Hz", "1.5 kHz"],
+    [5, "si:μF", "5 µF"],
+    [3, "si:rpm", "3 rpm"],
+  ])("writes %s with %s as %s", (value, unit, expected) => {
+    expect(f(value, unit)).toBe(expected)
+  })
+
+  it("writes a time unit as a date in the local time zone", () => {
+    const ms = new Date(2026, 9, 7, 15, 4, 9).getTime()
+    expect(f(ms, "time:YYYY-MM-DD HH:mm:ss")).toBe("2026-10-07 15:04:09")
+    expect(f(ms, "time: YYYY-MM-DD HH:mm:ss")).toBe("2026-10-07 15:04:09")
+    expect(f(ms, "time:hh:mm A")).toBe("03:04 PM")
+  })
+
+  it("keeps date units out of decimals and scaling", () => {
+    const ms = new Date(2026, 9, 7).getTime()
+    expect(f(ms, "time:D/M/YY", 3)).toBe("7/10/26")
+    expect(commonDecimals([ms], "time:YYYY")).toBeUndefined()
+  })
+
+  it("parses every custom kind and treats empty text as plain", () => {
+    expect(parseUnit("time: YYYY ")).toEqual({ kind: "time", text: "YYYY" })
+    expect(parseUnit("si:mF")).toEqual({ kind: "si", text: "mF" })
+    expect(parseUnit("count:req")).toEqual({ kind: "count", text: "req" })
+    expect(parseUnit("currency:€")).toEqual({ kind: "currency", text: "€" })
+    for (const kind of ["time", "si", "count", "currency", "suffix"]) {
+      expect(parseUnit(`${kind}: `), kind).toEqual({ kind: "id", id: "none" })
+    }
+  })
+})

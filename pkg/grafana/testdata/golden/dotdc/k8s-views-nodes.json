@@ -1043,13 +1043,11 @@
         "status": "partial",
         "reasons": [
           "Exemplars are not supported yet.",
-          "Unit read/s is not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
           "targets[0].exemplar",
-          "fieldConfig.defaults.unit",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
         ],
@@ -1074,13 +1072,11 @@
         "status": "partial",
         "reasons": [
           "Exemplars are not supported yet.",
-          "Unit write/s is not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
           "targets[0].exemplar",
-          "fieldConfig.defaults.unit",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
         ],
@@ -1105,13 +1101,11 @@
         "status": "partial",
         "reasons": [
           "Exemplars are not supported yet.",
-          "Unit io/s is not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
           "targets[0].exemplar",
-          "fieldConfig.defaults.unit",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
         ],
@@ -2307,6 +2301,7 @@
                 "interval": "${resolution}"
               }
             ],
+            "unit": "suffix:read/s",
             "decimals": 2,
             "fill": 25,
             "display": {
@@ -2332,6 +2327,7 @@
                 "interval": "${resolution}"
               }
             ],
+            "unit": "suffix:write/s",
             "decimals": 2,
             "fill": 25,
             "display": {
@@ -2357,6 +2353,7 @@
                 "interval": "${resolution}"
               }
             ],
+            "unit": "suffix:io/s",
             "decimals": 2,
             "fill": 25,
             "display": {

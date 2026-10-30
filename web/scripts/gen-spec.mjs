@@ -28,6 +28,7 @@ const ajv = new Ajv2020({
   strict: true,
   discriminator: true,
 })
+ajv.addKeyword({ keyword: "x-omitFromPrompt", schemaType: "boolean" })
 ajv.addSchema(schema)
 let code = standaloneCode(ajv, {
   validate: schema.$id,

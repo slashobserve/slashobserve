@@ -2290,11 +2290,9 @@
         "row": "Hardware Misc",
         "status": "partial",
         "reasons": [
-          "Unit rotrpm is not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -7481,6 +7479,7 @@
                 "hide": true
               }
             ],
+            "unit": "rotrpm",
             "min": 0,
             "fill": 20,
             "display": {

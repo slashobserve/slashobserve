@@ -6,10 +6,10 @@ import { unitGroups, unitLabel } from "./unit-catalog"
 import { parseUnit } from "./units"
 
 const schema = JSON.parse(schemaText) as {
-  $defs: { unit: { anyOf: [{ enum: string[] }] } }
+  $defs: { unit: { anyOf: { enum?: string[] }[] } }
 }
 
-const schemaIds = schema.$defs.unit.anyOf[0].enum
+const schemaIds = schema.$defs.unit.anyOf.flatMap((branch) => branch.enum ?? [])
 const catalogIds = unitGroups.flatMap((group) =>
   group.units.map((unit) => unit.id)
 )
@@ -24,6 +24,13 @@ describe("unit catalog", () => {
     for (const id of schemaIds) {
       expect(parseUnit(id), id).toEqual({ kind: "id", id })
     }
+  })
+
+  it("labels every custom kind", () => {
+    expect(unitLabel("time:YYYY-MM-DD")).toBe('Custom time "YYYY-MM-DD"')
+    expect(unitLabel("si:mF")).toBe('Custom si "mF"')
+    expect(unitLabel("count:req")).toBe('Custom count "req"')
+    expect(unitLabel("currency:€")).toBe('Custom currency "€"')
   })
 
   it("labels ids and custom units", () => {

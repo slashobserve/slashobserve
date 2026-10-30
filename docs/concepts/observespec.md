@@ -180,7 +180,9 @@ A data panel carries its display options directly, and an override repeats the s
 The options are `unit`, `decimals`, `min`, `max`, `thresholds` and `thresholdMode`, `color`, `displayName`, `noValue`, `mappings`, `links`, and for charts `style`, `fill`, `lineStyle`, `stack`, `axis` and `hidden`.
 Thresholds ascend, and the first step may leave out `value` to act as the base color.
 A color is `ok`, `info`, `warning`, `critical` or a `#rrggbb` hex value.
-A unit is a Grafana unit id such as `reqps`, `s`, `bytes` or `percentunit`, or a custom `suffix:` or `prefix:` unit.
+A unit is any Grafana unit id such as `reqps`, `s`, `bytes`, `percentunit` or `radbq`, or custom `suffix:`, `prefix:`, `time:`, `si:`, `count:` or `currency:` text.
+The text after `time:` is a date format, `si:` a symbol that scales by 1000 with SI prefixes (`si:mF` starts at milli), `count:` text after a K, Mil or Bil scaled number, and `currency:` a symbol before a scaled number.
+The agent prompt lists only the common ids and `suffix:` and `prefix:`, but a Spec may use any of them.
 
 An override has a `match`, which selects by `query` (a `ref`), `series`, `seriesRegex`, `field` or `fieldType`, and at least one option to apply.
 A panel has at most 50 overrides.
