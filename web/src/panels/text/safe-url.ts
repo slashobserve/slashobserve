@@ -19,13 +19,3 @@ export function isExternal(url: string, origin = location.origin): boolean {
   if (!resolved) return true
   return webProtocols.has(resolved.protocol) && resolved.origin !== origin
 }
-
-export function isImageSource(url: string, origin = location.origin): boolean {
-  if (url === "") return false
-  const resolved = resolve(url, origin)
-  if (!resolved) return false
-  return (
-    resolved.protocol === "https:" ||
-    (webProtocols.has(resolved.protocol) && resolved.origin === origin)
-  )
-}

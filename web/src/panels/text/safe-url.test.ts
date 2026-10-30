@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { isExternal, isImageSource, safeUrl } from "./safe-url"
+import { isExternal, safeUrl } from "./safe-url"
 
 const origin = "https://observe.example.com"
 
@@ -59,33 +59,5 @@ describe("isExternal", () => {
 
   it("does not treat mailto as external", () => {
     expect(isExternal("mailto:oncall@example.com", origin)).toBe(false)
-  })
-})
-
-describe("isImageSource", () => {
-  it("allows https from any host and the app's own origin", () => {
-    expect(isImageSource("https://cdn.example.com/a.png", origin)).toBe(true)
-    expect(isImageSource("/static/a.png", origin)).toBe(true)
-  })
-
-  it("allows http only from the app's own origin", () => {
-    expect(isImageSource("http://cdn.example.com/a.png", origin)).toBe(false)
-    expect(
-      isImageSource("http://localhost:5173/a.png", "http://localhost:5173")
-    ).toBe(true)
-  })
-
-  it("refuses an empty source, which would load the page itself", () => {
-    expect(isImageSource("", origin)).toBe(false)
-  })
-
-  it.each([
-    "data:image/png;base64,AAAA",
-    "javascript:alert(1)",
-    "mailto:a@example.com",
-    "blob:https://example.com/x",
-    "http://[bad",
-  ])("refuses %s", (url) => {
-    expect(isImageSource(url, origin)).toBe(false)
   })
 })

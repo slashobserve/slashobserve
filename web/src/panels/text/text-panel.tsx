@@ -5,9 +5,10 @@ import remarkGfm from "remark-gfm"
 
 import { cn } from "@/lib/utils"
 
+import { RemoteImage } from "../remote-image"
 import type { StaticPanelRenderer } from "../types"
 import { interpolateText } from "./interpolate"
-import { isExternal, isImageSource, safeUrl } from "./safe-url"
+import { isExternal, safeUrl } from "./safe-url"
 
 const heading = "mt-2 font-semibold"
 const block = "my-2 first:mt-0 last:mb-0"
@@ -35,16 +36,8 @@ const components: Components = {
     )
   },
   img({ src, alt }) {
-    if (typeof src !== "string" || !isImageSource(src)) return <>{alt}</>
-    return (
-      <img
-        src={src}
-        alt={alt ?? ""}
-        loading="lazy"
-        referrerPolicy="no-referrer"
-        className="max-w-full"
-      />
-    )
+    if (typeof src !== "string") return <>{alt}</>
+    return <RemoteImage src={src} alt={alt ?? ""} className="max-w-full" />
   },
   h1: ({ children }) => (
     <h1 className={cn(heading, "text-[18px]")}>{children}</h1>
