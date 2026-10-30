@@ -1,10 +1,25 @@
-import type { CSSProperties, FocusEvent, PointerEvent, ReactNode } from "react"
+import {
+  useId,
+  type CSSProperties,
+  type FocusEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react"
+import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { CircleIcon } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants as buttonClasses } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { anchorProps } from "@/dashboards/dashboard-links"
 import { assetImageUrl } from "@/lib/remote-assets"
 import { cn } from "@/lib/utils"
 
+import type { ResolvedLink } from "../field-config"
 import { RemoteImage } from "../remote-image"
 import { thresholdIcons } from "../thresholds"
 import type {
@@ -17,6 +32,8 @@ import type {
   ImageSize,
   MetricState,
 } from "./canvas-model"
+import { noActionTitle, type ElementAction } from "./actions"
+import type { Interaction, Target } from "./element-links"
 import { hasIcon, iconsByName, unknownIcon } from "./icons"
 import { ElementShape, shapeKinds } from "./shapes"
 
@@ -24,7 +41,6 @@ export type Hover = { details: Detail[]; x: number; y: number }
 
 type ShowHover = (details: Detail[], clientX: number, clientY: number) => void
 
-const noActionTitle = "This button has no action yet."
 const tooltipOffset = 12
 const tooltipHeight = 120
 
@@ -56,7 +72,7 @@ const objectFit: Record<
   fill: "fill",
 }
 
-const buttonVariants = {
+const variantFor = {
   primary: "default",
   secondary: "secondary",
   success: "outline",
@@ -110,9 +126,11 @@ export function hasShape(element: CanvasElement): boolean {
 
 export function drawsContent(
   element: CanvasElement,
-  tooltipOn: boolean
+  tooltipOn: boolean,
+  interaction: Interaction
 ): boolean {
   if (["text", "metric", "icon", "button"].includes(element.kind)) return true
+  if (interaction.mode !== "none") return true
   if (element.text !== null) return true
   return (
     element.details.length > 0 && (tooltipOn || element.kind === "windTurbine")
@@ -181,23 +199,200 @@ function IconBody({ element }: { element: CanvasElement }) {
   )
 }
 
-function ButtonBody({ element }: { element: CanvasElement }) {
+const overlayClass =
+  "absolute inset-0 cursor-pointer aria-disabled:cursor-not-allowed rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+
+function ButtonFace({ element }: { element: CanvasElement }) {
   const OkIcon = thresholdIcons.ok
+  return (
+    <>
+      {element.buttonStyle === "success" ? (
+        <OkIcon aria-hidden="true" style={{ color: "var(--threshold-ok)" }} />
+      ) : null}
+      <span className="min-w-0 truncate">{element.text ?? "Button"}</span>
+    </>
+  )
+}
+
+function DisabledButton({ element }: { element: CanvasElement }) {
   return (
     <span title={noActionTitle} className="flex size-full min-w-0">
       <Button
-        variant={buttonVariants[element.buttonStyle]}
+        variant={variantFor[element.buttonStyle]}
         disabled
         focusableWhenDisabled
         className="size-full min-w-0"
         style={{ fontSize: element.fontSize }}
       >
-        {element.buttonStyle === "success" ? (
-          <OkIcon aria-hidden="true" style={{ color: "var(--threshold-ok)" }} />
-        ) : null}
-        <span className="min-w-0 truncate">{element.text ?? "Button"}</span>
+        <ButtonFace element={element} />
       </Button>
     </span>
+  )
+}
+
+function Surface({
+  element,
+  reason,
+  ...props
+}: ButtonPrimitive.Props & {
+  element: CanvasElement
+  reason: string | null
+}) {
+  const reasonId = useId()
+  const blocked = reason !== null
+  const described = blocked ? reasonId : undefined
+  const note = blocked ? (
+    <span id={reasonId} className="sr-only">
+      {reason}
+    </span>
+  ) : null
+  if (element.kind === "button") {
+    return (
+      <span title={reason ?? undefined} className="flex size-full min-w-0">
+        <Button
+          variant={variantFor[element.buttonStyle]}
+          disabled={blocked}
+          focusableWhenDisabled
+          aria-describedby={described}
+          className="size-full min-w-0"
+          style={{ fontSize: element.fontSize }}
+          {...props}
+        >
+          <ButtonFace element={element} />
+        </Button>
+        {note}
+      </span>
+    )
+  }
+  return (
+    <>
+      <ButtonPrimitive
+        disabled={blocked}
+        focusableWhenDisabled
+        title={reason ?? undefined}
+        aria-describedby={described}
+        className={overlayClass}
+        {...props}
+      />
+      {note}
+    </>
+  )
+}
+
+function LinkSurface({
+  element,
+  link,
+}: {
+  element: CanvasElement
+  link: ResolvedLink
+}) {
+  const label = link.newTab ? `${link.title} (opens in new tab)` : link.title
+  if (element.kind === "button") {
+    return (
+      <a
+        {...anchorProps(link)}
+        className={buttonClasses({
+          variant: variantFor[element.buttonStyle],
+          className: "size-full min-w-0",
+        })}
+        style={{ fontSize: element.fontSize }}
+      >
+        <ButtonFace element={element} />
+      </a>
+    )
+  }
+  return (
+    <a {...anchorProps(link)} aria-label={label} className={overlayClass} />
+  )
+}
+
+function targetTitle(target: Target): string {
+  return target.kind === "link" ? target.link.title : target.action.title
+}
+
+function targetBlocked(target: Target, reason: string | null): boolean {
+  return target.kind === "action" && reason !== null
+}
+
+function MenuItem({
+  target,
+  reason,
+  onRun,
+}: {
+  target: Target
+  reason: string | null
+  onRun: (action: ElementAction) => void
+}) {
+  if (target.kind === "link") {
+    return (
+      <DropdownMenuItem render={<a {...anchorProps(target.link)} />}>
+        {target.link.title}
+      </DropdownMenuItem>
+    )
+  }
+  const blocked = targetBlocked(target, reason)
+  return (
+    <DropdownMenuItem
+      disabled={blocked}
+      onClick={() => onRun(target.action)}
+      className="flex-col items-start gap-0"
+    >
+      {target.action.title}
+      {blocked ? (
+        <span className="text-xs text-muted-foreground">{reason}</span>
+      ) : null}
+    </DropdownMenuItem>
+  )
+}
+
+function ElementControl({
+  element,
+  interaction,
+  reason,
+  onRun,
+}: {
+  element: CanvasElement
+  interaction: Interaction
+  reason: string | null
+  onRun: (action: ElementAction) => void
+}) {
+  if (interaction.mode === "none") return null
+  if (interaction.mode === "direct") {
+    const { target } = interaction
+    if (target.kind === "link") {
+      return <LinkSurface element={element} link={target.link} />
+    }
+    return (
+      <Surface
+        element={element}
+        reason={reason}
+        aria-label={element.kind === "button" ? undefined : targetTitle(target)}
+        onClick={() => onRun(target.action)}
+      />
+    )
+  }
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Surface
+            element={element}
+            reason={null}
+            aria-label={`${element.text ?? element.id} options`}
+          />
+        }
+      />
+      <DropdownMenuContent className="min-w-max">
+        {interaction.targets.map((target, index) => (
+          <MenuItem
+            key={`${index}:${targetTitle(target)}`}
+            target={target}
+            reason={reason}
+            onRun={onRun}
+          />
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -233,23 +428,46 @@ function TextBody({ element }: { element: CanvasElement }) {
   )
 }
 
-function Body({ element }: { element: CanvasElement }): ReactNode {
-  if (element.kind === "icon") return <IconBody element={element} />
-  if (element.kind === "button") return <ButtonBody element={element} />
-  return <TextBody element={element} />
+function Body({
+  element,
+  control,
+}: {
+  element: CanvasElement
+  control: ReactNode
+}): ReactNode {
+  if (element.kind === "button") {
+    return control ?? <DisabledButton element={element} />
+  }
+  return (
+    <>
+      {element.kind === "icon" ? (
+        <IconBody element={element} />
+      ) : (
+        <TextBody element={element} />
+      )}
+      {control}
+    </>
+  )
 }
 
 export function ContentItem({
   element,
+  interaction,
+  reason,
   tooltipOn,
   onShow,
   onHide,
+  onRun,
 }: {
   element: CanvasElement
+  interaction: Interaction
+  reason: string | null
   tooltipOn: boolean
   onShow: ShowHover
   onHide: () => void
+  onRun: (action: ElementAction) => void
 }) {
+  const controlled = interaction.mode !== "none"
   const boxed = element.kind === "text" || element.kind === "metric"
   const graphic = element.kind === "icon" || element.kind === "button"
   const interactive = tooltipOn && element.details.length > 0
@@ -265,7 +483,7 @@ export function ContentItem({
       data-element-id={element.id}
       role={interactive ? "group" : undefined}
       aria-label={interactive ? detailLabel(element.details) : undefined}
-      tabIndex={interactive ? 0 : undefined}
+      tabIndex={interactive && !controlled ? 0 : undefined}
       title={
         !tooltipOn && element.kind === "windTurbine"
           ? detailLabel(element.details)
@@ -291,7 +509,19 @@ export function ContentItem({
       onFocus={interactive ? focus : undefined}
       onBlur={interactive ? onHide : undefined}
     >
-      <Body element={element} />
+      <Body
+        element={element}
+        control={
+          controlled ? (
+            <ElementControl
+              element={element}
+              interaction={interaction}
+              reason={reason}
+              onRun={onRun}
+            />
+          ) : null
+        }
+      />
     </div>
   )
 }
