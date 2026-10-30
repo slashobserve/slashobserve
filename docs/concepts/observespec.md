@@ -182,6 +182,8 @@ An element's `actions` are HTTP requests that a person triggers from the panel:
 - The `url`, `body` and header and query values may reference declared variables, `__from`, `__to`, `__user.login`, `__user.email`, `__user.name`, `__user.id`, `__value.raw`, `__value.text`, `__value.numeric` and `__data.fields.<field>`.
   Any other name is refused with `unknown_variable`.
 - `oneClick` on an element (`action` or `link`) needs at least one action or link.
+- A person with Edit on the dashboard runs an action, and the server sends it on their behalf to an allowed domain; see [Canvas actions](../operate/outbound-access.md#canvas-actions).
+  An action is sent as the latest saved version describes it, and it carries no credentials.
 
 People and imports write HTML text panels and canvas actions.
 The agent and MCP clients cannot add or change them, and cannot write HTML tags in any text panel: a save that does is refused with `html_not_allowed` or `action_not_allowed`.

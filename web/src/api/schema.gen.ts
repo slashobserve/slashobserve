@@ -607,6 +607,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboards/{id}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run a canvas action that is saved in the dashboard's latest version.
+         * @description The server builds the request from the saved action, so the caller chooses only the variable values, the time range and the clicked value, never the method, address, headers or body template. `version` must be the dashboard's latest version, or the call answers 409 `stale_version`. `panel`, `element` and `action` (the index in the element's `actions`) locate the action; one that is missing answers 404 `action_not_found`. `variables` may name only variables the version declares, each with at most 100 values of at most 1000 bytes, and every variable the action references needs a value. `__user.login`, `__user.email`, `__user.name` and `__user.id` come from the signed-in person and cannot be supplied. The request is sent only to an https address on the outbound allowlist, to a public address, and a redirect is returned as its own status without being followed. The remote body is read up to 64 KiB and discarded, never returned or logged. The caller needs Edit on the dashboard, and service accounts cannot call this endpoint. A person has at most 2 actions in flight. Every attempt that reaches the network is logged at INFO as `canvas action run` with the person, dashboard, version, panel, element, action index, method, host, status, outcome and duration, and never with the address, headers, body or variable values.
+         */
+        post: operations["runCanvasAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboards/{id}/events": {
         parameters: {
             query?: never;
@@ -1336,6 +1358,18 @@ export interface components {
             published: string | null;
             /** @description Plain text, never markup; may be empty. */
             summary: string;
+        };
+        ActionResult: {
+            /** @description The HTTP status the remote server answered with; a redirect is reported as its own 3xx status. */
+            status: number;
+            /** @description True when the status is 2xx. */
+            ok: boolean;
+        };
+        ActionError: {
+            error: string;
+            code: string;
+            /** @description The domain the request was meant for, present on `outbound_domain_not_allowed` and `action_failed`. */
+            host?: string;
         };
         NewsFeed: {
             title: string;
@@ -3454,6 +3488,109 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
+        };
+    };
+    runCanvasAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    version: number;
+                    panel: string;
+                    element: string;
+                    action: number;
+                    variables?: {
+                        [key: string]: string[];
+                    } | null;
+                    /** Format: date-time */
+                    from: string;
+                    /** Format: date-time */
+                    to: string;
+                    value?: {
+                        raw?: string;
+                        text?: string;
+                        numeric?: number | null;
+                    } | null;
+                    fields?: {
+                        [key: string]: string;
+                    } | null;
+                };
+            };
+        };
+        responses: {
+            /** @description The remote server answered; `ok` is true for a 2xx status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionResult"];
+                };
+            };
+            /** @description The body is malformed, a field is out of range, or `variables` names an undeclared variable (`invalid_request`); or the action cannot be built from the supplied values, for example a header value with a line break, a JSON body that is no longer valid, an address that changed host or a body above 64 KiB (`action_invalid`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is a service account (`forbidden`), has no Edit access to the dashboard (`forbidden_role`), or the action's domain is not on the outbound allowlist (`outbound_domain_not_allowed`, with `host`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionError"];
+                };
+            };
+            /** @description The dashboard does not exist (`not_found`), or the version has no such panel, element or action (`action_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The dashboard has a newer version than `version` (`stale_version`); reload it before running the action. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The caller already has 2 actions in flight (`too_many_actions`). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description The request did not complete, because of a connection error, a timeout or a private or reserved address (`action_failed`, with `host`). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionError"];
+                };
+            };
         };
     };
     streamDashboardEvents: {
