@@ -273,6 +273,17 @@ type FieldProps struct {
 	AxisGrid          *bool       `json:"axisGrid,omitempty"`
 	AxisBorder        *bool       `json:"axisBorder,omitempty"`
 	AxisColor         string      `json:"axisColor,omitempty"`
+	Cell              *Cell       `json:"cell,omitempty"`
+}
+
+type Cell struct {
+	Type       string `json:"type"`
+	GaugeStyle string `json:"gaugeStyle,omitempty"`
+	ValueMode  string `json:"valueMode,omitempty"`
+	WholeRow   *bool  `json:"wholeRow,omitempty"`
+	Wrap       *bool  `json:"wrap,omitempty"`
+	ImageAlt   string `json:"imageAlt,omitempty"`
+	ImageTitle string `json:"imageTitle,omitempty"`
 }
 
 type Threshold struct {

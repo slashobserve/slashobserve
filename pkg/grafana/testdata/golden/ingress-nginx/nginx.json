@@ -426,11 +426,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[2]",
           "options.footer.enablePagination"
         ],
         "queries": [
@@ -1158,7 +1156,10 @@
                 "color": "#32ac2d"
               }
             ],
-            "displayName": "TTL"
+            "displayName": "TTL",
+            "cell": {
+              "type": "background"
+            }
           },
           {
             "match": {

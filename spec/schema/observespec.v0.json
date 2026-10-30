@@ -1296,6 +1296,59 @@
             "text",
             "series"
           ]
+        },
+        "cell": {
+          "x-omitFromPrompt": true,
+          "description": "How a table column draws its cells; absent means the plain cell with colors from thresholds and colored mappings. Only table panels draw it.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "enum": [
+                "auto",
+                "text",
+                "background",
+                "gauge",
+                "sparkline",
+                "json",
+                "image",
+                "links",
+                "pill"
+              ]
+            },
+            "gaugeStyle": {
+              "enum": [
+                "basic",
+                "lcd"
+              ]
+            },
+            "valueMode": {
+              "enum": [
+                "color",
+                "text",
+                "hidden"
+              ]
+            },
+            "wholeRow": {
+              "type": "boolean"
+            },
+            "wrap": {
+              "type": "boolean"
+            },
+            "imageAlt": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "imageTitle": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "required": [
+            "type"
+          ]
         }
       }
     },

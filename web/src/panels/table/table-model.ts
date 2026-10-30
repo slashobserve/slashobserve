@@ -17,6 +17,16 @@ import type { ColumnType } from "../frames"
 import { reduce, reducerLabels } from "../reducers"
 import type { ThresholdLevel } from "../thresholds"
 import type { PreparedField, PreparedFrame } from "../transforms"
+import {
+  cellSpecOf,
+  gaugeFraction,
+  gaugeRange,
+  lastNumber,
+  numberSeries,
+  usesFixedColor,
+  type CellSpec,
+} from "./cells/cell-model"
+import type { SparkOptions } from "./cells/sparkline-shape"
 
 type ColumnSource = { frame: PreparedFrame; field: PreparedField }
 
@@ -359,21 +369,37 @@ export function tableModel(
 
 const plain: Cell = { text: "", color: null, level: null, word: "" }
 
+export function cellSpecAt(
+  fields: FieldResolver,
+  column: TableColumn,
+  row: TableRow
+): CellSpec {
+  return cellSpecOf(configAt(fields, column, row).cell)
+}
+
 export function cellOf(
   fields: FieldResolver,
   column: TableColumn,
   row: TableRow
 ): Cell {
-  const value = row.values[column.key]
+  const config = configAt(fields, column, row)
+  const spec = cellSpecOf(config.cell)
+  let value = row.values[column.key]
+  if (spec.type === "sparkline") {
+    const series = numberSeries(value)
+    if (series) value = lastNumber(series)
+  }
   if (column.type === "time" && typeof value === "number") {
     return { ...plain, text: formatTimeValue(String(value)) }
   }
   if (typeof value === "object" && value !== null) {
     return { ...plain, text: JSON.stringify(value) }
   }
-  const config = configAt(fields, column, row)
   const shown = displayValue(value, config, optionsAt(column, config))
-  if (!isColored(config) || shown.color === null) {
+  const colored =
+    isColored(config) ||
+    (config.color !== undefined && usesFixedColor(spec.type))
+  if (!colored || shown.color === null) {
     return { ...plain, text: shown.text }
   }
   const { threshold } = shown
@@ -386,6 +412,58 @@ export function cellOf(
     }
   }
   return { text: shown.text, color: shown.color, level: "base", word: "" }
+}
+
+export function gaugeFractionAt(
+  fields: FieldResolver,
+  column: TableColumn,
+  row: TableRow
+): { fraction: number; min: number; max: number; value: number | null } {
+  const config = configAt(fields, column, row)
+  const raw = row.values[column.key]
+  const value = typeof raw === "number" && Number.isFinite(raw) ? raw : null
+  const range = gaugeRange(config, column.range)
+  return { ...range, value, fraction: gaugeFraction(value, range) }
+}
+
+export function sparklineAt(
+  fields: FieldResolver,
+  column: TableColumn,
+  row: TableRow
+): { values: (number | null)[]; options: SparkOptions } | null {
+  const values = numberSeries(row.values[column.key])
+  if (!values) return null
+  const config = configAt(fields, column, row)
+  return {
+    values,
+    options: {
+      style: config.style,
+      interpolation: config.lineInterpolation,
+      lineWidth: config.lineWidth,
+      fill: config.fill,
+      points: config.points,
+      pointSize: config.pointSize,
+      spanNulls: config.spanNulls,
+      min: config.min,
+      max: config.max,
+      softMin: config.axisSoftMin,
+      softMax: config.axisSoftMax,
+    },
+  }
+}
+
+export function rowFill(
+  fields: FieldResolver,
+  columns: TableColumn[],
+  row: TableRow
+): string | null {
+  for (const column of columns) {
+    const spec = cellSpecAt(fields, column, row)
+    if (spec.type !== "background" || !spec.wholeRow) continue
+    const { color } = cellOf(fields, column, row)
+    if (color !== null) return color
+  }
+  return null
 }
 
 export function cellLinks(

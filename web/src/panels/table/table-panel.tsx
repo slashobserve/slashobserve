@@ -1,13 +1,6 @@
 import { memo, useMemo, useState } from "react"
-import { ArrowDownIcon, ArrowUpIcon, EllipsisIcon } from "lucide-react"
+import { ArrowDownIcon, ArrowUpIcon } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   TableBody,
   TableCell,
@@ -16,16 +9,30 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { anchorProps, NewTabMark } from "@/dashboards/dashboard-links"
+import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
-import type { FieldResolver, LinkScope, ResolvedLink } from "../field-config"
-import { thresholdIcons } from "../thresholds"
+import { resolveColor } from "../colors"
+import { cssColorToRgb } from "../contrast"
+import type { FieldResolver, LinkScope } from "../field-config"
 import type { PanelRenderer } from "../types"
+import { fillTextColor, type CellSpec } from "./cells/cell-model"
+import { GaugeCell } from "./cells/gauge"
+import { ImageCell } from "./cells/image"
+import { JsonCell } from "./cells/json"
+import { LinksCell } from "./cells/links"
+import { PillCell } from "./cells/pill"
+import { SparklineCell } from "./cells/sparkline"
+import { TextCell } from "./cells/text"
 import {
   cellLinks,
   cellOf,
+  cellSpecAt,
+  gaugeFractionAt,
+  rowFill,
+  sparklineAt,
   tableModel,
+  type Cell,
   type TableColumn,
   type TableRow as ModelRow,
 } from "./table-model"
@@ -42,37 +49,6 @@ function compareValues(a: unknown, b: unknown): number {
   return String(a).localeCompare(String(b), "en", { numeric: true })
 }
 
-function MoreLinks({ links }: { links: ResolvedLink[] }) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            className="text-muted-foreground"
-            aria-label="More links"
-          />
-        }
-      >
-        <EllipsisIcon aria-hidden="true" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-max">
-        {links.map((link, index) => (
-          <DropdownMenuItem
-            key={`${index}:${link.href}`}
-            render={<a {...anchorProps(link)} />}
-            className="justify-between gap-3"
-          >
-            {link.title}
-            {link.newTab ? <NewTabMark /> : null}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 type RowProps = {
   columns: TableColumn[]
   row: ModelRow
@@ -80,58 +56,115 @@ type RowProps = {
   scope: LinkScope
 }
 
+type CellFrame = { fill: string | null; text: string | undefined }
+
+function useFrame(color: string | null): CellFrame {
+  useTheme()
+  return {
+    fill: color,
+    text: fillTextColor(color, (value) => cssColorToRgb(resolveColor(value))),
+  }
+}
+
+function CellContent({
+  column,
+  row,
+  fields,
+  scope,
+  spec,
+  cell,
+  filled,
+}: Omit<RowProps, "columns"> & {
+  column: TableColumn
+  spec: CellSpec
+  cell: Cell
+  filled: boolean
+}) {
+  const value = row.values[column.key]
+  const links = cellLinks(fields, column, row, cell, scope)
+  switch (spec.type) {
+    case "gauge":
+      return (
+        <GaugeCell
+          cell={cell}
+          spec={spec}
+          gauge={gaugeFractionAt(fields, column, row)}
+        />
+      )
+    case "sparkline": {
+      const spark = sparklineAt(fields, column, row)
+      if (spark) {
+        return <SparklineCell cell={cell} spec={spec} {...spark} />
+      }
+      break
+    }
+    case "json":
+      return <JsonCell value={value} text={cell.text} />
+    case "image":
+      return (
+        <ImageCell
+          value={value}
+          alt={spec.imageAlt ?? column.label}
+          title={spec.imageTitle}
+        />
+      )
+    case "links":
+      return <LinksCell cell={cell} links={links} />
+    case "pill":
+      return <PillCell value={value} />
+  }
+  return (
+    <TextCell
+      cell={cell}
+      links={links}
+      tinted={!filled && spec.type !== "background"}
+    />
+  )
+}
+
 function BodyCell({
   column,
   row,
   fields,
   scope,
-}: Omit<RowProps, "columns"> & { column: TableColumn }) {
+  rowColor,
+}: Omit<RowProps, "columns"> & {
+  column: TableColumn
+  rowColor: string | null
+}) {
   const value = row.values[column.key]
   const cell = cellOf(fields, column, row)
-  const [first, ...more] = cellLinks(fields, column, row, cell, scope)
-  const Icon =
-    cell.level && cell.level !== "base" ? thresholdIcons[cell.level] : null
-  const content = (
-    <>
-      {Icon ? <Icon className="size-3 shrink-0" aria-hidden="true" /> : null}
-      {cell.text}
-      {cell.word ? <span className="sr-only">, {cell.word}</span> : null}
-    </>
-  )
-  const style = cell.color ? { color: cell.color } : undefined
+  const spec = cellSpecAt(fields, column, row)
+  const ownFill = spec.type === "background" ? cell.color : null
+  const frame = useFrame(rowColor ?? ownFill)
+  const filled = frame.fill !== null
   return (
     <TableCell
       data-column={column.label}
+      data-cell={spec.type}
       data-threshold={cell.level ?? undefined}
       title={cell.word || undefined}
+      style={
+        filled
+          ? { backgroundColor: frame.fill ?? undefined, color: frame.text }
+          : undefined
+      }
       className={cn(
         "px-2 py-1",
         column.type === "number" && "text-right tabular-nums",
-        value === null && "text-muted-foreground"
+        spec.wrap && "break-words whitespace-normal",
+        value === null && !filled && "text-muted-foreground"
       )}
     >
-      {first ? (
-        <span className="inline-flex items-center gap-1">
-          <a
-            {...anchorProps(first)}
-            title={
-              [first.title, cell.word].filter(Boolean).join(" - ") || undefined
-            }
-            style={style}
-            className="inline-flex items-center gap-1 underline decoration-border underline-offset-4 hover:decoration-current"
-          >
-            {content}
-            {first.newTab ? <NewTabMark /> : null}
-          </a>
-          {more.length > 0 ? <MoreLinks links={more} /> : null}
-        </span>
-      ) : cell.color ? (
-        <span className="inline-flex items-center gap-1" style={style}>
-          {content}
-        </span>
-      ) : (
-        content
-      )}
+      <CellContent
+        column={column}
+        row={row}
+        fields={fields}
+        scope={scope}
+        spec={spec}
+        cell={cell}
+        filled={filled}
+      />
     </TableCell>
   )
 }
@@ -142,6 +175,7 @@ const BodyRow = memo(function BodyRow({
   fields,
   scope,
 }: RowProps) {
+  const rowColor = rowFill(fields, columns, row)
   return (
     <TableRow>
       {columns.map((column) => (
@@ -151,6 +185,7 @@ const BodyRow = memo(function BodyRow({
           row={row}
           fields={fields}
           scope={scope}
+          rowColor={rowColor}
         />
       ))}
     </TableRow>

@@ -54,6 +54,7 @@ var propOrder = []string{
 	"custom.stacking", "custom.axisPlacement", "custom.hideFrom",
 	"custom.axisLabel", "custom.axisSoftMin", "custom.axisSoftMax", "custom.scaleDistribution",
 	"custom.axisCenteredZero", "custom.axisWidth", "custom.axisGridShow", "custom.axisBorderShow", "custom.axisColorMode",
+	"custom.cellOptions", "custom.displayMode", "custom.wrapText",
 }
 
 var propHandlers = map[string]propHandler{
@@ -87,6 +88,9 @@ var propHandlers = map[string]propHandler{
 	"custom.axisGridShow":      propAxisGridShow,
 	"custom.axisBorderShow":    propAxisBorderShow,
 	"custom.axisColorMode":     propAxisColorMode,
+	"custom.cellOptions":       propCellOptions,
+	"custom.displayMode":       propDisplayMode,
+	"custom.wrapText":          propWrapText,
 }
 
 var lineStylePropIDs = map[string]bool{
@@ -109,6 +113,9 @@ func propLineStyleUnused(b *panelBuild, _ *spec.FieldProps, _ any, s propSite) {
 }
 
 func (b *panelBuild) propHandler(id string) (propHandler, bool) {
+	if tableCellProps[id] && b.typ != spec.Table {
+		return nil, false
+	}
 	if !plotPanelTypes[b.typ] {
 		if axisPropIDs[id] || (lineStylePropIDs[id] && lineStyleDrawnOnlyByGrafana[b.typ]) {
 			return nil, false
@@ -129,7 +136,10 @@ var unitSet = sync.OnceValue(func() map[string]bool {
 	return set
 })
 
-var coloringCellTypes = map[string]bool{"color-text": true, "color-background": true, "color-background-solid": true}
+var coloringCellTypes = map[string]bool{
+	"color-text": true, "color-background": true, "color-background-solid": true,
+	"gauge": true, "gradient-gauge": true, "lcd-gauge": true, "basic": true,
+}
 
 var customUnitForms = []struct {
 	prefix string
@@ -185,7 +195,6 @@ func numberValue(v any) (float64, bool) {
 
 func (b *panelBuild) convertFieldConfig() {
 	b.thresholdsMatter = b.thresholdsApply()
-	b.consumeCellDisplay()
 	for _, id := range propOrder {
 		handler, drawn := b.propHandler(id)
 		if !drawn {
@@ -273,25 +282,6 @@ func overrideColorsCells(item any) bool {
 		}
 	}
 	return false
-}
-
-func (b *panelBuild) consumeCellDisplay() {
-	if b.typ != spec.Table {
-		return
-	}
-	if v, ok := b.value("fieldConfig.defaults.custom.displayMode"); ok && asString(v) == "auto" {
-		b.consume("fieldConfig.defaults.custom.displayMode")
-	}
-	v, ok := b.value("fieldConfig.defaults.custom.cellOptions.type")
-	if !ok {
-		return
-	}
-	switch kind := asString(v); {
-	case kind == "color-text":
-		b.consume("fieldConfig.defaults.custom.cellOptions")
-	case coloringCellTypes[kind]:
-		b.partial("fieldConfig.defaults.custom.cellOptions", "Cell colors are drawn in the SlashObserve style.")
-	}
 }
 
 func propUnit(b *panelBuild, p *spec.FieldProps, v any, s propSite) {

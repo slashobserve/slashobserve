@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 16,
-      "imported": 7,
-      "partial": 9,
+      "imported": 9,
+      "partial": 7,
       "placeholder": 0,
       "unverified": 0
     },
@@ -127,13 +127,9 @@
         "type": "table",
         "source_type": "table",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -407,13 +403,9 @@
         "type": "table",
         "source_type": "table",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -642,6 +634,12 @@
             "format": "table"
           }
         ],
+        "thresholds": [
+          {
+            "color": "ok"
+          }
+        ],
+        "thresholdMode": "percentage",
         "overrides": [
           {
             "match": {
@@ -649,7 +647,32 @@
             },
             "unit": "percentunit",
             "min": 0,
-            "max": 1
+            "max": 1,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 0.6,
+                "color": "ok"
+              },
+              {
+                "value": 0.7,
+                "color": "warning"
+              },
+              {
+                "value": 0.75,
+                "color": "warning"
+              },
+              {
+                "value": 0.8,
+                "color": "critical"
+              }
+            ],
+            "cell": {
+              "type": "gauge",
+              "gaugeStyle": "lcd"
+            }
           },
           {
             "match": {
@@ -1090,7 +1113,10 @@
                 "value": "false",
                 "color": "critical"
               }
-            ]
+            ],
+            "cell": {
+              "type": "background"
+            }
           }
         ],
         "transform": [
