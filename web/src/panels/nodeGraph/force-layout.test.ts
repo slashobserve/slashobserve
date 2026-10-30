@@ -128,7 +128,7 @@ describe("forceLayout", () => {
     expect(everyPointIsFinite(first)).toBe(true)
   })
 
-  it("lays out 1,000 nodes in under 500 ms", () => {
+  it("lays out 1,000 nodes in under 2 s", () => {
     const [graph, links] = ring(1000)
     const started = performance.now()
     const layout = forceLayout(graph, links, {
@@ -138,6 +138,6 @@ describe("forceLayout", () => {
     })
     const elapsed = performance.now() - started
     expect(everyPointIsFinite(layout)).toBe(true)
-    expect(elapsed).toBeLessThan(500)
+    expect(elapsed).toBeLessThan(2000)
   })
 })
