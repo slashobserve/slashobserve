@@ -620,12 +620,10 @@
         "row": "Troubleshooting",
         "status": "partial",
         "reasons": [
-          "Moved or resized to fit the grid.",
-          "Some Grafana options of this panel are not supported yet."
+          "Moved or resized to fit the grid."
         ],
         "paths": [
-          "gridPos",
-          "fieldConfig.defaults.custom.axisSoftMin"
+          "gridPos"
         ],
         "queries": [
           {
@@ -2005,6 +2003,7 @@
             "decimals": 0,
             "lineInterpolation": "stepAfter",
             "points": "never",
+            "axisSoftMin": 0,
             "display": {
               "legendValues": [
                 "lastNotNull"

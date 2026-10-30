@@ -82,6 +82,7 @@ func (b *panelBuild) legacyGraph() {
 	b.graphDrawing(p)
 	b.graphLegendAndTooltip()
 	b.graphThresholds(p)
+	b.graphXAxis()
 	b.graphOverrides(axes)
 	b.graphExtras()
 }
@@ -103,14 +104,41 @@ func (b *panelBuild) graphAxis(v any, path string) graphAxis {
 		axis.props.Max = &f
 	}
 	b.fixMinMax(&axis.props, path+".max")
-	if f, ok := numberValue(y["logBase"]); ok && f != 1 {
-		b.partial(path+".logBase", "Logarithmic axes are not supported yet.")
-	}
-	if label := asString(y["label"]); label != "" {
-		b.partial(path+".label", "Axis labels are not supported yet.")
-	}
+	b.graphLogBase(&axis.props, y["logBase"], path+".logBase")
+	b.graphAxisLabel(&axis.props, y["label"], path+".label")
 	axis.hidden = y["show"] == false
 	return axis
+}
+
+func (b *panelBuild) graphLogBase(p *spec.FieldProps, v any, path string) {
+	f, ok := numberValue(v)
+	switch {
+	case !ok, f == 1:
+	case f == 2:
+		p.Scale, p.LogBase = "log", ptr(2)
+	case f == defaultLogBase:
+		p.Scale = "log"
+	default:
+		b.partial(path, logBaseReason)
+	}
+}
+
+func (b *panelBuild) graphAxisLabel(p *spec.FieldProps, v any, path string) {
+	label := strings.TrimSpace(asString(v))
+	if label == "" {
+		return
+	}
+	cut, wasCut := cutRunes(label, maxAxisLabel)
+	if wasCut {
+		b.partial(path, "The axis label was cut to 100 characters.")
+	}
+	p.AxisLabel = cut
+}
+
+func (b *panelBuild) graphXAxis() {
+	if v, ok := b.take("xaxis.show"); ok && v == false {
+		b.disp().XAxis = "hidden"
+	}
 }
 
 func (b *panelBuild) graphAxes(p *spec.FieldProps) [2]graphAxis {
@@ -131,6 +159,11 @@ func (b *panelBuild) graphAxes(p *spec.FieldProps) [2]graphAxis {
 		b.legacyDecimals(p, b.raw["decimals"])
 	}
 	b.consume("decimals")
+	p.AxisLabel = cmp.Or(first.AxisLabel, p.AxisLabel)
+	p.Scale = cmp.Or(first.Scale, p.Scale)
+	if first.LogBase != nil {
+		p.LogBase = first.LogBase
+	}
 	if first.Min != nil {
 		p.Min = first.Min
 	}
@@ -494,6 +527,10 @@ func secondAxis(props *spec.FieldProps, v any, axes [2]graphAxis) bool {
 	}
 	second := axes[1].props
 	props.Unit, props.Decimals, props.Min, props.Max = second.Unit, second.Decimals, second.Min, second.Max
+	props.AxisLabel, props.Scale, props.LogBase = second.AxisLabel, second.Scale, second.LogBase
+	if props.Scale == "" && axes[0].props.Scale != "" {
+		props.Scale = "linear"
+	}
 	return true
 }
 

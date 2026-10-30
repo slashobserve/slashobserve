@@ -1,10 +1,17 @@
 import { commonDecimals } from "@/lib/units"
-import type { Reducer } from "@/spec"
+import type { FieldProps, Reducer } from "@/spec"
 
 import { styleForSlot, type LineStyle, type SlotMap } from "../colors"
 import { displayValue, type FieldConfig } from "../field-config"
 import { thresholdColor } from "../thresholds"
 import type { AlignedSeries } from "./align"
+import {
+  centeredRange,
+  logRange,
+  softRange,
+  type LogBase,
+  type ScaleKind,
+} from "./axis-scale"
 
 export type DrawStyle = FieldConfig["style"]
 export type AxisKey = FieldConfig["axis"]
@@ -97,14 +104,59 @@ export type AxisSettings = {
   max?: number
   percent: boolean
   tight?: boolean
+  label?: string
+  softMin?: number
+  softMax?: number
+  scale?: ScaleKind
+  logBase?: LogBase
+  linearThreshold?: number
+  centeredZero?: boolean
+  width?: number
+  grid?: boolean
+  border?: boolean
+  color?: FieldConfig["axisColor"]
 }
 
-export type PanelAxis = Omit<AxisSettings, "percent">
+export type PanelAxis = Pick<
+  FieldProps,
+  | "unit"
+  | "decimals"
+  | "min"
+  | "max"
+  | "axisLabel"
+  | "axisSoftMin"
+  | "axisSoftMax"
+  | "scale"
+  | "logBase"
+  | "linearThreshold"
+  | "axisCenteredZero"
+  | "axisWidth"
+  | "axisGrid"
+  | "axisBorder"
+  | "axisColor"
+>
 
 export type AxesInUse = Partial<Record<AxisKey, AxisSettings>>
 
-function settingsOf({ unit, decimals, min, max }: PanelAxis): AxisSettings {
-  return { unit, decimals, min, max, percent: false }
+export function settingsOf(props: PanelAxis): AxisSettings {
+  return {
+    unit: props.unit,
+    decimals: props.decimals,
+    min: props.min,
+    max: props.max,
+    percent: false,
+    label: props.axisLabel,
+    softMin: props.axisSoftMin,
+    softMax: props.axisSoftMax,
+    scale: props.scale,
+    logBase: props.logBase,
+    linearThreshold: props.linearThreshold,
+    centeredZero: props.axisCenteredZero,
+    width: props.axisWidth,
+    grid: props.axisGrid,
+    border: props.axisBorder,
+    color: props.axisColor,
+  }
 }
 
 export function axesInUse(
@@ -165,6 +217,27 @@ function percentRange(min: number, max: number): [number, number] {
   return [lo, hi]
 }
 
+function positive(value: number | undefined): number | undefined {
+  return value !== undefined && value > 0 ? value : undefined
+}
+
+function logAxisRange(
+  axis: AxisSettings,
+  min: number,
+  max: number
+): [number, number] {
+  const base = axis.logBase === 2 ? 2 : 10
+  const [softLo, softHi] = softRange(
+    logRange(min, max, base),
+    positive(axis.softMin),
+    positive(axis.softMax)
+  )
+  const lo = positive(axis.min) ?? softLo
+  let hi = positive(axis.max) ?? softHi
+  if (hi <= lo) hi = lo * base
+  return [lo, hi]
+}
+
 export function axisRange(
   axis: AxisSettings,
   min: number | null,
@@ -172,11 +245,12 @@ export function axisRange(
 ): [number, number] | [null, null] {
   if (min === null || max === null) return [null, null]
   if (axis.percent) return percentRange(min, max)
-  const [autoMin, autoMax] = axis.tight
-    ? paddedRange(min, max)
-    : autoRange(min, max)
-  const lo = axis.min ?? autoMin
-  let hi = axis.max ?? autoMax
+  if (axis.scale === "log") return logAxisRange(axis, min, max)
+  const auto = axis.tight ? paddedRange(min, max) : autoRange(min, max)
+  const widened = softRange(auto, axis.softMin, axis.softMax)
+  const [softLo, softHi] = axis.centeredZero ? centeredRange(widened) : widened
+  const lo = axis.min ?? softLo
+  let hi = axis.max ?? softHi
   if (hi <= lo) hi = lo + 1
   return [lo, hi]
 }
@@ -220,6 +294,7 @@ export type TimeseriesDisplay = {
   legendHideZero: boolean
   legendHideEmpty: boolean
   tooltip: "single" | "all" | "hidden"
+  xAxis: "shown" | "hidden"
 }
 
 export function timeseriesDisplay(
@@ -235,5 +310,6 @@ export function timeseriesDisplay(
     legendHideZero: display.legendHideZero as boolean,
     legendHideEmpty: display.legendHideEmpty as boolean,
     tooltip: display.tooltip as TimeseriesDisplay["tooltip"],
+    xAxis: display.xAxis as TimeseriesDisplay["xAxis"],
   }
 }

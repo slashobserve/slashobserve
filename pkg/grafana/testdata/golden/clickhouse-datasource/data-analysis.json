@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 16,
-      "imported": 2,
-      "partial": 14,
+      "imported": 4,
+      "partial": 12,
       "placeholder": 0,
       "unverified": 0
     },
@@ -245,14 +245,9 @@
         "type": "barchart",
         "source_type": "barchart",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.axisGridShow",
-          "fieldConfig.defaults.custom.axisSoftMin"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -271,14 +266,9 @@
         "type": "barchart",
         "source_type": "barchart",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.axisGridShow",
-          "fieldConfig.defaults.custom.axisSoftMin"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -400,13 +390,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some transformations are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some transformations are not supported yet."
         ],
         "paths": [
-          "transformations[1]",
-          "fieldConfig.defaults.custom.axisLabel",
-          "fieldConfig.defaults.custom.axisWidth"
+          "transformations[1]"
         ],
         "queries": [
           {
@@ -788,6 +775,8 @@
           }
         ],
         "fill": 61,
+        "axisSoftMin": 0,
+        "axisGrid": false,
         "display": {
           "barWidth": 1
         }
@@ -809,7 +798,9 @@
             "format": "table"
           }
         ],
-        "fill": 61
+        "fill": 61,
+        "axisSoftMin": 0,
+        "axisGrid": false
       },
       {
         "id": "p6",
@@ -1016,6 +1007,8 @@
         "fill": 10,
         "points": "always",
         "spanNulls": true,
+        "axisLabel": "Rows in part",
+        "axisWidth": 3,
         "transform": [
           {
             "type": "organize",

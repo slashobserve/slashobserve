@@ -630,12 +630,10 @@
         "row": "CPU / Memory / Net / Disk",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -664,12 +662,10 @@
         "row": "CPU / Memory / Net / Disk",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -698,12 +694,10 @@
         "row": "CPU / Memory / Net / Disk",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -732,12 +726,10 @@
         "row": "CPU / Memory / Net / Disk",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -843,12 +835,10 @@
         "row": "CPU / Memory / Net / Disk",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[1].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[1].properties[0]"
         ],
         "queries": [
           {
@@ -1349,12 +1339,10 @@
         "row": "Memory Vmstat",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -1383,12 +1371,10 @@
         "row": "Memory Vmstat",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -2256,12 +2242,10 @@
         "row": "Storage Disk",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -2290,12 +2274,10 @@
         "row": "Storage Disk",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -2324,12 +2306,10 @@
         "row": "Storage Disk",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -2379,12 +2359,10 @@
         "row": "Storage Disk",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -2623,12 +2601,10 @@
         "row": "Network Traffic",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -2657,12 +2633,10 @@
         "row": "Network Traffic",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -2691,12 +2665,10 @@
         "row": "Network Traffic",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -2725,12 +2697,10 @@
         "row": "Network Traffic",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -2822,12 +2792,10 @@
         "row": "Network Traffic",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -3248,12 +3216,10 @@
         "row": "Network Sockstat",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -3335,12 +3301,10 @@
         "row": "Network Netstat",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -3369,12 +3333,10 @@
         "row": "Network Netstat",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -3403,12 +3365,10 @@
         "row": "Network Netstat",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -3437,12 +3397,10 @@
         "row": "Network Netstat",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -5096,6 +5054,7 @@
             ],
             "unit": "bps",
             "fill": 40,
+            "axisLabel": "out (-) / in (+)",
             "display": {
               "legendValues": [
                 "min",
@@ -5131,6 +5090,7 @@
             ],
             "unit": "percentunit",
             "fill": 40,
+            "axisLabel": "out (-) / in (+)",
             "display": {
               "legendValues": [
                 "min",
@@ -5166,6 +5126,7 @@
             ],
             "unit": "iops",
             "fill": 20,
+            "axisLabel": "write (–) / read (+)",
             "display": {
               "legendValues": [
                 "min",
@@ -5201,6 +5162,7 @@
             ],
             "unit": "Bps",
             "fill": 40,
+            "axisLabel": "write (–) / read (+)",
             "display": {
               "legendValues": [
                 "min",
@@ -5367,6 +5329,7 @@
             ],
             "unit": "percentunit",
             "fill": 10,
+            "axisLabel": "some (-) / full (+)",
             "overrides": [
               {
                 "match": {
@@ -5998,6 +5961,7 @@
             ],
             "unit": "Bps",
             "fill": 20,
+            "axisLabel": "out (-) / in (+)",
             "display": {
               "legendValues": [
                 "min",
@@ -6033,6 +5997,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "axisLabel": "out (-) / in (+)",
             "display": {
               "legendValues": [
                 "min",
@@ -7360,6 +7325,7 @@
             ],
             "unit": "iops",
             "fill": 20,
+            "axisLabel": "write (–) / read (+)",
             "overrides": [
               {
                 "match": {
@@ -7403,6 +7369,7 @@
             ],
             "unit": "Bps",
             "fill": 20,
+            "axisLabel": "write (–) / read (+)",
             "overrides": [
               {
                 "match": {
@@ -7446,6 +7413,7 @@
             ],
             "unit": "s",
             "fill": 20,
+            "axisLabel": "write (–) / read (+)",
             "overrides": [
               {
                 "match": {
@@ -7528,6 +7496,7 @@
             ],
             "unit": "iops",
             "fill": 20,
+            "axisLabel": "write (–) / read (+)",
             "overrides": [
               {
                 "match": {
@@ -7919,6 +7888,7 @@
             ],
             "unit": "pps",
             "fill": 20,
+            "axisLabel": "out (-) / in (+)",
             "display": {
               "legendValues": [
                 "min",
@@ -7955,6 +7925,7 @@
             ],
             "unit": "pps",
             "fill": 20,
+            "axisLabel": "out (-) / in (+)",
             "display": {
               "legendValues": [
                 "min",
@@ -7991,6 +7962,7 @@
             ],
             "unit": "pps",
             "fill": 20,
+            "axisLabel": "out (-) / in (+)",
             "display": {
               "legendValues": [
                 "min",
@@ -8027,6 +7999,7 @@
             ],
             "unit": "pps",
             "fill": 20,
+            "axisLabel": "out (-) / in (+)",
             "display": {
               "legendValues": [
                 "min",
@@ -8156,6 +8129,7 @@
             ],
             "unit": "pps",
             "fill": 20,
+            "axisLabel": "out (-) / in (+)",
             "display": {
               "legendValues": [
                 "min",
@@ -8712,6 +8686,7 @@
             ],
             "unit": "pps",
             "fill": 20,
+            "axisLabel": "drop (-) / process (+)",
             "display": {
               "legendValues": [
                 "min",
@@ -8837,6 +8812,7 @@
             ],
             "unit": "Bps",
             "fill": 20,
+            "axisLabel": "out (-) / in (+)",
             "display": {
               "legendValues": [
                 "min",
@@ -8873,6 +8849,7 @@
             ],
             "unit": "pps",
             "fill": 20,
+            "axisLabel": "out (-) / in (+)",
             "display": {
               "legendValues": [
                 "min",
@@ -8908,6 +8885,7 @@
             ],
             "unit": "pps",
             "fill": 20,
+            "axisLabel": "out (-) / in (+)",
             "display": {
               "legendValues": [
                 "min",
@@ -8943,6 +8921,7 @@
             ],
             "unit": "pps",
             "fill": 20,
+            "axisLabel": "out (-) / in (+)",
             "display": {
               "legendValues": [
                 "min",

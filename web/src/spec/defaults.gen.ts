@@ -12,7 +12,12 @@ export const specDefaults = {
     "spanNulls": false,
     "stack": "none",
     "axis": "left",
-    "hidden": false
+    "hidden": false,
+    "scale": "linear",
+    "logBase": 10,
+    "axisCenteredZero": false,
+    "axisBorder": false,
+    "axisColor": "text"
   },
   "query": {
     "instant": false,
@@ -40,7 +45,8 @@ export const specDefaults = {
       "legendSortDesc": false,
       "legendHideZero": false,
       "legendHideEmpty": false,
-      "tooltip": "single"
+      "tooltip": "single",
+      "xAxis": "shown"
     },
     "stat": {
       "reduce": "lastNotNull",
@@ -96,7 +102,8 @@ export const specDefaults = {
       "legendSortDesc": false,
       "legendHideZero": false,
       "legendHideEmpty": false,
-      "tooltip": "single"
+      "tooltip": "single",
+      "xAxis": "shown"
     },
     "xychart": {
       "show": "points",
@@ -111,7 +118,8 @@ export const specDefaults = {
       "upColor": "ok",
       "downColor": "critical",
       "legend": "bottom",
-      "tooltip": "single"
+      "tooltip": "single",
+      "xAxis": "shown"
     },
     "nodeGraph": {
       "layout": "layered"

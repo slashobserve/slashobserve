@@ -44,6 +44,7 @@ import {
   tooltipPlugin,
   type TooltipSeries,
 } from "./plugins"
+import { scaleDistribution } from "./axis-scale"
 import { isolatedPoints } from "./points"
 import {
   axesInUse,
@@ -52,11 +53,13 @@ import {
   fillStyle,
   firstStackMode,
   scaleOf,
+  settingsOf,
   timeseriesDisplay,
   type AxesInUse,
   type AxisKey,
   type AxisSettings,
   type Interpolation,
+  type TimeseriesDisplay,
 } from "./series-config"
 import { emptySeriesState, useSeriesStore, visibleSeries } from "./series-state"
 import "./timeseries.css"
@@ -64,6 +67,7 @@ import "./timeseries.css"
 const legendShare = 0.4
 const minSelectWidth = 5
 const axisFontSize = 12
+const axisLabelSize = 18
 const noSelect = { left: 0, top: 0, width: 0, height: 0 }
 const barSize: [number, number] = [0.6, 64]
 const ghostDash = [2, 3]
@@ -92,6 +96,7 @@ type Model = {
   ghostCount: number
   thresholds: ThresholdLines | null
   tooltip: "single" | "all" | "hidden"
+  xAxisShown: boolean
 }
 
 type PlotConfig = {
@@ -201,6 +206,7 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
   const colors = readChartColors()
   const font = `${axisFontSize}px ${colors.font}`
   const ghostColor = resolveColor("var(--ghost)")
+  const borderColor = resolveColor("var(--chart-axis)")
   const leftSettings = axes.left ?? panelAxis
 
   const plugins: uPlot.Plugin[] = []
@@ -231,28 +237,64 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
     key: AxisKey,
     side: 1 | 3,
     settings: AxisSettings,
-    grid: boolean,
+    defaultGrid: boolean,
     show: boolean
-  ): uPlot.Axis => ({
-    scale: scaleOf[key],
-    side,
-    show,
-    stroke: colors.muted,
-    font,
-    grid: { show: grid, stroke: colors.grid, width: 1 },
-    ticks: { show: false },
-    values: (_u, splits) => {
-      const decimals = axisDecimals(splits, settings.unit, settings.decimals)
-      return splits.map((value) => formatValue(value, settings.unit, decimals))
-    },
-    size: (u, values) => {
-      if (!values) return 48
-      u.ctx.font = `${axisFontSize * uPlot.pxRatio}px ${colors.font}`
-      const widest = Math.max(
-        ...values.map((text) => u.ctx.measureText(text).width)
-      )
-      return Math.ceil(widest / uPlot.pxRatio) + 14
-    },
+  ): uPlot.Axis => {
+    const onAxis = series.find((entry) => entry.axis === key)
+    const stroke =
+      settings.color === "series" && onAxis
+        ? resolveColor(onAxis.color)
+        : colors.muted
+    return {
+      scale: scaleOf[key],
+      side,
+      show,
+      stroke,
+      font,
+      ...(settings.label
+        ? {
+            label: settings.label,
+            labelSize: axisLabelSize,
+            labelFont: font,
+          }
+        : {}),
+      grid: {
+        show: settings.grid ?? defaultGrid,
+        stroke: colors.grid,
+        width: 1,
+      },
+      ...(settings.border
+        ? { border: { show: true, stroke: borderColor, width: 1 } }
+        : {}),
+      ticks: { show: false },
+      values: (_u, splits) => {
+        const decimals = axisDecimals(splits, settings.unit, settings.decimals)
+        return splits.map((value) =>
+          formatValue(value, settings.unit, decimals)
+        )
+      },
+      size:
+        settings.width ??
+        ((u, values) => {
+          if (!values) return 48
+          u.ctx.font = `${axisFontSize * uPlot.pxRatio}px ${colors.font}`
+          const widest = Math.max(
+            ...values.map((text) => u.ctx.measureText(text).width)
+          )
+          return Math.ceil(widest / uPlot.pxRatio) + 14
+        }),
+    }
+  }
+
+  const valueScale = (settings: AxisSettings): uPlot.Scale => ({
+    ...(settings.percent
+      ? {}
+      : scaleDistribution(
+          settings.scale,
+          settings.logBase,
+          settings.linearThreshold
+        )),
+    range: (_u, min, max) => axisRange(settings, min, max),
   })
 
   const leftShown = axes.left !== undefined || axes.right === undefined
@@ -281,29 +323,16 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
             : [dataMin, dataMax]
         },
       },
-      y: { range: (_u, min, max) => axisRange(leftSettings, min, max) },
-      ...(axes.right
-        ? {
-            y2: {
-              range: (_u: uPlot, min: number | null, max: number | null) =>
-                axisRange(axes.right!, min, max),
-            },
-          }
-        : {}),
-      ...(axes.hidden
-        ? {
-            y3: {
-              range: (_u: uPlot, min: number | null, max: number | null) =>
-                axisRange(axes.hidden!, min, max),
-            },
-          }
-        : {}),
+      y: valueScale(leftSettings),
+      ...(axes.right ? { y2: valueScale(axes.right) } : {}),
+      ...(axes.hidden ? { y3: valueScale(axes.hidden) } : {}),
     },
     axes: [
       {
+        show: model.xAxisShown,
         stroke: colors.muted,
         font,
-        size: 28,
+        size: model.xAxisShown ? 28 : 0,
         grid: { stroke: colors.grid, width: 1, filter: dropEdgeTicks },
         ticks: { show: false },
         filter: dropEdgeTicks,
@@ -369,7 +398,7 @@ function modelFor(
   panel: DataPanel,
   series: ChartSeries[],
   ghostCount: number,
-  tooltip: Model["tooltip"],
+  options: Pick<TimeseriesDisplay, "tooltip" | "xAxis">,
   tightRange: boolean
 ): Model {
   const axes = axesInUse(
@@ -382,16 +411,11 @@ function modelFor(
   return {
     series,
     axes,
-    panelAxis: {
-      unit: panel.unit,
-      decimals: panel.decimals,
-      min: panel.min,
-      max: panel.max,
-      percent: false,
-    },
+    panelAxis: settingsOf(panel),
     ghostCount,
     thresholds: thresholdsFor(series, axes.left, panel),
-    tooltip,
+    tooltip: options.tooltip,
+    xAxisShown: options.xAxis !== "hidden",
   }
 }
 
@@ -431,6 +455,7 @@ export function TimeseriesChart({
   const displayKey = stableJson(display)
   const configsKey = stableJson(configs)
   const thresholdsKey = stableJson(panel.thresholds ?? null)
+  const panelAxisKey = stableJson(settingsOf(panel))
 
   const stateKey = `${stateScope}:${panel.id}`
   const stored = useSeriesStore((store) => store.panels[stateKey])
@@ -536,7 +561,7 @@ export function TimeseriesChart({
     panel,
     series,
     ghosts.length,
-    options.tooltip,
+    options,
     draw !== undefined
   )
 
@@ -621,10 +646,7 @@ export function TimeseriesChart({
     configsKey,
     displayKey,
     ghosts.length,
-    panel.unit,
-    panel.decimals,
-    panel.min,
-    panel.max,
+    panelAxisKey,
     panel.thresholdMode,
     thresholdsKey,
   ])
@@ -679,6 +701,11 @@ export function TimeseriesChart({
   const axisNames = (["left", "right", "hidden"] as const).filter(
     (name) => model.axes[name]
   )
+  const axisLabels = axisNames.flatMap((name) => model.axes[name]?.label ?? [])
+  const plotName =
+    xAxis.kind === "time"
+      ? `${panel.title}: ${series.length} series, ${formatDateTime(meta.from)} to ${formatDateTime(meta.to)}`
+      : `${panel.title}: ${series.length} series`
 
   return (
     <div
@@ -693,9 +720,9 @@ export function TimeseriesChart({
         ref={containerRef}
         role="img"
         aria-label={
-          xAxis.kind === "time"
-            ? `${panel.title}: ${series.length} series, ${formatDateTime(meta.from)} to ${formatDateTime(meta.to)}`
-            : `${panel.title}: ${series.length} series`
+          axisLabels.length > 0
+            ? `${plotName}, axes: ${axisLabels.join(", ")}`
+            : plotName
         }
         data-axes={axisNames.join(" ")}
         data-series={series.length}
