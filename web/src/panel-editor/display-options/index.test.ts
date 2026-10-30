@@ -5,7 +5,6 @@ import { displayKeysByType, type DisplayPanelType } from "@/spec"
 import { displayOptions } from "./index"
 
 const geomapKeysTheEditorPlansDeclareLater = [
-  "basemapLabels",
   "fitLayer",
   "fitLastOnly",
   "sharedView",

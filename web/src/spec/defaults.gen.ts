@@ -255,6 +255,7 @@ export const specDefaults = {
       "markerSizeMax": 15,
       "basemap": "outline",
       "basemapTheme": "auto",
+      "basemapLabels": true,
       "showZoom": true,
       "mouseWheelZoom": false,
       "showAttribution": true,

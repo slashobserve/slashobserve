@@ -330,6 +330,22 @@ describe("panelChanges", () => {
       cellDecimals: "cell value decimals",
       hideBelow: "lower value filter",
       hideAbove: "upper value filter",
+      basemap: "basemap",
+      basemapTheme: "basemap theme",
+      basemapLabels: "basemap labels",
+      esriServer: "Esri map",
+      basemapUrl: "basemap URL",
+      basemapAttribution: "basemap attribution",
+      basemapOpacity: "basemap opacity",
+      minZoom: "lowest zoom",
+      maxZoom: "highest zoom",
+      fitPadding: "fit padding",
+      showZoom: "zoom buttons",
+      mouseWheelZoom: "mouse wheel zoom",
+      showAttribution: "attribution",
+      showScale: "scale bar",
+      showMeasure: "measure tool",
+      showDebug: "zoom and center readout",
     }
     for (const [key, label] of Object.entries(keys)) {
       expect(labels(panel(), panel({ display: { [key]: 1 } }))).toEqual([label])

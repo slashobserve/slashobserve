@@ -25,7 +25,7 @@
     "nodeGraph": {"layout": "layered"},
     "traces": {},
     "flamegraph": {},
-    "geomap": {"view": "fit", "location": "auto", "markerSize": 5, "markerSizeMax": 15, "basemap": "outline", "basemapTheme": "auto", "showZoom": true, "mouseWheelZoom": false, "showAttribution": true, "showScale": false, "showMeasure": false, "showDebug": false, "tooltip": "details"},
+    "geomap": {"view": "fit", "location": "auto", "markerSize": 5, "markerSizeMax": 15, "basemap": "outline", "basemapTheme": "auto", "basemapLabels": true, "showZoom": true, "mouseWheelZoom": false, "showAttribution": true, "showScale": false, "showMeasure": false, "showDebug": false, "tooltip": "details"},
     "canvas": {"reduce": "lastNotNull", "elements": [], "connections": [], "panZoom": false, "infinitePan": false, "tooltip": "none"},
     "alertlist": {"limit": 20, "sort": "alphaAsc", "viewMode": "list"},
     "dashlist": {"tags": [], "limit": 10, "keepTime": false, "includeVars": false},

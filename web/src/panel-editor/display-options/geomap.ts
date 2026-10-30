@@ -95,6 +95,7 @@ export const geomap: readonly DisplayOption[] = [
       { value: "dark", label: "Dark" },
     ],
   },
+  { kind: "toggle", key: "basemapLabels", label: "Show CARTO labels" },
   {
     kind: "choice",
     key: "esriServer",

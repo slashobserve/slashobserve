@@ -45,6 +45,7 @@ Item links open in a new tab and are not limited by the allowlist: the allowlist
 The browser never loads an image or a file from another site.
 A page's Content-Security-Policy allows only the server's own origin, so panels that show a remote image, such as an image in a text panel's Markdown, ask the server for it with `GET /api/v1/assets/image?url=<image address>`.
 Panels that draw a GeoJSON layer use `GET /api/v1/assets/geojson?url=<file address>`.
+Geomap panels that draw map tiles load each tile through the image route, and they draw tiles only when every host the tile address can produce is allowed (CARTO uses `a.basemaps.cartocdn.com` to `d.basemaps.cartocdn.com`); otherwise the map shows country outlines and a note names the host to allow.
 Only signed-in people can call these routes, not service-account keys, and the address must be an https address on an allowed domain.
 
 - An image can be a PNG, JPEG, GIF, WebP, AVIF or SVG, up to 5 MiB, and its bytes must match the type the site declared.

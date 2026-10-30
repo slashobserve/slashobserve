@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { displayWithDefaults } from "@/spec"
+
 import {
   basemapOf,
   tileAccess,
@@ -46,12 +48,11 @@ describe("basemapOf", () => {
     )
   })
 
-  it("lets an auto CARTO theme follow the app theme and labels default on", () => {
-    const options = { basemap: "carto", basemapTheme: "auto" }
-    expect(
-      tileSource({ type: "carto", ...options }, "dark")?.template
-    ).toContain("dark_all")
-    expect(tilesOf(basemapOf(options, "light")).template).toContain("light_all")
+  it("lets an auto CARTO theme follow the app theme and shows labels by default", () => {
+    const display = displayWithDefaults("geomap", { basemap: "carto" })
+    expect(display.basemapLabels).toBe(true)
+    expect(tilesOf(basemapOf(display, "dark")).template).toContain("dark_all")
+    expect(tilesOf(basemapOf(display, "light")).template).toContain("light_all")
   })
 
   it("picks the CARTO subdomain from the tile position", () => {
