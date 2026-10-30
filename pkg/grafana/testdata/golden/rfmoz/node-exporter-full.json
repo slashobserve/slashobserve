@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 125,
-      "imported": 87,
-      "partial": 38,
+      "imported": 88,
+      "partial": 37,
       "placeholder": 0,
       "unverified": 0
     },
@@ -2120,13 +2120,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Hardware Misc",
-        "status": "partial",
-        "reasons": [
-          "Unit rotrpm is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -7126,6 +7122,7 @@
                 "hide": true
               }
             ],
+            "unit": "rotrpm",
             "min": 0,
             "fill": 20,
             "display": {

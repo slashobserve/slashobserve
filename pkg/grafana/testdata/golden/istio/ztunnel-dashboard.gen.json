@@ -184,11 +184,9 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "Unit qps is not supported yet.",
           "Gradient fill is not part of the SlashObserve look."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
           "fieldConfig.defaults.custom.gradientMode"
         ],
         "queries": [
@@ -528,6 +526,7 @@
                 "legend": "Request ({{pod}})"
               }
             ],
+            "unit": "suffix:qps",
             "fill": 10,
             "interval": "5s",
             "display": {

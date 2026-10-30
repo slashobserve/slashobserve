@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 9,
-      "imported": 6,
-      "partial": 3,
+      "imported": 7,
+      "partial": 2,
       "placeholder": 0,
       "unverified": 0
     },
@@ -106,13 +106,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Memory",
-        "status": "partial",
-        "reasons": [
-          "Unit rds is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -410,6 +406,7 @@
                 "legend": "Major page Faults"
               }
             ],
+            "unit": "suffix:rds",
             "fill": 100,
             "stack": "normal",
             "display": {

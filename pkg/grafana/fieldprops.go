@@ -22,6 +22,7 @@ const (
 	maxDisplayName = 200
 	maxNoValue     = 100
 	maxCustomUnit  = 20
+	maxFormatUnit  = 40
 	maxMappedValue = 200
 
 	colorSchemeReason = "This color scheme is not supported yet; series use the default palette."
@@ -77,17 +78,48 @@ var unitSet = sync.OnceValue(func() map[string]bool {
 
 var coloringCellTypes = map[string]bool{"color-text": true, "color-background": true, "color-background-solid": true}
 
+var customUnitForms = []struct {
+	prefix string
+	limit  int
+}{
+	{"suffix:", maxCustomUnit},
+	{"prefix:", maxCustomUnit},
+	{"time:", maxFormatUnit},
+	{"si:", maxFormatUnit},
+	{"count:", maxFormatUnit},
+	{"currency:", maxFormatUnit},
+}
+
+func customUnitForm(unit string) (rest string, limit int, ok bool) {
+	for _, form := range customUnitForms {
+		if rest, ok := strings.CutPrefix(unit, form.prefix); ok {
+			return rest, form.limit, true
+		}
+	}
+	return "", 0, false
+}
+
 func validUnit(unit string) bool {
 	if unitSet()[unit] {
 		return true
 	}
-	for _, prefix := range []string{"suffix:", "prefix:"} {
-		if rest, ok := strings.CutPrefix(unit, prefix); ok {
-			n := utf8.RuneCountInString(rest)
-			return n >= 1 && n <= maxCustomUnit && !strings.ContainsAny(rest, "\n\r")
-		}
+	rest, limit, ok := customUnitForm(unit)
+	if !ok {
+		return false
 	}
-	return false
+	n := utf8.RuneCountInString(rest)
+	return n >= 1 && n <= limit && !strings.ContainsAny(rest, "\n\r")
+}
+
+func importedUnit(unit string) (string, bool) {
+	if validUnit(unit) {
+		return unit, true
+	}
+	if _, _, custom := customUnitForm(unit); custom {
+		return "", false
+	}
+	text := "suffix:" + unit
+	return text, validUnit(text)
 }
 
 func numberValue(v any) (float64, bool) {
@@ -211,11 +243,12 @@ func propUnit(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	if !ok || unit == "" {
 		return
 	}
-	if !validUnit(unit) {
+	imported, ok := importedUnit(unit)
+	if !ok {
 		b.partial(s.at(""), fmt.Sprintf("Unit %s is not supported yet.", unit))
 		return
 	}
-	p.Unit = unit
+	p.Unit = imported
 }
 
 func propDecimals(b *panelBuild, p *spec.FieldProps, v any, s propSite) {

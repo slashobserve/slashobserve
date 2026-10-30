@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 30,
-      "imported": 14,
-      "partial": 16,
+      "imported": 28,
+      "partial": 2,
       "placeholder": 0,
       "unverified": 0
     },
@@ -64,13 +64,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -89,13 +85,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -114,13 +106,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -139,13 +127,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -185,13 +169,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -210,13 +190,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -235,13 +211,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -260,13 +232,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Span pipeline",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -327,13 +295,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Span pipeline",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -352,13 +316,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Span pipeline",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -419,13 +379,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Log pipeline",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -444,13 +400,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Log pipeline",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -490,13 +442,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Log pipeline",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -557,13 +505,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Metric pipeline",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -833,6 +777,7 @@
                 "legend": "Spans exported"
               }
             ],
+            "unit": "suffix:items/sec",
             "thresholds": [
               {
                 "color": "info"
@@ -858,6 +803,7 @@
                 "legend": "LogRecords exported"
               }
             ],
+            "unit": "suffix:items/sec",
             "thresholds": [
               {
                 "color": "ok"
@@ -883,6 +829,7 @@
                 "legend": "Data points exported"
               }
             ],
+            "unit": "suffix:items/sec",
             "thresholds": [
               {
                 "color": "#B877D9"
@@ -908,6 +855,7 @@
                 "legend": "Export errors"
               }
             ],
+            "unit": "suffix:items/sec",
             "thresholds": [
               {
                 "color": "ok"
@@ -962,6 +910,7 @@
                 "legend": "Processing errors (spans + LogRecords)"
               }
             ],
+            "unit": "suffix:items/sec",
             "thresholds": [
               {
                 "color": "ok"
@@ -990,6 +939,7 @@
                 "legend": "Spans processed"
               }
             ],
+            "unit": "suffix:items/sec",
             "thresholds": [
               {
                 "color": "info"
@@ -1015,6 +965,7 @@
                 "legend": "LogRecords processed"
               }
             ],
+            "unit": "suffix:items/sec",
             "thresholds": [
               {
                 "color": "ok"
@@ -1053,6 +1004,7 @@
                 "legend": "{{service_name}}"
               }
             ],
+            "unit": "suffix:items/sec",
             "fill": 10,
             "display": {
               "legendValues": [
@@ -1136,6 +1088,7 @@
                 "legend": "{{service_name}} {{error_type}}"
               }
             ],
+            "unit": "suffix:items/sec",
             "fill": 10,
             "stack": "normal",
             "display": {
@@ -1163,6 +1116,7 @@
                 "legend": "{{service_name}} {{error_type}}"
               }
             ],
+            "unit": "suffix:items/sec",
             "fill": 10,
             "stack": "normal",
             "display": {
@@ -1259,6 +1213,7 @@
                 "legend": "{{service_name}}"
               }
             ],
+            "unit": "suffix:items/sec",
             "fill": 10,
             "display": {
               "legendValues": [
@@ -1285,6 +1240,7 @@
                 "legend": "{{service_name}} {{error_type}}"
               }
             ],
+            "unit": "suffix:items/sec",
             "fill": 10,
             "stack": "normal",
             "display": {
@@ -1342,6 +1298,7 @@
                 "legend": "{{service_name}} {{error_type}}"
               }
             ],
+            "unit": "suffix:items/sec",
             "fill": 10,
             "stack": "normal",
             "display": {
@@ -1438,6 +1395,7 @@
                 "legend": "{{service_name}} {{error_type}}"
               }
             ],
+            "unit": "suffix:items/sec",
             "fill": 10,
             "stack": "normal",
             "display": {

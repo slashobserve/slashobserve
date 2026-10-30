@@ -1,4 +1,9 @@
-import { parseUnit, type UnitId } from "./units"
+import {
+  customUnitKinds,
+  parseUnit,
+  type CustomUnitKind,
+  type UnitId,
+} from "./units"
 
 export type UnitGroup = {
   label: string
@@ -74,6 +79,10 @@ export const unitGroups: readonly UnitGroup[] = [
     ["Tibits", "tebibits per second"],
     ["TBs", "terabytes per second"],
     ["Tbits", "terabits per second"],
+    ["PiBs", "pebibytes per second"],
+    ["Pibits", "pebibits per second"],
+    ["PBs", "petabytes per second"],
+    ["Pbits", "petabits per second"],
   ]),
   group("Throughput", [
     ["cps", "counts per second"],
@@ -130,6 +139,34 @@ export const unitGroups: readonly UnitGroup[] = [
     ["volt", "volts"],
     ["mvolt", "millivolts"],
     ["dBm", "decibel-milliwatts"],
+    ["megwatt", "megawatts"],
+    ["gwatt", "gigawatts"],
+    ["Wm2", "watts per square meter"],
+    ["voltamp", "volt-amperes"],
+    ["kvoltamp", "kilovolt-amperes"],
+    ["voltampreact", "volt-amperes reactive"],
+    ["kvoltampreact", "kilovolt-amperes reactive"],
+    ["watthperkg", "watt-hours per kilogram"],
+    ["kwattm", "kilowatt-minutes"],
+    ["mwatth", "megawatt-hours"],
+    ["amph", "ampere-hours"],
+    ["kamph", "kiloampere-hours"],
+    ["mamph", "milliampere-hours"],
+    ["ev", "electron volts"],
+    ["kamp", "kiloamperes"],
+    ["kvolt", "kilovolts"],
+    ["ohm", "ohms"],
+    ["kohm", "kilohms"],
+    ["Mohm", "megohms"],
+    ["mohm", "milliohms"],
+    ["farad", "farads"],
+    ["µfarad", "microfarads"],
+    ["nfarad", "nanofarads"],
+    ["pfarad", "picofarads"],
+    ["ffarad", "femtofarads"],
+    ["henry", "henries"],
+    ["mhenry", "millihenries"],
+    ["µhenry", "microhenries"],
   ]),
   group("Temperature", [
     ["celsius", "degrees Celsius"],
@@ -142,15 +179,164 @@ export const unitGroups: readonly UnitGroup[] = [
     ["currencyGBP", "pounds sterling"],
     ["currencyJPY", "yen"],
     ["currencyINR", "rupees"],
+    ["currencyRUB", "rubles"],
+    ["currencyUAH", "hryvnias"],
+    ["currencyBRL", "reais"],
+    ["currencyDKK", "Danish kroner"],
+    ["currencyISK", "Icelandic krónur"],
+    ["currencyNOK", "Norwegian kroner"],
+    ["currencySEK", "Swedish kronor"],
+    ["currencyCZK", "Czech korunas"],
+    ["currencyCHF", "Swiss francs"],
+    ["currencyPLN", "zlotys"],
+    ["currencyZAR", "rand"],
+    ["currencyKRW", "won"],
+    ["currencyIDR", "rupiah"],
+    ["currencyPHP", "Philippine pesos"],
+    ["currencyVND", "dong"],
+    ["currencyTRY", "Turkish lira"],
+    ["currencyMYR", "ringgit"],
+    ["currencyXPF", "CFP francs"],
+    ["currencyBGN", "leva"],
+    ["currencyPYG", "guaranis"],
+    ["currencyUYU", "Uruguayan pesos"],
+    ["currencyILS", "shekels"],
+    ["currencyBTC", "bitcoin"],
+    ["currencymBTC", "millibitcoin"],
+    ["currencyμBTC", "microbitcoin"],
   ]),
   group("Length", [
     ["lengthmm", "millimeters"],
     ["lengthm", "meters"],
     ["lengthkm", "kilometers"],
+    ["lengthin", "inches"],
+    ["lengthft", "feet"],
+    ["lengthmi", "miles"],
   ]),
   group("Mass", [
     ["massg", "grams"],
     ["masskg", "kilograms"],
+    ["massmg", "milligrams"],
+    ["masslb", "pounds"],
+    ["masst", "tonnes"],
+  ]),
+  group("Acceleration", [
+    ["accMS2", "meters per second squared"],
+    ["accFS2", "feet per second squared"],
+    ["accG", "g"],
+  ]),
+  group("Angle", [
+    ["degree", "degrees"],
+    ["radian", "radians"],
+    ["grad", "gradians"],
+    ["arcmin", "arcminutes"],
+    ["arcsec", "arcseconds"],
+  ]),
+  group("Area", [
+    ["areaM2", "square meters"],
+    ["areaF2", "square feet"],
+    ["areaMI2", "square miles"],
+    ["areaKM2", "square kilometers"],
+    ["areaHa", "hectares"],
+  ]),
+  group("Computation", [
+    ["flops", "FLOPS"],
+    ["mflops", "megaFLOPS"],
+    ["gflops", "gigaFLOPS"],
+    ["tflops", "teraFLOPS"],
+    ["pflops", "petaFLOPS"],
+    ["eflops", "exaFLOPS"],
+    ["zflops", "zettaFLOPS"],
+    ["yflops", "yottaFLOPS"],
+  ]),
+  group("Concentration", [
+    ["ppm", "parts per million"],
+    ["conppb", "parts per billion"],
+    ["conngm3", "nanograms per cubic meter"],
+    ["conngNm3", "nanograms per normal cubic meter"],
+    ["conμgm3", "micrograms per cubic meter"],
+    ["conμgNm3", "micrograms per normal cubic meter"],
+    ["conmgm3", "milligrams per cubic meter"],
+    ["conmgNm3", "milligrams per normal cubic meter"],
+    ["congm3", "grams per cubic meter"],
+    ["congNm3", "grams per normal cubic meter"],
+    ["conmgdL", "milligrams per deciliter"],
+    ["conmmolL", "millimoles per liter"],
+  ]),
+  group("Flow", [
+    ["flowgpm", "gallons per minute"],
+    ["flowcms", "cubic meters per second"],
+    ["flowcfs", "cubic feet per second"],
+    ["flowcfm", "cubic feet per minute"],
+    ["litreh", "liters per hour"],
+    ["flowlpm", "liters per minute"],
+    ["flowmlpm", "milliliters per minute"],
+  ]),
+  group("Force", [
+    ["forceNm", "newton-meters"],
+    ["forcekNm", "kilonewton-meters"],
+    ["forceN", "newtons"],
+    ["forcekN", "kilonewtons"],
+  ]),
+  group("Hash rate", [
+    ["Hs", "hashes per second"],
+    ["KHs", "kilohashes per second"],
+    ["MHs", "megahashes per second"],
+    ["GHs", "gigahashes per second"],
+    ["THs", "terahashes per second"],
+    ["PHs", "petahashes per second"],
+    ["EHs", "exahashes per second"],
+  ]),
+  group("Light", [
+    ["candela", "candela"],
+    ["lumens", "lumens"],
+    ["lux", "lux"],
+  ]),
+  group("Pressure", [
+    ["pressurembar", "millibars"],
+    ["pressurebar", "bars"],
+    ["pressurekbar", "kilobars"],
+    ["pressurepa", "pascals"],
+    ["pressurehpa", "hectopascals"],
+    ["pressurekpa", "kilopascals"],
+    ["pressurehg", "inches of mercury"],
+    ["pressurepsi", "pounds per square inch"],
+  ]),
+  group("Radiation", [
+    ["radbq", "becquerels"],
+    ["radci", "curies"],
+    ["radgy", "grays"],
+    ["radrad", "rads"],
+    ["radsv", "sieverts"],
+    ["radmsv", "millisieverts"],
+    ["radusv", "microsieverts"],
+    ["radrem", "rems"],
+    ["radexpckg", "coulombs per kilogram"],
+    ["radr", "roentgens"],
+    ["radsvh", "sieverts per hour"],
+    ["radmsvh", "millisieverts per hour"],
+    ["radusvh", "microsieverts per hour"],
+  ]),
+  group("Rotation", [
+    ["rotrpm", "revolutions per minute"],
+    ["rothz", "hertz"],
+    ["rotkhz", "kilohertz"],
+    ["rotrads", "radians per second"],
+    ["rotdegs", "degrees per second"],
+  ]),
+  group("Velocity", [
+    ["velocityms", "meters per second"],
+    ["velocitykmh", "kilometers per hour"],
+    ["velocitymph", "miles per hour"],
+    ["velocityknot", "knots"],
+  ]),
+  group("Volume", [
+    ["mlitre", "milliliters"],
+    ["litre", "liters"],
+    ["m3", "cubic meters"],
+    ["Nm3", "normal cubic meters"],
+    ["dm3", "cubic decimeters"],
+    ["gallons", "gallons"],
   ]),
 ]
 
@@ -160,7 +346,7 @@ const labels = new Map(
   )
 )
 
-function customLabel(kind: "suffix" | "prefix", text: string): string {
+function customLabel(kind: CustomUnitKind, text: string): string {
   return `Custom ${kind} ${JSON.stringify(text)}`
 }
 
@@ -170,7 +356,7 @@ export function unitLabel(unit: string | undefined): string {
   if (parsed.kind !== "id") return customLabel(parsed.kind, parsed.text)
   const known = labels.get(parsed.id)
   if (known && parsed.id !== "none") return known
-  for (const kind of ["suffix", "prefix"] as const) {
+  for (const kind of customUnitKinds) {
     if (unit.startsWith(`${kind}:`)) {
       return customLabel(kind, unit.slice(kind.length + 1))
     }

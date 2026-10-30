@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 76,
-      "imported": 56,
-      "partial": 20,
+      "imported": 57,
+      "partial": 19,
       "placeholder": 0,
       "unverified": 0
     },
@@ -85,13 +85,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Stats",
-        "status": "partial",
-        "reasons": [
-          "Unit req/s is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2135,6 +2131,7 @@
                 "instant": true
               }
             ],
+            "unit": "suffix:req/s",
             "thresholds": [
               {
                 "color": "ok"

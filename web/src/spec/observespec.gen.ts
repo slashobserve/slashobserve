@@ -32,7 +32,7 @@ export type DatasourceUid = string;
 export type Panel = DataPanel | TextPanel | PlaceholderPanel | RowPanel | DashlistPanel | NewsPanel;
 export type DataPanel = FieldProps & DataPanel1;
 /**
- * A Grafana unit id, or a custom suffix:/prefix: unit.
+ * A Grafana unit id, or a custom suffix:, prefix:, time:, si:, count: or currency: unit.
  */
 export type Unit =
   | (
@@ -149,7 +149,162 @@ export type Unit =
       | "massg"
       | "masskg"
     )
-  | string;
+  | string
+  | (
+      | "candela"
+      | "accMS2"
+      | "accFS2"
+      | "accG"
+      | "degree"
+      | "radian"
+      | "grad"
+      | "arcmin"
+      | "arcsec"
+      | "areaM2"
+      | "areaF2"
+      | "areaMI2"
+      | "areaKM2"
+      | "areaHa"
+      | "flops"
+      | "mflops"
+      | "gflops"
+      | "tflops"
+      | "pflops"
+      | "eflops"
+      | "zflops"
+      | "yflops"
+      | "ppm"
+      | "conppb"
+      | "conngm3"
+      | "conngNm3"
+      | "conμgm3"
+      | "conμgNm3"
+      | "conmgm3"
+      | "conmgNm3"
+      | "congm3"
+      | "congNm3"
+      | "conmgdL"
+      | "conmmolL"
+      | "currencyRUB"
+      | "currencyUAH"
+      | "currencyBRL"
+      | "currencyDKK"
+      | "currencyISK"
+      | "currencyNOK"
+      | "currencySEK"
+      | "currencyCZK"
+      | "currencyCHF"
+      | "currencyPLN"
+      | "currencyZAR"
+      | "currencyKRW"
+      | "currencyIDR"
+      | "currencyPHP"
+      | "currencyVND"
+      | "currencyTRY"
+      | "currencyMYR"
+      | "currencyXPF"
+      | "currencyBGN"
+      | "currencyPYG"
+      | "currencyUYU"
+      | "currencyILS"
+      | "currencyBTC"
+      | "currencymBTC"
+      | "currencyμBTC"
+      | "PiBs"
+      | "Pibits"
+      | "PBs"
+      | "Pbits"
+      | "megwatt"
+      | "gwatt"
+      | "Wm2"
+      | "voltamp"
+      | "kvoltamp"
+      | "voltampreact"
+      | "kvoltampreact"
+      | "watthperkg"
+      | "kwattm"
+      | "mwatth"
+      | "amph"
+      | "kamph"
+      | "mamph"
+      | "ev"
+      | "kamp"
+      | "kvolt"
+      | "ohm"
+      | "kohm"
+      | "Mohm"
+      | "mohm"
+      | "farad"
+      | "µfarad"
+      | "nfarad"
+      | "pfarad"
+      | "ffarad"
+      | "henry"
+      | "mhenry"
+      | "µhenry"
+      | "lumens"
+      | "flowgpm"
+      | "flowcms"
+      | "flowcfs"
+      | "flowcfm"
+      | "litreh"
+      | "flowlpm"
+      | "flowmlpm"
+      | "lux"
+      | "forceNm"
+      | "forcekNm"
+      | "forceN"
+      | "forcekN"
+      | "Hs"
+      | "KHs"
+      | "MHs"
+      | "GHs"
+      | "THs"
+      | "PHs"
+      | "EHs"
+      | "lengthin"
+      | "lengthft"
+      | "lengthmi"
+      | "massmg"
+      | "masslb"
+      | "masst"
+      | "pressurembar"
+      | "pressurebar"
+      | "pressurekbar"
+      | "pressurepa"
+      | "pressurehpa"
+      | "pressurekpa"
+      | "pressurehg"
+      | "pressurepsi"
+      | "radbq"
+      | "radci"
+      | "radgy"
+      | "radrad"
+      | "radsv"
+      | "radmsv"
+      | "radusv"
+      | "radrem"
+      | "radexpckg"
+      | "radr"
+      | "radsvh"
+      | "radmsvh"
+      | "radusvh"
+      | "rotrpm"
+      | "rothz"
+      | "rotkhz"
+      | "rotrads"
+      | "rotdegs"
+      | "velocityms"
+      | "velocitykmh"
+      | "velocitymph"
+      | "velocityknot"
+      | "mlitre"
+      | "litre"
+      | "m3"
+      | "Nm3"
+      | "dm3"
+      | "gallons"
+    );
 /**
  * A semantic color (ok, info, warning, critical) or a #rrggbb hex color.
  */
@@ -283,7 +438,7 @@ export type Transform =
        */
       conversions: {
         field: FieldName;
-        to: "number" | "string" | "time" | "boolean" | "enum" | "other";
+        to: ("number" | "string" | "time" | "boolean") | ("enum" | "other");
         dateFormat?: string;
         joinWith?: string;
       }[];
@@ -291,7 +446,8 @@ export type Transform =
   | {
       type: "formatString";
       field: FieldName;
-      format: "upper" | "lower" | "sentence" | "title" | "pascal" | "camel" | "snake" | "kebab" | "trim" | "substring";
+      format:
+        ("upper" | "lower" | "title" | "trim" | "substring") | ("sentence" | "pascal" | "camel" | "snake" | "kebab");
       start?: number;
       end?: number;
     }
@@ -333,7 +489,7 @@ export type Transform =
   | {
       type: "extractFields";
       field: FieldName;
-      format?: "auto" | "json" | "kvp" | "delimiter" | "regexp";
+      format?: ("auto" | "json" | "kvp") | ("delimiter" | "regexp");
       replace?: boolean;
       keepTime?: boolean;
       /**

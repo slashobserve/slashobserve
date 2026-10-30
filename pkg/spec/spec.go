@@ -609,10 +609,14 @@ var units = sync.OnceValue(func() []string {
 	if err := json.Unmarshal(schema.ObserveSpecV0, &doc); err != nil {
 		panic("spec: embedded schema is not valid JSON: " + err.Error())
 	}
-	if len(doc.Defs.Unit.AnyOf) == 0 || len(doc.Defs.Unit.AnyOf[0].Enum) == 0 {
+	var all []string
+	for _, branch := range doc.Defs.Unit.AnyOf {
+		all = append(all, branch.Enum...)
+	}
+	if len(all) == 0 {
 		panic("spec: embedded schema has no unit enum")
 	}
-	return doc.Defs.Unit.AnyOf[0].Enum
+	return all
 })
 
 func Units() []string {

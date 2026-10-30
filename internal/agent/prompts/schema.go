@@ -9,11 +9,15 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
+const omitFromPromptKeyword = "x-omitFromPrompt"
+
 var annotationKeywords = map[string]bool{
 	"$schema":     true,
 	"$id":         true,
 	"title":       true,
 	"description": true,
+
+	omitFromPromptKeyword: true,
 }
 
 var schemaMapKeywords = map[string]bool{
@@ -39,12 +43,33 @@ var schemaKeywords = map[string]bool{
 }
 
 var schema = sync.OnceValue(func() []byte {
-	var out bytes.Buffer
-	if err := writeSchema(&out, spec.Schema()); err != nil {
+	out, err := stripSchema(spec.Schema())
+	if err != nil {
 		panic("prompts: embedded schema does not strip: " + err.Error())
 	}
-	return out.Bytes()
+	return out
 })
+
+func stripSchema(raw json.RawMessage) ([]byte, error) {
+	var out bytes.Buffer
+	if err := writeSchema(&out, raw); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
+}
+
+func omittedFromPrompt(raw json.RawMessage) bool {
+	members, isObject, err := objectMembers(raw)
+	if err != nil || !isObject {
+		return false
+	}
+	for _, m := range members {
+		if m.key == omitFromPromptKeyword {
+			return string(bytes.TrimSpace(m.value)) == "true"
+		}
+	}
+	return false
+}
 
 func Schema() []byte { return bytes.Clone(schema()) }
 
@@ -93,7 +118,7 @@ func writeSchema(out *bytes.Buffer, raw json.RawMessage) error {
 		case schemaMapKeywords[m.key]:
 			return writeSchemaMap(out, m.value)
 		case schemaArrayKeywords[m.key]:
-			return writeSchemaArray(out, m.value)
+			return writeSchemaArray(out, m.key, m.value)
 		case schemaKeywords[m.key]:
 			return writeSchema(out, m.value)
 		default:
@@ -110,16 +135,36 @@ func writeSchemaMap(out *bytes.Buffer, raw json.RawMessage) error {
 	if !isObject {
 		return json.Compact(out, raw)
 	}
-	return writeMembers(out, members, func(m member) error { return writeSchema(out, m.value) }, nil)
+	kept := make([]member, 0, len(members))
+	for _, m := range members {
+		if !omittedFromPrompt(m.value) {
+			kept = append(kept, m)
+		}
+	}
+	return writeMembers(out, kept, func(m member) error { return writeSchema(out, m.value) }, nil)
 }
 
-func writeSchemaArray(out *bytes.Buffer, raw json.RawMessage) error {
+func writeSchemaArray(out *bytes.Buffer, keyword string, raw json.RawMessage) error {
 	var items []json.RawMessage
 	if err := json.Unmarshal(raw, &items); err != nil {
 		return err
 	}
+	omittable := keyword == "anyOf" || keyword == "oneOf"
+	kept := make([]json.RawMessage, 0, len(items))
+	for _, item := range items {
+		if !omittedFromPrompt(item) {
+			kept = append(kept, item)
+			continue
+		}
+		if !omittable {
+			return fmt.Errorf("%s inside %s", omitFromPromptKeyword, keyword)
+		}
+	}
+	if omittable && len(kept) == 0 {
+		return fmt.Errorf("%s leaves %s empty", omitFromPromptKeyword, keyword)
+	}
 	out.WriteByte('[')
-	for i, item := range items {
+	for i, item := range kept {
 		if i > 0 {
 			out.WriteByte(',')
 		}

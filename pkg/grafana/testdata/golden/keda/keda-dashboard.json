@@ -45,12 +45,10 @@
         "row": "Metric Server",
         "status": "partial",
         "reasons": [
-          "Unit Errors/sec is not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.spanNulls"
         ],
@@ -74,12 +72,10 @@
         "row": "Metric Server",
         "status": "partial",
         "reasons": [
-          "Unit Errors/sec is not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.spanNulls"
         ],
@@ -103,12 +99,10 @@
         "row": "Metric Server",
         "status": "partial",
         "reasons": [
-          "Unit Errors/sec is not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.spanNulls"
         ],
@@ -326,6 +320,7 @@
                 "legend": "{{ job }}"
               }
             ],
+            "unit": "suffix:Errors/sec",
             "fill": 25,
             "overrides": [
               {
@@ -366,6 +361,7 @@
                 "legend": "{{ scaler }}"
               }
             ],
+            "unit": "suffix:Errors/sec",
             "fill": 25,
             "overrides": [
               {
@@ -406,6 +402,7 @@
                 "legend": "{{ scaledObject }}"
               }
             ],
+            "unit": "suffix:Errors/sec",
             "fill": 25,
             "overrides": [
               {

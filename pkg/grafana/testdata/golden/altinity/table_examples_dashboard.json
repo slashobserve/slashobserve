@@ -45,11 +45,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Unit time: YYYY-MM-DD HH:mm:ss is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[1].properties[0]",
           "fontSize",
           "options.frameIndex",
           "options.sortBy[0].desc",
@@ -93,11 +91,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Unit time: YYYY-MM-DD HH:mm:ss is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[1].properties[0]",
           "fontSize",
           "options.frameIndex",
           "options.sortBy[0].desc",
@@ -165,6 +161,12 @@
               "field": "s"
             },
             "decimals": 3
+          },
+          {
+            "match": {
+              "field": "t_local"
+            },
+            "unit": "time: YYYY-MM-DD HH:mm:ss"
           }
         ]
       },
@@ -191,6 +193,12 @@
               "field": "s"
             },
             "decimals": 3
+          },
+          {
+            "match": {
+              "field": "t_local"
+            },
+            "unit": "time: YYYY-MM-DD HH:mm:ss"
           }
         ]
       }

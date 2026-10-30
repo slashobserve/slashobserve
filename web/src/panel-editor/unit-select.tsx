@@ -2,27 +2,62 @@ import { useId, useState, type Dispatch } from "react"
 
 import { Input } from "@/components/ui/input"
 import { unitGroups, unitLabel } from "@/lib/unit-catalog"
-import { parseUnit } from "@/lib/units"
+import { customUnitKinds, parseUnit, type CustomUnitKind } from "@/lib/units"
 import type { Unit } from "@/spec"
 
 import type { DraftAction } from "./draft"
 import { Field, NativeSelect } from "./field-controls"
 
-type CustomKind = "suffix" | "prefix"
-
-const maxCustomLength = 20
 const customPrefix = "custom:"
-const customLabels: Record<CustomKind, string> = {
-  suffix: "Custom suffix",
-  prefix: "Custom prefix",
-}
-const inputLabels: Record<CustomKind, string> = {
-  suffix: "Suffix",
-  prefix: "Prefix",
+
+type CustomForm = {
+  label: string
+  input: string
+  maxLength: number
+  hint: string
 }
 
-function customUnit(kind: CustomKind, text: string): Unit | null {
-  const value = kind === "suffix" ? text.trim() : text
+const customForms: Record<CustomUnitKind, CustomForm> = {
+  suffix: {
+    label: "Custom suffix",
+    input: "Suffix",
+    maxLength: 20,
+    hint: "Text after the number, for example req",
+  },
+  prefix: {
+    label: "Custom prefix",
+    input: "Prefix",
+    maxLength: 20,
+    hint: "Text before the number, for example $",
+  },
+  time: {
+    label: "Custom date format",
+    input: "Date format",
+    maxLength: 40,
+    hint: "Date format, for example YYYY-MM-DD",
+  },
+  si: {
+    label: "Custom SI unit",
+    input: "SI symbol",
+    maxLength: 40,
+    hint: "SI symbol, for example mF",
+  },
+  count: {
+    label: "Custom count",
+    input: "Count text",
+    maxLength: 40,
+    hint: "Scaled with K, Mil and Bil, then this text, for example req",
+  },
+  currency: {
+    label: "Custom currency",
+    input: "Currency symbol",
+    maxLength: 40,
+    hint: "Symbol before the scaled number, for example €",
+  },
+}
+
+function customUnit(kind: CustomUnitKind, text: string): Unit | null {
+  const value = kind === "prefix" ? text : text.trim()
   return value === "" ? null : `${kind}:${value}`
 }
 
@@ -42,7 +77,8 @@ export function UnitSelect({
 }) {
   const selectId = useId()
   const textId = useId()
-  const [pending, setPending] = useState<CustomKind | null>(null)
+  const hintId = useId()
+  const [pending, setPending] = useState<CustomUnitKind | null>(null)
   const [text, setText] = useState(customText(unit))
   const [synced, setSynced] = useState(unit)
   if (unit !== synced) {
@@ -53,7 +89,7 @@ export function UnitSelect({
   const parsed = parseUnit(unit)
   const id = parsed.kind === "id" ? parsed.id : null
   const plain = id === null || id === "none"
-  const kind: CustomKind | null =
+  const kind: CustomUnitKind | null =
     parsed.kind !== "id" ? parsed.kind : plain ? pending : null
   const selected = kind ? `${customPrefix}${kind}` : plain ? "" : id
   const listed = unitGroups.some((group) =>
@@ -67,8 +103,10 @@ export function UnitSelect({
 
   const choose = (value: string) => {
     if (value.startsWith(customPrefix)) {
-      const next: CustomKind =
-        value.slice(customPrefix.length) === "prefix" ? "prefix" : "suffix"
+      const next =
+        customUnitKinds.find(
+          (candidate) => candidate === value.slice(customPrefix.length)
+        ) ?? "suffix"
       setPending(next)
       apply(customUnit(next, text))
       return
@@ -103,28 +141,33 @@ export function UnitSelect({
             </optgroup>
           ))}
           <optgroup label="Custom">
-            <option value={`${customPrefix}suffix`}>
-              {customLabels.suffix}
-            </option>
-            <option value={`${customPrefix}prefix`}>
-              {customLabels.prefix}
-            </option>
+            {customUnitKinds.map((custom) => (
+              <option key={custom} value={`${customPrefix}${custom}`}>
+                {customForms[custom].label}
+              </option>
+            ))}
           </optgroup>
         </NativeSelect>
       </Field>
       {kind ? (
-        <Field label={inputLabels[kind]} htmlFor={textId}>
-          <Input
-            id={textId}
-            value={text}
-            maxLength={maxCustomLength}
-            readOnly={readOnly}
-            onChange={(event) => {
-              setText(event.target.value)
-              apply(customUnit(kind, event.target.value))
-            }}
-          />
-        </Field>
+        <>
+          <Field label={customForms[kind].input} htmlFor={textId}>
+            <Input
+              id={textId}
+              value={text}
+              maxLength={customForms[kind].maxLength}
+              readOnly={readOnly}
+              aria-describedby={hintId}
+              onChange={(event) => {
+                setText(event.target.value)
+                apply(customUnit(kind, event.target.value))
+              }}
+            />
+          </Field>
+          <p id={hintId} className="text-xs text-muted-foreground">
+            {customForms[kind].hint}
+          </p>
+        </>
       ) : null}
     </div>
   )

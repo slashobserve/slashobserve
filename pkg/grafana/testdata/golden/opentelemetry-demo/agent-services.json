@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 10,
-      "imported": 3,
-      "partial": 7,
+      "imported": 10,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -68,13 +64,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -114,13 +106,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -139,13 +127,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Tool calls",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -164,13 +148,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Tool calls",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -189,13 +169,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Chatbot",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -256,13 +232,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "LLM performance",
-        "status": "partial",
-        "reasons": [
-          "Unit items/sec is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -353,6 +325,7 @@
                 "legend": "Tool calls"
               }
             ],
+            "unit": "suffix:items/sec",
             "thresholds": [
               {
                 "color": "info"
@@ -378,6 +351,7 @@
                 "legend": "Chatbot requests"
               }
             ],
+            "unit": "suffix:items/sec",
             "thresholds": [
               {
                 "color": "ok"
@@ -432,6 +406,7 @@
                 "legend": "LLM calls"
               }
             ],
+            "unit": "suffix:items/sec",
             "thresholds": [
               {
                 "color": "warning"
@@ -470,6 +445,7 @@
                 "legend": "{{gen_ai_tool_name}}"
               }
             ],
+            "unit": "suffix:items/sec",
             "fill": 10,
             "stack": "normal",
             "display": {
@@ -497,6 +473,7 @@
                 "legend": "{{service_name}}"
               }
             ],
+            "unit": "suffix:items/sec",
             "fill": 10,
             "display": {
               "legendValues": [
@@ -536,6 +513,7 @@
                 "legend": "{{service_name}}"
               }
             ],
+            "unit": "suffix:items/sec",
             "fill": 10,
             "display": {
               "legendValues": [
@@ -631,6 +609,7 @@
                 "legend": "{{gen_ai_response_model}}"
               }
             ],
+            "unit": "suffix:items/sec",
             "fill": 10,
             "display": {
               "legendValues": [

@@ -1,3 +1,4 @@
+import { formatDate } from "./date-format"
 import { formatDateTime, formatRelative } from "./time"
 
 type Rule =
@@ -5,12 +6,31 @@ type Rule =
   | { kind: "append"; suffix: string; multiplier?: number }
   | { kind: "prefix"; prefix: string }
   | { kind: "scale"; base: 1000 | 1024; suffixes: string[]; start: number }
-  | { kind: "short"; suffix: string; steps?: string[] }
+  | { kind: "short"; suffix: string; steps?: string[]; prefix?: string }
+  | { kind: "si"; symbol: string; start: number }
   | { kind: "duration"; unitNs: number }
   | { kind: "custom"; format: (value: number, decimals?: number) => string }
 
 const shortSteps = ["", "K", "Mil", "Bil", "Tri"]
 const siSteps = ["", "k", "M", "G", "T"]
+const siPrefixes = [
+  "f",
+  "p",
+  "n",
+  "µ",
+  "m",
+  "",
+  "k",
+  "M",
+  "G",
+  "T",
+  "P",
+  "E",
+  "Z",
+  "Y",
+]
+
+const siBase = siPrefixes.indexOf("")
 
 const iecBytes = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"]
 const iecBits = ["b", "Kib", "Mib", "Gib", "Tib", "Pib"]
@@ -84,6 +104,20 @@ function placeShort(value: number, steps: string[], tail: string): Placed {
   }
   const magnitude = steps[step] ? ` ${steps[step]}` : ""
   return { amount: current, suffix: `${magnitude}${tail}` }
+}
+
+function placeSi(value: number, symbol: string, start: number): Placed {
+  let step = start
+  let current = value
+  while (Math.abs(current) >= 1000 && step < siPrefixes.length - 1) {
+    current /= 1000
+    step++
+  }
+  while (current !== 0 && Math.abs(current) < 1 && step > 0) {
+    current *= 1000
+    step--
+  }
+  return { amount: current, suffix: ` ${siPrefixes[step]}${symbol}` }
 }
 
 function pad(value: number, width = 2): string {
@@ -213,6 +247,12 @@ const scale = (base: 1000 | 1024, suffixes: string[], start = 0): Rule => ({
   start,
 })
 const duration = (unitNs: number): Rule => ({ kind: "duration", unitNs })
+const si = (symbol: string, prefix = ""): Rule => ({
+  kind: "si",
+  symbol,
+  start: siPrefixes.indexOf(prefix),
+})
+const prefixed = (prefix: string): Rule => ({ kind: "prefix", prefix })
 
 const rules = {
   none: { kind: "plain" },
@@ -343,29 +383,199 @@ const rules = {
   lengthkm: spaced("km"),
   massg: spaced("g"),
   masskg: spaced("kg"),
+  candela: si("cd"),
+  accMS2: spaced("m/sec²"),
+  accFS2: spaced("f/sec²"),
+  accG: spaced("g"),
+  degree: append("°"),
+  radian: spaced("rad"),
+  grad: spaced("grad"),
+  arcmin: spaced("arcmin"),
+  arcsec: spaced("arcsec"),
+  areaM2: spaced("m²"),
+  areaF2: spaced("ft²"),
+  areaMI2: spaced("mi²"),
+  areaKM2: spaced("km²"),
+  areaHa: spaced("ha"),
+  flops: si("FLOPS"),
+  mflops: si("FLOPS", "M"),
+  gflops: si("FLOPS", "G"),
+  tflops: si("FLOPS", "T"),
+  pflops: si("FLOPS", "P"),
+  eflops: si("FLOPS", "E"),
+  zflops: si("FLOPS", "Z"),
+  yflops: si("FLOPS", "Y"),
+  ppm: spaced("ppm"),
+  conppb: spaced("ppb"),
+  conngm3: spaced("ng/m³"),
+  conngNm3: spaced("ng/Nm³"),
+  conμgm3: spaced("μg/m³"),
+  conμgNm3: spaced("μg/Nm³"),
+  conmgm3: spaced("mg/m³"),
+  conmgNm3: spaced("mg/Nm³"),
+  congm3: spaced("g/m³"),
+  congNm3: spaced("g/Nm³"),
+  conmgdL: spaced("mg/dL"),
+  conmmolL: spaced("mmol/L"),
+  currencyRUB: currencyRule("RUB"),
+  currencyUAH: currencyRule("UAH"),
+  currencyBRL: currencyRule("BRL"),
+  currencyDKK: currencyRule("DKK"),
+  currencyISK: currencyRule("ISK"),
+  currencyNOK: currencyRule("NOK"),
+  currencySEK: currencyRule("SEK"),
+  currencyCZK: currencyRule("CZK"),
+  currencyCHF: currencyRule("CHF"),
+  currencyPLN: currencyRule("PLN"),
+  currencyZAR: currencyRule("ZAR"),
+  currencyKRW: currencyRule("KRW"),
+  currencyIDR: currencyRule("IDR"),
+  currencyPHP: currencyRule("PHP"),
+  currencyVND: currencyRule("VND"),
+  currencyTRY: currencyRule("TRY"),
+  currencyMYR: currencyRule("MYR"),
+  currencyXPF: currencyRule("XPF"),
+  currencyBGN: currencyRule("BGN"),
+  currencyPYG: currencyRule("PYG"),
+  currencyUYU: currencyRule("UYU"),
+  currencyILS: currencyRule("ILS"),
+  currencyBTC: prefixed("฿"),
+  currencymBTC: prefixed("mBTC"),
+  currencyμBTC: prefixed("μBTC"),
+  PiBs: scale(1024, iecByteRate, 5),
+  Pibits: scale(1024, iecBitRate, 5),
+  PBs: scale(1000, siByteRate, 5),
+  Pbits: scale(1000, siBitRate, 5),
+  megwatt: si("W", "M"),
+  gwatt: si("W", "G"),
+  Wm2: spaced("W/m²"),
+  voltamp: si("VA"),
+  kvoltamp: si("VA", "k"),
+  voltampreact: si("VAr"),
+  kvoltampreact: si("VAr", "k"),
+  watthperkg: spaced("Wh/kg"),
+  kwattm: spaced("kWm"),
+  mwatth: si("Wh", "M"),
+  amph: si("Ah"),
+  kamph: si("Ah", "k"),
+  mamph: si("Ah", "m"),
+  ev: si("eV"),
+  kamp: si("A", "k"),
+  kvolt: si("V", "k"),
+  ohm: si("Ω"),
+  kohm: si("Ω", "k"),
+  Mohm: si("Ω", "M"),
+  mohm: si("Ω", "m"),
+  farad: si("F"),
+  µfarad: si("F", "µ"),
+  nfarad: si("F", "n"),
+  pfarad: si("F", "p"),
+  ffarad: si("F", "f"),
+  henry: si("H"),
+  mhenry: si("H", "m"),
+  µhenry: si("H", "µ"),
+  lumens: si("Lm"),
+  flowgpm: spaced("gpm"),
+  flowcms: spaced("cms"),
+  flowcfs: spaced("cfs"),
+  flowcfm: spaced("cfm"),
+  litreh: spaced("L/h"),
+  flowlpm: spaced("L/min"),
+  flowmlpm: spaced("mL/min"),
+  lux: spaced("lux"),
+  forceNm: si("Nm"),
+  forcekNm: si("Nm", "k"),
+  forceN: si("N"),
+  forcekN: si("N", "k"),
+  Hs: si("H/s"),
+  KHs: si("H/s", "k"),
+  MHs: si("H/s", "M"),
+  GHs: si("H/s", "G"),
+  THs: si("H/s", "T"),
+  PHs: si("H/s", "P"),
+  EHs: si("H/s", "E"),
+  lengthin: spaced("in"),
+  lengthft: spaced("ft"),
+  lengthmi: spaced("mi"),
+  massmg: si("g", "m"),
+  masslb: spaced("lb"),
+  masst: si("t"),
+  pressurembar: si("bar", "m"),
+  pressurebar: si("bar"),
+  pressurekbar: si("bar", "k"),
+  pressurepa: si("Pa"),
+  pressurehpa: spaced("hPa"),
+  pressurekpa: spaced("kPa"),
+  pressurehg: spaced('"Hg'),
+  pressurepsi: si("psi"),
+  radbq: si("Bq"),
+  radci: si("Ci"),
+  radgy: si("Gy"),
+  radrad: si("rad"),
+  radsv: si("Sv"),
+  radmsv: si("Sv", "m"),
+  radusv: si("Sv", "µ"),
+  radrem: si("rem"),
+  radexpckg: si("C/kg"),
+  radr: si("R"),
+  radsvh: si("Sv/h"),
+  radmsvh: si("Sv/h", "m"),
+  radusvh: si("Sv/h", "µ"),
+  rotrpm: spaced("rpm"),
+  rothz: si("Hz"),
+  rotkhz: si("Hz", "k"),
+  rotrads: spaced("rad/s"),
+  rotdegs: spaced("°/s"),
+  velocityms: spaced("m/s"),
+  velocitykmh: spaced("km/h"),
+  velocitymph: spaced("mph"),
+  velocityknot: spaced("kn"),
+  mlitre: si("L", "m"),
+  litre: si("L"),
+  m3: spaced("m³"),
+  Nm3: spaced("Nm³"),
+  dm3: spaced("dm³"),
+  gallons: spaced("gal"),
 } satisfies Record<string, Rule>
 
 export type UnitId = keyof typeof rules
 
+export const customUnitKinds = [
+  "suffix",
+  "prefix",
+  "time",
+  "si",
+  "count",
+  "currency",
+] as const
+
+export type CustomUnitKind = (typeof customUnitKinds)[number]
+
 export type ParsedUnit =
-  | { kind: "id"; id: UnitId }
-  | { kind: "suffix"; text: string }
-  | { kind: "prefix"; text: string }
+  { kind: "id"; id: UnitId } | { kind: CustomUnitKind; text: string }
 
 const plainUnit: ParsedUnit = { kind: "id", id: "none" }
 
 export function parseUnit(unit: string | undefined): ParsedUnit {
   if (!unit) return plainUnit
   if (Object.hasOwn(rules, unit)) return { kind: "id", id: unit as UnitId }
-  if (unit.startsWith("suffix:")) {
-    const text = unit.slice("suffix:".length).trim()
-    return text ? { kind: "suffix", text } : plainUnit
-  }
-  if (unit.startsWith("prefix:")) {
-    const text = unit.slice("prefix:".length)
-    return text ? { kind: "prefix", text } : plainUnit
+  for (const kind of customUnitKinds) {
+    if (!unit.startsWith(`${kind}:`)) continue
+    const rest = unit.slice(kind.length + 1)
+    const text = kind === "prefix" ? rest : rest.trim()
+    return text ? { kind, text } : plainUnit
   }
   return plainUnit
+}
+
+const greekMu = /^\u03bc/
+
+function siRule(text: string): Rule {
+  const start = siPrefixes.indexOf(text.replace(greekMu, "µ").slice(0, 1))
+  if (text.length > 1 && start >= 0 && start !== siBase) {
+    return { kind: "si", symbol: text.slice(1), start }
+  }
+  return { kind: "si", symbol: text, start: siBase }
 }
 
 function ruleFor(unit: string | undefined): Rule {
@@ -377,6 +587,17 @@ function ruleFor(unit: string | undefined): Rule {
       return { kind: "append", suffix: ` ${parsed.text}` }
     case "prefix":
       return { kind: "prefix", prefix: parsed.text }
+    case "time":
+      return {
+        kind: "custom",
+        format: (value) => formatDate(value, parsed.text),
+      }
+    case "si":
+      return siRule(parsed.text)
+    case "count":
+      return { kind: "short", suffix: ` ${parsed.text}` }
+    case "currency":
+      return { kind: "short", suffix: "", prefix: parsed.text }
   }
 }
 
@@ -394,7 +615,12 @@ function place(value: number, rule: Exclude<Rule, { kind: "custom" }>): Placed {
     case "scale":
       return placeScaled(value, rule.base, rule.suffixes, rule.start)
     case "short":
-      return placeShort(value, rule.steps ?? shortSteps, rule.suffix)
+      return {
+        ...placeShort(value, rule.steps ?? shortSteps, rule.suffix),
+        prefix: rule.prefix,
+      }
+    case "si":
+      return placeSi(value, rule.symbol, rule.start)
     case "duration":
       return placeDuration(value, rule.unitNs)
   }
