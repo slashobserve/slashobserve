@@ -88,6 +88,45 @@ describe("field config resolution", () => {
     expect(resolver.isSet(b, b.fields[1], "spanNulls")).toBe(false)
   })
 
+  it("tells a written color mode and color-by from their defaults in the panel, the field and an override", () => {
+    const a = frame([time, value()], { ref: "A" })
+    const b = frame([time, value()], { ref: "B" })
+    const c: PreparedFrame = {
+      ref: "C",
+      fields: [time, { ...value(), config: { colorBy: "max" } }],
+    }
+    const resolver = createFieldResolver(
+      panel({
+        colorMode: "paletteByName",
+        overrides: [
+          {
+            match: { query: "B" },
+            colorMode: "scheme",
+            colorScheme: "blues",
+            colorBy: "last",
+          },
+        ],
+      })
+    )
+    const cases = [
+      { subject: a, key: "colorMode", expected: true },
+      { subject: a, key: "colorBy", expected: false },
+      { subject: a, key: "colorScheme", expected: false },
+      { subject: b, key: "colorScheme", expected: true },
+      { subject: b, key: "colorBy", expected: true },
+      { subject: c, key: "colorBy", expected: true },
+      { subject: c, key: "colorScheme", expected: false },
+    ] as const
+    for (const { subject, key, expected } of cases) {
+      expect(resolver.isSet(subject, subject.fields[1], key)).toBe(expected)
+    }
+    expect(resolver.configFor(b, b.fields[1])).toMatchObject({
+      colorMode: "scheme",
+      colorScheme: "blues",
+      colorBy: "last",
+    })
+  })
+
   it("matches query by the frame ref", () => {
     const a = frame([time, value()], { ref: "A" })
     const b = frame([time, value()], { ref: "B" })
