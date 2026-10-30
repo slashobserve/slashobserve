@@ -138,3 +138,62 @@ func TestSchemaJudgesFilesLikeTheFullSchema(t *testing.T) {
 		}
 	}
 }
+
+func TestSchemaLeavesOutValuesOnlyImportsNeed(t *testing.T) {
+	schema := string(prompts.Schema())
+	if strings.Contains(schema, "x-omitFromPrompt") {
+		t.Fatal("prompt schema keeps the x-omitFromPrompt marker")
+	}
+	for _, kept := range []string{`"bytes"`, `suffix|prefix`} {
+		if !strings.Contains(schema, kept) {
+			t.Errorf("prompt schema lost %s", kept)
+		}
+	}
+	for _, left := range []string{`"radbq"`, `currency):`} {
+		if strings.Contains(schema, left) {
+			t.Errorf("prompt schema keeps %s", left)
+		}
+	}
+}
+
+func TestStripSchemaDropsMarkedMembers(t *testing.T) {
+	got, err := prompts.StripSchema([]byte(`{
+		"type": "object",
+		"properties": {
+			"kept": {"type": "string"},
+			"rare": {"x-omitFromPrompt": true, "type": "string"}
+		},
+		"$defs": {
+			"unit": {"anyOf": [
+				{"enum": ["a"]},
+				{"x-omitFromPrompt": true, "enum": ["b"]},
+				{"x-omitFromPrompt": false, "enum": ["c"]}
+			]},
+			"rareDef": {"x-omitFromPrompt": true, "type": "string"}
+		}
+	}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"type":"object","properties":{"kept":{"type":"string"}},"$defs":{"unit":{"anyOf":[{"enum":["a"]},{"enum":["c"]}]}}}`
+	if string(got) != want {
+		t.Fatalf("got  %s\nwant %s", got, want)
+	}
+}
+
+func TestStripSchemaRejectsMisplacedMarkers(t *testing.T) {
+	for name, schema := range map[string]string{
+		"allOf":       `{"allOf": [{"x-omitFromPrompt": true, "type": "string"}]}`,
+		"prefixItems": `{"prefixItems": [{"x-omitFromPrompt": true, "type": "string"}]}`,
+		"emptied":     `{"anyOf": [{"x-omitFromPrompt": true, "enum": ["a"]}]}`,
+		"emptied one": `{"oneOf": [{"x-omitFromPrompt": true, "enum": ["a"]}]}`,
+	} {
+		if _, err := prompts.StripSchema([]byte(schema)); err == nil {
+			t.Errorf("%s: StripSchema accepted %s", name, schema)
+		}
+	}
+}
+
+func TestSchemaSize(t *testing.T) {
+	t.Logf("prompt schema bytes: %d", len(prompts.Schema()))
+}
