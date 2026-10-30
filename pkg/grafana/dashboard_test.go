@@ -69,6 +69,74 @@ func TestCursorSync(t *testing.T) {
 	}
 }
 
+func TestTimeSettings(t *testing.T) {
+	tests := []struct {
+		name      string
+		extra     string
+		week      spec.WeekStart
+		fiscal    int
+		delay     string
+		zone      string
+		noteTitle string
+		notePath  string
+	}{
+		{name: "no settings", extra: ``},
+		{name: "browser week start", extra: `"weekStart":""`},
+		{name: "monday", extra: `"weekStart":"monday"`, week: spec.WeekStartMonday},
+		{name: "sunday", extra: `"weekStart":"sunday"`, week: spec.WeekStartSunday},
+		{name: "saturday", extra: `"weekStart":"saturday"`, week: spec.WeekStartSaturday},
+		{name: "unknown week start", extra: `"weekStart":"friday"`, noteTitle: "week start", notePath: "weekStart"},
+		{name: "week start as a number", extra: `"weekStart":1`, noteTitle: "week start", notePath: "weekStart"},
+		{name: "fiscal year in January", extra: `"fiscalYearStartMonth":0`},
+		{name: "fiscal year in April", extra: `"fiscalYearStartMonth":3`, fiscal: 3},
+		{name: "fiscal year in December", extra: `"fiscalYearStartMonth":11`, fiscal: 11},
+		{name: "fiscal year month past December", extra: `"fiscalYearStartMonth":12`, noteTitle: "fiscal year", notePath: "fiscalYearStartMonth"},
+		{name: "negative fiscal year month", extra: `"fiscalYearStartMonth":-1`, noteTitle: "fiscal year", notePath: "fiscalYearStartMonth"},
+		{name: "fiscal year month as text", extra: `"fiscalYearStartMonth":"3"`, noteTitle: "fiscal year", notePath: "fiscalYearStartMonth"},
+		{name: "now delay in minutes", extra: `"timepicker":{"nowDelay":"1m"}`, delay: "1m"},
+		{name: "now delay in seconds", extra: `"timepicker":{"nowDelay":"30s"}`, delay: "30s"},
+		{name: "empty now delay", extra: `"timepicker":{"nowDelay":""}`},
+		{name: "now delay in days", extra: `"timepicker":{"nowDelay":"1d"}`, noteTitle: "now delay", notePath: "timepicker.nowDelay"},
+		{name: "zone without a slash", extra: `"timezone":"EST"`, zone: "EST"},
+		{name: "zone with an offset name", extra: `"timezone":"Etc/GMT+5"`, zone: "Etc/GMT+5"},
+		{name: "zone tzdata does not know", extra: `"timezone":"Mars/Base"`, noteTitle: "timezone", notePath: "timezone"},
+		{name: "browser zone", extra: `"timezone":"browser"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := convertDoc(t, dashboardJSON(tt.extra, panelJSON(1, 0, 0, 12, 4, "")))
+			got := res.Spec
+			if got.WeekStart != tt.week || got.FiscalYearStartMonth != tt.fiscal || got.NowDelay != tt.delay || got.Timezone != tt.zone {
+				t.Fatalf("week %q, fiscal %d, delay %q, zone %q; want %q, %d, %q, %q", got.WeekStart, got.FiscalYearStartMonth, got.NowDelay, got.Timezone, tt.week, tt.fiscal, tt.delay, tt.zone)
+			}
+			if notes := notesFor(res, "dashboard options"); len(notes) != 0 {
+				t.Fatalf("dashboard options notes = %+v, want none", notes)
+			}
+			if tt.noteTitle == "" {
+				for _, title := range []string{"week start", "fiscal year", "now delay", "timezone"} {
+					if notes := notesFor(res, title); len(notes) != 0 {
+						t.Fatalf("%s notes = %+v, want none", title, notes)
+					}
+				}
+				return
+			}
+			if notes := notesFor(res, tt.noteTitle); len(notes) != 1 || !hasPath(notes, tt.notePath) {
+				t.Fatalf("%s notes = %+v, want one for %s", tt.noteTitle, notes, tt.notePath)
+			}
+		})
+	}
+}
+
+func TestTimeRangeWithFiscalRounding(t *testing.T) {
+	res := convertDoc(t, dashboardJSON(`"time":{"from":"now-1y/fy","to":"now/fQ"}`, panelJSON(1, 0, 0, 12, 4, "")))
+	if res.Spec.Time.From != "now-1y/fy" || res.Spec.Time.To != "now/fQ" {
+		t.Fatalf("time = %+v, want the fiscal range kept", res.Spec.Time)
+	}
+	if notes := notesFor(res, "time"); len(notes) != 0 {
+		t.Fatalf("time notes = %+v, want none", notes)
+	}
+}
+
 func TestUnknownDashboardOptionIsReported(t *testing.T) {
 	res := convertDoc(t, dashboardJSON(`"somethingNew":true`, panelJSON(1, 0, 0, 12, 4, "")))
 	if notes := notesFor(res, "dashboard options"); len(notes) != 1 || !hasPath(notes, "somethingNew") {

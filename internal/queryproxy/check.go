@@ -50,6 +50,18 @@ func (r *Runner) CheckPanels(ctx context.Context, d *spec.Dashboard, now time.Ti
 	return r.checkSpec(ctx, d, now, user, only)
 }
 
+func dashboardRange(d *spec.Dashboard, now time.Time) (datasource.TimeRange, spec.TimeOptions, *spec.Issue) {
+	opts, err := spec.TimeOptionsFor(d, "")
+	if err != nil {
+		return datasource.TimeRange{}, opts, &spec.Issue{Path: "/timezone", Code: spec.CodeUnknownTimezone, Message: err.Error()}
+	}
+	from, to, err := spec.ResolveTimeRange(d.Time, now, opts)
+	if err != nil {
+		return datasource.TimeRange{}, opts, &spec.Issue{Path: "/time", Code: CodeTimeRangeInvalid, Message: err.Error()}
+	}
+	return datasource.TimeRange{From: from, To: to}, opts, nil
+}
+
 func (r *Runner) checkSpec(ctx context.Context, d *spec.Dashboard, now time.Time, user datasource.QueryUser, only map[string]bool) ([]spec.Issue, error) {
 	canceled := func() bool { return errors.Is(ctx.Err(), context.Canceled) }
 	if canceled() {
@@ -68,17 +80,10 @@ func (r *Runner) checkSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 		return issues
 	}
 
-	opts, err := spec.TimeOptionsFor(d, "")
-	if err != nil {
-		issues = append(issues, spec.Issue{Path: "/timezone", Code: spec.CodeUnknownTimezone, Message: err.Error()})
-		return finish(issues), nil
+	rng, opts, timeIssue := dashboardRange(d, now)
+	if timeIssue != nil {
+		return finish(append(issues, *timeIssue)), nil
 	}
-	from, to, err := spec.ResolveTimeRange(d.Time, now, opts)
-	if err != nil {
-		issues = append(issues, spec.Issue{Path: "/time", Code: CodeTimeRangeInvalid, Message: err.Error()})
-		return finish(issues), nil
-	}
-	rng := datasource.TimeRange{From: from, To: to}
 
 	budget, cancel := context.WithTimeout(ctx, checkSpecBudget)
 	defer cancel()

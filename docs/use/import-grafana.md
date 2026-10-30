@@ -30,3 +30,6 @@ It saves the dashboard as version 1 and runs every query once.
 Failing queries mark their panels and variables unverified in the import report instead of failing the import.
 Later saves run every query too, but keep a failing panel or variable unverified, instead of failing, for as long as its queries and the variables they use are unchanged; a new or changed query must return data, and a panel whose queries pass again is no longer unverified.
 The original JSON is stored with the import so a newer importer can convert it again, and it is never shown to the agent.
+
+A dashboard's time settings carry over to the [dashboard fields](../concepts/observespec.md#the-dashboard) `timezone`, `weekStart`, `fiscalYearStartMonth` and `nowDelay` (from the time picker's now delay), and its time range may use `now/fy` and `now/fQ`.
+A value SlashObserve does not support, such as a delay in days or a time zone name the server does not know, is left out and listed in the import report.
