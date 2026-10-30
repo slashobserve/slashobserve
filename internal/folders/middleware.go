@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/slashobserve/slashobserve/internal/clientgone"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
@@ -46,14 +47,14 @@ func (a *Access) RequireDashboard(n Need) gin.HandlerFunc {
 			httpapi.AbortError(c, http.StatusNotFound, "not_found", "dashboard not found")
 			return
 		case errors.Is(err, ErrNoAccess), errors.Is(err, ErrForbidden):
-			httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "you do not have access to this dashboard")
+			httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage)
 			return
 		case err != nil:
 			a.fail(c, "check dashboard access", err)
 			return
 		}
 		if !access.Abilities.Has(n) {
-			httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "your role does not allow this")
+			httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
 			return
 		}
 		c.Set(dashboardKey{}, access)
@@ -73,14 +74,14 @@ func (a *Access) RequireFolder(n Need) gin.HandlerFunc {
 			httpapi.AbortError(c, http.StatusNotFound, "not_found", "folder not found")
 			return
 		case errors.Is(err, ErrForbidden):
-			httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "your role does not allow this")
+			httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
 			return
 		case err != nil:
 			a.fail(c, "check folder access", err)
 			return
 		}
 		if !abilities.Has(n) {
-			httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "your role does not allow this")
+			httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
 			return
 		}
 		c.Set(folderKey{}, folderAccess{Folder: folder, Abilities: abilities})

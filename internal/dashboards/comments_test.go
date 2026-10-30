@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -453,8 +454,8 @@ func TestCommentFailuresAnswerLikeTheRestOfTheDashboards(t *testing.T) {
 		code    string
 		message string
 	}{
-		{"role does not allow a revision", folders.ErrForbidden, http.StatusForbidden, "forbidden_role", "your role does not allow this"},
-		{"no access to the dashboard", folders.ErrNoAccess, http.StatusForbidden, "forbidden_role", "you do not have access to this dashboard"},
+		{"role does not allow a revision", folders.ErrForbidden, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage},
+		{"no access to the dashboard", folders.ErrNoAccess, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage},
 		{"dashboard is gone", ErrNotFound, http.StatusNotFound, "not_found", ErrNotFound.Error()},
 	}
 	for _, tt := range tests {

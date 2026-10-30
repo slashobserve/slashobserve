@@ -19,6 +19,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -386,9 +387,9 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrFolderNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, folders.ErrNoAccess):
-		httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "you do not have access to this dashboard")
+		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage)
 	case errors.Is(err, folders.ErrForbidden):
-		httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "your role does not allow this")
+		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
 	case errors.As(err, &conflict):
 		c.AbortWithStatusJSON(http.StatusConflict, conflictJSON{Error: "dashboard has a newer version", Code: "version_conflict", LatestVersion: conflict.Latest})
 	case errors.As(err, &invalid):

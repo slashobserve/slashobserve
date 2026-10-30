@@ -19,6 +19,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -139,7 +140,7 @@ func (h *Handler) requireEdit(c *gin.Context, principal auth.Principal, id pgtyp
 	case err == nil && access.Abilities.Edit:
 		return true
 	case err == nil, errors.Is(err, folders.ErrForbidden):
-		abortError(c, http.StatusForbidden, "forbidden_role", "your role does not allow this")
+		abortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
 	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
 		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "dashboard not found")
 	default:

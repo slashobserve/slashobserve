@@ -8,9 +8,10 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 )
 
-var ErrForbidden = errors.New("your role does not allow this")
+var ErrForbidden = errors.New(forbidden.RoleMessage)
 
 const requesterForbiddenMessage = "the person or key that asked no longer has access to change this dashboard"
 
