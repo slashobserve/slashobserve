@@ -616,13 +616,19 @@ func propLineStyle(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	if !ok {
 		return
 	}
-	switch asString(cfg["fill"]) {
+	switch fill := asString(cfg["fill"]); fill {
 	case "dash":
 		p.LineStyle = "dashed"
+		if dash, set := cfg["dash"]; set && dash != nil && !sameJSON(dash, defaultDash) {
+			b.partial(s.at(".dash"), "A dashed line is drawn with one pattern, not this dash pattern.")
+		}
 	case "dot":
 		p.LineStyle = "dotted"
 	case "solid":
 		p.LineStyle = "solid"
+	case "":
+	default:
+		b.partial(s.at(".fill"), fmt.Sprintf("The line style %s is not supported yet.", fill))
 	}
 }
 
@@ -700,7 +706,15 @@ func propPointSize(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	shown := p.Points == "always" || p.Style == "points" || b.panel.Points == "always" || b.panel.Style == "points"
 	if s.whole || shown {
 		setPointSize(p, pointSizeFor(f), s.whole)
+		return
 	}
+	if f != grafanaPointSize && !b.pointsHidden(p) {
+		b.partial(s.at(""), "A point size applies only to points that are always shown or drawn as the series.")
+	}
+}
+
+func (b *panelBuild) pointsHidden(p *spec.FieldProps) bool {
+	return p.Points == "never" || b.panel.Points == "never" || p.Style == "bars" || b.panel.Style == "bars"
 }
 
 func setPointSize(p *spec.FieldProps, size int, explicit bool) {
@@ -872,6 +886,9 @@ func propAxisPlacement(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	switch placement := asString(v); placement {
 	case "left", "right", "hidden":
 		p.Axis = placement
+	case "auto":
+	default:
+		b.partial(s.at(""), fmt.Sprintf("The axis placement %s is not supported yet.", placement))
 	}
 }
 

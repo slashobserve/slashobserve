@@ -52,7 +52,9 @@ func TestLineStyleModernOptions(t *testing.T) {
 		{"point size with the points draw style", `{"drawStyle":"points","pointSize":9}`, func(p spec.FieldProps) bool { return p.Style == "points" && intOf(p.PointSize) == 9 }},
 		{"point size is clamped", `{"showPoints":"always","pointSize":99}`, func(p spec.FieldProps) bool { return intOf(p.PointSize) == 40 }},
 		{"Grafana's point size 5 keeps the canvas look", `{"showPoints":"always","pointSize":5}`, func(p spec.FieldProps) bool { return p.PointSize == nil }},
-		{"point size without drawn points is dropped", `{"showPoints":"auto","pointSize":12}`, func(p spec.FieldProps) bool { return p.PointSize == nil }},
+		{"point size with points never shown is ignored", `{"showPoints":"never","pointSize":12}`, func(p spec.FieldProps) bool { return p.PointSize == nil }},
+		{"point size with bars is ignored", `{"drawStyle":"bars","pointSize":12}`, func(p spec.FieldProps) bool { return p.PointSize == nil }},
+		{"Grafana's point size 5 with automatic points is its default", `{"showPoints":"auto","pointSize":5}`, func(p spec.FieldProps) bool { return p.PointSize == nil }},
 		{"span nulls true", `{"spanNulls":true}`, func(p spec.FieldProps) bool { return p.SpanNulls == true }},
 		{"span nulls as milliseconds", `{"spanNulls":3600000}`, func(p spec.FieldProps) bool { return p.SpanNulls == float64(3600000) }},
 		{"span nulls false", `{"spanNulls":false}`, func(p spec.FieldProps) bool { return p.SpanNulls == nil }},
@@ -179,6 +181,72 @@ func TestLineStyleLegacySeriesOverrides(t *testing.T) {
 			if !tc.check(panel.Overrides[0].FieldProps) {
 				t.Fatalf("override props = %+v", panel.Overrides[0].FieldProps)
 			}
+		})
+	}
+}
+
+func TestPointSizeOfAutomaticPointsIsReported(t *testing.T) {
+	for _, custom := range []string{`{"pointSize":12}`, `{"showPoints":"auto","pointSize":12}`} {
+		t.Run(custom, func(t *testing.T) {
+			panel, line := customPanel(t, custom, "")
+			requireReported(t, line, "fieldConfig.defaults.custom.pointSize", "A point size applies only to points")
+			if panel.PointSize != nil {
+				t.Fatalf("point size = %d", *panel.PointSize)
+			}
+		})
+	}
+}
+
+func TestLineStyleFillAndDash(t *testing.T) {
+	cases := []struct {
+		name, lineStyle string
+		want            string
+		path, reason    string
+	}{
+		{"dash with Grafana's own pattern", `{"fill":"dash","dash":[10,10]}`, "dashed", "", ""},
+		{"dash without a pattern", `{"fill":"dash"}`, "dashed", "", ""},
+		{"dash with another pattern", `{"fill":"dash","dash":[10,15]}`, "dashed", "fieldConfig.defaults.custom.lineStyle.dash", "one pattern"},
+		{"dot", `{"fill":"dot"}`, "dotted", "", ""},
+		{"solid is the Spec default and ignores a pattern", `{"fill":"solid","dash":[10,15]}`, "", "", ""},
+		{"square", `{"fill":"square"}`, "", "fieldConfig.defaults.custom.lineStyle.fill", "The line style square is not supported yet."},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := customPanel(t, `{"lineStyle":`+tc.lineStyle+`}`, "")
+			if panel.LineStyle != tc.want {
+				t.Fatalf("line style = %q, want %q", panel.LineStyle, tc.want)
+			}
+			if tc.path == "" {
+				requireImported(t, line)
+				return
+			}
+			requireReported(t, line, tc.path, tc.reason)
+		})
+	}
+}
+
+func TestAxisPlacement(t *testing.T) {
+	cases := []struct {
+		name, placement, want, reason string
+	}{
+		{"right", "right", "right", ""},
+		{"hidden", "hidden", "hidden", ""},
+		{"left is the Spec default", "left", "", ""},
+		{"auto is Grafana's default", "auto", "", ""},
+		{"top", "top", "", "The axis placement top is not supported yet."},
+		{"bottom", "bottom", "", "The axis placement bottom is not supported yet."},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := customPanel(t, `{"axisPlacement":"`+tc.placement+`"}`, "")
+			if panel.Axis != tc.want {
+				t.Fatalf("axis = %q, want %q", panel.Axis, tc.want)
+			}
+			if tc.reason == "" {
+				requireImported(t, line)
+				return
+			}
+			requireReported(t, line, "fieldConfig.defaults.custom.axisPlacement", tc.reason)
 		})
 	}
 }

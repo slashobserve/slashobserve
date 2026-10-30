@@ -210,3 +210,33 @@ func TestCandlestickIncludeAllFieldsOffIsSilent(t *testing.T) {
 		t.Fatalf("display = %+v", panel.Display)
 	}
 }
+
+func TestPlotDrawnPropsAreReportedOnTimelinesAndPieCharts(t *testing.T) {
+	cases := []struct{ name, custom, path string }{
+		{"insert nulls", `{"insertNulls":60000}`, "fieldConfig.defaults.custom.insertNulls"},
+		{"threshold style", `{"thresholdsStyle":{"mode":"line"}}`, "fieldConfig.defaults.custom.thresholdsStyle.mode"},
+		{"bar alignment", `{"barAlignment":1}`, "fieldConfig.defaults.custom.barAlignment"},
+		{"bar width factor", `{"barWidthFactor":0.8}`, "fieldConfig.defaults.custom.barWidthFactor"},
+		{"bar maximum width", `{"barMaxWidth":20}`, "fieldConfig.defaults.custom.barMaxWidth"},
+	}
+	for _, typ := range []string{"state-timeline", "status-history", "piechart"} {
+		for _, tc := range cases {
+			t.Run(typ+" "+tc.name, func(t *testing.T) {
+				panel, line := customPanelOf(t, typ, tc.custom, "")
+				if line.Status != statusPartial || strings.Join(line.Paths, " ") != tc.path {
+					t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
+				}
+				if !fieldPropsEmpty(panel.FieldProps) {
+					t.Fatalf("field props = %+v", panel.FieldProps)
+				}
+			})
+		}
+	}
+}
+
+func TestPlotDrawnPropsInAnOverrideAreReportedOnTimelines(t *testing.T) {
+	_, line := customPanelOf(t, "state-timeline", `{}`, overrideOf(`{"id":"custom.insertNulls","value":60000}`))
+	if line.Status != statusPartial || strings.Join(line.Paths, " ") != "fieldConfig.overrides[0].properties[0]" {
+		t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
+	}
+}

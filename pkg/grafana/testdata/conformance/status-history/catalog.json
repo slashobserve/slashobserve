@@ -38,7 +38,7 @@
     { "id": "fieldConfig.defaults.custom.hideFrom.tooltip=true", "path": "fieldConfig.defaults.custom.hideFrom.tooltip", "value": true },
     { "id": "fieldConfig.defaults.custom.hideFrom.viz=true", "path": "fieldConfig.defaults.custom.hideFrom.viz", "value": true },
     { "id": "fieldConfig.defaults.custom.axisPlacement=hidden", "path": "fieldConfig.defaults.custom.axisPlacement", "value": "hidden" },
-    { "id": "fieldConfig.defaults.custom.axisPlacement=left", "path": "fieldConfig.defaults.custom.axisPlacement", "value": "left" },
+    { "id": "fieldConfig.defaults.custom.axisPlacement=left", "path": "fieldConfig.defaults.custom.axisPlacement", "value": "left", "expect": "cosmetic" },
     { "id": "fieldConfig.defaults.custom.axisPlacement=right", "path": "fieldConfig.defaults.custom.axisPlacement", "value": "right" },
     { "id": "fieldConfig.defaults.custom.axisLabel=Axis", "path": "fieldConfig.defaults.custom.axisLabel", "value": "Axis" },
     { "id": "fieldConfig.defaults.custom.axisWidth=80", "path": "fieldConfig.defaults.custom.axisWidth", "value": 80 },

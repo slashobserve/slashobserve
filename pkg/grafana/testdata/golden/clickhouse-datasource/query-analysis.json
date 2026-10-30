@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 11,
-      "imported": 9,
-      "partial": 2,
+      "imported": 8,
+      "partial": 3,
       "placeholder": 0,
       "unverified": 0
     },
@@ -154,9 +154,13 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "imported",
-        "reasons": [],
-        "paths": [],
+        "status": "partial",
+        "reasons": [
+          "A point size applies only to points that are always shown or drawn as the series."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.pointSize"
+        ],
         "queries": [
           {
             "ref_id": "A",

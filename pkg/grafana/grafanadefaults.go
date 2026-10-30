@@ -240,7 +240,17 @@ type cosmeticOption struct {
 	why    string
 }
 
+var defaultDash = []any{10, 10}
+
 var cosmeticOptions = map[string]cosmeticOption{
+	"fieldConfig.defaults.custom.lineStyle.dash": {
+		values: []any{defaultDash},
+		why:    "10, 10 is the pattern Grafana draws for a dashed line, and the renderer draws every dashed line with one pattern",
+	},
+	"fieldConfig.defaults.custom.axisPlacement": {
+		values: []any{"left"},
+		why:    "the renderer draws every axis on the left unless the Spec says right or hidden",
+	},
 	"fieldConfig.defaults.custom.gradientMode": {
 		why: "the renderer draws every fill flat by the no-gradients rule (decision 8)",
 	},

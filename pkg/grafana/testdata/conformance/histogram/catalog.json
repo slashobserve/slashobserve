@@ -153,7 +153,7 @@
     { "id": "options.tooltip.maxWidth=300", "path": "options.tooltip.maxWidth", "value": 300 },
     { "id": "fieldConfig.defaults.custom.axisPlacement=bottom", "path": "fieldConfig.defaults.custom.axisPlacement", "value": "bottom" },
     { "id": "fieldConfig.defaults.custom.axisPlacement=hidden", "path": "fieldConfig.defaults.custom.axisPlacement", "value": "hidden" },
-    { "id": "fieldConfig.defaults.custom.axisPlacement=left", "path": "fieldConfig.defaults.custom.axisPlacement", "value": "left" },
+    { "id": "fieldConfig.defaults.custom.axisPlacement=left", "path": "fieldConfig.defaults.custom.axisPlacement", "value": "left", "expect": "cosmetic" },
     { "id": "fieldConfig.defaults.custom.axisPlacement=right", "path": "fieldConfig.defaults.custom.axisPlacement", "value": "right" },
     { "id": "fieldConfig.defaults.custom.axisPlacement=top", "path": "fieldConfig.defaults.custom.axisPlacement", "value": "top" },
     { "id": "fieldConfig.defaults.custom.axisLabel=text", "path": "fieldConfig.defaults.custom.axisLabel", "value": "Requests per second" },
