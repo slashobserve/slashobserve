@@ -1232,7 +1232,8 @@
             "noValue": "0",
             "display": {
               "graph": false,
-              "textMode": "value"
+              "textMode": "value",
+              "wideLayout": true
             }
           },
           {
@@ -1334,7 +1335,8 @@
             "noValue": "0",
             "display": {
               "colorMode": "none",
-              "graph": false
+              "graph": false,
+              "wideLayout": true
             }
           },
           {
@@ -1363,7 +1365,8 @@
             "noValue": "0",
             "display": {
               "colorMode": "none",
-              "graph": false
+              "graph": false,
+              "wideLayout": true
             }
           },
           {
@@ -1392,7 +1395,8 @@
             "noValue": "0",
             "display": {
               "colorMode": "none",
-              "graph": false
+              "graph": false,
+              "wideLayout": true
             }
           },
           {
@@ -1420,7 +1424,8 @@
             "noValue": "0",
             "display": {
               "colorMode": "none",
-              "graph": false
+              "graph": false,
+              "wideLayout": true
             }
           },
           {
@@ -1455,7 +1460,8 @@
             ],
             "noValue": "0",
             "display": {
-              "graph": false
+              "graph": false,
+              "wideLayout": true
             }
           }
         ]

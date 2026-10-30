@@ -1423,7 +1423,8 @@
             "display": {
               "colorMode": "none",
               "graph": false,
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           },
           {
@@ -1462,7 +1463,8 @@
             "display": {
               "colorMode": "none",
               "graph": false,
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           },
           {
@@ -1501,7 +1503,8 @@
             "display": {
               "colorMode": "none",
               "graph": false,
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           },
           {
@@ -1540,7 +1543,8 @@
             "display": {
               "colorMode": "none",
               "graph": false,
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           },
           {
@@ -1579,7 +1583,8 @@
             "display": {
               "colorMode": "none",
               "graph": false,
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           }
         ]

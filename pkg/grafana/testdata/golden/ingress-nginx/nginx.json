@@ -574,7 +574,8 @@
         "display": {
           "reduce": "mean",
           "colorMode": "none",
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "wideLayout": true
         }
       },
       {
@@ -615,7 +616,8 @@
         "display": {
           "reduce": "mean",
           "colorMode": "none",
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "wideLayout": true
         }
       },
       {
@@ -660,7 +662,8 @@
         "display": {
           "reduce": "mean",
           "colorMode": "none",
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "wideLayout": true
         }
       },
       {
@@ -702,7 +705,8 @@
         "display": {
           "reduce": "sum",
           "colorMode": "none",
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "wideLayout": true
         }
       },
       {
@@ -745,7 +749,8 @@
         "display": {
           "reduce": "mean",
           "colorMode": "none",
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "wideLayout": true
         }
       },
       {

@@ -1407,7 +1407,8 @@
             "display": {
               "colorMode": "none",
               "graph": false,
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           },
           {
@@ -1446,7 +1447,8 @@
             "maxDataPoints": 100,
             "display": {
               "colorMode": "none",
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           },
           {
@@ -1485,7 +1487,8 @@
             "maxDataPoints": 100,
             "display": {
               "colorMode": "none",
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           },
           {
@@ -1524,7 +1527,8 @@
             "maxDataPoints": 100,
             "display": {
               "colorMode": "none",
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           },
           {

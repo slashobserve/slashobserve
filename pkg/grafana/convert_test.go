@@ -678,7 +678,7 @@ func TestOptionsTheRenderersAlreadyDrawTheSameWayAreNotReported(t *testing.T) {
 		{"override line width 2", override("timeseries", `{"id":"custom.lineWidth","value":2}`), true},
 		{"override line width 4", override("timeseries", `{"id":"custom.lineWidth","value":4}`), true},
 		{"stat justified automatically", panelDoc("stat", upTarget+`,"options":{"justifyMode":"auto"}`), true},
-		{"stat centered", panelDoc("stat", upTarget+`,"options":{"justifyMode":"center"}`), false},
+		{"stat percent text size", panelDoc("stat", upTarget+`,"options":{"text":{"percentSize":14}}`), false},
 		{"table column width", panelDoc("table", upTarget+`,"fieldConfig":{"defaults":{"custom":{"width":120}},"overrides":[]}`), true},
 		{"table override column width", override("table", `{"id":"custom.width","value":90}`), true},
 		{"legend click marker", panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":{},"overrides":[{"__systemRef":"hideSeriesFrom","matcher":{"id":"byName","options":"a"},"properties":[{"id":"custom.hideFrom","value":{"viz":true}}]}]}`), true},

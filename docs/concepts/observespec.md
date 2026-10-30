@@ -122,6 +122,12 @@ Three optional `display` keys change that.
 `fields` picks the fields to show: a field name, or a pattern written between slashes such as `/^cpu/`, and `/.*/` for every field, text fields included.
 When `fields` is absent the panel shows the number fields.
 Time fields are never shown as values.
+A `stat` panel has more optional `display` keys.
+`justify: center` centers the name and the value in each tile.
+`titleSize` and `valueSize` set the font size of the name and the value in pixels (6 to 200), where the tile otherwise uses 13 and 28.
+`percentChange: true` shows the change between the first and last value of the range next to the value, with an arrow and, for screen readers, the words "up" or "down".
+`percentChangeColor` colors only the arrow: `standard` (up is green, down is red), `inverted` (the reverse) or `value` (the color of the value).
+`wideLayout: true` puts the name and the value on one row when a tile is at least 200px wide and twice as wide as it is tall; when it is absent or `false` the name sits above the value.
 
 ## Maps, canvases and actions
 

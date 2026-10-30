@@ -865,7 +865,8 @@
               "reduce": "mean",
               "colorMode": "none",
               "graph": false,
-              "textMode": "name"
+              "textMode": "name",
+              "wideLayout": true
             }
           },
           {
@@ -903,7 +904,8 @@
               "reduce": "mean",
               "colorMode": "none",
               "graph": false,
-              "textMode": "name"
+              "textMode": "name",
+              "wideLayout": true
             }
           },
           {
@@ -935,7 +937,8 @@
               "reduce": "mean",
               "colorMode": "none",
               "graph": false,
-              "textMode": "name"
+              "textMode": "name",
+              "wideLayout": true
             }
           },
           {
@@ -967,7 +970,8 @@
               "reduce": "mean",
               "colorMode": "none",
               "graph": false,
-              "textMode": "name"
+              "textMode": "name",
+              "wideLayout": true
             }
           },
           {
@@ -1011,7 +1015,8 @@
             ],
             "display": {
               "graph": false,
-              "textMode": "name"
+              "textMode": "name",
+              "wideLayout": true
             }
           },
           {
@@ -1042,7 +1047,8 @@
             ],
             "display": {
               "graph": false,
-              "textMode": "name"
+              "textMode": "name",
+              "wideLayout": true
             }
           },
           {
@@ -1078,7 +1084,8 @@
             "display": {
               "allValues": true,
               "graph": false,
-              "textMode": "value"
+              "textMode": "value",
+              "wideLayout": true
             }
           }
         ]

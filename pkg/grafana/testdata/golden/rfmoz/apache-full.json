@@ -66,7 +66,7 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "The text size must be a whole number from 6 to 200."
         ],
         "paths": [
           "options.text.titleSize"
@@ -654,7 +654,8 @@
         ],
         "maxDataPoints": 100,
         "display": {
-          "graph": false
+          "graph": false,
+          "wideLayout": true
         }
       },
       {

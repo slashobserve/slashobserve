@@ -331,7 +331,10 @@
                 "color": "info"
               }
             ],
-            "color": "#5794F2"
+            "color": "#5794F2",
+            "display": {
+              "wideLayout": true
+            }
           },
           {
             "id": "p3",
@@ -357,7 +360,10 @@
                 "color": "ok"
               }
             ],
-            "color": "#73BF69"
+            "color": "#73BF69",
+            "display": {
+              "wideLayout": true
+            }
           },
           {
             "id": "p4",
@@ -385,7 +391,8 @@
               }
             ],
             "display": {
-              "graph": false
+              "graph": false,
+              "wideLayout": true
             }
           },
           {
@@ -412,7 +419,10 @@
                 "color": "warning"
               }
             ],
-            "color": "#FF9830"
+            "color": "#FF9830",
+            "display": {
+              "wideLayout": true
+            }
           }
         ]
       },

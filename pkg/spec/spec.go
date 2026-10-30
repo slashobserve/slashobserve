@@ -344,6 +344,12 @@ type Display struct {
 	Graph              *bool              `json:"graph,omitempty"`
 	TextMode           string             `json:"textMode,omitempty"`
 	Orientation        string             `json:"orientation,omitempty"`
+	Justify            string             `json:"justify,omitempty"`
+	TitleSize          int                `json:"titleSize,omitempty"`
+	ValueSize          int                `json:"valueSize,omitempty"`
+	PercentChange      *bool              `json:"percentChange,omitempty"`
+	PercentChangeColor string             `json:"percentChangeColor,omitempty"`
+	WideLayout         *bool              `json:"wideLayout,omitempty"`
 	ThresholdMarkers   *bool              `json:"thresholdMarkers,omitempty"`
 	Header             *bool              `json:"header,omitempty"`
 	Footer             []string           `json:"footer,omitempty"`

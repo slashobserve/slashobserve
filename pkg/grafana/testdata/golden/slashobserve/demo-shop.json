@@ -677,7 +677,10 @@
                 "value": 0.05,
                 "color": "critical"
               }
-            ]
+            ],
+            "display": {
+              "wideLayout": true
+            }
           },
           {
             "id": "p3",

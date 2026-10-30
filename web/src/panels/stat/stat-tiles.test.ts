@@ -5,7 +5,7 @@ import type { WireField } from "@/panels/frames"
 import type { PreparedFrame } from "@/panels/transforms"
 import type { DataPanel } from "@/spec"
 
-import { statTiles } from "./stat-tiles"
+import { changeTone, percentChange, statTiles } from "./stat-tiles"
 
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
   return {
@@ -175,5 +175,85 @@ describe("statTiles value options", () => {
     )
     expect(tile.text).toBe("up")
     expect(tile.value).toBeNull()
+  })
+})
+
+describe("percentChange", () => {
+  it("compares the last value with the first", () => {
+    expect(
+      percentChange([
+        [1, 100],
+        [2, 150],
+        [3, 112],
+      ])
+    ).toEqual({ direction: "up", text: "12%", word: "up" })
+    expect(
+      percentChange([
+        [1, 200],
+        [2, 193],
+      ])
+    ).toEqual({ direction: "down", text: "3.5%", word: "down" })
+  })
+
+  it("measures against the size of a negative first value", () => {
+    expect(
+      percentChange([
+        [1, -50],
+        [2, -25],
+      ])
+    ).toEqual({ direction: "up", text: "50%", word: "up" })
+  })
+
+  it("shows nothing without two points or from a zero start", () => {
+    expect(percentChange([[1, 5]])).toBeNull()
+    expect(percentChange([])).toBeNull()
+    expect(
+      percentChange([
+        [1, 0],
+        [2, 5],
+      ])
+    ).toBeNull()
+  })
+
+  it("calls a change that rounds to zero unchanged", () => {
+    expect(
+      percentChange([
+        [1, 1000],
+        [2, 1000.001],
+      ])
+    ).toEqual({ direction: "flat", text: "0%", word: "unchanged" })
+  })
+
+  it("is on each tile from the reduced range", () => {
+    const [tile] = tiles([frame([4, 9, 5])])
+    expect(tile.change).toEqual({ direction: "up", text: "25%", word: "up" })
+  })
+
+  it("is absent on a tile made from one row", () => {
+    const result = tiles(
+      [frame([1, 2, 3])],
+      {},
+      { reduce: "lastNotNull", allValues: true }
+    )
+    expect(result.every((tile) => tile.change === null)).toBe(true)
+  })
+})
+
+describe("changeTone", () => {
+  it("colors a rise ok and a fall critical in the standard mode", () => {
+    expect(changeTone("up", "standard")).toBe("ok")
+    expect(changeTone("down", "standard")).toBe("critical")
+  })
+
+  it("swaps them in the inverted mode", () => {
+    expect(changeTone("up", "inverted")).toBe("critical")
+    expect(changeTone("down", "inverted")).toBe("ok")
+  })
+
+  it("uses the value color in the value mode and none for no change", () => {
+    expect(changeTone("up", "value")).toBe("value")
+    expect(changeTone("down", "value")).toBe("value")
+    expect(changeTone("flat", "standard")).toBe("none")
+    expect(changeTone("flat", "value")).toBe("none")
   })
 })

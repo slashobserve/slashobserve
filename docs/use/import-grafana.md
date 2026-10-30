@@ -38,4 +38,5 @@ A dashboard's time settings carry over to the [dashboard fields](../concepts/obs
 A unit imports as itself, and unit text Grafana does not know imports as the suffix Grafana shows, up to 20 characters.
 A stat, gauge, bar gauge or pie chart imports its value options: the first reducer, "Show" as every value (`allValues`, with `limit` when it is not 5000) and the `fields` name or pattern.
 Grafana uses only the first reducer of these panels, so extra reducers are dropped without a note.
+A stat panel also imports its text alignment (`justifyMode`), title and value sizes (`text.titleSize` and `text.valueSize`, from 6 to 200 pixels), percent change (`showPercentChange` and `percentChangeColorMode`) and `wideLayout`; a size outside that range is reported, and the percent size (`text.percentSize`) is still reported.
 A value SlashObserve does not support, such as a delay in days or a time zone name the server does not know, is left out and listed in the import report.

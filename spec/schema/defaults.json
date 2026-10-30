@@ -7,7 +7,7 @@
   "dashboard": {"cursorSync": "off"},
   "display": {
     "timeseries": {"legend": "bottom", "legendValues": [], "legendSortDesc": false, "legendHideZero": false, "legendHideEmpty": false, "tooltip": "single"},
-    "stat": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "colorMode": "value", "graph": true, "orientation": "auto"},
+    "stat": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "colorMode": "value", "graph": true, "orientation": "auto", "justify": "auto", "percentChange": false, "percentChangeColor": "standard"},
     "gauge": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "thresholdMarkers": true},
     "bargauge": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "orientation": "auto"},
     "table": {"header": true, "footer": []},

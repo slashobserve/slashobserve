@@ -156,7 +156,10 @@
             "value": 80,
             "color": "critical"
           }
-        ]
+        ],
+        "display": {
+          "wideLayout": true
+        }
       },
       {
         "id": "p3",
@@ -184,7 +187,10 @@
             "value": 80,
             "color": "critical"
           }
-        ]
+        ],
+        "display": {
+          "wideLayout": true
+        }
       },
       {
         "id": "p4",
@@ -208,7 +214,10 @@
           {
             "color": "ok"
           }
-        ]
+        ],
+        "display": {
+          "wideLayout": true
+        }
       },
       {
         "id": "p2",

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 3,
-      "imported": 0,
-      "partial": 3,
+      "imported": 3,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.justifyMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -68,13 +64,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.justifyMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -93,13 +85,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.justifyMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -150,7 +138,9 @@
         ],
         "display": {
           "colorMode": "background",
-          "textMode": "valueAndName"
+          "textMode": "valueAndName",
+          "justify": "center",
+          "wideLayout": true
         }
       },
       {
@@ -181,7 +171,9 @@
         ],
         "display": {
           "colorMode": "background",
-          "textMode": "valueAndName"
+          "textMode": "valueAndName",
+          "justify": "center",
+          "wideLayout": true
         }
       },
       {
@@ -213,7 +205,9 @@
         "display": {
           "colorMode": "background",
           "textMode": "valueAndName",
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "justify": "center",
+          "wideLayout": true
         }
       }
     ]
