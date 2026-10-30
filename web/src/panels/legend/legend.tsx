@@ -3,7 +3,7 @@ import type { Ref } from "react"
 import { cn } from "@/lib/utils"
 
 import type { LineStyle } from "../colors"
-import type { DrawStyle } from "./series-config"
+import type { DrawStyle } from "../timeseries/series-config"
 
 export type LegendItem = {
   key: string

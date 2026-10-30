@@ -20,9 +20,9 @@ import type { CursorMember } from "../shared-cursor"
 import type { PanelRenderer, PanelRendererProps } from "../types"
 import { Unsupported } from "../unsupported"
 import { alignFrames, type AlignedFrames } from "./align"
-import { Legend, rootFontSize, type LegendItem } from "./legend"
-import { LegendTable, useLegendTextMeasure } from "./legend-table"
-import { legendTableWidth, rightLegendWidth } from "./legend-width"
+import { Legend, rootFontSize, type LegendItem } from "../legend/legend"
+import { LegendTable, useLegendTextMeasure } from "../legend/legend-table"
+import { legendTableWidth, rightLegendWidth } from "../legend/legend-width"
 import {
   chartSeries,
   configuredKeys,
