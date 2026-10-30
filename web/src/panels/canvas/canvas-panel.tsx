@@ -1,154 +1,99 @@
-import { useMemo, type CSSProperties } from "react"
-import { CircleIcon } from "lucide-react"
+import {
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react"
+import { MaximizeIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
 import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
-import { thresholdIcons } from "../thresholds"
-import type { PanelRenderer } from "../types"
 import {
-  canvasModel,
-  type CanvasAlign,
-  type CanvasElement,
-  type CanvasLine,
-  type MetricState,
-} from "./canvas-model"
+  initialView,
+  maxZoom,
+  minZoom,
+  zoomStep,
+  type View,
+} from "../nodeGraph/zoom"
+import type { PanelRenderer } from "../types"
+import { canvasModel, type CanvasLine } from "./canvas-model"
+import { arrowEnds, connectionPath, dashArray, lineCap } from "./connections"
+import {
+  BackgroundImage,
+  ContentItem,
+  drawsContent,
+  hasShape,
+  ShapeItem,
+  Tooltip,
+  type Hover,
+} from "./elements"
+import { clampView, zoomedView } from "./placement"
 
-const justify: Record<CanvasAlign, string> = {
-  left: "justify-start text-left",
-  center: "justify-center text-center",
-  right: "justify-end text-right",
+type Drag = { x: number; y: number; view: View }
+
+function markerId(scope: string, line: CanvasLine): string {
+  return `${scope}-${line.key.replace(/[^A-Za-z0-9_-]/g, "_")}`
 }
 
-const alignItems: Record<CanvasAlign, string> = {
-  left: "items-start",
-  center: "items-center",
-  right: "items-end",
-}
-
-function percentBox(element: CanvasElement): CSSProperties {
-  const { left, top, width, height } = element.box
-  return {
-    left: `${left}%`,
-    top: `${top}%`,
-    width: `${width}%`,
-    height: `${height}%`,
-  }
-}
-
-function Shape({ element }: { element: CanvasElement }) {
-  const { left, top, width, height } = element.box
-  const style = {
-    fill: element.fill ?? "none",
-    stroke: element.stroke ?? "var(--border)",
-    strokeWidth: 1,
-  }
-  return element.kind === "ellipse" ? (
-    <ellipse
-      cx={left + width / 2}
-      cy={top + height / 2}
-      rx={width / 2}
-      ry={height / 2}
-      vectorEffect="non-scaling-stroke"
-      style={style}
-    />
-  ) : (
-    <rect
-      x={left}
-      y={top}
+function Lines({
+  lines,
+  width,
+  height,
+}: {
+  lines: CanvasLine[]
+  width: number
+  height: number
+}) {
+  const scope = useId().replaceAll(":", "")
+  return (
+    <svg
+      aria-hidden="true"
       width={width}
       height={height}
-      vectorEffect="non-scaling-stroke"
-      style={style}
-    />
-  )
-}
-
-function Line({ line }: { line: CanvasLine }) {
-  return (
-    <line
-      x1={line.x1}
-      y1={line.y1}
-      x2={line.x2}
-      y2={line.y2}
-      vectorEffect="non-scaling-stroke"
-      style={{ stroke: line.color, strokeWidth: line.width }}
-    />
-  )
-}
-
-function StateMark({ state }: { state: MetricState }) {
-  const Icon = state.level === "base" ? CircleIcon : thresholdIcons[state.level]
-  return (
-    <span
-      data-canvas-state={state.level}
-      className="flex shrink-0 items-center gap-1 text-[0.8em]"
-      style={{ color: state.labelColor ?? undefined }}
+      viewBox={`0 0 ${width} ${height}`}
+      className="absolute inset-0 overflow-visible"
     >
-      <Icon
-        className="size-[1em]"
-        strokeWidth={2.4}
-        fill={state.level === "base" ? "currentColor" : "none"}
-        aria-hidden="true"
-        style={{ color: state.color }}
-      />
-      {state.label}
-    </span>
-  )
-}
-
-function Content({ element }: { element: CanvasElement }) {
-  if (element.kind !== "metric") {
-    return element.text === null ? null : (
-      <span title={element.text} className="min-w-0 truncate">
-        {element.text}
-      </span>
-    )
-  }
-  return (
-    <div className={cn("flex min-w-0 flex-col", alignItems[element.align])}>
-      {element.text === null ? null : (
-        <span
-          title={element.text}
-          className="max-w-full truncate text-[0.8em] opacity-70"
-        >
-          {element.text}
-        </span>
-      )}
-      <div className="flex max-w-full min-w-0 items-baseline gap-1.5">
-        <span
-          title={element.valueText ?? undefined}
-          data-canvas-value=""
-          className="min-w-0 truncate font-semibold tabular-nums"
-        >
-          {element.valueText}
-        </span>
-        {element.state ? <StateMark state={element.state} /> : null}
-      </div>
-    </div>
-  )
-}
-
-function Box({ element }: { element: CanvasElement }) {
-  const boxed = element.kind === "text" || element.kind === "metric"
-  return (
-    <div
-      data-canvas-element={element.kind}
-      data-element-id={element.id}
-      className={cn(
-        "absolute flex min-w-0 items-center overflow-hidden px-1 leading-tight",
-        justify[element.align],
-        boxed && element.fill && "rounded-md"
-      )}
-      style={{
-        ...percentBox(element),
-        fontSize: element.fontSize,
-        color: element.textColor ?? undefined,
-        backgroundColor: boxed ? (element.fill ?? undefined) : undefined,
-      }}
-    >
-      <Content element={element} />
-    </div>
+      <defs>
+        {lines.map((line) =>
+          line.arrow === "none" ? null : (
+            <marker
+              key={line.key}
+              id={markerId(scope, line)}
+              viewBox="0 0 10 10"
+              refX={9}
+              refY={5}
+              markerWidth={4}
+              markerHeight={4}
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" style={{ fill: line.color }} />
+            </marker>
+          )
+        )}
+      </defs>
+      {lines.map((line) => {
+        const ends = arrowEnds(line.arrow)
+        const marker = `url(#${markerId(scope, line)})`
+        return (
+          <path
+            key={line.key}
+            d={connectionPath(line.points, line.path)}
+            markerStart={ends.start ? marker : undefined}
+            markerEnd={ends.end ? marker : undefined}
+            style={{
+              fill: "none",
+              stroke: line.color,
+              strokeWidth: line.width,
+              strokeDasharray: dashArray(line.lineStyle) ?? undefined,
+              strokeLinecap: lineCap(line.lineStyle),
+            }}
+          />
+        )
+      })}
+    </svg>
   )
 }
 
@@ -161,44 +106,164 @@ const CanvasPanel: PanelRenderer = ({
   height,
 }) => {
   const { resolved: theme } = useTheme()
+  const body = useMemo(() => ({ width, height }), [width, height])
   const model = useMemo(
-    () => canvasModel(frames, fields, display),
+    () => canvasModel(frames, fields, display, body),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- text on a fill reads the live theme tokens, so a theme flip must recompute it
-    [frames, fields, display, theme]
+    [frames, fields, display, body, theme]
   )
-  const shapes = model.elements.filter(
-    (element) => element.kind === "rectangle" || element.kind === "ellipse"
-  )
-  const labelled = model.elements.filter(
-    (element) =>
-      element.kind === "text" ||
-      element.kind === "metric" ||
-      element.text !== null
+  const { root } = model
+  const rootRef = useRef<HTMLDivElement>(null)
+  const drag = useRef<Drag | null>(null)
+  const [pan, setView] = useState<View>(initialView)
+  const [hover, setHover] = useState<Hover | null>(null)
+  const view = root.panZoom
+    ? clampView(pan, body, root.infinitePan)
+    : initialView
+
+  function zoomBy(factor: number) {
+    setView(zoomedView(view, factor, body, root.infinitePan))
+  }
+
+  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    const onControl =
+      event.target instanceof Element && event.target.closest("button, a")
+    if (event.button !== 0 || onControl) return
+    drag.current = { x: event.clientX, y: event.clientY, view }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const start = drag.current
+    if (!start) return
+    setView(
+      clampView(
+        {
+          zoom: start.view.zoom,
+          panX: start.view.panX + event.clientX - start.x,
+          panY: start.view.panY + event.clientY - start.y,
+        },
+        body,
+        root.infinitePan
+      )
+    )
+  }
+
+  function showHover(
+    details: Hover["details"],
+    clientX: number,
+    clientY: number
+  ) {
+    const origin = rootRef.current?.getBoundingClientRect()
+    if (!origin) return
+    setHover({ details, x: clientX - origin.left, y: clientY - origin.top })
+  }
+
+  const shaped = model.elements.filter(hasShape)
+  const drawn = model.elements.filter((element) =>
+    drawsContent(element, root.tooltip)
   )
   return (
     <div
+      ref={rootRef}
       role="group"
       aria-label={panel.title}
       data-elements={model.elements.length}
       className="relative min-h-0 min-w-0 overflow-hidden text-foreground"
-      style={{ width, height }}
+      style={{
+        width,
+        height,
+        backgroundColor: root.backgroundColor ?? undefined,
+        borderRadius: root.borderRadius,
+      }}
     >
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-        className="absolute inset-0 size-full"
+      <div
+        className={cn(
+          "absolute inset-0",
+          root.panZoom && "cursor-grab touch-none active:cursor-grabbing"
+        )}
+        onPointerDown={root.panZoom ? onPointerDown : undefined}
+        onPointerMove={root.panZoom ? onPointerMove : undefined}
+        onPointerUp={() => (drag.current = null)}
+        onPointerCancel={() => (drag.current = null)}
       >
-        {shapes.map((element) => (
-          <Shape key={element.key} element={element} />
-        ))}
-        {model.lines.map((line) => (
-          <Line key={line.key} line={line} />
-        ))}
-      </svg>
-      {labelled.map((element) => (
-        <Box key={element.key} element={element} />
-      ))}
+        <div
+          data-canvas-stage=""
+          className="absolute inset-0"
+          style={
+            root.panZoom
+              ? {
+                  transform: `translate(${view.panX}px, ${view.panY}px) scale(${view.zoom})`,
+                }
+              : undefined
+          }
+        >
+          {root.background ? (
+            <BackgroundImage background={root.background} />
+          ) : null}
+          {shaped.map((element) => (
+            <ShapeItem key={element.key} element={element} />
+          ))}
+          <Lines lines={model.lines} width={width} height={height} />
+          {drawn.map((element) => (
+            <ContentItem
+              key={element.key}
+              element={element}
+              tooltipOn={root.tooltip}
+              onShow={showHover}
+              onHide={() => setHover(null)}
+            />
+          ))}
+        </div>
+      </div>
+      {root.borderWidth > 0 ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 border-solid"
+          style={{
+            borderWidth: root.borderWidth,
+            borderColor: root.borderColor ?? "var(--border)",
+            borderRadius: root.borderRadius,
+          }}
+        />
+      ) : null}
+      {root.panZoom ? (
+        <div
+          role="toolbar"
+          aria-label="Zoom"
+          className="absolute top-2 left-2 flex gap-1"
+        >
+          <Button
+            variant="outline"
+            size="icon-xs"
+            aria-label="Zoom in"
+            disabled={view.zoom >= maxZoom}
+            onClick={() => zoomBy(zoomStep)}
+          >
+            <ZoomInIcon />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-xs"
+            aria-label="Zoom out"
+            disabled={view.zoom <= minZoom}
+            onClick={() => zoomBy(1 / zoomStep)}
+          >
+            <ZoomOutIcon />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-xs"
+            aria-label="Reset zoom"
+            onClick={() => setView(initialView)}
+          >
+            <MaximizeIcon />
+          </Button>
+        </div>
+      ) : null}
+      {root.tooltip && hover ? (
+        <Tooltip hover={hover} width={width} height={height} />
+      ) : null}
     </div>
   )
 }

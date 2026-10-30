@@ -355,6 +355,14 @@ describe("panelChanges", () => {
       maxSpanDuration: "longest span",
       matchesOnly: "matching spans only",
       criticalPathOnly: "critical path only",
+      backgroundColor: "background color",
+      backgroundImage: "background image",
+      backgroundSize: "background size",
+      borderColor: "border color",
+      borderWidth: "border width",
+      borderRadius: "border radius",
+      panZoom: "pan and zoom",
+      infinitePan: "pan limits",
     }
     for (const [key, label] of Object.entries(keys)) {
       expect(labels(panel(), panel({ display: { [key]: 1 } }))).toEqual([label])
