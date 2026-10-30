@@ -354,12 +354,10 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.axisLabel"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -406,12 +404,10 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.axisLabel"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -573,13 +569,11 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
-          "targets[1].exemplar",
-          "fieldConfig.defaults.custom.axisLabel"
+          "targets[1].exemplar"
         ],
         "queries": [
           {
@@ -1583,6 +1577,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "CPU Cores",
             "display": {
               "legend": "right",
               "legendMode": "table"
@@ -1639,6 +1634,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "CPU CORES",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -1829,6 +1825,7 @@
             "unit": "binBps",
             "fill": 25,
             "points": "never",
+            "axisLabel": "BANDWIDTH",
             "display": {
               "legend": "hidden",
               "tooltip": "all"

@@ -37,6 +37,11 @@ function config(props: Partial<FieldConfig> = {}): FieldConfig {
     stack: "none",
     axis: "left",
     hidden: false,
+    scale: "linear",
+    logBase: 10,
+    axisCenteredZero: false,
+    axisBorder: false,
+    axisColor: "text",
     ...props,
   }
 }

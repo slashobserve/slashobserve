@@ -703,6 +703,17 @@ export interface FieldProps {
   stack?: "none" | "normal" | "percent";
   axis?: "left" | "right" | "hidden";
   hidden?: boolean;
+  axisLabel?: string;
+  axisSoftMin?: number;
+  axisSoftMax?: number;
+  scale?: "linear" | "log" | "symlog";
+  logBase?: 2 | 10;
+  linearThreshold?: number;
+  axisCenteredZero?: boolean;
+  axisWidth?: number;
+  axisGrid?: boolean;
+  axisBorder?: boolean;
+  axisColor?: "text" | "series";
 }
 /**
  * Only the first step may omit value; it is then the base color below every other step.

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 76,
-      "imported": 58,
-      "partial": 18,
+      "imported": 60,
+      "partial": 16,
       "placeholder": 0,
       "unverified": 0
     },
@@ -241,13 +241,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Stats",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.axisSoftMin"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1131,13 +1127,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Troubleshooting",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.axisSoftMin"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1182,7 +1174,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisSoftMin",
           "options.tooltip.hideZeros"
         ],
         "queries": [
@@ -2335,6 +2326,7 @@
             "decimals": 0,
             "lineInterpolation": "stepAfter",
             "points": "never",
+            "axisSoftMin": 0,
             "display": {
               "legend": "right",
               "legendValues": [
@@ -3674,6 +3666,7 @@
             "decimals": 0,
             "lineInterpolation": "stepAfter",
             "points": "never",
+            "axisSoftMin": 0,
             "display": {
               "legendValues": [
                 "lastNotNull"
@@ -3737,6 +3730,7 @@
             ],
             "unit": "s",
             "points": "never",
+            "axisSoftMin": 0,
             "display": {
               "legendValues": [
                 "lastNotNull",

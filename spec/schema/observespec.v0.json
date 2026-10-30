@@ -1186,6 +1186,58 @@
         },
         "hidden": {
           "type": "boolean"
+        },
+        "axisLabel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "axisSoftMin": {
+          "type": "number"
+        },
+        "axisSoftMax": {
+          "type": "number"
+        },
+        "scale": {
+          "enum": [
+            "linear",
+            "log",
+            "symlog"
+          ]
+        },
+        "logBase": {
+          "enum": [
+            2,
+            10
+          ]
+        },
+        "linearThreshold": {
+          "x-omitFromPrompt": true,
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "axisCenteredZero": {
+          "type": "boolean"
+        },
+        "axisWidth": {
+          "x-omitFromPrompt": true,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 400
+        },
+        "axisGrid": {
+          "type": "boolean"
+        },
+        "axisBorder": {
+          "x-omitFromPrompt": true,
+          "type": "boolean"
+        },
+        "axisColor": {
+          "x-omitFromPrompt": true,
+          "enum": [
+            "text",
+            "series"
+          ]
         }
       }
     },
@@ -1968,6 +2020,12 @@
                       "all",
                       "hidden"
                     ]
+                  },
+                  "xAxis": {
+                    "enum": [
+                      "shown",
+                      "hidden"
+                    ]
                   }
                 }
               }
@@ -2507,6 +2565,12 @@
                       "all",
                       "hidden"
                     ]
+                  },
+                  "xAxis": {
+                    "enum": [
+                      "shown",
+                      "hidden"
+                    ]
                   }
                 }
               }
@@ -2626,6 +2690,12 @@
                     "enum": [
                       "single",
                       "all",
+                      "hidden"
+                    ]
+                  },
+                  "xAxis": {
+                    "enum": [
+                      "shown",
                       "hidden"
                     ]
                   }

@@ -9,7 +9,8 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "legendWidth",
     "legendHideZero",
     "legendHideEmpty",
-    "tooltip"
+    "tooltip",
+    "xAxis"
   ],
   "stat": [
     "reduce",
@@ -92,7 +93,8 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "legendWidth",
     "legendHideZero",
     "legendHideEmpty",
-    "tooltip"
+    "tooltip",
+    "xAxis"
   ],
   "xychart": [
     "xField",
@@ -113,7 +115,8 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "close",
     "volume",
     "legend",
-    "tooltip"
+    "tooltip",
+    "xAxis"
   ],
   "nodeGraph": [
     "layout"

@@ -241,6 +241,17 @@ type FieldProps struct {
 	Stack             string      `json:"stack,omitempty"`
 	Axis              string      `json:"axis,omitempty"`
 	Hidden            *bool       `json:"hidden,omitempty"`
+	AxisLabel         string      `json:"axisLabel,omitempty"`
+	AxisSoftMin       *float64    `json:"axisSoftMin,omitempty"`
+	AxisSoftMax       *float64    `json:"axisSoftMax,omitempty"`
+	Scale             string      `json:"scale,omitempty"`
+	LogBase           *int        `json:"logBase,omitempty"`
+	LinearThreshold   *float64    `json:"linearThreshold,omitempty"`
+	AxisCenteredZero  *bool       `json:"axisCenteredZero,omitempty"`
+	AxisWidth         *int        `json:"axisWidth,omitempty"`
+	AxisGrid          *bool       `json:"axisGrid,omitempty"`
+	AxisBorder        *bool       `json:"axisBorder,omitempty"`
+	AxisColor         string      `json:"axisColor,omitempty"`
 }
 
 type Threshold struct {
@@ -337,6 +348,7 @@ type Display struct {
 	LegendHideZero     *bool              `json:"legendHideZero,omitempty"`
 	LegendHideEmpty    *bool              `json:"legendHideEmpty,omitempty"`
 	Tooltip            string             `json:"tooltip,omitempty"`
+	XAxis              string             `json:"xAxis,omitempty"`
 	Reduce             string             `json:"reduce,omitempty"`
 	AllValues          *bool              `json:"allValues,omitempty"`
 	Fields             string             `json:"fields,omitempty"`

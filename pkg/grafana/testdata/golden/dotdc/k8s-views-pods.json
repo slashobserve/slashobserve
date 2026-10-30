@@ -341,13 +341,11 @@
         "status": "partial",
         "reasons": [
           "Exemplars are not supported yet.",
-          "This color scheme is not supported yet; series use the default palette.",
-          "Some Grafana options of this panel are not supported yet."
+          "This color scheme is not supported yet; series use the default palette."
         ],
         "paths": [
           "targets[0].exemplar",
-          "fieldConfig.defaults.color",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.defaults.color"
         ],
         "queries": [
           {
@@ -377,13 +375,11 @@
         "status": "partial",
         "reasons": [
           "Exemplars are not supported yet.",
-          "This color scheme is not supported yet; series use the default palette.",
-          "Some Grafana options of this panel are not supported yet."
+          "This color scheme is not supported yet; series use the default palette."
         ],
         "paths": [
           "targets[0].exemplar",
-          "fieldConfig.defaults.color",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.defaults.color"
         ],
         "queries": [
           {
@@ -412,12 +408,10 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.axisLabel"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -439,12 +433,10 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.axisLabel"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -466,12 +458,10 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.axisLabel"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -494,13 +484,11 @@
         "status": "partial",
         "reasons": [
           "Exemplars are not supported yet.",
-          "This color scheme is not supported yet; series use the default palette.",
-          "Some Grafana options of this panel are not supported yet."
+          "This color scheme is not supported yet; series use the default palette."
         ],
         "paths": [
           "targets[0].exemplar",
-          "fieldConfig.defaults.color",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.defaults.color"
         ],
         "queries": [
           {
@@ -523,13 +511,11 @@
         "status": "partial",
         "reasons": [
           "Exemplars are not supported yet.",
-          "This color scheme is not supported yet; series use the default palette.",
-          "Some Grafana options of this panel are not supported yet."
+          "This color scheme is not supported yet; series use the default palette."
         ],
         "paths": [
           "targets[0].exemplar",
-          "fieldConfig.defaults.color",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.defaults.color"
         ],
         "queries": [
           {
@@ -1472,6 +1458,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "Percent",
             "display": {
               "legend": "right",
               "legendMode": "table",
@@ -1527,6 +1514,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "Percent",
             "display": {
               "legend": "right",
               "legendMode": "table",
@@ -1556,6 +1544,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "CPU Cores",
             "overrides": [
               {
                 "match": {
@@ -1597,6 +1586,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "Bytes",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -1630,6 +1620,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "SECONDS",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -1683,6 +1674,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "Percent",
             "display": {
               "legend": "right",
               "legendMode": "table",
@@ -1718,6 +1710,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "Percent",
             "display": {
               "legend": "right",
               "legendMode": "table",

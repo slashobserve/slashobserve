@@ -24,8 +24,12 @@ const (
 	maxCustomUnit  = 20
 	maxFormatUnit  = 40
 	maxMappedValue = 200
+	maxAxisLabel   = 100
+	maxAxisWidth   = 400
+	defaultLogBase = 10
 
 	colorSchemeReason = "This color scheme is not supported yet; series use the default palette."
+	logBaseReason     = "Only log base 2 and 10 are supported."
 )
 
 type propSite struct {
@@ -48,6 +52,8 @@ var propOrder = []string{
 	"color", "custom.drawStyle", "custom.fillOpacity", "custom.lineStyle",
 	"custom.lineInterpolation", "custom.lineWidth", "custom.showPoints", "custom.pointSize", "custom.spanNulls",
 	"custom.stacking", "custom.axisPlacement", "custom.hideFrom",
+	"custom.axisLabel", "custom.axisSoftMin", "custom.axisSoftMax", "custom.scaleDistribution",
+	"custom.axisCenteredZero", "custom.axisWidth", "custom.axisGridShow", "custom.axisBorderShow", "custom.axisColorMode",
 }
 
 var propHandlers = map[string]propHandler{
@@ -72,6 +78,31 @@ var propHandlers = map[string]propHandler{
 	"custom.stacking":          propStacking,
 	"custom.axisPlacement":     propAxisPlacement,
 	"custom.hideFrom":          propHideFrom,
+	"custom.axisLabel":         propAxisLabel,
+	"custom.axisSoftMin":       propAxisSoftMin,
+	"custom.axisSoftMax":       propAxisSoftMax,
+	"custom.scaleDistribution": propScaleDistribution,
+	"custom.axisCenteredZero":  propAxisCenteredZero,
+	"custom.axisWidth":         propAxisWidth,
+	"custom.axisGridShow":      propAxisGridShow,
+	"custom.axisBorderShow":    propAxisBorderShow,
+	"custom.axisColorMode":     propAxisColorMode,
+}
+
+var plotPropIDs = map[string]bool{
+	"custom.lineInterpolation": true, "custom.lineWidth": true, "custom.showPoints": true, "custom.pointSize": true, "custom.spanNulls": true,
+	"custom.axisLabel": true, "custom.axisSoftMin": true, "custom.axisSoftMax": true, "custom.scaleDistribution": true,
+	"custom.axisCenteredZero": true, "custom.axisWidth": true, "custom.axisGridShow": true, "custom.axisBorderShow": true, "custom.axisColorMode": true,
+}
+
+var plotPanelTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true, spec.Candlestick: true}
+
+func (b *panelBuild) propHandler(id string) (propHandler, bool) {
+	if plotPropIDs[id] && !plotPanelTypes[b.typ] {
+		return nil, false
+	}
+	handler, ok := propHandlers[id]
+	return handler, ok
 }
 
 var unitSet = sync.OnceValue(func() map[string]bool {
@@ -140,10 +171,14 @@ func (b *panelBuild) convertFieldConfig() {
 	b.thresholdsMatter = b.thresholdsApply()
 	b.consumeCellDisplay()
 	for _, id := range propOrder {
+		handler, drawn := b.propHandler(id)
+		if !drawn {
+			continue
+		}
 		path := "fieldConfig.defaults." + id
 		if v, ok := b.value(path); ok && v != nil {
 			s := propSite{value: path, report: path}
-			propHandlers[id](b, &b.panel.FieldProps, v, s)
+			handler(b, &b.panel.FieldProps, v, s)
 		}
 	}
 	b.fixMinMax(&b.panel.FieldProps, "fieldConfig.defaults.max")
@@ -586,6 +621,129 @@ func propAxisPlacement(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	switch placement := asString(v); placement {
 	case "left", "right", "hidden":
 		p.Axis = placement
+	}
+}
+
+func propAxisLabel(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	label := strings.TrimSpace(asString(v))
+	if label == "" {
+		return
+	}
+	cut, wasCut := cutRunes(label, maxAxisLabel)
+	if wasCut {
+		b.partial(s.at(""), "The axis label was cut to 100 characters.")
+	}
+	p.AxisLabel = cut
+}
+
+func propAxisSoftMin(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	if f, ok := numberValue(v); ok {
+		p.AxisSoftMin = &f
+	}
+}
+
+func propAxisSoftMax(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	if f, ok := numberValue(v); ok {
+		p.AxisSoftMax = &f
+	}
+}
+
+func propScaleDistribution(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	cfg, ok := asObject(v)
+	if !ok {
+		return
+	}
+	b.consume(s.value+".type", s.value+".log", s.value+".linearThreshold")
+	switch kind := asString(cfg["type"]); kind {
+	case "", "linear":
+		if s.whole {
+			p.Scale = "linear"
+		}
+	case "log":
+		p.Scale = kind
+		b.logBase(p, cfg["log"], s)
+	case "symlog":
+		p.Scale = kind
+		b.linearThreshold(p, cfg["linearThreshold"], s)
+	default:
+		b.partial(s.at(".type"), fmt.Sprintf("The scale type %s is not supported yet.", kind))
+	}
+}
+
+func (b *panelBuild) logBase(p *spec.FieldProps, v any, s propSite) {
+	f, ok := numberValue(v)
+	switch {
+	case !ok:
+	case f == 2:
+		p.LogBase = ptr(2)
+	case f == defaultLogBase:
+		if s.whole {
+			p.LogBase = ptr(defaultLogBase)
+		}
+	default:
+		b.partial(s.at(".log"), logBaseReason)
+	}
+}
+
+func (b *panelBuild) linearThreshold(p *spec.FieldProps, v any, s propSite) {
+	f, ok := numberValue(v)
+	switch {
+	case !ok:
+	case f > 0:
+		p.LinearThreshold = &f
+	default:
+		b.partial(s.at(".linearThreshold"), "The linear threshold must be above zero.")
+	}
+}
+
+func propAxisCenteredZero(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	if on, isBool := v.(bool); isBool && (on || s.whole) {
+		p.AxisCenteredZero = &on
+	}
+}
+
+func propAxisWidth(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	f, ok := numberValue(v)
+	if !ok || f <= 0 {
+		return
+	}
+	width := int(math.Round(min(f, maxAxisWidth)))
+	if f > maxAxisWidth {
+		b.partial(s.at(""), "The axis width was cut to 400 pixels.")
+	}
+	p.AxisWidth = &width
+}
+
+func propAxisGridShow(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	if show, isBool := v.(bool); isBool {
+		p.AxisGrid = &show
+	}
+}
+
+func propAxisBorderShow(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	if show, isBool := v.(bool); isBool && (show || s.whole) {
+		p.AxisBorder = &show
+	}
+}
+
+func propAxisColorMode(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	switch mode := asString(v); mode {
+	case "series":
+		p.AxisColor = mode
+	case "text":
+		if s.whole {
+			p.AxisColor = mode
+		}
+	default:
+		b.partial(s.at(""), fmt.Sprintf("The axis color mode %s is not supported yet.", mode))
 	}
 }
 

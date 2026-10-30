@@ -10,6 +10,7 @@ import {
   legendValues,
   legendWidth,
   tooltip,
+  xAxis,
 } from "./shared"
 
 export const trend: readonly DisplayOption[] = [
@@ -23,4 +24,5 @@ export const trend: readonly DisplayOption[] = [
   legendHideZero,
   legendHideEmpty,
   tooltip,
+  xAxis,
 ]

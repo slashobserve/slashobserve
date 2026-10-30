@@ -23,6 +23,11 @@ type FieldPropsDefaults struct {
 	Stack             string `json:"stack"`
 	Axis              string `json:"axis"`
 	Hidden            bool   `json:"hidden"`
+	Scale             string `json:"scale"`
+	LogBase           int    `json:"logBase"`
+	AxisCenteredZero  bool   `json:"axisCenteredZero"`
+	AxisBorder        bool   `json:"axisBorder"`
+	AxisColor         string `json:"axisColor"`
 }
 
 type QueryDefaults struct {

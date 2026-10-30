@@ -387,13 +387,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some transformations are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some transformations are not supported yet."
         ],
         "paths": [
-          "transformations[1]",
-          "fieldConfig.defaults.custom.axisLabel",
-          "fieldConfig.defaults.custom.axisWidth"
+          "transformations[1]"
         ],
         "queries": [
           {
@@ -1012,6 +1009,8 @@
         "fill": 10,
         "points": "always",
         "spanNulls": true,
+        "axisLabel": "Rows in part",
+        "axisWidth": 3,
         "transform": [
           {
             "type": "organize",

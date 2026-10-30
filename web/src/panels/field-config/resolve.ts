@@ -38,6 +38,17 @@ export type FieldConfig = {
   stack: "none" | "normal" | "percent"
   axis: "left" | "right" | "hidden"
   hidden: boolean
+  axisLabel?: string
+  axisSoftMin?: number
+  axisSoftMax?: number
+  scale: "linear" | "log" | "symlog"
+  logBase: 2 | 10
+  linearThreshold?: number
+  axisCenteredZero: boolean
+  axisWidth?: number
+  axisGrid?: boolean
+  axisBorder: boolean
+  axisColor: "text" | "series"
 }
 
 export type FieldResolver = {
@@ -69,6 +80,17 @@ const fieldPropKeys = [
   "stack",
   "axis",
   "hidden",
+  "axisLabel",
+  "axisSoftMin",
+  "axisSoftMax",
+  "scale",
+  "logBase",
+  "linearThreshold",
+  "axisCenteredZero",
+  "axisWidth",
+  "axisGrid",
+  "axisBorder",
+  "axisColor",
 ] as const satisfies readonly (keyof FieldProps)[]
 
 type Resolved = { seriesName: string; displayName: string; config: FieldConfig }

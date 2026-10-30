@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 27,
-      "imported": 18,
-      "partial": 9,
+      "imported": 25,
+      "partial": 2,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.axisLabel"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -68,13 +64,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.axisLabel"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -93,13 +85,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.axisLabel"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "O",
@@ -125,13 +113,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.axisLabel"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "O",
@@ -157,13 +141,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.axisLabel"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -198,12 +178,10 @@
         "row": "NFS",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -232,12 +210,10 @@
         "row": "NFS",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -264,13 +240,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.axisLabel"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -289,13 +261,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.axisLabel"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -1897,6 +1865,7 @@
             "unit": "cps",
             "min": 0,
             "fill": 20,
+            "axisLabel": "Connections/s",
             "display": {
               "legendValues": [
                 "mean",
@@ -1929,6 +1898,7 @@
             "unit": "cps",
             "min": 0,
             "fill": 20,
+            "axisLabel": "Connections/s",
             "display": {
               "legendValues": [
                 "mean",
@@ -1967,6 +1937,7 @@
             "unit": "pps",
             "min": 0,
             "fill": 40,
+            "axisLabel": "Packets/s",
             "display": {
               "legendValues": [
                 "mean",
@@ -2005,6 +1976,7 @@
             "unit": "pps",
             "min": 0,
             "fill": 40,
+            "axisLabel": "Packets/s",
             "display": {
               "legendValues": [
                 "mean",
@@ -2049,6 +2021,7 @@
             "unit": "ops",
             "min": 0,
             "fill": 20,
+            "axisLabel": "Operations/s",
             "display": {
               "legendValues": [
                 "mean",
@@ -2086,6 +2059,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "axisLabel": "Operations/s errors (-) / success (+)",
             "display": {
               "legendValues": [
                 "mean",
@@ -2123,6 +2097,7 @@
             ],
             "unit": "Bps",
             "fill": 40,
+            "axisLabel": "Bytes write (-) / read (+)",
             "display": {
               "legendValues": [
                 "mean",
@@ -2155,6 +2130,7 @@
             "unit": "ops",
             "min": 0,
             "fill": 20,
+            "axisLabel": "Operations/s",
             "display": {
               "legendValues": [
                 "mean",
@@ -2204,6 +2180,7 @@
             "unit": "ops",
             "min": 0,
             "fill": 20,
+            "axisLabel": "Operations/s",
             "display": {
               "legendValues": [
                 "mean",

@@ -30,6 +30,11 @@ function config(props: Partial<FieldConfig> = {}): FieldConfig {
     stack: "none",
     axis: "left",
     hidden: false,
+    scale: "linear",
+    logBase: 10,
+    axisCenteredZero: false,
+    axisBorder: false,
+    axisColor: "text",
     ...props,
   }
 }
@@ -185,6 +190,42 @@ describe("axesInUse", () => {
   it("puts ghost lines on the left axis with the panel settings", () => {
     expect(axesInUse([], [], panel, 2).left).toMatchObject({ unit: "bytes" })
   })
+
+  it("takes the axis options of the first series on each axis", () => {
+    const axes = axesInUse(
+      [
+        { axis: "left", stack: "none" },
+        { axis: "left", stack: "none" },
+      ],
+      [
+        config({
+          axisLabel: "Requests",
+          axisSoftMax: 10,
+          scale: "log",
+          logBase: 2,
+          axisCenteredZero: true,
+          axisWidth: 80,
+          axisGrid: false,
+          axisBorder: true,
+          axisColor: "series",
+        }),
+        config({ axisLabel: "Ignored" }),
+      ],
+      panel,
+      0
+    )
+    expect(axes.left).toMatchObject({
+      label: "Requests",
+      softMax: 10,
+      scale: "log",
+      logBase: 2,
+      centeredZero: true,
+      width: 80,
+      grid: false,
+      border: true,
+      color: "series",
+    })
+  })
 })
 
 describe("axisRange", () => {
@@ -223,6 +264,74 @@ describe("axisRange", () => {
 
   it("widens a collapsed range", () => {
     expect(axisRange({ percent: false, min: 3, max: 3 }, 1, 2)).toEqual([3, 4])
+  })
+
+  it("widens the automatic range to soft limits and never cuts data", () => {
+    expect(
+      axisRange({ percent: false, softMin: -10, softMax: 100 }, 1, 10)
+    ).toEqual([-10, 100])
+    expect(axisRange({ percent: false, softMax: 5 }, 1, 10)).toEqual([0, 10.5])
+  })
+
+  it("centers the range on zero", () => {
+    const [lo, hi] = axisRange({ percent: false, centeredZero: true }, -2, 10)
+    expect(hi).toBeCloseTo(10.6)
+    expect(lo).toBe(-hi!)
+  })
+
+  it("centers after the soft limits widen the range", () => {
+    expect(
+      axisRange({ percent: false, centeredZero: true, softMin: -50 }, -2, 10)
+    ).toEqual([-50, 50])
+  })
+
+  it("lets hard limits win over soft limits and centering", () => {
+    expect(
+      axisRange(
+        { percent: false, centeredZero: true, softMax: 100, min: 0, max: 20 },
+        -2,
+        10
+      )
+    ).toEqual([0, 20])
+  })
+
+  it("draws a log axis between powers of its base", () => {
+    expect(axisRange({ percent: false, scale: "log" }, 3, 450)).toEqual([
+      1, 1000,
+    ])
+    expect(
+      axisRange({ percent: false, scale: "log", logBase: 2 }, 3, 450)
+    ).toEqual([2, 512])
+  })
+
+  it("draws one decade on a log axis without positive data", () => {
+    expect(axisRange({ percent: false, scale: "log" }, -5, 0)).toEqual([1, 10])
+  })
+
+  it("keeps only positive soft and hard limits on a log axis", () => {
+    expect(
+      axisRange(
+        { percent: false, scale: "log", softMax: 1e5, softMin: -1 },
+        3,
+        450
+      )
+    ).toEqual([1, 1e5])
+    expect(
+      axisRange({ percent: false, scale: "log", min: 0, max: -3 }, 3, 450)
+    ).toEqual([1, 1000])
+    expect(
+      axisRange({ percent: false, scale: "log", min: 0.5, max: 2000 }, 3, 450)
+    ).toEqual([0.5, 2000])
+  })
+
+  it("ignores the scale on a percent axis", () => {
+    expect(axisRange({ percent: true, scale: "log" }, 0.2, 1)).toEqual([0, 1])
+  })
+
+  it("keeps the linear range for a symlog axis", () => {
+    expect(axisRange({ percent: false, scale: "symlog" }, 1, 10)).toEqual([
+      0, 10.5,
+    ])
   })
 })
 
@@ -272,6 +381,7 @@ describe("timeseriesDisplay", () => {
       legendHideZero: false,
       legendHideEmpty: false,
       tooltip: "single",
+      xAxis: "shown",
     })
   })
 
@@ -288,6 +398,7 @@ describe("timeseriesDisplay", () => {
           legendHideZero: true,
           legendHideEmpty: true,
           tooltip: "hidden",
+          xAxis: "hidden",
         })
       )
     ).toEqual({
@@ -300,6 +411,7 @@ describe("timeseriesDisplay", () => {
       legendHideZero: true,
       legendHideEmpty: true,
       tooltip: "hidden",
+      xAxis: "hidden",
     })
   })
 })

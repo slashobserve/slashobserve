@@ -9,6 +9,7 @@ import {
   legendValues,
   legendWidth,
   tooltip,
+  xAxis,
 } from "./shared"
 
 export const timeseries: readonly DisplayOption[] = [
@@ -21,4 +22,5 @@ export const timeseries: readonly DisplayOption[] = [
   legendHideZero,
   legendHideEmpty,
   tooltip,
+  xAxis,
 ]

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 23,
-      "imported": 20,
-      "partial": 3,
+      "imported": 21,
+      "partial": 2,
       "placeholder": 0,
       "unverified": 0
     },
@@ -394,13 +394,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Troubleshooting",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1158,7 +1154,8 @@
                 "match": {
                   "series": "Max"
                 },
-                "color": "#C4162A"
+                "color": "#C4162A",
+                "axisColor": "text"
               }
             ]
           },

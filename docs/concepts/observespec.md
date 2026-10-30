@@ -115,6 +115,7 @@ The other panel types are:
 
 A data panel can also set `timeFrom` and `timeShift` to override the dashboard's time range, `interval` (the same forms as a query's) and `maxDataPoints` to shape the step of its queries, and `display`, a small set of options that depend on its type, such as the legend of a `timeseries` or the `header` of a `table`.
 The legend of a `timeseries` or `trend` panel is a `list` or a `table` (`legendMode`), may show reducer `legendValues`, sorts by a value or by name (`legendSortBy`, `legendSortDesc`), takes a width when it sits on the right (`legendWidth`), and hides all-zero or empty series (`legendHideZero`, `legendHideEmpty`).
+A `timeseries`, `trend` or `candlestick` panel can hide its x axis with `xAxis: "hidden"` (`shown` by default).
 When `legendMode` is absent the legend is a table if `legendValues` is not empty and a list otherwise.
 A `stat`, `gauge`, `bargauge` or `piechart` panel shows one value per number field, reduced by `reduce`.
 Three optional `display` keys change that.
@@ -192,11 +193,19 @@ See [Datasources and variables](datasources-and-variables.md).
 ## Field options, overrides and transforms
 
 A data panel carries its display options directly, and an override repeats the same options for the series or fields it matches.
-The options are `unit`, `decimals`, `min`, `max`, `thresholds` and `thresholdMode`, `color`, `displayName`, `noValue`, `mappings`, `links`, and for charts `style`, `fill`, `lineStyle`, `lineInterpolation`, `lineWidth`, `points`, `pointSize`, `spanNulls`, `stack`, `axis` and `hidden`.
+The options are `unit`, `decimals`, `min`, `max`, `thresholds` and `thresholdMode`, `color`, `displayName`, `noValue`, `mappings`, `links`, and for charts `style`, `fill`, `lineStyle`, `lineInterpolation`, `lineWidth`, `points`, `pointSize`, `spanNulls`, `stack`, `axis`, `hidden`, and for the axes `axisLabel`, `axisSoftMin`, `axisSoftMax`, `scale`, `logBase`, `linearThreshold`, `axisCenteredZero`, `axisWidth`, `axisGrid`, `axisBorder` and `axisColor`.
 `lineInterpolation` is `linear`, `smooth`, `stepBefore` or `stepAfter`, and stacked series always draw linear.
 `lineWidth` is 0 to 10 pixels (2 by default; 0 draws no line, so a filled series shows only its fill).
 `points` is `auto` (a marker on samples with no neighbour, the default), `always` or `never`, and `pointSize` is the marker diameter in pixels, 1 to 40 (4 by default), which also sizes the markers of the `points` style.
 `spanNulls` is `false` (the default, a gap breaks the line), `true` (every gap is joined) or a number of milliseconds (gaps up to that long are joined).
+The axis options belong to the axis a series draws on, and the first series on an axis decides its settings.
+`axisLabel` is up to 100 characters of text beside the axis.
+`axisSoftMin` and `axisSoftMax` widen the automatic range to include them but never cut data, while `min` and `max` are hard limits that win over them.
+`scale` is `linear` (the default), `log` (with `logBase` 2 or 10, 10 by default; values at or below zero are not drawn) or `symlog` (linear within `linearThreshold` of zero, 1 by default, and logarithmic outside).
+`axisCenteredZero` makes the range symmetric around zero.
+`axisWidth` fixes the width of the axis in pixels (0 to 400), `axisGrid` shows or hides its grid lines (by default only the left axis, or the right one when there is no left axis, draws a grid), `axisBorder` draws a line along the axis, and `axisColor` is `text` (the default) or `series` (the axis takes the color of its first series).
+A percent stack always uses a 0 to 100% axis whatever the scale.
+Only `timeseries`, `trend` and `candlestick` panels draw the line style and axis options, so other panel types ignore them and a Grafana import reports them there.
 Thresholds ascend, and the first step may leave out `value` to act as the base color.
 A color is `ok`, `info`, `warning`, `critical` or a `#rrggbb` hex value.
 A unit is any Grafana unit id such as `reqps`, `s`, `bytes`, `percentunit` or `radbq`, or custom `suffix:`, `prefix:`, `time:`, `si:`, `count:` or `currency:` text.

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 11,
-      "imported": 1,
-      "partial": 10,
+      "imported": 2,
+      "partial": 9,
       "placeholder": 0,
       "unverified": 0
     },
@@ -266,15 +266,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[1].properties[2]",
-          "fieldConfig.defaults.custom.axisLabel"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -621,6 +615,7 @@
         ],
         "fill": 26,
         "lineInterpolation": "smooth",
+        "axisLabel": "Read rows",
         "overrides": [
           {
             "match": {
@@ -633,7 +628,8 @@
               "series": "written_rows"
             },
             "color": "#C4162A",
-            "axis": "right"
+            "axis": "right",
+            "axisLabel": "Written rows"
           }
         ]
       },

@@ -9,7 +9,12 @@ import (
 
 func customPanel(t *testing.T, defaults, overrides string) (spec.Panel, PanelLine) {
 	t.Helper()
-	return convertedPanel(t, panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":{"custom":`+defaults+`},"overrides":[`+overrides+`]}`))
+	return customPanelOf(t, "timeseries", defaults, overrides)
+}
+
+func customPanelOf(t *testing.T, typ, defaults, overrides string) (spec.Panel, PanelLine) {
+	t.Helper()
+	return convertedPanel(t, panelDoc(typ, upTarget+`,"fieldConfig":{"defaults":{"custom":`+defaults+`},"overrides":[`+overrides+`]}`))
 }
 
 func intOf(p *int) int {

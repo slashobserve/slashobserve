@@ -21,11 +21,33 @@ func (b *panelBuild) convertOverrides() {
 	items, _ := asArray(lookupValue(b.raw, "fieldConfig.overrides"))
 	for i, item := range items {
 		path := fmt.Sprintf("fieldConfig.overrides[%d]", i)
+		if b.takeTimeAxisOverride(item, path) {
+			continue
+		}
 		override, ok := b.convertOverride(item, path)
 		if ok {
 			b.addOverride(override, path)
 		}
 	}
+}
+
+func (b *panelBuild) takeTimeAxisOverride(item any, path string) bool {
+	if b.typ != spec.Timeseries && b.typ != spec.Trend && b.typ != spec.Candlestick {
+		return false
+	}
+	raw, _ := asObject(item)
+	matcher, _ := asObject(raw["matcher"])
+	properties, _ := asArray(raw["properties"])
+	if asString(matcher["id"]) != "byType" || asString(matcher["options"]) != "time" || len(properties) != 1 {
+		return false
+	}
+	only, _ := asObject(properties[0])
+	if asString(only["id"]) != "custom.axisPlacement" || asString(only["value"]) != "hidden" {
+		return false
+	}
+	b.consume(path)
+	b.disp().XAxis = "hidden"
+	return true
 }
 
 func (b *panelBuild) addOverride(override spec.Override, path string) {
@@ -69,7 +91,7 @@ func (b *panelBuild) overrideProperty(props *spec.FieldProps, item any, path str
 		whole:  true,
 	}
 	id := asString(prop["id"])
-	handler, ok := propHandlers[id]
+	handler, ok := b.propHandler(id)
 	if !ok {
 		if isCosmetic("fieldConfig.defaults."+id, prop["value"]) {
 			b.consume(site.report)

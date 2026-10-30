@@ -121,6 +121,16 @@ export const tooltip: DisplayOption = {
   ],
 }
 
+export const xAxis: DisplayOption = {
+  kind: "choice",
+  key: "xAxis",
+  label: "X axis",
+  options: [
+    { value: "shown", label: "Shown" },
+    { value: "hidden", label: "Hidden" },
+  ],
+}
+
 export const orientation: DisplayOption = {
   kind: "choice",
   key: "orientation",

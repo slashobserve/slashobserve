@@ -509,12 +509,10 @@
         "row": "Basic",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -544,13 +542,11 @@
         "status": "partial",
         "reasons": [
           "The query is empty.",
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
           "targets[2]",
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -1665,6 +1661,7 @@
             "fill": 40,
             "points": "never",
             "spanNulls": 3600000,
+            "axisLabel": "Receive (-) / Transmit (+)",
             "display": {
               "tooltip": "all"
             }
@@ -1698,6 +1695,7 @@
             "fill": 40,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "Read (-) / Write (+)",
             "display": {
               "tooltip": "all"
             }

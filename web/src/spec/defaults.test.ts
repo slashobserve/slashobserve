@@ -188,6 +188,7 @@ describe("spec defaults", () => {
       legendHideZero: false,
       legendHideEmpty: false,
       tooltip: "single",
+      xAxis: "shown",
     })
   })
 
@@ -207,6 +208,7 @@ describe("spec defaults", () => {
       legendHideZero: false,
       legendHideEmpty: false,
       tooltip: "all",
+      xAxis: "shown",
     })
   })
 

@@ -211,12 +211,10 @@
         "row": "Application Status",
         "status": "partial",
         "reasons": [
-          "Logarithmic axes are not supported yet.",
           "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "yaxes[0].logBase",
           "nullPointMode",
           "fieldConfig.defaults.unitScale",
           "paceLength",
@@ -242,12 +240,10 @@
         "row": "Application Status",
         "status": "partial",
         "reasons": [
-          "Logarithmic axes are not supported yet.",
           "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "yaxes[0].logBase",
           "nullPointMode",
           "fieldConfig.defaults.unitScale",
           "paceLength",
@@ -1633,6 +1629,8 @@
             ],
             "unit": "short",
             "fill": 10,
+            "scale": "log",
+            "logBase": 2,
             "overrides": [
               {
                 "match": {
@@ -1700,6 +1698,8 @@
             ],
             "unit": "short",
             "fill": 10,
+            "scale": "log",
+            "logBase": 2,
             "overrides": [
               {
                 "match": {

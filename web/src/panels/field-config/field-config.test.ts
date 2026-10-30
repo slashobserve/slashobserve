@@ -50,6 +50,11 @@ describe("field config resolution", () => {
       stack: "none",
       axis: "left",
       hidden: false,
+      scale: "linear",
+      logBase: 10,
+      axisCenteredZero: false,
+      axisBorder: false,
+      axisColor: "text",
       mappings: [],
       links: [],
     })

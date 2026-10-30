@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 14,
-      "imported": 7,
-      "partial": 7,
+      "imported": 8,
+      "partial": 6,
       "placeholder": 0,
       "unverified": 0
     },
@@ -249,13 +249,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.axisLabel"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -943,6 +939,7 @@
         "unit": "none",
         "points": "never",
         "spanNulls": true,
+        "axisLabel": "cores",
         "display": {
           "legend": "hidden",
           "legendValues": [

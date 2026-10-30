@@ -119,6 +119,7 @@
         "paths": [
           "targets[0].exemplar",
           "fieldConfig.defaults.color",
+          "fieldConfig.defaults.custom.lineWidth",
           "options.legend.placement"
         ],
         "queries": [
@@ -695,7 +696,6 @@
           }
         ],
         "fill": 70,
-        "lineWidth": 0,
         "display": {
           "mergeValues": false,
           "showValues": "never"

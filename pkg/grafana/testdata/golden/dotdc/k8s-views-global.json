@@ -422,14 +422,12 @@
         "reasons": [
           "Exemplars are not supported yet.",
           "This color scheme is not supported yet; series use the default palette.",
-          "Some transformations are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some transformations are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
           "fieldConfig.defaults.color",
-          "transformations[0].options.replaceFields",
-          "fieldConfig.defaults.custom.axisLabel"
+          "transformations[0].options.replaceFields"
         ],
         "queries": [
           {
@@ -453,14 +451,12 @@
         "reasons": [
           "Exemplars are not supported yet.",
           "This color scheme is not supported yet; series use the default palette.",
-          "Some transformations are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some transformations are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
           "fieldConfig.defaults.color",
-          "transformations[0].options.replaceFields",
-          "fieldConfig.defaults.custom.axisLabel"
+          "transformations[0].options.replaceFields"
         ],
         "queries": [
           {
@@ -482,12 +478,10 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.axisLabel"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -534,12 +528,10 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.axisLabel"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -561,12 +553,10 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.axisLabel"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -588,12 +578,10 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.axisLabel"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -615,12 +603,10 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.axisLabel"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -749,13 +735,11 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
-          "targets[1].exemplar",
-          "fieldConfig.defaults.custom.axisLabel"
+          "targets[1].exemplar"
         ],
         "queries": [
           {
@@ -784,13 +768,11 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
-          "targets[1].exemplar",
-          "fieldConfig.defaults.custom.axisLabel"
+          "targets[1].exemplar"
         ],
         "queries": [
           {
@@ -819,12 +801,10 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.axisLabel"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -853,12 +833,10 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.axisLabel"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -887,12 +865,10 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.axisLabel"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -921,12 +897,10 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.axisLabel"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -1436,6 +1410,7 @@
             "fill": 10,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "CPU %",
             "transform": [
               {
                 "type": "calculateField",
@@ -1469,6 +1444,7 @@
             "fill": 10,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "MEMORY",
             "transform": [
               {
                 "type": "calculateField",
@@ -1510,6 +1486,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "CPU CORES",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -1577,6 +1554,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "CPU %",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -1610,6 +1588,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "MEMORY",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -1645,6 +1624,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "SECONDS",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -1681,6 +1661,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "NB",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -1887,6 +1868,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "BANDWIDTH",
             "display": {
               "legend": "hidden",
               "tooltip": "all"
@@ -1919,6 +1901,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "DROPPED PACKETS",
             "display": {
               "legend": "hidden",
               "tooltip": "all"
@@ -1951,6 +1934,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "BANDWIDTH",
             "display": {
               "legend": "hidden",
               "tooltip": "all"
@@ -1983,6 +1967,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "BANDWIDTH",
             "display": {
               "legend": "hidden",
               "tooltip": "all"
@@ -2016,6 +2001,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "BANDWIDTH",
             "display": {
               "legend": "hidden",
               "tooltip": "all"
@@ -2049,6 +2035,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "axisLabel": "BANDWIDTH",
             "display": {
               "legend": "hidden",
               "tooltip": "all"
