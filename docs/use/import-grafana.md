@@ -42,4 +42,5 @@ A stat panel imports its text alignment (`justifyMode`), title and value sizes (
 A gauge imports its threshold labels and a bar gauge its `lcd` display mode, value mode, name placement and unfilled area; both import their text sizes (`text.titleSize` and `text.valueSize`, from 1 to 200 pixels).
 The `basic` and `gradient` bar gauge display modes import as the basic bar, because bar gauges are drawn flat.
 When the sizing is Manual, a gauge or bar gauge imports its minimum width and height (and a bar gauge its maximum height), using Grafana's own defaults when they are not set; with Auto sizing Grafana ignores these limits, so they are left out without a note.
+A logs panel imports its unique and common labels, log details and where they open (`detailsMode`), prettified JSON, deduplication, controls bar, font size, syntax highlighting and infinite scrolling (kept but ignored); the field selector, the context toggle, the timestamp resolution, the log attributes switch and the displayed fields are still reported.
 A value SlashObserve does not support, such as a delay in days or a time zone name the server does not know, is left out and listed in the import report.

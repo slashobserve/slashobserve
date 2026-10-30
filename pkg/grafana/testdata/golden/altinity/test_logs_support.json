@@ -57,14 +57,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Saved ad hoc filters are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Saved ad hoc filters are not kept."
         ],
         "paths": [
-          "targets[0].adHocFilters",
-          "options.prettifyLogMessage",
-          "options.showCommonLabels",
-          "options.showLabels"
+          "targets[0].adHocFilters"
         ],
         "queries": [
           {
@@ -113,13 +109,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Imported the generated SQL; the query builder settings are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Imported the generated SQL; the query builder settings are not kept."
         ],
         "paths": [
-          "targets[0].builderOptions",
-          "options.prettifyLogMessage",
-          "options.showCommonLabels"
+          "targets[0].builderOptions"
         ],
         "queries": [
           {
@@ -191,7 +184,10 @@
         ],
         "display": {
           "wrap": true,
-          "showTime": true
+          "showTime": true,
+          "showLabels": true,
+          "showCommonLabels": true,
+          "prettify": true
         }
       },
       {
@@ -228,7 +224,9 @@
         "display": {
           "wrap": true,
           "showTime": true,
-          "order": "oldest"
+          "order": "oldest",
+          "showCommonLabels": true,
+          "prettify": true
         }
       }
     ]

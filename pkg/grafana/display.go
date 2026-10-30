@@ -455,6 +455,20 @@ func displayLogs(b *panelBuild) {
 	case "Descending":
 		d.Order = "newest"
 	}
+	b.logsLines(d)
+}
+
+func (b *panelBuild) logsLines(d *spec.Display) {
+	d.ShowLabels, _ = b.boolOption("options.showLabels")
+	d.ShowCommonLabels, _ = b.boolOption("options.showCommonLabels")
+	d.Details, _ = b.boolOption("options.enableLogDetails")
+	d.Prettify, _ = b.boolOption("options.prettifyLogMessage")
+	d.Controls, _ = b.boolOption("options.showControls")
+	d.Highlight, _ = b.boolOption("options.syntaxHighlighting")
+	d.InfiniteScroll, _ = b.boolOption("options.enableInfiniteScrolling")
+	d.Dedup = b.enumOption("options.dedupStrategy", "none", "exact", "numbers", "signature")
+	d.FontSize = b.enumOption("options.fontSize", "default", "small")
+	d.DetailsMode = b.enumOption("options.detailsMode", "inline", "sidebar")
 }
 
 func (c *converter) schemaVersion() int {

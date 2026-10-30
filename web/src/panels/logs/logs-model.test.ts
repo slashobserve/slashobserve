@@ -6,10 +6,13 @@ import type { PreparedField, PreparedFrame } from "@/panels/transforms"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
 import {
+  dedupKey,
   detailText,
   logLevel,
   logsModel,
   maxEntries,
+  messageTokens,
+  prettifyMessage,
   type LogsDisplay,
 } from "./logs-model"
 
@@ -545,5 +548,183 @@ describe("detailText", () => {
   it("returns markup in a message as plain text", () => {
     expect(detailOf(f, "Body")).toBe("<b>boom</b>")
     expect(model([f]).entries[0].message).toBe("<b>boom</b>")
+  })
+})
+
+function lines(bodies: string[], extra: Partial<PreparedFrame> = {}) {
+  return frame(
+    [
+      field(
+        "Timestamp",
+        "time",
+        bodies.map((_, index) => 1000 * (index + 1))
+      ),
+      field("Body", "string", bodies),
+    ],
+    extra
+  )
+}
+
+describe("logsModel deduplication", () => {
+  const bodies = [
+    "GET /a took 12ms",
+    "GET /a took 340ms",
+    "GET /b took 12ms",
+    "GET /a took 12ms",
+  ]
+
+  it.each([
+    ["none", [1, 1, 1, 1]],
+    ["exact", [1, 1, 2]],
+    ["numbers", [1, 3]],
+    ["signature", [4]],
+  ] as const)("%s leaves the right repeat counts", (dedup, repeats) => {
+    const { entries } = model([lines(bodies)], { dedup, order: "oldest" })
+    expect(entries.map((entry) => entry.repeats).sort()).toEqual(
+      [...repeats].sort()
+    )
+  })
+
+  it("keeps the first line of a group in the chosen order", () => {
+    const newest = model([lines(bodies)], { dedup: "exact" }).entries
+    expect(newest.map((entry) => [entry.time, entry.repeats])).toEqual([
+      [4000, 2],
+      [3000, 1],
+      [2000, 1],
+    ])
+    const oldest = model([lines(bodies)], {
+      dedup: "exact",
+      order: "oldest",
+    }).entries
+    expect(oldest.map((entry) => [entry.time, entry.repeats])).toEqual([
+      [1000, 2],
+      [2000, 1],
+      [3000, 1],
+    ])
+  })
+
+  it("counts the lines past the cap before it cuts the list", () => {
+    const many = Array.from({ length: maxEntries + 50 }, () => "same line")
+    const { entries, truncated } = model([lines(many)], { dedup: "exact" })
+    expect(entries).toHaveLength(1)
+    expect(entries[0].repeats).toBe(maxEntries + 50)
+    expect(truncated).toBe(false)
+  })
+
+  it("still reports a cut list when nothing is deduplicated", () => {
+    const many = Array.from({ length: maxEntries + 1 }, (_, i) => `line ${i}`)
+    const { entries, truncated } = model([lines(many)])
+    expect(entries).toHaveLength(maxEntries)
+    expect(truncated).toBe(true)
+  })
+
+  it.each([
+    ["exact", "a 1", "a 1", true],
+    ["exact", "a 1", "a 2", false],
+    ["numbers", "took 12.5 ms", "took 340 ms", true],
+    ["numbers", "took 12 ms", "took ms", false],
+    ["signature", "user bob logged in", "user ann logged in", true],
+    ["signature", "[12] a-b", "[7] c-d", true],
+    ["signature", "a, b", "a. b", false],
+  ] as const)("%s key: %j vs %j is %s", (strategy, a, b, same) => {
+    expect(dedupKey(strategy, a) === dedupKey(strategy, b)).toBe(same)
+  })
+})
+
+describe("logsModel labels", () => {
+  const series = (labels: Record<string, string>) => lines(["x"], { labels })
+
+  it("separates common labels from each line's unique ones", () => {
+    const { entries, commonLabels } = model([
+      series({ job: "api", pod: "a-1" }),
+      series({ job: "api", pod: "a-2" }),
+    ])
+    expect(commonLabels).toEqual({ job: "api" })
+    expect(entries.map((entry) => entry.labels.pod).sort()).toEqual([
+      "a-1",
+      "a-2",
+    ])
+    expect(entries.every((entry) => !("job" in entry.labels))).toBe(true)
+  })
+
+  it("treats every label of a single series as common", () => {
+    const { entries, commonLabels } = model([series({ job: "api" })])
+    expect(commonLabels).toEqual({ job: "api" })
+    expect(entries[0].labels).toEqual({})
+  })
+
+  it("does not treat a label with different values as common", () => {
+    const { commonLabels } = model([
+      series({ job: "api" }),
+      series({ job: "web" }),
+    ])
+    expect(commonLabels).toEqual({})
+  })
+
+  it("has no common labels without lines", () => {
+    expect(model([]).commonLabels).toEqual({})
+  })
+})
+
+describe("prettifyMessage", () => {
+  it.each([
+    ['{"a":1,"b":[true]}', '{\n  "a": 1,\n  "b": [\n    true\n  ]\n}'],
+    ["  [1,2]  ", "[\n  1,\n  2\n]"],
+  ])("formats the JSON message %j", (input, expected) => {
+    expect(prettifyMessage(input)).toBe(expected)
+  })
+
+  it.each(["plain text", "{not json", '"just a string"', ""])(
+    "leaves %j as it is",
+    (input) => {
+      expect(prettifyMessage(input)).toBe(input)
+    }
+  )
+
+  it("prettifies the messages only when asked", () => {
+    const f = lines(['{"a":1}'])
+    expect(model([f]).entries[0].message).toBe('{"a":1}')
+    expect(model([f], { prettify: true }).entries[0].message).toBe(
+      '{\n  "a": 1\n}'
+    )
+  })
+})
+
+describe("messageTokens", () => {
+  it("splits key=value pairs and levels from plain text", () => {
+    expect(
+      messageTokens('ERROR request failed path=/a code=500 msg="bad gateway"')
+    ).toEqual([
+      { kind: "level", text: "ERROR" },
+      { kind: "text", text: " request failed " },
+      { kind: "key", text: "path" },
+      { kind: "text", text: "=" },
+      { kind: "text", text: "/a" },
+      { kind: "text", text: " " },
+      { kind: "key", text: "code" },
+      { kind: "text", text: "=" },
+      { kind: "number", text: "500" },
+      { kind: "text", text: " " },
+      { kind: "key", text: "msg" },
+      { kind: "text", text: "=" },
+      { kind: "string", text: '"bad gateway"' },
+    ])
+  })
+
+  it("keeps the text of a message whole", () => {
+    const message = 'a=1 b="x y" WARN done =oops error'
+    expect(
+      messageTokens(message)
+        .map((token) => token.text)
+        .join("")
+    ).toBe(message)
+  })
+
+  it("leaves a lowercase word and an empty value alone", () => {
+    expect(messageTokens("error: a=")).toEqual([
+      { kind: "text", text: "error: " },
+      { kind: "key", text: "a" },
+      { kind: "text", text: "=" },
+    ])
   })
 })

@@ -11,11 +11,25 @@ import { rowCount } from "../transforms/names"
 
 export const maxEntries = 1000
 
+export type DedupStrategy = "none" | "exact" | "numbers" | "signature"
+
 export type LogsDisplay = {
   wrap: boolean
   showTime: boolean
   order: "newest" | "oldest"
+  showLabels: boolean
+  showCommonLabels: boolean
+  details: boolean
+  prettify: boolean
+  dedup: DedupStrategy
+  controls: boolean
+  fontSize: "default" | "small"
+  highlight: boolean
+  infiniteScroll: boolean
+  detailsMode?: "inline" | "sidebar"
 }
+
+export type Labels = Record<string, string>
 
 export type LogLevelKind = "error" | "warning" | "info" | "other"
 
@@ -30,10 +44,16 @@ export type LogEntry = {
   time: number | null
   level: LogLevel | null
   message: string
+  labels: Labels
+  repeats: number
   details: LogDetail[]
 }
 
-export type LogsModel = { entries: LogEntry[]; truncated: boolean }
+export type LogsModel = {
+  entries: LogEntry[]
+  commonLabels: Labels
+  truncated: boolean
+}
 
 const messageNames = new Set(["body", "message", "msg", "line", "log"])
 const severityNumberNames = new Set(["severitynumber"])
@@ -177,10 +197,90 @@ function compareTimes(a: number | null, b: number | null, factor: number) {
   return (a - b) * factor
 }
 
+const numberPattern = /\d+(?:\.\d+)?/g
+const letterOrDigitPattern = /[\p{L}\p{N}]/gu
+
+export function dedupKey(strategy: DedupStrategy, message: string): string {
+  switch (strategy) {
+    case "numbers":
+      return message.replace(numberPattern, "#")
+    case "signature":
+      return message.replace(letterOrDigitPattern, "")
+    default:
+      return message
+  }
+}
+
+export function prettifyMessage(message: string): string {
+  const trimmed = message.trim()
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return message
+  try {
+    return JSON.stringify(JSON.parse(trimmed), null, 2)
+  } catch {
+    return message
+  }
+}
+
+export type MessageToken = {
+  kind: "text" | "key" | "string" | "number" | "level"
+  text: string
+}
+
+const tokenPattern =
+  /([A-Za-z_][\w.-]*)(=)("(?:[^"\\]|\\.)*"|[^\s"]*)|\b(TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|CRITICAL|PANIC)\b/g
+const plainNumber = /^-?\d+(?:\.\d+)?$/
+
+export function messageTokens(message: string): MessageToken[] {
+  const tokens: MessageToken[] = []
+  let cursor = 0
+  const text = (end: number) => {
+    if (end > cursor) {
+      tokens.push({ kind: "text", text: message.slice(cursor, end) })
+    }
+  }
+  for (const match of message.matchAll(tokenPattern)) {
+    text(match.index)
+    cursor = match.index + match[0].length
+    if (match[4] !== undefined) {
+      tokens.push({ kind: "level", text: match[4] })
+      continue
+    }
+    const value = match[3]
+    tokens.push({ kind: "key", text: match[1] }, { kind: "text", text: "=" })
+    if (value === "") continue
+    tokens.push({
+      kind: value.startsWith('"')
+        ? "string"
+        : plainNumber.test(value)
+          ? "number"
+          : "text",
+      text: value,
+    })
+  }
+  text(message.length)
+  return tokens
+}
+
+function commonLabelsOf(entries: LogEntry[]): Labels {
+  const [first, ...rest] = entries
+  if (!first) return {}
+  return Object.fromEntries(
+    Object.entries(first.labels).filter(([name, value]) =>
+      rest.every((entry) => entry.labels[name] === value)
+    )
+  )
+}
+
+function withoutLabels(labels: Labels, common: Labels): Labels {
+  return Object.fromEntries(
+    Object.entries(labels).filter(([name]) => !(name in common))
+  )
+}
+
 export function logsModel(
   frames: PreparedFrame[],
   fields: FieldResolver,
-  display: Pick<LogsDisplay, "order">
+  display: Pick<LogsDisplay, "order" | "dedup" | "prettify">
 ): LogsModel {
   const located: Located[] = []
   for (const frame of frames) {
@@ -198,31 +298,81 @@ export function logsModel(
   const factor = display.order === "oldest" ? 1 : -1
   located.sort((a, b) => compareTimes(a.time, b.time, factor))
 
+  const deduplicating = display.dedup !== "none"
+  const drafted = deduplicating
+    ? deduplicate(
+        located.map((item) => entryOf(item, fields)),
+        display.dedup
+      )
+    : located.slice(0, maxEntries).map((item) => entryOf(item, fields))
+  const total = deduplicating ? drafted.length : located.length
+  const shown = drafted.slice(0, maxEntries)
+
   const seen = new Map<string, number>()
-  const entries = located
-    .slice(0, maxEntries)
-    .map(({ frame, columns, row, time }): LogEntry => {
-      const message = messageOf(frame, columns.message, row, fields)
-      return {
-        key: uniqueKey(
-          seen,
-          `${frame.ref}|${time ?? ""}|${message.slice(0, 120)}`
-        ),
-        time,
-        level:
-          logLevel(columns.level?.values[row]) ??
-          severityLevel(columns.severityNumber?.values[row]),
-        message,
-        details: [
-          ...frame.fields.map((field) => ({
-            name: field.name,
-            field,
-            frame,
-            index: row,
-          })),
-          ...seriesDetails(frame),
-        ],
-      }
-    })
-  return { entries, truncated: located.length > maxEntries }
+  const keyed = shown.map(({ item, message, labels, repeats }): LogEntry => {
+    const { frame, columns, row, time } = item
+    return {
+      key: uniqueKey(
+        seen,
+        `${frame.ref}|${time ?? ""}|${message.slice(0, 120)}`
+      ),
+      time,
+      level:
+        logLevel(columns.level?.values[row]) ??
+        severityLevel(columns.severityNumber?.values[row]),
+      message: display.prettify ? prettifyMessage(message) : message,
+      labels,
+      repeats,
+      details: [
+        ...frame.fields.map((field) => ({
+          name: field.name,
+          field,
+          frame,
+          index: row,
+        })),
+        ...seriesDetails(frame),
+      ],
+    }
+  })
+  const commonLabels = commonLabelsOf(keyed)
+  return {
+    entries: keyed.map((entry) => ({
+      ...entry,
+      labels: withoutLabels(entry.labels, commonLabels),
+    })),
+    commonLabels,
+    truncated: total > maxEntries,
+  }
+}
+
+type Drafted = {
+  item: Located
+  message: string
+  labels: Labels
+  repeats: number
+}
+
+function entryOf(item: Located, fields: FieldResolver): Drafted {
+  return {
+    item,
+    message: messageOf(item.frame, item.columns.message, item.row, fields),
+    labels: item.frame.labels ?? {},
+    repeats: 1,
+  }
+}
+
+function deduplicate(drafted: Drafted[], strategy: DedupStrategy): Drafted[] {
+  const firstOf = new Map<string, Drafted>()
+  const distinct: Drafted[] = []
+  for (const entry of drafted) {
+    const key = dedupKey(strategy, entry.message)
+    const first = firstOf.get(key)
+    if (first) {
+      first.repeats += 1
+    } else {
+      firstOf.set(key, entry)
+      distinct.push(entry)
+    }
+  }
+  return distinct
 }

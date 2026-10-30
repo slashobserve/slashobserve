@@ -99,7 +99,16 @@ export const specDefaults = {
     "logs": {
       "wrap": false,
       "showTime": false,
-      "order": "newest"
+      "order": "newest",
+      "showLabels": false,
+      "showCommonLabels": false,
+      "details": true,
+      "prettify": false,
+      "dedup": "none",
+      "controls": false,
+      "fontSize": "default",
+      "highlight": false,
+      "infiniteScroll": false
     },
     "barchart": {
       "orientation": "auto",
