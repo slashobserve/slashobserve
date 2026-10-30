@@ -1,3 +1,4 @@
+import type { Selections } from "@/api/keys"
 import type { WireFrame } from "@/dashboards/queries"
 import type { DataPanel } from "@/spec"
 
@@ -10,10 +11,11 @@ const emptyIsAnAnswer: ReadonlySet<DataPanel["type"]> = new Set(["alertlist"])
 export function panelHasData(
   panel: DataPanel,
   frames: WireFrame[],
-  fields: FieldResolver
+  fields: FieldResolver,
+  vars?: Selections
 ): boolean {
   if (emptyIsAnAnswer.has(panel.type)) return true
-  const prepared = prepareFrames(panel, frames)
+  const prepared = prepareFrames(panel, frames, undefined, vars)
   if (panel.type !== "timeseries") return hasData(prepared)
   return hasData(
     prepared.map((frame) => ({

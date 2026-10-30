@@ -1060,6 +1060,459 @@ describe("chaining", () => {
   })
 })
 
+describe("calculateField modes", () => {
+  const signed = frame([time([1, 2, 3, 4]), num("Value", [-2, 4.6, null, 0])])
+
+  const calc = (
+    input: WireFrame,
+    options: Omit<Extract<Transform, { type: "calculateField" }>, "type">
+  ) => run([input], { type: "calculateField", ...options })[0]
+
+  it("applies a unary function to the first number field or a named one", () => {
+    const other = frame([
+      time([1, 2]),
+      num("A", [1.5, -2.5]),
+      num("B", [9, 16]),
+    ])
+    const fn = (name: "abs" | "floor" | "ceil" | "round") =>
+      calc(signed, { alias: "r", unary: { fn: name } }).fields.at(-1)?.values
+    expect(fn("abs")).toEqual([2, 4.6, null, 0])
+    expect(fn("floor")).toEqual([-2, 4, null, 0])
+    expect(fn("ceil")).toEqual([-2, 5, null, 0])
+    expect(fn("round")).toEqual([-2, 5, null, 0])
+    expect(
+      calc(signed, { alias: "r", unary: {} }).fields.at(-1)?.values
+    ).toEqual([2, 4.6, null, 0])
+    expect(
+      calc(other, { alias: "r", unary: { fn: "floor", field: "B" } }).fields.at(
+        -1
+      )?.values
+    ).toEqual([9, 16])
+  })
+
+  it("gives null where exp overflows and ln is undefined", () => {
+    const input = frame([num("Value", [0, 1, -1, 1000])])
+    const exp = calc(input, { alias: "e", unary: { fn: "exp" } }).fields.at(-1)
+    expect(exp?.values[0]).toBe(1)
+    expect(exp?.values[1]).toBeCloseTo(Math.E)
+    expect(exp?.values[3]).toBeNull()
+    expect(
+      calc(input, { alias: "l", unary: { fn: "ln" } }).fields.at(-1)?.values
+    ).toEqual([null, 0, null, expect.closeTo(Math.log(1000))])
+  })
+
+  it("numbers rows from zero or as a share of the last row", () => {
+    const rows = calc(signed, { alias: "i", index: {} }).fields.at(-1)
+    expect(rows?.values).toEqual([0, 1, 2, 3])
+    const share = calc(signed, { alias: "i", index: { percentile: true } })
+    expect(share.fields.at(-1)?.values).toEqual([
+      0,
+      expect.closeTo(1 / 3),
+      expect.closeTo(2 / 3),
+      1,
+    ])
+    const single = frame([num("Value", [5])])
+    expect(
+      calc(single, { alias: "i", index: { percentile: true } }).fields.at(-1)
+        ?.values
+    ).toEqual([0])
+  })
+
+  it("keeps a running total or mean and skips nulls", () => {
+    const input = frame([num("Value", [1, 2, null, 3])])
+    expect(
+      calc(input, { alias: "c", cumulative: {} }).fields.at(-1)?.values
+    ).toEqual([1, 3, null, 6])
+    expect(
+      calc(input, { alias: "c", cumulative: { fn: "mean" } }).fields.at(-1)
+        ?.values
+    ).toEqual([1, 1.5, null, 2])
+  })
+
+  it("moves a window over trailing or centered rows", () => {
+    const input = frame([num("Value", [1, 3, 5, 7, 9])])
+    const window = (w: object) =>
+      calc(input, { alias: "w", window: w }).fields.at(-1)?.values
+    expect(window({ size: 2 })).toEqual([1, 2, 4, 6, 8])
+    expect(window({ size: 3, align: "centered" })).toEqual([2, 3, 5, 7, 8])
+    expect(window({ size: 2, fn: "variance" })).toEqual([0, 1, 1, 1, 1])
+    expect(window({ size: 2, fn: "stdDev" })).toEqual([0, 1, 1, 1, 1])
+    expect(window({ share: 0.4 })).toEqual([1, 2, 4, 6, 8])
+    expect(window({ size: 5, fn: "variance" })?.at(-1)).toBeCloseTo(8)
+  })
+
+  it("defaults a window to a tenth of the rows and never goes under one row", () => {
+    const input = frame([num("Value", [1, 3, 5])])
+    expect(
+      calc(input, { alias: "w", window: {} }).fields.at(-1)?.values
+    ).toEqual([1, 3, 5])
+    const long = frame([
+      num(
+        "Value",
+        Array.from({ length: 20 }, (_, i) => i)
+      ),
+    ])
+    const smoothed = calc(long, { alias: "w", window: {} }).fields.at(-1)
+    expect(smoothed?.values.at(-1)).toBe(18.5)
+  })
+
+  it("leaves a null sample null inside a window", () => {
+    const input = frame([num("Value", [2, null, 4])])
+    expect(
+      calc(input, { alias: "w", window: { size: 3 } }).fields.at(-1)?.values
+    ).toEqual([2, null, 3])
+  })
+
+  it("keeps only the time field and the new field with replace", () => {
+    const input = frame([time([1, 2]), num("A", [1, 2]), num("B", [3, 4])])
+    const out = calc(input, { alias: "s", expr: "A + B", replace: true })
+    expect(columns(out)).toEqual({ Time: [1, 2], s: [4, 6] })
+    const noTime = calc(frame([num("A", [1])]), {
+      alias: "s",
+      expr: "A + 1",
+      replace: true,
+    })
+    expect(columns(noTime)).toEqual({ s: [2] })
+  })
+
+  it("supports modulo and power in an expression", () => {
+    const input = frame([num("A", [10, 9, 8]), num("B", [3, 0, 4])])
+    expect(
+      calc(input, { alias: "m", expr: "A % B" }).fields.at(-1)?.values
+    ).toEqual([1, null, 0])
+    expect(
+      calc(input, { alias: "p", expr: "A ^ 2" }).fields.at(-1)?.values
+    ).toEqual([100, 81, 64])
+    expect(
+      calc(input, { alias: "p", expr: "B ^ 0.5" }).fields.at(-1)?.values
+    ).toEqual([expect.closeTo(Math.sqrt(3)), 0, 2])
+  })
+
+  it("changes nothing when the named field is missing", () => {
+    expect(
+      run([signed], {
+        type: "calculateField",
+        alias: "r",
+        unary: { field: "nope" },
+      })
+    ).toEqual([signed])
+  })
+})
+
+describe("reduce options", () => {
+  const a = frame([time([5, 7, 9]), num("Value", [1, 2, 3])], {
+    name: "cpu",
+    labels: { pod: "a", zone: "x" },
+  })
+  const b = frame(
+    [time([6, 8]), num("Value", [10, 20]), num("Other", [1, 1])],
+    {
+      name: "cpu",
+      labels: { pod: "b" },
+    }
+  )
+
+  it("adds the time field as a row when includeTime is set", () => {
+    const [out] = run([a], {
+      type: "reduce",
+      reducers: ["max"],
+      includeTime: true,
+    })
+    expect(columns(out)).toEqual({
+      Field: ["Time", 'cpu{pod="a", zone="x"}'],
+      Max: [9, 3],
+    })
+  })
+
+  it("keeps the time field as a time in reduceFields mode only for picking reducers", () => {
+    const [out] = run([a], {
+      type: "reduce",
+      mode: "reduceFields",
+      reducers: ["last", "count"],
+      includeTime: true,
+    })
+    expect(out.fields.map((f) => [f.name, f.type, f.values])).toEqual([
+      ["Time Last", "time", [9]],
+      ["Time Count", "number", [3]],
+      ["Value Last", "number", [3]],
+      ["Value Count", "number", [3]],
+    ])
+  })
+
+  it("reduces only the fields named by fields or fieldsRegex", () => {
+    const byName = run([b], {
+      type: "reduce",
+      reducers: ["sum"],
+      fields: ["Other"],
+    })
+    expect(columns(byName[0])).toEqual({
+      Field: ['cpu{pod="b"} Other'],
+      Total: [2],
+    })
+    const byRegex = run([b], {
+      type: "reduce",
+      reducers: ["sum"],
+      fieldsRegex: "/^Val/",
+    })
+    expect(columns(byRegex[0])).toEqual({
+      Field: ['cpu{pod="b"} Value'],
+      Total: [30],
+    })
+    const reduced = run([b], {
+      type: "reduce",
+      mode: "reduceFields",
+      reducers: ["sum"],
+      fields: ["Other"],
+    })
+    expect(reduced[0].fields.map((f) => f.name)).toEqual(["Other"])
+  })
+
+  it("adds a column per label key with labelsToFields in rows mode", () => {
+    const [out] = run([a, b], {
+      type: "reduce",
+      reducers: ["max"],
+      labelsToFields: true,
+    })
+    expect(columns(out)).toEqual({
+      Field: [
+        'cpu{pod="a", zone="x"}',
+        'cpu{pod="b"} Value',
+        'cpu{pod="b"} Other',
+      ],
+      pod: ["a", "b", "b"],
+      zone: ["x", null, null],
+      Max: [3, 20, 1],
+    })
+  })
+
+  it("adds the labels as one-row fields with reduceFields", () => {
+    const [out] = run([a], {
+      type: "reduce",
+      mode: "reduceFields",
+      reducers: ["max"],
+      labelsToFields: true,
+    })
+    expect(columns(out)).toEqual({ Value: [3], pod: ["a"], zone: ["x"] })
+  })
+})
+
+describe("joinByField outerTabular", () => {
+  const left = frame([
+    str("id", ["k1", "k1", "k2", null]),
+    num("x", [1, 2, 3, 4]),
+  ])
+  const right = frame([str("id", ["k3", "k1", null]), num("y", [30, 10, 99])])
+
+  it("pairs repeated keys with every match and keeps row order", () => {
+    const [out] = run([left, right], {
+      type: "joinByField",
+      field: "id",
+      mode: "outerTabular",
+    })
+    expect(columns(out)).toEqual({
+      id: ["k1", "k1", "k2", null, "k3", null],
+      x: [1, 2, 3, 4, null, null],
+      y: [10, 10, null, null, 30, 99],
+    })
+  })
+
+  it("does not sort a single frame", () => {
+    const [out] = run([left], {
+      type: "joinByField",
+      field: "id",
+      mode: "outerTabular",
+    })
+    expect(columns(out).id).toEqual(["k1", "k1", "k2", null])
+  })
+
+  it("matches the keys of a third frame against the rows so far", () => {
+    const third = frame([str("id", ["k2", "k3"]), num("z", [7, 8])])
+    const [out] = run([left, right, third], {
+      type: "joinByField",
+      field: "id",
+      mode: "outerTabular",
+    })
+    expect(columns(out).z).toEqual([null, null, 7, null, 8, null])
+  })
+})
+
+describe("filterFieldsByName options", () => {
+  const input = frame([
+    time([1]),
+    num("cpu", [1]),
+    num("mem", [2]),
+    num("disk", [3]),
+  ])
+
+  const names = (frames: PreparedFrame[]) =>
+    frames.flatMap((f) => f.fields.map((x) => x.name))
+
+  it("drops excluded names and pattern matches", () => {
+    expect(
+      names(
+        run([input], { type: "filterFieldsByName", exclude: ["Time", "mem"] })
+      )
+    ).toEqual(["cpu", "disk"])
+    expect(
+      names(
+        run([input], { type: "filterFieldsByName", excludeRegex: "/^(c|d)/" })
+      )
+    ).toEqual(["Time", "mem"])
+  })
+
+  it("applies exclude after include", () => {
+    expect(
+      names(
+        run([input], {
+          type: "filterFieldsByName",
+          include: ["cpu", "mem"],
+          exclude: ["mem"],
+        })
+      )
+    ).toEqual(["cpu"])
+  })
+
+  it("includes the fields a variable selects", () => {
+    const filter: Transform = { type: "filterFieldsByName", variable: "fields" }
+    expect(
+      names(applyTransforms([input], [filter], { fields: ["cpu", "disk"] }))
+    ).toEqual(["cpu", "disk"])
+    expect(
+      names(
+        applyTransforms([input], [{ ...filter, include: ["mem"] }], {
+          fields: ["cpu"],
+        })
+      )
+    ).toEqual(["cpu", "mem"])
+  })
+
+  it("keeps every field when the variable is All, unset or empty", () => {
+    const filter: Transform = { type: "filterFieldsByName", variable: "fields" }
+    const unresolved: Record<string, string[]>[] = [
+      { fields: ["$__all"] },
+      {},
+      { fields: [] },
+    ]
+    for (const vars of unresolved) {
+      expect(names(applyTransforms([input], [filter], vars))).toEqual([
+        "Time",
+        "cpu",
+        "mem",
+        "disk",
+      ])
+    }
+  })
+})
+
+describe("sortBy then", () => {
+  const input = frame([
+    str("host", ["b", "a", "c", "a", "b"]),
+    num("Value", [1, 1, 2, 5, 3]),
+  ])
+
+  it("breaks ties with the next keys in their own direction", () => {
+    const [out] = run([input], {
+      type: "sortBy",
+      field: "host",
+      then: [{ field: "Value", desc: true }],
+    })
+    expect(columns(out)).toEqual({
+      host: ["a", "a", "b", "b", "c"],
+      Value: [5, 1, 3, 1, 2],
+    })
+  })
+
+  it("skips a key the frame lacks", () => {
+    const [out] = run([input], {
+      type: "sortBy",
+      field: "nope",
+      then: [{ field: "Value" }],
+    })
+    expect(columns(out).Value).toEqual([1, 1, 2, 3, 5])
+  })
+})
+
+describe("organize include", () => {
+  const input = frame([time([1]), num("a", [1]), num("b", [2]), num("c", [3])])
+
+  it("keeps only the listed fields, then removes the excluded ones", () => {
+    const [out] = run([input], {
+      type: "organize",
+      include: ["a", "b", "c"],
+      exclude: ["b"],
+      order: ["c"],
+    })
+    expect(out.fields.map((f) => f.name)).toEqual(["c", "a"])
+  })
+})
+
+describe("limit from a variable", () => {
+  const input = frame([num("Value", [1, 2, 3, 4])])
+  const limited = (vars: Record<string, string[]>) =>
+    applyTransforms([input], [{ type: "limit", count: "${n}" }], vars)[0]
+      .fields[0].values
+
+  it("reads the count from the selected value", () => {
+    expect(limited({ n: ["2"] })).toEqual([1, 2])
+    expect(limited({ n: ["0"] })).toEqual([])
+  })
+
+  it("keeps every row when the variable is unset, All or not a number", () => {
+    expect(limited({})).toEqual([1, 2, 3, 4])
+    expect(limited({ n: ["$__all"] })).toEqual([1, 2, 3, 4])
+    expect(limited({ n: ["many"] })).toEqual([1, 2, 3, 4])
+    expect(limited({ n: [""] })).toEqual([1, 2, 3, 4])
+  })
+})
+
+describe("transforms scoped to queries", () => {
+  const a = frame([time([1, 2, 3]), num("Value", [3, 1, 2])], { ref: "A" })
+  const b = frame([time([1, 2, 3]), num("Value", [6, 5, 4])], { ref: "B" })
+  const c = frame([time([1, 2, 3]), num("Value", [9, 8, 7])], { ref: "C" })
+
+  it("transforms only the listed queries and passes the others through", () => {
+    const out = run([a, b, c], {
+      type: "sortBy",
+      field: "Value",
+      queries: ["B", "C"],
+    })
+    expect(out.map((f) => f.ref)).toEqual(["A", "B", "C"])
+    expect(out[0]).toEqual(a)
+    expect(columns(out[1]).Value).toEqual([4, 5, 6])
+    expect(columns(out[2]).Value).toEqual([7, 8, 9])
+  })
+
+  it("puts a joined result where its first frame was and keeps the rest in order", () => {
+    const joined = (frames: PreparedFrame[]) =>
+      run(frames, { type: "joinByField", queries: ["A", "C"] }).map((f) => [
+        f.ref,
+        f.fields.length,
+      ])
+    expect(joined([a, b, c])).toEqual([
+      ["A", 3],
+      ["B", 2],
+    ])
+    expect(joined([b, a, c])).toEqual([
+      ["B", 2],
+      ["A", 3],
+    ])
+  })
+
+  it("changes nothing when no frame belongs to a listed query", () => {
+    const out = run([a, b], { type: "limit", count: 1, queries: ["Z"] })
+    expect(out).toEqual([a, b])
+  })
+
+  it("scopes a later step on the frames the earlier steps left", () => {
+    const out = run(
+      [a, b],
+      { type: "limit", count: 1, queries: ["A"] },
+      { type: "limit", count: 2, queries: ["B"] }
+    )
+    expect(out.map((f) => f.fields[0].values.length)).toEqual([1, 2])
+  })
+})
+
 describe("empty input", () => {
   const all: Transform[] = [
     { type: "merge" },

@@ -1,3 +1,4 @@
+import type { Selections } from "@/api/keys"
 import type { WireFrame } from "@/dashboards/queries"
 import type { DataPanel, Transform } from "@/spec"
 
@@ -34,7 +35,7 @@ import { seriesToRows } from "./series-to-rows"
 import { sortBy } from "./sort"
 import { timeSeriesTable } from "./time-series-table"
 import { transpose } from "./transpose"
-import type { PreparedFrame } from "./names"
+import { copyFrame, type PreparedFrame } from "./names"
 export type { DatasourceTypeOf } from "./series-names"
 
 export {
@@ -46,7 +47,8 @@ export {
 
 function applyTransform(
   frames: PreparedFrame[],
-  transform: Transform
+  transform: Transform,
+  vars: Selections | undefined
 ): PreparedFrame[] {
   switch (transform.type) {
     case "merge":
@@ -60,13 +62,13 @@ function applyTransform(
     case "joinByField":
       return joinByField(frames, transform)
     case "filterFieldsByName":
-      return filterFieldsByName(frames, transform)
+      return filterFieldsByName(frames, transform, vars)
     case "calculateField":
       return calculateField(frames, transform)
     case "sortBy":
       return sortBy(frames, transform)
     case "limit":
-      return limit(frames, transform)
+      return limit(frames, transform, vars)
     case "convertFieldType":
       return convertFieldType(frames, transform)
     case "formatString":
@@ -114,20 +116,43 @@ function applyTransform(
   }
 }
 
+function applyScoped(
+  frames: PreparedFrame[],
+  transform: Transform,
+  vars: Selections | undefined
+): PreparedFrame[] {
+  const { queries } = transform
+  if (queries === undefined) return applyTransform(frames, transform, vars)
+  const selected = frames.filter((frame) => queries.includes(frame.ref))
+  if (selected.length === 0) return frames.map(copyFrame)
+  const chosen = new Set(selected)
+  const transformed = applyTransform(selected, transform, vars)
+  return frames.flatMap((frame) => {
+    if (frame === selected[0]) return transformed
+    return chosen.has(frame) ? [] : [copyFrame(frame)]
+  })
+}
+
 export function applyTransforms(
   frames: PreparedFrame[],
-  transforms: readonly Transform[] | undefined
+  transforms: readonly Transform[] | undefined,
+  vars?: Selections
 ): PreparedFrame[] {
-  return (transforms ?? []).reduce(applyTransform, frames)
+  return (transforms ?? []).reduce(
+    (current, transform) => applyScoped(current, transform, vars),
+    frames
+  )
 }
 
 export function prepareFrames(
   panel: DataPanel,
   frames: WireFrame[],
-  datasourceTypeOf?: DatasourceTypeOf
+  datasourceTypeOf?: DatasourceTypeOf,
+  vars?: Selections
 ): PreparedFrame[] {
   return applyTransforms(
     applyQueryFormats(panel, stampSeriesNames(panel, frames, datasourceTypeOf)),
-    panel.transform
+    panel.transform,
+    vars
   )
 }

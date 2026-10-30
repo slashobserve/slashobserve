@@ -2086,6 +2086,16 @@
         "source"
       ]
     },
+    "transformQueries": {
+      "description": "The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 26,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/queryRef"
+      }
+    },
     "transform": {
       "title": "Transform",
       "type": "object",
@@ -2099,6 +2109,10 @@
           "properties": {
             "type": {
               "const": "merge"
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2111,6 +2125,10 @@
           "properties": {
             "type": {
               "const": "seriesToRows"
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2152,6 +2170,22 @@
                 "minLength": 1,
                 "maxLength": 200
               }
+            },
+            "include": {
+              "x-omitFromPrompt": true,
+              "description": "Keep only the fields with these names; exclude then removes from them.",
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 100,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2178,6 +2212,37 @@
                 "seriesToRows",
                 "reduceFields"
               ]
+            },
+            "includeTime": {
+              "x-omitFromPrompt": true,
+              "description": "Reduce the time field too.",
+              "type": "boolean"
+            },
+            "labelsToFields": {
+              "x-omitFromPrompt": true,
+              "description": "Add one text field per label key: a column in seriesToRows mode, a one-row field in reduceFields mode.",
+              "type": "boolean"
+            },
+            "fields": {
+              "x-omitFromPrompt": true,
+              "description": "Reduce only the number fields with these names; absent reduces every number field.",
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 100,
+              "items": {
+                "$ref": "#/$defs/fieldName"
+              }
+            },
+            "fieldsRegex": {
+              "x-omitFromPrompt": true,
+              "description": "Reduce only the number fields whose name matches this pattern, anchored unless written /re/flags.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2198,10 +2263,25 @@
               "maxLength": 200
             },
             "mode": {
-              "enum": [
-                "outer",
-                "inner"
+              "anyOf": [
+                {
+                  "enum": [
+                    "outer",
+                    "inner"
+                  ]
+                },
+                {
+                  "x-omitFromPrompt": true,
+                  "description": "A SQL-like outer join in row order: repeated keys pair up with every match and nothing is sorted.",
+                  "enum": [
+                    "outerTabular"
+                  ]
+                }
               ]
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2229,6 +2309,33 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 500
+            },
+            "exclude": {
+              "x-omitFromPrompt": true,
+              "description": "Drop the fields with these names, after include.",
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 100,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "excludeRegex": {
+              "x-omitFromPrompt": true,
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "variable": {
+              "x-omitFromPrompt": true,
+              "description": "Also include the fields named by the selected values of this variable; All, or no selection, adds nothing.",
+              "$ref": "#/$defs/variableName"
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2248,13 +2355,105 @@
               "maxLength": 200
             },
             "expr": {
-              "description": "field_or_number op field_or_number, op one of + - * /.",
+              "description": "field_or_number op field_or_number, op one of + - * / % ^.",
               "type": "string",
-              "pattern": "^\\s*\\S+\\s*[-+*/]\\s*\\S+\\s*$",
+              "pattern": "^\\s*\\S+\\s*[-+*/%^]\\s*\\S+\\s*$",
               "maxLength": 400
             },
             "reduceRow": {
               "$ref": "#/$defs/reducer"
+            },
+            "unary": {
+              "x-omitFromPrompt": true,
+              "description": "Apply fn to a number field; absent field means the first number field, absent fn means abs.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "fn": {
+                  "enum": [
+                    "abs",
+                    "exp",
+                    "ln",
+                    "floor",
+                    "ceil",
+                    "round"
+                  ]
+                },
+                "field": {
+                  "$ref": "#/$defs/fieldName"
+                }
+              }
+            },
+            "index": {
+              "x-omitFromPrompt": true,
+              "description": "The row number from 0, or with percentile its place from 0 to 1.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "percentile": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "cumulative": {
+              "x-omitFromPrompt": true,
+              "description": "A running total or running mean of a number field; absent field means the first number field, absent fn means sum.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "fn": {
+                  "enum": [
+                    "sum",
+                    "mean"
+                  ]
+                },
+                "field": {
+                  "$ref": "#/$defs/fieldName"
+                }
+              }
+            },
+            "window": {
+              "x-omitFromPrompt": true,
+              "description": "A moving mean, standard deviation or variance of a number field over size rows or a share of the rows (0.1 when neither is written); trailing windows end at the row, centered ones surround it, and windows at the edges shrink.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "fn": {
+                  "enum": [
+                    "mean",
+                    "stdDev",
+                    "variance"
+                  ]
+                },
+                "field": {
+                  "$ref": "#/$defs/fieldName"
+                },
+                "size": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10000
+                },
+                "share": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 1
+                },
+                "align": {
+                  "enum": [
+                    "trailing",
+                    "centered"
+                  ]
+                }
+              }
+            },
+            "replace": {
+              "x-omitFromPrompt": true,
+              "description": "Keep only the time field and the new field.",
+              "type": "boolean"
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2276,6 +2475,32 @@
             },
             "desc": {
               "type": "boolean"
+            },
+            "then": {
+              "x-omitFromPrompt": true,
+              "description": "Further sort keys, applied in order to rows that tie on field.",
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 10,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/fieldName"
+                  },
+                  "desc": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "field"
+                ]
+              }
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2291,9 +2516,23 @@
               "const": "limit"
             },
             "count": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100000
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100000
+                },
+                {
+                  "x-omitFromPrompt": true,
+                  "description": "${name} naming a variable whose selected value is the row count; All, or no selection, keeps every row.",
+                  "type": "string",
+                  "pattern": "^\\$\\{[A-Za-z][A-Za-z0-9_]{0,39}\\}$"
+                }
+              ]
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2354,6 +2593,10 @@
                   "to"
                 ]
               }
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2403,6 +2646,10 @@
               "type": "integer",
               "minimum": 0,
               "maximum": 10000
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2428,6 +2675,10 @@
             },
             "utc": {
               "type": "boolean"
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2452,6 +2703,10 @@
               "type": "string",
               "minLength": 0,
               "maxLength": 200
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2528,6 +2783,10 @@
                   "op"
                 ]
               }
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2549,6 +2808,10 @@
               "items": {
                 "$ref": "#/$defs/queryRef"
               }
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2625,6 +2888,10 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 200
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2658,6 +2925,10 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 200
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2681,6 +2952,10 @@
               "items": {
                 "$ref": "#/$defs/fieldName"
               }
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2721,6 +2996,10 @@
                   ]
                 }
               ]
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2741,6 +3020,10 @@
                 "many",
                 "long"
               ]
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2765,6 +3048,10 @@
               "additionalProperties": {
                 "$ref": "#/$defs/reducer"
               }
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2809,6 +3096,10 @@
                   "to"
                 ]
               }
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2860,6 +3151,10 @@
             },
             "applyTo": {
               "$ref": "#/$defs/match"
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2887,6 +3182,10 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 200
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2935,6 +3234,10 @@
                   "reducers"
                 ]
               }
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -2965,6 +3268,10 @@
                 "true",
                 "false"
               ]
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -3016,6 +3323,10 @@
             },
             "hideHeaders": {
               "type": "boolean"
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -3044,6 +3355,10 @@
             },
             "combine": {
               "type": "boolean"
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -3079,6 +3394,10 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 1000
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -3106,6 +3425,10 @@
                 "true",
                 "false"
               ]
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [
@@ -3141,6 +3464,10 @@
             },
             "keepOriginalData": {
               "type": "boolean"
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
             }
           },
           "required": [

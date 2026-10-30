@@ -393,9 +393,11 @@ export type Reducer =
 export type Transform =
   | {
       type: "merge";
+      queries?: TransformQueries;
     }
   | {
       type: "seriesToRows";
+      queries?: TransformQueries1;
     }
   | {
       type: "organize";
@@ -412,6 +414,14 @@ export type Transform =
        * @maxItems 100
        */
       order?: string[];
+      /**
+       * Keep only the fields with these names; exclude then removes from them.
+       *
+       * @minItems 1
+       * @maxItems 100
+       */
+      include?: string[];
+      queries?: TransformQueries2;
     }
   | {
       type: "reduce";
@@ -421,11 +431,32 @@ export type Transform =
        */
       reducers: Reducer[];
       mode?: "seriesToRows" | "reduceFields";
+      /**
+       * Reduce the time field too.
+       */
+      includeTime?: boolean;
+      /**
+       * Add one text field per label key: a column in seriesToRows mode, a one-row field in reduceFields mode.
+       */
+      labelsToFields?: boolean;
+      /**
+       * Reduce only the number fields with these names; absent reduces every number field.
+       *
+       * @minItems 1
+       * @maxItems 100
+       */
+      fields?: FieldName[];
+      /**
+       * Reduce only the number fields whose name matches this pattern, anchored unless written /re/flags.
+       */
+      fieldsRegex?: string;
+      queries?: TransformQueries3;
     }
   | {
       type: "joinByField";
       field?: string;
-      mode?: "outer" | "inner";
+      mode?: ("outer" | "inner") | "outerTabular";
+      queries?: TransformQueries4;
     }
   | {
       type: "filterFieldsByName";
@@ -435,24 +466,84 @@ export type Transform =
        */
       include?: string[];
       includeRegex?: string;
+      /**
+       * Drop the fields with these names, after include.
+       *
+       * @minItems 1
+       * @maxItems 100
+       */
+      exclude?: string[];
+      excludeRegex?: string;
+      /**
+       * Referenced in queries as $name, ${name} or ${name:format}.
+       */
+      variable?: string;
+      queries?: TransformQueries5;
     }
   | {
       type: "calculateField";
       alias: string;
       /**
-       * field_or_number op field_or_number, op one of + - * /.
+       * field_or_number op field_or_number, op one of + - * / % ^.
        */
       expr?: string;
       reduceRow?: Reducer;
+      /**
+       * Apply fn to a number field; absent field means the first number field, absent fn means abs.
+       */
+      unary?: {
+        fn?: "abs" | "exp" | "ln" | "floor" | "ceil" | "round";
+        field?: FieldName;
+      };
+      /**
+       * The row number from 0, or with percentile its place from 0 to 1.
+       */
+      index?: {
+        percentile?: boolean;
+      };
+      /**
+       * A running total or running mean of a number field; absent field means the first number field, absent fn means sum.
+       */
+      cumulative?: {
+        fn?: "sum" | "mean";
+        field?: FieldName;
+      };
+      /**
+       * A moving mean, standard deviation or variance of a number field over size rows or a share of the rows (0.1 when neither is written); trailing windows end at the row, centered ones surround it, and windows at the edges shrink.
+       */
+      window?: {
+        fn?: "mean" | "stdDev" | "variance";
+        field?: FieldName;
+        size?: number;
+        share?: number;
+        align?: "trailing" | "centered";
+      };
+      /**
+       * Keep only the time field and the new field.
+       */
+      replace?: boolean;
+      queries?: TransformQueries6;
     }
   | {
       type: "sortBy";
       field: string;
       desc?: boolean;
+      /**
+       * Further sort keys, applied in order to rows that tie on field.
+       *
+       * @minItems 1
+       * @maxItems 10
+       */
+      then?: {
+        field: FieldName;
+        desc?: boolean;
+      }[];
+      queries?: TransformQueries7;
     }
   | {
       type: "limit";
-      count: number;
+      count: number | string;
+      queries?: TransformQueries8;
     }
   | {
       type: "convertFieldType";
@@ -466,6 +557,7 @@ export type Transform =
         dateFormat?: string;
         joinWith?: string;
       }[];
+      queries?: TransformQueries9;
     }
   | {
       type: "formatString";
@@ -474,17 +566,20 @@ export type Transform =
         ("upper" | "lower" | "title" | "trim" | "substring") | ("sentence" | "pascal" | "camel" | "snake" | "kebab");
       start?: number;
       end?: number;
+      queries?: TransformQueries10;
     }
   | {
       type: "formatTime";
       field: FieldName;
       format: string;
       utc?: boolean;
+      queries?: TransformQueries11;
     }
   | {
       type: "renameByRegex";
       regex: string;
       renameTo: string;
+      queries?: TransformQueries12;
     }
   | {
       type: "filterByValue";
@@ -501,6 +596,7 @@ export type Transform =
         from?: number;
         to?: number;
       }[];
+      queries?: TransformQueries13;
     }
   | {
       type: "filterByRefId";
@@ -509,6 +605,7 @@ export type Transform =
        * @maxItems 26
        */
       include: QueryRef[];
+      queries?: TransformQueries14;
     }
   | {
       type: "extractFields";
@@ -526,6 +623,7 @@ export type Transform =
       }[];
       delimiter?: string;
       regex?: string;
+      queries?: TransformQueries15;
     }
   | {
       type: "labelsToFields";
@@ -536,6 +634,7 @@ export type Transform =
        */
       include?: FieldName[];
       valueLabel?: string;
+      queries?: TransformQueries16;
     }
   | {
       type: "joinByLabels";
@@ -545,6 +644,7 @@ export type Transform =
        * @maxItems 20
        */
       on?: FieldName[];
+      queries?: TransformQueries17;
     }
   | {
       type: "partitionByValues";
@@ -555,16 +655,19 @@ export type Transform =
       fields: FieldName[];
       keepFields?: boolean;
       naming?: "labels" | ("name" | "append");
+      queries?: TransformQueries18;
     }
   | {
       type: "prepareTimeSeries";
       format: "wide" | "many" | "long";
+      queries?: TransformQueries19;
     }
   | {
       type: "timeSeriesTable";
       stats?: {
         [k: string]: Reducer;
       };
+      queries?: TransformQueries20;
     }
   | {
       type: "rowsToFields";
@@ -576,6 +679,7 @@ export type Transform =
         field: FieldName;
         to: "name" | "value" | "unit" | "min" | "max" | "decimals" | "displayName" | "noValue" | "color";
       }[];
+      queries?: TransformQueries21;
     }
   | {
       type: "configFromData";
@@ -590,11 +694,13 @@ export type Transform =
         reducer?: Reducer;
       }[];
       applyTo?: Match;
+      queries?: TransformQueries22;
     }
   | {
       type: "concatenate";
       nameMode?: "drop" | "field" | "label";
       nameLabel?: string;
+      queries?: TransformQueries23;
     }
   | {
       type: "groupBy";
@@ -615,6 +721,7 @@ export type Transform =
          */
         reducers: AggregateReducer[];
       }[];
+      queries?: TransformQueries24;
     }
   | {
       type: "groupingToMatrix";
@@ -622,6 +729,7 @@ export type Transform =
       row?: FieldName;
       value?: FieldName;
       empty?: "empty" | "zero" | "true" | "false";
+      queries?: TransformQueries25;
     }
   | {
       type: "groupToNestedTable";
@@ -643,6 +751,7 @@ export type Transform =
         reducers: AggregateReducer[];
       }[];
       hideHeaders?: boolean;
+      queries?: TransformQueries26;
     }
   | {
       type: "histogram";
@@ -650,6 +759,7 @@ export type Transform =
       bucketSize?: number;
       bucketOffset?: number;
       combine?: boolean;
+      queries?: TransformQueries27;
     }
   | {
       type: "regression";
@@ -658,12 +768,14 @@ export type Transform =
       x?: FieldName;
       y?: FieldName;
       predictions?: number;
+      queries?: TransformQueries28;
     }
   | {
       type: "transpose";
       firstName?: FieldName;
       restName?: FieldName;
       empty?: "empty" | "zero" | "true" | "false";
+      queries?: TransformQueries29;
     }
   | {
       type: "heatmap";
@@ -672,15 +784,233 @@ export type Transform =
       yScale?: "linear" | "log" | "symlog";
       yLogBase?: 2 | 10;
       keepOriginalData?: boolean;
+      queries?: TransformQueries30;
     };
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries1 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries2 = QueryRef[];
 /**
  * A field name or series name in the panel's frames.
  */
 export type FieldName = string;
 /**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries3 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries4 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries5 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries6 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries7 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries8 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries9 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries10 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries11 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries12 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries13 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries14 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries15 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries16 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries17 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries18 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries19 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries20 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries21 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries22 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries23 = QueryRef[];
+/**
  * A reducer for a grouping step: every reducer, and uniqueValues, which lists the distinct values as text.
  */
 export type AggregateReducer = Reducer | "uniqueValues";
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries24 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries25 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries26 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries27 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries28 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries29 = QueryRef[];
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries30 = QueryRef[];
 
 /**
  * ObserveSpec v0: one SlashObserve dashboard. Absent fields mean the default. Frozen for milestone 1 (Ishan, 2026-10-18).

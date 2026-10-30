@@ -1,13 +1,29 @@
-import { copyFrame, type PreparedFrame } from "./names"
+import type { Selections } from "@/api/keys"
 
-export type LimitOptions = { count: number }
+import { copyFrame, type PreparedFrame } from "./names"
+import { selectedValues, variableOfReference } from "./variables"
+
+export type LimitOptions = { count: number | string }
+
+function resolvedCount(
+  count: number | string,
+  vars: Selections | undefined
+): number {
+  if (typeof count === "number") return count
+  const name = variableOfReference(count)
+  const text =
+    name === undefined ? undefined : selectedValues(vars, name)?.[0]?.trim()
+  return text === undefined || text === "" ? NaN : Number(text)
+}
 
 export function limit(
   frames: PreparedFrame[],
-  { count }: LimitOptions
+  { count }: LimitOptions,
+  vars?: Selections
 ): PreparedFrame[] {
-  if (!Number.isFinite(count)) return frames.map(copyFrame)
-  const keep = Math.max(0, Math.floor(count))
+  const resolved = resolvedCount(count, vars)
+  if (!Number.isFinite(resolved)) return frames.map(copyFrame)
+  const keep = Math.max(0, Math.floor(resolved))
   return frames.map((frame) => ({
     ...frame,
     fields: frame.fields.map((field) => ({

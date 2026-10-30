@@ -9,7 +9,8 @@ import {
   type PreparedFrame,
 } from "./names"
 
-export type JoinOptions = { field?: string; mode?: "outer" | "inner" }
+type JoinMode = "outer" | "inner" | "outerTabular"
+export type JoinOptions = { field?: string; mode?: JoinMode }
 
 type Member = { frame: PreparedFrame; key: PreparedField }
 type Joined = { key: unknown; rowOf: number[] }
@@ -56,17 +57,23 @@ function memberOf(
   return firstTime
 }
 
-function sortedBy(frame: PreparedFrame, key: PreparedField): PreparedFrame {
+function keyFirst(
+  frame: PreparedFrame,
+  key: PreparedField,
+  sorted: boolean
+): PreparedFrame {
   const rows = rowCount(frame)
   const order = Array.from({ length: rows }, (_, index) => index)
-  order.sort((a, b) => {
-    const left = cell(key, a)
-    const right = cell(key, b)
-    if (left === null || right === null) {
-      return left === right ? 0 : left === null ? 1 : -1
-    }
-    return compareValues(left, right)
-  })
+  if (sorted) {
+    order.sort((a, b) => {
+      const left = cell(key, a)
+      const right = cell(key, b)
+      if (left === null || right === null) {
+        return left === right ? 0 : left === null ? 1 : -1
+      }
+      return compareValues(left, right)
+    })
+  }
   const reorder = (field: PreparedField): PreparedField => ({
     ...field,
     values: order.map((row) => cell(field, row)),
@@ -80,10 +87,9 @@ function sortedBy(frame: PreparedFrame, key: PreparedField): PreparedFrame {
   }
 }
 
-function joinMembers(
-  members: Member[],
-  mode: "outer" | "inner"
-): PreparedFrame {
+type Column = { member: number; source: PreparedField; out: PreparedField }
+
+function outputColumns(members: Member[]): Column[] {
   const [head] = members
   const taken = new Map<string, number>()
   for (const { frame, key } of members) {
@@ -94,11 +100,7 @@ function joinMembers(
   }
   const used = new Map<string, number>()
   uniqueKey(used, head.key.name)
-  const columns: {
-    member: number
-    source: PreparedField
-    out: PreparedField
-  }[] = []
+  const columns: Column[] = []
   members.forEach(({ frame, key }, member) => {
     for (const field of frame.fields) {
       if (field === key) continue
@@ -116,7 +118,10 @@ function joinMembers(
       })
     }
   })
+  return columns
+}
 
+function keyedRows(members: Member[], mode: "outer" | "inner"): Joined[] {
   const byId = new Map<string, Joined>()
   const keyed: Joined[] = []
   const unkeyed: Joined[] = []
@@ -150,8 +155,65 @@ function joinMembers(
       ? keyed
       : keyed.filter((row) => row.rowOf.every((at) => at >= 0))
   ).sort((a, b) => compareValues(a.key, b.key))
-  const rows = mode === "outer" ? [...kept, ...unkeyed] : kept
+  return mode === "outer" ? [...kept, ...unkeyed] : kept
+}
 
+function tabularRows(members: Member[]): Joined[] {
+  const width = members.length
+  const blank = () => Array<number>(width).fill(-1)
+  const [head, ...rest] = members
+  let rows: Joined[] = Array.from(
+    { length: rowCount(head.frame) },
+    (_, row) => {
+      const rowOf = blank()
+      rowOf[0] = row
+      return { key: cell(head.key, row), rowOf }
+    }
+  )
+  rest.forEach(({ frame, key }, offset) => {
+    const member = offset + 1
+    const byKey = new Map<string, number[]>()
+    const count = rowCount(frame)
+    for (let row = 0; row < count; row++) {
+      const value = cell(key, row)
+      if (value === null) continue
+      const id = `${typeof value}:${String(value)}`
+      byKey.set(id, [...(byKey.get(id) ?? []), row])
+    }
+    const matched = new Set<number>()
+    const next: Joined[] = []
+    for (const joined of rows) {
+      const matches =
+        joined.key === null
+          ? undefined
+          : byKey.get(`${typeof joined.key}:${String(joined.key)}`)
+      if (!matches) {
+        next.push(joined)
+        continue
+      }
+      for (const row of matches) {
+        matched.add(row)
+        const rowOf = [...joined.rowOf]
+        rowOf[member] = row
+        next.push({ key: joined.key, rowOf })
+      }
+    }
+    for (let row = 0; row < count; row++) {
+      if (matched.has(row)) continue
+      const rowOf = blank()
+      rowOf[member] = row
+      next.push({ key: cell(key, row), rowOf })
+    }
+    rows = next
+  })
+  return rows
+}
+
+function joinMembers(members: Member[], mode: JoinMode): PreparedFrame {
+  const [head] = members
+  const columns = outputColumns(members)
+  const rows =
+    mode === "outerTabular" ? tabularRows(members) : keyedRows(members, mode)
   return {
     ref: head.frame.ref,
     fields: [
@@ -185,7 +247,7 @@ export function joinByField(
   if (members.length === 0) return frames.map(copyFrame)
   const joined =
     members.length === 1
-      ? sortedBy(members[0].frame, members[0].key)
+      ? keyFirst(members[0].frame, members[0].key, mode !== "outerTabular")
       : joinMembers(members, mode)
   return [joined, ...others.map(copyFrame)]
 }

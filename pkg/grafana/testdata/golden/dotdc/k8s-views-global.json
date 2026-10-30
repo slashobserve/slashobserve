@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 26,
-      "imported": 19,
-      "partial": 7,
+      "imported": 21,
+      "partial": 5,
       "placeholder": 0,
       "unverified": 0
     },
@@ -399,13 +399,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "Some transformations are not supported yet."
-        ],
-        "paths": [
-          "transformations[0].options.replaceFields"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -424,13 +420,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "Some transformations are not supported yet."
-        ],
-        "paths": [
-          "transformations[0].options.replaceFields"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1338,7 +1330,8 @@
               {
                 "type": "calculateField",
                 "alias": "CPU usage in %",
-                "reduceRow": "mean"
+                "reduceRow": "mean",
+                "replace": true
               }
             ],
             "display": {
@@ -1376,7 +1369,8 @@
               {
                 "type": "calculateField",
                 "alias": "Memory usage in %",
-                "reduceRow": "mean"
+                "reduceRow": "mean",
+                "replace": true
               }
             ],
             "display": {

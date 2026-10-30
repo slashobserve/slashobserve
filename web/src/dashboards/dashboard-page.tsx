@@ -251,8 +251,8 @@ const PanelContainer = memo(function PanelContainer({
       dataPanel !== undefined &&
       fields !== undefined &&
       query.data !== undefined &&
-      panelHasData(dataPanel, query.data.frames, fields),
-    [dataPanel, fields, query.data]
+      panelHasData(dataPanel, query.data.frames, fields, selections),
+    [dataPanel, fields, query.data, selections]
   )
   const links = useMemo(
     () =>

@@ -81,12 +81,13 @@ export function PanelBody({
     [datasources.data, vars]
   )
   const frames = useMemo(
-    () => prepareFrames(panel, data.frames, typeOf),
-    [panel, data.frames, typeOf]
+    () => prepareFrames(panel, data.frames, typeOf, vars),
+    [panel, data.frames, typeOf, vars]
   )
   const ghostFrames = useMemo(
-    () => (ghost ? prepareFrames(panel, ghost.frames, typeOf) : undefined),
-    [panel, ghost, typeOf]
+    () =>
+      ghost ? prepareFrames(panel, ghost.frames, typeOf, vars) : undefined,
+    [panel, ghost, typeOf, vars]
   )
   const fields = useMemo(() => createFieldResolver(panel, vars), [panel, vars])
   const display = useMemo(

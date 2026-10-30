@@ -186,7 +186,9 @@ function DataPreview({
     return {
       kind: "ok",
       executedAt: data.meta.executed_at,
-      series: seriesCount(prepareFrames(debounced, data.frames)),
+      series: seriesCount(
+        prepareFrames(debounced, data.frames, undefined, vars)
+      ),
     }
   }, [
     valid,
@@ -196,6 +198,7 @@ function DataPreview({
     preview.isPlaceholderData,
     data,
     debounced,
+    vars,
   ])
 
   let body

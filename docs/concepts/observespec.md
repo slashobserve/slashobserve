@@ -390,6 +390,15 @@ Seven more steps group rows and compute new data:
 `histogram` (counts every number field into `bucketCount` or `bucketSize` buckets shifted by `bucketOffset`, or all of them together with `combine`),
 `regression` (a least squares `model` of `linear` or `polynomial` with a `degree` of 1 to 5, 2 by default, fitted from the `x` field to the `y` field and added as a series named after the `y` field and "regression", at `predictions` evenly spaced points) and
 `transpose` (fields become rows and rows become fields, `firstName` names the first column, `restName` the others and `empty` fills missing cells).
+Any step can carry `queries`, a list of query refs: the step then reshapes only the frames of those queries and passes the others through unchanged, and a list that matches no frame changes nothing.
+The first steps take more options:
+`organize` adds `include` (keep only the listed fields, before `exclude`, `rename` and `order`),
+`reduce` adds `includeTime` (reduce the time field too), `labelsToFields` (add each label as a column) and `fields` or `fieldsRegex` (reduce only those number fields),
+`joinByField` adds the `mode` `outerTabular` (an outer join that keeps repeated keys as separate rows instead of pairing them),
+`filterFieldsByName` adds `exclude`, `excludeRegex` and `variable` (keep the fields named by the variable's selection; an unset selection or All keeps every field),
+`sortBy` adds `then`, further `field` and `desc` keys that break ties,
+`limit` takes `count` as `${name}` to read the row count from a variable (an unset selection or All keeps every row), and
+`calculateField` adds `unary` (`fn` of `abs`, `exp`, `ln`, `floor`, `ceil` or `round` on a `field`, the first number field when none is named), `index` (the row number, or with `percentile` its place from 0 to 1), `cumulative` (a running `sum` or `mean` of a `field`), `window` (a moving `mean`, `stdDev` or `variance` of a `field` over `size` rows or a `share` of the rows, `trailing` or `centered`), `replace` (keep only the time field and the new field) and the operators `%` and `^` in `expr`.
 Field names match a field's name or its series name, and a step that names a field the data does not have changes nothing.
 Prefer a query that returns the shape you need, and use a transform when it cannot.
 
