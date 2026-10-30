@@ -25,6 +25,7 @@ Three choices in the format follow from how dashboards are used here:
 A Grafana dashboard is not stored as is.
 The importer converts it into this format and keeps a `placeholder` panel for each panel it cannot convert yet (see [Import Grafana dashboards](../use/import-grafana.md)).
 **Export spec JSON** in the dashboard's **More** menu downloads the document of the version you are viewing.
+**Edit details** in the same menu changes the title, description and tags and saves them as a new version; it needs Edit on the dashboard and works on the latest version.
 
 ## An example
 
