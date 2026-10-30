@@ -1,6 +1,6 @@
 ---
 title: Outbound access
-description: Control which domains the server may fetch from, including the feeds in news panels and the images and GeoJSON files that panels show.
+description: Control which domains the server may fetch from or call, including the feeds in news panels, the images and GeoJSON files that panels show and the requests that canvas actions send.
 ---
 
 SlashObserve can show content that dashboards fetch from other sites, such as the feeds in news panels.
@@ -56,3 +56,27 @@ Only signed-in people can call these routes, not service-account keys, and the a
 - A site that redirects to a content network needs that network's domain on the allowlist too, because each redirect hop is checked.
 
 Each refusal is logged at INFO as `asset fetch failed` with the host, the code and the person's id (`actor_id`), never the address's path or query.
+
+## Canvas actions
+
+A canvas element can carry actions, which are HTTP requests that a person runs from the panel (see [Maps, canvases and actions](../concepts/observespec.md#maps-canvases-and-actions)).
+The browser never calls the other site.
+It asks the server with `POST /api/v1/dashboards/{id}/actions`, and the server sends the request under the same rules as every other outbound call: an allowed domain, `https` on port 443 and a public address.
+
+- Only a person with Edit on the dashboard can run an action, because it changes something outside SlashObserve.
+  Viewers, Commenters and service-account keys are refused.
+- The request names the action by its place in the dashboard's latest saved version (panel, element and index), plus the values of the variables, the time range and the clicked value.
+  The method, address, headers and body template always come from the saved version, and a request made against an older version answers `409 stale_version`.
+- `__user.login`, `__user.email`, `__user.name` and `__user.id` come from the signed-in person.
+- A value is escaped for the place it lands in: the path, the query, a form body or a JSON string.
+  An action that would change its own host, put a line break in a header or leave a JSON body invalid answers `400 action_invalid`.
+- No credentials are sent, so an action can call only endpoints that need none.
+  The server does not follow a redirect: a `3xx` is returned as the status.
+- A request has a 10 second limit and a body of at most 64 KiB, and the response body is read up to 64 KiB and thrown away.
+  The answer is `{"status": 204, "ok": true}`, where `ok` is true for a 2xx status.
+- Each person can have 2 actions running at once (`429 too_many_actions`).
+- Actions are never cached or merged, so running one twice sends two requests.
+- A domain that is not allowed answers `403 outbound_domain_not_allowed` with the `host`, and a connection error, a timeout or a private address answers `502 action_failed` with the `host`.
+
+Every attempt that reaches the network is logged at INFO as `canvas action run` with the person (`actor_id`, `actor_role`), `dashboard_id`, `version`, `panel`, `element`, `action`, `method`, `host`, `status` (0 when no answer came), `outcome` (`ok`, `remote_error`, `refused` or `failed`) and `duration_ms`.
+The line never holds the address, a header, the body or a variable value.

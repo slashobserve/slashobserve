@@ -14,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/slashobserve/slashobserve/internal/actions"
 	"github.com/slashobserve/slashobserve/internal/agent"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/assets"
@@ -291,6 +292,7 @@ func run() error {
 			outbound,
 			prompts.NewHandler(database, logger),
 			news.NewHandler(egressClient, logger),
+			actions.NewHandler(dashboardsService, egressClient, folderAccess.RequireDashboard(folders.NeedEdit), logger),
 			assets.NewHandler(assetsClient, logger),
 		},
 		Mounts: []server.Mount{{

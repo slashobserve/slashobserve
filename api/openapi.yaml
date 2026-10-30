@@ -66,6 +66,8 @@ paths:
     $ref: "./paths/dashboards.yaml#/dashboards-id-diff"
   /dashboards/{id}/import:
     $ref: "./paths/imports.yaml#/dashboards-id-import"
+  /dashboards/{id}/actions:
+    $ref: "./paths/actions.yaml#/dashboards-id-actions"
   /dashboards/{id}/events:
     $ref: "./paths/events.yaml#/dashboards-id-events"
   /dashboards/{id}/comments:
@@ -636,6 +638,29 @@ components:
           type: string
           maxLength: 500
           description: Plain text, never markup; may be empty.
+    ActionResult:
+      type: object
+      additionalProperties: false
+      required: [status, ok]
+      properties:
+        status:
+          type: integer
+          description: The HTTP status the remote server answered with; a redirect is reported as its own 3xx status.
+        ok:
+          type: boolean
+          description: True when the status is 2xx.
+    ActionError:
+      type: object
+      additionalProperties: false
+      required: [error, code]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        host:
+          type: string
+          description: The domain the request was meant for, present on `outbound_domain_not_allowed` and `action_failed`.
     NewsFeed:
       type: object
       additionalProperties: false
