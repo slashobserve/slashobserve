@@ -28,7 +28,7 @@ import { isRenderable, isStaticPanel, preloadRenderer } from "@/panels"
 import { createFieldResolver, panelLinks } from "@/panels/field-config"
 import { linkScopeFor, PanelBody, StaticPanelBody } from "@/panels/panel-body"
 import { panelHasData } from "@/panels/panel-has-data"
-import { reusePanel } from "@/panels/transforms/reuse-panel"
+import { reusedFilterOf, reusePanel } from "@/panels/transforms/reuse-panel"
 import {
   createSharedCursor,
   type CursorSync,
@@ -43,6 +43,7 @@ import {
   sourcePanelOf,
   type DataPanel,
   type LayoutPanel,
+  type Variable,
 } from "@/spec"
 
 import { ActivityToggle } from "./activity-toggle"
@@ -141,6 +142,7 @@ type PanelContainerProps = {
   version: number
   panel: LayoutPanel
   reused: DataPanel | undefined
+  variables: readonly Variable[]
   title: string
   repeatOf: string | undefined
   width: number
@@ -174,6 +176,7 @@ const PanelContainer = memo(function PanelContainer({
   version,
   panel: sourcePanel,
   reused,
+  variables,
   title,
   repeatOf,
   width,
@@ -216,6 +219,13 @@ const PanelContainer = memo(function PanelContainer({
     () => (isDataPanel(panel) ? reusePanel(panel, reused) : undefined),
     [panel, reused]
   )
+  const reusedFilter = useMemo(
+    () =>
+      isDataPanel(panel)
+        ? reusedFilterOf(panel, reused, variables, selections)
+        : undefined,
+    [panel, reused, variables, selections]
+  )
   const supported = isRenderable(panel.type)
 
   useEffect(() => {
@@ -251,8 +261,8 @@ const PanelContainer = memo(function PanelContainer({
       dataPanel !== undefined &&
       fields !== undefined &&
       query.data !== undefined &&
-      panelHasData(dataPanel, query.data.frames, fields),
-    [dataPanel, fields, query.data]
+      panelHasData(dataPanel, query.data.frames, fields, reusedFilter),
+    [dataPanel, fields, query.data, reusedFilter]
   )
   const links = useMemo(
     () =>
@@ -353,6 +363,7 @@ const PanelContainer = memo(function PanelContainer({
             from={rangeFrom}
             to={rangeTo}
             asTable={tableView}
+            reusedFilter={reusedFilter}
           />
         ) : null}
         {isStaticPanel(panel) && supported ? (
@@ -678,6 +689,7 @@ function DashboardView({
                     ? sourcePanelOf(spec, item.panel)
                     : undefined
                 }
+                variables={variables}
                 title={item.title}
                 repeatOf={
                   item.key === item.panel.id ? undefined : item.panel.id

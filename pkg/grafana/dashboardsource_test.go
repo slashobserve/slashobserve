@@ -57,6 +57,8 @@ func TestDashboardSourceImportsAsAReusingQuery(t *testing.T) {
 		{"panel only", `"panelId":1`, spec.Query{Source: &spec.DashboardSource{Panel: "p1"}}},
 		{"with transforms", `"panelId":1,"withTransforms":true`, spec.Query{Source: &spec.DashboardSource{Panel: "p1", WithTransforms: true}}},
 		{"hidden", `"panelId":1,"hide":true`, spec.Query{Hide: true, Source: &spec.DashboardSource{Panel: "p1"}}},
+		{"ad hoc filters", `"panelId":1,"adHocFiltersEnabled":true`, spec.Query{Source: &spec.DashboardSource{Panel: "p1", AdHocFilters: true}}},
+		{"ad hoc filters off", `"panelId":1,"adHocFiltersEnabled":false`, spec.Query{Source: &spec.DashboardSource{Panel: "p1"}}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -175,18 +177,6 @@ func TestDashboardSourceKeepsTheSourceSettingsOfThePanelItReuses(t *testing.T) {
 	}
 	if line := panelLine(t, res, "p2"); line.Status != statusImported {
 		t.Fatalf("line = %+v, want imported", line)
-	}
-}
-
-func TestDashboardSourceReportsAdHocFilters(t *testing.T) {
-	res := convertedSpec(t, dashboardJSON("", sourcePanelDoc(1, 0, ""), reusingPanelDoc(2, 6, reuseTarget(`"panelId":1,"adHocFiltersEnabled":true`), "")))
-
-	line := panelLine(t, res, "p2")
-	if line.Status != statusPartial || !contains(line.Reasons, adHocFiltersReason) {
-		t.Fatalf("line = %+v, want partial with %q", line, adHocFiltersReason)
-	}
-	if got := specPanelOf(t, res, "p2").Queries[0].Source; got == nil || got.Panel != "p1" {
-		t.Fatalf("source = %+v, want p1 kept", got)
 	}
 }
 

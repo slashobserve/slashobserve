@@ -38,7 +38,8 @@ const (
 
 	defaultStackGroup = "A"
 
-	logBaseReason = "Only log base 2 and 10 are supported."
+	logBaseReason             = "Only log base 2 and 10 are supported."
+	uncalculatedLogBaseReason = "A log base of 10 changes how calculated heatmap buckets are drawn, not the series a heatmap reads as buckets."
 
 	opaqueFillReason = "A fully transparent fill is drawn opaque."
 

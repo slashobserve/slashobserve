@@ -3,6 +3,7 @@ import type { DataPanel } from "@/spec"
 
 import type { FieldResolver } from "./field-config"
 import { hasData } from "./frames"
+import type { ReusedFilter } from "./transforms/ad-hoc-filter"
 import { prepareFrames } from "./transforms"
 
 const emptyIsAnAnswer: ReadonlySet<DataPanel["type"]> = new Set(["alertlist"])
@@ -10,10 +11,11 @@ const emptyIsAnAnswer: ReadonlySet<DataPanel["type"]> = new Set(["alertlist"])
 export function panelHasData(
   panel: DataPanel,
   frames: WireFrame[],
-  fields: FieldResolver
+  fields: FieldResolver,
+  reusedFilter?: ReusedFilter
 ): boolean {
   if (emptyIsAnAnswer.has(panel.type)) return true
-  const prepared = prepareFrames(panel, frames)
+  const prepared = prepareFrames(panel, frames, undefined, reusedFilter)
   if (panel.type !== "timeseries") return hasData(prepared)
   return hasData(
     prepared.map((frame) => ({

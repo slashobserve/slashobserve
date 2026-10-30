@@ -359,3 +359,59 @@ func TestLegacyHeatmapOptionsTheRendererCannotDrawAreReported(t *testing.T) {
 		})
 	}
 }
+
+func TestHeatmapLogBaseOfBucketSeriesIsReported(t *testing.T) {
+	scaleDistribution := `"fieldConfig":{"defaults":{"custom":{"scaleDistribution":{"type":"log","log":10}}},"overrides":[]}`
+	cases := []struct {
+		name    string
+		members string
+		legacy  bool
+		path    string
+	}{
+		{"an axis base without calculate", scaleDistribution + `,"options":{}`, false, "fieldConfig.defaults.custom.scaleDistribution.log"},
+		{"an axis base with calculate off", scaleDistribution + `,"options":{"calculate":false}`, false, "fieldConfig.defaults.custom.scaleDistribution.log"},
+		{"a bucket base without calculate", `"options":{"calculation":{"yBuckets":{"scale":{"type":"log","log":10}}}}`, false, "options.calculation.yBuckets.scale.log"},
+		{"a legacy pre-bucketed axis", `"dataFormat":"tsbuckets","yAxis":{"logBase":10}`, true, "yAxis.logBase"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var d spec.Display
+			var line PanelLine
+			if tc.legacy {
+				d, line = legacyHeatmapDisplay(t, tc.members)
+			} else {
+				panel, got := convertedPanel(t, panelDoc("heatmap", upTarget+`,`+tc.members))
+				d, line = displayOf(t, panel), got
+			}
+			requireReported(t, line, tc.path, "calculated heatmap buckets")
+			if d.YBucketLogBase != 0 {
+				t.Fatalf("yBucketLogBase = %d, want it left out", d.YBucketLogBase)
+			}
+		})
+	}
+}
+
+func TestHeatmapLogBaseOfBucketSeriesStaysQuietWhenItChangesNothing(t *testing.T) {
+	cases := []struct{ name, members string }{
+		{"base 2 of the axis", `"fieldConfig":{"defaults":{"custom":{"scaleDistribution":{"type":"log","log":2}}},"overrides":[]},"options":{}`},
+		{"base 2 of the buckets", `"options":{"calculation":{"yBuckets":{"scale":{"type":"log","log":2}}}}`},
+		{"a linear scale", `"options":{"calculation":{"yBuckets":{"scale":{"type":"linear"}}}}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := convertedPanel(t, panelDoc("heatmap", upTarget+`,`+tc.members))
+			requireImported(t, line)
+			if d := displayOf(t, panel); d.YBucketLogBase != 0 {
+				t.Fatalf("yBucketLogBase = %d, want it left out", d.YBucketLogBase)
+			}
+		})
+	}
+}
+
+func TestHeatmapLogBaseOfCalculatedBucketsIsKept(t *testing.T) {
+	panel, line := convertedPanel(t, panelDoc("heatmap", upTarget+`,"fieldConfig":{"defaults":{"custom":{"scaleDistribution":{"type":"log","log":10}}},"overrides":[]},"options":{"calculate":true}`))
+	requireImported(t, line)
+	if d := displayOf(t, panel); d.YScale != "log" || d.YBucketLogBase != 10 {
+		t.Fatalf("display = %+v", d)
+	}
+}

@@ -9,7 +9,6 @@ import (
 const (
 	reusedPanelMissingReason = "The panel this one reuses could not be imported."
 	mixedSourceReason        = "A panel that reuses another panel's results has no other queries."
-	adHocFiltersReason       = "Ad hoc filters always apply to the queries of the panel this one reuses."
 	reusedSettingReason      = "A panel that reuses another panel's results has no query settings of its own."
 )
 
@@ -50,12 +49,7 @@ func (c *converter) registerReusable(n *panelNode, bp *builtPanel, repeats bool)
 }
 
 func (tb *targetBuild) dashboardSource() (spec.Query, string) {
-	tb.use("panelId", "withTransforms")
-	if truthy(tb.t["adHocFiltersEnabled"]) {
-		tb.partial("adHocFiltersEnabled", adHocFiltersReason)
-	} else {
-		tb.use("adHocFiltersEnabled")
-	}
+	tb.use("panelId", "withTransforms", "adHocFiltersEnabled")
 	id, ok := asInt(tb.t["panelId"])
 	if !ok {
 		return spec.Query{}, reusedPanelMissingReason
@@ -67,7 +61,7 @@ func (tb *targetBuild) dashboardSource() (spec.Query, string) {
 	tb.reuses = source.panel
 	return spec.Query{
 		Hide:   truthy(tb.t["hide"]),
-		Source: &spec.DashboardSource{Panel: source.panel.panel.ID, WithTransforms: truthy(tb.t["withTransforms"])},
+		Source: &spec.DashboardSource{Panel: source.panel.panel.ID, WithTransforms: truthy(tb.t["withTransforms"]), AdHocFilters: truthy(tb.t["adHocFiltersEnabled"])},
 	}, ""
 }
 

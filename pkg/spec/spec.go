@@ -331,6 +331,7 @@ type Query struct {
 type DashboardSource struct {
 	Panel          string `json:"panel"`
 	WithTransforms bool   `json:"withTransforms,omitempty"`
+	AdHocFilters   bool   `json:"adHocFilters,omitempty"`
 }
 
 type Expression struct {

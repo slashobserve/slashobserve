@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { compileNamePattern } from "./patterns"
+import { compileAnchoredPattern, compileNamePattern } from "./patterns"
 
 describe("compileNamePattern", () => {
   it("anchors both ends of every alternative", () => {
@@ -25,5 +25,19 @@ describe("compileNamePattern", () => {
   it("matches nothing for an invalid pattern", () => {
     expect(compileNamePattern("(")).toBeNull()
     expect(compileNamePattern("/(/")).toBeNull()
+  })
+})
+
+describe("compileAnchoredPattern", () => {
+  it("anchors every alternative and reads a leading slash as text", () => {
+    const pattern = compileAnchoredPattern("/api/.*|health")
+    expect(pattern?.test("/api/v1")).toBe(true)
+    expect(pattern?.test("health")).toBe(true)
+    expect(pattern?.test("a/api/v1")).toBe(false)
+    expect(pattern?.test("healthy")).toBe(false)
+  })
+
+  it("matches nothing for an invalid pattern", () => {
+    expect(compileAnchoredPattern("(")).toBeNull()
   })
 })

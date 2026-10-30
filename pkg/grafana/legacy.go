@@ -1038,7 +1038,7 @@ func (b *panelBuild) legacyHeatmapAxes(d *spec.Display) {
 		case !valid, base == 1:
 		case base == 2 || base == defaultLogBase:
 			d.YScale = "log"
-			d.YBucketLogBase = specHeatmapLogBase(int(base))
+			b.setYBucketLogBase(d, specHeatmapLogBase(int(base)), "yAxis.logBase")
 		default:
 			b.partial("yAxis.logBase", logBaseReason)
 		}
