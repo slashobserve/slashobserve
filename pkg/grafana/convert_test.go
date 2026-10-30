@@ -629,7 +629,7 @@ func TestLegendTablesAreReportedWhereTheChartHasNoTableLegend(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, line := convertedPanel(t, panelDoc("barchart", upTarget+`,"options":{"legend":`+tc.legend+`}`))
+			_, line := convertedPanel(t, panelDoc("xychart", upTarget+`,"options":{"legend":`+tc.legend+`}`))
 			if line.Status != statusPartial || !slices.Equal(line.Paths, tc.paths) || !slices.Contains(line.Reasons, wantLegendTableReason) {
 				t.Fatalf("status %s, paths %v, reasons %v, want %v and %q", line.Status, line.Paths, line.Reasons, tc.paths, wantLegendTableReason)
 			}
@@ -744,10 +744,9 @@ func TestChartPanelTypesImportTheirOptions(t *testing.T) {
 			display: "null",
 		},
 		{
-			name: "bar chart options with no Spec field", typ: "barchart",
-			members: `"options":{"colorByField":"pod","xTickLabelRotation":45,"xTickLabelSpacing":10,"barRadius":0.2,"fullHighlight":true}`,
-			display: "null",
-			paths:   []string{"options.barRadius", "options.colorByField", "options.fullHighlight", "options.xTickLabelRotation", "options.xTickLabelSpacing"},
+			name: "bar chart label, bar and highlight options", typ: "barchart",
+			members: `"options":{"colorByField":"pod","xTickLabelRotation":45,"xTickLabelSpacing":10,"xTickLabelMaxLength":8,"barRadius":0.2,"fullHighlight":true,"text":{"valueSize":20}}`,
+			display: `{"valueSize":20,"xTickRotation":45,"xTickSpacing":10,"xTickMaxLength":8,"barRadius":0.2,"fullHighlight":true,"colorByField":"pod"}`,
 		},
 		{
 			name: "bar chart width outside the range", typ: "barchart",

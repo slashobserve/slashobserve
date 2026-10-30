@@ -137,7 +137,16 @@ export const specDefaults = {
       "calculate": false,
       "yScale": "linear"
     },
-    "histogram": {},
+    "histogram": {
+      "stack": "normal",
+      "combine": false,
+      "legend": "bottom",
+      "legendValues": [],
+      "legendSortDesc": false,
+      "tooltip": "all",
+      "tooltipSort": "none",
+      "tooltipHideZeros": true
+    },
     "state-timeline": {
       "mergeValues": true,
       "showValues": "auto",
@@ -166,7 +175,15 @@ export const specDefaults = {
       "barWidth": 0.97,
       "groupWidth": 0.7,
       "legend": "bottom",
-      "tooltip": "single"
+      "legendValues": [],
+      "legendSortDesc": false,
+      "tooltip": "single",
+      "tooltipSort": "none",
+      "tooltipHideZeros": false,
+      "xTickRotation": 0,
+      "xTickSpacing": 0,
+      "barRadius": 0,
+      "fullHighlight": false
     },
     "status-history": {
       "showValues": "auto",

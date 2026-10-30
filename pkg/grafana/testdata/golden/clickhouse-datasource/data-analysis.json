@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 16,
-      "imported": 11,
-      "partial": 5,
+      "imported": 13,
+      "partial": 3,
       "placeholder": 0,
       "unverified": 0
     },
@@ -198,14 +198,9 @@
         "type": "barchart",
         "source_type": "barchart",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.axisGridShow",
-          "fieldConfig.defaults.custom.axisSoftMin"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -224,14 +219,9 @@
         "type": "barchart",
         "source_type": "barchart",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.axisGridShow",
-          "fieldConfig.defaults.custom.axisSoftMin"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -775,6 +765,9 @@
           }
         ],
         "fill": 61,
+        "lineWidth": 1,
+        "axisSoftMin": 0,
+        "axisGrid": false,
         "display": {
           "barWidth": 1
         }
@@ -796,7 +789,10 @@
             "format": "table"
           }
         ],
-        "fill": 61
+        "fill": 61,
+        "lineWidth": 1,
+        "axisSoftMin": 0,
+        "axisGrid": false
       },
       {
         "id": "p6",

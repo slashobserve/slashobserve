@@ -193,7 +193,7 @@ func TestPieDoesNotDrawTheOtherSeriesProps(t *testing.T) {
 }
 
 func TestOtherTypesStillReportHidingFromTheLegend(t *testing.T) {
-	_, line := convertedPanel(t, panelDoc("barchart", upTarget+`,"fieldConfig":{"defaults":{"custom":{"hideFrom":{"legend":true}}},"overrides":[]}`))
+	_, line := convertedPanel(t, panelDoc("state-timeline", upTarget+`,"fieldConfig":{"defaults":{"custom":{"hideFrom":{"legend":true}}},"overrides":[]}`))
 	if line.Status != statusPartial || !slices.Contains(line.Paths, "fieldConfig.defaults.custom.hideFrom.legend") {
 		t.Fatalf("status %s, paths %v", line.Status, line.Paths)
 	}

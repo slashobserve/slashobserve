@@ -4,15 +4,24 @@ import { createFieldResolver } from "@/panels/field-config"
 import type { PreparedFrame } from "@/panels/transforms"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
+import { linearScale } from "../value-axis"
 import {
   axisTicks,
+  barOptions,
   barRect,
+  barSource,
   barchartModel,
+  categoryBand,
   labelSpot,
+  labelStep,
   labelStride,
   maxCategories,
   noCategoriesReason,
   orientationOf,
+  rotatedExtent,
+  roundedBarPath,
+  tooltipIndexes,
+  truncateLabel,
   truncatedNote,
 } from "./barchart-model"
 
@@ -52,14 +61,12 @@ function build(
   frames: PreparedFrame[],
   extra: Partial<DataPanel> = {},
   display: Record<string, unknown> = {},
-  size = wide
+  size = wide,
+  hidden: ReadonlySet<string> = new Set()
 ) {
-  return barchartModel(
-    frames,
-    createFieldResolver(panel(extra)),
-    displayWithDefaults("barchart", display),
-    size
-  )
+  const merged = displayWithDefaults("barchart", display)
+  const source = barSource(frames, createFieldResolver(panel(extra)), merged)
+  return barchartModel(source, merged, size, hidden)
 }
 
 describe("barchartModel categories", () => {
@@ -312,6 +319,7 @@ describe("barRect", () => {
     plot: { width: 100, height: 100 },
     min: 0,
     max: 10,
+    scale: linearScale,
     count: 2,
     slotCount: 2,
     groupWidth: 0.5,
@@ -381,5 +389,198 @@ describe("labelSpot", () => {
         negative: false,
       })
     ).toBeNull()
+  })
+})
+
+describe("barchartModel legend hiding", () => {
+  const frames = [
+    frame([text("r", ["/a"]), numbers("one", [1]), numbers("two", [3])]),
+  ]
+
+  it("drops a hidden series and restacks the rest", () => {
+    const stacked = { stack: "normal" } as Partial<DataPanel>
+    const model = build(frames, stacked, {}, wide, new Set(["A:{}#one"]))
+    expect(model.series.map((series) => series.name)).toEqual(["two"])
+    expect(model.bars[0].map(({ start, end }) => [start, end])).toEqual([
+      [0, 3],
+    ])
+  })
+})
+
+describe("barchartModel scales", () => {
+  it("draws log bars from the bottom of the decade range", () => {
+    const model = build(
+      [frame([text("r", ["/a", "/b"]), numbers("v", [5, 500])])],
+      { scale: "log" } as Partial<DataPanel>
+    )
+    expect(model.scale.kind).toBe("log")
+    expect(model.min).toBe(1)
+    expect(model.max).toBe(1000)
+  })
+
+  it("draws symlog bars around zero", () => {
+    const model = build(
+      [frame([text("r", ["/a", "/b"]), numbers("v", [-50, 500])])],
+      { scale: "symlog" } as Partial<DataPanel>
+    )
+    expect(model.scale.kind).toBe("symlog")
+    expect(model.min).toBeLessThan(0)
+  })
+})
+
+describe("barchartModel fill and border", () => {
+  const frames = [frame([text("r", ["/a"]), numbers("v", [1])])]
+
+  it("is opaque with no border unless fill and line width are written", () => {
+    const plain = build(frames).series[0]
+    expect([plain.fillOpacity, plain.borderWidth]).toEqual([1, 0])
+    const written = build(frames, {
+      fill: 40,
+      lineWidth: 3,
+    } as Partial<DataPanel>).series[0]
+    expect([written.fillOpacity, written.borderWidth]).toEqual([0.4, 3])
+  })
+})
+
+describe("barchartModel colorByField", () => {
+  it("colors each category by the threshold of the named field", () => {
+    const frames = [
+      frame([
+        text("r", ["/a", "/b"]),
+        numbers("v", [1, 1]),
+        numbers("level", [1, 9]),
+      ]),
+    ]
+    const model = build(
+      frames,
+      {
+        thresholds: [
+          { value: null, color: "green" },
+          { value: 5, color: "red" },
+        ],
+      } as Partial<DataPanel>,
+      { colorByField: "level" }
+    )
+    const first = model.bars[0][0].color
+    expect(first).not.toBe(model.bars[1][0].color)
+  })
+})
+
+describe("tooltipIndexes", () => {
+  const frames = [
+    frame([
+      text("r", ["/a"]),
+      numbers("low", [1]),
+      numbers("high", [9]),
+      numbers("zero", [0]),
+    ]),
+  ]
+  const model = build(frames)
+  const hit = { category: 0, bar: 0 }
+  const names = (indexes: number[]) =>
+    indexes.map((index) => model.series[index].name)
+
+  it("lists only the hovered bar in single mode", () => {
+    const options = barOptions({ tooltip: "single" })
+    expect(names(tooltipIndexes(model, hit, options))).toEqual(["low"])
+  })
+
+  it("sorts the series of the category in all mode", () => {
+    const base = { tooltip: "all" } as const
+    expect(
+      names(
+        tooltipIndexes(model, hit, barOptions({ ...base, tooltipSort: "desc" }))
+      )
+    ).toEqual(["high", "low", "zero"])
+    expect(
+      names(
+        tooltipIndexes(model, hit, barOptions({ ...base, tooltipSort: "asc" }))
+      )
+    ).toEqual(["zero", "low", "high"])
+  })
+
+  it("drops zero rows with tooltipHideZeros", () => {
+    const options = barOptions({ tooltip: "all", tooltipHideZeros: true })
+    expect(names(tooltipIndexes(model, hit, options))).toEqual(["low", "high"])
+  })
+})
+
+describe("category labels", () => {
+  it("truncates by characters and marks the cut", () => {
+    expect(truncateLabel("checkout", 5)).toBe("check\u2026")
+    expect(truncateLabel("short", 10)).toBe("short")
+    expect(truncateLabel("anything")).toBe("anything")
+  })
+
+  it("lets a spacing replace the measured label length", () => {
+    expect(labelStep(10, 100, 5, 0)).toBe(1)
+    expect(labelStep(10, 100, 5, 30)).toBe(3)
+  })
+
+  it("grows the axis with the rotated text", () => {
+    expect(rotatedExtent(100, 0, 16)).toBe(16)
+    expect(rotatedExtent(100, 90, 16)).toBe(100)
+    expect(rotatedExtent(100, -45, 16)).toBe(rotatedExtent(100, 45, 16))
+  })
+})
+
+describe("roundedBarPath", () => {
+  const rect = { x: 0, y: 0, width: 20, height: 40 }
+
+  it("rounds the free end of a positive vertical bar", () => {
+    const path = roundedBarPath(rect, "vertical", false, 0.25)
+    expect(path).toContain("A5 5")
+    expect(path?.startsWith("M0 40")).toBe(true)
+  })
+
+  it("draws nothing special without a radius", () => {
+    expect(roundedBarPath(rect, "vertical", false, 0)).toBeNull()
+  })
+
+  it("keeps the radius within half the thickness and the length", () => {
+    expect(roundedBarPath(rect, "vertical", false, 0.5)).toContain("A10 10")
+    const stub = { x: 0, y: 0, width: 20, height: 3 }
+    expect(roundedBarPath(stub, "vertical", false, 0.5)).toContain("A3 3")
+  })
+})
+
+describe("categoryBand", () => {
+  it("spans the whole category across the other axis", () => {
+    const layout = {
+      orientation: "vertical" as const,
+      plot: { width: 100, height: 50 },
+      min: 0,
+      max: 1,
+      scale: linearScale,
+      count: 4,
+      slotCount: 1,
+      groupWidth: 0.7,
+      barWidth: 1,
+    }
+    expect(categoryBand(layout, 1)).toEqual({
+      x: 25,
+      y: 0,
+      width: 25,
+      height: 50,
+    })
+  })
+})
+
+describe("barOptions", () => {
+  it("reads the defaults and the written values", () => {
+    const defaults = barOptions({})
+    expect(defaults).toMatchObject({
+      legend: "bottom",
+      tooltip: "single",
+      tooltipSort: "none",
+      barRadius: 0,
+      fullHighlight: false,
+      xTickRotation: 0,
+      valueSize: 12,
+    })
+    expect(barOptions({ valueSize: 20, barRadius: 0.3 })).toMatchObject({
+      valueSize: 20,
+      barRadius: 0.3,
+    })
   })
 })

@@ -39,7 +39,7 @@ const (
 
 	logBaseReason = "Only log base 2 and 10 are supported."
 
-	timelineFillReason = "A fully transparent fill is drawn opaque."
+	opaqueFillReason = "A fully transparent fill is drawn opaque."
 )
 
 type propSite struct {
@@ -137,7 +137,9 @@ var plotPanelTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: 
 
 var seriesDrawingTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true}
 
-var legendTooltipHidingTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true, spec.PieChart: true}
+var legendTooltipHidingTypes = map[spec.PanelType]bool{
+	spec.Timeseries: true, spec.Trend: true, spec.PieChart: true, spec.BarChart: true, spec.Histogram: true,
+}
 
 var seriesDrawingPropIDs = map[string]bool{"custom.transform": true, "custom.fillBelowTo": true}
 
@@ -147,12 +149,14 @@ var lineStyleDrawnOnlyByGrafana = map[spec.PanelType]bool{
 
 var timelinePanelTypes = map[spec.PanelType]bool{spec.StateTimeline: true, spec.StatusHistory: true}
 
+var barPanelTypes = map[spec.PanelType]bool{spec.BarChart: true, spec.Histogram: true}
+
 var timelineDrawnProps = map[string]propHandler{
-	"custom.lineWidth": propTimelineLineWidth,
+	"custom.lineWidth": propBorderLineWidth,
 	"custom.spanNulls": propSpanNulls,
 }
 
-func propTimelineLineWidth(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+func propBorderLineWidth(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	b.consume(s.value)
 	if f, ok := numberValue(v); ok {
 		width := int(math.Round(min(max(f, 0), maxLineWidth)))
@@ -162,6 +166,21 @@ func propTimelineLineWidth(b *panelBuild, p *spec.FieldProps, v any, s propSite)
 
 func propLineStyleUnused(b *panelBuild, _ *spec.FieldProps, _ any, s propSite) {
 	b.consume(s.value)
+}
+
+func (b *panelBuild) barPropHandler(id string) (handler propHandler, decided bool) {
+	if !barPanelTypes[b.typ] {
+		return nil, false
+	}
+	switch {
+	case id == "custom.lineWidth":
+		return propBorderLineWidth, true
+	case lineStylePropIDs[id]:
+		return nil, true
+	case id == "custom.stacking" && b.typ == spec.Histogram:
+		return propHistogramStacking, true
+	}
+	return nil, false
 }
 
 func (b *panelBuild) propHandler(id string) (propHandler, bool) {
@@ -174,10 +193,13 @@ func (b *panelBuild) propHandler(id string) (propHandler, bool) {
 	if handler, drawn := timelineDrawnProps[id]; drawn && timelinePanelTypes[b.typ] {
 		return handler, true
 	}
+	if handler, decided := b.barPropHandler(id); decided {
+		return handler, handler != nil
+	}
 	if plotDrawnPropIDs[id] && !plotPanelTypes[b.typ] {
 		return nil, false
 	}
-	if !plotPanelTypes[b.typ] {
+	if !plotPanelTypes[b.typ] && !barPanelTypes[b.typ] {
 		if axisPropIDs[id] || (lineStylePropIDs[id] && lineStyleDrawnOnlyByGrafana[b.typ]) {
 			return nil, false
 		}
@@ -609,8 +631,8 @@ func propFillOpacity(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	b.consume(s.value)
 	if f, ok := numberValue(v); ok {
 		fill := int(math.Round(min(max(f, 0), 100)))
-		if fill == 0 && timelinePanelTypes[b.typ] {
-			b.partial(s.at(""), timelineFillReason)
+		if fill == 0 && (timelinePanelTypes[b.typ] || barPanelTypes[b.typ]) {
+			b.partial(s.at(""), opaqueFillReason)
 		}
 		p.Fill = &fill
 	}
@@ -765,6 +787,26 @@ func propStacking(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	if seriesDrawingTypes[b.typ] {
 		b.stackGroup(p, cfg["group"], s)
 	}
+}
+
+func propHistogramStacking(b *panelBuild, _ *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value + ".mode")
+	cfg, ok := asObject(v)
+	if !ok {
+		return
+	}
+	if asString(cfg["group"]) == defaultStackGroup {
+		b.consume(s.value + ".group")
+	}
+	mode := asString(cfg["mode"])
+	if mode != "normal" && mode != "percent" && mode != "none" {
+		return
+	}
+	if s.whole {
+		b.partial(s.at(""), "Stacking applies to the whole histogram, not to one series.")
+		return
+	}
+	b.disp().Stack = mode
 }
 
 func (b *panelBuild) stackGroup(p *spec.FieldProps, v any, s propSite) {
@@ -1039,7 +1081,7 @@ func propHideFrom(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 		switch {
 		case !legendTooltipHidingTypes[b.typ]:
 			if hide {
-				b.partial(s.at("."+key), fmt.Sprintf("Hiding series from the %s works on time series, trend and pie chart panels only.", key))
+				b.partial(s.at("."+key), fmt.Sprintf("Hiding series from the %s works on time series, trend, bar chart, histogram and pie chart panels only.", key))
 			}
 		case hide || (isBool && s.whole && panelLevel[key] != nil && *panelLevel[key]):
 			*targets[key] = &hide

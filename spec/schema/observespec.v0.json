@@ -3309,6 +3309,99 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 1000
+                  },
+                  "bucketOffset": {
+                    "x-omitFromPrompt": true,
+                    "type": "number"
+                  },
+                  "combine": {
+                    "x-omitFromPrompt": true,
+                    "type": "boolean"
+                  },
+                  "stack": {
+                    "x-omitFromPrompt": true,
+                    "enum": [
+                      "none",
+                      "normal",
+                      "percent"
+                    ]
+                  },
+                  "legend": {
+                    "x-omitFromPrompt": true,
+                    "enum": [
+                      "bottom",
+                      "right",
+                      "hidden"
+                    ]
+                  },
+                  "tooltip": {
+                    "x-omitFromPrompt": true,
+                    "enum": [
+                      "single",
+                      "all",
+                      "hidden"
+                    ]
+                  },
+                  "legendMode": {
+                    "x-omitFromPrompt": true,
+                    "enum": [
+                      "list",
+                      "table"
+                    ]
+                  },
+                  "legendValues": {
+                    "x-omitFromPrompt": true,
+                    "type": "array",
+                    "maxItems": 8,
+                    "uniqueItems": true,
+                    "items": {
+                      "$ref": "#/$defs/reducer"
+                    }
+                  },
+                  "legendSortBy": {
+                    "x-omitFromPrompt": true,
+                    "anyOf": [
+                      {
+                        "const": "name"
+                      },
+                      {
+                        "$ref": "#/$defs/reducer"
+                      }
+                    ]
+                  },
+                  "legendSortDesc": {
+                    "x-omitFromPrompt": true,
+                    "type": "boolean"
+                  },
+                  "legendWidth": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 40,
+                    "maximum": 2000
+                  },
+                  "tooltipSort": {
+                    "x-omitFromPrompt": true,
+                    "enum": [
+                      "none",
+                      "asc",
+                      "desc"
+                    ]
+                  },
+                  "tooltipHideZeros": {
+                    "x-omitFromPrompt": true,
+                    "type": "boolean"
+                  },
+                  "tooltipMaxWidth": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 2000
+                  },
+                  "tooltipMaxHeight": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 2000
                   }
                 }
               }
@@ -3542,6 +3635,105 @@
                       "all",
                       "hidden"
                     ]
+                  },
+                  "legendMode": {
+                    "x-omitFromPrompt": true,
+                    "enum": [
+                      "list",
+                      "table"
+                    ]
+                  },
+                  "legendValues": {
+                    "x-omitFromPrompt": true,
+                    "type": "array",
+                    "maxItems": 8,
+                    "uniqueItems": true,
+                    "items": {
+                      "$ref": "#/$defs/reducer"
+                    }
+                  },
+                  "legendSortBy": {
+                    "x-omitFromPrompt": true,
+                    "anyOf": [
+                      {
+                        "const": "name"
+                      },
+                      {
+                        "$ref": "#/$defs/reducer"
+                      }
+                    ]
+                  },
+                  "legendSortDesc": {
+                    "x-omitFromPrompt": true,
+                    "type": "boolean"
+                  },
+                  "legendWidth": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 40,
+                    "maximum": 2000
+                  },
+                  "tooltipSort": {
+                    "x-omitFromPrompt": true,
+                    "enum": [
+                      "none",
+                      "asc",
+                      "desc"
+                    ]
+                  },
+                  "tooltipHideZeros": {
+                    "x-omitFromPrompt": true,
+                    "type": "boolean"
+                  },
+                  "tooltipMaxWidth": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 2000
+                  },
+                  "tooltipMaxHeight": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 2000
+                  },
+                  "xTickRotation": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "xTickSpacing": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 500
+                  },
+                  "xTickMaxLength": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200
+                  },
+                  "barRadius": {
+                    "x-omitFromPrompt": true,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 0.5
+                  },
+                  "fullHighlight": {
+                    "x-omitFromPrompt": true,
+                    "type": "boolean"
+                  },
+                  "colorByField": {
+                    "x-omitFromPrompt": true,
+                    "$ref": "#/$defs/fieldName"
+                  },
+                  "valueSize": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 6,
+                    "maximum": 100
                   }
                 }
               }

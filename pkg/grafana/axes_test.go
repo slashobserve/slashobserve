@@ -263,10 +263,18 @@ var plotOnlyOptions = []struct {
 
 var timelineDrawnOptions = map[string]bool{"line width": true, "span nulls": true}
 
+var barDrawnOptions = map[string]bool{
+	"axis label": true, "soft minimum": true, "soft maximum": true, "log scale": true, "centered zero": true,
+	"axis width": true, "hidden grid": true, "axis border": true, "series axis color": true, "line width": true,
+}
+
 func TestAxisAndLineStyleOptionsAreReportedOnPanelsThatDrawNeither(t *testing.T) {
 	for _, typ := range []string{"barchart", "histogram", "state-timeline", "status-history", "xychart"} {
 		for _, tc := range plotOnlyOptions {
 			if timelineDrawnOptions[tc.name] && (typ == "state-timeline" || typ == "status-history") {
+				continue
+			}
+			if barDrawnOptions[tc.name] && (typ == "barchart" || typ == "histogram") {
 				continue
 			}
 			t.Run(typ+" "+tc.name, func(t *testing.T) {
@@ -284,7 +292,7 @@ func TestAxisAndLineStyleOptionsAreReportedOnPanelsThatDrawNeither(t *testing.T)
 
 func TestAxisAndLineStyleOverridePropertiesAreReportedOnPanelsThatDrawNeither(t *testing.T) {
 	override := `{"matcher":{"id":"byName","options":"a"},"properties":[{"id":"custom.axisLabel","value":"Latency"},{"id":"custom.lineWidth","value":4}]}`
-	panel, line := customPanelOf(t, "barchart", `{}`, override)
+	panel, line := customPanelOf(t, "xychart", `{}`, override)
 	if line.Status != statusPartial || len(panel.Overrides) != 0 {
 		t.Fatalf("status = %s, paths %v, overrides %+v", line.Status, line.Paths, panel.Overrides)
 	}

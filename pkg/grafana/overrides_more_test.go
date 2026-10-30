@@ -71,11 +71,12 @@ func TestSeriesDrawingPropertiesOnTheDefaultsOfTheTypesThatDrawThem(t *testing.T
 	cases := []struct {
 		name, custom string
 		check        func(spec.Panel) bool
+		drawnByBars  bool
 	}{
-		{"negative-Y", `"transform":"negative-Y"`, func(p spec.Panel) bool { return p.ValueTransform == "negativeY" }},
-		{"hide from legend", `"hideFrom":{"legend":true,"tooltip":false,"viz":false}`, func(p spec.Panel) bool { return p.HideInLegend != nil && *p.HideInLegend }},
-		{"stacking group", `"stacking":{"mode":"normal","group":"B"}`, func(p spec.Panel) bool { return p.StackGroup == "B" }},
-		{"fill below to", `"fillBelowTo":"down"`, func(p spec.Panel) bool { return p.FillBelowTo == "down" }},
+		{"negative-Y", `"transform":"negative-Y"`, func(p spec.Panel) bool { return p.ValueTransform == "negativeY" }, false},
+		{"hide from legend", `"hideFrom":{"legend":true,"tooltip":false,"viz":false}`, func(p spec.Panel) bool { return p.HideInLegend != nil && *p.HideInLegend }, true},
+		{"stacking group", `"stacking":{"mode":"normal","group":"B"}`, func(p spec.Panel) bool { return p.StackGroup == "B" }, false},
+		{"fill below to", `"fillBelowTo":"down"`, func(p spec.Panel) bool { return p.FillBelowTo == "down" }, false},
 	}
 	for _, tc := range cases {
 		t.Run("timeseries "+tc.name, func(t *testing.T) {
@@ -84,6 +85,9 @@ func TestSeriesDrawingPropertiesOnTheDefaultsOfTheTypesThatDrawThem(t *testing.T
 				t.Fatalf("status %s, paths %v, panel %+v", line.Status, line.Paths, panel.FieldProps)
 			}
 		})
+		if tc.drawnByBars {
+			return
+		}
 		t.Run("barchart "+tc.name+" is reported", func(t *testing.T) {
 			_, line := convertedPanel(t, doc("barchart", tc.custom))
 			if line.Status != statusPartial || len(line.Paths) == 0 {
