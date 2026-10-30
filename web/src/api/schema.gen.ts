@@ -1124,7 +1124,7 @@ export interface components {
         };
         Issue: {
             path: string;
-            /** @description Spec parsing adds schema and semantic codes such as `schema`, `too_large`, `unknown_unit`, `duplicate_panel_id`, `unknown_variable`, `too_many_panels` (more than 200 panels counting row children), `duplicate_query_ref`, `unknown_query_ref` (an override matches a query ref the panel does not have), `threshold_value_missing` (a threshold other than the first omits its value), `duplicate_element_id` (a canvas panel repeats an element id, path `/panels/{i}/display/elements/{k}/id`) and `unknown_element` (a canvas connection names no element, path `/panels/{i}/display/connections/{k}/from` or `/to`). A `timezone` the server cannot load is `unknown_timezone` (path `/timezone`). Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`), `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/{j}/query`, with `/panels/{i}/panels/{j}` for a row child), and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty` and `internal` (paths `/panels/{i}/queries/{j}/query`, `/panels/{i}/datasource` and `/panels/{i}/queries/{j}/datasource`; `query_empty` is reported once for the panel at `/panels/{i}/queries`, and never for an `alertlist` panel, whose empty result is valid). A query issue on a panel or variable the parent version lists in `unverified` may be kept instead of failing the save; see `POST /dashboards/{id}/versions`. */
+            /** @description Spec parsing adds schema and semantic codes such as `schema`, `too_large`, `unknown_unit`, `duplicate_panel_id`, `unknown_variable`, `too_many_panels` (more than 200 panels counting row children), `duplicate_query_ref`, `unknown_query_ref` (an override or an expression names a query ref the panel does not have), `threshold_value_missing` (a threshold other than the first omits its value), `duplicate_element_id` (a canvas panel repeats an element id, path `/panels/{i}/display/elements/{k}/id`) and `unknown_element` (a canvas connection names no element, path `/panels/{i}/display/connections/{k}/from` or `/to`). A `timezone` the server cannot load is `unknown_timezone` (path `/timezone`). Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`), `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/{j}/query`, with `/panels/{i}/panels/{j}` for a row child), and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty`, `expression_error` and `internal` (paths `/panels/{i}/queries/{j}/query`, `/panels/{i}/queries/{j}/expression` for an expression query, `/panels/{i}/datasource` and `/panels/{i}/queries/{j}/datasource`; `query_empty` is reported once for the panel at `/panels/{i}/queries`, and never for an `alertlist` panel, whose empty result is valid). A query issue on a panel or variable the parent version lists in `unverified` may be kept instead of failing the save; see `POST /dashboards/{id}/versions`. */
             code: string;
             message: string;
         };
@@ -3854,7 +3854,7 @@ export interface operations {
                     "application/json": components["schemas"]["PanelDataError"];
                 };
             };
-            /** @description A query or a variable cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB), `unknown_datasource` or `variable_empty`. */
+            /** @description A query or a variable cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB), `unknown_datasource`, `variable_empty` or `expression_error` (an expression query failed or one of its inputs did). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4046,7 +4046,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The draft fails Spec validation (`invalid_spec` with `issues`), or one of its queries or variables cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB), `unknown_datasource`, `variable_failed` or `variable_empty`, with the failing query's `ref` when one query failed. */
+            /** @description The draft fails Spec validation (`invalid_spec` with `issues`), or one of its queries or variables cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB), `unknown_datasource`, `variable_failed`, `variable_empty` or `expression_error` (an expression query failed or one of its inputs did), with the failing query's `ref` when one query failed. */
             422: {
                 headers: {
                     [name: string]: unknown;
