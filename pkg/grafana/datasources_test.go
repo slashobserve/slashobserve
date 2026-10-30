@@ -92,7 +92,7 @@ func TestVariableOnlyDefaultDatasourceTakesTheDashboardsOnlyKind(t *testing.T) {
 	if s := sourceNamed(t, both, "default"); s.Kind != nil {
 		t.Fatalf("default source = %+v, want no kind with two kinds in use", s)
 	}
-	if v := variableNamed(t, both, "job"); v.Type != spec.CustomVariable || !slices.Equal(v.Options, []string{"a"}) {
+	if v := variableNamed(t, both, "job"); v.Type != spec.CustomVariable || !slices.Equal(v.Options, spec.PlainOptions("a")) {
 		t.Fatalf("variable = %+v, want the saved values as a custom variable", v)
 	}
 }

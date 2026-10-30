@@ -56,13 +56,13 @@ func CompileVariableRegex(s string) (*VariableRegex, error) {
 	return &VariableRegex{Regexp: re, Global: global}, nil
 }
 
-func ApplyVariableRegex(re *VariableRegex, values []string) []string {
-	out := make([]string, 0, len(values))
+func ApplyVariableRegex(re *VariableRegex, values []string) []VariableOption {
+	out := make([]VariableOption, 0, len(values))
 	seen := make(map[string]bool, len(values))
-	add := func(value string) {
-		if !seen[value] {
-			seen[value] = true
-			out = append(out, value)
+	add := func(option VariableOption) {
+		if !seen[option.Value] {
+			seen[option.Value] = true
+			out = append(out, option)
 		}
 	}
 	limit := 1
@@ -74,17 +74,17 @@ func ApplyVariableRegex(re *VariableRegex, values []string) []string {
 		if len(matches) == 0 {
 			continue
 		}
-		if picked, ok := namedGroup(re, value, matches); ok {
-			add(picked)
+		if option, ok := namedGroups(re, value, matches); ok {
+			add(option)
 			continue
 		}
 		if re.NumSubexp() == 0 {
-			add(value)
+			add(PlainOption(value))
 			continue
 		}
 		for _, match := range matches {
 			if picked, ok := capture(value, match, 1); ok {
-				add(picked)
+				add(PlainOption(picked))
 			}
 		}
 	}
@@ -92,6 +92,9 @@ func ApplyVariableRegex(re *VariableRegex, values []string) []string {
 }
 
 func capture(value string, match []int, group int) (string, bool) {
+	if group < 0 {
+		return "", false
+	}
 	start, end := match[2*group], match[2*group+1]
 	if start < 0 {
 		return "", false
@@ -99,55 +102,63 @@ func capture(value string, match []int, group int) (string, bool) {
 	return value[start:end], true
 }
 
-func namedGroup(re *VariableRegex, value string, matches [][]int) (string, bool) {
-	for _, name := range []string{"value", "text"} {
-		at := re.SubexpIndex(name)
-		if at < 0 {
-			continue
-		}
-		for _, match := range matches {
-			if picked, ok := capture(value, match, at); ok && picked != "" {
-				return picked, true
-			}
+func namedGroups(re *VariableRegex, value string, matches [][]int) (VariableOption, bool) {
+	textAt, valueAt := re.SubexpIndex("text"), re.SubexpIndex("value")
+	for _, match := range matches {
+		text, hasText := capture(value, match, textAt)
+		picked, hasValue := capture(value, match, valueAt)
+		hasText, hasValue = hasText && text != "", hasValue && picked != ""
+		switch {
+		case hasText && hasValue:
+			return VariableOption{Text: text, Value: picked}, true
+		case hasValue:
+			return PlainOption(picked), true
+		case hasText:
+			return VariableOption{Text: text, Value: value}, true
 		}
 	}
-	return "", false
+	return VariableOption{}, false
 }
 
-func SortVariableValues(values []string, order string) []string {
-	out := slices.Clone(values)
+func SortVariableOptions(options []VariableOption, order string) []VariableOption {
+	out := slices.Clone(options)
+	by := func(compare func(a, b string) int) {
+		slices.SortStableFunc(out, func(a, b VariableOption) int { return compare(a.Text, b.Text) })
+	}
 	switch order {
 	case "alpha":
-		slices.SortStableFunc(out, compareUTF16)
+		by(compareUTF16)
 	case "alphaDesc":
-		slices.SortStableFunc(out, func(a, b string) int { return compareUTF16(b, a) })
+		by(func(a, b string) int { return compareUTF16(b, a) })
 	case "alphaCaseInsensitive":
-		slices.SortStableFunc(out, compareFolded)
+		by(compareFolded)
 	case "alphaCaseInsensitiveDesc":
-		slices.SortStableFunc(out, func(a, b string) int { return compareFolded(b, a) })
+		by(func(a, b string) int { return compareFolded(b, a) })
 	case "natural":
-		slices.SortStableFunc(out, compareNatural)
+		by(compareNatural)
 	case "naturalDesc":
-		slices.SortStableFunc(out, func(a, b string) int { return compareNatural(b, a) })
+		by(func(a, b string) int { return compareNatural(b, a) })
 	case "num", "numDesc":
-		slices.SortStableFunc(out, func(a, b string) int {
-			na, oka := leadingNumber(a)
-			nb, okb := leadingNumber(b)
-			switch {
-			case oka && okb:
-				return cmp.Compare(na, nb)
-			case oka:
-				return 1
-			case okb:
-				return -1
-			}
-			return 0
-		})
+		by(compareLeadingNumber)
 		if order == "numDesc" {
 			slices.Reverse(out)
 		}
 	}
 	return out
+}
+
+func compareLeadingNumber(a, b string) int {
+	na, oka := leadingNumber(a)
+	nb, okb := leadingNumber(b)
+	switch {
+	case oka && okb:
+		return cmp.Compare(na, nb)
+	case oka:
+		return 1
+	case okb:
+		return -1
+	}
+	return 0
 }
 
 func compareFolded(a, b string) int {

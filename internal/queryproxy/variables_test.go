@@ -257,7 +257,7 @@ func TestVariableValues(t *testing.T) {
 			fake.onVariable = answer(tt.answers...)
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 			d := dashboardOf(nil, queryVariable("v", "prom", "label_values(job)"))
-			got, truncated, err := runner.VariableValues(t.Context(), d, "v", testRange(), nil, datasource.QueryUser{})
+			got, truncated, err := valueStrings(runner.VariableValues(t.Context(), d, "v", testRange(), nil, datasource.QueryUser{}))
 			if err != nil {
 				t.Fatalf("VariableValues: %v", err)
 			}
@@ -271,6 +271,33 @@ func TestVariableValues(t *testing.T) {
 	}
 }
 
+func TestVariableValuesKeepTextAndValueFromTheRegexAndSortByText(t *testing.T) {
+	fake := newFake("prometheus")
+	fake.onVariable = answer("web-1", "api-2", "db-3", "skip")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	v := queryVariable("v", "prom", "label_values(job)")
+	v.Regex = "/^(?<text>[a-z]+)-(?<value>\\d+)$/"
+	v.Sort = "alpha"
+
+	got, truncated, err := runner.VariableValues(t.Context(), dashboardOf(nil, v), "v", testRange(), nil, datasource.QueryUser{})
+	want := []spec.VariableOption{{Text: "api", Value: "2"}, {Text: "db", Value: "3"}, {Text: "web", Value: "1"}}
+	if err != nil || truncated || !slices.Equal(got, want) {
+		t.Fatalf("got %+v truncated=%v err=%v, want %+v", got, truncated, err, want)
+	}
+}
+
+func TestSelectionsAreCheckedAgainstOptionValuesNotTexts(t *testing.T) {
+	v := spec.Variable{Name: "env", Type: spec.CustomVariable, Options: []spec.VariableOption{{Text: "Production", Value: "prod"}}}
+	runner := newTestRunner(t, discardLogger(), nil)
+	d := dashboardOf(nil, v, queryVariable("dep", "prom", "label_values(job)"))
+	for value, ok := range map[string]bool{"prod": true, "Production": false} {
+		_, _, err := runner.VariableValues(t.Context(), d, "dep", testRange(), map[string]Selection{"env": {Values: []string{value}}}, datasource.QueryUser{})
+		if gotOK := !errors.Is(err, ErrInvalidRequest); gotOK != ok {
+			t.Errorf("selection %q: err = %v, want accepted=%v", value, err, ok)
+		}
+	}
+}
+
 func TestVariableValuesCustomAndUnknown(t *testing.T) {
 	fake := newFake("prometheus")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
@@ -278,11 +305,11 @@ func TestVariableValuesCustomAndUnknown(t *testing.T) {
 	d := dashboardOf(nil, customVariable("env", options...))
 
 	got, truncated, err := runner.VariableValues(t.Context(), d, "env", testRange(), nil, datasource.QueryUser{})
-	if err != nil || truncated || !reflect.DeepEqual(got, options) {
+	if err != nil || truncated || !reflect.DeepEqual(spec.OptionValues(got), options) {
 		t.Fatalf("got %v truncated=%v err=%v", got, truncated, err)
 	}
-	got[0] = "mutated"
-	if d.Variables[0].Options[0] != "a" {
+	got[0].Value = "mutated"
+	if d.Variables[0].Options[0].Value != "a" {
 		t.Fatal("returned slice aliases the Spec options")
 	}
 	if fake.callCount() != 0 {
@@ -384,7 +411,7 @@ func TestVariableValuesUpstreamErrorAndPanic(t *testing.T) {
 	fake.onVariable = func(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) {
 		return []string{"partial"}, datasource.Errorf(datasource.ErrUnavailable, "down")
 	}
-	got, truncated, err := runner.VariableValues(t.Context(), d, "v", testRange(), nil, datasource.QueryUser{})
+	got, truncated, err := valueStrings(runner.VariableValues(t.Context(), d, "v", testRange(), nil, datasource.QueryUser{}))
 	if !errors.Is(err, datasource.ErrUnavailable) || got != nil || truncated {
 		t.Fatalf("got %v truncated=%v err=%v", got, truncated, err)
 	}
@@ -803,7 +830,7 @@ func constantVariable(name, value string) spec.Variable {
 }
 
 func intervalVariable(name string, options ...string) spec.Variable {
-	return spec.Variable{Name: name, Type: spec.IntervalVariable, Options: options}
+	return spec.Variable{Name: name, Type: spec.IntervalVariable, Options: spec.PlainOptions(options...)}
 }
 
 func textboxVariable(name string) spec.Variable {
@@ -880,7 +907,7 @@ func TestNewVariableTypeValuesAndDefaults(t *testing.T) {
 					t.Fatalf("VariableValues err = %v, want invalid request: no value list", err)
 				}
 			} else if tt.wantValues != nil {
-				got, _, err := runner.VariableValues(t.Context(), d, tt.variable.Name, testRange(), nil, datasource.QueryUser{})
+				got, _, err := valueStrings(runner.VariableValues(t.Context(), d, tt.variable.Name, testRange(), nil, datasource.QueryUser{}))
 				if err != nil || !reflect.DeepEqual(got, tt.wantValues) {
 					t.Fatalf("VariableValues = %q, %v, want %q", got, err, tt.wantValues)
 				}
@@ -1007,7 +1034,7 @@ func TestQueryVariableRegexAndSort(t *testing.T) {
 			v := queryVariable("v", "prom", "label_values(job)")
 			v.Regex, v.Sort = tt.regex, tt.sort
 			d := dashboardOf(nil, v)
-			got, _, err := runner.VariableValues(t.Context(), d, "v", testRange(), nil, datasource.QueryUser{})
+			got, _, err := valueStrings(runner.VariableValues(t.Context(), d, "v", testRange(), nil, datasource.QueryUser{}))
 			if err != nil || !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("VariableValues = %q, %v, want %q", got, err, tt.want)
 			}
@@ -1042,7 +1069,7 @@ func TestQueryVariableRegexAndSort(t *testing.T) {
 		plain := queryVariable("b", "prom", "label_values(job)")
 		d := dashboardOf(nil, filtered, plain)
 		for name, want := range map[string][]string{"a": {"web-1"}, "b": {"web-1", "api-1"}} {
-			got, _, err := runner.VariableValues(t.Context(), d, name, testRange(), nil, datasource.QueryUser{})
+			got, _, err := valueStrings(runner.VariableValues(t.Context(), d, name, testRange(), nil, datasource.QueryUser{}))
 			if err != nil || !reflect.DeepEqual(got, want) {
 				t.Fatalf("VariableValues(%s) = %q, %v, want %q", name, got, err, want)
 			}
@@ -1283,7 +1310,7 @@ func TestVariableRegexInterpolatesEarlierVariables(t *testing.T) {
 			v := includeAllQuery("svc", "prom", "label_values(job)")
 			v.Regex = tt.regex
 			d := dashboardOf(nil, envOptions, v)
-			got, _, err := runner.VariableValues(t.Context(), d, "svc", testRange(), map[string]Selection{"env": tt.earlier}, datasource.QueryUser{})
+			got, _, err := valueStrings(runner.VariableValues(t.Context(), d, "svc", testRange(), map[string]Selection{"env": tt.earlier}, datasource.QueryUser{}))
 			if tt.wantErr != nil {
 				if !errors.Is(err, tt.wantErr) {
 					t.Fatalf("err = %v, want %v", err, tt.wantErr)
@@ -1328,11 +1355,11 @@ func TestDatasourceVariableRegexInterpolatesEarlierVariables(t *testing.T) {
 	ds.Regex = "/^$pick$/"
 	runner := newTypesRunner(t)
 	d := dashboardOf(nil, pick, ds)
-	values, _, err := runner.VariableValues(t.Context(), d, "ds", testRange(), map[string]Selection{"pick": {Values: []string{"prom2"}}}, datasource.QueryUser{})
+	values, _, err := valueStrings(runner.VariableValues(t.Context(), d, "ds", testRange(), map[string]Selection{"pick": {Values: []string{"prom2"}}}, datasource.QueryUser{}))
 	if err != nil || !reflect.DeepEqual(values, []string{"prom2"}) {
 		t.Fatalf("VariableValues = %q, %v, want prom2", values, err)
 	}
-	values, _, err = runner.VariableValues(t.Context(), d, "ds", testRange(), map[string]Selection{"pick": {Values: []string{"pr.m"}}}, datasource.QueryUser{})
+	values, _, err = valueStrings(runner.VariableValues(t.Context(), d, "ds", testRange(), map[string]Selection{"pick": {Values: []string{"pr.m"}}}, datasource.QueryUser{}))
 	if err != nil || len(values) != 0 {
 		t.Fatalf("VariableValues = %q, %v, want nothing (pr.m is literal)", values, err)
 	}
@@ -1397,7 +1424,7 @@ func TestVariableRegexMatchesAnEarlierValueWithSlashesLiterally(t *testing.T) {
 	v.Regex = "$env"
 	d := dashboardOf(nil, customVariable("env", "/prom/", "/x/z"), v)
 	for pick, want := range map[string][]string{"/prom/": {"/prom/"}, "/x/z": {"/x/z"}} {
-		got, _, err := runner.VariableValues(t.Context(), d, "svc", testRange(), map[string]Selection{"env": {Values: []string{pick}}}, datasource.QueryUser{})
+		got, _, err := valueStrings(runner.VariableValues(t.Context(), d, "svc", testRange(), map[string]Selection{"env": {Values: []string{pick}}}, datasource.QueryUser{}))
 		if err != nil || !reflect.DeepEqual(got, want) {
 			t.Errorf("env=%q: VariableValues = %q, %v, want %q", pick, got, err, want)
 		}

@@ -1,0 +1,45 @@
+{
+  "specVersion": "0",
+  "title": "Custom options with display text",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "variables": [
+    {
+      "name": "env",
+      "type": "custom",
+      "options": [
+        {
+          "text": "Production",
+          "value": "prod"
+        },
+        {
+          "text": "Staging",
+          "value": "staging"
+        },
+        "dev"
+      ],
+      "default": "prod"
+    }
+  ],
+  "panels": [
+    {
+      "id": "p_up",
+      "type": "timeseries",
+      "title": "Up",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "sum by (pod) (up{env=\"$env\"})"
+        }
+      ]
+    }
+  ]
+}

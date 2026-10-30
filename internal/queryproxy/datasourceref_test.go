@@ -106,7 +106,7 @@ func TestQueryVariableOnADatasourceVariableCachesPerSelectedDatasource(t *testin
 	d := refDashboard(nil, queryVariable("q", "${ds}", "label_values(job)"))
 	for range 2 {
 		for uid, want := range map[string][]string{"prom": {"from-prom"}, "prom2": {"from-prom2"}} {
-			got, _, err := runner.VariableValues(t.Context(), d, "q", testRange(), map[string]Selection{"ds": {Values: []string{uid}}}, datasource.QueryUser{})
+			got, _, err := valueStrings(runner.VariableValues(t.Context(), d, "q", testRange(), map[string]Selection{"ds": {Values: []string{uid}}}, datasource.QueryUser{}))
 			if err != nil || !reflect.DeepEqual(got, want) {
 				t.Fatalf("VariableValues with ds=%s = %q, %v, want %q", uid, got, err, want)
 			}

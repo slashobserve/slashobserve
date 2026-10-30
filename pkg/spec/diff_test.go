@@ -174,7 +174,7 @@ func TestDiffDeterministic(t *testing.T) {
 		i, j := panelIndex(t, d, "cpu_by_pod"), panelIndex(t, d, "rps_by_route")
 		d.Panels[i], d.Panels[j] = d.Panels[j], d.Panels[i]
 		d.Panels[panelIndex(t, d, "slow_spans")].GridPos.W = 20
-		d.Variables[0].Options = []string{"checkout"}
+		d.Variables[0].Options = spec.PlainOptions("checkout")
 	})
 	first := marshalJSON(t, spec.Diff(diffBase(t), to))
 	if first == "[]" {
@@ -238,7 +238,7 @@ func TestDiffEscapesKeysInPointerPaths(t *testing.T) {
 	dashboard := func(vars ...spec.Variable) *spec.Dashboard {
 		return &spec.Dashboard{SpecVersion: spec.Version, Title: "t", Variables: vars, Panels: []spec.Panel{}}
 	}
-	v := spec.Variable{Name: name, Type: spec.CustomVariable, Options: []string{"x"}}
+	v := spec.Variable{Name: name, Type: spec.CustomVariable, Options: spec.PlainOptions("x")}
 	changed := v
 	changed.Label = "L"
 	cases := []struct {

@@ -1662,7 +1662,10 @@ export interface components {
             meta: components["schemas"]["DataMeta"];
         };
         VariableValues: {
+            /** @description The values a selection may hold. */
             values: string[];
+            /** @description The display text of each value, same length and order as values; present only when some text differs from its value. */
+            texts?: string[];
             truncated: boolean;
             /** @description True when the list was served from the proxy's response cache instead of running the query. */
             cached: boolean;

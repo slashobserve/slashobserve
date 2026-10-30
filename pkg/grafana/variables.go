@@ -360,26 +360,26 @@ func (c *converter) variableRegex(v *spec.Variable, raw map[string]any, path, su
 
 func (c *converter) fixedVariable(raw map[string]any, path, name string, ref dsRef) (spec.Variable, bool) {
 	subject := "variable " + name
-	var options []string
+	var saved []string
 	list, _ := asArray(raw["options"])
 	for _, item := range list {
 		if option, ok := asObject(item); ok {
 			if value, ok := option["value"].(string); ok {
-				options = append(options, value)
+				saved = append(saved, value)
 			}
 		}
 	}
-	if len(options) == 0 {
+	if len(saved) == 0 {
 		if current, ok := asObject(raw["current"]); ok {
 			switch value := current["value"].(type) {
 			case string:
-				options = []string{value}
+				saved = []string{value}
 			case []any:
-				options = stringList(value)
+				saved = stringList(value)
 			}
 		}
 	}
-	options = c.cleanOptions(options, subject, path)
+	options := c.cleanOptions(spec.PlainOptions(saved...), subject, path)
 	if len(options) == 0 {
 		c.dropVariable(subject, path, fmt.Sprintf("It queries %s, which is not supported yet, and it has no saved values to keep.", ref.label()))
 		return spec.Variable{}, false
@@ -387,21 +387,24 @@ func (c *converter) fixedVariable(raw map[string]any, path, name string, ref dsR
 	c.note(subject, fmt.Sprintf("It queries %s, which is not supported yet; its saved values are kept as a fixed list.", ref.label()), path+".datasource")
 	v := spec.Variable{Type: spec.CustomVariable, Options: options}
 	c.listFlags(&v, raw, path, subject)
-	v.Default = c.variableDefault(raw, path, subject, &v, options)
+	v.Default = c.variableDefault(raw, path, subject, &v, spec.OptionValues(options))
 	return v, true
 }
 
-func (c *converter) cleanOptions(values []string, subject, path string) []string {
-	out := make([]string, 0, len(values))
+func (c *converter) cleanOptions(options []spec.VariableOption, subject, path string) []spec.VariableOption {
+	out := make([]spec.VariableOption, 0, len(options))
+	seen := map[string]bool{}
 	dropped := false
-	for _, value := range values {
-		_, tooLong := cutRunes(value, 200)
+	for _, option := range options {
+		_, valueTooLong := cutRunes(option.Value, 200)
+		_, textTooLong := cutRunes(option.Text, 200)
 		switch {
-		case value == spec.SelectAll:
-		case value == "" || tooLong:
+		case option.Value == spec.SelectAll:
+		case option.Value == "" || option.Text == "" || valueTooLong || textTooLong:
 			dropped = true
-		case !slices.Contains(out, value):
-			out = append(out, value)
+		case !seen[option.Value]:
+			seen[option.Value] = true
+			out = append(out, option)
 		}
 	}
 	if len(out) > maxVariableOptions {
@@ -435,33 +438,32 @@ func splitCustom(query string) []string {
 
 func (c *converter) customVariable(raw map[string]any, path, name string) (spec.Variable, bool) {
 	subject := "variable " + name
-	var options []string
+	var options []spec.VariableOption
 	paired := false
 	for _, part := range splitCustom(asString(raw["query"])) {
 		part = strings.TrimSpace(part)
+		option := spec.PlainOption(part)
 		if m := customPair.FindStringSubmatch(part); m != nil {
-			part = strings.TrimSpace(m[2])
+			option = spec.VariableOption{Text: strings.TrimSpace(m[1]), Value: strings.TrimSpace(m[2])}
 			paired = true
 		}
-		if part != "" {
-			options = append(options, part)
+		if option.Value != "" {
+			options = append(options, option)
 		}
-	}
-	if paired {
-		c.note(subject, "Options written as text : value keep the value; the text is not shown.", path+".query")
 	}
 	options = c.cleanOptions(options, subject, path)
 	if len(options) == 0 {
 		c.dropVariable(subject, path+".query", "It has no options.")
 		return spec.Variable{}, false
 	}
-	if !paired && c.promotesToInterval(raw, name, options) {
+	values := spec.OptionValues(options)
+	if !paired && c.promotesToInterval(raw, name, values) {
 		c.note(subject, "Imported as an interval variable because queries use it as their min step.", path+".type")
-		return spec.Variable{Type: spec.IntervalVariable, Options: options, Default: intervalDefault(raw, options)}, true
+		return spec.Variable{Type: spec.IntervalVariable, Options: options, Default: intervalDefault(raw, values)}, true
 	}
 	v := spec.Variable{Type: spec.CustomVariable, Options: options}
 	c.listFlags(&v, raw, path, subject)
-	v.Default = c.variableDefault(raw, path, subject, &v, options)
+	v.Default = c.variableDefault(raw, path, subject, &v, values)
 	return v, true
 }
 
@@ -551,7 +553,7 @@ func (c *converter) intervalVariable(raw map[string]any, path, name string) (spe
 		c.dropVariable(subject, path+".query", "It has no valid intervals.")
 		return spec.Variable{}, false
 	}
-	v := spec.Variable{Type: spec.IntervalVariable, Options: options, Auto: truthy(raw["auto"])}
+	v := spec.Variable{Type: spec.IntervalVariable, Options: spec.PlainOptions(options...), Auto: truthy(raw["auto"])}
 	if steps, ok := asInt(raw["auto_count"]); ok && steps >= 1 && steps <= 1000 && v.Auto {
 		v.AutoSteps = steps
 	}

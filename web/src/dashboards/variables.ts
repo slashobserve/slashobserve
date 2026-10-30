@@ -50,7 +50,11 @@ export function parentKeyOf(selections: Selections): string {
 function localDisplay(variable: Variable): VariableDisplay | undefined {
   switch (variable.type) {
     case "custom":
-      return readyDisplay(variable.options)
+      return readyDisplay(
+        variable.options.map((option) =>
+          typeof option === "string" ? option : option.value
+        )
+      )
     case "interval":
       return readyDisplay(intervalOptions(variable))
     case "constant":

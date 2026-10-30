@@ -692,7 +692,13 @@ export interface CustomVariable {
    * @minItems 1
    * @maxItems 200
    */
-  options: string[];
+  options: (
+    | string
+    | {
+        text: string;
+        value: string;
+      }
+  )[];
   allowCustomValue?: boolean;
   multi?: boolean;
   includeAll?: boolean;
