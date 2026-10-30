@@ -26,6 +26,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -256,7 +257,7 @@ func (f *fakeAccess) RequireDashboard(n folders.Need) gin.HandlerFunc {
 		}
 		access, err := f.Dashboard(c.Request.Context(), auth.Principal{}, id)
 		if err != nil || !access.Abilities.Has(n) {
-			httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "your role does not allow this")
+			httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
 			return
 		}
 		c.Next()

@@ -4,12 +4,14 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 )
 
 func RequireRole(floor Role) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if p, ok := FromContext(c.Request.Context()); !ok || !p.Role.AtLeast(floor) {
-			abortError(c, http.StatusForbidden, "forbidden_role", "your role does not allow this")
+			abortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
 			return
 		}
 		c.Next()

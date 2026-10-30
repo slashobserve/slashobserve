@@ -328,6 +328,32 @@ func TestImportShowsTheFolderNote(t *testing.T) {
 	}
 }
 
+func TestQuietImportHidesTheFolderLineButKeepsTheFolderNote(t *testing.T) {
+	tests := []struct {
+		name  string
+		reply string
+		want  string
+	}{
+		{"no note", importedReply, ""},
+		{"a note", fallbackReply, "Folder \"Secret\" is not available to you, so the dashboard went to \"General\".\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &importServer{reply: tt.reply}
+			code, stdout, stderr := runImportCommand(t, s, "-q", "--folder", "Secret")
+			if code != 0 {
+				t.Fatalf("exit %d: %s", code, stderr)
+			}
+			if stderr != tt.want {
+				t.Fatalf("stderr = %q, want %q", stderr, tt.want)
+			}
+			if !strings.HasSuffix(strings.TrimSpace(stdout), "/dashboards/d1") {
+				t.Fatalf("stdout = %q, want the dashboard address", stdout)
+			}
+		})
+	}
+}
+
 func TestImportWithoutAFolderFlagSendsNoFolder(t *testing.T) {
 	s := &importServer{reply: importedReply}
 	if code, _, stderr := runImportCommand(t, s); code != 0 || strings.Contains(s.posted, "folder") {

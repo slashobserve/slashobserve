@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 )
 
 func routesEngine(role Role, withPrincipal bool) (Routes, *gin.Engine) {
@@ -46,7 +48,7 @@ func TestRoutesAllowEveryRoleAtOrAboveTheFloor(t *testing.T) {
 				if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 					t.Fatalf("decode body: %v", err)
 				}
-				if body["code"] != "forbidden_role" || body["error"] != "your role does not allow this" {
+				if body["code"] != forbidden.Code || body["error"] != forbidden.RoleMessage {
 					t.Errorf("%s on a %s route: body %v", have, floor, body)
 				}
 			}

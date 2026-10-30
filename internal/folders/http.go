@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
@@ -106,7 +107,7 @@ func (h *Handler) list(c *gin.Context) {
 	ctx := c.Request.Context()
 	levels, err := h.access.Levels(ctx, httpapi.Caller(c))
 	if errors.Is(err, ErrForbidden) {
-		httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "your role does not allow this")
+		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
 		return
 	}
 	if err != nil {
@@ -148,7 +149,7 @@ func (h *Handler) create(c *gin.Context) {
 	caller := httpapi.Caller(c)
 	callerID, err := db.ParseUUID(caller.ID)
 	if err != nil {
-		httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "your role does not allow this")
+		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
 		return
 	}
 	row, err := h.db.Queries().CreateFolder(ctx, dbsqlc.CreateFolderParams{

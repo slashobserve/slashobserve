@@ -33,6 +33,7 @@ It prints progress and then the dashboard address.
 `bin/observe dashboards list` lists dashboards, and `bin/observe --help` shows the rest.
 `bin/observe import dashboard.json` imports a Grafana dashboard and prints its address; `--map '<grafana>=<uid>'` picks our datasource for a Grafana one, `--folder <title>` chooses the folder (see [Import Grafana dashboards](import-grafana.md)) and `--preview` shows the report without saving.
 The import report, the `Folder:` line and the folder note, if any, go to standard error, so standard output stays the address.
+`-q` hides the report and the `Folder:` line, but the folder note always prints, because it says the folder you asked for was not used.
 To import a directory of exports into one folder:
 
 ```sh
@@ -61,8 +62,11 @@ The CLI reads its settings in this order: flags, the environment, then the saved
 | Server  | `--server` | `OBSERVE_SERVER`     |
 | Key     | `--token`  | `OBSERVE_TOKEN`      |
 
-A refusal with the code `forbidden_role` prints a hint that an Admin can change the key's role on the API keys page.
-The same code also covers a dashboard or folder the key cannot see or change, so check the folder access before the role.
+A refusal with the code `forbidden_role` comes in two kinds, and the CLI prints a hint for each.
+When the message is "your role does not allow this", the hint says an Admin can change the key's role on the API keys page.
+When the message is "you do not have access to this dashboard", the key cannot see that dashboard or its folder.
+The hint then says that a folder Admin or an instance Admin decides who sees a folder, but that a key matches no access list entry, because entries name people and groups.
+Use a key of an Admin service account or of the service account that created the folder, as described in [Folders](../teams/folders.md).
 
 A saved key is sent only to the server it was saved for.
 To use another server, pass `--token` or set `OBSERVE_TOKEN`.
