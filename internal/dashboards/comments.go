@@ -198,11 +198,18 @@ func (cm *Comments) Create(ctx context.Context, by auth.Principal, dashboardID p
 		return err
 	})
 	if err != nil {
-		return Comment{}, err
+		return Comment{}, dashboardGone(err)
 	}
 	comment := commentFromRow(row, threadStatus, latestPanels)
 	comment.Revision = requested
 	return comment, nil
+}
+
+func dashboardGone(err error) error {
+	if db.IsForeignKeyViolation(err) {
+		return ErrNotFound
+	}
+	return err
 }
 
 func (cm *Comments) threadRoot(ctx context.Context, dashboardID, commentID pgtype.UUID) (dbsqlc.DashboardComment, error) {

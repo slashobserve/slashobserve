@@ -7,6 +7,8 @@ const (
 	TypeCommentCreated = "comment.created"
 	TypeCommentUpdated = "comment.updated"
 
+	TypeDashboardDeleted = "dashboard.deleted"
+
 	TypeRevisionUpdated = "revision.updated"
 )
 

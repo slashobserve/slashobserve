@@ -8,6 +8,7 @@ Choose **Activity** at the top right of a dashboard to open it; the button shows
 
 Versions are immutable and linear.
 Each save adds the next version number, and nothing edits or deletes an earlier one.
+Deleting the dashboard deletes its versions, comments, agent requests and import record with it, for everyone, and cannot be undone.
 
 ## The activity timeline
 

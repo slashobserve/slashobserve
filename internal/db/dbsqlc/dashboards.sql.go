@@ -193,6 +193,24 @@ func (q *Queries) CreateDashboard(ctx context.Context, arg CreateDashboardParams
 	return i, err
 }
 
+const deleteDashboard = `-- name: DeleteDashboard :execrows
+DELETE FROM dashboards d
+WHERE d.id = $1
+  AND NOT EXISTS (
+    SELECT 1 FROM dashboard_versions v
+    JOIN agent_requests r ON r.id = v.agent_request_id
+    WHERE v.dashboard_id = d.id AND r.source = 'observe' AND r.status IN ('queued', 'running')
+  )
+`
+
+func (q *Queries) DeleteDashboard(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteDashboard, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getDashboard = `-- name: GetDashboard :one
 SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client, v.datasource_uids, v.unverified, f.title AS folder_title, f.general AS folder_general
 FROM dashboards d

@@ -56,6 +56,7 @@ Over the API, `GET /api/v1/dashboards/{id}/diff?from=&to=` returns the same chan
 
 **Restore** on any version except the latest asks for confirmation and then saves a copy of that version as a new latest version, marked "Restored from v3".
 Nothing is deleted, so the versions in between stay in the history, and you can restore again to go back.
+Deleting the dashboard is the only way versions go away: it deletes every version with it.
 The summary defaults to "Restore version 3".
 
 A restore checks the document and that its datasources are still configured, but it does not run the queries again.

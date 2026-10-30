@@ -172,6 +172,40 @@ func (st store) move(ctx context.Context, id, folderID pgtype.UUID) error {
 	return nil
 }
 
+func deletedEventPayload(dashboardID pgtype.UUID, by Author) ([]byte, error) {
+	return json.Marshal(events.Event{
+		Type:        events.TypeDashboardDeleted,
+		DashboardID: dashboardID.String(),
+		Author:      &events.Author{Kind: by.Kind, ID: by.ID, Name: capEventAuthorName(by.Name)},
+	})
+}
+
+func (st store) delete(ctx context.Context, id pgtype.UUID, by Author) error {
+	return st.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		n, err := q.DeleteDashboard(ctx, id)
+		if err != nil {
+			return fmt.Errorf("delete dashboard: %w", err)
+		}
+		if n == 0 {
+			if _, err := q.GetDashboardLatestVersion(ctx, id); err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					return ErrNotFound
+				}
+				return fmt.Errorf("get latest version: %w", err)
+			}
+			return ErrBeingCreated
+		}
+		payload, err := deletedEventPayload(id, by)
+		if err != nil {
+			return fmt.Errorf("marshal event: %w", err)
+		}
+		if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: events.Channel, Payload: string(payload)}); err != nil {
+			return fmt.Errorf("notify event: %w", err)
+		}
+		return nil
+	})
+}
+
 func (st store) addVersion(ctx context.Context, in newVersion) (Dashboard, Version, error) {
 	var dash Dashboard
 	var ver Version
