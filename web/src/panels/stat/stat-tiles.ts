@@ -14,6 +14,7 @@ import type { Link, Reducer } from "@/spec"
 type ColorMode = "value" | "background" | "none"
 type TextMode = "value" | "name" | "valueAndName" | "none"
 type Orientation = "auto" | "horizontal" | "vertical"
+type PercentChangeColor = "standard" | "inverted" | "value"
 
 export type StatDisplay = {
   reduce: Reducer
@@ -24,6 +25,21 @@ export type StatDisplay = {
   allValues?: boolean
   limit?: number
   fields?: string
+  justify?: "auto" | "center"
+  titleSize?: number
+  valueSize?: number
+  percentChange?: boolean
+  percentChangeColor?: PercentChangeColor
+  wideLayout?: boolean
+}
+
+export type ChangeDirection = "up" | "down" | "flat"
+export type ChangeTone = "ok" | "critical" | "value" | "none"
+
+export type PercentChange = {
+  direction: ChangeDirection
+  text: string
+  word: "up" | "down" | "unchanged"
 }
 
 export type StatTile = {
@@ -39,7 +55,35 @@ export type StatTile = {
   color: string | null
   threshold: ThresholdState
   points: [number, number][]
+  change: PercentChange | null
   links: Link[]
+}
+
+export function percentChange(
+  points: readonly [number, number][]
+): PercentChange | null {
+  if (points.length < 2) return null
+  const first = points[0][1]
+  const last = points[points.length - 1][1]
+  if (first === 0) return null
+  const percent = ((last - first) / Math.abs(first)) * 100
+  const magnitude = Math.abs(percent)
+  const rounded = Number(magnitude.toFixed(magnitude < 10 ? 1 : 0))
+  if (rounded === 0) {
+    return { direction: "flat", text: "0%", word: "unchanged" }
+  }
+  const direction = percent > 0 ? "up" : "down"
+  return { direction, text: `${rounded}%`, word: direction }
+}
+
+export function changeTone(
+  direction: ChangeDirection,
+  mode: PercentChangeColor
+): ChangeTone {
+  if (direction === "flat") return "none"
+  if (mode === "value") return "value"
+  const rising = direction === "up"
+  return rising === (mode === "standard") ? "ok" : "critical"
 }
 
 function amountAndUnit(
@@ -89,6 +133,7 @@ export function statTiles(
     ({ key, label, frame, field, config, value, raw, row }) => {
       const seriesName = fields.seriesName(frame, field)
       const range = fieldRange(field)
+      const points = row === undefined ? sparkline(frame, field) : []
       const shown = displayValue(raw, config, {
         decimals,
         fieldMin: range.min,
@@ -105,7 +150,8 @@ export function statTiles(
         ...amountAndUnit(shown, config.unit, config.decimals ?? decimals),
         color: shown.color,
         threshold: shown.threshold,
-        points: row === undefined ? sparkline(frame, field) : [],
+        points,
+        change: percentChange(points),
         links: config.links,
       }
     }

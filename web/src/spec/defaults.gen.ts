@@ -48,7 +48,10 @@ export const specDefaults = {
       "limit": 5000,
       "colorMode": "value",
       "graph": true,
-      "orientation": "auto"
+      "orientation": "auto",
+      "justify": "auto",
+      "percentChange": false,
+      "percentChangeColor": "standard"
     },
     "gauge": {
       "reduce": "lastNotNull",

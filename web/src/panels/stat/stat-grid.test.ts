@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { tilesAcross } from "./stat-grid"
+import { isWideTile, tileSize, tilesAcross } from "./stat-grid"
 
 describe("tilesAcross", () => {
   it("fits as many 120px tiles as the width allows when the height is plentiful", () => {
@@ -36,5 +36,34 @@ describe("tilesAcross", () => {
   it("keeps a horizontal row and a vertical column as the orientation says", () => {
     expect(tilesAcross("horizontal", 362, 109, 5)).toBe(5)
     expect(tilesAcross("vertical", 1200, 400, 5)).toBe(1)
+  })
+})
+
+describe("tileSize", () => {
+  it("splits the width and height across the gaps", () => {
+    expect(tileSize(408, 200, 2, 4)).toEqual({ width: 200, height: 96 })
+    expect(tileSize(300, 100, 1, 1)).toEqual({ width: 300, height: 100 })
+  })
+
+  it("counts a partly filled last row", () => {
+    expect(tileSize(300, 208, 3, 4)).toEqual({
+      width: 94.66666666666667,
+      height: 100,
+    })
+  })
+})
+
+describe("isWideTile", () => {
+  it("needs the layout switched on", () => {
+    expect(isWideTile(undefined, { width: 400, height: 80 })).toBe(false)
+    expect(isWideTile(false, { width: 400, height: 80 })).toBe(false)
+    expect(isWideTile(true, { width: 400, height: 80 })).toBe(true)
+  })
+
+  it("needs a tile at least twice as wide as tall and 200px wide", () => {
+    expect(isWideTile(true, { width: 400, height: 201 })).toBe(false)
+    expect(isWideTile(true, { width: 400, height: 200 })).toBe(true)
+    expect(isWideTile(true, { width: 199, height: 40 })).toBe(false)
+    expect(isWideTile(true, { width: 200, height: 40 })).toBe(true)
   })
 })

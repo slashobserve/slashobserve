@@ -2031,6 +2031,39 @@
                       "horizontal",
                       "vertical"
                     ]
+                  },
+                  "justify": {
+                    "enum": [
+                      "auto",
+                      "center"
+                    ]
+                  },
+                  "titleSize": {
+                    "type": "integer",
+                    "minimum": 6,
+                    "maximum": 200,
+                    "x-omitFromPrompt": true
+                  },
+                  "valueSize": {
+                    "type": "integer",
+                    "minimum": 6,
+                    "maximum": 200,
+                    "x-omitFromPrompt": true
+                  },
+                  "percentChange": {
+                    "type": "boolean"
+                  },
+                  "percentChangeColor": {
+                    "enum": [
+                      "standard",
+                      "inverted",
+                      "value"
+                    ],
+                    "x-omitFromPrompt": true
+                  },
+                  "wideLayout": {
+                    "type": "boolean",
+                    "x-omitFromPrompt": true
                   }
                 }
               }

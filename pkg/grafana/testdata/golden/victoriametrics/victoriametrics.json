@@ -2073,7 +2073,8 @@
             ],
             "maxDataPoints": 100,
             "display": {
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           },
           {
@@ -2102,7 +2103,8 @@
             ],
             "maxDataPoints": 100,
             "display": {
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           },
           {
@@ -2131,7 +2133,8 @@
             ],
             "maxDataPoints": 100,
             "display": {
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           },
           {
@@ -2160,7 +2163,8 @@
             ],
             "maxDataPoints": 100,
             "display": {
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           },
           {
@@ -2189,7 +2193,8 @@
             ],
             "maxDataPoints": 100,
             "display": {
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           },
           {
@@ -2218,7 +2223,8 @@
             ],
             "maxDataPoints": 100,
             "display": {
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           },
           {
@@ -2247,7 +2253,8 @@
             ],
             "maxDataPoints": 100,
             "display": {
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           },
           {
@@ -2276,7 +2283,8 @@
             ],
             "maxDataPoints": 100,
             "display": {
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           },
           {

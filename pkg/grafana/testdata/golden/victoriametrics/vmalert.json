@@ -1133,7 +1133,8 @@
               }
             ],
             "display": {
-              "reduce": "last"
+              "reduce": "last",
+              "wideLayout": true
             }
           },
           {
@@ -1160,7 +1161,8 @@
               }
             ],
             "display": {
-              "reduce": "last"
+              "reduce": "last",
+              "wideLayout": true
             }
           },
           {
@@ -1187,7 +1189,8 @@
               }
             ],
             "display": {
-              "reduce": "last"
+              "reduce": "last",
+              "wideLayout": true
             }
           },
           {
@@ -1218,7 +1221,8 @@
               }
             ],
             "display": {
-              "reduce": "last"
+              "reduce": "last",
+              "wideLayout": true
             }
           },
           {
@@ -1255,7 +1259,8 @@
               }
             ],
             "display": {
-              "reduce": "last"
+              "reduce": "last",
+              "wideLayout": true
             }
           },
           {

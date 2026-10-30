@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 7,
-      "imported": 0,
-      "partial": 7,
+      "imported": 4,
+      "partial": 3,
       "placeholder": 0,
       "unverified": 0
     },
@@ -69,13 +69,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.text.valueSize"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -94,13 +90,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.text.valueSize"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -119,13 +111,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.text.valueSize"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -144,13 +132,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.text.valueSize"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -363,7 +347,9 @@
         "display": {
           "reduce": "last",
           "colorMode": "none",
-          "graph": false
+          "graph": false,
+          "valueSize": 80,
+          "wideLayout": true
         }
       },
       {
@@ -390,7 +376,9 @@
           }
         ],
         "display": {
-          "reduce": "last"
+          "reduce": "last",
+          "valueSize": 80,
+          "wideLayout": true
         }
       },
       {
@@ -417,7 +405,9 @@
           }
         ],
         "display": {
-          "reduce": "last"
+          "reduce": "last",
+          "valueSize": 80,
+          "wideLayout": true
         }
       },
       {
@@ -444,7 +434,9 @@
           }
         ],
         "display": {
-          "reduce": "last"
+          "reduce": "last",
+          "valueSize": 80,
+          "wideLayout": true
         }
       },
       {

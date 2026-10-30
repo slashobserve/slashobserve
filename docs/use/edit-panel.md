@@ -85,6 +85,7 @@ The settings column has:
   A series hidden from the legend is still drawn.
   For Stat, Gauge, Bar gauge and Pie chart panels, **Calculation** picks how each field is reduced to one value.
   **Show every value** shows one value per row instead, **Row limit** (1 to 5000) caps the rows shown per field, and **Fields** shows a field by name or by a pattern such as `/^cpu/` instead of every number field.
+  A Stat panel also has **Alignment** (Auto or Center), **Title size** and **Value size** (pixels, empty for the default), **Show percent change** with its **Percent change color** (Standard, Inverted or Same as value, applied to the arrow only) and **Wide layout**, which puts the name beside the value on wide tiles.
 
 A text panel has a **Content** box instead of queries: Markdown up to 20000 characters, with "HTML is removed.".
 A dashboard list or news panel has only the title and its display options.

@@ -19,7 +19,13 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "colorMode",
     "graph",
     "textMode",
-    "orientation"
+    "orientation",
+    "justify",
+    "titleSize",
+    "valueSize",
+    "percentChange",
+    "percentChangeColor",
+    "wideLayout"
   ],
   "gauge": [
     "reduce",

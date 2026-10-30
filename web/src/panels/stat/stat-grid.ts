@@ -23,3 +23,29 @@ export function tilesAcross(
   )
   return Math.max(1, fitting, squeezed)
 }
+
+const wideTileMinWidth = 200
+
+export function tileSize(
+  width: number,
+  height: number,
+  across: number,
+  count: number
+): { width: number; height: number } {
+  const rows = Math.max(1, Math.ceil(count / across))
+  return {
+    width: (width - tileGap * (across - 1)) / across,
+    height: (height - tileGap * (rows - 1)) / rows,
+  }
+}
+
+export function isWideTile(
+  wideLayout: boolean | undefined,
+  size: { width: number; height: number }
+): boolean {
+  return (
+    wideLayout === true &&
+    size.width >= wideTileMinWidth &&
+    size.width >= size.height * 2
+  )
+}

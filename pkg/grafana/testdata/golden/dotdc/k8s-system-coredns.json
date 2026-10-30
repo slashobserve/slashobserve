@@ -585,7 +585,8 @@
           "colorMode": "background",
           "graph": false,
           "textMode": "valueAndName",
-          "orientation": "vertical"
+          "orientation": "vertical",
+          "wideLayout": true
         }
       },
       {

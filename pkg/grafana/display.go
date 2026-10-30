@@ -19,6 +19,8 @@ const (
 	maxBucketCount        = 1000
 	maxReduceRows         = 5000
 	maxReduceFieldsLength = 200
+	minStatTextSize       = 6
+	maxStatTextSize       = 200
 	legacyHeatmapV        = 37
 )
 
@@ -205,6 +207,43 @@ func displayStat(b *panelBuild) {
 		d.ColorMode = mode
 	}
 	b.statGraphAndText(d)
+	b.statLayout(d)
+	b.statPercentChange(d)
+}
+
+func (b *panelBuild) statLayout(d *spec.Display) {
+	if b.enumOption("options.justifyMode", "auto", "center") == "center" {
+		d.Justify = "center"
+	}
+	d.WideLayout, _ = b.boolOption("options.wideLayout")
+	d.TitleSize = b.statSizeOption("options.text.titleSize")
+	d.ValueSize = b.statSizeOption("options.text.valueSize")
+}
+
+func (b *panelBuild) statSizeOption(path string) int {
+	v, ok := b.value(path)
+	if !ok {
+		return 0
+	}
+	size, isInt := asInt(v)
+	if !isInt || size < minStatTextSize || size > maxStatTextSize {
+		b.partial(path, fmt.Sprintf("The text size must be a whole number from %d to %d.", minStatTextSize, maxStatTextSize))
+		return 0
+	}
+	b.consume(path)
+	return size
+}
+
+func (b *panelBuild) statPercentChange(d *spec.Display) {
+	if shown, ok := b.boolOption("options.showPercentChange"); ok && *shown {
+		d.PercentChange = shown
+	}
+	switch b.enumOption("options.percentChangeColorMode", "standard", "inverted", "same_as_value") {
+	case "inverted":
+		d.PercentChangeColor = "inverted"
+	case "same_as_value":
+		d.PercentChangeColor = "value"
+	}
 }
 
 func (b *panelBuild) statGraphAndText(d *spec.Display) {

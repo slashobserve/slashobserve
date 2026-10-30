@@ -684,7 +684,8 @@
             "display": {
               "fields": "/^version$/",
               "graph": false,
-              "textMode": "value"
+              "textMode": "value",
+              "wideLayout": true
             }
           },
           {
@@ -716,7 +717,8 @@
               }
             ],
             "display": {
-              "colorMode": "none"
+              "colorMode": "none",
+              "wideLayout": true
             }
           },
           {
@@ -747,7 +749,10 @@
                 "value": 80,
                 "color": "critical"
               }
-            ]
+            ],
+            "display": {
+              "wideLayout": true
+            }
           },
           {
             "id": "p39",
@@ -776,7 +781,10 @@
                 "value": 80,
                 "color": "critical"
               }
-            ]
+            ],
+            "display": {
+              "wideLayout": true
+            }
           },
           {
             "id": "p40",
@@ -805,7 +813,10 @@
                 "value": 80,
                 "color": "critical"
               }
-            ]
+            ],
+            "display": {
+              "wideLayout": true
+            }
           },
           {
             "id": "p41",
@@ -833,7 +844,10 @@
                 "value": 80,
                 "color": "critical"
               }
-            ]
+            ],
+            "display": {
+              "wideLayout": true
+            }
           },
           {
             "id": "p38",

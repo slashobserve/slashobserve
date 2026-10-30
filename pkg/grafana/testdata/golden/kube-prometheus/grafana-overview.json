@@ -231,7 +231,8 @@
         ],
         "noValue": "0",
         "display": {
-          "reduce": "mean"
+          "reduce": "mean",
+          "wideLayout": true
         }
       },
       {
@@ -261,7 +262,8 @@
           }
         ],
         "display": {
-          "reduce": "mean"
+          "reduce": "mean",
+          "wideLayout": true
         }
       },
       {

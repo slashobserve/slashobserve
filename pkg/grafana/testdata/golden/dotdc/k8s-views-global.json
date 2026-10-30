@@ -307,12 +307,10 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "options.justifyMode"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -1145,7 +1143,8 @@
             "display": {
               "reduce": "last",
               "graph": false,
-              "textMode": "value"
+              "textMode": "value",
+              "wideLayout": true
             }
           },
           {
@@ -1275,7 +1274,8 @@
             "display": {
               "reduce": "last",
               "graph": false,
-              "textMode": "value"
+              "textMode": "value",
+              "wideLayout": true
             }
           },
           {
@@ -1320,7 +1320,9 @@
             "noValue": "0",
             "display": {
               "colorMode": "none",
-              "graph": false
+              "graph": false,
+              "justify": "center",
+              "wideLayout": true
             }
           },
           {
@@ -1365,7 +1367,8 @@
             "noValue": "0",
             "display": {
               "colorMode": "none",
-              "graph": false
+              "graph": false,
+              "wideLayout": true
             }
           },
           {
@@ -1393,7 +1396,8 @@
             "display": {
               "reduce": "last",
               "graph": false,
-              "textMode": "value"
+              "textMode": "value",
+              "wideLayout": true
             }
           }
         ]

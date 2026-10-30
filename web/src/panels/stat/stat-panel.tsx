@@ -1,5 +1,11 @@
 import { useMemo, type CSSProperties } from "react"
-import { CircleIcon, LinkIcon } from "lucide-react"
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CircleIcon,
+  LinkIcon,
+  MinusIcon,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -19,11 +25,28 @@ import type { PanelRenderer } from "../types"
 import { cssColorToRgb, readableText } from "../contrast"
 import { Sparkline } from "./sparkline"
 import { sparklinePoints } from "./sparkline-points"
-import { tileGap, tilesAcross } from "./stat-grid"
-import { statTiles, type StatDisplay } from "./stat-tiles"
+import { isWideTile, tileGap, tilesAcross, tileSize } from "./stat-grid"
+import {
+  changeTone,
+  statTiles,
+  type ChangeDirection,
+  type ChangeTone,
+  type StatDisplay,
+} from "./stat-tiles"
 
 const valueClass =
   "min-w-0 truncate text-[28px] font-semibold tracking-[-0.02em] tabular-nums"
+
+const changeIcons: Record<ChangeDirection, typeof ArrowUpIcon> = {
+  up: ArrowUpIcon,
+  down: ArrowDownIcon,
+  flat: MinusIcon,
+}
+
+const changeColors: Record<Exclude<ChangeTone, "value" | "none">, string> = {
+  ok: "var(--threshold-ok)",
+  critical: "var(--threshold-critical)",
+}
 
 function gridFor(orientation: string, across: number): CSSProperties {
   switch (orientation) {
@@ -70,6 +93,11 @@ const StatPanel: PanelRenderer = ({
     tiles.length
   )
   const columns = Math.ceil(width / across)
+  const wide = isWideTile(
+    display.wideLayout,
+    tileSize(width, height, across, tiles.length)
+  )
+  const centered = display.justify === "center"
   const lines = useMemo(
     () =>
       tiles.map((tile) =>
@@ -94,6 +122,11 @@ const StatPanel: PanelRenderer = ({
   const nameAsValue = textMode === "name"
   const showName =
     textMode === "valueAndName" || (textMode === undefined && tiles.length > 1)
+  const sideBySide = wide && showName && showText
+  const pad = sideBySide ? "" : "px-3"
+  const valueStyle = display.valueSize
+    ? { fontSize: display.valueSize }
+    : undefined
 
   return (
     <div
@@ -129,6 +162,21 @@ const StatPanel: PanelRenderer = ({
             : thresholdColor
               ? CircleIcon
               : null
+        const change = display.percentChange && showText ? tile.change : null
+        const ChangeIcon = changeIcons[change?.direction ?? "flat"]
+        const tone = change
+          ? changeTone(
+              change.direction,
+              display.percentChangeColor ?? "standard"
+            )
+          : "none"
+        const changeColor = filled
+          ? undefined
+          : tone === "value"
+            ? (tile.color ?? undefined)
+            : tone === "none"
+              ? undefined
+              : changeColors[tone]
         const sparkStroke = filled
           ? "currentColor"
           : (thresholdColor ?? "var(--series-1)")
@@ -154,55 +202,102 @@ const StatPanel: PanelRenderer = ({
                 : undefined
             }
           >
-            {showName ? (
-              <span
-                title={tile.name}
-                className={cn(
-                  "shrink-0 truncate px-3 text-[13px] font-medium",
-                  !filled && "text-muted-foreground"
-                )}
-              >
-                {tile.name}
-              </span>
-            ) : null}
-            {showText ? (
-              <div className="flex shrink-0 items-baseline gap-1.5 px-3 leading-none">
-                {linkedPrimary ? (
-                  <a
-                    {...anchorProps(linkedPrimary)}
-                    data-stat-value=""
-                    title={linkedPrimary.title}
-                    aria-label={`${primary}${unit ? ` ${unit}` : ""}: ${linkedPrimary.title}${linkedPrimary.newTab ? " (opens in new tab)" : ""}`}
-                    className={cn(
-                      valueClass,
-                      "-mx-1 rounded-sm px-1 underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset"
-                    )}
-                  >
-                    {primary}
-                    {linkedPrimary.newTab ? <NewTabMark /> : null}
-                  </a>
-                ) : (
-                  <span data-stat-value="" className={valueClass}>
-                    {primary}
-                  </span>
-                )}
-                {unit ? (
-                  <span
-                    data-stat-unit=""
-                    className={cn(
-                      "shrink-0 text-[13px]",
-                      !filled && "text-muted-foreground"
-                    )}
-                  >
-                    {unit}
-                  </span>
-                ) : null}
-              </div>
-            ) : null}
+            <div
+              className={cn(
+                "flex shrink-0 flex-col",
+                sideBySide &&
+                  "flex-row items-baseline justify-between gap-3 px-3",
+                sideBySide && centered && "justify-center"
+              )}
+            >
+              {showName ? (
+                <span
+                  title={tile.name}
+                  style={
+                    display.titleSize
+                      ? { fontSize: display.titleSize }
+                      : undefined
+                  }
+                  className={cn(
+                    "shrink-0 truncate text-[13px] font-medium",
+                    sideBySide ? "min-w-0 shrink" : "px-3",
+                    centered && !sideBySide && "text-center",
+                    !filled && "text-muted-foreground"
+                  )}
+                >
+                  {tile.name}
+                </span>
+              ) : null}
+              {showText ? (
+                <div
+                  className={cn(
+                    "flex shrink-0 items-baseline gap-1.5 leading-none",
+                    pad,
+                    centered && !sideBySide && "justify-center"
+                  )}
+                >
+                  {linkedPrimary ? (
+                    <a
+                      {...anchorProps(linkedPrimary)}
+                      data-stat-value=""
+                      title={linkedPrimary.title}
+                      aria-label={`${primary}${unit ? ` ${unit}` : ""}: ${linkedPrimary.title}${linkedPrimary.newTab ? " (opens in new tab)" : ""}`}
+                      style={valueStyle}
+                      className={cn(
+                        valueClass,
+                        "-mx-1 rounded-sm px-1 underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset"
+                      )}
+                    >
+                      {primary}
+                      {linkedPrimary.newTab ? <NewTabMark /> : null}
+                    </a>
+                  ) : (
+                    <span
+                      data-stat-value=""
+                      style={valueStyle}
+                      className={valueClass}
+                    >
+                      {primary}
+                    </span>
+                  )}
+                  {unit ? (
+                    <span
+                      data-stat-unit=""
+                      className={cn(
+                        "shrink-0 text-[13px]",
+                        !filled && "text-muted-foreground"
+                      )}
+                    >
+                      {unit}
+                    </span>
+                  ) : null}
+                  {change ? (
+                    <span
+                      data-stat-change=""
+                      data-direction={change.direction}
+                      className={cn(
+                        "flex shrink-0 items-center gap-0.5 text-[13px]",
+                        !filled && "text-muted-foreground"
+                      )}
+                    >
+                      <ChangeIcon
+                        className="size-[13px]"
+                        strokeWidth={2.4}
+                        aria-hidden="true"
+                        style={{ color: changeColor }}
+                      />
+                      <span className="sr-only">{change.word} </span>
+                      {change.text}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
             {Icon && showText ? (
               <span
                 className={cn(
                   "flex shrink-0 items-center gap-1.5 px-3 text-[12px]",
+                  centered && "justify-center",
                   !filled && "text-muted-foreground"
                 )}
               >

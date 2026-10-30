@@ -45,12 +45,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Grafana shows this panel without a title.",
-          "Some Grafana options of this panel are not supported yet."
+          "Grafana shows this panel without a title."
         ],
         "paths": [
-          "title",
-          "options.justifyMode"
+          "title"
         ],
         "queries": [
           {
@@ -72,12 +70,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Grafana shows this panel without a title.",
-          "Some Grafana options of this panel are not supported yet."
+          "Grafana shows this panel without a title."
         ],
         "paths": [
-          "title",
-          "options.justifyMode"
+          "title"
         ],
         "queries": [
           {
@@ -99,12 +95,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Grafana shows this panel without a title.",
-          "Some Grafana options of this panel are not supported yet."
+          "Grafana shows this panel without a title."
         ],
         "paths": [
-          "title",
-          "options.justifyMode"
+          "title"
         ],
         "queries": [
           {
@@ -126,12 +120,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Grafana shows this panel without a title.",
-          "Some Grafana options of this panel are not supported yet."
+          "Grafana shows this panel without a title."
         ],
         "paths": [
-          "title",
-          "options.justifyMode"
+          "title"
         ],
         "queries": [
           {
@@ -153,12 +145,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Grafana shows this panel without a title.",
-          "Some Grafana options of this panel are not supported yet."
+          "Grafana shows this panel without a title."
         ],
         "paths": [
-          "title",
-          "options.justifyMode"
+          "title"
         ],
         "queries": [
           {
@@ -180,12 +170,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Grafana shows this panel without a title.",
-          "Some Grafana options of this panel are not supported yet."
+          "Grafana shows this panel without a title."
         ],
         "paths": [
-          "title",
-          "options.justifyMode"
+          "title"
         ],
         "queries": [
           {
@@ -500,7 +488,8 @@
         "display": {
           "fields": "/.*/",
           "colorMode": "background",
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "justify": "center"
         }
       },
       {
@@ -542,7 +531,8 @@
           }
         ],
         "display": {
-          "colorMode": "background"
+          "colorMode": "background",
+          "justify": "center"
         }
       },
       {
@@ -568,7 +558,8 @@
           }
         ],
         "display": {
-          "colorMode": "background"
+          "colorMode": "background",
+          "justify": "center"
         }
       },
       {
@@ -594,7 +585,8 @@
           }
         ],
         "display": {
-          "colorMode": "background"
+          "colorMode": "background",
+          "justify": "center"
         }
       },
       {
@@ -620,7 +612,8 @@
           }
         ],
         "display": {
-          "colorMode": "background"
+          "colorMode": "background",
+          "justify": "center"
         }
       },
       {
@@ -646,7 +639,8 @@
           }
         ],
         "display": {
-          "colorMode": "background"
+          "colorMode": "background",
+          "justify": "center"
         }
       },
       {

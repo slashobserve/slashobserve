@@ -998,7 +998,10 @@
               {
                 "color": "ok"
               }
-            ]
+            ],
+            "display": {
+              "wideLayout": true
+            }
           },
           {
             "id": "p36",
@@ -1027,7 +1030,10 @@
                 "value": 1,
                 "color": "warning"
               }
-            ]
+            ],
+            "display": {
+              "wideLayout": true
+            }
           },
           {
             "id": "p32",
@@ -1085,7 +1091,8 @@
             ],
             "noValue": "0",
             "display": {
-              "reduce": "last"
+              "reduce": "last",
+              "wideLayout": true
             }
           },
           {
@@ -1126,7 +1133,8 @@
               }
             ],
             "display": {
-              "reduce": "last"
+              "reduce": "last",
+              "wideLayout": true
             }
           },
           {
@@ -1182,7 +1190,8 @@
             ],
             "maxDataPoints": 100,
             "display": {
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           },
           {
@@ -1211,7 +1220,8 @@
             ],
             "maxDataPoints": 100,
             "display": {
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "wideLayout": true
             }
           }
         ]
