@@ -208,7 +208,7 @@ The query language follows the datasource: PromQL for Prometheus and a single SQ
 `$name`, `${name}` and `${name:format}` insert the value of a variable.
 Macros such as `$__rate_interval` for Prometheus and `$__timeFilter(Timestamp)` for ClickHouse expand when the query runs, from the time range and step of the request.
 A datasource is a uid from the datasources file or `${name}`, naming a datasource variable.
-An `adhoc` variable filters Prometheus queries automatically but does not filter ClickHouse queries, which must include `$name` themselves.
+An `adhoc` variable filters Prometheus queries automatically, and filters ClickHouse queries that leave out `$name` only when it sets `applyToAll`.
 See [Datasources and variables](datasources-and-variables.md).
 
 ## Field options, overrides and transforms

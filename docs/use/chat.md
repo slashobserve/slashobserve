@@ -116,7 +116,6 @@ It does not need to have been your dashboard.
 - **Change a dashboard you cannot edit.** It cannot reach folders you have no Edit access to.
 - **Add panels with no data.** The save refuses them, and the agent does not create placeholders.
 - **Make the same choices every time.** Results depend on the model; a clearer prompt with the metric, service or time range you want gives better dashboards.
-- **Make ad hoc filters apply to ClickHouse on their own.** Prometheus applies them to every query on its datasource, but a ClickHouse query uses an ad hoc filter only where its WHERE clause contains `AND $name`.
 
 To work on a dashboard in your own editor and model, use [MCP](mcp.md) or the [CLI](cli.md).
 To change one panel by hand, see [Edit a panel](edit-panel.md).

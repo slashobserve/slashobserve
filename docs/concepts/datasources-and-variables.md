@@ -157,10 +157,10 @@ An instant query passes the selected step on as its minimum interval, and the fa
 
 An `adhoc` variable lets a viewer add key, operator and value filters (`=`, `!=`, `=~` and `!~`).
 On Prometheus the filters are added as label matchers to every selector in every query on that datasource, and a query cannot refer to the variable.
-ClickHouse filters are not applied automatically.
-A ClickHouse query has to include the variable itself, as `$name` in a `WHERE` clause such as `AND $name`, which becomes the filters joined by `AND`, or `1 = 1` when there are none.
-A query on a ClickHouse datasource that leaves out `$name` ignores the filters.
-The Grafana importer lists the queries that a ClickHouse ad hoc variable will not filter.
+A ClickHouse query uses the variable explicitly, as `$name` in a `WHERE` clause such as `AND $name`, which becomes the filters joined by `AND`, or `1 = 1` when there are none.
+A ClickHouse variable with `applyToAll` also filters every query on its datasource that leaves out `$name`, through `additional_table_filters` on the tables the query reads, and each table gets only the filters whose key is one of its columns.
+A query on a ClickHouse datasource that leaves out `$name` ignores the filters when the variable does not set `applyToAll`.
+The Grafana importer sets `applyToAll` on every ClickHouse ad hoc variable.
 
 An `adhoc` variable can start with filters: `default` is up to 20 objects, each with a `key` (1 to 200 characters), an `operator` (`=`, `!=`, `=~` or `!~`) and a `value` (up to 500 characters, possibly empty).
 Without a `var-<name>` parameter the dashboard uses these filters, and a link that sets the parameter replaces them.

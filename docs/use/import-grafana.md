@@ -35,6 +35,7 @@ A query's min step written as a variable (`$name`, `${name}` or `[[name]]`) impo
 A `custom` variable of durations that is single-select, has no All and is used as a min step becomes an `interval` variable, and the import report says so.
 A `query` variable's sort imports as `alpha`, `num`, `alphaCaseInsensitive` or `natural`, each in its two directions, and `allowCustomValue` imports as written, with Grafana's own default of true when it is missing.
 A saved ad hoc filter list imports as the variable's `default` when its operators are `=`, `!=`, `=~` and `!~`; a filter with another operator, an invalid key or regular expression, or a condition other than AND is reported, and base filters are not kept.
+A ClickHouse ad hoc variable imports with `applyToAll`, so its filters apply to every query on its datasource, and for the Altinity plugin the report notes that Grafana filters only the outermost query.
 A min step of `$__interval` or `$__rate_interval` imports as no minimum, and a resolution factor from 2 to 10 is kept as `intervalFactor`.
 A Prometheus query that Grafana runs as both an instant and a range query (`instant` and `range` both on) imports as two queries: the range query keeps its ref, and an `instant` copy without the min step or resolution factor takes the next free ref, which the import report lists as `refId A (instant) -> B`.
 Both queries are hidden together, and a style override or a `filterByRefId` transformation that names the original ref covers the copy too.
