@@ -254,7 +254,12 @@ export const specDefaults = {
       "layout": "layered",
       "wheelZoom": false
     },
-    "traces": {},
+    "traces": {
+      "excludeServices": false,
+      "excludeSpanNames": false,
+      "matchesOnly": false,
+      "criticalPathOnly": false
+    },
     "flamegraph": {},
     "geomap": {
       "view": "fit",

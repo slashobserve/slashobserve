@@ -346,6 +346,15 @@ describe("panelChanges", () => {
       showScale: "scale bar",
       showMeasure: "measure tool",
       showDebug: "zoom and center readout",
+      spanSearch: "span search",
+      serviceNames: "service filter",
+      excludeServices: "excluded services",
+      spanNames: "operation filter",
+      excludeSpanNames: "excluded operations",
+      minSpanDuration: "shortest span",
+      maxSpanDuration: "longest span",
+      matchesOnly: "matching spans only",
+      criticalPathOnly: "critical path only",
     }
     for (const [key, label] of Object.entries(keys)) {
       expect(labels(panel(), panel({ display: { [key]: 1 } }))).toEqual([label])

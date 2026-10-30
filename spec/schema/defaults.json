@@ -23,7 +23,7 @@
     "xychart": {"show": "points", "pointSize": 5, "pointSizeMin": 4, "pointSizeMax": 30, "legend": "bottom", "legendValues": [], "legendSortDesc": false, "tooltip": "single", "tooltipSort": "none", "tooltipHideZeros": false},
     "candlestick": {"mode": "candles+volume", "candleStyle": "candles", "colorStrategy": "open-close", "upColor": "ok", "downColor": "critical", "includeAllFields": false, "legend": "bottom", "tooltip": "single", "tooltipSort": "desc", "tooltipHideZeros": false, "tooltipCumulative": false, "xAxis": "shown"},
     "nodeGraph": {"layout": "layered", "wheelZoom": false},
-    "traces": {},
+    "traces": {"excludeServices": false, "excludeSpanNames": false, "matchesOnly": false, "criticalPathOnly": false},
     "flamegraph": {},
     "geomap": {"view": "fit", "location": "auto", "markerSize": 5, "markerSizeMax": 15, "basemap": "outline", "basemapTheme": "auto", "basemapLabels": true, "showZoom": true, "mouseWheelZoom": false, "showAttribution": true, "showScale": false, "showMeasure": false, "showDebug": false, "tooltip": "details"},
     "canvas": {"reduce": "lastNotNull", "elements": [], "connections": [], "panZoom": false, "infinitePan": false, "tooltip": "none"},

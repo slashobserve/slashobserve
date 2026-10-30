@@ -99,6 +99,7 @@ The settings column has:
   An XY chart draws a point in the color of its color field when the series has one, clicking a legend entry hides the series, and the tooltip lists the size and color values of the hovered point.
   Gauge panels add **Show threshold labels**, **Minimum gauge width**, **Minimum gauge height**, **Title size** and **Value size**.
   Bar gauge panels add **Bar style** (Basic or LCD), **Value** (With threshold state, Plain text or Hidden), **Name placement**, **Show unfilled area**, **Minimum bar width**, **Minimum bar height**, **Maximum bar height**, **Title size** and **Value size**; sizes are in pixels.
+  Traces panels add **Search**, **Services** and **Operations** (comma-separated names, each with an **Exclude** switch), **Shortest span** and **Longest span** (milliseconds), **Show matching spans only** and **Show the critical path only**; without the matching switch the spans that do not match are dimmed.
   Logs panels add **Show unique labels**, **Show common labels**, **Log details**, **Details placement** (under the line or in a side panel), **Prettify JSON messages**, **Deduplication**, **Controls bar**, **Font size** and **Highlight key=value and levels**.
 
 A text panel has a **Content** box instead of queries: Markdown up to 20000 characters, which may contain HTML.

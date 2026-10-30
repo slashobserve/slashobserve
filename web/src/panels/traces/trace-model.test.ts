@@ -130,6 +130,23 @@ describe("traceModel tree", () => {
     ])
   })
 
+  it("records the parent of each span, null for a root or a missing parent", () => {
+    const spans = spansOf(
+      model([
+        field("spanID", "string", ["late", "orphan", "kid", "self"]),
+        field("parentSpanID", "string", ["", "gone", "orphan", "self"]),
+        field("startTime", "time", [200, 100, 150, 300]),
+        field("duration", "number", [10, 10, 10, 10]),
+      ])
+    )
+    expect(spans.map((span) => [span.id, span.parentId])).toEqual([
+      ["orphan", null],
+      ["kid", "orphan"],
+      ["late", null],
+      ["self", null],
+    ])
+  })
+
   it("does not lose spans whose parents form a cycle", () => {
     const spans = spansOf(
       model([

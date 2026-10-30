@@ -12,6 +12,7 @@ type SpanAttribute = { key: string; text: string }
 
 export type Span = {
   id: string
+  parentId: string | null
   service: string
   operation: string
   start: number
@@ -210,22 +211,23 @@ function treeOrder(rows: SpanRow[]) {
   const byId = new Map<string, SpanRow>()
   for (const row of rows) if (!byId.has(row.id)) byId.set(row.id, row)
   const unique = [...byId.values()]
+  const parentOf = (row: SpanRow): string | null =>
+    row.parentId !== null && row.parentId !== row.id && byId.has(row.parentId)
+      ? row.parentId
+      : null
   const children = new Map<string, SpanRow[]>()
   const roots: SpanRow[] = []
   for (const row of unique) {
-    if (
-      row.parentId !== null &&
-      row.parentId !== row.id &&
-      byId.has(row.parentId)
-    ) {
-      const siblings = children.get(row.parentId) ?? []
+    const parentId = parentOf(row)
+    if (parentId !== null) {
+      const siblings = children.get(parentId) ?? []
       siblings.push(row)
-      children.set(row.parentId, siblings)
+      children.set(parentId, siblings)
     } else {
       roots.push(row)
     }
   }
-  const ordered: { row: SpanRow; depth: number }[] = []
+  const ordered: { row: SpanRow; depth: number; parentId: string | null }[] = []
   const visited = new Set<string>()
   const walk = (root: SpanRow) => {
     const stack = [{ row: root, depth: 0 }]
@@ -233,7 +235,7 @@ function treeOrder(rows: SpanRow[]) {
       const item = stack.pop()!
       if (visited.has(item.row.id)) continue
       visited.add(item.row.id)
-      ordered.push(item)
+      ordered.push({ ...item, parentId: parentOf(item.row) })
       const below = children.get(item.row.id) ?? []
       for (let index = below.length - 1; index >= 0; index--) {
         stack.push({ row: below[index], depth: item.depth + 1 })
@@ -284,8 +286,9 @@ export function traceModel(
     new Map(),
     ordered.map(({ row }) => row.service)
   )
-  const spans = ordered.map(({ row, depth }): Span => ({
+  const spans = ordered.map(({ row, depth, parentId }): Span => ({
     id: row.id,
+    parentId,
     service: row.service,
     operation: row.operation,
     start: row.start,

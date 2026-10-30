@@ -5017,7 +5017,73 @@
               "display": {
                 "type": "object",
                 "additionalProperties": false,
-                "properties": {}
+                "properties": {
+                  "spanSearch": {
+                    "x-omitFromPrompt": true,
+                    "description": "Spans match when this text, in any case, appears in their service, operation, id, attribute keys or attribute values.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "serviceNames": {
+                    "x-omitFromPrompt": true,
+                    "description": "Spans match when their service is one of these names, or none of them with excludeServices.",
+                    "type": "array",
+                    "maxItems": 50,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    }
+                  },
+                  "excludeServices": {
+                    "x-omitFromPrompt": true,
+                    "description": "Spans match when their service is not one of serviceNames.",
+                    "type": "boolean"
+                  },
+                  "spanNames": {
+                    "x-omitFromPrompt": true,
+                    "description": "Spans match when their operation is one of these names, or none of them with excludeSpanNames.",
+                    "type": "array",
+                    "maxItems": 50,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    }
+                  },
+                  "excludeSpanNames": {
+                    "x-omitFromPrompt": true,
+                    "description": "Spans match when their operation is not one of spanNames.",
+                    "type": "boolean"
+                  },
+                  "minSpanDuration": {
+                    "x-omitFromPrompt": true,
+                    "description": "Spans match when they last at least this many milliseconds.",
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 86400000
+                  },
+                  "maxSpanDuration": {
+                    "x-omitFromPrompt": true,
+                    "description": "Spans match when they last at most this many milliseconds.",
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 86400000
+                  },
+                  "matchesOnly": {
+                    "x-omitFromPrompt": true,
+                    "description": "Shows only the spans that match the search, service, operation and duration filters; otherwise the other spans are dimmed.",
+                    "type": "boolean"
+                  },
+                  "criticalPathOnly": {
+                    "x-omitFromPrompt": true,
+                    "description": "Shows only the spans on the critical path, the chain of spans that decides how long the trace takes.",
+                    "type": "boolean"
+                  }
+                }
               }
             }
           }
