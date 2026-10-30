@@ -90,6 +90,16 @@ export function reusesPanel(panel: DataPanel): boolean {
   return panel.queries.some(isDashboardQuery)
 }
 
+export function sourcePanelOf(
+  spec: Dashboard,
+  panel: DataPanel
+): DataPanel | undefined {
+  const query = panel.queries.find(isDashboardQuery)
+  if (!query) return undefined
+  const source = findPanel(spec, query.source.panel)?.panel
+  return source && isDataPanel(source) ? source : undefined
+}
+
 export function queryRef(query: DataQuery, index: number): string {
   return query.ref ?? String.fromCharCode(65 + index)
 }

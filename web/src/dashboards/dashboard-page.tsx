@@ -28,6 +28,7 @@ import { isRenderable, isStaticPanel, preloadRenderer } from "@/panels"
 import { createFieldResolver, panelLinks } from "@/panels/field-config"
 import { linkScopeFor, PanelBody, StaticPanelBody } from "@/panels/panel-body"
 import { panelHasData } from "@/panels/panel-has-data"
+import { reusePanel } from "@/panels/transforms/reuse-panel"
 import {
   createSharedCursor,
   type CursorSync,
@@ -35,7 +36,14 @@ import {
 } from "@/panels/shared-cursor"
 import { ShareToggle } from "@/share/share-pane"
 import { ThemeSwitch } from "@/shell/theme-switch"
-import { findPanel, isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
+import {
+  findPanel,
+  isDataPanel,
+  panelTitle,
+  sourcePanelOf,
+  type DataPanel,
+  type LayoutPanel,
+} from "@/spec"
 
 import { ActivityToggle } from "./activity-toggle"
 import {
@@ -132,6 +140,7 @@ type PanelContainerProps = {
   cursor: SharedCursor
   version: number
   panel: LayoutPanel
+  reused: DataPanel | undefined
   title: string
   repeatOf: string | undefined
   width: number
@@ -164,6 +173,7 @@ const PanelContainer = memo(function PanelContainer({
   cursor,
   version,
   panel: sourcePanel,
+  reused,
   title,
   repeatOf,
   width,
@@ -202,7 +212,10 @@ const PanelContainer = memo(function PanelContainer({
   const [tableView, setTableView] = useState(false)
   const setSearch = useSetDashboardSearch()
   const body = panelBodySize(Math.floor(width), Math.floor(height))
-  const dataPanel = isDataPanel(panel) ? panel : undefined
+  const dataPanel = useMemo(
+    () => (isDataPanel(panel) ? reusePanel(panel, reused) : undefined),
+    [panel, reused]
+  )
   const supported = isRenderable(panel.type)
 
   useEffect(() => {
@@ -223,7 +236,7 @@ const PanelContainer = memo(function PanelContainer({
     to,
     timezone,
     vars: selections,
-    maxDataPoints: maxDataPointsFor(panel, body.width),
+    maxDataPoints: maxDataPointsFor(dataPanel ?? panel, body.width),
     refreshMs,
     enabled: dataPanel !== undefined && supported && seen && selectionsReady,
   })
@@ -294,7 +307,10 @@ const PanelContainer = memo(function PanelContainer({
         highlighted={highlighted}
         editing={editingPanel}
         repeatOf={repeatOf}
-        datasourceLabel={panelDatasourceUids(panel, selections).join(", ")}
+        datasourceLabel={panelDatasourceUids(
+          dataPanel ?? panel,
+          selections
+        ).join(", ")}
         links={links}
         badge={
           <>
@@ -657,6 +673,11 @@ function DashboardView({
                 cursor={cursor}
                 version={version}
                 panel={item.panel}
+                reused={
+                  isDataPanel(item.panel)
+                    ? sourcePanelOf(spec, item.panel)
+                    : undefined
+                }
                 title={item.title}
                 repeatOf={
                   item.key === item.panel.id ? undefined : item.panel.id
