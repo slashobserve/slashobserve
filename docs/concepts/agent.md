@@ -50,7 +50,7 @@ The save is rejected when:
 
 The rejection lists each problem with the path of the panel or variable and a code.
 The model fixes only the panels it names and saves again.
-It has three repair attempts.
+A run makes the first save plus up to three repairs, so at most four saves.
 If the third repair is also rejected, the run ends with an error that names the last issue codes.
 
 When the dashboard changed while the agent was revising it, the run restarts once from the latest version.
