@@ -17,7 +17,6 @@ const (
 	expressionCycleReason   = "This expression depends on itself through its inputs."
 	unreadableMathReason    = "The math expression holds a reference SlashObserve cannot read."
 	noInputReason           = "The expression has no input query."
-	hysteresisReason        = "A threshold with a separate unload condition is not supported."
 )
 
 var (
@@ -47,6 +46,10 @@ func unsupportedFunctionReason(name string) string {
 
 func missingInputReason(ref string) string {
 	return fmt.Sprintf("This expression uses query %s, which could not be imported.", ref)
+}
+
+func variableInputReason(name string) string {
+	return fmt.Sprintf("This expression uses the variable %s, which expressions cannot read.", name)
 }
 
 func unsupportedValueReason(what, value string) string {
@@ -151,9 +154,6 @@ func (tb *targetBuild) thresholdExpression() (*pendingExpression, string) {
 		return nil, unsupportedValueReason("threshold evaluator", "")
 	}
 	condition, _ := asObject(conditions[0])
-	if present(condition["unloadEvaluator"]) {
-		return nil, hysteresisReason
-	}
 	evaluator, _ := asObject(condition["evaluator"])
 	kind := asString(evaluator["type"])
 	params, ok := numberList(evaluator["params"])
@@ -240,7 +240,7 @@ func rewriteMath(text string, rename func(string) string) (string, []string, str
 			end := mathNumberEnd(text, i)
 			out.WriteString(text[i:end])
 			i = end
-		case isMathRefByte(c, true) || c == '_':
+		case isMathRefByte(c, true):
 			end := i
 			for end < len(text) && (isMathRefByte(text[end], false)) {
 				end++
@@ -281,7 +281,7 @@ func readMathRef(text string, at int) (string, int) {
 
 func isMathRefByte(c byte, first bool) bool {
 	letter := c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z'
-	return letter || (!first && (isDigit(c) || c == '_'))
+	return letter || c == '_' || (!first && isDigit(c))
 }
 
 func isDigit(c byte) bool { return c >= '0' && c <= '9' }
@@ -328,6 +328,7 @@ func (b *panelBuild) grafanaRefIDs() []string {
 
 func (b *panelBuild) brokenExpression() (int, string) {
 	ids := b.grafanaRefIDs()
+	declared := b.c.declaredVariables()
 	graph := map[string][]string{}
 	for k, bq := range b.built {
 		if _, seen := graph[ids[k]]; bq.expr != nil && !seen {
@@ -339,7 +340,11 @@ func (b *panelBuild) brokenExpression() (int, string) {
 			continue
 		}
 		for _, input := range bq.expr.inputs {
-			if !slices.Contains(ids, input) {
+			switch {
+			case slices.Contains(ids, input):
+			case declared[input] || strings.HasPrefix(input, "__"):
+				return k, variableInputReason(input)
+			default:
 				return k, missingInputReason(input)
 			}
 		}

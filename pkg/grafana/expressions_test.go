@@ -77,6 +77,7 @@ func TestExpressionsImportAsSpecExpressions(t *testing.T) {
 		{"threshold outside_range", `"type":"threshold","expression":"A","conditions":[{"evaluator":{"type":"outside_range","params":[1,5]}}]`, spec.Expression{Type: "threshold", Input: "A", Evaluator: "outsideRange", Params: floats(1, 5)}},
 		{"threshold within_range_included", `"type":"threshold","expression":"A","conditions":[{"evaluator":{"type":"within_range_included","params":[1,5]}}]`, spec.Expression{Type: "threshold", Input: "A", Evaluator: "withinRangeIncluded", Params: floats(1, 5)}},
 		{"threshold outside_range_included", `"type":"threshold","expression":"A","conditions":[{"evaluator":{"type":"outside_range_included","params":[1,5]}}]`, spec.Expression{Type: "threshold", Input: "A", Evaluator: "outsideRangeIncluded", Params: floats(1, 5)}},
+		{"threshold hysteresis keeps the main evaluator", `"type":"threshold","expression":"A","conditions":[{"evaluator":{"type":"gt","params":[5]},"unloadEvaluator":{"type":"lt","params":[3]}}]`, spec.Expression{Type: "threshold", Input: "A", Evaluator: "gt", Params: floats(5)}},
 		{"threshold gte is a math comparison", `"type":"threshold","expression":"A","conditions":[{"evaluator":{"type":"gte","params":[1]}}]`, spec.Expression{Type: "math", Math: "$A >= 1"}},
 		{"threshold lte is a math comparison", `"type":"threshold","expression":"A","conditions":[{"evaluator":{"type":"lte","params":[-2.5]}}]`, spec.Expression{Type: "math", Math: "$A <= -2.5"}},
 		{"threshold eq is a math comparison", `"type":"threshold","expression":"A","conditions":[{"evaluator":{"type":"eq","params":[1]}}]`, spec.Expression{Type: "math", Math: "$A == 1"}},
@@ -191,7 +192,7 @@ func TestExpressionsThatCannotBeImportedAreDroppedWithAReason(t *testing.T) {
 		{"an unknown math function", `"type":"math","expression":"sin($A) * 2"`, "The function sin is not supported yet."},
 		{"a constant function", `"type":"math","expression":"$A + nan()"`, "The function nan is not supported yet."},
 		{"a function name without a call", `"type":"math","expression":"$A + abs"`, "The function abs is not supported yet."},
-		{"an unreadable reference", `"type":"math","expression":"$__interval * 2"`, "The math expression holds a reference SlashObserve cannot read."},
+		{"an unreadable reference", `"type":"math","expression":"$1 * 2"`, "The math expression holds a reference SlashObserve cannot read."},
 		{"an empty math expression", `"type":"math","expression":"  "`, "The math expression is empty."},
 		{"an unknown reducer", `"type":"reduce","expression":"A","reducer":"avg"`, "The reducer avg is not supported yet."},
 		{"no reducer", `"type":"reduce","expression":"A"`, "The expression has no reducer."},
@@ -201,7 +202,6 @@ func TestExpressionsThatCannotBeImportedAreDroppedWithAReason(t *testing.T) {
 		{"a resample window with a variable", `"type":"resample","expression":"A","window":"$__interval","downsampler":"mean","upsampler":"pad"`, "The resample window $__interval is not supported yet."},
 		{"an unknown downsampler", `"type":"resample","expression":"A","window":"1m","downsampler":"median","upsampler":"pad"`, "The downsampler median is not supported yet."},
 		{"an unknown upsampler", `"type":"resample","expression":"A","window":"1m","downsampler":"mean","upsampler":"linear"`, "The upsampler linear is not supported yet."},
-		{"a threshold hysteresis", `"type":"threshold","expression":"A","conditions":[{"evaluator":{"type":"gt","params":[5]},"unloadEvaluator":{"type":"lt","params":[3]}}]`, "A threshold with a separate unload condition is not supported."},
 		{"an unknown threshold evaluator", `"type":"threshold","expression":"A","conditions":[{"evaluator":{"type":"near","params":[5]}}]`, "The threshold evaluator near is not supported yet."},
 		{"a range with one number", `"type":"threshold","expression":"A","conditions":[{"evaluator":{"type":"within_range","params":[5]}}]`, "The threshold evaluator within_range needs 2 number(s)."},
 		{"a threshold without conditions", `"type":"threshold","expression":"A"`, "The expression has no threshold evaluator."},
@@ -252,6 +252,30 @@ func TestAnExpressionNamingAnUnknownRefIsDropped(t *testing.T) {
 	want := "This expression uses query Z, which could not be imported."
 	if len(panel.Queries) != 1 || line.Queries[1].Dropped == nil || *line.Queries[1].Dropped != want {
 		t.Fatalf("queries = %+v, line = %+v, want dropped with %q", panel.Queries, line.Queries[1], want)
+	}
+}
+
+func TestAnExpressionNamingAVariableIsDroppedWithTheVariableReason(t *testing.T) {
+	templating := `"templating":{"list":[{"type":"custom","name":"threshold","query":"1,2,3","current":{"text":"1","value":"1"},"options":[]}]},`
+	cases := []struct {
+		name    string
+		members string
+		reason  string
+	}{
+		{"a dashboard variable in math", `"type":"math","expression":"$A > $threshold"`, "This expression uses the variable threshold, which expressions cannot read."},
+		{"a braced dashboard variable in math", `"type":"math","expression":"${A} > ${threshold}"`, "This expression uses the variable threshold, which expressions cannot read."},
+		{"a global variable in math", `"type":"math","expression":"$A * $__interval"`, "This expression uses the variable __interval, which expressions cannot read."},
+		{"a variable as the input of a reduce", `"type":"reduce","expression":"$threshold","reducer":"max","settings":{"mode":""}`, "This expression uses the variable threshold, which expressions cannot read."},
+		{"a name that is no variable", `"type":"math","expression":"$A > $limit"`, "This expression uses query limit, which could not be imported."},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			doc := strings.Replace(panelDoc("timeseries", `"targets":[{"refId":"A","expr":"up"},`+expressionTarget("B", tc.members)+`]`), `{"title":"T",`, `{"title":"T",`+templating, 1)
+			panel, line := convertedPanel(t, doc)
+			if len(panel.Queries) != 1 || line.Queries[1].Dropped == nil || *line.Queries[1].Dropped != tc.reason {
+				t.Fatalf("queries = %+v, line = %+v, want only the data query and dropped with %q", panel.Queries, line.Queries[1], tc.reason)
+			}
+		})
 	}
 }
 
