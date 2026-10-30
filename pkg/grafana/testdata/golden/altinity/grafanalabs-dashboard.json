@@ -103,18 +103,7 @@
         ]
       }
     ],
-    "notes": [
-      {
-        "subject": "variable adhoc_variable",
-        "status": "partial",
-        "reason": "Grafana applies these filters to every query on this datasource; SlashObserve applies them only in queries that use $adhoc_variable, so 3 queries are not filtered.",
-        "paths": [
-          "panels[0].targets[0]",
-          "panels[1].targets[0]",
-          "panels[2].targets[0]"
-        ]
-      }
-    ]
+    "notes": []
   },
   "spec": {
     "specVersion": "0",
@@ -139,7 +128,8 @@
       {
         "name": "adhoc_variable",
         "type": "adhoc",
-        "datasource": "ch"
+        "datasource": "ch",
+        "applyToAll": true
       }
     ],
     "panels": [

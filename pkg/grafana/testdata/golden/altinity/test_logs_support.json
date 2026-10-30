@@ -129,7 +129,7 @@
       {
         "subject": "variable adhoc_variable",
         "status": "partial",
-        "reason": "Grafana applies these filters to every query on this datasource; SlashObserve applies them only in queries that use $adhoc_variable, so 1 query is not filtered.",
+        "reason": "Grafana's Altinity plugin applies these filters to the outermost query only; SlashObserve applies them on every table a query reads, subqueries included.",
         "paths": [
           "panels[0].targets[0]"
         ]
@@ -149,6 +149,7 @@
         "name": "adhoc_variable",
         "type": "adhoc",
         "datasource": "ch",
+        "applyToAll": true,
         "default": [
           {
             "key": "default.test_logs.level",
