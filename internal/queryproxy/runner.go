@@ -156,16 +156,49 @@ func PanelKind(p *spec.Panel) Kind {
 	return KindInstant
 }
 
-func QueryStep(base time.Duration, p *spec.Panel, q spec.Query) time.Duration {
-	text := cmp.Or(q.Interval, p.Interval)
+func QueryStep(base, minimum time.Duration, factor int) time.Duration {
+	return max(base, minimum) * time.Duration(max(1, factor))
+}
+
+func (r *Runner) minInterval(ctx context.Context, req Request, st *varState, panel *spec.Panel, q spec.Query) (time.Duration, error) {
+	text := cmp.Or(q.Interval, panel.Interval)
 	if text == "" {
-		return base
+		return 0, nil
+	}
+	if name, ok := spec.IntervalVariableName(text); ok {
+		resolved, err := r.intervalSelection(ctx, req, st, name)
+		if err != nil {
+			return 0, err
+		}
+		text = resolved
 	}
 	minimum, err := spec.ParseInterval(text)
 	if err != nil {
-		return base
+		return 0, fmt.Errorf("%w: min step: %s", ErrInvalidRequest, err.Error())
 	}
-	return max(base, minimum)
+	return minimum, nil
+}
+
+func (r *Runner) intervalSelection(ctx context.Context, req Request, st *varState, name string) (string, error) {
+	idx := variableIndex(req.Dashboard, name)
+	if idx < 0 || req.Dashboard.Variables[idx].Type != spec.IntervalVariable {
+		return "", fmt.Errorf("%w: min step %q is not an interval variable", ErrInvalidRequest, name)
+	}
+	sel, ok := req.Selections[name]
+	if !ok {
+		return "", fmt.Errorf("%w: no selection for variable %q", ErrInvalidRequest, name)
+	}
+	if err := r.checkSelection(ctx, req.Dashboard, idx, req.Range, req.Selections, req.User, st, sel); err != nil {
+		return "", err
+	}
+	variable, err := r.variableFor(ctx, req.Dashboard, idx, req.Range, queryUse{}, req.Selections, req.User, st)
+	if err != nil {
+		return "", err
+	}
+	if len(variable.Values) != 1 {
+		return "", fmt.Errorf("%w: variable %q must select one step", ErrInvalidRequest, name)
+	}
+	return variable.Values[0], nil
 }
 
 func Floor(t time.Time, unit time.Duration) time.Time {
@@ -347,9 +380,13 @@ func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *
 			return nil, err
 		}
 	}
+	minimum, err := r.minInterval(ctx, req, st, panel, q)
+	if err != nil {
+		return nil, err
+	}
 	pq := &preparedQuery{inst: inst, kind: QueryKind(panel, q)}
 	if pq.kind == KindRange {
-		pq.step = QueryStep(baseStep, panel, q)
+		pq.step = QueryStep(baseStep, minimum, q.IntervalFactor)
 		rng := req.Range
 		if pq.step > baseStep {
 			rng = alignToStep(rng, pq.step)
@@ -358,7 +395,7 @@ func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *
 			return inst.Datasource.QueryRange(ctx, dq, rng, pq.step)
 		}
 	} else {
-		dq.MinInterval = QueryStep(0, panel, q)
+		dq.MinInterval = minimum
 		pq.call = func(ctx context.Context) ([]datasource.Frame, error) {
 			return inst.Datasource.QueryInstant(ctx, dq, req.Range)
 		}

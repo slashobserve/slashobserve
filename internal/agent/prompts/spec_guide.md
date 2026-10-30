@@ -32,7 +32,7 @@ Leave out every value that equals its default.
 ## Queries
 - Each query has `query` and, when it returns several series, a `legend` such as `{{route}}`.
 - Put related series in one panel with several queries, such as requests and errors, or p50 and p99; queries are named `A`, `B`, `C` by position, so write `ref` only for a stable name.
-- A query may set its own `datasource`, `instant: true` for one value per series, `interval` as its minimum step, or `hide: true` to run nowhere.
+- A query may set its own `datasource`, `instant: true` for one value per series, `interval` as its minimum step (a duration, or `${name}` of an `interval` variable), or `hide: true` to run nowhere.
 
 ## Layout
 - The grid is 24 columns wide; `x + w` must not exceed 24 and panels must not overlap.

@@ -90,22 +90,23 @@ func TestPanelKind(t *testing.T) {
 func TestQueryStep(t *testing.T) {
 	base := 22 * time.Second
 	tests := []struct {
-		name          string
-		panelInterval string
-		queryInterval string
-		want          time.Duration
+		name    string
+		minimum time.Duration
+		factor  int
+		want    time.Duration
 	}{
-		{"no interval", "", "", base},
-		{"panel interval below base", "5s", "", base},
-		{"panel interval above base", "1m", "", time.Minute},
-		{"query interval wins over panel", "1m", "5m", 5 * time.Minute},
-		{"query interval below base ignores panel", "1h", "5s", base},
-		{"invalid interval", "", "soon", base},
+		{"no minimum and no factor", 0, 0, base},
+		{"minimum below base", 5 * time.Second, 0, base},
+		{"minimum above base", time.Minute, 0, time.Minute},
+		{"factor one changes nothing", 0, 1, base},
+		{"factor doubles the base", 0, 2, 44 * time.Second},
+		{"factor applies after the minimum", time.Minute, 2, 2 * time.Minute},
+		{"factor applies to a base that beat the minimum", 5 * time.Second, 5, 110 * time.Second},
+		{"negative factor counts as one", 0, -3, base},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &spec.Panel{Interval: tt.panelInterval}
-			if got := QueryStep(base, p, spec.Query{Interval: tt.queryInterval}); got != tt.want {
+			if got := QueryStep(base, tt.minimum, tt.factor); got != tt.want {
 				t.Fatalf("QueryStep = %v, want %v", got, tt.want)
 			}
 		})
@@ -753,6 +754,129 @@ func TestRunPanelLeavesTheMinimumIntervalEmptyWithoutAnInterval(t *testing.T) {
 	calls := fake.callsTo("instant")
 	if len(calls) != 1 || calls[0].query.MinInterval != 0 {
 		t.Fatalf("instant calls = %+v, want one with no minimum interval", calls)
+	}
+}
+
+func stepsByQuery(fake *fakeDatasource) map[string]time.Duration {
+	steps := map[string]time.Duration{}
+	for _, c := range fake.callsTo("range") {
+		steps[c.query.Text] = c.step
+	}
+	return steps
+}
+
+func TestRunPanelResolvesAMinStepFromAnIntervalVariable(t *testing.T) {
+	tests := []struct {
+		name      string
+		selection string
+		panelIv   string
+		query     spec.Query
+		want      time.Duration
+	}{
+		{"query names the variable", "5m", "", spec.Query{Query: "q", Interval: "${iv}"}, 5 * time.Minute},
+		{"panel names the variable", "5m", "${iv}", spec.Query{Query: "q"}, 5 * time.Minute},
+		{"query wins over the panel", "5m", "1m", spec.Query{Query: "q", Interval: "${iv}"}, 5 * time.Minute},
+		{"selection below the base step", "1ms", "", spec.Query{Query: "q", Interval: "${iv}"}, 108 * time.Second},
+		{"auto follows the range", "$__auto", "", spec.Query{Query: "q", Interval: "${iv}"}, 15 * time.Minute},
+		{"factor multiplies the selected step", "5m", "", spec.Query{Query: "q", Interval: "${iv}", IntervalFactor: 2}, 10 * time.Minute},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFake("prometheus")
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+			p := multiPanel(spec.Timeseries, tt.query)
+			p.Interval = tt.panelIv
+			iv := intervalVariable("iv", "1ms", "1m", "5m")
+			iv.Auto = true
+			req := Request{
+				Dashboard:     dashboardOf([]spec.Panel{p}, iv),
+				PanelID:       "p1",
+				Range:         testRange(),
+				MaxDataPoints: 200,
+				Selections:    map[string]Selection{"iv": {Values: []string{tt.selection}}},
+			}
+			res, err := runner.RunPanel(t.Context(), req)
+			if err != nil {
+				t.Fatalf("RunPanel: %v", err)
+			}
+			if got := stepsByQuery(fake)["q"]; got != tt.want {
+				t.Fatalf("step = %v, want %v", got, tt.want)
+			}
+			if res.Queries[0].Step != tt.want {
+				t.Fatalf("result step = %v, want %v", res.Queries[0].Step, tt.want)
+			}
+		})
+	}
+}
+
+func TestRunPanelAppliesTheResolutionFactorToTheBaseStep(t *testing.T) {
+	fake := newFake("prometheus")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	p := multiPanel(spec.Timeseries,
+		spec.Query{Query: "plain"},
+		spec.Query{Query: "doubled", IntervalFactor: 2},
+		spec.Query{Query: "literal", Interval: "5m", IntervalFactor: 3},
+	)
+	if _, err := runner.RunPanel(t.Context(), Request{Dashboard: dashboardOf([]spec.Panel{p}), PanelID: "p1", Range: testRange(), MaxDataPoints: 200}); err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	want := map[string]time.Duration{"plain": 108 * time.Second, "doubled": 216 * time.Second, "literal": 15 * time.Minute}
+	if got := stepsByQuery(fake); !maps.Equal(got, want) {
+		t.Fatalf("steps = %v, want %v", got, want)
+	}
+}
+
+func TestRunPanelFailsAQueryWhoseMinStepVariableHasNoUsableSelection(t *testing.T) {
+	tests := []struct {
+		name       string
+		variables  []spec.Variable
+		selections map[string]Selection
+		interval   string
+	}{
+		{"not selected", []spec.Variable{intervalVariable("iv", "1m")}, nil, "${iv}"},
+		{"not an interval", []spec.Variable{intervalVariable("iv", "1m"), customVariable("c", "30s")}, map[string]Selection{"iv": {Values: []string{"1m"}}, "c": {Values: []string{"30s"}}}, "${c}"},
+		{"undeclared", nil, nil, "${missing}"},
+		{"not a duration", []spec.Variable{intervalVariable("iv", "1m", "soon")}, map[string]Selection{"iv": {Values: []string{"soon"}}}, "${iv}"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFake("prometheus")
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+			p := multiPanel(spec.Timeseries, spec.Query{Query: "q", Interval: tt.interval})
+			_, _, errs, err := runner.runQueries(t.Context(), Request{Dashboard: dashboardOf([]spec.Panel{p}, tt.variables...), PanelID: "p1", Range: testRange(), Selections: tt.selections}, newVarState(), false)
+			if err != nil {
+				t.Fatalf("runQueries: %v", err)
+			}
+			var qe *QueryError
+			if !errors.As(errs[0], &qe) || !errors.Is(qe.Err, ErrInvalidRequest) {
+				t.Fatalf("query error = %v, want an invalid request", errs[0])
+			}
+			if status, code, _ := Classify(errs[0]); status != 400 || code != string(CodeInvalidRequest) {
+				t.Fatalf("Classify = %d %s, want 400 invalid_request", status, code)
+			}
+			if len(fake.recorded()) != 0 {
+				t.Fatalf("datasource calls = %+v, want none", fake.recorded())
+			}
+		})
+	}
+}
+
+func TestRunPanelInstantQueryTakesTheSelectedMinStepAndIgnoresTheFactor(t *testing.T) {
+	fake := newFake("clickhouse")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	p := multiPanel(spec.Table, spec.Query{Query: "q", Interval: "${iv}", IntervalFactor: 4})
+	req := Request{
+		Dashboard:  dashboardOf([]spec.Panel{p}, intervalVariable("iv", "1m", "5m")),
+		PanelID:    "p1",
+		Range:      testRange(),
+		Selections: map[string]Selection{"iv": {Values: []string{"5m"}}},
+	}
+	if _, err := runner.RunPanel(t.Context(), req); err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	calls := fake.callsTo("instant")
+	if len(calls) != 1 || calls[0].query.MinInterval != 5*time.Minute {
+		t.Fatalf("instant calls = %+v, want one with a 5m minimum interval", calls)
 	}
 }
 

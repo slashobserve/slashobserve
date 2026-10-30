@@ -95,7 +95,7 @@ The other panel types are:
 - `placeholder`, which only the importer writes.
   The agent may move or delete one but never creates or edits one.
 
-A data panel can also set `timeFrom` and `timeShift` to override the dashboard's time range, `interval` and `maxDataPoints` to shape the step of its queries, and `display`, a small set of options that depend on its type, such as the legend of a `timeseries` or the `header` of a `table`.
+A data panel can also set `timeFrom` and `timeShift` to override the dashboard's time range, `interval` (the same forms as a query's) and `maxDataPoints` to shape the step of its queries, and `display`, a small set of options that depend on its type, such as the legend of a `timeseries` or the `header` of a `table`.
 
 ## Queries and datasources
 
@@ -107,7 +107,8 @@ A query has the text in `query` and, optionally:
 - `datasource`, to run this query on a datasource other than the panel's.
 - `instant`, to ask for one value per series instead of a range.
 - `format`, one of `timeseries`, `table`, `heatmap` or `logs`.
-- `interval`, the smallest step.
+- `interval`, the smallest step: a duration such as `30s`, or `${name}` naming an `interval` variable, which then gives the step the viewer selected, `$__auto` included.
+- `intervalFactor`, a whole number from 2 to 10 that multiplies the query's step, as Grafana's resolution 1/N does.
 - `hide`, to keep the query out of the panel's data.
 
 The query language follows the datasource: PromQL for Prometheus and a single SQL `SELECT` for ClickHouse.
