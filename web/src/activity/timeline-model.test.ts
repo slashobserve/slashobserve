@@ -8,6 +8,8 @@ import {
   buildTimeline,
   currentStep,
   filterTimeline,
+  firstNewVersion,
+  showsVersions,
   type ImportedDashboard,
   type TimelineEntry,
 } from "./timeline-model"
@@ -445,6 +447,51 @@ describe("buildTimeline", () => {
     })
     expect(entries.map((entry) => entry.panelId)).toEqual(["p1", "p2", null])
   })
+})
+
+describe("versions loaded across pages", () => {
+  const firstPage = [version(4, at(4)), version(3, at(3))]
+  const secondPage = [version(2, at(3)), version(1, at(1))]
+
+  it("orders every loaded page together, oldest first", () => {
+    const entries = buildTimeline({
+      ...none,
+      versions: [...firstPage, ...secondPage],
+    })
+    expect(keys(entries)).toEqual([
+      "version:1",
+      "version:2",
+      "version:3",
+      "version:4",
+    ])
+  })
+
+  it("finds the topmost version that the last page added", () => {
+    const entries = buildTimeline({
+      ...none,
+      comments: [comment({ id: "c1", created_at: at(2) })],
+      versions: [...firstPage, ...secondPage],
+    })
+    expect(firstNewVersion(entries, new Set([3, 4]))).toBe(1)
+  })
+
+  it("finds no new version when nothing was added", () => {
+    const entries = buildTimeline({ ...none, versions: firstPage })
+    expect(firstNewVersion(entries, new Set([3, 4]))).toBeNull()
+  })
+
+  it.each([
+    ["everything", null, true],
+    ["changes", null, true],
+    ["open", null, false],
+    ["everything", "p1", false],
+    ["changes", "p1", false],
+  ] as const)(
+    "shows versions for %s scoped to %s: %s",
+    (show, panelId, expected) => {
+      expect(showsVersions(show, panelId)).toBe(expected)
+    }
+  )
 })
 
 describe("filterTimeline", () => {

@@ -1,5 +1,6 @@
 import {
   Fragment,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -9,9 +10,16 @@ import {
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
-import type { TimelineEntry } from "./timeline-model"
+import { firstNewVersion, type TimelineEntry } from "./timeline-model"
 
 const stickThresholdPx = 48
+
+type OlderVersions = {
+  available: boolean
+  fetching: boolean
+  error: string | null
+  onLoad: () => void
+}
 
 type Props = {
   entries: readonly TimelineEntry[]
@@ -19,6 +27,7 @@ type Props = {
   error: boolean
   onRetry: () => void
   filtered: boolean
+  older: OlderVersions
   renderEntry: (entry: TimelineEntry) => ReactNode
 }
 
@@ -67,8 +76,37 @@ export function TimelineList({
   error,
   onRetry,
   filtered,
+  older,
   renderEntry,
 }: Props) {
+  const list = useRef<HTMLOListElement>(null)
+  const loadButton = useRef<HTMLButtonElement>(null)
+  const knownVersions = useRef<ReadonlySet<number> | null>(null)
+  const { fetching } = older
+
+  useEffect(() => {
+    const known = knownVersions.current
+    if (known === null || fetching) return
+    knownVersions.current = null
+    const first = firstNewVersion(entries, known)
+    if (first === null) return
+    const active = document.activeElement
+    const onBody = !active || active === document.body
+    if (!onBody && active !== loadButton.current) return
+    list.current
+      ?.querySelector<HTMLElement>(`a[data-version="${first}"]`)
+      ?.focus()
+  }, [entries, fetching])
+
+  const loadOlder = () => {
+    knownVersions.current = new Set(
+      entries.flatMap((entry) =>
+        entry.kind === "version" ? [entry.version.version] : []
+      )
+    )
+    older.onLoad()
+  }
+
   if (loading) {
     return (
       <div aria-busy="true" className="flex flex-col gap-2 px-4 pt-1 pb-4">
@@ -105,10 +143,38 @@ export function TimelineList({
     )
   }
   return (
-    <ol aria-label="Activity" className="flex flex-col px-4 pt-1 pb-4">
-      {entries.map((entry) => (
-        <Fragment key={entry.key}>{renderEntry(entry)}</Fragment>
-      ))}
-    </ol>
+    <>
+      {older.available ? (
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 px-4 pt-2">
+          {older.error === null ? null : (
+            <p role="alert" className="text-center text-xs text-destructive">
+              Could not load older versions: {older.error}
+            </p>
+          )}
+          <Button
+            ref={loadButton}
+            type="button"
+            variant="outline"
+            size="sm"
+            className="text-foreground"
+            disabled={fetching}
+            focusableWhenDisabled
+            aria-busy={fetching}
+            onClick={loadOlder}
+          >
+            Load older versions
+          </Button>
+        </div>
+      ) : null}
+      <ol
+        ref={list}
+        aria-label="Activity"
+        className="flex flex-col px-4 pt-1 pb-4"
+      >
+        {entries.map((entry) => (
+          <Fragment key={entry.key}>{renderEntry(entry)}</Fragment>
+        ))}
+      </ol>
+    </>
   )
 }

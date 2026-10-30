@@ -23,6 +23,9 @@ Entries are sorted by time and come in four kinds:
   **Details** opens the full conversation at `/observe/<id>` in a new tab.
 - **Versions** show who saved: "Agent saved", "`<name>` saved" or "`<client>` saved over MCP", then "Version N" with its summary, or "No summary".
   **See changes** opens the comparison with the previous version.
+  The card loads the 50 newest versions first.
+  When the dashboard has more, **Load older versions** at the top of the list adds the next 50 and moves focus to the oldest version it added.
+  The button shows while the filters keep versions in the list, so it is hidden under **Open comments** and when a panel is chosen.
 - **Imports** show "`<name>` imported this dashboard from Grafana" with the conversion counts, and list the panels that are still unverified in the latest version with the reason each failed, and an **Ask the agent to fix** button where you may send requests.
   See [Import Grafana dashboards](import-grafana.md).
 

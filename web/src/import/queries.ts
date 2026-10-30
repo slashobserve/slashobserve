@@ -7,7 +7,7 @@ import {
 
 import { api } from "@/api/client"
 import { ApiError, unwrap } from "@/api/errors"
-import { dashboardKeys, importKeys } from "@/api/keys"
+import { dashboardKeys, folderKeys, importKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 
 import { toImportError } from "./errors"
@@ -24,10 +24,12 @@ export function newSource(name: string, text: string, pasted: boolean): Source {
   return { id: lastSourceId, name, text, pasted }
 }
 
-function requestBody(source: Source, mapping: Mapping) {
-  return Object.keys(mapping).length === 0
-    ? { json: source.text }
-    : { json: source.text, mapping }
+function requestBody(source: Source, mapping: Mapping, folder?: string) {
+  return {
+    json: source.text,
+    ...(Object.keys(mapping).length === 0 ? {} : { mapping }),
+    ...(folder === undefined ? {} : { folder }),
+  }
 }
 
 export function previewQuery(source: Source | null, mapping: Mapping) {
@@ -63,12 +65,14 @@ export function useImportDashboard() {
     mutationFn: async ({
       source,
       mapping,
+      folder,
     }: {
       source: Source
       mapping: Mapping
+      folder?: string
     }): Promise<ImportedDashboard> => {
       const result = await api.POST("/imports", {
-        body: requestBody(source, mapping),
+        body: requestBody(source, mapping, folder),
       })
       if (!result.response.ok) {
         throw toImportError(result.response, result.error)
@@ -86,6 +90,7 @@ export function useImportDashboard() {
     onSuccess: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: dashboardKeys.list() }),
+        queryClient.invalidateQueries({ queryKey: folderKeys.all }),
         queryClient.invalidateQueries({ queryKey: importKeys.list("mine") }),
       ]),
   })
