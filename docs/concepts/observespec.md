@@ -299,6 +299,18 @@ The server runs a hidden query only when an expression that is itself shown name
 
 An expression that cannot be computed, such as a `resample` whose input is a single number instead of a time series, fails with status `422` and the code `expression_error`.
 
+## Reusing another panel's results
+
+A panel can show the results of another data panel of the same dashboard, as Grafana's `-- Dashboard --` source does.
+Its only query is `{"source": {"panel": "<id>"}}`, and it has no `datasource`, `interval`, `maxDataPoints`, `timeFrom` or `timeShift` of its own, because it takes them from the source panel.
+The source must be a data panel with queries that neither repeats nor itself reuses another panel, and a panel cannot reuse itself.
+The server runs the source panel's queries once, under the source's cache key, so both panels share one run.
+
+`withTransforms: true` applies the source panel's transforms to the results before the panel's own `transform` list.
+The panel's `overrides` match the source's query refs.
+A reusing query can set `hide`, which leaves the panel without data.
+The response of a reusing panel names the source in `meta.source_panel`.
+
 ## Field options, overrides and transforms
 
 A data panel carries its display options directly, and an override repeats the same options for the series or fields it matches.
