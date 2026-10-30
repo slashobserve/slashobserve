@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 44,
-      "imported": 7,
-      "partial": 37,
+      "imported": 5,
+      "partial": 39,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,9 +43,13 @@
         "type": "text",
         "source_type": "text",
         "row": "Overview",
-        "status": "imported",
-        "reasons": [],
-        "paths": [],
+        "status": "partial",
+        "reasons": [
+          "Transparent panels are drawn with a border and background for now."
+        ],
+        "paths": [
+          "transparent"
+        ],
         "queries": []
       },
       {
@@ -968,9 +972,13 @@
         "type": "text",
         "source_type": "text",
         "row": "Server Stats",
-        "status": "imported",
-        "reasons": [],
-        "paths": [],
+        "status": "partial",
+        "reasons": [
+          "Transparent panels are drawn with a border and background for now."
+        ],
+        "paths": [
+          "transparent"
+        ],
         "queries": []
       },
       {
@@ -1329,6 +1337,7 @@
               "w": 2,
               "h": 4
             },
+            "transparent": true,
             "content": "![argoimage](https://avatars1.githubusercontent.com/u/30269780?s=110&v=4)"
           },
           {
@@ -2531,6 +2540,7 @@
               "w": 24,
               "h": 2
             },
+            "transparent": true,
             "content": "#### gRPC Services:"
           },
           {

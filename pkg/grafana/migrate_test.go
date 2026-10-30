@@ -149,10 +149,7 @@ func TestDatagridOptionsAreReportedBecauseCellsCannotBeEdited(t *testing.T) {
 func TestPanelTypesWithoutAnEquivalentSayWhy(t *testing.T) {
 	cases := []struct{ typ, reason string }{
 		{"annolist", "SlashObserve has no annotations yet, so an annotation list has nothing to show."},
-		{"welcome", "Grafana's home page panels have no SlashObserve equivalent."},
-		{"gettingstarted", "Grafana's home page panels have no SlashObserve equivalent."},
-		{"debug", "Grafana's debug and live panels have no SlashObserve equivalent."},
-		{"live", "Grafana's debug and live panels have no SlashObserve equivalent."},
+		{"live", "Grafana's live panels have no SlashObserve equivalent."},
 		{"alertGroups", "Alertmanager is not supported yet."},
 		{"vendor-chart-panel", "Grafana panel type vendor-chart-panel is not supported yet."},
 	}
