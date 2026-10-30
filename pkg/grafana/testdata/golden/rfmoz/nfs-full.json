@@ -1861,6 +1861,7 @@
             "min": 0,
             "fill": 20,
             "axisLabel": "Connections/s",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1894,6 +1895,7 @@
             "min": 0,
             "fill": 20,
             "axisLabel": "Connections/s",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1933,6 +1935,7 @@
             "min": 0,
             "fill": 40,
             "axisLabel": "Packets/s",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1972,6 +1975,7 @@
             "min": 0,
             "fill": 40,
             "axisLabel": "Packets/s",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -2017,6 +2021,7 @@
             "min": 0,
             "fill": 20,
             "axisLabel": "Operations/s",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -2055,6 +2060,7 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "Operations/s errors (-) / success (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -2101,6 +2107,7 @@
             "unit": "Bps",
             "fill": 40,
             "axisLabel": "Bytes write (-) / read (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -2142,6 +2149,7 @@
             "min": 0,
             "fill": 20,
             "axisLabel": "Operations/s",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -2192,6 +2200,7 @@
             "min": 0,
             "fill": 20,
             "axisLabel": "Operations/s",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -2224,6 +2233,7 @@
             "unit": "short",
             "min": 0,
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -2308,6 +2318,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2388,6 +2399,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2468,6 +2480,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2548,6 +2561,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2643,6 +2657,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2735,6 +2750,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2830,6 +2846,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2916,6 +2933,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -3018,6 +3036,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -3110,6 +3129,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -3196,6 +3216,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -3282,6 +3303,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -3368,6 +3390,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -3442,6 +3465,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -3537,6 +3561,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -3623,6 +3648,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -3741,6 +3767,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [

@@ -741,6 +741,7 @@
             ],
             "unit": "reqps",
             "fill": 10,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -919,6 +920,7 @@
             ],
             "unit": "ms",
             "fill": 10,
+            "thresholdsStyle": "off",
             "display": {
               "tooltip": "all",
               "tooltipSort": "none",
@@ -968,6 +970,7 @@
             ],
             "unit": "ms",
             "fill": 10,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -1182,7 +1185,8 @@
               }
             ],
             "unit": "short",
-            "fill": 10
+            "fill": 10,
+            "thresholdsStyle": "off"
           },
           {
             "id": "p8",

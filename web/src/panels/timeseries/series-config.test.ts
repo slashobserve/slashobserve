@@ -39,6 +39,11 @@ function config(props: Partial<FieldConfig> = {}): FieldConfig {
     hideInLegend: false,
     hideInTooltip: false,
     stackGroup: "A",
+    nullAsZero: false,
+    barAlignment: "center",
+    barWidthFactor: 0.6,
+    barMaxWidth: 64,
+    thresholdsStyle: "dashed",
     ...props,
   }
 }

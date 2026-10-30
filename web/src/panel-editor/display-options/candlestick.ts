@@ -59,6 +59,11 @@ export const candlestick: readonly DisplayOption[] = [
   fieldOption("low", "Low field", "Field named low"),
   fieldOption("close", "Close field", "Field named close"),
   fieldOption("volume", "Volume field", "Field named volume"),
+  {
+    kind: "toggle",
+    key: "includeAllFields",
+    label: "Draw other fields as lines",
+  },
   legend,
   tooltip,
   tooltipSort,

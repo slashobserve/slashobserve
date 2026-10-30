@@ -4,6 +4,7 @@ import { stableJson } from "@/lib/json"
 
 import { dataRenderers } from "../index"
 import { alignFrames } from "../timeseries/align"
+import { shapeNulls } from "../timeseries/gaps"
 import { TimeseriesChart } from "../timeseries/timeseries-panel"
 import type { PanelRenderer } from "../types"
 import { Unsupported } from "../unsupported"
@@ -20,15 +21,16 @@ const TrendPanel: PanelRenderer = (props) => {
   const xField = xFieldName(display)
   const source = useMemo(() => trendSource(xField), [xField])
   const usable = useMemo(() => framesWithX(frames, source), [frames, source])
-  const aligned = useMemo(
+  const placed = useMemo(
     () => alignFrames(usable, fields.displayName, [], source),
     [usable, fields, source]
   )
   const configs = useMemo(
     () =>
-      aligned.series.map(({ frame, field }) => fields.configFor(frame, field)),
-    [aligned.series, fields]
+      placed.series.map(({ frame, field }) => fields.configFor(frame, field)),
+    [placed.series, fields]
   )
+  const aligned = useMemo(() => shapeNulls(placed, configs), [placed, configs])
   const xConfigJson = useMemo(() => {
     const frame = usable[0]
     const field = frame && source.fieldOf(frame)

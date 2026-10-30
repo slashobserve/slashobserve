@@ -656,6 +656,7 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "queries (-) out / (+) in",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -696,6 +697,7 @@
             "min": 0,
             "fill": 20,
             "axisLabel": "queries",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -727,6 +729,7 @@
             "min": 0,
             "fill": 20,
             "axisLabel": "queries",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -758,6 +761,7 @@
             "min": 0,
             "fill": 20,
             "axisLabel": "requests",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -789,6 +793,7 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "responses",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -914,6 +919,7 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "queries",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -953,6 +959,7 @@
             "min": 0,
             "fill": 20,
             "axisLabel": "queries",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -984,6 +991,7 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "responses",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1020,6 +1028,7 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "queries",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1065,6 +1074,7 @@
             "min": 0,
             "fill": 20,
             "axisLabel": "clients",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1095,6 +1105,7 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "responses/s",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1126,6 +1137,7 @@
             "min": 0,
             "fill": 20,
             "axisLabel": "counter",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1164,6 +1176,7 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "transfers/s",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1195,6 +1208,7 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "time",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1230,6 +1244,7 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "time",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1270,6 +1285,7 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "responses",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1300,6 +1316,7 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "rewrites/s",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1335,6 +1352,7 @@
             "min": 0,
             "fill": 20,
             "axisLabel": "count",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1385,6 +1403,7 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "counter",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {

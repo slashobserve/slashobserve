@@ -306,7 +306,8 @@
             "unit": "ops",
             "min": 0,
             "fill": 10,
-            "stack": "normal"
+            "stack": "normal",
+            "thresholdsStyle": "off"
           },
           {
             "id": "p35",
@@ -328,7 +329,8 @@
             "unit": "ops",
             "min": 0,
             "fill": 10,
-            "stack": "normal"
+            "stack": "normal",
+            "thresholdsStyle": "off"
           },
           {
             "id": "p36",
@@ -420,6 +422,7 @@
             "min": 0,
             "fill": 10,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -448,6 +451,7 @@
             "min": 0,
             "fill": 10,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -489,6 +493,7 @@
             "min": 0,
             "fill": 10,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -517,6 +522,7 @@
             "min": 0,
             "fill": 10,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {

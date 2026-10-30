@@ -861,7 +861,8 @@
                 "query": "sum(increase(vm_backup_errors_total{job=~\"$job\", instance=~\"$instance\"})[$__interval]) by (instance) > 0",
                 "legend": "{{instance}}"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p29",
@@ -881,6 +882,7 @@
               }
             ],
             "unit": "decbytes",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden"
             }
@@ -949,6 +951,7 @@
               }
             ],
             "unit": "binBps",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "legendValues": [
@@ -1015,7 +1018,8 @@
                 "query": "sum(increase(vm_retention_errors_total{job=~\"$job\", instance=~\"$instance\"})[$__interval]) by (instance) > 0",
                 "legend": "{{instance}}"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           }
         ]
       },

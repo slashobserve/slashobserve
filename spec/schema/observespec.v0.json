@@ -1440,6 +1440,48 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 200
+        },
+        "insertNulls": {
+          "x-omitFromPrompt": true,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 31536000000
+        },
+        "nullAsZero": {
+          "x-omitFromPrompt": true,
+          "type": "boolean"
+        },
+        "barAlignment": {
+          "x-omitFromPrompt": true,
+          "enum": [
+            "before",
+            "center",
+            "after"
+          ]
+        },
+        "barWidthFactor": {
+          "x-omitFromPrompt": true,
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 1
+        },
+        "barMaxWidth": {
+          "x-omitFromPrompt": true,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "thresholdsStyle": {
+          "x-omitFromPrompt": true,
+          "enum": [
+            "off",
+            "line",
+            "dashed",
+            "area",
+            "line+area",
+            "dashed+area",
+            "series"
+          ]
         }
       }
     },
@@ -3647,6 +3689,10 @@
                     "type": "integer",
                     "minimum": 100,
                     "maximum": 2000
+                  },
+                  "includeAllFields": {
+                    "x-omitFromPrompt": true,
+                    "type": "boolean"
                   },
                   "xAxis": {
                     "x-omitFromPrompt": true,

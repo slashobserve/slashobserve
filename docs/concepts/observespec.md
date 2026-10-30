@@ -121,6 +121,7 @@ The other panel types are:
 A data panel can also set `timeFrom` and `timeShift` to override the dashboard's time range, `interval` (the same forms as a query's) and `maxDataPoints` to shape the step of its queries, and `display`, a small set of options that depend on its type, such as the legend of a `timeseries` or the `header` of a `table`.
 The legend of a `timeseries` or `trend` panel is a `list` or a `table` (`legendMode`), may show reducer `legendValues`, sorts by a value or by name (`legendSortBy`, `legendSortDesc`), takes a width when it sits on the right (`legendWidth`), and hides all-zero or empty series (`legendHideZero`, `legendHideEmpty`).
 A `timeseries`, `trend` or `candlestick` tooltip that lists all series is sorted by `tooltipSort` (`none` for series order, `asc` or `desc`, which is the default), can drop zero values with `tooltipHideZeros`, can show the running total of a stacked series with `tooltipCumulative`, and is clipped to `tooltipMaxWidth` and `tooltipMaxHeight` pixels (100 to 2000).
+A `candlestick` panel draws only its open, high, low, close and volume fields unless `includeAllFields` is `true`, which draws its other number fields as lines.
 A `timeseries`, `trend` or `candlestick` panel can hide its x axis with `xAxis: "hidden"` (`shown` by default).
 When `legendMode` is absent the legend is a table if `legendValues` is not empty and a list otherwise.
 A `state-timeline` or `status-history` panel sizes its bars with `rowHeight`, the share of each row the bar fills (0.1 to 1), and a `status-history` panel sizes its cells with `columnWidth`, the share of each cell's width (0.1 to 1).
@@ -226,11 +227,15 @@ See [Datasources and variables](datasources-and-variables.md).
 ## Field options, overrides and transforms
 
 A data panel carries its display options directly, and an override repeats the same options for the series or fields it matches.
-The options are `unit`, `decimals`, `min`, `max`, `thresholds` and `thresholdMode`, `color`, `colorMode`, `colorScheme`, `colorBy`, `displayName`, `noValue`, `mappings`, `links`, and for charts `style`, `fill`, `lineStyle`, `lineInterpolation`, `lineWidth`, `points`, `pointSize`, `spanNulls`, `stack`, `axis`, `hidden`, and for the axes `axisLabel`, `axisSoftMin`, `axisSoftMax`, `scale`, `logBase`, `linearThreshold`, `axisCenteredZero`, `axisWidth`, `axisGrid`, `axisBorder` and `axisColor`.
+The options are `unit`, `decimals`, `min`, `max`, `thresholds` and `thresholdMode`, `color`, `colorMode`, `colorScheme`, `colorBy`, `displayName`, `noValue`, `mappings`, `links`, and for charts `style`, `fill`, `lineStyle`, `lineInterpolation`, `lineWidth`, `points`, `pointSize`, `spanNulls`, `insertNulls`, `nullAsZero`, `barAlignment`, `barWidthFactor`, `barMaxWidth`, `thresholdsStyle`, `stack`, `axis`, `hidden`, and for the axes `axisLabel`, `axisSoftMin`, `axisSoftMax`, `scale`, `logBase`, `linearThreshold`, `axisCenteredZero`, `axisWidth`, `axisGrid`, `axisBorder` and `axisColor`.
 `lineInterpolation` is `linear`, `smooth`, `stepBefore` or `stepAfter`, and stacked series always draw linear.
 `lineWidth` is 0 to 10 pixels (2 by default; 0 draws no line, so a filled series shows only its fill).
 `points` is `auto` (a marker on samples with no neighbour, the default), `always` or `never`, and `pointSize` is the marker diameter in pixels, 1 to 40 (4 by default), which also sizes the markers of the `points` style.
 `spanNulls` is `false` (the default, a gap breaks the line), `true` (every gap is joined) or a number of milliseconds (gaps up to that long are joined).
+`insertNulls` is a number of milliseconds: a series with a longer pause between two samples breaks its line there, which a series that also sets `spanNulls` then joins only up to its own limit.
+`nullAsZero` draws a series' missing values as 0 (`false` by default).
+`barAlignment` puts a bar `before`, at the `center` (the default) or `after` its sample, `barWidthFactor` is the share of the space between samples a bar fills, 0.05 to 1 (0.6 by default), and `barMaxWidth` caps a bar at 1 to 200 pixels (64 by default).
+`thresholdsStyle` draws the thresholds on the chart as `off`, `line`, `dashed` (the default), `area`, `line+area`, `dashed+area` or `series` (the line takes the color of the threshold band its value is in), and the first series on the left axis decides it for the panel.
 The axis options belong to the axis a series draws on, and the first series on an axis decides its settings.
 `axisLabel` is up to 100 characters of text beside the axis.
 `axisSoftMin` and `axisSoftMax` widen the automatic range to include them but never cut data, while `min` and `max` are hard limits that win over them.

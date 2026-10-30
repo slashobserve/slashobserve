@@ -210,11 +210,9 @@
         "row": "Application Status",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "fieldConfig.defaults.unitScale",
           "paceLength"
         ],
@@ -238,11 +236,9 @@
         "row": "Application Status",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "fieldConfig.defaults.unitScale",
           "paceLength"
         ],
@@ -383,11 +379,9 @@
         "row": "Controller Stats",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "paceLength"
         ],
         "queries": [
@@ -983,11 +977,9 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "paceLength"
         ],
         "queries": [
@@ -1010,11 +1002,9 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "paceLength"
         ],
         "queries": [
@@ -1037,11 +1027,9 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "paceLength"
         ],
         "queries": [
@@ -1064,12 +1052,10 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Thresholds below a value are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "thresholds[0]",
           "paceLength"
         ],
@@ -1093,11 +1079,9 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "paceLength"
         ],
         "queries": [
@@ -1120,11 +1104,9 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "paceLength"
         ],
         "queries": [
@@ -1147,11 +1129,9 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "paceLength"
         ],
         "queries": [
@@ -1174,11 +1154,9 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "paceLength"
         ],
         "queries": [
@@ -1596,6 +1574,7 @@
             "fill": 10,
             "scale": "log",
             "logBase": 2,
+            "nullAsZero": true,
             "overrides": [
               {
                 "match": {
@@ -1665,6 +1644,7 @@
             "fill": 10,
             "scale": "log",
             "logBase": 2,
+            "nullAsZero": true,
             "overrides": [
               {
                 "match": {
@@ -1891,6 +1871,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "nullAsZero": true,
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2554,6 +2535,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "nullAsZero": true,
             "display": {
               "legendValues": [
                 "mean",
@@ -2585,6 +2567,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "nullAsZero": true,
             "display": {
               "legendValues": [
                 "mean",
@@ -2614,6 +2597,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "nullAsZero": true,
             "display": {
               "legendValues": [
                 "mean",
@@ -2645,6 +2629,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "nullAsZero": true,
             "display": {
               "legendValues": [
                 "mean",
@@ -2676,6 +2661,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "nullAsZero": true,
             "display": {
               "legendValues": [
                 "mean",
@@ -2707,6 +2693,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "nullAsZero": true,
             "display": {
               "legendValues": [
                 "mean",
@@ -2738,6 +2725,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "nullAsZero": true,
             "display": {
               "legendValues": [
                 "mean",
@@ -2769,6 +2757,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "nullAsZero": true,
             "display": {
               "legendValues": [
                 "mean",

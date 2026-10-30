@@ -2786,6 +2786,7 @@
             "fill": 20,
             "stack": "normal",
             "axisLabel": "back (-) / front (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -2884,6 +2885,7 @@
             "unit": "bps",
             "fill": 20,
             "axisLabel": "out (-) / in (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -2929,6 +2931,7 @@
             "unit": "bps",
             "fill": 20,
             "axisLabel": "out (-) / in (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -2972,6 +2975,7 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "back (-) / front (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -3015,6 +3019,7 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "back (-) / front (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -3058,6 +3063,7 @@
             "unit": "short",
             "fill": 20,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -3156,6 +3162,7 @@
             "fill": 20,
             "stack": "normal",
             "axisLabel": "fail (-) / total (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -3206,6 +3213,7 @@
             "fill": 20,
             "stack": "normal",
             "axisLabel": "fail (-) / total (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -3243,6 +3251,7 @@
             ],
             "unit": "reqps",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -3272,6 +3281,7 @@
             ],
             "unit": "reqps",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -3302,6 +3312,7 @@
             "unit": "reqps",
             "decimals": 1,
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -3334,6 +3345,7 @@
             ],
             "unit": "reqps",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -3363,6 +3375,7 @@
             ],
             "unit": "reqps",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -3393,6 +3406,7 @@
             "unit": "reqps",
             "decimals": 1,
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -3425,6 +3439,7 @@
             "unit": "reqps",
             "fill": 20,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -3456,6 +3471,7 @@
             "unit": "reqps",
             "fill": 20,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -3487,6 +3503,7 @@
             "unit": "reqps",
             "decimals": 1,
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -3529,6 +3546,7 @@
             "fill": 20,
             "stack": "normal",
             "axisLabel": "error (-) / recover (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -3580,6 +3598,7 @@
             "decimals": 1,
             "fill": 20,
             "axisLabel": "error (-) / recover (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -3639,6 +3658,7 @@
             "fill": 20,
             "stack": "normal",
             "axisLabel": "out (-) / in (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -3683,6 +3703,7 @@
             "fill": 20,
             "stack": "normal",
             "axisLabel": "out (-) / in (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -3727,6 +3748,7 @@
             "decimals": 1,
             "fill": 20,
             "axisLabel": "out (-) / in (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -3772,6 +3794,7 @@
             "fill": 20,
             "stack": "normal",
             "axisLabel": "deny (-) / accept (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -3816,6 +3839,7 @@
             "fill": 20,
             "stack": "normal",
             "axisLabel": "error (-) / attempt (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -3862,6 +3886,7 @@
             "decimals": 1,
             "fill": 20,
             "axisLabel": "error (-) / attempts (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -3900,6 +3925,7 @@
             ],
             "unit": "short",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -3929,6 +3955,7 @@
             ],
             "unit": "short",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -3960,6 +3987,7 @@
             "unit": "ops",
             "fill": 20,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -3991,6 +4019,7 @@
             "unit": "ops",
             "decimals": 1,
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -4027,6 +4056,7 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "server (-) / client (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -4071,6 +4101,7 @@
             "decimals": 1,
             "fill": 20,
             "axisLabel": "server (-) / client (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -4119,6 +4150,7 @@
             ],
             "unit": "short",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -4153,6 +4185,7 @@
             ],
             "unit": "short",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -4203,6 +4236,7 @@
             "fill": 20,
             "stack": "normal",
             "axisLabel": "fail (-) / total (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -4241,6 +4275,7 @@
             "unit": "ops",
             "fill": 20,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -4272,6 +4307,7 @@
             "unit": "ops",
             "decimals": 1,
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -4305,6 +4341,7 @@
             "min": 0,
             "max": 100,
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -4337,6 +4374,7 @@
             "min": 0,
             "max": 100,
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -4374,6 +4412,7 @@
             "unit": "none",
             "fill": 20,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -4411,6 +4450,7 @@
             "unit": "none",
             "fill": 20,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -4449,6 +4489,7 @@
             "unit": "none",
             "decimals": 1,
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -4479,6 +4520,7 @@
             ],
             "unit": "eps",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -4508,6 +4550,7 @@
             ],
             "unit": "eps",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -4538,6 +4581,7 @@
             "unit": "eps",
             "decimals": 1,
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -4583,6 +4627,7 @@
             ],
             "unit": "s",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -4613,6 +4658,7 @@
             ],
             "unit": "s",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -4642,6 +4688,7 @@
               }
             ],
             "unit": "s",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -4672,6 +4719,7 @@
               }
             ],
             "unit": "s",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -4703,6 +4751,7 @@
             ],
             "unit": "s",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -4732,6 +4781,7 @@
             ],
             "unit": "s",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -4761,6 +4811,7 @@
               }
             ],
             "unit": "s",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -4790,6 +4841,7 @@
               }
             ],
             "unit": "s",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -4834,6 +4886,7 @@
             ],
             "unit": "eps",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -4869,6 +4922,7 @@
             ],
             "unit": "short",
             "fill": 20,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -4909,6 +4963,7 @@
             "unit": "eps",
             "decimals": 2,
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -4944,6 +4999,7 @@
             ],
             "unit": "short",
             "fill": 20,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -4981,6 +5037,7 @@
               }
             ],
             "unit": "short",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -5010,6 +5067,7 @@
               }
             ],
             "unit": "short",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -5040,6 +5098,7 @@
             "unit": "eps",
             "decimals": 2,
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -5070,6 +5129,7 @@
             ],
             "unit": "s",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -5101,6 +5161,7 @@
             "unit": "s",
             "min": 0,
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -5132,6 +5193,7 @@
             ],
             "unit": "s",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -5161,6 +5223,7 @@
             ],
             "unit": "s",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -5190,6 +5253,7 @@
             ],
             "unit": "s",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -5219,6 +5283,7 @@
             ],
             "unit": "s",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -5248,6 +5313,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -5277,6 +5343,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -5325,6 +5392,7 @@
             ],
             "unit": "eps",
             "fill": 20,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -5368,6 +5436,7 @@
             ],
             "unit": "eps",
             "fill": 20,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -5417,6 +5486,7 @@
             "unit": "bps",
             "fill": 20,
             "axisLabel": "out (-) / in (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -5472,6 +5542,7 @@
             "unit": "bps",
             "fill": 20,
             "axisLabel": "out (-) / in (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -5516,6 +5587,7 @@
             ],
             "unit": "reqps",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -5546,6 +5618,7 @@
             ],
             "unit": "reqps",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -5599,6 +5672,7 @@
                 "text": "DOWN"
               }
             ],
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -5637,6 +5711,7 @@
                 "text": "DOWN"
               }
             ],
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -5676,6 +5751,7 @@
                 "text": "UP"
               }
             ],
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -5711,6 +5787,7 @@
             "decimals": 0,
             "min": 0,
             "max": 1,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -5744,6 +5821,7 @@
             "unit": "eps",
             "min": 0,
             "fill": 10,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -5774,6 +5852,7 @@
             "unit": "eps",
             "min": 0,
             "fill": 10,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -5803,6 +5882,7 @@
             ],
             "unit": "eps",
             "fill": 10,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -5837,6 +5917,7 @@
               }
             ],
             "unit": "short",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -5886,6 +5967,7 @@
             "unit": "short",
             "min": -1,
             "fill": 20,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -5932,6 +6014,7 @@
             "unit": "short",
             "min": -1,
             "fill": 20,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -5976,6 +6059,7 @@
             ],
             "unit": "short",
             "fill": 20,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -6021,6 +6105,7 @@
             "unit": "short",
             "min": -1,
             "fill": 20,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -6066,6 +6151,7 @@
             "unit": "short",
             "min": -1,
             "fill": 20,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -6112,6 +6198,7 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "back (-) / front (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -6159,6 +6246,7 @@
             ],
             "unit": "ops",
             "fill": 20,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -6203,6 +6291,7 @@
             ],
             "unit": "percent",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -6238,6 +6327,7 @@
             "unit": "short",
             "min": -1,
             "fill": 20,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -6291,6 +6381,7 @@
             ],
             "unit": "ops",
             "fill": 10,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -6339,6 +6430,7 @@
             "unit": "ops",
             "fill": 20,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -6387,6 +6479,7 @@
             "unit": "short",
             "min": 0,
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -6426,6 +6519,7 @@
             ],
             "unit": "bytes",
             "fill": 20,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -6467,6 +6561,7 @@
             "min": 0,
             "fill": 20,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -6502,6 +6597,7 @@
             "unit": "short",
             "min": 0,
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -6536,6 +6632,7 @@
             ],
             "unit": "short",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -6571,6 +6668,7 @@
             "unit": "ops",
             "fill": 20,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -6605,6 +6703,7 @@
             ],
             "unit": "short",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -6639,6 +6738,7 @@
             ],
             "unit": "short",
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -6674,6 +6774,7 @@
             "unit": "percent",
             "min": 0,
             "fill": 20,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -6704,6 +6805,7 @@
             "unit": "s",
             "fill": 20,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",

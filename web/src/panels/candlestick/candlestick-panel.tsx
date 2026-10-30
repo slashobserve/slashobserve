@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { resolveColor } from "../colors"
 import { dataRenderers } from "../index"
 import { alignFrames } from "../timeseries/align"
+import { shapeNulls } from "../timeseries/gaps"
 import type { Cell } from "../timeseries/stack"
 import { LegendSwatch } from "../legend/legend"
 import { TimeseriesChart } from "../timeseries/timeseries-panel"
@@ -178,6 +179,9 @@ function priceConfig(config: FieldConfig, role: CandleRole): FieldConfig {
     fill: 0,
     stack: "none",
     hidden: false,
+    hideInLegend: true,
+    insertNulls: undefined,
+    nullAsZero: false,
     axis: role === "volume" ? "hidden" : "left",
   }
 }
@@ -195,7 +199,7 @@ const CandlestickPanel: PanelRenderer = (props) => {
     () => (selection.reason === null ? selection.columns : []),
     [selection]
   )
-  const aligned = useMemo(() => {
+  const placed = useMemo(() => {
     const labels = new Map(
       columns.map(({ role, field }) => [field, roleLabels[role]])
     )
@@ -207,12 +211,18 @@ const CandlestickPanel: PanelRenderer = (props) => {
       : null
   }, [source, columns])
   const configs = useMemo(() => {
-    if (!aligned) return []
+    if (!placed) return []
     const roles = new Map(columns.map(({ role, field }) => [field, role]))
-    return aligned.series.map(({ frame, field }) =>
-      priceConfig(fields.configFor(frame, field), roles.get(field) ?? "close")
-    )
-  }, [aligned, columns, fields])
+    return placed.series.map(({ frame, field }) => {
+      const config = fields.configFor(frame, field)
+      const role = roles.get(field)
+      return role === undefined ? config : priceConfig(config, role)
+    })
+  }, [placed, columns, fields])
+  const aligned = useMemo(
+    () => (placed ? shapeNulls(placed, configs) : null),
+    [placed, configs]
+  )
   const rowColor = useMemo(() => {
     if (!aligned) return undefined
     const values = (role: CandleRole) => {
@@ -252,7 +262,10 @@ const CandlestickPanel: PanelRenderer = (props) => {
   const chartHeight = height - (legendShown && !right ? legendBottomHeight : 0)
   const chartDisplay = {
     ...display,
-    legend: "hidden",
+    legend:
+      columns.length < (aligned?.series.length ?? 0)
+        ? options.legend
+        : "hidden",
     legendValues: [],
     tooltip: options.tooltip === "hidden" ? "hidden" : "all",
   }
@@ -270,6 +283,7 @@ const CandlestickPanel: PanelRenderer = (props) => {
         aligned={aligned}
         configs={configs}
         draw={draw}
+        painted={columns.length}
         rowColor={rowColor}
       />
       {legendShown ? (

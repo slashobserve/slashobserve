@@ -575,7 +575,8 @@
         "decimals": 2,
         "fill": 25,
         "lineInterpolation": "smooth",
-        "points": "never"
+        "points": "never",
+        "thresholdsStyle": "off"
       },
       {
         "id": "p21",
@@ -598,7 +599,8 @@
         "unit": "bytes",
         "fill": 25,
         "lineInterpolation": "smooth",
-        "points": "never"
+        "points": "never",
+        "thresholdsStyle": "off"
       },
       {
         "id": "p9",
@@ -623,6 +625,7 @@
         "fill": 25,
         "lineInterpolation": "smooth",
         "points": "never",
+        "thresholdsStyle": "off",
         "display": {
           "legend": "hidden",
           "tooltip": "all",
@@ -652,6 +655,7 @@
         "fill": 25,
         "lineInterpolation": "smooth",
         "points": "never",
+        "thresholdsStyle": "off",
         "display": {
           "legend": "hidden",
           "tooltip": "all",
@@ -681,6 +685,7 @@
         "fill": 25,
         "lineInterpolation": "smooth",
         "points": "never",
+        "thresholdsStyle": "off",
         "display": {
           "tooltip": "all"
         }
@@ -708,6 +713,7 @@
         "fill": 25,
         "lineInterpolation": "smooth",
         "points": "never",
+        "thresholdsStyle": "off",
         "display": {
           "tooltip": "all"
         }
@@ -735,6 +741,7 @@
         "fill": 25,
         "lineInterpolation": "smooth",
         "points": "never",
+        "thresholdsStyle": "off",
         "display": {
           "legend": "hidden",
           "tooltip": "all",
@@ -764,6 +771,7 @@
         "fill": 25,
         "lineInterpolation": "smooth",
         "points": "never",
+        "thresholdsStyle": "off",
         "display": {
           "tooltip": "all",
           "tooltipSort": "none"
@@ -798,6 +806,7 @@
         "fill": 25,
         "lineInterpolation": "smooth",
         "points": "never",
+        "thresholdsStyle": "off",
         "display": {
           "tooltip": "all"
         }
@@ -824,6 +833,7 @@
         "fill": 25,
         "lineInterpolation": "smooth",
         "points": "never",
+        "thresholdsStyle": "off",
         "display": {
           "tooltip": "all"
         }

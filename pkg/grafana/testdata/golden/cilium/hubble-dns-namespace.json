@@ -223,6 +223,7 @@
             "min": 0,
             "fill": 10,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -279,6 +280,7 @@
             "min": 0,
             "fill": 10,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -307,6 +309,7 @@
             "min": 0,
             "fill": 10,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",

@@ -128,8 +128,7 @@ var typeDefaults = map[spec.PanelType]map[string]any{
 		"fieldConfig.defaults.custom.pointStrokeWidth": 1,
 	},
 	spec.Candlestick: {
-		"options.colors.flat":      "gray",
-		"options.includeAllFields": false,
+		"options.colors.flat": "gray",
 	},
 	spec.StateTimeline: {
 		"display":              "timeline",
@@ -220,7 +219,6 @@ var partialReasons = map[string]string{
 	"options.xTickLabelSpacing":                     "Axis labels are drawn in the SlashObserve style.",
 	"options.barRadius":                             "Bars are drawn in the SlashObserve style.",
 	"options.fullHighlight":                         "Highlighting a whole bar group is not supported yet.",
-	"options.includeAllFields":                      "Drawing the other fields as lines is not supported yet.",
 	"rowHeight":                                     "A row height in pixels is not supported; rows share the height of the panel.",
 	"options.controls":                              "Map controls are not configurable.",
 	"options.layers":                                "Some layer options are not supported yet.",

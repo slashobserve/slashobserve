@@ -806,9 +806,9 @@ func TestChartPanelTypesImportTheirOptions(t *testing.T) {
 		},
 		{
 			name: "candlestick options with no Spec field", typ: "candlestick",
-			members: `"options":{"colors":{"up":"nonsense","down":"orange","flat":"purple"},"includeAllFields":true}`,
+			members: `"options":{"colors":{"up":"nonsense","down":"orange","flat":"purple"}}`,
 			display: `{"tooltipSort":"none","downColor":"warning"}`,
-			paths:   []string{"options.colors.up", "options.colors.flat", "options.includeAllFields"},
+			paths:   []string{"options.colors.up", "options.colors.flat"},
 		},
 		{
 			name: "node graph grid layout", typ: "nodeGraph",

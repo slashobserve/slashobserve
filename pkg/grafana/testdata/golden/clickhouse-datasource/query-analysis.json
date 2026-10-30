@@ -507,6 +507,7 @@
         ],
         "fill": 15,
         "stack": "normal",
+        "thresholdsStyle": "off",
         "transform": [
           {
             "type": "prepareTimeSeries",
@@ -531,6 +532,7 @@
             "format": "logs"
           }
         ],
+        "thresholdsStyle": "off",
         "transform": [
           {
             "type": "prepareTimeSeries",
@@ -557,6 +559,7 @@
         ],
         "style": "bars",
         "stack": "normal",
+        "thresholdsStyle": "off",
         "transform": [
           {
             "type": "prepareTimeSeries",
@@ -586,6 +589,7 @@
         "fill": 20,
         "lineInterpolation": "smooth",
         "lineWidth": 3,
+        "thresholdsStyle": "off",
         "overrides": [
           {
             "match": {
@@ -615,6 +619,7 @@
         "fill": 26,
         "lineInterpolation": "smooth",
         "axisLabel": "Read rows",
+        "thresholdsStyle": "off",
         "overrides": [
           {
             "match": {

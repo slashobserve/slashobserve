@@ -61,6 +61,12 @@ export type FieldConfig = {
   hideInTooltip: boolean
   stackGroup: string
   fillBelowTo?: string
+  insertNulls?: number
+  nullAsZero: boolean
+  barAlignment: "before" | "center" | "after"
+  barWidthFactor: number
+  barMaxWidth: number
+  thresholdsStyle: NonNullable<FieldProps["thresholdsStyle"]>
 }
 
 export type FieldResolver = {
@@ -74,50 +80,58 @@ export type FieldResolver = {
   displayName(frame: PreparedFrame, field: PreparedField): string
 }
 
-const fieldPropKeys = [
-  "unit",
-  "decimals",
-  "min",
-  "max",
-  "thresholds",
-  "thresholdMode",
-  "color",
-  "colorMode",
-  "colorScheme",
-  "colorBy",
-  "displayName",
-  "noValue",
-  "mappings",
-  "links",
-  "style",
-  "fill",
-  "lineStyle",
-  "lineInterpolation",
-  "lineWidth",
-  "points",
-  "pointSize",
-  "spanNulls",
-  "stack",
-  "axis",
-  "hidden",
-  "axisLabel",
-  "axisSoftMin",
-  "axisSoftMax",
-  "scale",
-  "logBase",
-  "linearThreshold",
-  "axisCenteredZero",
-  "axisWidth",
-  "axisGrid",
-  "axisBorder",
-  "axisColor",
-  "cell",
-  "valueTransform",
-  "hideInLegend",
-  "hideInTooltip",
-  "stackGroup",
-  "fillBelowTo",
-] as const satisfies readonly (keyof FieldProps)[]
+const fieldPropKeyFlags: Record<keyof FieldProps, true> = {
+  unit: true,
+  decimals: true,
+  min: true,
+  max: true,
+  thresholds: true,
+  thresholdMode: true,
+  color: true,
+  colorMode: true,
+  colorScheme: true,
+  colorBy: true,
+  displayName: true,
+  noValue: true,
+  mappings: true,
+  links: true,
+  style: true,
+  fill: true,
+  lineStyle: true,
+  lineInterpolation: true,
+  lineWidth: true,
+  points: true,
+  pointSize: true,
+  spanNulls: true,
+  stack: true,
+  axis: true,
+  hidden: true,
+  axisLabel: true,
+  axisSoftMin: true,
+  axisSoftMax: true,
+  scale: true,
+  logBase: true,
+  linearThreshold: true,
+  axisCenteredZero: true,
+  axisWidth: true,
+  axisGrid: true,
+  axisBorder: true,
+  axisColor: true,
+  cell: true,
+  valueTransform: true,
+  hideInLegend: true,
+  hideInTooltip: true,
+  stackGroup: true,
+  fillBelowTo: true,
+  insertNulls: true,
+  nullAsZero: true,
+  barAlignment: true,
+  barWidthFactor: true,
+  barMaxWidth: true,
+  thresholdsStyle: true,
+}
+
+const fieldPropKeys = Object.keys(fieldPropKeyFlags) as (keyof FieldProps)[]
 
 export function effectiveColorMode(
   config: Pick<FieldConfig, "colorMode" | "color">

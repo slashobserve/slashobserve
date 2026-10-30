@@ -46,6 +46,11 @@ function config(props: Partial<FieldConfig> = {}): FieldConfig {
     hideInLegend: false,
     hideInTooltip: false,
     stackGroup: "A",
+    nullAsZero: false,
+    barAlignment: "center",
+    barWidthFactor: 0.6,
+    barMaxWidth: 64,
+    thresholdsStyle: "dashed",
     ...props,
   }
 }
@@ -366,9 +371,13 @@ describe("ghostsDrawn", () => {
 })
 
 describe("thresholdsFor", () => {
-  const panel: Pick<DataPanel, "thresholds" | "thresholdMode"> = {
+  const panel: Pick<
+    DataPanel,
+    "thresholds" | "thresholdMode" | "thresholdsStyle"
+  > = {
     thresholds: [{ value: 5, color: "warning" }],
     thresholdMode: "percentage",
+    thresholdsStyle: "off",
   }
   const own = [{ value: 1, color: "critical" }]
 
@@ -397,7 +406,17 @@ describe("thresholdsFor", () => {
     expect(thresholdsFor(rows, leftOf(rows), panel)).toEqual({
       list: own,
       mode: "absolute",
+      style: "dashed",
     })
+  })
+
+  it("takes the style of the first series on the left axis", () => {
+    const rows = [
+      series("l", [1], {
+        config: config({ thresholds: own, thresholdsStyle: "area" }),
+      }),
+    ]
+    expect(thresholdsFor(rows, leftOf(rows), panel)?.style).toBe("area")
   })
 
   it("falls back to the panel when no series is on the left axis", () => {
@@ -411,6 +430,7 @@ describe("thresholdsFor", () => {
     expect(thresholdsFor(rows, left, panel)).toEqual({
       list: panel.thresholds,
       mode: "percentage",
+      style: "off",
     })
   })
 

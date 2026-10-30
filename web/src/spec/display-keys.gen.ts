@@ -187,6 +187,7 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "tooltipCumulative",
     "tooltipMaxWidth",
     "tooltipMaxHeight",
+    "includeAllFields",
     "xAxis"
   ],
   "nodeGraph": [

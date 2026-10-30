@@ -236,7 +236,8 @@
             "query": "nginx_connections_current",
             "legend": "{{state}}"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       }
     ]
   }

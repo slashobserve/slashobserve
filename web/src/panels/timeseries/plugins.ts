@@ -15,6 +15,12 @@ import {
 import { formatTogether, type DrawStyle } from "./series-config"
 import type { Cell } from "./stack"
 import {
+  areaOpacity,
+  thresholdBands,
+  thresholdParts,
+  type ThresholdsStyle,
+} from "./threshold-style"
+import {
   candidateRows,
   tooltipRows,
   type StackEntry,
@@ -413,15 +419,42 @@ export function cursorPlugin(member: {
 export function thresholdsPlugin(
   thresholds: Threshold[],
   mode: "absolute" | "percentage",
+  style: ThresholdsStyle,
   resolveColor: (color: string) => string
 ): uPlot.Plugin {
-  const colors = thresholds.map((threshold) => resolveColor(threshold.color))
+  const colors = new Map(
+    thresholds.map((threshold) => [threshold, resolveColor(threshold.color)])
+  )
+  const { lines, area } = thresholdParts(style)
   return {
     hooks: {
+      drawClear: (u) => {
+        const { min, max } = u.scales.y
+        if (!area || min == null || max == null) return
+        const { ctx } = u
+        const { left, top, width, height } = u.bbox
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(left, top, width, height)
+        ctx.clip()
+        ctx.globalAlpha = areaOpacity
+        for (const { from, to, threshold } of thresholdBands(
+          thresholds,
+          mode,
+          min,
+          max
+        )) {
+          const yTop = u.valToPos(Math.min(to, max), "y", true)
+          const yBottom = u.valToPos(Math.max(from, min), "y", true)
+          if (!Number.isFinite(yTop) || !Number.isFinite(yBottom)) continue
+          ctx.fillStyle = colors.get(threshold) ?? "transparent"
+          ctx.fillRect(left, yTop, width, yBottom - yTop)
+        }
+        ctx.restore()
+      },
       draw: (u) => {
-        const yScale = u.scales.y
-        const { min, max } = yScale
-        if (min == null || max == null) return
+        const { min, max } = u.scales.y
+        if (!lines || min == null || max == null) return
         const { ctx } = u
         const { left, top, width, height } = u.bbox
         const ratio = uPlot.pxRatio
@@ -430,13 +463,13 @@ export function thresholdsPlugin(
         ctx.rect(left, top, width, height)
         ctx.clip()
         ctx.lineWidth = Math.max(1, Math.round(ratio))
-        ctx.setLineDash([4 * ratio, 4 * ratio])
-        thresholds.forEach((threshold, index) => {
+        ctx.setLineDash(lines === "dashed" ? [4 * ratio, 4 * ratio] : [])
+        thresholds.forEach((threshold) => {
           if (threshold.value === undefined) return
           const at = thresholdValueAt(threshold.value, mode, min, max)
           if (at < min || at > max) return
           const y = Math.round(u.valToPos(at, "y", true))
-          ctx.strokeStyle = colors[index]
+          ctx.strokeStyle = colors.get(threshold) ?? "transparent"
           ctx.beginPath()
           ctx.moveTo(left, y)
           ctx.lineTo(left + width, y)
@@ -445,5 +478,40 @@ export function thresholdsPlugin(
         ctx.restore()
       },
     },
+  }
+}
+
+export function thresholdStroke(
+  thresholds: Threshold[],
+  mode: "absolute" | "percentage",
+  resolveColor: (color: string) => string,
+  fallback: string
+): uPlot.Series.Stroke {
+  const colors = new Map(
+    thresholds.map((threshold) => [threshold, resolveColor(threshold.color)])
+  )
+  return (u, seriesIdx) => {
+    const { min, max } = u.scales[u.series[seriesIdx].scale ?? "y"]
+    if (min == null || max == null) return fallback
+    const top = u.valToPos(max, "y", true)
+    const bottom = u.valToPos(min, "y", true)
+    if (!(bottom > top)) return fallback
+    const offset = (value: number) =>
+      Math.min(
+        1,
+        Math.max(0, (u.valToPos(value, "y", true) - top) / (bottom - top))
+      )
+    const gradient = u.ctx.createLinearGradient(0, top, 0, bottom)
+    for (const { from, to, threshold } of thresholdBands(
+      thresholds,
+      mode,
+      min,
+      max
+    ).reverse()) {
+      const color = colors.get(threshold) ?? fallback
+      gradient.addColorStop(Number.isFinite(to) ? offset(to) : 0, color)
+      gradient.addColorStop(Number.isFinite(from) ? offset(from) : 1, color)
+    }
+    return gradient
   }
 }

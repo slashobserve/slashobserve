@@ -729,6 +729,7 @@
         "unit": "reqps",
         "fill": 10,
         "spanNulls": true,
+        "thresholdsStyle": "off",
         "overrides": [
           {
             "match": {
@@ -771,6 +772,7 @@
         "unit": "ms",
         "fill": 10,
         "spanNulls": true,
+        "thresholdsStyle": "off",
         "display": {
           "legendValues": [
             "mean",
@@ -805,6 +807,7 @@
         "lineInterpolation": "stepAfter",
         "spanNulls": true,
         "stack": "normal",
+        "thresholdsStyle": "off",
         "display": {
           "legendValues": [
             "mean",
@@ -848,6 +851,7 @@
         "unit": "short",
         "fill": 10,
         "spanNulls": true,
+        "thresholdsStyle": "off",
         "display": {
           "legendValues": [
             "mean",
@@ -882,6 +886,7 @@
         "lineInterpolation": "stepAfter",
         "spanNulls": true,
         "stack": "normal",
+        "thresholdsStyle": "off",
         "display": {
           "legendValues": [
             "mean",
@@ -925,6 +930,7 @@
             "unit": "reqps",
             "fill": 10,
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -956,6 +962,7 @@
             "unit": "short",
             "fill": 10,
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -991,6 +998,7 @@
             "unit": "Bps",
             "fill": 10,
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1022,6 +1030,7 @@
             "unit": "short",
             "fill": 10,
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1071,6 +1080,7 @@
             "unit": "short",
             "fill": 10,
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1110,6 +1120,7 @@
             "unit": "short",
             "fill": 10,
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1146,6 +1157,7 @@
             "fill": 10,
             "spanNulls": true,
             "stack": "normal",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1181,6 +1193,7 @@
             "unit": "short",
             "fill": 10,
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",

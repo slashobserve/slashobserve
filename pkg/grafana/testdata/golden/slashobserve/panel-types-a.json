@@ -567,6 +567,7 @@
           }
         ],
         "fill": 10,
+        "thresholdsStyle": "line",
         "display": {
           "legend": "right",
           "tooltip": "all",
@@ -640,6 +641,7 @@
             "color": "critical"
           }
         ],
+        "thresholdsStyle": "line",
         "display": {
           "tooltipSort": "none",
           "mode": "candles",

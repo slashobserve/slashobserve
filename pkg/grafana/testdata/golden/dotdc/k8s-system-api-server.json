@@ -491,6 +491,7 @@
         "fill": 25,
         "lineInterpolation": "smooth",
         "points": "never",
+        "thresholdsStyle": "off",
         "display": {
           "tooltip": "all"
         }
@@ -518,6 +519,7 @@
         "fill": 25,
         "lineInterpolation": "smooth",
         "points": "never",
+        "thresholdsStyle": "off",
         "display": {
           "tooltip": "all"
         }
@@ -544,7 +546,8 @@
         "unit": "ms",
         "fill": 25,
         "lineInterpolation": "smooth",
-        "points": "never"
+        "points": "never",
+        "thresholdsStyle": "off"
       },
       {
         "id": "p54",
@@ -569,6 +572,7 @@
         "fill": 25,
         "lineInterpolation": "smooth",
         "points": "never",
+        "thresholdsStyle": "off",
         "display": {
           "tooltip": "all"
         }
@@ -595,7 +599,8 @@
         "unit": "short",
         "fill": 25,
         "lineInterpolation": "smooth",
-        "points": "never"
+        "points": "never",
+        "thresholdsStyle": "off"
       },
       {
         "id": "p51",
@@ -620,6 +625,7 @@
         "fill": 25,
         "lineInterpolation": "smooth",
         "points": "never",
+        "thresholdsStyle": "off",
         "display": {
           "tooltip": "all",
           "tooltipSort": "none"
@@ -648,7 +654,8 @@
         "fill": 25,
         "lineInterpolation": "smooth",
         "points": "never",
-        "stack": "normal"
+        "stack": "normal",
+        "thresholdsStyle": "off"
       },
       {
         "id": "p56",
@@ -672,7 +679,8 @@
         "unit": "short",
         "fill": 25,
         "lineInterpolation": "smooth",
-        "points": "never"
+        "points": "never",
+        "thresholdsStyle": "off"
       },
       {
         "id": "p47",
@@ -697,7 +705,8 @@
         "decimals": 2,
         "fill": 25,
         "lineInterpolation": "smooth",
-        "points": "never"
+        "points": "never",
+        "thresholdsStyle": "off"
       },
       {
         "id": "p48",
@@ -721,7 +730,8 @@
         "unit": "bytes",
         "fill": 25,
         "lineInterpolation": "smooth",
-        "points": "never"
+        "points": "never",
+        "thresholdsStyle": "off"
       }
     ]
   }

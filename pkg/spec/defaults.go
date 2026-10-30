@@ -11,27 +11,32 @@ import (
 )
 
 type FieldPropsDefaults struct {
-	ThresholdMode     string `json:"thresholdMode"`
-	ColorBy           string `json:"colorBy"`
-	Style             string `json:"style"`
-	Fill              int    `json:"fill"`
-	LineStyle         string `json:"lineStyle"`
-	LineInterpolation string `json:"lineInterpolation"`
-	LineWidth         int    `json:"lineWidth"`
-	Points            string `json:"points"`
-	PointSize         int    `json:"pointSize"`
-	SpanNulls         bool   `json:"spanNulls"`
-	Stack             string `json:"stack"`
-	Axis              string `json:"axis"`
-	Hidden            bool   `json:"hidden"`
-	Scale             string `json:"scale"`
-	LogBase           int    `json:"logBase"`
-	AxisCenteredZero  bool   `json:"axisCenteredZero"`
-	AxisBorder        bool   `json:"axisBorder"`
-	AxisColor         string `json:"axisColor"`
-	HideInLegend      bool   `json:"hideInLegend"`
-	HideInTooltip     bool   `json:"hideInTooltip"`
-	StackGroup        string `json:"stackGroup"`
+	ThresholdMode     string  `json:"thresholdMode"`
+	ColorBy           string  `json:"colorBy"`
+	Style             string  `json:"style"`
+	Fill              int     `json:"fill"`
+	LineStyle         string  `json:"lineStyle"`
+	LineInterpolation string  `json:"lineInterpolation"`
+	LineWidth         int     `json:"lineWidth"`
+	Points            string  `json:"points"`
+	PointSize         int     `json:"pointSize"`
+	SpanNulls         bool    `json:"spanNulls"`
+	Stack             string  `json:"stack"`
+	Axis              string  `json:"axis"`
+	Hidden            bool    `json:"hidden"`
+	Scale             string  `json:"scale"`
+	LogBase           int     `json:"logBase"`
+	AxisCenteredZero  bool    `json:"axisCenteredZero"`
+	AxisBorder        bool    `json:"axisBorder"`
+	AxisColor         string  `json:"axisColor"`
+	HideInLegend      bool    `json:"hideInLegend"`
+	HideInTooltip     bool    `json:"hideInTooltip"`
+	StackGroup        string  `json:"stackGroup"`
+	NullAsZero        bool    `json:"nullAsZero"`
+	BarAlignment      string  `json:"barAlignment"`
+	BarWidthFactor    float64 `json:"barWidthFactor"`
+	BarMaxWidth       int     `json:"barMaxWidth"`
+	ThresholdsStyle   string  `json:"thresholdsStyle"`
 }
 
 type QueryDefaults struct {
@@ -132,6 +137,7 @@ func Defaults() DefaultsTable {
 		display.Prettify = clonePointer(display.Prettify)
 		display.Controls = clonePointer(display.Controls)
 		display.Highlight = clonePointer(display.Highlight)
+		display.IncludeAllFields = clonePointer(display.IncludeAllFields)
 		display.BarWidth = clonePointer(display.BarWidth)
 		display.GroupWidth = clonePointer(display.GroupWidth)
 		display.Lat = clonePointer(display.Lat)
