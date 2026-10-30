@@ -7,7 +7,7 @@ import {
   type ScaleKind,
 } from "./timeseries/axis-scale"
 
-export type AxisSide = "start" | "end" | "hidden"
+type AxisSide = "start" | "end" | "hidden"
 
 export type ValueAxisSettings = {
   side: AxisSide

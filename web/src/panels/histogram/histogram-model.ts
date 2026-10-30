@@ -22,12 +22,13 @@ import {
 
 const defaultBucketCount = 20
 const maxBuckets = 1000
+const overlayOpacity = 0.7
 const combinedKey = "combined"
 const combinedName = "All series"
 
-export type HistogramStack = "none" | "normal" | "percent"
-export type HistogramLegend = "bottom" | "right" | "hidden"
-export type HistogramTooltip = "single" | "all" | "hidden"
+type HistogramStack = "none" | "normal" | "percent"
+type HistogramLegend = "bottom" | "right" | "hidden"
+type HistogramTooltip = "single" | "all" | "hidden"
 
 export type HistogramEntry = {
   key: string
@@ -35,11 +36,11 @@ export type HistogramEntry = {
   color: string
   values: number[]
   config: FieldConfig
-  fillOpacity: number
+  fillOpacity: number | null
   borderWidth: number
 }
 
-export type HistogramSeries = {
+type HistogramSeries = {
   key: string
   name: string
   color: string
@@ -49,9 +50,9 @@ export type HistogramSeries = {
   hideInTooltip: boolean
 }
 
-export type HistogramBar = { start: number; end: number }
+type HistogramBar = { start: number; end: number }
 
-export type HistogramAxis = {
+type HistogramAxis = {
   settings: ValueAxisSettings
   color: string | null
 }
@@ -154,7 +155,9 @@ export function histogramEntries(
           : styleForSlot(entries.length).color,
         values: field.values.filter(isNumber),
         config,
-        fillOpacity: fields.isSet(frame, field, "fill") ? config.fill / 100 : 1,
+        fillOpacity: fields.isSet(frame, field, "fill")
+          ? config.fill / 100
+          : null,
         borderWidth: fields.isSet(frame, field, "lineWidth")
           ? config.lineWidth
           : 0,
@@ -341,7 +344,7 @@ export function histogramModel(
     name: entry.name,
     color: entry.color,
     counts,
-    fillOpacity: entry.fillOpacity,
+    fillOpacity: entry.fillOpacity ?? (stack === "none" ? overlayOpacity : 1),
     borderWidth: entry.borderWidth,
     hideInTooltip: entry.config.hideInTooltip,
   })
@@ -418,7 +421,18 @@ export function valueTicks(
     }
   }
   const ticks = countTicks(model.max, maxTicks)
-  return { min: 0, max: ticks[ticks.length - 1], ticks }
+  const below =
+    model.min < 0
+      ? countTicks(-model.min, maxTicks)
+          .slice(1)
+          .map((tick) => -tick)
+          .reverse()
+      : []
+  return {
+    min: below[0] ?? 0,
+    max: ticks[ticks.length - 1],
+    ticks: [...below, ...ticks],
+  }
 }
 
 export type HistogramHover = { index: number; series: string | null }

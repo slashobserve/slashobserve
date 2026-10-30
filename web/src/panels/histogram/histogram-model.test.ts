@@ -350,6 +350,15 @@ describe("value axis", () => {
     expect(valueTicks(model, 10).ticks).toEqual([1, 10, 100, 1000])
   })
 
+  it("extends below zero for a negative soft minimum", () => {
+    const model = build(frames, { bucketCount: 2 }, {
+      axisSoftMin: -2,
+    } as Partial<DataPanel>)
+    const axis = valueTicks(model, 10)
+    expect(axis.min).toBeLessThan(0)
+    expect(axis.ticks).toContain(0)
+  })
+
   it("moves the axis to the right side", () => {
     const model = build(frames, {}, { axis: "right" } as Partial<DataPanel>)
     expect(model.axis.settings.side).toBe("end")
@@ -357,9 +366,11 @@ describe("value axis", () => {
 })
 
 describe("fill and border", () => {
-  it("is opaque with no border unless written", () => {
+  it("is opaque with no border unless written, and see-through when overlaid", () => {
     const plain = build([series("a", [1, 2])]).series[0]
     expect([plain.fillOpacity, plain.borderWidth]).toEqual([1, 0])
+    const overlaid = build([series("a", [1, 2])], { stack: "none" }).series[0]
+    expect(overlaid.fillOpacity).toBe(0.7)
     const written = build([series("a", [1, 2])], {}, {
       fill: 50,
       lineWidth: 2,

@@ -31,13 +31,13 @@ import {
 
 export type Orientation = "horizontal" | "vertical"
 type Stack = FieldConfig["stack"]
-export type BarchartLegend = "bottom" | "right" | "hidden"
-export type BarchartTooltip = "single" | "all" | "hidden"
+type BarchartLegend = "bottom" | "right" | "hidden"
+type BarchartTooltip = "single" | "all" | "hidden"
 export type ShowValues = "auto" | "always" | "never"
 
 type Category = { key: string; label: string; title: string }
 
-export type BarSeries = {
+type BarSeries = {
   key: string
   name: string
   color: string
@@ -57,7 +57,7 @@ export type Bar = {
   roundEnd: boolean
 }
 
-export type BarAxis = {
+type BarAxis = {
   unit?: string
   decimals?: number
   settings: ValueAxisSettings
@@ -99,7 +99,7 @@ export type BarOptions = {
 }
 
 export const maxCategories = 500
-export const defaultValueSize = 12
+const defaultValueSize = 12
 export const noCategoriesReason =
   "A bar chart needs a text or time field for its categories."
 export const truncatedNote = `Showing the first ${maxCategories} categories.`
@@ -230,7 +230,7 @@ function finite(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
-export type Column = {
+type Column = {
   series: Omit<BarSeries, "slot">
   config: FieldConfig
   field: PreparedField
