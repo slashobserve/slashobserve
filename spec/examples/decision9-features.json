@@ -1,0 +1,209 @@
+{
+  "specVersion": "0",
+  "title": "Map, canvas and text features",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "variables": [
+    {
+      "name": "env",
+      "type": "custom",
+      "options": [
+        "prod",
+        "staging"
+      ]
+    }
+  ],
+  "panels": [
+    {
+      "id": "p_geo",
+      "type": "geomap",
+      "title": "Regions",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 10
+      },
+      "datasource": "prom",
+      "queries": [
+        {
+          "ref": "A",
+          "query": "sum by (lat, lon) (up)"
+        }
+      ],
+      "display": {
+        "view": "europe",
+        "zoom": 4,
+        "minZoom": 2,
+        "maxZoom": 10,
+        "fitPadding": 10,
+        "basemap": "carto",
+        "basemapTheme": "dark",
+        "basemapLabels": true,
+        "basemapOpacity": 0.8,
+        "showScale": true,
+        "showMeasure": false,
+        "tooltip": "details",
+        "layers": [
+          {
+            "type": "heatmap",
+            "name": "Load",
+            "query": "A",
+            "location": "coords",
+            "latField": "lat",
+            "lonField": "lon",
+            "radius": 12,
+            "blur": 8
+          },
+          {
+            "type": "geojson",
+            "name": "Countries",
+            "source": "countries",
+            "rules": [
+              {
+                "property": "name",
+                "operation": "eq",
+                "value": "France",
+                "color": "warning",
+                "opacity": 0.5
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "p_canvas",
+      "type": "canvas",
+      "title": "Floor plan",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 10
+      },
+      "datasource": "prom",
+      "queries": [
+        {
+          "ref": "A",
+          "query": "sum(up)"
+        }
+      ],
+      "display": {
+        "backgroundColor": "#101820",
+        "backgroundImage": {
+          "url": "https://example.com/images/floorplan.png"
+        },
+        "backgroundSize": "contain",
+        "panZoom": true,
+        "tooltip": "details",
+        "elements": [
+          {
+            "id": "db",
+            "kind": "icon",
+            "left": 5,
+            "top": 10,
+            "width": 12,
+            "height": 20,
+            "image": {
+              "url": "https://example.com/icons/database.svg"
+            },
+            "iconColor": "info"
+          },
+          {
+            "id": "deploy",
+            "kind": "button",
+            "left": 40,
+            "top": 10,
+            "width": 25,
+            "height": 15,
+            "text": "Deploy",
+            "buttonStyle": "primary",
+            "oneClick": "action",
+            "actions": [
+              {
+                "title": "Deploy",
+                "method": "POST",
+                "url": "https://deploy.example.com/api/deploy",
+                "contentType": "application/json",
+                "body": "{\"env\": \"${env}\"}",
+                "headers": [
+                  {
+                    "name": "X-Env",
+                    "value": "${env}"
+                  }
+                ],
+                "query": [
+                  {
+                    "name": "dry_run",
+                    "value": "false"
+                  }
+                ],
+                "confirm": "Deploy to ${env}?"
+              }
+            ]
+          },
+          {
+            "id": "zone",
+            "kind": "rectangle",
+            "left": 50,
+            "top": 50,
+            "width": 30,
+            "height": 30,
+            "placement": {
+              "horizontal": "left",
+              "vertical": "top",
+              "left": 200,
+              "top": 120,
+              "width": 160,
+              "height": 90
+            },
+            "borderWidth": 2,
+            "radius": 8
+          }
+        ],
+        "connections": [
+          {
+            "from": "db",
+            "to": "deploy",
+            "path": "curved",
+            "lineStyle": "dashed",
+            "arrow": "forward"
+          }
+        ]
+      }
+    },
+    {
+      "id": "p_html",
+      "type": "text",
+      "title": "Notes",
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 24,
+        "h": 5
+      },
+      "content": "<p>Runbook for <b>checkout</b></p>",
+      "mode": "html"
+    },
+    {
+      "id": "p_code",
+      "type": "text",
+      "title": "Query",
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 24,
+        "h": 5
+      },
+      "content": "{\"query\": \"up\"}",
+      "mode": "code",
+      "code": {
+        "language": "json",
+        "lineNumbers": true
+      }
+    }
+  ]
+}

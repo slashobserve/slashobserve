@@ -209,6 +209,21 @@ func TestDefaultValuesAreSchemaValid(t *testing.T) {
 		parseDefaultsDoc(t, defaultsDoc(panel))
 	})
 
+	t.Run("text", func(t *testing.T) {
+		panel := map[string]any{"id": "p1", "type": "text", "title": "Notes", "gridPos": map[string]any{"x": 0, "y": 0, "w": 12, "h": 4}, "content": "Hello"}
+		maps.Copy(panel, rawObject(t, raw["text"]))
+		parseDefaultsDoc(t, defaultsDoc(panel))
+	})
+
+	t.Run("action", func(t *testing.T) {
+		action := map[string]any{"title": "Run", "url": "https://example.com/run"}
+		maps.Copy(action, rawObject(t, raw["action"]))
+		element := map[string]any{"id": "a", "kind": "button", "left": 0, "top": 0, "width": 10, "height": 10, "actions": []any{action}}
+		panel := defaultsPanel("p1", "canvas")
+		panel["display"] = map[string]any{"elements": []any{element}}
+		parseDefaultsDoc(t, defaultsDoc(panel))
+	})
+
 	t.Run("fieldProps", func(t *testing.T) {
 		panel := defaultsPanel("p1", "timeseries")
 		maps.Copy(panel, rawObject(t, raw["fieldProps"]))
@@ -250,6 +265,47 @@ func rawQueryWithDefaults(t *testing.T, raw map[string]json.RawMessage) map[stri
 	query := map[string]any{"query": "up"}
 	maps.Copy(query, rawObject(t, raw["query"]))
 	return query
+}
+
+func TestDecision9Defaults(t *testing.T) {
+	table := spec.Defaults()
+	if table.Text.Mode != "markdown" || table.Action.Method != "POST" || table.Action.ContentType != "application/json" {
+		t.Fatalf("text and action defaults = %+v, %+v", table.Text, table.Action)
+	}
+	element := table.CanvasElement
+	if element.VAlign != "middle" || element.BorderWidth != 1 || element.Radius != 0 || element.Rotation != 0 {
+		t.Fatalf("canvas element defaults = %+v", element)
+	}
+	connection := table.CanvasConnection
+	if connection.Path != "straight" || connection.LineStyle != "solid" || connection.Arrow != "none" || connection.Width != 2 {
+		t.Fatalf("canvas connection defaults = %+v", connection)
+	}
+	geomap := table.Display[spec.Geomap]
+	if geomap.Basemap != "outline" || geomap.BasemapTheme != "auto" || geomap.Tooltip != "details" {
+		t.Fatalf("geomap defaults = %+v", geomap)
+	}
+	flags := map[string]*bool{
+		"showZoom": geomap.ShowZoom, "mouseWheelZoom": geomap.MouseWheelZoom, "showAttribution": geomap.ShowAttribution,
+		"showScale": geomap.ShowScale, "showMeasure": geomap.ShowMeasure, "showDebug": geomap.ShowDebug,
+	}
+	want := map[string]bool{"showZoom": true, "mouseWheelZoom": false, "showAttribution": true, "showScale": false, "showMeasure": false, "showDebug": false}
+	for name, flag := range flags {
+		if flag == nil || *flag != want[name] {
+			t.Errorf("geomap %s default = %v, want %v", name, flag, want[name])
+		}
+	}
+	canvas := table.Display[spec.Canvas]
+	if canvas.PanZoom == nil || *canvas.PanZoom || canvas.InfinitePan == nil || *canvas.InfinitePan || canvas.Tooltip != "none" {
+		t.Fatalf("canvas defaults = %+v", canvas)
+	}
+}
+
+func TestDefaultsDisplayPointersAreCloned(t *testing.T) {
+	first := spec.Defaults().Display[spec.Geomap]
+	*first.ShowZoom = false
+	if again := spec.Defaults().Display[spec.Geomap]; !*again.ShowZoom {
+		t.Fatal("Defaults() shares display pointers between calls")
+	}
 }
 
 func TestNewsPanelFeedURL(t *testing.T) {

@@ -24,13 +24,15 @@
     "nodeGraph": {"layout": "layered"},
     "traces": {},
     "flamegraph": {},
-    "geomap": {"view": "fit", "location": "auto", "markerSize": 5, "markerSizeMax": 15},
-    "canvas": {"reduce": "lastNotNull", "elements": [], "connections": []},
+    "geomap": {"view": "fit", "location": "auto", "markerSize": 5, "markerSizeMax": 15, "basemap": "outline", "basemapTheme": "auto", "showZoom": true, "mouseWheelZoom": false, "showAttribution": true, "showScale": false, "showMeasure": false, "showDebug": false, "tooltip": "details"},
+    "canvas": {"reduce": "lastNotNull", "elements": [], "connections": [], "panZoom": false, "infinitePan": false, "tooltip": "none"},
     "alertlist": {"limit": 20, "sort": "alphaAsc", "viewMode": "list"},
     "dashlist": {"tags": [], "limit": 10, "keepTime": false, "includeVars": false},
     "news": {}
   },
-  "canvasElement": {"fontSize": 14, "align": "center"},
-  "canvasConnection": {"width": 2},
+  "canvasElement": {"fontSize": 14, "align": "center", "valign": "middle", "borderWidth": 1, "radius": 0, "rotation": 0},
+  "canvasConnection": {"width": 2, "path": "straight", "lineStyle": "solid", "arrow": "none"},
+  "text": {"mode": "markdown"},
+  "action": {"method": "POST", "contentType": "application/json"},
   "instantPanels": ["table", "logs", "nodeGraph", "traces", "flamegraph", "geomap", "alertlist"]
 }

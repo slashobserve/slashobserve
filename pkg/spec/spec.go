@@ -181,6 +181,8 @@ type Panel struct {
 	MaxDataPoints   int         `json:"maxDataPoints,omitempty"`
 	Display         *Display    `json:"display,omitempty"`
 	Content         *string     `json:"content,omitempty"`
+	Mode            string      `json:"mode,omitempty"`
+	Code            *TextCode   `json:"code,omitempty"`
 	Reason          string      `json:"reason,omitempty"`
 	SourceType      string      `json:"sourceType,omitempty"`
 	Collapsed       bool        `json:"collapsed,omitempty"`
@@ -269,89 +271,261 @@ type Transform struct {
 }
 
 type Display struct {
-	Legend           string             `json:"legend,omitempty"`
-	LegendValues     []string           `json:"legendValues,omitempty"`
-	Tooltip          string             `json:"tooltip,omitempty"`
-	Reduce           string             `json:"reduce,omitempty"`
-	ColorMode        string             `json:"colorMode,omitempty"`
-	Graph            *bool              `json:"graph,omitempty"`
-	TextMode         string             `json:"textMode,omitempty"`
-	Orientation      string             `json:"orientation,omitempty"`
-	ThresholdMarkers *bool              `json:"thresholdMarkers,omitempty"`
-	Header           *bool              `json:"header,omitempty"`
-	Footer           []string           `json:"footer,omitempty"`
-	PieType          string             `json:"pieType,omitempty"`
-	Calculate        *bool              `json:"calculate,omitempty"`
-	YScale           string             `json:"yScale,omitempty"`
-	BucketSize       *float64           `json:"bucketSize,omitempty"`
-	BucketCount      int                `json:"bucketCount,omitempty"`
-	MergeValues      *bool              `json:"mergeValues,omitempty"`
-	ShowValues       string             `json:"showValues,omitempty"`
-	Wrap             *bool              `json:"wrap,omitempty"`
-	ShowTime         *bool              `json:"showTime,omitempty"`
-	Order            string             `json:"order,omitempty"`
-	XField           string             `json:"xField,omitempty"`
-	BarWidth         *float64           `json:"barWidth,omitempty"`
-	GroupWidth       *float64           `json:"groupWidth,omitempty"`
-	Show             string             `json:"show,omitempty"`
-	PointSize        int                `json:"pointSize,omitempty"`
-	Mode             string             `json:"mode,omitempty"`
-	CandleStyle      string             `json:"candleStyle,omitempty"`
-	ColorStrategy    string             `json:"colorStrategy,omitempty"`
-	UpColor          string             `json:"upColor,omitempty"`
-	DownColor        string             `json:"downColor,omitempty"`
-	Open             string             `json:"open,omitempty"`
-	High             string             `json:"high,omitempty"`
-	Low              string             `json:"low,omitempty"`
-	Close            string             `json:"close,omitempty"`
-	Volume           string             `json:"volume,omitempty"`
-	Layout           string             `json:"layout,omitempty"`
-	View             string             `json:"view,omitempty"`
-	Lat              *float64           `json:"lat,omitempty"`
-	Lon              *float64           `json:"lon,omitempty"`
-	Zoom             *float64           `json:"zoom,omitempty"`
-	Location         string             `json:"location,omitempty"`
-	LatField         string             `json:"latField,omitempty"`
-	LonField         string             `json:"lonField,omitempty"`
-	GeohashField     string             `json:"geohashField,omitempty"`
-	SizeField        string             `json:"sizeField,omitempty"`
-	ColorField       string             `json:"colorField,omitempty"`
-	MarkerSize       int                `json:"markerSize,omitempty"`
-	MarkerSizeMax    int                `json:"markerSizeMax,omitempty"`
-	Elements         []CanvasElement    `json:"elements,omitempty"`
-	Connections      []CanvasConnection `json:"connections,omitempty"`
-	Limit            int                `json:"limit,omitempty"`
-	Sort             string             `json:"sort,omitempty"`
-	ViewMode         string             `json:"viewMode,omitempty"`
-	Query            string             `json:"query,omitempty"`
-	Tags             []string           `json:"tags,omitempty"`
-	KeepTime         *bool              `json:"keepTime,omitempty"`
-	IncludeVars      *bool              `json:"includeVars,omitempty"`
-	FeedURL          string             `json:"feedUrl,omitempty"`
+	Legend             string             `json:"legend,omitempty"`
+	LegendValues       []string           `json:"legendValues,omitempty"`
+	Tooltip            string             `json:"tooltip,omitempty"`
+	Reduce             string             `json:"reduce,omitempty"`
+	ColorMode          string             `json:"colorMode,omitempty"`
+	Graph              *bool              `json:"graph,omitempty"`
+	TextMode           string             `json:"textMode,omitempty"`
+	Orientation        string             `json:"orientation,omitempty"`
+	ThresholdMarkers   *bool              `json:"thresholdMarkers,omitempty"`
+	Header             *bool              `json:"header,omitempty"`
+	Footer             []string           `json:"footer,omitempty"`
+	PieType            string             `json:"pieType,omitempty"`
+	Calculate          *bool              `json:"calculate,omitempty"`
+	YScale             string             `json:"yScale,omitempty"`
+	BucketSize         *float64           `json:"bucketSize,omitempty"`
+	BucketCount        int                `json:"bucketCount,omitempty"`
+	MergeValues        *bool              `json:"mergeValues,omitempty"`
+	ShowValues         string             `json:"showValues,omitempty"`
+	Wrap               *bool              `json:"wrap,omitempty"`
+	ShowTime           *bool              `json:"showTime,omitempty"`
+	Order              string             `json:"order,omitempty"`
+	XField             string             `json:"xField,omitempty"`
+	BarWidth           *float64           `json:"barWidth,omitempty"`
+	GroupWidth         *float64           `json:"groupWidth,omitempty"`
+	Show               string             `json:"show,omitempty"`
+	PointSize          int                `json:"pointSize,omitempty"`
+	Mode               string             `json:"mode,omitempty"`
+	CandleStyle        string             `json:"candleStyle,omitempty"`
+	ColorStrategy      string             `json:"colorStrategy,omitempty"`
+	UpColor            string             `json:"upColor,omitempty"`
+	DownColor          string             `json:"downColor,omitempty"`
+	Open               string             `json:"open,omitempty"`
+	High               string             `json:"high,omitempty"`
+	Low                string             `json:"low,omitempty"`
+	Close              string             `json:"close,omitempty"`
+	Volume             string             `json:"volume,omitempty"`
+	Layout             string             `json:"layout,omitempty"`
+	View               string             `json:"view,omitempty"`
+	Lat                *float64           `json:"lat,omitempty"`
+	Lon                *float64           `json:"lon,omitempty"`
+	Zoom               *float64           `json:"zoom,omitempty"`
+	Location           string             `json:"location,omitempty"`
+	LatField           string             `json:"latField,omitempty"`
+	LonField           string             `json:"lonField,omitempty"`
+	GeohashField       string             `json:"geohashField,omitempty"`
+	SizeField          string             `json:"sizeField,omitempty"`
+	ColorField         string             `json:"colorField,omitempty"`
+	MarkerSize         int                `json:"markerSize,omitempty"`
+	MarkerSizeMax      int                `json:"markerSizeMax,omitempty"`
+	Basemap            string             `json:"basemap,omitempty"`
+	BasemapTheme       string             `json:"basemapTheme,omitempty"`
+	BasemapLabels      *bool              `json:"basemapLabels,omitempty"`
+	EsriServer         string             `json:"esriServer,omitempty"`
+	BasemapURL         string             `json:"basemapUrl,omitempty"`
+	BasemapAttribution string             `json:"basemapAttribution,omitempty"`
+	BasemapOpacity     *float64           `json:"basemapOpacity,omitempty"`
+	MinZoom            *float64           `json:"minZoom,omitempty"`
+	MaxZoom            *float64           `json:"maxZoom,omitempty"`
+	FitLayer           string             `json:"fitLayer,omitempty"`
+	FitLastOnly        *bool              `json:"fitLastOnly,omitempty"`
+	FitPadding         *int               `json:"fitPadding,omitempty"`
+	SharedView         *bool              `json:"sharedView,omitempty"`
+	ShowZoom           *bool              `json:"showZoom,omitempty"`
+	MouseWheelZoom     *bool              `json:"mouseWheelZoom,omitempty"`
+	ShowAttribution    *bool              `json:"showAttribution,omitempty"`
+	ShowScale          *bool              `json:"showScale,omitempty"`
+	ShowMeasure        *bool              `json:"showMeasure,omitempty"`
+	ShowDebug          *bool              `json:"showDebug,omitempty"`
+	Layers             []GeomapLayer      `json:"layers,omitempty"`
+	BackgroundColor    string             `json:"backgroundColor,omitempty"`
+	BackgroundImage    *ImageRef          `json:"backgroundImage,omitempty"`
+	BackgroundSize     string             `json:"backgroundSize,omitempty"`
+	BorderColor        string             `json:"borderColor,omitempty"`
+	BorderWidth        *int               `json:"borderWidth,omitempty"`
+	BorderRadius       *int               `json:"borderRadius,omitempty"`
+	PanZoom            *bool              `json:"panZoom,omitempty"`
+	InfinitePan        *bool              `json:"infinitePan,omitempty"`
+	Elements           []CanvasElement    `json:"elements,omitempty"`
+	Connections        []CanvasConnection `json:"connections,omitempty"`
+	Limit              int                `json:"limit,omitempty"`
+	Sort               string             `json:"sort,omitempty"`
+	ViewMode           string             `json:"viewMode,omitempty"`
+	Query              string             `json:"query,omitempty"`
+	Tags               []string           `json:"tags,omitempty"`
+	KeepTime           *bool              `json:"keepTime,omitempty"`
+	IncludeVars        *bool              `json:"includeVars,omitempty"`
+	FeedURL            string             `json:"feedUrl,omitempty"`
 }
 
 type CanvasElement struct {
-	ID        string  `json:"id"`
-	Kind      string  `json:"kind"`
-	Left      float64 `json:"left"`
-	Top       float64 `json:"top"`
-	Width     float64 `json:"width"`
-	Height    float64 `json:"height"`
-	Text      string  `json:"text,omitempty"`
-	Field     string  `json:"field,omitempty"`
-	Fill      string  `json:"fill,omitempty"`
-	Stroke    string  `json:"stroke,omitempty"`
-	TextColor string  `json:"textColor,omitempty"`
-	FontSize  int     `json:"fontSize,omitempty"`
-	Align     string  `json:"align,omitempty"`
+	ID              string           `json:"id"`
+	Kind            string           `json:"kind"`
+	Left            float64          `json:"left"`
+	Top             float64          `json:"top"`
+	Width           float64          `json:"width"`
+	Height          float64          `json:"height"`
+	Text            string           `json:"text,omitempty"`
+	Field           string           `json:"field,omitempty"`
+	Fill            string           `json:"fill,omitempty"`
+	Stroke          string           `json:"stroke,omitempty"`
+	TextColor       string           `json:"textColor,omitempty"`
+	FontSize        int              `json:"fontSize,omitempty"`
+	Align           string           `json:"align,omitempty"`
+	Placement       *CanvasPlacement `json:"placement,omitempty"`
+	Rotation        *float64         `json:"rotation,omitempty"`
+	VAlign          string           `json:"valign,omitempty"`
+	BorderWidth     *int             `json:"borderWidth,omitempty"`
+	Radius          *int             `json:"radius,omitempty"`
+	BackgroundImage *ImageRef        `json:"backgroundImage,omitempty"`
+	BackgroundSize  string           `json:"backgroundSize,omitempty"`
+	Icon            string           `json:"icon,omitempty"`
+	Image           *ImageRef        `json:"image,omitempty"`
+	IconColor       string           `json:"iconColor,omitempty"`
+	Server          string           `json:"server,omitempty"`
+	ButtonStyle     string           `json:"buttonStyle,omitempty"`
+	AccentColor     string           `json:"accentColor,omitempty"`
+	RateField       string           `json:"rateField,omitempty"`
+	YawField        string           `json:"yawField,omitempty"`
+	PitchField      string           `json:"pitchField,omitempty"`
+	RollField       string           `json:"rollField,omitempty"`
+	Links           []Link           `json:"links,omitempty"`
+	Actions         []Action         `json:"actions,omitempty"`
+	OneClick        string           `json:"oneClick,omitempty"`
+}
+
+type CanvasPlacement struct {
+	Horizontal string   `json:"horizontal"`
+	Vertical   string   `json:"vertical"`
+	Left       *float64 `json:"left,omitempty"`
+	Right      *float64 `json:"right,omitempty"`
+	Top        *float64 `json:"top,omitempty"`
+	Bottom     *float64 `json:"bottom,omitempty"`
+	Width      *float64 `json:"width,omitempty"`
+	Height     *float64 `json:"height,omitempty"`
 }
 
 type CanvasConnection struct {
-	From  string `json:"from"`
-	To    string `json:"to"`
-	Color string `json:"color,omitempty"`
+	From       string         `json:"from"`
+	To         string         `json:"to"`
+	Color      string         `json:"color,omitempty"`
+	Field      string         `json:"field,omitempty"`
+	Width      int            `json:"width,omitempty"`
+	Path       string         `json:"path,omitempty"`
+	Vertices   []CanvasVertex `json:"vertices,omitempty"`
+	LineStyle  string         `json:"lineStyle,omitempty"`
+	Arrow      string         `json:"arrow,omitempty"`
+	WidthField string         `json:"widthField,omitempty"`
+	MinWidth   int            `json:"minWidth,omitempty"`
+	MaxWidth   int            `json:"maxWidth,omitempty"`
+}
+
+type CanvasVertex struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
+type TextCode struct {
+	Language    string `json:"language,omitempty"`
+	LineNumbers *bool  `json:"lineNumbers,omitempty"`
+}
+
+type ImageRef struct {
+	URL   string `json:"url,omitempty"`
 	Field string `json:"field,omitempty"`
-	Width int    `json:"width,omitempty"`
+}
+
+type Action struct {
+	Title       string        `json:"title"`
+	Method      string        `json:"method,omitempty"`
+	URL         string        `json:"url"`
+	ContentType string        `json:"contentType,omitempty"`
+	Body        string        `json:"body,omitempty"`
+	Headers     []ActionParam `json:"headers,omitempty"`
+	Query       []ActionParam `json:"query,omitempty"`
+	Confirm     string        `json:"confirm,omitempty"`
+}
+
+type ActionParam struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type GeomapLayer struct {
+	Type          string       `json:"type"`
+	Name          string       `json:"name,omitempty"`
+	Query         string       `json:"query,omitempty"`
+	Opacity       *float64     `json:"opacity,omitempty"`
+	Tooltip       *bool        `json:"tooltip,omitempty"`
+	Location      string       `json:"location,omitempty"`
+	LatField      string       `json:"latField,omitempty"`
+	LonField      string       `json:"lonField,omitempty"`
+	GeohashField  string       `json:"geohashField,omitempty"`
+	LookupField   string       `json:"lookupField,omitempty"`
+	Gazetteer     string       `json:"gazetteer,omitempty"`
+	SizeField     string       `json:"sizeField,omitempty"`
+	ColorField    string       `json:"colorField,omitempty"`
+	MarkerSize    int          `json:"markerSize,omitempty"`
+	MarkerSizeMax int          `json:"markerSizeMax,omitempty"`
+	Color         string       `json:"color,omitempty"`
+	Symbol        string       `json:"symbol,omitempty"`
+	TextField     string       `json:"textField,omitempty"`
+	TextSize      int          `json:"textSize,omitempty"`
+	RotationField string       `json:"rotationField,omitempty"`
+	WeightField   string       `json:"weightField,omitempty"`
+	Radius        int          `json:"radius,omitempty"`
+	Blur          *int         `json:"blur,omitempty"`
+	URL           string       `json:"url,omitempty"`
+	Source        string       `json:"source,omitempty"`
+	Rules         []GeomapRule `json:"rules,omitempty"`
+	ShowSun       *bool        `json:"showSun,omitempty"`
+	NightColor    string       `json:"nightColor,omitempty"`
+	Arrow         string       `json:"arrow,omitempty"`
+	LineWidth     int          `json:"lineWidth,omitempty"`
+	ImageField    string       `json:"imageField,omitempty"`
+	Shape         string       `json:"shape,omitempty"`
+	Border        *int         `json:"border,omitempty"`
+	Theme         string       `json:"theme,omitempty"`
+	Labels        *bool        `json:"labels,omitempty"`
+	Server        string       `json:"server,omitempty"`
+	Attribution   string       `json:"attribution,omitempty"`
+}
+
+type GeomapRule struct {
+	Property  string    `json:"property"`
+	Operation string    `json:"operation"`
+	Value     RuleValue `json:"value"`
+	Color     string    `json:"color,omitempty"`
+	Opacity   *float64  `json:"opacity,omitempty"`
+}
+
+type RuleValue struct {
+	Text     string
+	Number   float64
+	IsNumber bool
+}
+
+func (v RuleValue) MarshalJSON() ([]byte, error) {
+	if v.IsNumber {
+		return json.Marshal(v.Number)
+	}
+	return json.Marshal(v.Text)
+}
+
+func (v *RuleValue) UnmarshalJSON(b []byte) error {
+	var text string
+	if err := json.Unmarshal(b, &text); err == nil {
+		*v = RuleValue{Text: text}
+		return nil
+	}
+	var number float64
+	if err := json.Unmarshal(b, &number); err != nil {
+		return errors.New("spec: rule value must be a string or a number")
+	}
+	*v = RuleValue{Number: number, IsNumber: true}
+	return nil
 }
 
 type GridPos struct {

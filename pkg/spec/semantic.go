@@ -30,6 +30,8 @@ func checkSemantics(d *Dashboard) []Issue {
 	issues = append(issues, checkVariableQueries(d.Variables)...)
 	issues = append(issues, checkPanelQueries(d, entries)...)
 	issues = append(issues, checkCanvas(entries)...)
+	issues = append(issues, checkActions(d, entries)...)
+	issues = append(issues, checkGeomap(entries)...)
 	return issues
 }
 
@@ -50,6 +52,7 @@ func checkCanvas(entries []PanelEntry) []Issue {
 				})
 			}
 			ids[el.ID] = true
+			issues = append(issues, checkOneClick(el, base+"/elements/"+strconv.Itoa(i)+"/oneClick")...)
 		}
 		for i, c := range e.Panel.Display.Connections {
 			for _, end := range []struct{ name, id string }{{"from", c.From}, {"to", c.To}} {
@@ -65,6 +68,72 @@ func checkCanvas(entries []PanelEntry) []Issue {
 		}
 	}
 	return issues
+}
+
+func checkOneClick(el CanvasElement, path string) []Issue {
+	switch {
+	case el.OneClick == "action" && len(el.Actions) == 0:
+		return []Issue{{Path: path, Code: CodeInvalidReference, Message: fmt.Sprintf("canvas element %q sets oneClick to action but has no actions", el.ID)}}
+	case el.OneClick == "link" && len(el.Links) == 0:
+		return []Issue{{Path: path, Code: CodeInvalidReference, Message: fmt.Sprintf("canvas element %q sets oneClick to link but has no links", el.ID)}}
+	}
+	return nil
+}
+
+func checkGeomap(entries []PanelEntry) []Issue {
+	var issues []Issue
+	for _, e := range entries {
+		if e.Panel.Type != Geomap || e.Panel.Display == nil {
+			continue
+		}
+		display := e.Panel.Display
+		base := e.Pointer + "/display"
+		if display.Layers != nil {
+			if keys := flatMarkerKeys(display); len(keys) > 0 {
+				issues = append(issues, Issue{
+					Path:    base + "/layers",
+					Code:    CodeGeomapLayersConflict,
+					Message: fmt.Sprintf("with layers, the list is the whole layer set; move %s into a layer or remove layers", strings.Join(keys, ", ")),
+				})
+			}
+		}
+		if display.MinZoom != nil && display.MaxZoom != nil && *display.MinZoom > *display.MaxZoom {
+			issues = append(issues, Issue{
+				Path:    base + "/maxZoom",
+				Code:    CodeZoomOrder,
+				Message: fmt.Sprintf("maxZoom %v must not be below minZoom %v", *display.MaxZoom, *display.MinZoom),
+			})
+		} else if display.MinZoom != nil && display.MaxZoom != nil && display.Zoom != nil && (*display.Zoom < *display.MinZoom || *display.Zoom > *display.MaxZoom) {
+			issues = append(issues, Issue{
+				Path:    base + "/zoom",
+				Code:    CodeZoomOrder,
+				Message: fmt.Sprintf("zoom %v must lie between minZoom %v and maxZoom %v", *display.Zoom, *display.MinZoom, *display.MaxZoom),
+			})
+		}
+	}
+	return issues
+}
+
+func flatMarkerKeys(d *Display) []string {
+	var keys []string
+	for _, k := range []struct {
+		name string
+		set  bool
+	}{
+		{"location", d.Location != ""},
+		{"latField", d.LatField != ""},
+		{"lonField", d.LonField != ""},
+		{"geohashField", d.GeohashField != ""},
+		{"sizeField", d.SizeField != ""},
+		{"colorField", d.ColorField != ""},
+		{"markerSize", d.MarkerSize != 0},
+		{"markerSizeMax", d.MarkerSizeMax != 0},
+	} {
+		if k.set {
+			keys = append(keys, k.name)
+		}
+	}
+	return keys
 }
 
 func checkPanelCount(d *Dashboard) []Issue {

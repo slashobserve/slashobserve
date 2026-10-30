@@ -33,6 +33,10 @@ const (
 	CodeInvalidRegex          IssueCode = "invalid_regex"
 	CodeDuplicateElementID    IssueCode = "duplicate_element_id"
 	CodeUnknownElement        IssueCode = "unknown_element"
+
+	CodeGeomapLayersConflict   IssueCode = "geomap_layers_conflict"
+	CodeZoomOrder              IssueCode = "zoom_order"
+	CodeActionHeaderNotAllowed IssueCode = "action_header_not_allowed"
 )
 
 const maxIssues = 50

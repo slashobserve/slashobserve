@@ -46,6 +46,15 @@
     { "file": "semantic/canvas-unknown-element.json", "layer": "semantic", "code": "unknown_element", "path": "/panels/0/display/connections/0/to" },
     { "file": "semantic/unknown-datasource-variable.json", "layer": "semantic", "code": "unknown_variable", "path": "/panels/0/datasource" },
     { "file": "semantic/datasource-ref-not-datasource-variable.json", "layer": "semantic", "code": "invalid_reference", "path": "/panels/0/datasource" },
-    { "file": "semantic/datasource-variable-order.json", "layer": "semantic", "code": "variable_order", "path": "/variables/0/datasource" }
+    { "file": "semantic/datasource-variable-order.json", "layer": "semantic", "code": "variable_order", "path": "/variables/0/datasource" },
+    { "file": "schema/action-url-not-https.json", "layer": "schema", "code": "schema", "path": "/panels/0/display/elements/0/actions/0/url" },
+    { "file": "schema/action-url-variable-host.json", "layer": "schema", "code": "schema", "path": "/panels/0/display/elements/0/actions/0/url" },
+    { "file": "schema/text-unknown-mode.json", "layer": "schema", "code": "schema", "path": "/panels/0/mode" },
+    { "file": "semantic/action-header-authorization.json", "layer": "semantic", "code": "action_header_not_allowed", "path": "/panels/0/display/elements/0/actions/0/headers/0/name" },
+    { "file": "semantic/action-query-access-token.json", "layer": "semantic", "code": "action_header_not_allowed", "path": "/panels/0/display/elements/0/actions/0/query/0/name" },
+    { "file": "semantic/action-unknown-variable.json", "layer": "semantic", "code": "unknown_variable", "path": "/panels/0/display/elements/0/actions/0/url" },
+    { "file": "semantic/geomap-layers-with-lat-field.json", "layer": "semantic", "code": "geomap_layers_conflict", "path": "/panels/0/display/layers" },
+    { "file": "semantic/geomap-min-zoom-above-max-zoom.json", "layer": "semantic", "code": "zoom_order", "path": "/panels/0/display/maxZoom" },
+    { "file": "semantic/canvas-one-click-without-action.json", "layer": "semantic", "code": "invalid_reference", "path": "/panels/0/display/elements/0/oneClick" }
   ]
 }

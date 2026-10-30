@@ -111,12 +111,24 @@ export const specDefaults = {
       "view": "fit",
       "location": "auto",
       "markerSize": 5,
-      "markerSizeMax": 15
+      "markerSizeMax": 15,
+      "basemap": "outline",
+      "basemapTheme": "auto",
+      "showZoom": true,
+      "mouseWheelZoom": false,
+      "showAttribution": true,
+      "showScale": false,
+      "showMeasure": false,
+      "showDebug": false,
+      "tooltip": "details"
     },
     "canvas": {
       "reduce": "lastNotNull",
       "elements": [],
-      "connections": []
+      "connections": [],
+      "panZoom": false,
+      "infinitePan": false,
+      "tooltip": "none"
     },
     "alertlist": {
       "limit": 20,
@@ -133,10 +145,24 @@ export const specDefaults = {
   },
   "canvasElement": {
     "fontSize": 14,
-    "align": "center"
+    "align": "center",
+    "valign": "middle",
+    "borderWidth": 1,
+    "radius": 0,
+    "rotation": 0
   },
   "canvasConnection": {
-    "width": 2
+    "width": 2,
+    "path": "straight",
+    "lineStyle": "solid",
+    "arrow": "none"
+  },
+  "text": {
+    "mode": "markdown"
+  },
+  "action": {
+    "method": "POST",
+    "contentType": "application/json"
   },
   "instantPanels": [
     "table",

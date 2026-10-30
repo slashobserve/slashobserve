@@ -45,12 +45,28 @@ type DashboardDefaults struct {
 }
 
 type CanvasElementDefaults struct {
-	FontSize int    `json:"fontSize"`
-	Align    string `json:"align"`
+	FontSize    int     `json:"fontSize"`
+	Align       string  `json:"align"`
+	VAlign      string  `json:"valign"`
+	BorderWidth int     `json:"borderWidth"`
+	Radius      int     `json:"radius"`
+	Rotation    float64 `json:"rotation"`
 }
 
 type CanvasConnectionDefaults struct {
-	Width int `json:"width"`
+	Width     int    `json:"width"`
+	Path      string `json:"path"`
+	LineStyle string `json:"lineStyle"`
+	Arrow     string `json:"arrow"`
+}
+
+type TextDefaults struct {
+	Mode string `json:"mode"`
+}
+
+type ActionDefaults struct {
+	Method      string `json:"method"`
+	ContentType string `json:"contentType"`
 }
 
 type DefaultsTable struct {
@@ -63,6 +79,8 @@ type DefaultsTable struct {
 	Display          map[PanelType]Display    `json:"display"`
 	CanvasElement    CanvasElementDefaults    `json:"canvasElement"`
 	CanvasConnection CanvasConnectionDefaults `json:"canvasConnection"`
+	Text             TextDefaults             `json:"text"`
+	Action           ActionDefaults           `json:"action"`
 	InstantPanels    []PanelType              `json:"instantPanels"`
 }
 
@@ -101,6 +119,25 @@ func Defaults() DefaultsTable {
 		display.Zoom = clonePointer(display.Zoom)
 		display.KeepTime = clonePointer(display.KeepTime)
 		display.IncludeVars = clonePointer(display.IncludeVars)
+		display.BasemapLabels = clonePointer(display.BasemapLabels)
+		display.BasemapOpacity = clonePointer(display.BasemapOpacity)
+		display.MinZoom = clonePointer(display.MinZoom)
+		display.MaxZoom = clonePointer(display.MaxZoom)
+		display.FitLastOnly = clonePointer(display.FitLastOnly)
+		display.FitPadding = clonePointer(display.FitPadding)
+		display.SharedView = clonePointer(display.SharedView)
+		display.ShowZoom = clonePointer(display.ShowZoom)
+		display.MouseWheelZoom = clonePointer(display.MouseWheelZoom)
+		display.ShowAttribution = clonePointer(display.ShowAttribution)
+		display.ShowScale = clonePointer(display.ShowScale)
+		display.ShowMeasure = clonePointer(display.ShowMeasure)
+		display.ShowDebug = clonePointer(display.ShowDebug)
+		display.BorderWidth = clonePointer(display.BorderWidth)
+		display.BorderRadius = clonePointer(display.BorderRadius)
+		display.PanZoom = clonePointer(display.PanZoom)
+		display.InfinitePan = clonePointer(display.InfinitePan)
+		display.BackgroundImage = clonePointer(display.BackgroundImage)
+		display.Layers = slices.Clone(display.Layers)
 		display.Elements = slices.Clone(display.Elements)
 		display.Connections = slices.Clone(display.Connections)
 		display.Tags = slices.Clone(display.Tags)
