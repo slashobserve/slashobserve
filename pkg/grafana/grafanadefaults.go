@@ -261,9 +261,6 @@ var cosmeticOptions = map[string]cosmeticOption{
 		values: []any{"gradient", "basic"},
 		why:    "bar gauges are drawn flat by the no-gradients rule (decision 8)",
 	},
-	"options.zoomMode": {
-		why: "the node graph zooms only with its own buttons and ignores the scroll wheel",
-	},
 	"options.layers[].name": {
 		why: "the map shows no layer names",
 	},

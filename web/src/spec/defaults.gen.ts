@@ -244,7 +244,8 @@ export const specDefaults = {
       "xAxis": "shown"
     },
     "nodeGraph": {
-      "layout": "layered"
+      "layout": "layered",
+      "wheelZoom": false
     },
     "traces": {},
     "flamegraph": {},

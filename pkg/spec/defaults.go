@@ -172,6 +172,7 @@ func Defaults() DefaultsTable {
 		display.SharedView = clonePointer(display.SharedView)
 		display.ShowZoom = clonePointer(display.ShowZoom)
 		display.MouseWheelZoom = clonePointer(display.MouseWheelZoom)
+		display.WheelZoom = clonePointer(display.WheelZoom)
 		display.ShowAttribution = clonePointer(display.ShowAttribution)
 		display.ShowScale = clonePointer(display.ShowScale)
 		display.ShowMeasure = clonePointer(display.ShowMeasure)

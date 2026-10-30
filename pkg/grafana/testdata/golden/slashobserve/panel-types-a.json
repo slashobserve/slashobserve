@@ -41,8 +41,8 @@
     "verified": false,
     "counts": {
       "total": 19,
-      "imported": 12,
-      "partial": 4,
+      "imported": 13,
+      "partial": 3,
       "placeholder": 3,
       "unverified": 0
     },
@@ -181,13 +181,9 @@
         "type": "nodeGraph",
         "source_type": "nodeGraph",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "The force layout is drawn layered."
-        ],
-        "paths": [
-          "options.layoutAlgorithm"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "nodes",
@@ -702,7 +698,10 @@
             },
             "color": "#F2495C"
           }
-        ]
+        ],
+        "display": {
+          "layout": "force"
+        }
       },
       {
         "id": "p7",

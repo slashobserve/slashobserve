@@ -258,7 +258,8 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "xAxis"
   ],
   "nodeGraph": [
-    "layout"
+    "layout",
+    "wheelZoom"
   ],
   "traces": [],
   "flamegraph": [],

@@ -4540,8 +4540,13 @@
                   "layout": {
                     "enum": [
                       "layered",
-                      "grid"
+                      "grid",
+                      "force"
                     ]
+                  },
+                  "wheelZoom": {
+                    "x-omitFromPrompt": true,
+                    "type": "boolean"
                   }
                 }
               }

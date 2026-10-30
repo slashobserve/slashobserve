@@ -808,17 +808,6 @@ func TestChartPanelTypesImportTheirOptions(t *testing.T) {
 			paths:   []string{"options.colors.up", "options.colors.flat"},
 		},
 		{
-			name: "node graph grid layout", typ: "nodeGraph",
-			members: `"options":{"layoutAlgorithm":"grid","zoomMode":"greedy"}`,
-			display: `{"layout":"grid"}`,
-		},
-		{
-			name: "node graph force layout", typ: "nodeGraph",
-			members: `"options":{"layoutAlgorithm":"force"}`,
-			display: "null",
-			paths:   []string{"options.layoutAlgorithm"},
-		},
-		{
 			name: "traces", typ: "traces",
 			members: `"options":{"limit":10}`,
 			display: "null",

@@ -79,6 +79,7 @@ const displayLabels: Record<string, string> = {
   close: "close field",
   volume: "volume field",
   layout: "layout",
+  wheelZoom: "wheel zoom",
   view: "map view",
   lat: "latitude",
   lon: "longitude",
