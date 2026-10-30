@@ -1,6 +1,7 @@
 import type { Reducer } from "@/spec"
 
 import { reduceField, reducerLabels } from "../reducers"
+import { nameMatcher } from "./filter"
 import {
   copyFrame,
   lastPresent,
@@ -13,33 +14,77 @@ import {
 export type ReduceOptions = {
   reducers: Reducer[]
   mode?: "seriesToRows" | "reduceFields"
+  includeTime?: boolean
+  labelsToFields?: boolean
+  fields?: string[]
+  fieldsRegex?: string
+}
+
+const timeReducers: ReadonlySet<Reducer> = new Set([
+  "last",
+  "lastNotNull",
+  "first",
+  "firstNotNull",
+  "min",
+  "max",
+  "mean",
+  "median",
+])
+
+function reducibleFields(
+  frame: PreparedFrame,
+  { includeTime, fields, fieldsRegex }: ReduceOptions
+): PreparedField[] {
+  const selected =
+    fields === undefined && fieldsRegex === undefined
+      ? undefined
+      : nameMatcher(fields ?? [], fieldsRegex)
+  return frame.fields.filter((field) => {
+    if (field.type === "time") return includeTime === true
+    return (
+      field.type === "number" &&
+      (selected === undefined || selected(frame, field))
+    )
+  })
+}
+
+function labelColumns(rows: { frame: PreparedFrame }[]): PreparedField[] {
+  const keys = [
+    ...new Set(rows.flatMap(({ frame }) => Object.keys(frame.labels ?? {}))),
+  ].sort()
+  return keys.map((key) => ({
+    name: key,
+    type: "string",
+    values: rows.map(({ frame }) => frame.labels?.[key] ?? null),
+  }))
 }
 
 function reduceToRows(
   frames: PreparedFrame[],
-  reducers: Reducer[]
+  options: ReduceOptions
 ): PreparedFrame[] {
   if (frames.length === 0) return []
-  const names: string[] = []
-  const columns: (number | null)[][] = reducers.map(() => [])
+  const { reducers } = options
+  const rows: { frame: PreparedFrame; field: PreparedField }[] = []
   for (const frame of frames) {
-    for (const field of frame.fields) {
-      if (field.type !== "number") continue
-      names.push(seriesName(frame, field))
-      reducers.forEach((reducer, index) => {
-        columns[index].push(reduceField(field, reducer))
-      })
+    for (const field of reducibleFields(frame, options)) {
+      rows.push({ frame, field })
     }
   }
   return [
     {
       ref: frames[0].ref,
       fields: [
-        { name: "Field", type: "string", values: names },
-        ...reducers.map((reducer, index): PreparedField => ({
+        {
+          name: "Field",
+          type: "string",
+          values: rows.map(({ frame, field }) => seriesName(frame, field)),
+        },
+        ...(options.labelsToFields ? labelColumns(rows) : []),
+        ...reducers.map((reducer): PreparedField => ({
           name: reducerLabels[reducer],
           type: "number",
-          values: columns[index],
+          values: rows.map(({ field }) => reduceField(field, reducer)),
         })),
       ],
     },
@@ -48,17 +93,22 @@ function reduceToRows(
 
 function reduceEachFrame(
   frames: PreparedFrame[],
-  reducers: Reducer[]
+  options: ReduceOptions
 ): PreparedFrame[] {
+  const { reducers } = options
   return frames.map((frame) => {
+    const reducible = new Set(reducibleFields(frame, options))
     const fields: PreparedField[] = []
     for (const field of frame.fields) {
-      if (field.type === "number") {
+      if (reducible.has(field)) {
         for (const reducer of reducers) {
           const label = reducerLabels[reducer]
           const reduced: PreparedField = {
             name: reducers.length === 1 ? field.name : `${field.name} ${label}`,
-            type: "number",
+            type:
+              field.type === "time" && timeReducers.has(reducer)
+                ? "time"
+                : "number",
             values: [reduceField(field, reducer)],
           }
           if (field.seriesName) {
@@ -77,16 +127,23 @@ function reduceEachFrame(
         })
       }
     }
+    if (options.labelsToFields) {
+      for (const column of labelColumns([{ frame }])) {
+        if (!fields.some((field) => field.name === column.name)) {
+          fields.push(column)
+        }
+      }
+    }
     return withFields(frame, fields)
   })
 }
 
 export function reduceFrames(
   frames: PreparedFrame[],
-  { reducers, mode = "seriesToRows" }: ReduceOptions
+  options: ReduceOptions
 ): PreparedFrame[] {
-  if (reducers.length === 0) return frames.map(copyFrame)
-  return mode === "reduceFields"
-    ? reduceEachFrame(frames, reducers)
-    : reduceToRows(frames, reducers)
+  if (options.reducers.length === 0) return frames.map(copyFrame)
+  return options.mode === "reduceFields"
+    ? reduceEachFrame(frames, options)
+    : reduceToRows(frames, options)
 }

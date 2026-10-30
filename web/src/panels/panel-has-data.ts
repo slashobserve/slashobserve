@@ -1,3 +1,4 @@
+import type { Selections } from "@/api/keys"
 import type { WireFrame } from "@/dashboards/queries"
 import type { DataPanel } from "@/spec"
 
@@ -12,10 +13,11 @@ export function panelHasData(
   panel: DataPanel,
   frames: WireFrame[],
   fields: FieldResolver,
-  reusedFilter?: ReusedFilter
+  reusedFilter?: ReusedFilter,
+  vars?: Selections
 ): boolean {
   if (emptyIsAnAnswer.has(panel.type)) return true
-  const prepared = prepareFrames(panel, frames, undefined, reusedFilter)
+  const prepared = prepareFrames(panel, frames, undefined, reusedFilter, vars)
   if (panel.type !== "timeseries") return hasData(prepared)
   return hasData(
     prepared.map((frame) => ({

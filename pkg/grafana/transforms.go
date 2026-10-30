@@ -3,6 +3,7 @@ package grafana
 import (
 	"cmp"
 	"fmt"
+	"maps"
 	"math"
 	"regexp"
 	"slices"
@@ -18,6 +19,10 @@ const (
 	maxExprLength     = 400
 	maxLimit          = 100000
 	maxReducers       = 10
+	maxWindowSize     = 10000
+	maxSortThen       = 10
+
+	defaultWindowShare = 0.1
 )
 
 var reducerNames = map[string]string{
@@ -36,7 +41,15 @@ func isAggregateReducer(id string) bool {
 	return id == uniqueValuesReducer || isReducer(id)
 }
 
-var exprPattern = regexp.MustCompile(`^\s*\S+\s*[-+*/]\s*\S+\s*$`)
+var exprPattern = regexp.MustCompile(`^\s*\S+\s*[-+*/%^]\s*\S+\s*$`)
+
+var (
+	unaryFunctions   = []string{"abs", "exp", "ln", "floor", "ceil", "round"}
+	windowFunctions  = []string{"mean", "stdDev", "variance"}
+	windowAlignments = []string{"trailing", "centered"}
+	binaryOperators  = []string{"+", "-", "*", "/", "%", "^"}
+	varReference     = regexp.MustCompile(`^\$(?:([A-Za-z][A-Za-z0-9_]{0,39})|\{([A-Za-z][A-Za-z0-9_]{0,39})\})$`)
+)
 
 type transformBuilder func(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool)
 
@@ -49,12 +62,15 @@ type transformSpec struct {
 var transformSpecs = map[string]transformSpec{
 	"merge":              {build: simpleTransform("merge")},
 	"seriesToRows":       {build: simpleTransform("seriesToRows")},
-	"organize":           {handled: []string{"excludeByName", "renameByName", "indexByName"}, build: organizeTransform},
+	"organize":           {handled: []string{"excludeByName", "includeByName", "renameByName", "indexByName"}, build: organizeTransform},
+	"rename":             {handled: []string{"renameByName"}, build: renameTransform},
+	"order":              {handled: []string{"indexByName"}, build: orderTransform},
+	"filterFields":       {handled: []string{"include", "exclude"}, build: filterFieldsMatcherTransform},
 	"reduce":             {handled: []string{"reducers", "mode", "includeTimeField", "labelsToFields", "fields"}, build: reduceTransform},
 	"joinByField":        {handled: []string{"byField", "mode"}, build: joinTransform},
 	"seriesToColumns":    {handled: []string{"byField", "mode"}, build: joinTransform},
-	"filterFieldsByName": {handled: []string{"include"}, build: filterFieldsTransform},
-	"calculateField":     {handled: []string{"mode", "alias", "binary", "reduce", "replaceFields"}, build: calculateTransform},
+	"filterFieldsByName": {handled: []string{"include", "exclude", "byVariable"}, build: filterFieldsTransform},
+	"calculateField":     {handled: []string{"mode", "alias", "binary", "reduce", "unary", "index", "cumulative", "window", "replaceFields"}, build: calculateTransform},
 	"sortBy":             {handled: []string{"sort"}, build: sortTransform},
 	"limit":              {handled: []string{"limitField"}, build: limitTransform},
 	"convertFieldType":   {handled: []string{"conversions", "fields"}, build: convertFieldTypeTransform},
@@ -110,6 +126,9 @@ func (b *panelBuild) convertTransform(t map[string]any, path string) (spec.Trans
 	}
 	opts, _ := asObject(t["options"])
 	tr, ok := entry.build(b, opts, path)
+	if ok {
+		tr.Queries = b.transformQueries(t, path)
+	}
 	handled := entry.handled
 	if entry.allOptions {
 		handled = sortedKeys(opts)
@@ -119,9 +138,6 @@ func (b *panelBuild) convertTransform(t map[string]any, path string) (spec.Trans
 }
 
 func (b *panelBuild) transformExtras(t, opts map[string]any, handled []string, path string) {
-	if present(t["filter"]) {
-		b.partial(path+".filter", "Transformations that apply to some queries only are not supported yet.")
-	}
 	if topic := asString(t["topic"]); topic != "" && topic != "series" {
 		b.partial(path+".topic", "Transformations of annotations are not supported yet.")
 	}
@@ -153,19 +169,144 @@ func clippedNames(b *panelBuild, names []string, path string) []string {
 	return out
 }
 
-func organizeTransform(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool) {
-	t := spec.Transform{Type: "organize"}
-	exclude, _ := asObject(opts["excludeByName"])
-	var excluded []string
-	for _, name := range sortedKeys(exclude) {
-		if truthy(exclude[name]) {
-			excluded = append(excluded, name)
+func (b *panelBuild) transformQueries(t map[string]any, path string) []string {
+	if !present(t["filter"]) {
+		return nil
+	}
+	filter, _ := asObject(t["filter"])
+	if asString(filter["id"]) != "byRefId" {
+		b.partial(path+".filter", "")
+		return nil
+	}
+	ids, complete := b.filterRefIDs(filter["options"])
+	var queries []string
+	for _, id := range ids {
+		queries = b.includeRef(queries, b.refs[id])
+	}
+	if !complete || len(queries) == 0 {
+		b.partial(path+".filter", "")
+	}
+	return queries
+}
+
+func (b *panelBuild) filterRefIDs(options any) ([]string, bool) {
+	if text, ok := options.(string); ok {
+		if last := strings.LastIndex(text, "/"); strings.HasPrefix(text, "/") && last > 0 {
+			return b.refIDsMatching(text[1:last], text[last+1:])
+		}
+		return b.mappedRefIDs(strings.Split(text, "|"))
+	}
+	return b.mappedRefIDs(stringList(options))
+}
+
+func (b *panelBuild) mappedRefIDs(candidates []string) ([]string, bool) {
+	var ids []string
+	complete := len(candidates) > 0
+	for _, id := range candidates {
+		id = strings.TrimSpace(id)
+		if _, mapped := b.refs[id]; !mapped || !refPattern.MatchString(id) {
+			complete = false
+			continue
+		}
+		ids = append(ids, id)
+	}
+	return ids, complete
+}
+
+func (b *panelBuild) refIDsMatching(pattern, flags string) ([]string, bool) {
+	if strings.Contains(flags, "i") {
+		pattern = "(?i)" + pattern
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, false
+	}
+	var ids []string
+	for _, id := range slices.Sorted(maps.Keys(b.refs)) {
+		if re.MatchString(id) {
+			ids = append(ids, id)
 		}
 	}
-	t.Exclude = clippedNames(b, excluded, path+".options.excludeByName")
+	return ids, len(ids) > 0
+}
+
+func truthyNames(b *panelBuild, v any, path string) []string {
+	flags, _ := asObject(v)
+	var names []string
+	for _, name := range sortedKeys(flags) {
+		if truthy(flags[name]) {
+			names = append(names, name)
+		}
+	}
+	return clippedNames(b, names, path)
+}
+
+func organizeTransform(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool) {
+	t := spec.Transform{Type: "organize"}
+	t.Include = truthyNames(b, opts["includeByName"], path+".options.includeByName")
+	t.Exclude = truthyNames(b, opts["excludeByName"], path+".options.excludeByName")
 	t.Rename = renames(b, opts["renameByName"], path+".options.renameByName")
 	t.Order = fieldOrder(b, opts["indexByName"], path+".options.indexByName")
-	return t, len(t.Exclude) > 0 || len(t.Rename) > 0 || len(t.Order) > 0
+	return t, len(t.Include) > 0 || len(t.Exclude) > 0 || len(t.Rename) > 0 || len(t.Order) > 0
+}
+
+func renameTransform(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool) {
+	t := spec.Transform{Type: "organize", Rename: renames(b, opts["renameByName"], path+".options.renameByName")}
+	return t, len(t.Rename) > 0
+}
+
+func orderTransform(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool) {
+	t := spec.Transform{Type: "organize", Order: fieldOrder(b, opts["indexByName"], path+".options.indexByName")}
+	return t, len(t.Order) > 0
+}
+
+func matcherNames(b *panelBuild, v any, path string) (names []string, pattern string, ok bool) {
+	matcher, isObject := asObject(v)
+	if !isObject {
+		return nil, "", false
+	}
+	switch asString(matcher["id"]) {
+	case "byName":
+		names = []string{asString(matcher["options"])}
+	case "byNames":
+		if options, isObject := asObject(matcher["options"]); isObject {
+			names = stringList(options["names"])
+		} else {
+			names = stringList(matcher["options"])
+		}
+	case "byRegexp":
+		pattern = asString(matcher["options"])
+		if !validLength(pattern, maxRegexMatch) {
+			return nil, "", false
+		}
+	default:
+		return nil, "", false
+	}
+	names = clippedNames(b, names, path)
+	return names, pattern, len(names) > 0 || pattern != ""
+}
+
+func filterFieldsMatcherTransform(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool) {
+	t := spec.Transform{Type: "filterFieldsByName"}
+	for _, side := range []struct {
+		key     string
+		names   *[]string
+		pattern *string
+	}{
+		{"include", &t.Include, &t.IncludeRegex},
+		{"exclude", &t.Exclude, &t.ExcludeRegex},
+	} {
+		if !present(opts[side.key]) {
+			continue
+		}
+		names, pattern, ok := matcherNames(b, opts[side.key], path+".options."+side.key)
+		if !ok {
+			b.partial(path+".options."+side.key, "")
+			continue
+		}
+		*side.names, *side.pattern = names, pattern
+	}
+	return t, len(t.Include) > 0 || t.IncludeRegex != "" || len(t.Exclude) > 0 || t.ExcludeRegex != ""
 }
 
 func renames(b *panelBuild, v any, path string) map[string]string {
@@ -237,9 +378,14 @@ func reduceTransform(b *panelBuild, opts map[string]any, path string) (spec.Tran
 	default:
 		b.partial(path+".options.mode", "")
 	}
-	for _, key := range []string{"includeTimeField", "labelsToFields", "fields"} {
-		if present(opts[key]) {
-			b.partial(path+".options."+key, "")
+	t.IncludeTime = truthy(opts["includeTimeField"])
+	t.LabelsToFields = truthy(opts["labelsToFields"])
+	if present(opts["fields"]) {
+		names, pattern, ok := matcherNames(b, opts["fields"], path+".options.fields")
+		if ok {
+			t.Fields, t.FieldsRegex = names, pattern
+		} else {
+			b.partial(path+".options.fields", "")
 		}
 	}
 	return t, true
@@ -251,7 +397,7 @@ func joinTransform(b *panelBuild, opts map[string]any, path string) (spec.Transf
 		t.Field = field
 	}
 	switch mode := asString(opts["mode"]); mode {
-	case "outer", "inner":
+	case "outer", "inner", "outerTabular":
 		t.Mode = mode
 	case "":
 	default:
@@ -260,19 +406,48 @@ func joinTransform(b *panelBuild, opts map[string]any, path string) (spec.Transf
 	return t, true
 }
 
+func variableReferenceName(text string) string {
+	m := varReference.FindStringSubmatch(strings.TrimSpace(text))
+	if m == nil {
+		return ""
+	}
+	return cmp.Or(m[1], m[2])
+}
+
+func (b *panelBuild) usableVariable(name string) bool {
+	return name != "" && !b.c.droppedVars[name]
+}
+
 func filterFieldsTransform(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool) {
 	include, _ := asObject(opts["include"])
+	exclude, _ := asObject(opts["exclude"])
 	t := spec.Transform{Type: "filterFieldsByName"}
-	t.Include = clippedNames(b, stringList(include["names"]), path+".options.include.names")
-	if pattern := asString(include["pattern"]); validLength(pattern, maxRegexMatch) {
-		t.IncludeRegex = pattern
-	}
-	for _, key := range sortedKeys(include) {
-		if key != "names" && key != "pattern" && present(include[key]) {
-			b.partial(path+".options.include."+key, "")
+	includePath := path + ".options.include"
+	name := asString(include["variable"])
+	switch {
+	case truthy(opts["byVariable"]):
+		reference := cmp.Or(variableReferenceName(name), name)
+		if variableNamePattern.MatchString(reference) && b.usableVariable(reference) {
+			t.Variable = reference
+		} else {
+			b.partial(path+".options.byVariable", "")
+		}
+	default:
+		t.Include = clippedNames(b, stringList(include["names"]), includePath+".names")
+		if pattern := asString(include["pattern"]); validLength(pattern, maxRegexMatch) {
+			t.IncludeRegex = pattern
+		}
+		if name != "" {
+			b.partial(includePath+".variable", "")
 		}
 	}
-	return t, len(t.Include) > 0 || t.IncludeRegex != ""
+	t.Exclude = clippedNames(b, stringList(exclude["names"]), path+".options.exclude.names")
+	if pattern := asString(exclude["pattern"]); validLength(pattern, maxRegexMatch) {
+		t.ExcludeRegex = pattern
+	}
+	b.reportOtherKeys(include, []string{"names", "pattern", "variable"}, includePath)
+	b.reportOtherKeys(exclude, []string{"names", "pattern"}, path+".options.exclude")
+	return t, len(t.Include) > 0 || t.IncludeRegex != "" || len(t.Exclude) > 0 || t.ExcludeRegex != "" || t.Variable != ""
 }
 
 func operandText(v any) string {
@@ -295,40 +470,177 @@ func calculateTransform(b *panelBuild, opts map[string]any, path string) (spec.T
 	t := spec.Transform{Type: "calculateField"}
 	mode := cmp.Or(asString(opts["mode"]), "reduceRow")
 	var fallback string
+	var ok bool
 	switch mode {
 	case "binary":
-		expr, ok := binaryExpression(opts)
-		if !ok {
-			b.partial(path+".options.binary", "")
-			return t, false
-		}
-		t.Expr, fallback = expr, expr
+		fallback, ok = binaryMode(b, &t, opts, path)
 	case "reduceRow":
-		reduce, _ := asObject(opts["reduce"])
-		reducer := cmp.Or(asString(reduce["reducer"]), "sum")
-		if !isReducer(reducer) {
-			b.partial(path+".options.reduce", "")
-			return t, false
-		}
-		t.ReduceRow, fallback = reducer, reducerNames[reducer]
-		if present(reduce["include"]) {
-			b.partial(path+".options.reduce.include", "")
-		}
+		fallback, ok = reduceRowMode(b, &t, opts, path)
+	case "unary":
+		fallback, ok = unaryMode(b, &t, opts, path)
+	case "index":
+		fallback, ok = indexMode(b, &t, opts, path)
+	case "cumulativeFunctions":
+		fallback, ok = cumulativeMode(b, &t, opts, path)
+	case "windowFunctions":
+		fallback, ok = windowMode(b, &t, opts, path)
 	default:
 		b.partial(path+".options.mode", "")
+	}
+	if !ok {
 		return t, false
 	}
 	t.Alias, _ = cutRunes(cmp.Or(asString(opts["alias"]), fallback), maxNameMatch)
-	if truthy(opts["replaceFields"]) {
-		b.partial(path+".options.replaceFields", "")
-	}
+	t.Replace = truthy(opts["replaceFields"])
 	return t, true
+}
+
+func binaryMode(b *panelBuild, t *spec.Transform, opts map[string]any, path string) (string, bool) {
+	expr, ok := binaryExpression(opts)
+	if !ok {
+		b.partial(path+".options.binary", "")
+		return "", false
+	}
+	t.Expr = expr
+	return expr, true
+}
+
+func reduceRowMode(b *panelBuild, t *spec.Transform, opts map[string]any, path string) (string, bool) {
+	reduce, _ := asObject(opts["reduce"])
+	reducer := cmp.Or(asString(reduce["reducer"]), "sum")
+	if !isReducer(reducer) {
+		b.partial(path+".options.reduce", "")
+		return "", false
+	}
+	t.ReduceRow = reducer
+	if present(reduce["include"]) {
+		b.partial(path+".options.reduce.include", "")
+	}
+	return reducerNames[reducer], true
+}
+
+func (b *panelBuild) optionalFieldName(options map[string]any, key, path string) (string, bool) {
+	name := asString(options[key])
+	if name != "" && !validLength(name, maxNameMatch) {
+		b.partial(path+"."+key, "")
+		return "", false
+	}
+	return name, true
+}
+
+func unaryMode(b *panelBuild, t *spec.Transform, opts map[string]any, path string) (string, bool) {
+	unary, _ := asObject(opts["unary"])
+	unaryPath := path + ".options.unary"
+	fn := cmp.Or(asString(unary["operator"]), "abs")
+	if !slices.Contains(unaryFunctions, fn) {
+		b.partial(unaryPath+".operator", "")
+		return "", false
+	}
+	field, ok := b.optionalFieldName(unary, "fieldName", unaryPath)
+	if !ok {
+		return "", false
+	}
+	b.reportOtherKeys(unary, []string{"operator", "fieldName"}, unaryPath)
+	t.Unary = &spec.Unary{Field: field}
+	if fn != "abs" {
+		t.Unary.Fn = fn
+	}
+	if field == "" {
+		return fn, true
+	}
+	return fn + "(" + field + ")", true
+}
+
+func indexMode(b *panelBuild, t *spec.Transform, opts map[string]any, path string) (string, bool) {
+	index, _ := asObject(opts["index"])
+	b.reportOtherKeys(index, []string{"asPercentile"}, path+".options.index")
+	t.Index = &spec.RowIndex{Percentile: truthy(index["asPercentile"])}
+	return "Row", true
+}
+
+func cumulativeMode(b *panelBuild, t *spec.Transform, opts map[string]any, path string) (string, bool) {
+	cumulative, _ := asObject(opts["cumulative"])
+	cumulativePath := path + ".options.cumulative"
+	reducer := cmp.Or(asString(cumulative["reducer"]), "sum")
+	if reducer != "sum" && reducer != "mean" {
+		b.partial(cumulativePath+".reducer", "")
+		return "", false
+	}
+	field, ok := b.optionalFieldName(cumulative, "field", cumulativePath)
+	if !ok {
+		return "", false
+	}
+	b.reportOtherKeys(cumulative, []string{"reducer", "field"}, cumulativePath)
+	t.Cumulative = &spec.Cumulative{Field: field}
+	if reducer == "mean" {
+		t.Cumulative.Fn = reducer
+		return "Cumulative mean", true
+	}
+	return "Cumulative total", true
+}
+
+func windowMode(b *panelBuild, t *spec.Transform, opts map[string]any, path string) (string, bool) {
+	window, _ := asObject(opts["window"])
+	windowPath := path + ".options.window"
+	fn := cmp.Or(asString(window["reducer"]), "mean")
+	if !slices.Contains(windowFunctions, fn) {
+		b.partial(windowPath+".reducer", "")
+		return "", false
+	}
+	align := cmp.Or(asString(window["windowAlignment"]), "trailing")
+	if !slices.Contains(windowAlignments, align) {
+		b.partial(windowPath+".windowAlignment", "")
+		return "", false
+	}
+	field, ok := b.optionalFieldName(window, "field", windowPath)
+	if !ok {
+		return "", false
+	}
+	w := &spec.Window{Field: field}
+	if !windowSize(b, w, window, windowPath) {
+		return "", false
+	}
+	b.reportOtherKeys(window, []string{"reducer", "field", "windowSize", "windowSizeMode", "windowAlignment"}, windowPath)
+	if fn != "mean" {
+		w.Fn = fn
+	}
+	if align != "trailing" {
+		w.Align = align
+	}
+	t.Window = w
+	return strings.ToUpper(align[:1]) + align[1:] + " " + fn, true
+}
+
+func windowSize(b *panelBuild, w *spec.Window, window map[string]any, path string) bool {
+	mode := asString(window["windowSizeMode"])
+	size, given := numberValue(window["windowSize"])
+	fixed := mode == "fixed" || (mode == "" && size > 1)
+	switch {
+	case !slices.Contains([]string{"", "fixed", "percentage"}, mode):
+		b.partial(path+".windowSizeMode", "")
+		return false
+	case !given && mode == "fixed":
+		b.partial(path+".windowSizeMode", "")
+		return false
+	case !given:
+		return true
+	case fixed && size == math.Trunc(size) && size >= 1 && size <= maxWindowSize:
+		w.Size = int(size)
+	case !fixed && size > 0 && size <= 1:
+		if size != defaultWindowShare {
+			w.Share = size
+		}
+	default:
+		b.partial(path+".windowSize", "")
+		return false
+	}
+	return true
 }
 
 func binaryExpression(opts map[string]any) (string, bool) {
 	binary, _ := asObject(opts["binary"])
 	operator := asString(binary["operator"])
-	if !slices.Contains([]string{"+", "-", "*", "/"}, operator) {
+	if !slices.Contains(binaryOperators, operator) {
 		return "", false
 	}
 	expr := operandText(binary["left"]) + " " + operator + " " + operandText(binary["right"])
@@ -341,19 +653,30 @@ func sortTransform(b *panelBuild, opts map[string]any, path string) (spec.Transf
 	if len(entries) == 0 {
 		return spec.Transform{}, false
 	}
-	first, _ := asObject(entries[0])
-	field := asString(first["field"])
-	if !validLength(field, maxNameMatch) {
-		b.partial(path+".options.sort", "")
+	var keys []spec.SortKey
+	for i, entry := range entries {
+		item, _ := asObject(entry)
+		field := asString(item["field"])
+		if !validLength(field, maxNameMatch) || len(keys) > maxSortThen {
+			b.partial(fmt.Sprintf("%s.options.sort[%d]", path, i), "")
+			break
+		}
+		keys = append(keys, spec.SortKey{Field: field, Desc: truthy(item["desc"])})
+	}
+	if len(keys) == 0 {
 		return spec.Transform{}, false
 	}
-	if len(entries) > 1 {
-		b.partial(path+".options.sort[1]", "")
+	t := spec.Transform{Type: "sortBy", Field: keys[0].Field, Desc: keys[0].Desc}
+	if len(keys) > 1 {
+		t.Then = keys[1:]
 	}
-	return spec.Transform{Type: "sortBy", Field: field, Desc: truthy(first["desc"])}, true
+	return t, true
 }
 
 func limitTransform(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool) {
+	if name := variableReferenceName(asString(opts["limitField"])); b.usableVariable(name) {
+		return spec.Transform{Type: "limit", Count: "${" + name + "}"}, true
+	}
 	count, ok := numberValue(opts["limitField"])
 	if !ok || count != math.Trunc(count) || count < 1 || count > maxLimit {
 		b.partial(path+".options.limitField", "")

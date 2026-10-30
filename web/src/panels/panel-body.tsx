@@ -84,15 +84,15 @@ export function PanelBody({
     [datasources.data, vars]
   )
   const frames = useMemo(
-    () => prepareFrames(panel, data.frames, typeOf, reusedFilter),
-    [panel, data.frames, typeOf, reusedFilter]
+    () => prepareFrames(panel, data.frames, typeOf, reusedFilter, vars),
+    [panel, data.frames, typeOf, reusedFilter, vars]
   )
   const ghostFrames = useMemo(
     () =>
       ghost
-        ? prepareFrames(panel, ghost.frames, typeOf, reusedFilter)
+        ? prepareFrames(panel, ghost.frames, typeOf, reusedFilter, vars)
         : undefined,
-    [panel, ghost, typeOf, reusedFilter]
+    [panel, ghost, typeOf, reusedFilter, vars]
   )
   const fields = useMemo(() => createFieldResolver(panel, vars), [panel, vars])
   const display = useMemo(

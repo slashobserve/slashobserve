@@ -6,6 +6,7 @@ import {
 } from "./names"
 
 export type OrganizeOptions = {
+  include?: string[]
   exclude?: string[]
   rename?: Record<string, string>
   order?: string[]
@@ -26,10 +27,15 @@ function renameOf(
 
 function organizeFrame(
   frame: PreparedFrame,
-  { exclude = [], rename = {}, order = [] }: OrganizeOptions
+  { include, exclude = [], rename = {}, order = [] }: OrganizeOptions
 ): PreparedFrame {
   const kept: Kept[] = frame.fields
-    .filter((field) => !exclude.some((name) => matchesName(frame, field, name)))
+    .filter(
+      (field) =>
+        (include === undefined ||
+          include.some((name) => matchesName(frame, field, name))) &&
+        !exclude.some((name) => matchesName(frame, field, name))
+    )
     .map((field) => {
       const name = renameOf(frame, field, rename)
       return {

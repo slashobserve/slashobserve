@@ -478,7 +478,7 @@ type Transform struct {
 	Expr             string            `json:"expr,omitempty"`
 	ReduceRow        string            `json:"reduceRow,omitempty"`
 	Desc             bool              `json:"desc,omitempty"`
-	Count            int               `json:"count,omitempty"`
+	Count            any               `json:"count,omitempty"`
 	Conversions      []Conversion      `json:"conversions,omitempty"`
 	Format           string            `json:"format,omitempty"`
 	Start            *int              `json:"start,omitempty"`
@@ -527,6 +527,44 @@ type Transform struct {
 	YScale           string            `json:"yScale,omitempty"`
 	YLogBase         int               `json:"yLogBase,omitempty"`
 	KeepOriginalData bool              `json:"keepOriginalData,omitempty"`
+	Queries          []string          `json:"queries,omitempty"`
+	IncludeTime      bool              `json:"includeTime,omitempty"`
+	LabelsToFields   bool              `json:"labelsToFields,omitempty"`
+	FieldsRegex      string            `json:"fieldsRegex,omitempty"`
+	ExcludeRegex     string            `json:"excludeRegex,omitempty"`
+	Variable         string            `json:"variable,omitempty"`
+	Unary            *Unary            `json:"unary,omitempty"`
+	Index            *RowIndex         `json:"index,omitempty"`
+	Cumulative       *Cumulative       `json:"cumulative,omitempty"`
+	Window           *Window           `json:"window,omitempty"`
+	Then             []SortKey         `json:"then,omitempty"`
+}
+
+type Unary struct {
+	Fn    string `json:"fn,omitempty"`
+	Field string `json:"field,omitempty"`
+}
+
+type RowIndex struct {
+	Percentile bool `json:"percentile,omitempty"`
+}
+
+type Cumulative struct {
+	Fn    string `json:"fn,omitempty"`
+	Field string `json:"field,omitempty"`
+}
+
+type Window struct {
+	Fn    string  `json:"fn,omitempty"`
+	Field string  `json:"field,omitempty"`
+	Size  int     `json:"size,omitempty"`
+	Share float64 `json:"share,omitempty"`
+	Align string  `json:"align,omitempty"`
+}
+
+type SortKey struct {
+	Field string `json:"field"`
+	Desc  bool   `json:"desc,omitempty"`
 }
 
 type Aggregation struct {
