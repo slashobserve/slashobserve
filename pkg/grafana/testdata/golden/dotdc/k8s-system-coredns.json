@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 14,
-      "imported": 0,
-      "partial": 14,
+      "imported": 10,
+      "partial": 4,
       "placeholder": 0,
       "unverified": 0
     },
@@ -45,7 +45,7 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet."
+          "Exemplars are drawn on time series only."
         ],
         "paths": [
           "targets[0].exemplar"
@@ -68,13 +68,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -93,13 +89,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -118,13 +110,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -143,13 +131,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -168,13 +152,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -193,13 +173,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -218,13 +194,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -243,13 +215,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -268,14 +236,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -301,13 +264,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -608,7 +567,8 @@
           {
             "query": "rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])",
             "legend": "{{ instance }}",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "percentunit",
@@ -631,7 +591,8 @@
         "queries": [
           {
             "query": "process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}",
-            "legend": "{{ instance }}"
+            "legend": "{{ instance }}",
+            "exemplar": true
           }
         ],
         "unit": "bytes",
@@ -654,7 +615,8 @@
           {
             "query": "sum(rate(coredns_dns_requests_total{instance=~\"$instance\",proto=\"$protocol\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval]))",
             "legend": "total $protocol requests",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "short",
@@ -682,7 +644,8 @@
           {
             "query": "sum(rate(coredns_dns_request_size_bytes_sum{instance=~\"$instance\",proto=\"$protocol\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (proto) / sum(rate(coredns_dns_request_size_bytes_count{instance=~\"$instance\",proto=\"$protocol\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (proto)",
             "legend": "average $protocol packet size",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "bytes",
@@ -710,7 +673,8 @@
           {
             "query": "sum(rate(coredns_dns_requests_total{instance=~\"$instance\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (type)",
             "legend": "{{ type }}",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "short",
@@ -736,7 +700,8 @@
           {
             "query": "sum(rate(coredns_dns_responses_total{instance=~\"$instance\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (rcode)",
             "legend": "{{ rcode }}",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "short",
@@ -762,7 +727,8 @@
           {
             "query": "sum(rate(coredns_proxy_request_duration_seconds_count{proxy_name=\"forward\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval]))",
             "legend": "total forward requests",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "short",
@@ -790,7 +756,8 @@
           {
             "query": "sum(rate(coredns_proxy_request_duration_seconds_count{proxy_name=\"forward\", rcode=~\"SERVFAIL|REFUSED\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (rcode)",
             "legend": "{{ rcode }}",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "short",
@@ -817,12 +784,14 @@
           {
             "query": "sum(rate(coredns_cache_hits_total{instance=~\"$instance\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (type)",
             "legend": "{{ type }}",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           },
           {
             "query": "sum(rate(coredns_cache_misses_total{instance=~\"$instance\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (type)",
             "legend": "misses",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "short",
@@ -847,7 +816,8 @@
         "queries": [
           {
             "query": "sum(coredns_cache_entries{cluster=~\"$cluster\", job=~\"$job\"}) by (type)",
-            "legend": "{{ type }}"
+            "legend": "{{ type }}",
+            "exemplar": true
           }
         ],
         "unit": "bytes",

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 25,
-      "imported": 7,
-      "partial": 18,
+      "imported": 22,
+      "partial": 3,
       "placeholder": 0,
       "unverified": 0
     },
@@ -66,7 +66,7 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet."
+          "Exemplars are drawn on time series only."
         ],
         "paths": [
           "targets[0].exemplar"
@@ -182,7 +182,7 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet."
+          "Exemplars are drawn on time series only."
         ],
         "paths": [
           "targets[0].exemplar"
@@ -228,7 +228,7 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet."
+          "Exemplars are drawn on time series only."
         ],
         "paths": [
           "targets[0].exemplar"
@@ -272,13 +272,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -297,13 +293,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -322,13 +314,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -347,13 +335,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Kubernetes",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -379,13 +363,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Kubernetes",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -404,13 +384,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Kubernetes",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -429,13 +405,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Kubernetes",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -524,13 +496,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Kubernetes",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -612,13 +580,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Kubernetes Storage",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -637,14 +601,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Kubernetes Storage",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -670,13 +629,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Kubernetes Storage",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -695,14 +650,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -728,14 +678,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -761,14 +706,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -794,14 +734,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1176,7 +1111,8 @@
               {
                 "query": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\", image!=\"\", pod=~\"${created_by}.*\", cluster=\"$cluster\"}[$__rate_interval])) by (pod)",
                 "legend": "{{ pod }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "none",
@@ -1204,7 +1140,8 @@
               {
                 "query": "sum(container_memory_working_set_bytes{namespace=~\"$namespace\", image!=\"\", pod=~\"${created_by}.*\", cluster=\"$cluster\"}) by (pod)",
                 "legend": "{{ pod }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "bytes",
@@ -1231,7 +1168,8 @@
               {
                 "query": "sum(rate(container_cpu_cfs_throttled_seconds_total{namespace=~\"$namespace\", image!=\"\", pod=~\"${created_by}.*\", cluster=\"$cluster\"}[$__rate_interval])) by (pod) > 0",
                 "legend": "{{ pod }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "s",
@@ -1280,7 +1218,8 @@
             "queries": [
               {
                 "query": "sum(kube_pod_status_qos_class{namespace=~\"$namespace\", cluster=\"$cluster\"}) by (qos_class)",
-                "legend": "{{ qos_class }} pods"
+                "legend": "{{ qos_class }} pods",
+                "exemplar": true
               },
               {
                 "query": "sum(kube_pod_info{namespace=~\"$namespace\", cluster=\"$cluster\"})",
@@ -1318,7 +1257,8 @@
             "queries": [
               {
                 "query": "sum(kube_pod_status_reason{cluster=\"$cluster\"}) by (reason)",
-                "legend": "{{ reason }}"
+                "legend": "{{ reason }}",
+                "exemplar": true
               }
             ],
             "unit": "short",
@@ -1353,7 +1293,8 @@
             "queries": [
               {
                 "query": "sum(increase(container_oom_events_total{namespace=~\"${namespace}\", cluster=\"$cluster\"}[$__rate_interval])) by (namespace, pod) > 0",
-                "legend": "namespace: {{ namespace }} - pod: {{ pod }}"
+                "legend": "namespace: {{ namespace }} - pod: {{ pod }}",
+                "exemplar": true
               }
             ],
             "unit": "short",
@@ -1389,7 +1330,8 @@
             "queries": [
               {
                 "query": "sum(increase(kube_pod_container_status_restarts_total{namespace=~\"${namespace}\", cluster=\"$cluster\"}[$__rate_interval])) by (namespace, pod) > 0",
-                "legend": "namespace: {{ namespace }} - pod: {{ pod }}"
+                "legend": "namespace: {{ namespace }} - pod: {{ pod }}",
+                "exemplar": true
               }
             ],
             "unit": "short",
@@ -1496,7 +1438,8 @@
             "queries": [
               {
                 "query": "sum(kube_deployment_status_replicas_available{namespace=~\"$namespace\", cluster=\"$cluster\"}) by (deployment)",
-                "legend": "{{ deployment }}"
+                "legend": "{{ deployment }}",
+                "exemplar": true
               }
             ],
             "unit": "short",
@@ -1627,7 +1570,8 @@
             "queries": [
               {
                 "query": "max(kubelet_volume_stats_used_bytes{namespace=~\"$namespace\", cluster=\"$cluster\"}) by (persistentvolumeclaim, namespace) / max(kubelet_volume_stats_capacity_bytes{namespace=~\"$namespace\", cluster=\"$cluster\"}) by (persistentvolumeclaim, namespace)",
-                "legend": "{{ namespace }} - {{ persistentvolumeclaim }}"
+                "legend": "{{ namespace }} - {{ persistentvolumeclaim }}",
+                "exemplar": true
               }
             ],
             "unit": "percentunit",
@@ -1655,11 +1599,13 @@
             "queries": [
               {
                 "query": "max(kubelet_volume_stats_used_bytes{namespace=~\"$namespace\", cluster=\"$cluster\"}) by (persistentvolumeclaim, namespace)",
-                "legend": "{{ namespace }} - {{ persistentvolumeclaim }} - Used"
+                "legend": "{{ namespace }} - {{ persistentvolumeclaim }} - Used",
+                "exemplar": true
               },
               {
                 "query": "max(kubelet_volume_stats_capacity_bytes{namespace=~\"$namespace\", cluster=\"$cluster\"}) by (persistentvolumeclaim, namespace)",
-                "legend": "{{ namespace }} - {{ persistentvolumeclaim }} - Capacity"
+                "legend": "{{ namespace }} - {{ persistentvolumeclaim }} - Capacity",
+                "exemplar": true
               }
             ],
             "unit": "bytes",
@@ -1687,7 +1633,8 @@
             "queries": [
               {
                 "query": "1 - (sum(kubelet_volume_stats_inodes_used{namespace=~\"$namespace\", cluster=\"$cluster\"}) by (persistentvolumeclaim) / sum(kubelet_volume_stats_inodes{namespace=~\"$namespace\", cluster=\"$cluster\"}) by (persistentvolumeclaim))",
-                "legend": "{{ persistentvolumeclaim }}"
+                "legend": "{{ persistentvolumeclaim }}",
+                "exemplar": true
               }
             ],
             "unit": "percentunit",
@@ -1729,12 +1676,14 @@
               {
                 "query": "sum(rate(container_network_receive_bytes_total{namespace=~\"$namespace\", pod=~\"${created_by}.*\", cluster=\"$cluster\"}[$__rate_interval])) by (pod)",
                 "legend": "Received - {{ pod }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "- sum(rate(container_network_transmit_bytes_total{namespace=~\"$namespace\", pod=~\"${created_by}.*\", cluster=\"$cluster\"}[$__rate_interval])) by (pod)",
                 "legend": "Transmitted - {{ pod }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "binBps",
@@ -1763,12 +1712,14 @@
               {
                 "query": "sum(rate(container_network_receive_packets_total{namespace=~\"$namespace\", pod=~\"${created_by}.*\", cluster=\"$cluster\"}[$__rate_interval])) by (pod)",
                 "legend": "Received - {{ pod }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "- sum(rate(container_network_transmit_packets_total{namespace=~\"$namespace\", pod=~\"${created_by}.*\", cluster=\"$cluster\"}[$__rate_interval])) by (pod)",
                 "legend": "Transmitted - {{ pod }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "pps",
@@ -1797,12 +1748,14 @@
               {
                 "query": "sum(rate(container_network_receive_packets_dropped_total{namespace=~\"$namespace\", pod=~\"${created_by}.*\", cluster=\"$cluster\"}[$__rate_interval])) by (pod)",
                 "legend": "Received - {{ pod }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "- sum(rate(container_network_transmit_packets_dropped_total{namespace=~\"$namespace\", pod=~\"${created_by}.*\", cluster=\"$cluster\"}[$__rate_interval])) by (pod)",
                 "legend": "Transmitted - {{ pod }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "pps",
@@ -1831,12 +1784,14 @@
               {
                 "query": "sum(rate(container_network_receive_errors_total{namespace=~\"$namespace\", pod=~\"${created_by}.*\", cluster=\"$cluster\"}[$__rate_interval])) by (pod)",
                 "legend": "Received - {{ pod }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "- sum(rate(container_network_transmit_errors_total{namespace=~\"$namespace\", pod=~\"${created_by}.*\", cluster=\"$cluster\"}[$__rate_interval])) by (pod)",
                 "legend": "Transmitted - {{ pod }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "pps",

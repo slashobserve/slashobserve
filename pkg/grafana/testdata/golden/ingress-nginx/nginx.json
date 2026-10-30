@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 14,
-      "imported": 8,
-      "partial": 6,
+      "imported": 9,
+      "partial": 5,
       "placeholder": 0,
       "unverified": 0
     },
@@ -328,15 +328,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar",
-          "targets[2].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -371,7 +365,7 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
+          "Exemplars are drawn on time series only.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
@@ -1075,17 +1069,20 @@
           {
             "ref": "C",
             "query": "histogram_quantile(0.80, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{ingress!=\"\",controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\",ingress=~\"$ingress\",exported_namespace=~\"$exported_namespace\"}[2m])) by (le))",
-            "legend": "P80"
+            "legend": "P80",
+            "exemplar": true
           },
           {
             "ref": "D",
             "query": "histogram_quantile(0.90, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{ingress!=\"\",controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\",ingress=~\"$ingress\",exported_namespace=~\"$exported_namespace\"}[2m])) by (le))",
-            "legend": "P90"
+            "legend": "P90",
+            "exemplar": true
           },
           {
             "ref": "E",
             "query": "histogram_quantile(0.99, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{ingress!=\"\",controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\",ingress=~\"$ingress\",exported_namespace=~\"$exported_namespace\"}[2m])) by (le))",
-            "legend": "P99"
+            "legend": "P99",
+            "exemplar": true
           }
         ],
         "unit": "s",

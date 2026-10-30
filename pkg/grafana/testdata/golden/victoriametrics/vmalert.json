@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 41,
-      "imported": 34,
-      "partial": 7,
+      "imported": 36,
+      "partial": 5,
       "placeholder": 0,
       "unverified": 0
     },
@@ -853,13 +853,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Remote write",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -948,13 +944,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Remote write",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2376,7 +2368,8 @@
             "queries": [
               {
                 "query": "sum(rate(vmalert_remotewrite_conn_bytes_written_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
-                "legend": "__auto"
+                "legend": "__auto",
+                "exemplar": true
               }
             ],
             "unit": "decbytes",
@@ -2479,7 +2472,8 @@
             "queries": [
               {
                 "query": "sum(max_over_time(vmalert_remotewrite_conns{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
-                "legend": "__auto"
+                "legend": "__auto",
+                "exemplar": true
               }
             ],
             "unit": "short",

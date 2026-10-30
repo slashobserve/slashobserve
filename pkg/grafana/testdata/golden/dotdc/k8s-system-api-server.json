@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 12,
-      "imported": 0,
-      "partial": 12,
+      "imported": 10,
+      "partial": 2,
       "placeholder": 0,
       "unverified": 0
     },
@@ -45,7 +45,7 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet."
+          "Exemplars are drawn on time series only."
         ],
         "paths": [
           "targets[0].exemplar"
@@ -70,7 +70,7 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
+          "Exemplars are drawn on time series only.",
           "Some transformations are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
@@ -98,13 +98,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -123,13 +119,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -148,13 +140,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -173,13 +161,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -198,13 +182,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -223,13 +203,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -248,13 +224,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -273,13 +245,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -298,13 +266,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -323,13 +287,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -523,7 +483,8 @@
           {
             "query": "sum by (code) (rate(apiserver_request_total{cluster=~\"$cluster\"}[$__rate_interval]))",
             "legend": "{{ code }}",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "short",
@@ -549,7 +510,8 @@
           {
             "query": "sum by (verb) (rate(apiserver_request_total{cluster=~\"$cluster\"}[$__rate_interval]))",
             "legend": "{{ verb}}",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "short",
@@ -575,7 +537,8 @@
           {
             "query": "sum(rate(apiserver_request_duration_seconds_sum{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (instance)\n/\nsum(rate(apiserver_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (instance)",
             "legend": "{{ instance }}",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "ms",
@@ -598,7 +561,8 @@
           {
             "query": "sum(rate(apiserver_request_duration_seconds_sum{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (verb)\n/\nsum(rate(apiserver_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (verb)",
             "legend": "{{ verb }}",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "ms",
@@ -624,7 +588,8 @@
           {
             "query": "sum by(instance) (rate(apiserver_request_total{code=~\"5..\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval]))\n / (sum by(instance) (rate(apiserver_request_total{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) > 0)",
             "legend": "{{ instance }}",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "short",
@@ -647,7 +612,8 @@
           {
             "query": "sum by(verb) (rate(apiserver_request_total{code=~\"5..\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval]))\n / (sum by(verb) (rate(apiserver_request_total{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) > 0)",
             "legend": "{{ verb }}",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "short",
@@ -674,7 +640,8 @@
           {
             "query": "sum(rate(apiserver_request_total{cluster=~\"$cluster\"}[$__rate_interval])) by (instance)",
             "legend": "{{ instance }}",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "short",
@@ -698,7 +665,8 @@
           {
             "query": "sum(workqueue_depth{cluster=~\"$cluster\", job=~\"$job\"}) by (instance)",
             "legend": "{{ instance }}",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "short",
@@ -721,7 +689,8 @@
           {
             "query": "rate(process_cpu_seconds_total{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])",
             "legend": "{{ instance }}",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "percent",
@@ -745,7 +714,8 @@
           {
             "query": "process_resident_memory_bytes{cluster=~\"$cluster\", job=~\"$job\"}",
             "legend": "{{ instance }}",
-            "interval": "${resolution}"
+            "interval": "${resolution}",
+            "exemplar": true
           }
         ],
         "unit": "bytes",

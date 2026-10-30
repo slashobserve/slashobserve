@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 5,
-      "imported": 0,
-      "partial": 5,
+      "imported": 2,
+      "partial": 3,
       "placeholder": 0,
       "unverified": 0
     },
@@ -62,7 +62,7 @@
         "row": "GetCart Exemplars",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
+          "Exemplars are drawn on time series only.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
@@ -104,13 +104,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "GetCart Exemplars",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -131,7 +127,7 @@
         "row": "AddItem Exemplars",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
+          "Exemplars are drawn on time series only.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
@@ -173,13 +169,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "AddItem Exemplars",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -263,7 +255,8 @@
             "queries": [
               {
                 "query": "histogram_quantile(0.95, sum by(le) (rate(demo_cart_get_cart_latency_seconds_bucket[$__rate_interval])))",
-                "legend": "p95 GetCart"
+                "legend": "p95 GetCart",
+                "exemplar": true
               }
             ],
             "interval": "2m"
@@ -321,7 +314,8 @@
             "queries": [
               {
                 "query": "histogram_quantile(0.95, sum by(le) (rate(demo_cart_add_item_latency_seconds_bucket[$__rate_interval])))",
-                "legend": "p95 AddItem"
+                "legend": "p95 AddItem",
+                "exemplar": true
               }
             ],
             "interval": "2m"
