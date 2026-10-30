@@ -1,0 +1,19 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "kinds/dashboard/dashboard_kind.cue",
+    "apps/dashboard/pkg/apis/dashboard/v2beta1/dashboard_spec.cue"
+  ],
+  "root": "templating.list[0]",
+  "entries": [
+    { "id": "query=api", "path": "query", "value": "api" },
+    { "id": "current=worker", "path": "current", "value": {"text": "worker", "value": "worker"} },
+    { "id": "hide=1", "path": "hide", "value": 1 },
+    { "id": "hide=2", "path": "hide", "value": 2 },
+    { "id": "hide=3", "path": "hide", "value": 3 },
+    { "id": "label=Pod", "path": "label", "value": "Pod" },
+    { "id": "description=text", "path": "description", "value": "Pick a pod" },
+    { "id": "skipUrlSync=true", "path": "skipUrlSync", "value": true },
+    { "id": "options=saved", "path": "options", "value": [{"selected": true, "text": "default", "value": "default"}], "expect": "bookkeeping" }
+  ]
+}

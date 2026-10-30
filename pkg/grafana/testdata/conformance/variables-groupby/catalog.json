@@ -1,0 +1,24 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "kinds/dashboard/dashboard_kind.cue",
+    "apps/dashboard/pkg/apis/dashboard/v2beta1/dashboard_spec.cue",
+    "public/app/features/dashboard-scene/settings/variables/components/GroupByVariableForm.tsx"
+  ],
+  "root": "templating.list[0]",
+  "entries": [
+    { "id": "type=groupby", "path": "type", "value": "groupby" },
+    { "id": "datasource=clickhouse", "path": "datasource", "value": {"type": "grafana-clickhouse-datasource", "uid": "ch"}, "with": {"type": "groupby"} },
+    { "id": "multi=true", "path": "multi", "value": true, "with": {"type": "groupby"} },
+    { "id": "current=job", "path": "current", "value": {"text": "job", "value": "job"}, "with": {"type": "groupby"} },
+    { "id": "current=list", "path": "current", "value": {"text": ["job", "instance"], "value": ["job", "instance"]}, "with": {"type": "groupby", "multi": true} },
+    { "id": "options=saved-keys", "path": "options", "value": [{"text": "job", "value": "job"}, {"text": "instance", "value": "instance"}], "with": {"type": "groupby"} },
+    { "id": "defaultValue=job", "path": "defaultValue", "value": {"text": "job", "value": "job"}, "with": {"type": "groupby"} },
+    { "id": "hide=1", "path": "hide", "value": 1, "with": {"type": "groupby"} },
+    { "id": "hide=2", "path": "hide", "value": 2, "with": {"type": "groupby"} },
+    { "id": "hide=3", "path": "hide", "value": 3, "with": {"type": "groupby"} },
+    { "id": "label=Group-by", "path": "label", "value": "Group by", "with": {"type": "groupby"} },
+    { "id": "description=text", "path": "description", "value": "Pick keys", "with": {"type": "groupby"} },
+    { "id": "skipUrlSync=true", "path": "skipUrlSync", "value": true, "with": {"type": "groupby"} }
+  ]
+}

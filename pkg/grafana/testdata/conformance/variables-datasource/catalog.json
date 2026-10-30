@@ -1,0 +1,26 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "kinds/dashboard/dashboard_kind.cue",
+    "apps/dashboard/pkg/apis/dashboard/v2beta1/dashboard_spec.cue"
+  ],
+  "root": "templating.list[0]",
+  "entries": [
+    { "id": "query=clickhouse", "path": "query", "value": "grafana-clickhouse-datasource" },
+    { "id": "query=altinity", "path": "query", "value": "vertamedia-clickhouse-datasource" },
+    { "id": "regex=matching", "path": "regex", "value": "/prom.*/" },
+    { "id": "regex=excluding", "path": "regex", "value": "/^never$/" },
+    { "id": "multi=true", "path": "multi", "value": true },
+    { "id": "includeAll=true", "path": "includeAll", "value": true },
+    { "id": "allowCustomValue=false", "path": "allowCustomValue", "value": false },
+    { "id": "current=other", "path": "current", "value": {"text": "other", "value": "other"} },
+    { "id": "refresh=2", "path": "refresh", "value": 2 },
+    { "id": "hide=1", "path": "hide", "value": 1 },
+    { "id": "hide=2", "path": "hide", "value": 2 },
+    { "id": "hide=3", "path": "hide", "value": 3 },
+    { "id": "label=Pod", "path": "label", "value": "Pod" },
+    { "id": "description=text", "path": "description", "value": "Pick a pod" },
+    { "id": "skipUrlSync=true", "path": "skipUrlSync", "value": true },
+    { "id": "options=saved", "path": "options", "value": [{"selected": true, "text": "prom", "value": "prom"}], "expect": "bookkeeping" }
+  ]
+}

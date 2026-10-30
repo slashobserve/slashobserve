@@ -1,0 +1,25 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "kinds/dashboard/dashboard_kind.cue",
+    "apps/dashboard/pkg/apis/dashboard/v2beta1/dashboard_spec.cue"
+  ],
+  "root": "templating.list[0]",
+  "entries": [
+    { "id": "query=30s-5m-15m", "path": "query", "value": "30s,5m,15m" },
+    { "id": "query=invalid-member", "path": "query", "value": "1m,abc" },
+    { "id": "auto=true", "path": "auto", "value": true },
+    { "id": "auto_count=10", "path": "auto_count", "value": 10, "with": {"auto": true} },
+    { "id": "auto_min=1m", "path": "auto_min", "value": "1m", "with": {"auto": true} },
+    { "id": "current=10m", "path": "current", "value": {"text": "10m", "value": "10m"} },
+    { "id": "current=auto", "path": "current", "value": {"text": "auto", "value": "$__auto"}, "with": {"auto": true} },
+    { "id": "refresh=1", "path": "refresh", "value": 1 },
+    { "id": "hide=1", "path": "hide", "value": 1 },
+    { "id": "hide=2", "path": "hide", "value": 2 },
+    { "id": "hide=3", "path": "hide", "value": 3 },
+    { "id": "label=Pod", "path": "label", "value": "Pod" },
+    { "id": "description=text", "path": "description", "value": "Pick a pod" },
+    { "id": "skipUrlSync=true", "path": "skipUrlSync", "value": true },
+    { "id": "options=saved", "path": "options", "value": [{"selected": true, "text": "1m", "value": "1m"}], "expect": "bookkeeping" }
+  ]
+}

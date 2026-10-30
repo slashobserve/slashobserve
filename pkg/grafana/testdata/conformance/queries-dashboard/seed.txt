@@ -1,0 +1,4 @@
+targets[0].adHocFiltersEnabled=true
+targets[0].hide=true
+targets[0].withTransforms=true
+targets[0]=dashboard-source

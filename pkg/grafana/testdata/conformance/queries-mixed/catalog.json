@@ -1,0 +1,19 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "packages/grafana-data/src/types/dataQuery.ts",
+    "kinds/dashboard/dashboard_kind.cue"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    { "id": "datasource=mixed:prom-and-clickhouse", "path": "datasource", "value": {"type": "datasource", "uid": "-- Mixed --"}, "with": {"targets[0]": {"refId": "A", "expr": "up", "datasource": {"type": "prometheus", "uid": "prom"}}, "targets[1]": {"refId": "B", "rawSql": "SELECT 1", "datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}}}, "expect": "bookkeeping" },
+    { "id": "datasource=mixed:prom-and-variable", "path": "datasource", "value": {"type": "datasource", "uid": "-- Mixed --"}, "with": {"targets[0]": {"refId": "A", "expr": "up", "datasource": {"type": "prometheus", "uid": "prom"}}, "targets[1]": {"refId": "B", "expr": "up", "datasource": {"type": "prometheus", "uid": "${datasource}"}}}, "expect": "bookkeeping" },
+    { "id": "datasource=mixed:prom-clickhouse-variable", "path": "datasource", "value": {"type": "datasource", "uid": "-- Mixed --"}, "with": {"targets[0]": {"refId": "A", "expr": "up", "datasource": {"type": "prometheus", "uid": "prom"}}, "targets[1]": {"refId": "B", "rawSql": "SELECT 1", "datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}}, "targets[2]": {"refId": "C", "expr": "up", "datasource": {"type": "prometheus", "uid": "${datasource}"}}}, "expect": "bookkeeping" },
+    { "id": "datasource=mixed:variable-only", "path": "datasource", "value": {"type": "datasource", "uid": "-- Mixed --"}, "with": {"targets[0]": {"refId": "A", "expr": "up", "datasource": {"type": "prometheus", "uid": "${datasource}"}}}, "expect": "bookkeeping" },
+    { "id": "targets[1]=clickhouse-query", "path": "targets[1]", "value": {"refId": "B", "rawSql": "SELECT 1", "datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}}, "with": {"datasource": {"type": "datasource", "uid": "-- Mixed --"}} },
+    { "id": "targets[1]=variable-query", "path": "targets[1]", "value": {"refId": "B", "expr": "up", "datasource": {"type": "prometheus", "uid": "${datasource}"}}, "with": {"datasource": {"type": "datasource", "uid": "-- Mixed --"}} },
+    { "id": "targets[1]=second-prom-query", "path": "targets[1]", "value": {"refId": "B", "expr": "node_load1", "datasource": {"type": "prometheus", "uid": "prom"}}, "with": {"datasource": {"type": "datasource", "uid": "-- Mixed --"}} },
+    { "id": "targets[0]=variable-only", "path": "targets[0]", "value": {"refId": "A", "expr": "up", "datasource": {"type": "prometheus", "uid": "${datasource}"}}, "with": {"datasource": {"type": "datasource", "uid": "-- Mixed --"}} },
+    { "id": "targets[0]=clickhouse-only", "path": "targets[0]", "value": {"refId": "A", "rawSql": "SELECT 1", "datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}}, "with": {"datasource": {"type": "datasource", "uid": "-- Mixed --"}} }
+  ]
+}

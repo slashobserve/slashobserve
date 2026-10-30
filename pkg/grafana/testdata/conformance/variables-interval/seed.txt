@@ -1,0 +1,4 @@
+hide=3
+query=invalid-member
+refresh=1
+skipUrlSync=true
