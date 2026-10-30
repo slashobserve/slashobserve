@@ -3,8 +3,6 @@ import { useQueryClient } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { ApiError } from "@/api/errors"
-import { isTransient, issueLines } from "@/api/issues"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -27,16 +25,12 @@ import {
 import { useDashboardSearch, useSetDashboardSearch } from "../search"
 import { applyLayout } from "./layout"
 import { focusEditLayoutButton, useLayoutStore } from "./layout-store"
+import { saveProblemFrom, type Problem } from "./save-problem"
 
 const conflictDescriptionId = "layout-conflict-description"
 const defaultSummary = "Update layout"
 const maxSummaryLength = 500
-const transientText = "The panel queries could not be checked right now."
-
-type Problem =
-  | { kind: "conflict"; latest: number }
-  | { kind: "invalid"; heading: string; lines: string[] }
-  | { kind: "failed"; message: string }
+const rejectedHeading = "The server rejected this layout:"
 
 type Props = {
   dashboardId: string
@@ -50,36 +44,6 @@ function summaryError(summary: string): string | null {
     return `Use at most ${maxSummaryLength} characters.`
   }
   return null
-}
-
-function problemFrom(error: unknown): Problem {
-  if (error instanceof ApiError) {
-    if (
-      error.code === "version_conflict" &&
-      error.latestVersion !== undefined
-    ) {
-      return { kind: "conflict", latest: error.latestVersion }
-    }
-    if (error.status === 422) {
-      if (error.issues.length > 0 && error.issues.every(isTransient)) {
-        return {
-          kind: "failed",
-          message: issueLines(error.issues, transientText).join(" "),
-        }
-      }
-      return {
-        kind: "invalid",
-        heading: "The server rejected this layout:",
-        lines:
-          error.issues.length > 0 ? issueLines(error.issues) : [error.message],
-      }
-    }
-    return { kind: "failed", message: error.message }
-  }
-  return {
-    kind: "failed",
-    message: error instanceof Error ? error.message : "The save failed.",
-  }
 }
 
 export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
@@ -149,7 +113,8 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
       },
       {
         onSuccess: (saved) => finish(saved.version.version),
-        onError: (failure) => setProblem(problemFrom(failure)),
+        onError: (failure) =>
+          setProblem(saveProblemFrom(failure, rejectedHeading)),
       }
     )
   }
@@ -173,7 +138,7 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
         .getState()
         .rebase(latest.version.version, asDashboardSpec(latest.version.spec))
     } catch (failure) {
-      setProblem(problemFrom(failure))
+      setProblem(saveProblemFrom(failure, rejectedHeading))
       setReapplying(false)
       return
     }
