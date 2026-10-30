@@ -59,6 +59,20 @@ A histogram imports `bucketOffset`, `combine`, its stacking mode (normal, percen
 A traces panel imports its span filters: the search (`spanFilters.query`), the service and span name lists with their `!=` operators, the minimum and maximum duration (`from` and `to`, written with a unit from `ns` to `h`, up to 24 hours), `matchesOnly` and `criticalPathOnly`.
 A filter that is not valid, such as a duration without a unit or a list of more than 50 names, and the tag filters are reported.
 A flame graph has no options of its own to import.
+A text panel imports its HTML mode and its code mode with the language (JSON, YAML, XML, SQL, Go, TypeScript, Markdown or HTML) and the line numbers; another language is shown as plain text and reported, and the code view has no minimap.
+Only people can write HTML text: an agent or the MCP server cannot, and the sanitizer still removes scripts and styles.
+A geomap imports its basemap (the CARTO map Grafana draws by default, OpenStreetMap, an Esri server, or an `xyz` tile address that is an https address written out in full with `{z}`, `{x}` and `{y}`), the basemap opacity, theme and labels, the view (every named region, the zoom limits, the fit padding, fitting to one layer or only the last points, and the shared view), the map controls and the tooltip.
+A tile address over http is changed to https and reported, and an address with a variable in the host, a `maplibre` basemap and its access token are reported and never imported.
+The mouse wheel zoom is imported as on, because Grafana's default is on.
+A geomap imports every layer: markers (size, color, symbol, text and rotation), heatmap, GeoJSON (the bundled country and state maps, an https address and its rules), day and night, route, photos, network and tile layers, each with its opacity, tooltip and the query that feeds it.
+Locating points by name uses the bundled country and state gazetteers; an airport lookup, other gazetteers, other GeoJSON files and the other layer types are reported.
+A canvas imports icons (a bundled icon, an https image or an image taken from a field), buttons, server, triangle, cloud, parallelogram, wind turbine and drone elements, the constraint and pixel placement, rotation, vertical alignment, border width and radius, background images and the background, border, pan and zoom and tooltip of the canvas.
+Pixel placement inside a group is still converted to percent of the panel and reported.
+Element links import with their open-in-new-tab setting, and an element's one-click link or action imports as its one-click behavior.
+A canvas element action and a button's API call import when the address is an https address written out in full; the action needs Edit to run, and nothing is sent without a confirmation.
+An action with a credential in a header or query (such as `Authorization`, a token or an API key) is kept without that header, and the report says so.
+An action whose address is not https, has a variable in the host, refers to a variable the dashboard does not declare, or has a body over 10,000 characters is left out and reported, as is an infinity action.
+A connection imports its path, line style, arrow, and a width that follows a field with its range; bends in a connection and widths or directions that follow a rule are reported.
 An XY chart imports its series mapping: with `Manual` mapping each series keeps its x, y, size and color fields (chosen by name, and y also by names or a regular expression), its frame or query and its name, and the older `seriesMapping` and `dims` options import the same way.
 Point size and color follow the size and color fields, `custom.pointSize.min` and `custom.pointSize.max` set the size range, and the point shape (circle or square), point stroke width, line width, fill opacity, axis options, legend and tooltip options import too; line dash patterns, the square line style and an ordinal scale are still reported.
 A server-side expression (math, reduce, resample or threshold) imports as an expression query that reads the queries it names, and a threshold keeps its main condition without its recovery threshold.
