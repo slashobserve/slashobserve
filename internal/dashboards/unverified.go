@@ -190,8 +190,14 @@ func queryKey(p *spec.Panel, j int) (string, bool) {
 func reachedByPanel(d *spec.Dashboard, p *spec.Panel) (map[string]string, bool) {
 	var names []string
 	datasources := map[string]bool{}
+	if name, ok := spec.IntervalVariableName(p.Interval); ok {
+		names = append(names, name)
+	}
 	for j, q := range p.Queries {
 		names = append(names, variableNames(q.Query)...)
+		if name, ok := spec.IntervalVariableName(q.Interval); ok {
+			names = append(names, name)
+		}
 		datasources[p.QueryDatasource(j)] = true
 		if name, ok := spec.DatasourceVariableName(p.QueryDatasource(j)); ok {
 			names = append(names, name)
