@@ -115,6 +115,7 @@ The other panel types are:
 
 A data panel can also set `timeFrom` and `timeShift` to override the dashboard's time range, `interval` (the same forms as a query's) and `maxDataPoints` to shape the step of its queries, and `display`, a small set of options that depend on its type, such as the legend of a `timeseries` or the `header` of a `table`.
 The legend of a `timeseries` or `trend` panel is a `list` or a `table` (`legendMode`), may show reducer `legendValues`, sorts by a value or by name (`legendSortBy`, `legendSortDesc`), takes a width when it sits on the right (`legendWidth`), and hides all-zero or empty series (`legendHideZero`, `legendHideEmpty`).
+A `timeseries`, `trend` or `candlestick` tooltip that lists all series is sorted by `tooltipSort` (`none` for series order, `asc` or `desc`, which is the default), can drop zero values with `tooltipHideZeros`, can show the running total of a stacked series with `tooltipCumulative`, and is clipped to `tooltipMaxWidth` and `tooltipMaxHeight` pixels (100 to 2000).
 A `timeseries`, `trend` or `candlestick` panel can hide its x axis with `xAxis: "hidden"` (`shown` by default).
 When `legendMode` is absent the legend is a table if `legendValues` is not empty and a list otherwise.
 A `stat`, `gauge`, `bargauge` or `piechart` panel shows one value per number field, reduced by `reduce`.

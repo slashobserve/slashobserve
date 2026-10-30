@@ -101,7 +101,8 @@
         ],
         "fill": 10,
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       }
     ]

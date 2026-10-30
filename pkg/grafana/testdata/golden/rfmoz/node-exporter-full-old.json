@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 172,
-      "imported": 86,
-      "partial": 86,
+      "imported": 133,
+      "partial": 39,
       "placeholder": 0,
       "unverified": 0
     },
@@ -756,13 +756,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Meminfo",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "K",
@@ -788,13 +784,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Meminfo",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -820,13 +812,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Meminfo",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -901,13 +889,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Meminfo",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -996,13 +980,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Meminfo",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "N",
@@ -1053,13 +1033,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Meminfo",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "N",
@@ -1176,13 +1152,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Meminfo",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "P",
@@ -1293,13 +1265,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -1332,13 +1300,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -1371,13 +1335,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1403,13 +1363,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1442,13 +1398,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "D",
@@ -1467,13 +1419,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "N",
@@ -1499,13 +1447,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -1524,13 +1468,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -1591,13 +1531,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1637,13 +1573,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -1683,13 +1615,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -1729,13 +1657,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "F",
@@ -1775,13 +1699,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1828,13 +1748,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -1944,13 +1860,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "N",
@@ -1976,13 +1888,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "N",
@@ -2008,13 +1916,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2068,13 +1972,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "J",
@@ -2107,13 +2007,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -2139,13 +2035,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "K",
@@ -2171,13 +2063,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "F",
@@ -2203,13 +2091,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -2242,13 +2126,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2295,13 +2175,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat Counters",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -2327,13 +2203,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat Counters",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2359,13 +2231,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat Counters",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2391,13 +2259,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat Counters",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -2423,13 +2287,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat Counters",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -2455,13 +2315,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat Counters",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -2487,13 +2343,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat Counters",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "H",
@@ -2519,13 +2371,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat Counters",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "F",
@@ -2544,13 +2392,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat Counters",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "G",
@@ -2576,13 +2420,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat Counters",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "F",
@@ -2601,13 +2441,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat Counters",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "D",
@@ -2633,13 +2469,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat Counters",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "D",
@@ -2665,13 +2497,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat Counters",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2690,13 +2518,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat Counters",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "D",
@@ -2715,13 +2539,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat Counters",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "D",
@@ -2747,13 +2567,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat Counters",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "E",
@@ -2779,13 +2595,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat Counters",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.value_type"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "G",
@@ -6798,7 +6610,8 @@
             ],
             "display": {
               "legendWidth": 250,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -6995,7 +6808,8 @@
             ],
             "display": {
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -7222,7 +7036,8 @@
             "display": {
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -7251,7 +7066,8 @@
             "fill": 40,
             "display": {
               "legendSortBy": "lastNotNull",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -7408,7 +7224,8 @@
                 "min"
               ],
               "legendWidth": 250,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -7614,7 +7431,8 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -7720,7 +7538,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -7754,7 +7573,8 @@
                 "min"
               ],
               "legendSortBy": "lastNotNull",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -7989,6 +7809,7 @@
                 "min"
               ],
               "tooltip": "all",
+              "tooltipSort": "none",
               "xAxis": "hidden"
             }
           },
@@ -8032,6 +7853,7 @@
                 "min"
               ],
               "tooltip": "all",
+              "tooltipSort": "none",
               "xAxis": "hidden"
             }
           }
@@ -8192,7 +8014,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -8343,7 +8167,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -8500,7 +8326,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -8662,7 +8490,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -8805,7 +8634,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -8962,7 +8793,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -9118,7 +8950,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -9257,7 +9090,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -9407,7 +9242,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -9546,7 +9382,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -9701,7 +9539,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -9850,7 +9689,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -10005,7 +9845,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -10150,7 +9991,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -10300,7 +10143,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -10350,7 +10194,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -10386,7 +10231,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -10537,7 +10383,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -10696,7 +10544,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -10839,7 +10689,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -10987,7 +10839,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -11126,7 +10980,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -11271,7 +11127,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -11410,7 +11268,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -11586,7 +11446,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -11739,7 +11601,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -11896,7 +11760,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -12053,7 +11919,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -12210,7 +12078,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -12374,7 +12244,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -12532,7 +12404,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -12700,7 +12574,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -12867,7 +12742,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -13011,7 +12887,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -13156,7 +13034,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -13324,7 +13204,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -13483,7 +13365,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -13628,7 +13512,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -13773,7 +13659,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -13918,7 +13806,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -14069,7 +13959,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -14231,7 +14123,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           }
         ]
@@ -14390,7 +14284,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -14534,7 +14430,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -14678,7 +14576,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -14823,7 +14723,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -14968,7 +14870,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -15113,7 +15017,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -15258,7 +15164,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -15397,7 +15305,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -15542,7 +15452,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -15681,7 +15593,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -15826,7 +15740,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -15971,7 +15887,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -16109,7 +16027,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -16248,7 +16168,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -16393,7 +16315,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -16538,7 +16462,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           },
           {
@@ -16687,7 +16613,9 @@
                 "min"
               ],
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "tooltipCumulative": true
             }
           }
         ]
@@ -16738,7 +16666,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -16771,7 +16700,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -16816,7 +16746,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -16862,7 +16793,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -16899,7 +16831,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -16932,7 +16865,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -16971,7 +16905,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -17018,7 +16953,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -17089,7 +17025,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -18590,7 +18527,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -18624,7 +18562,8 @@
                 "min"
               ],
               "legendHideZero": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -18694,7 +18633,8 @@
                 "min"
               ],
               "legendHideZero": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -18739,7 +18679,8 @@
               ],
               "legendHideZero": true,
               "legendHideEmpty": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -18860,7 +18801,8 @@
                 "min"
               ],
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -18945,7 +18887,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -19030,7 +18973,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -19115,7 +19059,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -19200,7 +19145,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -19285,7 +19231,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -19370,7 +19317,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -19418,7 +19366,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -19490,7 +19439,8 @@
                 "min"
               ],
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -19536,7 +19486,8 @@
                 "min"
               ],
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -19570,7 +19521,8 @@
                 "min"
               ],
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -19610,7 +19562,8 @@
                 "min"
               ],
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -19653,7 +19606,8 @@
                 "min"
               ],
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -19733,7 +19687,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -19806,7 +19761,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -19879,7 +19835,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -19951,7 +19908,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -20024,7 +19982,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -20097,7 +20056,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -20139,7 +20099,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -20187,7 +20148,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -20240,7 +20202,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -20294,7 +20257,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -20391,7 +20355,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendWidth": 300,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -20484,7 +20449,8 @@
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
               "legendHideZero": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -20533,7 +20499,8 @@
                 "min"
               ],
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -20580,7 +20547,8 @@
                 "min"
               ],
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -20630,7 +20598,8 @@
                 "min"
               ],
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -20715,7 +20684,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -20762,7 +20732,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -20834,7 +20805,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -20892,7 +20864,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -20957,7 +20930,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21034,7 +21008,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21087,7 +21062,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21128,7 +21104,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21181,7 +21158,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21228,7 +21206,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21310,7 +21289,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21381,7 +21361,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21452,7 +21433,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21499,7 +21481,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21546,7 +21529,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21587,7 +21571,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21640,7 +21625,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21681,7 +21667,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21727,7 +21714,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21768,7 +21756,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21809,7 +21798,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21850,7 +21840,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21885,7 +21876,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21925,7 +21917,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21960,7 +21953,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -21994,7 +21988,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -22053,7 +22048,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -22115,7 +22111,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -22180,7 +22177,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -22228,7 +22226,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -22293,7 +22292,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -22415,7 +22415,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -22529,7 +22530,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -22595,7 +22597,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -22661,7 +22664,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -22727,7 +22731,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -22793,7 +22798,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -22839,7 +22845,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -22870,7 +22877,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]

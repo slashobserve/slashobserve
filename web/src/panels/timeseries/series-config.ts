@@ -12,6 +12,7 @@ import {
   type LogBase,
   type ScaleKind,
 } from "./axis-scale"
+import type { TooltipSort } from "./tooltip-rows"
 
 export type DrawStyle = FieldConfig["style"]
 export type AxisKey = FieldConfig["axis"]
@@ -294,6 +295,11 @@ export type TimeseriesDisplay = {
   legendHideZero: boolean
   legendHideEmpty: boolean
   tooltip: "single" | "all" | "hidden"
+  tooltipSort: TooltipSort
+  tooltipHideZeros: boolean
+  tooltipCumulative: boolean
+  tooltipMaxWidth?: number
+  tooltipMaxHeight?: number
   xAxis: "shown" | "hidden"
 }
 
@@ -310,6 +316,11 @@ export function timeseriesDisplay(
     legendHideZero: display.legendHideZero as boolean,
     legendHideEmpty: display.legendHideEmpty as boolean,
     tooltip: display.tooltip as TimeseriesDisplay["tooltip"],
+    tooltipSort: display.tooltipSort as TooltipSort,
+    tooltipHideZeros: display.tooltipHideZeros as boolean,
+    tooltipCumulative: display.tooltipCumulative as boolean,
+    tooltipMaxWidth: display.tooltipMaxWidth as number | undefined,
+    tooltipMaxHeight: display.tooltipMaxHeight as number | undefined,
     xAxis: display.xAxis as TimeseriesDisplay["xAxis"],
   }
 }

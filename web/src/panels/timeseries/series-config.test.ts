@@ -381,6 +381,9 @@ describe("timeseriesDisplay", () => {
       legendHideZero: false,
       legendHideEmpty: false,
       tooltip: "single",
+      tooltipSort: "desc",
+      tooltipHideZeros: false,
+      tooltipCumulative: false,
       xAxis: "shown",
     })
   })
@@ -398,6 +401,11 @@ describe("timeseriesDisplay", () => {
           legendHideZero: true,
           legendHideEmpty: true,
           tooltip: "hidden",
+          tooltipSort: "none",
+          tooltipHideZeros: true,
+          tooltipCumulative: true,
+          tooltipMaxWidth: 300,
+          tooltipMaxHeight: 200,
           xAxis: "hidden",
         })
       )
@@ -411,6 +419,11 @@ describe("timeseriesDisplay", () => {
       legendHideZero: true,
       legendHideEmpty: true,
       tooltip: "hidden",
+      tooltipSort: "none",
+      tooltipHideZeros: true,
+      tooltipCumulative: true,
+      tooltipMaxWidth: 300,
+      tooltipMaxHeight: 200,
       xAxis: "hidden",
     })
   })

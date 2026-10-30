@@ -1246,7 +1246,8 @@
               ],
               "legendSortBy": "max",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -1296,7 +1297,8 @@
               ],
               "legendSortBy": "max",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1329,7 +1331,8 @@
               ],
               "legendSortBy": "max",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1364,7 +1367,8 @@
               ],
               "legendSortBy": "max",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1399,7 +1403,8 @@
               ],
               "legendSortBy": "max",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1470,7 +1475,8 @@
             "points": "never",
             "display": {
               "legend": "hidden",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1497,7 +1503,8 @@
             "display": {
               "legend": "hidden",
               "legendMode": "table",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1524,7 +1531,8 @@
             "display": {
               "legend": "hidden",
               "legendMode": "table",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1552,7 +1560,8 @@
             "display": {
               "legend": "hidden",
               "legendMode": "table",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1732,7 +1741,8 @@
             "display": {
               "legend": "right",
               "legendMode": "table",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1765,7 +1775,8 @@
             "display": {
               "legend": "right",
               "legendMode": "table",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1798,7 +1809,8 @@
             "display": {
               "legend": "right",
               "legendMode": "table",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1831,7 +1843,8 @@
             "display": {
               "legend": "right",
               "legendMode": "table",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]

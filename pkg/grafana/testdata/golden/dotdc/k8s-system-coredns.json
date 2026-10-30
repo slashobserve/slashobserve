@@ -659,7 +659,8 @@
         "points": "never",
         "display": {
           "legend": "hidden",
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -686,7 +687,8 @@
         "points": "never",
         "display": {
           "legend": "hidden",
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -765,7 +767,8 @@
         "points": "never",
         "display": {
           "legend": "hidden",
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -791,7 +794,8 @@
         "lineInterpolation": "smooth",
         "points": "never",
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {

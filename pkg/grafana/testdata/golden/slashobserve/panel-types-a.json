@@ -572,6 +572,7 @@
         "display": {
           "legend": "right",
           "tooltip": "all",
+          "tooltipSort": "none",
           "xField": "size"
         }
       },
@@ -642,6 +643,7 @@
           }
         ],
         "display": {
+          "tooltipSort": "none",
           "mode": "candles",
           "candleStyle": "ohlcbars",
           "colorStrategy": "close-close",

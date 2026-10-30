@@ -467,7 +467,8 @@
         "unit": "short",
         "fill": 10,
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -490,7 +491,8 @@
         "unit": "short",
         "fill": 10,
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -513,7 +515,8 @@
         "unit": "short",
         "fill": 10,
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {

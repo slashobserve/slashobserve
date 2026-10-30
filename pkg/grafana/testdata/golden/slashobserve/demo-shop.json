@@ -911,6 +911,7 @@
             "fill": 10,
             "display": {
               "tooltip": "all",
+              "tooltipSort": "none",
               "xField": "percentile"
             }
           },
@@ -967,6 +968,7 @@
             ],
             "interval": "5m",
             "display": {
+              "tooltipSort": "none",
               "open": "open",
               "high": "high",
               "low": "low",

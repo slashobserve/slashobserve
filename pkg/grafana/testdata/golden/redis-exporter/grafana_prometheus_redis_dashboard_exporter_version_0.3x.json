@@ -123,8 +123,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "tooltip.msResolution",
-          "tooltip.value_type"
+          "tooltip.msResolution"
         ],
         "queries": [
           {
@@ -184,8 +183,7 @@
         ],
         "paths": [
           "nullPointMode",
-          "tooltip.msResolution",
-          "tooltip.value_type"
+          "tooltip.msResolution"
         ],
         "queries": [
           {
@@ -217,8 +215,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "tooltip.msResolution",
-          "tooltip.value_type"
+          "tooltip.msResolution"
         ],
         "queries": [
           {
@@ -307,8 +304,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "tooltip.msResolution",
-          "tooltip.value_type"
+          "tooltip.msResolution"
         ],
         "queries": [
           {
@@ -340,8 +336,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "tooltip.msResolution",
-          "tooltip.value_type"
+          "tooltip.msResolution"
         ],
         "queries": [
           {
@@ -529,7 +524,9 @@
         "spanNulls": true,
         "display": {
           "legend": "hidden",
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none",
+          "tooltipCumulative": true
         }
       },
       {
@@ -564,7 +561,8 @@
         "spanNulls": true,
         "display": {
           "legend": "hidden",
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -604,7 +602,9 @@
           }
         ],
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none",
+          "tooltipCumulative": true
         }
       },
       {
@@ -636,7 +636,9 @@
         "fill": 10,
         "spanNulls": true,
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none",
+          "tooltipCumulative": true
         }
       },
       {
@@ -667,7 +669,8 @@
           "legendValues": [
             "lastNotNull"
           ],
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -700,7 +703,8 @@
         "spanNulls": true,
         "stack": "normal",
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -759,7 +763,9 @@
           }
         ],
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none",
+          "tooltipCumulative": true
         }
       },
       {
@@ -786,7 +792,9 @@
         "spanNulls": true,
         "stack": "normal",
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none",
+          "tooltipCumulative": true
         }
       },
       {
@@ -808,7 +816,8 @@
         "unit": "short",
         "fill": 10,
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       }
     ]

@@ -113,8 +113,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -367,8 +366,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -393,8 +391,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -419,8 +416,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -445,8 +441,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -513,8 +508,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -539,8 +533,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -565,8 +558,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -591,8 +583,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -659,8 +650,7 @@
         "paths": [
           "nullPointMode",
           "thresholds[0]",
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -859,8 +849,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -885,8 +874,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -1721,7 +1709,8 @@
             "unit": "short",
             "spanNulls": true,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1776,7 +1765,8 @@
             ],
             "unit": "short",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1798,7 +1788,8 @@
             ],
             "unit": "short",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1820,7 +1811,8 @@
             ],
             "unit": "short",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1842,7 +1834,8 @@
             ],
             "unit": "short",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1864,7 +1857,8 @@
             ],
             "unit": "short",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1886,7 +1880,8 @@
             ],
             "unit": "short",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -1969,7 +1964,8 @@
             ],
             "unit": "short",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1991,7 +1987,8 @@
             ],
             "unit": "short",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]

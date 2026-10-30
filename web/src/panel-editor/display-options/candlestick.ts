@@ -1,5 +1,15 @@
 import type { DisplayOption } from "./types"
-import { fieldOption, legend, tooltip, xAxis } from "./shared"
+import {
+  fieldOption,
+  legend,
+  tooltip,
+  tooltipCumulative,
+  tooltipHideZeros,
+  tooltipMaxHeight,
+  tooltipMaxWidth,
+  tooltipSort,
+  xAxis,
+} from "./shared"
 
 const colorOptions = [
   { value: "ok", label: "OK" },
@@ -51,5 +61,10 @@ export const candlestick: readonly DisplayOption[] = [
   fieldOption("volume", "Volume field", "Field named volume"),
   legend,
   tooltip,
+  tooltipSort,
+  tooltipHideZeros,
+  tooltipCumulative,
+  tooltipMaxWidth,
+  tooltipMaxHeight,
   xAxis,
 ]

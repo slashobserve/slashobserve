@@ -43,6 +43,7 @@ import {
   thresholdsPlugin,
   tooltipPlugin,
   type TooltipSeries,
+  type TooltipView,
 } from "./plugins"
 import { scaleDistribution } from "./axis-scale"
 import { isolatedPoints } from "./points"
@@ -96,6 +97,7 @@ type Model = {
   ghostCount: number
   thresholds: ThresholdLines | null
   tooltip: "single" | "all" | "hidden"
+  tooltipView: TooltipView
   xAxisShown: boolean
 }
 
@@ -215,6 +217,7 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
       tooltipPlugin(
         host,
         model.tooltip,
+        model.tooltipView,
         first,
         () => latest.current.entries,
         (x) =>
@@ -398,7 +401,16 @@ function modelFor(
   panel: DataPanel,
   series: ChartSeries[],
   ghostCount: number,
-  options: Pick<TimeseriesDisplay, "tooltip" | "xAxis">,
+  options: Pick<
+    TimeseriesDisplay,
+    | "tooltip"
+    | "tooltipSort"
+    | "tooltipHideZeros"
+    | "tooltipCumulative"
+    | "tooltipMaxWidth"
+    | "tooltipMaxHeight"
+    | "xAxis"
+  >,
   tightRange: boolean
 ): Model {
   const axes = axesInUse(
@@ -415,6 +427,13 @@ function modelFor(
     ghostCount,
     thresholds: thresholdsFor(series, axes.left, panel),
     tooltip: options.tooltip,
+    tooltipView: {
+      sort: options.tooltipSort,
+      hideZeros: options.tooltipHideZeros,
+      cumulative: options.tooltipCumulative,
+      maxWidth: options.tooltipMaxWidth,
+      maxHeight: options.tooltipMaxHeight,
+    },
     xAxisShown: options.xAxis !== "hidden",
   }
 }

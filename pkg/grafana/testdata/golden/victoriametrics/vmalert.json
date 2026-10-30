@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 41,
-      "imported": 33,
-      "partial": 8,
+      "imported": 34,
+      "partial": 7,
       "placeholder": 0,
       "unverified": 0
     },
@@ -175,13 +175,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Stats",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1317,7 +1313,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           }
         ]
@@ -1451,7 +1448,8 @@
                 "lastNotNull",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -1776,7 +1774,8 @@
                 "lastNotNull",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1983,7 +1982,8 @@
                 "lastNotNull",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2047,7 +2047,8 @@
                 "lastNotNull",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -2319,7 +2320,8 @@
                 "lastNotNull",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]

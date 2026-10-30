@@ -354,7 +354,8 @@
             "points": "never",
             "stack": "normal",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -390,7 +391,8 @@
             "min": 0,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -441,7 +443,8 @@
             "points": "never",
             "stack": "normal",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -532,7 +535,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -622,7 +626,8 @@
             "min": 0,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -646,7 +651,8 @@
             "unit": "bps",
             "min": 0,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]

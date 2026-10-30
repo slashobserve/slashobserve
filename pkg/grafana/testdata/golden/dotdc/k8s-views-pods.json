@@ -1926,7 +1926,8 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1957,7 +1958,8 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1988,7 +1990,8 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2019,7 +2022,8 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]

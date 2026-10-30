@@ -295,6 +295,29 @@ func (b *panelBuild) graphLegendAndTooltip() {
 		d.Tooltip = "all"
 	}
 	b.consume("tooltip.shared")
+	b.graphTooltipOrder(d, tooltip)
+}
+
+var legacyTooltipSorts = map[int]string{0: "none", 1: "asc", 2: "desc"}
+
+func (b *panelBuild) graphTooltipOrder(d *spec.Display, tooltip map[string]any) {
+	sort, known := "none", true
+	if v, has := tooltip["sort"]; has && v != nil {
+		n, isInt := asInt(v)
+		sort, known = legacyTooltipSorts[n]
+		known = known && isInt
+	}
+	if known {
+		d.TooltipSort = b.writtenTooltipSort(d, sort)
+		b.consume("tooltip.sort")
+	}
+	switch asString(tooltip["value_type"]) {
+	case "cumulative":
+		d.TooltipCumulative = ptr(true)
+		b.consume("tooltip.value_type")
+	case "individual":
+		b.consume("tooltip.value_type")
+	}
 }
 
 func (b *panelBuild) graphThresholds(p *spec.FieldProps) {

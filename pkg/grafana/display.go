@@ -22,6 +22,8 @@ const (
 	minStatTextSize       = 6
 	maxVizLimit           = 2000
 	maxTextSize           = 200
+	minTooltipSize        = 100
+	maxTooltipSize        = 2000
 	legacyHeatmapV        = 37
 )
 
@@ -158,6 +160,7 @@ func (b *panelBuild) legendPlacement(fallback string) string {
 func displayTimeseries(b *panelBuild) {
 	d := b.disp()
 	b.legendAndTooltip(d)
+	b.tooltipOptions(d)
 	if v, ok := b.value("options.legend.calcs"); ok {
 		d.LegendValues = b.legendValues(v)
 	}
@@ -174,6 +177,52 @@ func (b *panelBuild) legendAndTooltip(d *spec.Display) {
 	case "none":
 		d.Tooltip = "hidden"
 	}
+}
+
+func (b *panelBuild) tooltipOptions(d *spec.Display) {
+	if hide, ok := b.boolOption("options.tooltip.hideZeros"); ok && *hide {
+		d.TooltipHideZeros = hide
+	}
+	d.TooltipMaxWidth = b.tooltipSizeOption("options.tooltip.maxWidth")
+	d.TooltipMaxHeight = b.tooltipSizeOption("options.tooltip.maxHeight")
+	if b.n.sourceType == "graph" {
+		return
+	}
+	sort := "none"
+	if v, has := b.value("options.tooltip.sort"); has && v != nil {
+		if sort = b.enumOption("options.tooltip.sort", "none", "asc", "desc"); sort == "" {
+			return
+		}
+	}
+	d.TooltipSort = b.writtenTooltipSort(d, sort)
+}
+
+func (b *panelBuild) tooltipSizeOption(path string) int {
+	v, ok := b.value(path)
+	if !ok {
+		return 0
+	}
+	size, isNumber := numberValue(v)
+	if !isNumber {
+		b.partial(path, fmt.Sprintf("The tooltip size must be a number of pixels from %d to %d.", minTooltipSize, maxTooltipSize))
+		return 0
+	}
+	b.consume(path)
+	return min(max(int(math.Round(size)), minTooltipSize), maxTooltipSize)
+}
+
+func (b *panelBuild) writtenTooltipSort(d *spec.Display, sort string) string {
+	if sort == "desc" || !b.listsSeveralSeries(d) {
+		return ""
+	}
+	return sort
+}
+
+func (b *panelBuild) listsSeveralSeries(d *spec.Display) bool {
+	if d.Tooltip == "hidden" {
+		return false
+	}
+	return d.Tooltip == "all" || b.typ == spec.Candlestick || b.c.head.CursorSync == spec.CursorSyncTooltip
 }
 
 func (b *panelBuild) legendValues(v any) []string {

@@ -673,7 +673,7 @@ func TestOptionsTheRenderersAlreadyDrawTheSameWayAreNotReported(t *testing.T) {
 		{"line width 2", series(`"lineWidth":2`, ""), true},
 		{"line width 3", series(`"lineWidth":3`, ""), true},
 		{"tooltip sorted descending", series("", `"tooltip":{"mode":"single","sort":"desc"}`), true},
-		{"tooltip sorted ascending", series("", `"tooltip":{"mode":"single","sort":"asc"}`), false},
+		{"tooltip sorted ascending in single mode", series("", `"tooltip":{"mode":"single","sort":"asc"}`), true},
 		{"legend width", series("", `"legend":{"displayMode":"list","placement":"right","width":300}`), true},
 		{"override line width 2", override("timeseries", `{"id":"custom.lineWidth","value":2}`), true},
 		{"override line width 4", override("timeseries", `{"id":"custom.lineWidth","value":4}`), true},
@@ -700,7 +700,6 @@ func TestOptionsTheRenderersAlreadyDrawTheSameWayAreNotReported(t *testing.T) {
 
 func TestOptionsThatChangeMeaningAreAlwaysReported(t *testing.T) {
 	cases := []struct{ name, doc string }{
-		{"cumulative tooltip values", panelDoc("graph", upTarget+`,"tooltip":{"shared":true,"value_type":"cumulative"}`)},
 		{"negative-Y transform", panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":{},"overrides":[{"matcher":{"id":"byName","options":"a"},"properties":[{"id":"custom.transform","value":"negative-Y"}]}]}`)},
 		{"query interval", panelDoc("timeseries", `"targets":[{"refId":"A","expr":"up","interval":"$interval"}]`)},
 	}
@@ -798,12 +797,12 @@ func TestChartPanelTypesImportTheirOptions(t *testing.T) {
 		{
 			name: "candlestick", typ: "candlestick",
 			members: `"options":{"mode":"candles","candleStyle":"ohlcbars","colorStrategy":"close-close","colors":{"up":"blue","down":"orange","flat":"gray"},"fields":{"open":"o","high":"h","low":"l","close":"c","volume":"v"},"includeAllFields":false}`,
-			display: `{"mode":"candles","candleStyle":"ohlcbars","colorStrategy":"close-close","upColor":"info","downColor":"warning","open":"o","high":"h","low":"l","close":"c","volume":"v"}`,
+			display: `{"tooltipSort":"none","mode":"candles","candleStyle":"ohlcbars","colorStrategy":"close-close","upColor":"info","downColor":"warning","open":"o","high":"h","low":"l","close":"c","volume":"v"}`,
 		},
 		{
 			name: "candlestick options with no Spec field", typ: "candlestick",
 			members: `"options":{"colors":{"up":"nonsense","down":"orange","flat":"purple"},"includeAllFields":true}`,
-			display: `{"downColor":"warning"}`,
+			display: `{"tooltipSort":"none","downColor":"warning"}`,
 			paths:   []string{"options.colors.up", "options.colors.flat", "options.includeAllFields"},
 		},
 		{

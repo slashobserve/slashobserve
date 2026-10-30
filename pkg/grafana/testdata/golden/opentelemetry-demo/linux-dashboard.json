@@ -1625,7 +1625,8 @@
             ],
             "display": {
               "legendWidth": 350,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1659,7 +1660,8 @@
             "spanNulls": 3600000,
             "axisLabel": "Receive (-) / Transmit (+)",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1693,7 +1695,8 @@
             "points": "never",
             "axisLabel": "Read (-) / Write (+)",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]

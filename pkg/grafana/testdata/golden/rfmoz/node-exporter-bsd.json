@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 36,
-      "imported": 18,
-      "partial": 18,
+      "imported": 20,
+      "partial": 16,
       "placeholder": 0,
       "unverified": 0
     },
@@ -298,13 +298,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Basic CPU / Mem / Net / Disk",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.maxHeight"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -752,13 +748,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "System",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.maxHeight"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1662,7 +1654,8 @@
                 "max"
               ],
               "legendWidth": 250,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipMaxHeight": 600
             }
           },
           {
@@ -2265,7 +2258,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipMaxHeight": 600
             }
           },
           {

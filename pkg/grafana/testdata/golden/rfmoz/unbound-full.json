@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 35,
-      "imported": 3,
-      "partial": 32,
+      "imported": 34,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Principal",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -68,13 +64,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Principal",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -93,13 +85,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Principal",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -125,13 +113,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Principal",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -217,13 +201,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Principal",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -277,13 +257,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Queries detail",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -316,13 +292,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Queries detail",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -341,13 +313,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Queries detail",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -422,13 +390,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Queries detail",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -447,13 +411,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Queries detail",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -486,13 +446,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Answers detail",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -518,13 +474,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Answers detail",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -543,13 +495,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Answers detail",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -568,13 +516,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cache",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -600,13 +544,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cache",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -625,13 +565,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cache",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -650,13 +586,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cache",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -682,13 +614,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Request list",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -721,13 +649,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Request list",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -753,13 +677,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Request list",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -792,13 +712,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Memory",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -817,13 +733,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Memory",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -849,13 +761,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Memory",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -874,13 +782,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Memory",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -899,13 +803,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Misc",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -924,13 +824,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Misc",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -949,13 +845,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Misc",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -981,13 +873,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Misc",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1013,13 +901,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Misc",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1038,13 +922,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Misc",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1063,13 +943,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Misc",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1162,7 +1038,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -1207,7 +1084,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -1258,7 +1136,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -1290,7 +1169,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -1341,7 +1221,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           }
         ]
@@ -1434,7 +1315,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -1465,7 +1347,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -1497,7 +1380,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -1599,7 +1483,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -1638,7 +1523,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           }
         ]
@@ -1688,7 +1574,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -1720,7 +1607,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -1751,7 +1639,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           }
         ]
@@ -1799,7 +1688,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -1831,7 +1721,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -1862,7 +1753,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -1897,7 +1789,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           }
         ]
@@ -1950,7 +1843,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -1985,7 +1879,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -2024,7 +1919,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           }
         ]
@@ -2069,7 +1965,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -2103,7 +2000,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -2134,7 +2032,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -2165,7 +2064,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           }
         ]
@@ -2210,7 +2110,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -2242,7 +2143,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -2277,7 +2179,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -2311,7 +2214,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -2342,7 +2246,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -2373,7 +2278,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -2404,7 +2310,8 @@
                 "mean",
                 "last"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           }
         ]

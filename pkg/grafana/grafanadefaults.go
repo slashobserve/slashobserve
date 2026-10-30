@@ -261,7 +261,7 @@ var cosmeticOptions = map[string]cosmeticOption{
 	},
 	"options.tooltip.sort": {
 		values: []any{"desc"},
-		why:    "the timeseries tooltip always lists its rows by descending value",
+		why:    "bar chart and histogram tooltips list their rows in series order and have no sort",
 	},
 	"fieldConfig.defaults.custom.width": {
 		why: "table columns are sized by the browser from their content and have no fixed width",

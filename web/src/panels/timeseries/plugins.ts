@@ -13,6 +13,12 @@ import {
 } from "./plot-model"
 import { formatTogether, type DrawStyle } from "./series-config"
 import type { Cell } from "./stack"
+import {
+  tooltipRows,
+  type StackEntry,
+  type TooltipRow,
+  type TooltipSort,
+} from "./tooltip-rows"
 
 const maxTooltipRows = 10
 const tooltipGap = 12
@@ -31,7 +37,22 @@ export type TooltipSeries = {
   rowColor?: (row: number) => string
 }
 
-type Row = { index: number; value: number }
+export type TooltipView = {
+  sort: TooltipSort
+  hideZeros: boolean
+  cumulative: boolean
+  maxWidth?: number
+  maxHeight?: number
+}
+
+type Row = TooltipRow
+
+function stackAt(entries: TooltipSeries[], idx: number): StackEntry[] {
+  return entries.map(({ stacked, below, values }) => {
+    const value = values[idx]
+    return { stacked, below, value: typeof value === "number" ? value : 0 }
+  })
+}
 
 function swatch(color: string, line: LineStyle, style: DrawStyle): HTMLElement {
   const element = document.createElement("span")
@@ -92,6 +113,7 @@ function nearestRow(
 export function tooltipPlugin(
   host: HTMLElement,
   mode: "single" | "all",
+  view: TooltipView,
   first: number,
   series: () => TooltipSeries[],
   heading: (x: number) => string,
@@ -129,6 +151,9 @@ export function tooltipPlugin(
         tooltip.dataset.slot = "chart-tooltip"
         tooltip.setAttribute("aria-hidden", "true")
         tooltip.hidden = true
+        tooltip.style.overflow = "hidden"
+        if (view.maxWidth) tooltip.style.maxWidth = `${view.maxWidth}px`
+        if (view.maxHeight) tooltip.style.maxHeight = `${view.maxHeight}px`
         host.appendChild(tooltip)
       },
       ready: measure,
@@ -159,11 +184,20 @@ export function tooltipPlugin(
           }
         })
         if (rows.length === 0) return hide()
-        const candidates =
+        const listed =
           rowsMode === "single"
-            ? [nearestRow(u, rows, meta, first, idx, cursorTop)]
-            : rows.sort((a, b) => b.value - a.value).slice(0, maxTooltipRows)
-        const shown = rowsMode === "single" ? 1 : rows.length
+            ? {
+                rows: [nearestRow(u, rows, meta, first, idx, cursorTop)],
+                total: 1,
+              }
+            : tooltipRows(
+                rows,
+                { ...view, stack: stackAt(meta, idx) },
+                maxTooltipRows
+              )
+        if (listed.rows.length === 0) return hide()
+        const candidates = listed.rows
+        const shown = listed.total
         const texts = formatTogether(
           candidates.map((row) => ({
             value: row.value,
