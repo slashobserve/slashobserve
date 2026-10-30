@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 13,
-      "imported": 9,
-      "partial": 4,
+      "imported": 10,
+      "partial": 3,
       "placeholder": 0,
       "unverified": 0
     },
@@ -171,13 +171,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "This color scheme is not supported yet; series use the default palette.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[1].properties[0]",
-          "fieldConfig.overrides[2].properties[0]",
           "fieldConfig.overrides[3].properties[0]",
           "fieldConfig.overrides[4].properties[0]",
           "fieldConfig.defaults.custom.align"
@@ -200,13 +197,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "This color scheme is not supported yet; series use the default palette."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -631,6 +624,8 @@
             "match": {
               "field": "Errors count"
             },
+            "colorMode": "scheme",
+            "colorScheme": "greenYellowRed",
             "cell": {
               "type": "background"
             }
@@ -639,6 +634,8 @@
             "match": {
               "field": "Slowdowns count"
             },
+            "colorMode": "scheme",
+            "colorScheme": "greenYellowRed",
             "cell": {
               "type": "background"
             }
@@ -689,7 +686,9 @@
             "match": {
               "series": "progress"
             },
-            "unit": "percent"
+            "unit": "percent",
+            "colorMode": "scheme",
+            "colorScheme": "redYellowGreen"
           }
         ],
         "display": {

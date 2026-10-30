@@ -150,11 +150,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "This color scheme is not supported yet; series use the default palette.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.color",
           "options.legend.showLegend"
         ],
         "queries": [
@@ -177,11 +175,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "This color scheme is not supported yet; series use the default palette.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.color",
           "options.legend.showLegend"
         ],
         "queries": [
@@ -378,11 +374,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "This color scheme is not supported yet; series use the default palette.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.color",
           "options.legend.showLegend"
         ],
         "queries": [
@@ -723,6 +717,8 @@
             "color": "critical"
           }
         ],
+        "colorMode": "scheme",
+        "colorScheme": "greenYellowRed",
         "display": {
           "allValues": true,
           "orientation": "horizontal",
@@ -755,6 +751,8 @@
             "color": "critical"
           }
         ],
+        "colorMode": "scheme",
+        "colorScheme": "greenYellowRed",
         "display": {
           "allValues": true,
           "orientation": "horizontal",
@@ -1059,6 +1057,8 @@
           }
         ],
         "thresholdMode": "percentage",
+        "colorMode": "scheme",
+        "colorScheme": "greenYellowRed",
         "transform": [
           {
             "type": "organize",

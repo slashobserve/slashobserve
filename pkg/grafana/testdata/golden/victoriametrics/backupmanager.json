@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 18,
-      "imported": 11,
-      "partial": 7,
+      "imported": 12,
+      "partial": 6,
       "placeholder": 0,
       "unverified": 0
     },
@@ -389,13 +389,9 @@
         "type": "barchart",
         "source_type": "barchart",
         "row": "Retention",
-        "status": "partial",
-        "reasons": [
-          "This color scheme is not supported yet; series use the default palette."
-        ],
-        "paths": [
-          "fieldConfig.defaults.color"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",

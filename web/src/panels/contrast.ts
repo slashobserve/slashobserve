@@ -47,11 +47,20 @@ export function parseRgb(normalized: string): Rgb | null {
 
 let swatch: CanvasRenderingContext2D | null | undefined
 
+function pixelRgb(context: CanvasRenderingContext2D): Rgb | null {
+  context.clearRect(0, 0, 1, 1)
+  context.fillRect(0, 0, 1, 1)
+  const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data
+  return alpha === 0 ? null : [red, green, blue]
+}
+
 export function cssColorToRgb(color: string): Rgb | null {
   if (!CSS.supports("color", color)) return null
-  swatch ??= document.createElement("canvas").getContext("2d")
+  swatch ??= document
+    .createElement("canvas")
+    .getContext("2d", { willReadFrequently: true })
   const context = swatch
   if (!context) return null
   context.fillStyle = color
-  return parseRgb(context.fillStyle)
+  return parseRgb(context.fillStyle) ?? pixelRgb(context)
 }

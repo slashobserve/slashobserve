@@ -781,6 +781,25 @@ export interface FieldProps {
   thresholds?: Thresholds;
   thresholdMode?: "absolute" | "percentage";
   color?: Color;
+  colorMode?: "palette" | "paletteByName" | "fixed" | "shades" | "thresholds" | "scheme";
+  colorScheme?:
+    | "greenYellowRed"
+    | "redYellowGreen"
+    | "blueYellowRed"
+    | "yellowRed"
+    | "bluePurple"
+    | "yellowBlue"
+    | "blues"
+    | "reds"
+    | "greens"
+    | "purples"
+    | "oranges"
+    | "viridis"
+    | "magma"
+    | "plasma"
+    | "inferno"
+    | "cividis";
+  colorBy?: "last" | "min" | "max";
   displayName?: string;
   noValue?: string;
   /**

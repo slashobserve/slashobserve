@@ -6,8 +6,9 @@ import {
   type ThresholdState,
 } from "@/panels/thresholds"
 
+import { rangePosition, schemeColor } from "../color-scheme"
 import { matchMapping, matchSpecial } from "./mappings"
-import type { FieldConfig } from "./resolve"
+import { effectiveColorMode, type FieldConfig } from "./resolve"
 
 export type DisplayValue = {
   text: string
@@ -33,8 +34,30 @@ function absentKind(value: unknown): "null" | "nan" | "empty" | null {
   return null
 }
 
-function colorOf(config: FieldConfig): string | null {
-  return config.color ? thresholdColor(config.color) : null
+function fixedColorOf(config: FieldConfig): string | null {
+  const mode = effectiveColorMode(config)
+  return config.color && (mode === "fixed" || mode === "shades")
+    ? thresholdColor(config.color)
+    : null
+}
+
+function schemeColorOf(
+  value: number | null,
+  config: FieldConfig,
+  options: DisplayOptions
+): string | null {
+  if (
+    value === null ||
+    !Number.isFinite(value) ||
+    !config.colorScheme ||
+    effectiveColorMode(config) !== "scheme"
+  ) {
+    return null
+  }
+  const min = config.min ?? options.fieldMin
+  const max = config.max ?? options.fieldMax
+  if (min === undefined || max === undefined) return null
+  return schemeColor(config.colorScheme, rangePosition(value, min, max))
 }
 
 function thresholdStateFor(
@@ -65,7 +88,9 @@ export function displayValue(
     return {
       text: mapping?.text ?? config.noValue ?? placeholder,
       numeric: null,
-      color: mapping?.color ? thresholdColor(mapping.color) : colorOf(config),
+      color: mapping?.color
+        ? thresholdColor(mapping.color)
+        : fixedColorOf(config),
       threshold: noThreshold,
       mapped: mapping !== null,
     }
@@ -81,7 +106,9 @@ export function displayValue(
       : formatValue(number, config.unit, decimals))
   const color = hit?.mapping.color
     ? thresholdColor(hit.mapping.color)
-    : (threshold.color ?? colorOf(config))
+    : (schemeColorOf(number, config, options) ??
+      threshold.color ??
+      fixedColorOf(config))
   return {
     text,
     numeric: number !== null && Number.isFinite(number) ? number : null,

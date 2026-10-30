@@ -215,7 +215,6 @@ var partialReasons = map[string]string{
 	"transformations":                               "Some transformations are not supported yet.",
 	"options.legend.displayMode":                    legendTableReason,
 	"options.legend.asTable":                        legendTableReason,
-	"fieldConfig.defaults.color":                    "This color scheme is not supported yet; series use the default palette.",
 	"options.colorByField":                          "Coloring bars by a field is not supported yet.",
 	"options.xTickLabelRotation":                    "Axis labels are drawn in the SlashObserve style.",
 	"options.xTickLabelSpacing":                     "Axis labels are drawn in the SlashObserve style.",

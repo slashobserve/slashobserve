@@ -39,6 +39,7 @@ describe("field config resolution", () => {
     const config = createFieldResolver(panel()).configFor(f, f.fields[1])
     expect(config).toEqual({
       thresholdMode: "absolute",
+      colorBy: "last",
       style: "line",
       fill: 0,
       lineStyle: "solid",

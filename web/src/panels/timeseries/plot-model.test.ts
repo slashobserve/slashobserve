@@ -24,6 +24,7 @@ import type { Cell } from "./stack"
 function config(props: Partial<FieldConfig> = {}): FieldConfig {
   return {
     thresholdMode: "absolute",
+    colorBy: "last",
     mappings: [],
     links: [],
     style: "line",

@@ -17,6 +17,7 @@ import {
 function config(props: Partial<FieldConfig> = {}): FieldConfig {
   return {
     thresholdMode: "absolute",
+    colorBy: "last",
     mappings: [],
     links: [],
     style: "line",
@@ -42,7 +43,7 @@ function config(props: Partial<FieldConfig> = {}): FieldConfig {
   }
 }
 
-const aligned = [{ key: "a", label: "a" }]
+const aligned = [{ key: "a", label: "a", values: [1, 2] }]
 
 describe("seriesStyles", () => {
   it("uses the sticky palette slot when the config sets no color", () => {
@@ -126,6 +127,134 @@ describe("seriesStyles", () => {
       expect(style.interpolation).toBe(lineInterpolation)
     }
   )
+
+  it("draws a fixed mode color like a plain color", () => {
+    const [style] = seriesStyles(
+      aligned,
+      [config({ colorMode: "fixed", color: "#336699" })],
+      new Map()
+    )
+    expect(style.color).toBe("#336699")
+  })
+
+  it("ignores a stored color when the mode is the classic palette", () => {
+    const [style] = seriesStyles(
+      aligned,
+      [config({ colorMode: "palette", color: "#336699" })],
+      new Map([["a", 1]])
+    )
+    expect(style.color).toBe("var(--series-2)")
+  })
+
+  it("picks a palette color from a stable hash of the name, not from the order", () => {
+    const named = [
+      { key: "x", label: "api", values: [1] },
+      { key: "y", label: "db", values: [1] },
+    ]
+    const byName = [
+      config({ colorMode: "paletteByName" }),
+      config({ colorMode: "paletteByName" }),
+    ]
+    const first = seriesStyles(named, byName, new Map())
+    const reversed = seriesStyles([named[1], named[0]], byName, new Map())
+    expect(first[0].color).toBe(reversed[1].color)
+    expect(first[1].color).toBe(reversed[0].color)
+    expect(first[0].color).toMatch(/^var\(--series-[1-8]\)$/)
+  })
+
+  it("steps each shaded series away from the fixed color", () => {
+    const three = ["a", "b", "c"].map((key) => ({
+      key,
+      label: key,
+      values: [1],
+    }))
+    const shaded = config({ colorMode: "shades", color: "#336699" })
+    const styles = seriesStyles(three, [shaded, shaded, shaded], new Map())
+    expect(styles.map((style) => style.color)).toEqual([
+      "color-mix(in oklab, #336699 100%, var(--background))",
+      "color-mix(in oklab, #336699 73%, var(--background))",
+      "color-mix(in oklab, #336699 45%, var(--background))",
+    ])
+  })
+
+  it("keeps a single shaded series at the fixed color", () => {
+    const [style] = seriesStyles(
+      aligned,
+      [config({ colorMode: "shades", color: "#336699" })],
+      new Map()
+    )
+    expect(style.color).toBe("#336699")
+  })
+
+  it("colors a series by the threshold its last value reaches", () => {
+    const series = [{ key: "a", label: "a", values: [1, 95, null] }]
+    const thresholds = [
+      { color: "ok" as const },
+      { value: 80, color: "critical" as const },
+    ]
+    const [last] = seriesStyles(
+      series,
+      [config({ colorMode: "thresholds", thresholds })],
+      new Map()
+    )
+    expect(last.color).toBe("var(--threshold-critical)")
+    const [lowest] = seriesStyles(
+      series,
+      [config({ colorMode: "thresholds", thresholds, colorBy: "min" })],
+      new Map()
+    )
+    expect(lowest.color).toBe("var(--threshold-ok)")
+  })
+
+  it("falls back to the slot color when a threshold-colored series has no value", () => {
+    const [style] = seriesStyles(
+      [{ key: "a", label: "a", values: [null] }],
+      [config({ colorMode: "thresholds", thresholds: [{ color: "ok" }] })],
+      new Map([["a", 3]])
+    )
+    expect(style.color).toBe("var(--series-4)")
+  })
+
+  it("places each series on the scheme by its chosen value within the data range", () => {
+    const series = [
+      { key: "a", label: "a", values: [0, 10] },
+      { key: "b", label: "b", values: [10, 100] },
+    ]
+    const scheme = config({ colorMode: "scheme", colorScheme: "yellowRed" })
+    const styles = seriesStyles(series, [scheme, scheme], new Map())
+    expect(styles[0].color).toBe(
+      "color-mix(in oklab, var(--threshold-critical) 10%, var(--threshold-warning))"
+    )
+    expect(styles[1].color).toBe("var(--threshold-critical)")
+  })
+
+  it("uses the field's own minimum and maximum for the scheme when it has them", () => {
+    const series = [{ key: "a", label: "a", values: [50] }]
+    const [style] = seriesStyles(
+      series,
+      [
+        config({
+          colorMode: "scheme",
+          colorScheme: "yellowRed",
+          min: 0,
+          max: 200,
+        }),
+      ],
+      new Map()
+    )
+    expect(style.color).toBe(
+      "color-mix(in oklab, var(--threshold-critical) 25%, var(--threshold-warning))"
+    )
+  })
+
+  it("keeps the slot color for a scheme mode without a scheme", () => {
+    const [style] = seriesStyles(
+      aligned,
+      [config({ colorMode: "scheme" })],
+      new Map([["a", 4]])
+    )
+    expect(style.color).toBe("var(--series-5)")
+  })
 
   it("marks configured hidden series", () => {
     const [style] = seriesStyles(aligned, [config({ hidden: true })], new Map())

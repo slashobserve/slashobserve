@@ -2,6 +2,7 @@
 export const specDefaults = {
   "fieldProps": {
     "thresholdMode": "absolute",
+    "colorBy": "last",
     "style": "line",
     "fill": 0,
     "lineStyle": "solid",

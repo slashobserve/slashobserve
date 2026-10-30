@@ -80,12 +80,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "The axis color mode thresholds is not supported yet.",
-          "This color scheme is not supported yet; series use the default palette."
+          "The axis color mode thresholds is not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisColorMode",
-          "fieldConfig.overrides[0].properties[1]"
+          "fieldConfig.defaults.custom.axisColorMode"
         ],
         "queries": [
           {
@@ -685,7 +683,8 @@
                 "value": 0.25,
                 "color": "critical"
               }
-            ]
+            ],
+            "colorMode": "thresholds"
           }
         ],
         "interval": "1m",

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 8,
-      "imported": 0,
-      "partial": 8,
+      "imported": 2,
+      "partial": 6,
       "placeholder": 0,
       "unverified": 0
     },
@@ -60,13 +60,9 @@
         "type": "gauge",
         "source_type": "gauge",
         "row": "Service Level - Throughput and Latencies",
-        "status": "partial",
-        "reasons": [
-          "This color scheme is not supported yet; series use the default palette."
-        ],
-        "paths": [
-          "fieldConfig.defaults.color"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -108,11 +104,9 @@
         "row": "Service Level - Throughput and Latencies",
         "status": "partial",
         "reasons": [
-          "This color scheme is not supported yet; series use the default palette.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.color",
           "options.legend.showLegend"
         ],
         "queries": [
@@ -135,11 +129,9 @@
         "row": "Service Level - Throughput and Latencies",
         "status": "partial",
         "reasons": [
-          "This color scheme is not supported yet; series use the default palette.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.color",
           "options.legend.showLegend"
         ],
         "queries": [
@@ -162,12 +154,9 @@
         "row": "span_names Level - Throughput",
         "status": "partial",
         "reasons": [
-          "This color scheme is not supported yet; series use the default palette.",
           "Some transformations are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[1]",
-          "fieldConfig.overrides[1].properties[1]",
           "transformations[2].options.reduce.include",
           "transformations[3].options.reduce.include"
         ],
@@ -198,13 +187,9 @@
         "type": "gauge",
         "source_type": "gauge",
         "row": "span_name Level - Latencies",
-        "status": "partial",
-        "reasons": [
-          "This color scheme is not supported yet; series use the default palette."
-        ],
-        "paths": [
-          "fieldConfig.defaults.color"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -246,11 +231,9 @@
         "row": "span_name Level - Latencies",
         "status": "partial",
         "reasons": [
-          "This color scheme is not supported yet; series use the default palette.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.color",
           "options.legend.showLegend"
         ],
         "queries": [
@@ -405,6 +388,8 @@
                 "color": "critical"
               }
             ],
+            "colorMode": "scheme",
+            "colorScheme": "blueYellowRed",
             "interval": "5m"
           },
           {
@@ -444,6 +429,8 @@
                 "color": "critical"
               }
             ],
+            "colorMode": "scheme",
+            "colorScheme": "blueYellowRed",
             "interval": "5m",
             "display": {
               "reduce": "mean",
@@ -484,6 +471,8 @@
                 "color": "critical"
               }
             ],
+            "colorMode": "scheme",
+            "colorScheme": "reds",
             "interval": "5m",
             "display": {
               "reduce": "mean",
@@ -544,6 +533,8 @@
                 "match": {
                   "field": "bRate"
                 },
+                "colorMode": "scheme",
+                "colorScheme": "blueYellowRed",
                 "cell": {
                   "type": "gauge",
                   "gaugeStyle": "lcd"
@@ -553,6 +544,8 @@
                 "match": {
                   "field": "eRate"
                 },
+                "colorMode": "scheme",
+                "colorScheme": "redYellowGreen",
                 "cell": {
                   "type": "gauge",
                   "gaugeStyle": "lcd"
@@ -685,6 +678,8 @@
                 "color": "critical"
               }
             ],
+            "colorMode": "scheme",
+            "colorScheme": "blueYellowRed",
             "interval": "5m"
           },
           {
@@ -716,6 +711,8 @@
                 "color": "critical"
               }
             ],
+            "colorMode": "scheme",
+            "colorScheme": "blueYellowRed",
             "interval": "5m",
             "display": {
               "reduce": "mean",

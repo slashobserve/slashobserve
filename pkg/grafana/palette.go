@@ -17,6 +17,21 @@ var seriesPalette = map[string]string{
 	"purple": "#B877D9", "dark-purple": "#8F3BB8", "semi-dark-purple": "#A352CC", "light-purple": "#CA95E5", "super-light-purple": "#DEB6F2",
 }
 
+var continuousSchemes = map[string]string{
+	"continuous-GrYlRd": "greenYellowRed", "continuous-RdYlGr": "redYellowGreen", "continuous-BlYlRd": "blueYellowRed",
+	"continuous-YlRd": "yellowRed", "continuous-BlPu": "bluePurple", "continuous-YlBl": "yellowBlue",
+	"continuous-blues": "blues", "continuous-reds": "reds", "continuous-greens": "greens", "continuous-purples": "purples",
+	"continuous-viridis": "viridis", "continuous-magma": "magma", "continuous-plasma": "plasma",
+	"continuous-inferno": "inferno", "continuous-cividis": "cividis",
+}
+
+var heatmapSchemes = map[string]string{
+	"Blues": "blues", "Greens": "greens", "Oranges": "oranges", "Purples": "purples", "Reds": "reds",
+	"RdYlGn": "redYellowGreen", "Spectral": "redYellowGreen", "RdYlBu": "blueYellowRed",
+	"BuPu": "bluePurple", "YlOrRd": "yellowRed", "OrRd": "yellowRed", "YlGnBu": "yellowBlue",
+	"Viridis": "viridis", "Magma": "magma", "Plasma": "plasma", "Inferno": "inferno", "Cividis": "cividis",
+}
+
 var thresholdHexFamilies = map[string]string{
 	"#73bf69": "ok", "#37872d": "ok", "#56a64b": "ok", "#96d98d": "ok", "#c8f2c2": "ok", "#299c46": "ok",
 	"#f2495c": "critical", "#c4162a": "critical", "#e02f44": "critical", "#ff7383": "critical", "#ffa6b0": "critical", "#d44a3a": "critical",

@@ -14,6 +14,7 @@ export {
 } from "./links"
 export {
   createFieldResolver,
+  effectiveColorMode,
   type FieldConfig,
   type FieldResolver,
 } from "./resolve"
