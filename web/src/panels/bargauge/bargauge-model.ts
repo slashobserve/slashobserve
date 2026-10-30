@@ -3,6 +3,7 @@ import type { Reducer } from "@/spec"
 
 import {
   displayValue,
+  fieldRange,
   isDataLink,
   resolveLink,
   type FieldConfig,
@@ -139,6 +140,11 @@ function sharedRange(entries: Entry[]): { low: number; high: number } {
   return { low, high }
 }
 
+function ownRange(field: PreparedField): { low: number; high: number } {
+  const { min, max } = fieldRange(field)
+  return { low: Math.min(0, min ?? 0), high: max ?? -Infinity }
+}
+
 function clamp(fraction: number): number {
   return Math.min(1, Math.max(0, fraction))
 }
@@ -164,8 +170,9 @@ export function bargaugeModel(
   const bars = entries.map(
     ({ key, label, frame, field, config, value, raw, row }): Bar => {
       const implied = unitRanges.get(config.unit ?? "")
-      const min = config.min ?? implied?.min ?? shared.low
-      const configured = config.max ?? implied?.max ?? shared.high
+      const data = config.fieldMinMax ? ownRange(field) : shared
+      const min = config.min ?? implied?.min ?? data.low
+      const configured = config.max ?? implied?.max ?? data.high
       const max = configured <= min ? min + 1 : configured
       const shown = displayValue(raw, config, {
         decimals: decimals.get(config.unit),

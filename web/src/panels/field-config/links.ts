@@ -1,5 +1,4 @@
 import type { Selections } from "@/api/keys"
-import { ALL } from "@/dashboards/search"
 import { resolveTime, type TimeOptions } from "@/lib/time"
 import type { WireFrame } from "@/dashboards/queries"
 import { matchesName } from "@/panels/transforms"
@@ -11,6 +10,14 @@ import {
 } from "@/spec"
 
 import type { FieldResolver } from "./resolve"
+import {
+  formatValues,
+  identity,
+  selectedValues,
+  variableFormats,
+  type Encode,
+  type VariableFormat,
+} from "./variable-format"
 
 export type LinkScope = {
   vars: Selections
@@ -27,35 +34,34 @@ export type LinkScope = {
   valueText?: string
 }
 
-export type ResolvedLink = { title: string; href: string; newTab: boolean }
-
-type Encode = (text: string) => string
+export type ResolvedLink = {
+  title: string
+  href: string
+  newTab: boolean
+  oneClick?: true
+}
 
 const dataTokens = ["${__data.", "${__value", "${__series", "${__field"]
 const allowedProtocols = new Set(["http:", "https:", "mailto:"])
 const token = /\$\{([^}]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g
 const wholeToken = new RegExp(`^(?:${token.source})$`)
 const dataField = /^__data\.fields(?:\.(.+)|\[\s*(?:"([^"]*)"|'([^']*)')\s*\])$/
-const formatSuffix = /^(.+):(raw|text|csv|percentencode|queryparam)$/
+const formatSuffix = new RegExp(`^(.+):(${variableFormats.join("|")})$`)
 const labelPrefix = "__field.labels."
 const plainVar = /^[A-Za-z_][A-Za-z0-9_]*$/
-const allLabel = "All"
 
 const unresolvedRange = /\$\{?__(?:from|to)\b/
 
-const identity: Encode = (text) => text
-
-const strictEscapes = /[!'()*]/g
-
-const encodeStrict: Encode = (text) =>
-  encodeURIComponent(text).replace(
-    strictEscapes,
-    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`
-  )
+export function oneClickLink(links: ResolvedLink[]): ResolvedLink | undefined {
+  return links.length === 1 && links[0].oneClick ? links[0] : undefined
+}
 
 export function isDataLink(link: Link): boolean {
-  return dataTokens.some(
-    (marker) => link.url.includes(marker) || link.title.includes(marker)
+  return (
+    link.oneClick === true ||
+    dataTokens.some(
+      (marker) => link.url.includes(marker) || link.title.includes(marker)
+    )
   )
 }
 
@@ -110,29 +116,9 @@ function valuesOf(name: string, scope: LinkScope): string[] | null {
     return scope.toMs === undefined ? null : [String(scope.toMs)]
   }
   if (plainVar.test(name)) {
-    const values = selectionOf(scope, name)
-    if (!values) return null
-    return values.includes(ALL) ? [allLabel] : values
+    return selectedValues(scope.vars, name)
   }
   return null
-}
-
-function formatValues(
-  values: string[],
-  format: string | undefined,
-  encode: Encode
-): string {
-  switch (format) {
-    case "raw":
-    case "csv":
-      return values.join(",")
-    case "text":
-      return values.join(" + ")
-    case "percentencode":
-      return encodeStrict(values.join(","))
-    default:
-      return encode(values.join(","))
-  }
 }
 
 function tokenValue(
@@ -147,7 +133,7 @@ function tokenValue(
   }
   const suffix = formatSuffix.exec(written)
   const name = suffix ? suffix[1] : written
-  const format = suffix?.[2]
+  const format = suffix?.[2] as VariableFormat | undefined
   if (format === "queryparam") {
     const selected = plainVar.test(name) ? selectionOf(scope, name) : null
     if (!selected) return null
@@ -183,6 +169,7 @@ export function resolveLink(link: Link, scope: LinkScope): ResolvedLink | null {
     title: interpolate(link.title, scope, identity),
     href,
     newTab: link.newTab ?? linkDefaults.newTab,
+    ...(link.oneClick ? { oneClick: true as const } : {}),
   }
 }
 

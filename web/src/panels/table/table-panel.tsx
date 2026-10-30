@@ -25,7 +25,8 @@ import { cn } from "@/lib/utils"
 
 import { resolveColor } from "../colors"
 import { cssColorToRgb } from "../contrast"
-import type { FieldResolver, LinkScope } from "../field-config"
+import type { FieldResolver, LinkScope, ResolvedLink } from "../field-config"
+import { oneClickProps } from "@/dashboards/dashboard-links"
 import type { PanelRenderer } from "../types"
 import { fillTextColor, type CellSpec } from "./cells/cell-model"
 import { GaugeCell } from "./cells/gauge"
@@ -145,18 +146,18 @@ function CellContent({
   column,
   row,
   fields,
-  scope,
+  links,
   spec,
   cell,
   filled,
-}: CellProps & {
+}: Pick<CellProps, "row" | "fields"> & {
   column: TableColumn
+  links: ResolvedLink[]
   spec: CellSpec
   cell: Cell
   filled: boolean
 }) {
   const value = row.values[column.key]
-  const links = cellLinks(fields, column, row, cell, scope)
   switch (spec.type) {
     case "gauge":
       return (
@@ -216,12 +217,13 @@ function BodyCell({
   const ownFill = spec.type === "background" ? cell.color : null
   const frame = useFrame(rowColor ?? ownFill)
   const filled = frame.fill !== null
+  const links = cellLinks(fields, column, row, cell, scope)
   const content = (
     <CellContent
       column={column}
       row={row}
       fields={fields}
-      scope={scope}
+      links={links}
       spec={spec}
       cell={cell}
       filled={filled}
@@ -231,6 +233,7 @@ function BodyCell({
     <TableCell
       data-column={column.label}
       data-cell={spec.type}
+      {...(spec.type === "links" ? {} : oneClickProps(links))}
       data-threshold={cell.level ?? undefined}
       title={cell.word || undefined}
       style={{
@@ -240,7 +243,7 @@ function BodyCell({
           : undefined),
       }}
       className={cn(
-        "px-2",
+        "px-2 data-one-click:cursor-pointer",
         bodyPadding[padding],
         alignClasses[view.align],
         column.type === "number" && "tabular-nums",

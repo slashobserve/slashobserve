@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useMemo, type MouseEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { ChevronDownIcon, ExternalLinkIcon } from "lucide-react"
 
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
   dashboardLinks,
+  oneClickLink,
   type LinkScope,
   type ResolvedLink,
 } from "@/panels/field-config"
@@ -35,6 +36,31 @@ export function anchorProps(link: ResolvedLink) {
     href: link.href,
     target: link.newTab ? "_blank" : undefined,
     rel: link.newTab ? "noopener noreferrer" : undefined,
+  }
+}
+
+const interactiveTarget = "a, button, input, [role='menuitem']"
+
+function followOneClick(link: ResolvedLink, event: MouseEvent<HTMLElement>) {
+  const { target } = event
+  if (
+    event.defaultPrevented ||
+    !(target instanceof Element) ||
+    target.closest(interactiveTarget) ||
+    window.getSelection()?.toString()
+  ) {
+    return
+  }
+  if (link.newTab) window.open(link.href, "_blank", "noopener,noreferrer")
+  else window.location.assign(link.href)
+}
+
+export function oneClickProps(links: ResolvedLink[]) {
+  const link = oneClickLink(links)
+  if (!link) return {}
+  return {
+    "data-one-click": "",
+    onClick: (event: MouseEvent<HTMLElement>) => followOneClick(link, event),
   }
 }
 

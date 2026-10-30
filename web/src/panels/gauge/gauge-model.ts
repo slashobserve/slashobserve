@@ -205,7 +205,10 @@ export function gaugeModel(
   )
   return sources.map(
     ({ key, label, raw, value, frame, field, config, row }) => {
-      const { min, max } = rangeFor(config, data)
+      const { min, max } = rangeFor(
+        config,
+        config.fieldMinMax ? fieldRange(field) : data
+      )
       const shown = displayValue(raw, config, {
         decimals: decimals.get(config.unit),
         fieldMin: min,

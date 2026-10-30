@@ -167,6 +167,35 @@ describe("gauge range", () => {
     ])
   })
 
+  it("ranges each field by its own values with fieldMinMax", () => {
+    const frames = [
+      frame([time, number([5, 90, 6], "a")]),
+      frame([time, number([7, -2, 30], "b")], { ref: "B" }),
+    ]
+    const gauges = build(frames, { fieldMinMax: true })
+    expect(gauges.map((gauge) => [gauge.min, gauge.max])).toEqual([
+      [0, 90],
+      [-2, 30],
+    ])
+    expect(gauges[1].fraction).toBeCloseTo(32 / 32)
+  })
+
+  it("lets an override turn fieldMinMax on for one field", () => {
+    const frames = [
+      frame([time, number([5, 90], "a")]),
+      frame([time, number([7, 30], "b")], { ref: "B" }),
+    ]
+    const gauges = build(frames, {
+      overrides: [{ match: { field: "b" }, fieldMinMax: true }],
+    })
+    expect(gauges.map((gauge) => gauge.max)).toEqual([90, 30])
+  })
+
+  it("keeps a configured max over the field's own range", () => {
+    const gauge = one([4, 8], { fieldMinMax: true, max: 20 })
+    expect([gauge.min, gauge.max]).toEqual([0, 20])
+  })
+
   it("ignores the values of hidden fields", () => {
     const gauges = build(
       [frame([time, number([5], "shown"), number([500], "hidden")])],

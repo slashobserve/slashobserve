@@ -1,3 +1,4 @@
+import type { Selections } from "@/api/keys"
 import {
   seriesName as preparedSeriesName,
   type PreparedField,
@@ -23,6 +24,7 @@ export type FieldConfig = {
   decimals?: number
   min?: number
   max?: number
+  fieldMinMax: boolean
   thresholds?: Threshold[]
   thresholdMode: "absolute" | "percentage"
   color?: string
@@ -91,6 +93,7 @@ const fieldPropKeyFlags: Record<keyof FieldProps, true> = {
   decimals: true,
   min: true,
   max: true,
+  fieldMinMax: true,
   thresholds: true,
   thresholdMode: true,
   color: true,
@@ -173,14 +176,23 @@ function displayNameOf(
   template: string | undefined,
   frame: PreparedFrame,
   field: PreparedField,
-  seriesName: string
+  seriesName: string,
+  vars: Selections
 ): string {
   return template === undefined
     ? seriesName
-    : interpolateDisplayName(template, frame, field.name, seriesName)
+    : interpolateDisplayName(template, {
+        frame,
+        fieldName: field.name,
+        seriesName,
+        vars,
+      })
 }
 
-export function createFieldResolver(panel: DataPanel): FieldResolver {
+export function createFieldResolver(
+  panel: DataPanel,
+  vars: Selections = {}
+): FieldResolver {
   const base = withProps(
     {
       ...fieldPropDefaults,
@@ -209,7 +221,13 @@ export function createFieldResolver(panel: DataPanel): FieldResolver {
     }
     return {
       seriesName,
-      displayName: displayNameOf(config.displayName, frame, field, seriesName),
+      displayName: displayNameOf(
+        config.displayName,
+        frame,
+        field,
+        seriesName,
+        vars
+      ),
       config,
       given,
     }

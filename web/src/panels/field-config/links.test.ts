@@ -8,6 +8,7 @@ import {
   createFieldResolver,
   dashboardLinks,
   isDataLink,
+  oneClickLink,
   panelLinks,
   resolveLink,
   type LinkScope,
@@ -312,6 +313,35 @@ describe("link safety", () => {
       resolveLink({ title: "t", url: "/a", newTab: true }, scope())?.newTab
     ).toBe(true)
   })
+
+  it("carries oneClick only when the link sets it", () => {
+    expect(resolveLink({ title: "t", url: "/a" }, scope())).toEqual({
+      title: "t",
+      href: "/a",
+      newTab: false,
+    })
+    expect(
+      resolveLink({ title: "t", url: "/a", oneClick: true }, scope())
+    ).toEqual({ title: "t", href: "/a", newTab: false, oneClick: true })
+    expect(
+      resolveLink({ title: "t", url: "/a", oneClick: false }, scope())?.oneClick
+    ).toBeUndefined()
+  })
+
+  it("makes a link one click only when it is the single link and sets oneClick", () => {
+    const plain = { title: "a", href: "/a", newTab: false }
+    const quick = { ...plain, oneClick: true as const }
+    expect(oneClickLink([quick])).toBe(quick)
+    expect(oneClickLink([plain])).toBeUndefined()
+    expect(oneClickLink([quick, plain])).toBeUndefined()
+    expect(oneClickLink([])).toBeUndefined()
+  })
+
+  it("formats variables as pipe separated or JSON", () => {
+    const vars = { pod: ["a", "b"] }
+    expect(href("/d?x=${pod:pipe}", { vars })).toBe("/d?x=a|b")
+    expect(href("/d?x=${pod:json}", { vars })).toBe('/d?x=["a","b"]')
+  })
 })
 
 describe("data links", () => {
@@ -326,6 +356,20 @@ describe("data links", () => {
     expect(isDataLink(link({ url: "/d?v=${__value.raw}" }))).toBe(true)
     expect(isDataLink(link({ title: "${__series.name}" }))).toBe(true)
     expect(isDataLink(link({ title: "${__field.name}" }))).toBe(true)
+  })
+
+  it("flags a one click link even when its address reads no data", () => {
+    expect(isDataLink(link({ oneClick: true }))).toBe(true)
+    expect(isDataLink(link({ oneClick: false }))).toBe(false)
+  })
+
+  it("keeps a one click link out of the panel header", () => {
+    const panel = {
+      links: [link({ oneClick: true }), link({ url: "/other" })],
+    } as DataPanel
+    expect(panelLinks(panel, scope()).map((shown) => shown.href)).toEqual([
+      "/other",
+    ])
   })
 
   it("leaves variable and time range links as panel links", () => {

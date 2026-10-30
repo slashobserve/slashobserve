@@ -8,6 +8,7 @@ export {
   appendLinkParams,
   dashboardLinks,
   isDataLink,
+  oneClickLink,
   panelLinks,
   resolveLink,
   type LinkScope,

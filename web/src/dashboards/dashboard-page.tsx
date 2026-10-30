@@ -229,8 +229,8 @@ const PanelContainer = memo(function PanelContainer({
   })
 
   const fields = useMemo(
-    () => (dataPanel ? createFieldResolver(dataPanel) : undefined),
-    [dataPanel]
+    () => (dataPanel ? createFieldResolver(dataPanel, selections) : undefined),
+    [dataPanel, selections]
   )
 
   const populated = useMemo(
