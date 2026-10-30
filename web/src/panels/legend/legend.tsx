@@ -1,8 +1,6 @@
 import type { Ref } from "react"
 
 import { cn } from "@/lib/utils"
-import type { Reducer } from "@/spec"
-
 import type { LineStyle } from "../colors"
 import type { DrawStyle } from "../timeseries/series-config"
 import { inlineValues } from "./legend-model"
@@ -27,6 +25,18 @@ export function legendMaxHeight(available: number, rem: number): number {
     Math.floor((available / rem - padRem + gapRem) / (rowRem + gapRem))
   )
   return (rows * rowRem + (rows - 1) * gapRem + padRem) * rem
+}
+
+export type LegendHover = (key: string | null) => void
+
+export function hoverHandlers(key: string, onHover?: LegendHover) {
+  if (!onHover) return {}
+  return {
+    onPointerEnter: () => onHover(key),
+    onPointerLeave: () => onHover(null),
+    onFocus: () => onHover(key),
+    onBlur: () => onHover(null),
+  }
 }
 
 export function rowButtonClass(visible: boolean): string {
@@ -69,25 +79,29 @@ export function rootFontSize(): number {
 type Props = {
   ref?: Ref<HTMLDivElement>
   items: LegendItem[]
-  reducers?: Reducer[]
+  reducers?: readonly string[]
+  headers?: readonly string[]
   cells?: string[][]
   hidden: ReadonlySet<string>
   placement: LegendPlacement
   available: number
   width: number
   onToggle: (key: string) => void
+  onHover?: LegendHover
 }
 
 export function Legend({
   ref,
   items,
   reducers = [],
+  headers,
   cells = [],
   hidden,
   placement,
   available,
   width,
   onToggle,
+  onHover,
 }: Props) {
   const bottom = placement === "bottom"
   return (
@@ -117,6 +131,7 @@ export function Legend({
             data-style={item.style}
             onClick={() => onToggle(item.key)}
             className={rowButtonClass(visible)}
+            {...hoverHandlers(item.key, onHover)}
           >
             <LegendSwatch
               color={item.color}
@@ -126,7 +141,7 @@ export function Legend({
             <span className="truncate">{item.label}</span>
             {reducers.length > 0 ? (
               <span className="text-muted-foreground tabular-nums">
-                {inlineValues(reducers, cells[row])}
+                {inlineValues(reducers, cells[row], headers)}
               </span>
             ) : null}
           </button>

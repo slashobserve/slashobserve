@@ -1,17 +1,17 @@
 import { useEffect, useState, type Ref } from "react"
 
-import type { Reducer } from "@/spec"
-
-import { reducerLabels } from "../reducers"
 import {
   LegendSwatch,
+  hoverHandlers,
   legendMaxHeight,
   rootFontSize,
   rowButtonClass,
   rowRem,
+  type LegendHover,
   type LegendItem,
   type LegendPlacement,
 } from "./legend"
+import { legendHeaders } from "./legend-model"
 import type { TextMeasure } from "./legend-width"
 
 let measureContext: CanvasRenderingContext2D | null = null
@@ -47,21 +47,24 @@ export function useLegendTextMeasure(): typeof legendTextMeasure {
 type Props = {
   ref?: Ref<HTMLDivElement>
   items: LegendItem[]
-  reducers: Reducer[]
+  reducers: readonly string[]
+  headers?: readonly string[]
   cells: string[][]
-  sortBy?: "name" | Reducer
+  sortBy?: string
   sortDesc?: boolean
   hidden: ReadonlySet<string>
   placement: LegendPlacement
   available: number
   width: number
   onToggle: (key: string) => void
+  onHover?: LegendHover
 }
 
 export function LegendTable({
   ref,
   items,
   reducers,
+  headers,
   cells,
   sortBy,
   sortDesc = false,
@@ -70,11 +73,13 @@ export function LegendTable({
   available,
   width,
   onToggle,
+  onHover,
 }: Props) {
   const sorted = sortDesc ? "descending" : "ascending"
   const bottom = placement === "bottom"
   const rem = rootFontSize()
   const header = rowRem * rem
+  const names = legendHeaders(reducers, headers)
   return (
     <div
       ref={ref}
@@ -97,14 +102,14 @@ export function LegendTable({
             >
               <span className="sr-only">Series</span>
             </th>
-            {reducers.map((reducer) => (
+            {reducers.map((reducer, column) => (
               <th
                 key={reducer}
                 scope="col"
                 aria-sort={sortBy === reducer ? sorted : undefined}
                 className="sticky top-0 bg-background px-1.5 py-0.5 text-right font-medium whitespace-nowrap text-muted-foreground tabular-nums"
               >
-                {reducerLabels[reducer]}
+                {names[column]}
               </th>
             ))}
           </tr>
@@ -123,6 +128,7 @@ export function LegendTable({
                     aria-pressed={visible}
                     onClick={() => onToggle(item.key)}
                     className={rowButtonClass(visible)}
+                    {...hoverHandlers(item.key, onHover)}
                   >
                     <LegendSwatch
                       color={item.color}

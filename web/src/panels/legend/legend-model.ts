@@ -80,11 +80,19 @@ export function legendOrder(
   return shown.map(({ index }) => index)
 }
 
+export function legendHeaders(
+  columns: readonly string[],
+  headers?: readonly string[]
+): readonly string[] {
+  return headers ?? columns.map((column) => reducerLabels[column as Reducer])
+}
+
 export function inlineValues(
-  reducers: readonly Reducer[],
-  cells: readonly string[]
+  columns: readonly string[],
+  cells: readonly string[],
+  headers?: readonly string[]
 ): string {
-  return reducers
-    .map((reducer, column) => `${reducerLabels[reducer]} ${cells[column]}`)
+  return legendHeaders(columns, headers)
+    .map((header, column) => `${header} ${cells[column]}`.trim())
     .join("  ")
 }
