@@ -201,11 +201,11 @@ func resolveRange(from, to string, now time.Time) (datasource.TimeRange, Result,
 			return datasource.TimeRange{}, invalid("%s must be at most %d bytes", field, maxTimeExprBytes), false
 		}
 	}
-	start, err := spec.ResolveTime(from, now, false)
+	start, err := spec.ResolveTime(from, now, false, spec.TimeOptions{})
 	if err != nil {
 		return datasource.TimeRange{}, invalid("from: %s", err), false
 	}
-	end, err := spec.ResolveTime(to, now, true)
+	end, err := spec.ResolveTime(to, now, true, spec.TimeOptions{})
 	if err != nil {
 		return datasource.TimeRange{}, invalid("to: %s", err), false
 	}

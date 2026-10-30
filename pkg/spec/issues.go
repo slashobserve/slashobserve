@@ -33,6 +33,7 @@ const (
 	CodeInvalidRegex          IssueCode = "invalid_regex"
 	CodeDuplicateElementID    IssueCode = "duplicate_element_id"
 	CodeUnknownElement        IssueCode = "unknown_element"
+	CodeUnknownTimezone       IssueCode = "unknown_timezone"
 )
 
 const maxIssues = 50

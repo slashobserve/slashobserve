@@ -26,6 +26,19 @@ const (
 	ClickHouse DatasourceType = "clickhouse"
 )
 
+type WeekStart string
+
+const (
+	WeekStartMonday   WeekStart = "monday"
+	WeekStartSunday   WeekStart = "sunday"
+	WeekStartSaturday WeekStart = "saturday"
+)
+
+const (
+	TimezoneBrowser = "browser"
+	TimezoneUTC     = "utc"
+)
+
 type CursorSync string
 
 const (
@@ -91,17 +104,20 @@ const (
 )
 
 type Dashboard struct {
-	SpecVersion string     `json:"specVersion"`
-	Title       string     `json:"title"`
-	Description string     `json:"description,omitempty"`
-	Tags        []string   `json:"tags,omitempty"`
-	Time        TimeRange  `json:"time"`
-	Refresh     string     `json:"refresh,omitempty"`
-	Timezone    string     `json:"timezone,omitempty"`
-	CursorSync  CursorSync `json:"cursorSync,omitempty"`
-	Variables   []Variable `json:"variables,omitempty"`
-	Links       []Link     `json:"links,omitempty"`
-	Panels      []Panel    `json:"panels"`
+	SpecVersion          string     `json:"specVersion"`
+	Title                string     `json:"title"`
+	Description          string     `json:"description,omitempty"`
+	Tags                 []string   `json:"tags,omitempty"`
+	Time                 TimeRange  `json:"time"`
+	Refresh              string     `json:"refresh,omitempty"`
+	Timezone             string     `json:"timezone,omitempty"`
+	WeekStart            WeekStart  `json:"weekStart,omitempty"`
+	FiscalYearStartMonth int        `json:"fiscalYearStartMonth,omitempty"`
+	NowDelay             string     `json:"nowDelay,omitempty"`
+	CursorSync           CursorSync `json:"cursorSync,omitempty"`
+	Variables            []Variable `json:"variables,omitempty"`
+	Links                []Link     `json:"links,omitempty"`
+	Panels               []Panel    `json:"panels"`
 }
 
 type TimeRange struct {

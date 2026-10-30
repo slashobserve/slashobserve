@@ -38,6 +38,7 @@ type previewRequest struct {
 	Panel         json.RawMessage     `json:"panel"`
 	From          *string             `json:"from"`
 	To            *string             `json:"to"`
+	Timezone      *string             `json:"tz"`
 	MaxDataPoints *int                `json:"max_data_points"`
 	Variables     map[string][]string `json:"variables"`
 }
@@ -82,9 +83,9 @@ func (h *Handler) preview(c *gin.Context) {
 		return
 	}
 	now := time.Now()
-	rng, err := p.timeRange(d, now)
+	rng, opts, err := p.timeRange(d, now)
 	if err == nil {
-		rng, err = panelTimeRange(draft, rng, now)
+		rng, err = panelTimeRange(draft, rng, now, opts)
 	}
 	if err != nil {
 		h.previewFail(c, uid, err)
@@ -261,6 +262,9 @@ func (r previewRequest) values() url.Values {
 	}
 	if r.To != nil {
 		q.Set(paramTo, *r.To)
+	}
+	if r.Timezone != nil {
+		q.Set(paramTimezone, *r.Timezone)
 	}
 	if r.MaxDataPoints != nil {
 		q.Set(paramMaxDataPoints, strconv.Itoa(*r.MaxDataPoints))

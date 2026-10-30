@@ -18,6 +18,7 @@ import (
 const (
 	paramFrom          = "from"
 	paramTo            = "to"
+	paramTimezone      = "tz"
 	paramMaxDataPoints = "max_data_points"
 	variablePrefix     = "var-"
 	allSelection       = "$__all"
@@ -37,6 +38,7 @@ var (
 
 type params struct {
 	from, to      string
+	timezone      string
 	maxDataPoints int
 	selections    map[string]queryproxy.Selection
 }
@@ -92,6 +94,12 @@ func parseParams(q url.Values, allowMaxDataPoints bool) (params, error) {
 			} else {
 				p.to = text
 			}
+		case name == paramTimezone:
+			zone, err := parseTimezone(values)
+			if err != nil {
+				return params{}, err
+			}
+			p.timezone = zone
 		case name == paramMaxDataPoints && allowMaxDataPoints:
 			n, err := parseMaxDataPoints(values)
 			if err != nil {
@@ -121,6 +129,16 @@ func singleTimeParam(name string, values []string) (string, error) {
 	return values[0], nil
 }
 
+func parseTimezone(values []string) (string, error) {
+	if len(values) != 1 {
+		return "", invalidf("%s must be given once", paramTimezone)
+	}
+	if _, err := spec.LoadZone(values[0]); err != nil {
+		return "", invalidf("%s is not a known time zone", paramTimezone)
+	}
+	return values[0], nil
+}
+
 func parseMaxDataPoints(values []string) (int, error) {
 	if len(values) != 1 {
 		return 0, invalidf("%s must be given once", paramMaxDataPoints)
@@ -144,22 +162,26 @@ func selectionOf(values []string) queryproxy.Selection {
 	return sel
 }
 
-func (p params) timeRange(d *spec.Dashboard, now time.Time) (datasource.TimeRange, error) {
-	from, err := spec.ResolveTime(cmp.Or(p.from, d.Time.From), now, false)
+func (p params) timeRange(d *spec.Dashboard, now time.Time) (datasource.TimeRange, spec.TimeOptions, error) {
+	opts, err := spec.TimeOptionsFor(d, p.timezone)
 	if err != nil {
-		return datasource.TimeRange{}, invalidf("%s is not a valid time", paramFrom)
+		return datasource.TimeRange{}, spec.TimeOptions{}, invalidf("the dashboard time zone is not known")
 	}
-	to, err := spec.ResolveTime(cmp.Or(p.to, d.Time.To), now, true)
+	from, err := spec.ResolveTime(cmp.Or(p.from, d.Time.From), now, false, opts)
 	if err != nil {
-		return datasource.TimeRange{}, invalidf("%s is not a valid time", paramTo)
+		return datasource.TimeRange{}, spec.TimeOptions{}, invalidf("%s is not a valid time", paramFrom)
+	}
+	to, err := spec.ResolveTime(cmp.Or(p.to, d.Time.To), now, true, opts)
+	if err != nil {
+		return datasource.TimeRange{}, spec.TimeOptions{}, invalidf("%s is not a valid time", paramTo)
 	}
 	if !from.Before(to) {
-		return datasource.TimeRange{}, invalidf("%s must be before %s", paramFrom, paramTo)
+		return datasource.TimeRange{}, spec.TimeOptions{}, invalidf("%s must be before %s", paramFrom, paramTo)
 	}
 	if to.Sub(from) > queryproxy.MaxRange {
-		return datasource.TimeRange{}, invalidf("the time range must be at most 400 days")
+		return datasource.TimeRange{}, spec.TimeOptions{}, invalidf("the time range must be at most 400 days")
 	}
-	return datasource.TimeRange{From: from, To: to}, nil
+	return datasource.TimeRange{From: from, To: to}, opts, nil
 }
 
 type alignment struct {
@@ -185,8 +207,8 @@ func align(rng datasource.TimeRange, kind queryproxy.Kind, maxDataPoints int) al
 	return alignment{rng: datasource.TimeRange{From: from, To: to}, step: step, maxDataPoints: points}
 }
 
-func panelTimeRange(panel *spec.Panel, rng datasource.TimeRange, now time.Time) (datasource.TimeRange, error) {
-	rng = queryproxy.PanelRange(panel, rng, now)
+func panelTimeRange(panel *spec.Panel, rng datasource.TimeRange, now time.Time, opts spec.TimeOptions) (datasource.TimeRange, error) {
+	rng = queryproxy.PanelRange(panel, rng, now, opts)
 	if rng.To.Sub(rng.From) > queryproxy.MaxRange {
 		return datasource.TimeRange{}, invalidf("the time range must be at most 400 days")
 	}

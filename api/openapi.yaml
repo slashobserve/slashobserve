@@ -141,6 +141,7 @@ components:
             `too_many_panels` (more than 200 panels counting row children), `duplicate_query_ref`, `unknown_query_ref` (an override matches a query ref the panel does not have),
             `threshold_value_missing` (a threshold other than the first omits its value), `duplicate_element_id` (a canvas panel repeats an element id, path `/panels/{i}/display/elements/{k}/id`)
             and `unknown_element` (a canvas connection names no element, path `/panels/{i}/display/connections/{k}/from` or `/to`).
+            A `timezone` the server cannot load is `unknown_timezone` (path `/timezone`).
             Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`),
             `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/{j}/query`, with `/panels/{i}/panels/{j}` for a row child),
             and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty` and `internal`

@@ -758,7 +758,7 @@ export interface paths {
         put?: never;
         /**
          * Run an unsaved data panel placed into a saved dashboard version and return its frames.
-         * @description The draft replaces the panel `panel_id` of the given version, the result is validated as a whole like a save (the draft must keep the id `panel_id`, and its datasource and every query's must be or resolve to the datasource in the path), and the draft's queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows). Only signed-in users may call it: a service-account key gets 403 `user_session_required` and uses `query_range` instead. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `max_data_points` and `variables` behave as the parameters of panel data: `from` and `to` default to the version's `time`, `max_data_points` defaults to 1000 and is capped by the draft's `maxDataPoints`, and each variable lists its selected values, with `$__all` selecting All; a variable that is not given gets its default. Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel. A panel's `timeFrom` replaces the range with the last N units up to now, and `timeShift` moves the range back; `meta.from` and `meta.to` report the range that ran. The response has the shape of panel data, with `meta.cached` always false.
+         * @description The draft replaces the panel `panel_id` of the given version, the result is validated as a whole like a save (the draft must keep the id `panel_id`, and its datasource and every query's must be or resolve to the datasource in the path), and the draft's queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows). Only signed-in users may call it: a service-account key gets 403 `user_session_required` and uses `query_range` instead. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `tz`, `max_data_points` and `variables` behave as the parameters of panel data: `from` and `to` default to the version's `time`, `max_data_points` defaults to 1000 and is capped by the draft's `maxDataPoints`, and each variable lists its selected values, with `$__all` selecting All; a variable that is not given gets its default. Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel. A panel's `timeFrom` replaces the range with the last N units up to now, and `timeShift` moves the range back; `meta.from` and `meta.to` report the range that ran. The response has the shape of panel data, with `meta.cached` always false.
          */
         post: operations["previewDraftPanel"];
         delete?: never;
@@ -1062,7 +1062,7 @@ export interface components {
         };
         Issue: {
             path: string;
-            /** @description Spec parsing adds schema and semantic codes such as `schema`, `too_large`, `unknown_unit`, `duplicate_panel_id`, `unknown_variable`, `too_many_panels` (more than 200 panels counting row children), `duplicate_query_ref`, `unknown_query_ref` (an override matches a query ref the panel does not have), `threshold_value_missing` (a threshold other than the first omits its value), `duplicate_element_id` (a canvas panel repeats an element id, path `/panels/{i}/display/elements/{k}/id`) and `unknown_element` (a canvas connection names no element, path `/panels/{i}/display/connections/{k}/from` or `/to`). Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`), `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/{j}/query`, with `/panels/{i}/panels/{j}` for a row child), and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty` and `internal` (paths `/panels/{i}/queries/{j}/query`, `/panels/{i}/datasource` and `/panels/{i}/queries/{j}/datasource`; `query_empty` is reported once for the panel at `/panels/{i}/queries`, and never for an `alertlist` panel, whose empty result is valid). A query issue on a panel or variable the parent version lists in `unverified` may be kept instead of failing the save; see `POST /dashboards/{id}/versions`. */
+            /** @description Spec parsing adds schema and semantic codes such as `schema`, `too_large`, `unknown_unit`, `duplicate_panel_id`, `unknown_variable`, `too_many_panels` (more than 200 panels counting row children), `duplicate_query_ref`, `unknown_query_ref` (an override matches a query ref the panel does not have), `threshold_value_missing` (a threshold other than the first omits its value), `duplicate_element_id` (a canvas panel repeats an element id, path `/panels/{i}/display/elements/{k}/id`) and `unknown_element` (a canvas connection names no element, path `/panels/{i}/display/connections/{k}/from` or `/to`). A `timezone` the server cannot load is `unknown_timezone` (path `/timezone`). Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`), `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/{j}/query`, with `/panels/{i}/panels/{j}` for a row child), and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty` and `internal` (paths `/panels/{i}/queries/{j}/query`, `/panels/{i}/datasource` and `/panels/{i}/queries/{j}/datasource`; `query_empty` is reported once for the panel at `/panels/{i}/queries`, and never for an `alertlist` panel, whose empty result is valid). A query issue on a panel or variable the parent version lists in `unverified` may be kept instead of failing the save; see `POST /dashboards/{id}/versions`. */
             code: string;
             message: string;
         };
@@ -3616,6 +3616,8 @@ export interface operations {
             query?: {
                 from?: string;
                 to?: string;
+                /** @description The browser's IANA time zone, such as `Asia/Kolkata`. Relative times resolve in it when the dashboard's `timezone` is `browser`, and it is ignored otherwise. An unknown zone is a 400 `invalid_request`. */
+                tz?: string;
                 max_data_points?: number;
             };
             header?: never;
@@ -3709,6 +3711,8 @@ export interface operations {
             query?: {
                 from?: string;
                 to?: string;
+                /** @description The browser's IANA time zone, such as `Asia/Kolkata`. Relative times resolve in it when the dashboard's `timezone` is `browser`, and it is ignored otherwise. An unknown zone is a 400 `invalid_request`. */
+                tz?: string;
             };
             header?: never;
             path: {
@@ -3806,6 +3810,8 @@ export interface operations {
                     };
                     from?: string;
                     to?: string;
+                    /** @description The browser's IANA time zone, used as for panel data when the dashboard's `timezone` is `browser`. */
+                    tz?: string;
                     /** @default 1000 */
                     max_data_points?: number;
                     variables?: {

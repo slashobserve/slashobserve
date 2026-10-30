@@ -68,7 +68,12 @@ func (r *Runner) checkSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 		return issues
 	}
 
-	from, to, err := spec.ResolveTimeRange(d.Time, now)
+	opts, err := spec.TimeOptionsFor(d, "")
+	if err != nil {
+		issues = append(issues, spec.Issue{Path: "/timezone", Code: spec.CodeUnknownTimezone, Message: err.Error()})
+		return finish(issues), nil
+	}
+	from, to, err := spec.ResolveTimeRange(d.Time, now, opts)
 	if err != nil {
 		issues = append(issues, spec.Issue{Path: "/time", Code: CodeTimeRangeInvalid, Message: err.Error()})
 		return finish(issues), nil
@@ -109,7 +114,7 @@ func (r *Runner) checkSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 			continue
 		}
 		group.Go(func() error {
-			panelIssues[i] = append(panelIssues[i], r.checkPanel(budget, d, e, PanelRange(e.Panel, rng, now), selections, user, st.fork(), skip)...)
+			panelIssues[i] = append(panelIssues[i], r.checkPanel(budget, d, e, PanelRange(e.Panel, rng, now, opts), selections, user, st.fork(), skip)...)
 			return nil
 		})
 	}

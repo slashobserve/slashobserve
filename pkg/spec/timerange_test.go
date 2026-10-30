@@ -55,7 +55,7 @@ func TestResolveTime(t *testing.T) {
 				if roundUp {
 					want = c.to
 				}
-				got, err := spec.ResolveTime(c.expr, now, roundUp)
+				got, err := spec.ResolveTime(c.expr, now, roundUp, spec.TimeOptions{})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -80,7 +80,7 @@ func TestResolveTimeMonthAndYearClamp(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.now+" "+c.expr, func(t *testing.T) {
-			got, err := spec.ResolveTime(c.expr, mustTime(t, c.now), false)
+			got, err := spec.ResolveTime(c.expr, mustTime(t, c.now), false, spec.TimeOptions{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -101,7 +101,7 @@ func TestResolveTimeErrors(t *testing.T) {
 		"12345678901234567", "now-9999999999999d",
 	} {
 		t.Run(expr, func(t *testing.T) {
-			if got, err := spec.ResolveTime(expr, now, false); err == nil {
+			if got, err := spec.ResolveTime(expr, now, false, spec.TimeOptions{}); err == nil {
 				t.Fatalf("got %s, want an error", got)
 			}
 		})
@@ -125,7 +125,7 @@ func TestResolveTimeRangeOrder(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.from+".."+c.to, func(t *testing.T) {
-			_, _, err := spec.ResolveTimeRange(spec.TimeRange{From: c.from, To: c.to}, now)
+			_, _, err := spec.ResolveTimeRange(spec.TimeRange{From: c.from, To: c.to}, now, spec.TimeOptions{})
 			if (err == nil) != c.ok {
 				t.Fatalf("err = %v, want ok=%v", err, c.ok)
 			}
@@ -152,7 +152,17 @@ func TestParsedTimeRangesResolve(t *testing.T) {
 		{"now-1d/d", "now"}, {"now/d", "now/d"}, {"now/w", "now/w"}, {"now/M", "now/M"}, {"now/y", "now/y"},
 		{"now-1d/d", "now-1d/d"}, {"now-1w/w", "now-1w/w"}, {"now-1M/M", "now-1M/M"}, {"now-7d/d", "now-1d/d"},
 		{"now-2M/M", "now-1M/M"}, {"now-1y/y", "now-1y/y"}, {"now-13M", "now-1y"}, {"now-2y/y", "now-1y/y"},
+		{"now/fy", "now/fy"}, {"now/fQ", "now/fQ"}, {"now-1y/fy", "now-1y/fy"}, {"now-1y/fy", "now/fy"}, {"now-3M/fQ", "now/fQ"}, {"now-1d/fy", "now"},
 		{"2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z"},
+	}
+	newYork, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatal(err)
+	}
+	optionSets := []spec.TimeOptions{
+		{},
+		{FiscalYearStartMonth: 3, WeekStart: spec.WeekStartSunday},
+		{FiscalYearStartMonth: 9, WeekStart: spec.WeekStartSaturday, Location: newYork, NowDelay: time.Minute},
 	}
 	for _, r := range accepted {
 		t.Run(r[0]+".."+r[1], func(t *testing.T) {
@@ -160,21 +170,26 @@ func TestParsedTimeRangesResolve(t *testing.T) {
 				t.Fatalf("Parse: %v", err)
 			}
 			for _, now := range nows {
-				if _, _, err := spec.ResolveTimeRange(spec.TimeRange{From: r[0], To: r[1]}, now); err != nil {
-					t.Errorf("now=%s: %v", now.Format(time.RFC3339), err)
+				for _, opts := range optionSets {
+					if _, _, err := spec.ResolveTimeRange(spec.TimeRange{From: r[0], To: r[1]}, now, opts); err != nil {
+						t.Errorf("now=%s options=%+v: %v", now.Format(time.RFC3339), opts, err)
+					}
 				}
 			}
 		})
 	}
 	for _, r := range [][2]string{{"now/d", "now-1d/d"}, {"now/w", "now-1w/w"}, {"now", "now"}, {"now-1d", "now-1M"},
-		{"now-1M", "now-1M"}, {"now-1y", "now-12M"}, {"now+1M", "now+1M"}, {"now/M", "now-1M/M"}, {"now/y", "now-1y/y"}, {"now/M", "now-1M"}, {"now-1M/M", "now-2M/M"}} {
+		{"now-1M", "now-1M"}, {"now-1y", "now-12M"}, {"now+1M", "now+1M"}, {"now/M", "now-1M/M"}, {"now/y", "now-1y/y"}, {"now/M", "now-1M"}, {"now-1M/M", "now-2M/M"},
+		{"now/fy", "now-1y/fy"}, {"now/fQ", "now-3M/fQ"}} {
 		t.Run("rejected "+r[0]+".."+r[1], func(t *testing.T) {
 			if err := parse(r[0], r[1]); err == nil {
 				t.Fatal("Parse accepted the range")
 			}
 			for _, now := range nows {
-				if _, _, err := spec.ResolveTimeRange(spec.TimeRange{From: r[0], To: r[1]}, now); err == nil {
-					t.Errorf("now=%s: resolved a range Parse rejects", now.Format(time.RFC3339))
+				for _, opts := range optionSets {
+					if _, _, err := spec.ResolveTimeRange(spec.TimeRange{From: r[0], To: r[1]}, now, opts); err == nil {
+						t.Errorf("now=%s options=%+v: resolved a range Parse rejects", now.Format(time.RFC3339), opts)
+					}
 				}
 			}
 		})

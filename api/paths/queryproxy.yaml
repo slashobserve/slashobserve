@@ -52,6 +52,16 @@ dashboards-id-versions-version-panels-panel-id-data:
           type: string
           minLength: 1
           maxLength: 128
+      - name: tz
+        in: query
+        description: >-
+          The browser's IANA time zone, such as `Asia/Kolkata`.
+          Relative times resolve in it when the dashboard's `timezone` is `browser`, and it is ignored otherwise.
+          An unknown zone is a 400 `invalid_request`.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
       - name: max_data_points
         in: query
         schema:
@@ -159,6 +169,16 @@ dashboards-id-versions-version-variables-name-values:
           type: string
           minLength: 1
           maxLength: 128
+      - name: tz
+        in: query
+        description: >-
+          The browser's IANA time zone, such as `Asia/Kolkata`.
+          Relative times resolve in it when the dashboard's `timezone` is `browser`, and it is ignored otherwise.
+          An unknown zone is a 400 `invalid_request`.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
     responses:
       "200":
         description: Up to 1000 values; `truncated` is true when there were more.

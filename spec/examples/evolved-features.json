@@ -5,7 +5,10 @@
   "tags": ["example", "evolved"],
   "time": { "from": "now-6h", "to": "now" },
   "refresh": "30s",
-  "timezone": "utc",
+  "timezone": "Asia/Kolkata",
+  "weekStart": "sunday",
+  "fiscalYearStartMonth": 3,
+  "nowDelay": "1m",
   "cursorSync": "crosshair",
   "links": [{ "title": "Runbook", "url": "https://example.com/runbook", "newTab": true }],
   "variables": [

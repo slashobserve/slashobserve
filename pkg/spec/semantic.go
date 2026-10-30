@@ -21,6 +21,7 @@ func checkSemantics(d *Dashboard) []Issue {
 	issues = append(issues, checkGridOverflow(entries)...)
 	issues = append(issues, checkGridOverlap(d)...)
 	issues = append(issues, checkTime(d.Time)...)
+	issues = append(issues, checkTimezone(d.Timezone)...)
 	issues = append(issues, checkThresholds(entries)...)
 	issues = append(issues, checkMinMax(entries)...)
 	issues = append(issues, checkQueryRefs(entries)...)
@@ -248,18 +249,20 @@ func IsLabelName(name string) bool {
 	return labelNamePattern.MatchString(name)
 }
 
-var relativeTime = regexp.MustCompile(`^now(?:([+-])([0-9]+)([smhdwMy]))?(?:/([smhdwMy]))?$`)
+var relativeTime = regexp.MustCompile(`^now(?:([+-])([0-9]+)([smhdwMy]))?(?:/(fy|fQ|[smhdwMy]))?$`)
 
 type unitBounds struct{ min, max float64 }
 
 var timeUnits = map[string]unitBounds{
-	"s": {1, 1},
-	"m": {60, 60},
-	"h": {3600, 3600},
-	"d": {86400, 86400},
-	"w": {7 * 86400, 7 * 86400},
-	"M": {28 * 86400, 31 * 86400},
-	"y": {365 * 86400, 366 * 86400},
+	"s":  {1, 1},
+	"m":  {60, 60},
+	"h":  {3600, 3600},
+	"d":  {86400, 86400},
+	"w":  {7 * 86400, 7 * 86400},
+	"M":  {28 * 86400, 31 * 86400},
+	"y":  {365 * 86400, 366 * 86400},
+	"fQ": {89 * 86400, 92 * 86400},
+	"fy": {365 * 86400, 366 * 86400},
 }
 
 const maxOffsetYears = maxResolvedYear - minResolvedYear
@@ -336,7 +339,7 @@ func offsetOutOfRange(n int64, unit string) bool {
 	return float64(n)*timeUnits[unit].min > maxOffsetSeconds
 }
 
-var monthsPerUnit = map[string]int64{"M": 1, "y": 12}
+var monthsPerUnit = map[string]int64{"M": 1, "y": 12, "fQ": 3, "fy": 12}
 
 func relativeInOrder(from, to timePoint) bool {
 	if inOrder, exact := fixedUnitOrder(from, to); exact {
@@ -416,6 +419,17 @@ func checkTime(tr TimeRange) []Issue {
 		})
 	}
 	return issues
+}
+
+func checkTimezone(zone string) []Issue {
+	if zone == "" || CheckTimezone(zone) == nil {
+		return nil
+	}
+	return []Issue{{
+		Path:    pointer("timezone"),
+		Code:    CodeUnknownTimezone,
+		Message: fmt.Sprintf("time zone %q is not known; use browser, utc or an IANA zone such as Asia/Kolkata", zone),
+	}}
 }
 
 type fieldLocation struct {
