@@ -12,7 +12,8 @@ describe("stackSeries", () => {
       ],
       ["normal", "normal", "normal"],
       ["y", "y", "y"],
-      ["line", "line", "line"]
+      ["line", "line", "line"],
+      ["A", "A", "A"]
     )
     expect(drawn).toEqual([
       [1, 2],
@@ -29,7 +30,8 @@ describe("stackSeries", () => {
       ],
       ["normal", "normal"],
       ["y", "y"],
-      ["line", "line"]
+      ["line", "line"],
+      ["A", "A"]
     )
     expect(drawn).toEqual([
       [1, null],
@@ -45,7 +47,8 @@ describe("stackSeries", () => {
       ],
       ["normal", "normal"],
       ["y", "y"],
-      ["line", "line"]
+      ["line", "line"],
+      ["A", "A"]
     )
     expect(drawn).toEqual([
       [1, undefined, 3],
@@ -61,7 +64,8 @@ describe("stackSeries", () => {
       ],
       ["percent", "percent"],
       ["y", "y"],
-      ["line", "line"]
+      ["line", "line"],
+      ["A", "A"]
     )
     expect(drawn).toEqual([
       [0.25, 0.75],
@@ -78,7 +82,8 @@ describe("stackSeries", () => {
       ],
       ["normal", "normal", "normal"],
       ["y", "y2", "y"],
-      ["line", "line", "line"]
+      ["line", "line", "line"],
+      ["A", "A", "A"]
     )
     expect(drawn).toEqual([
       [1, 1],
@@ -97,7 +102,8 @@ describe("stackSeries", () => {
       ],
       ["normal", "normal", "normal", "normal"],
       ["y", "y", "y", "y"],
-      ["bars", "line", "bars", "line"]
+      ["bars", "line", "bars", "line"],
+      ["A", "A", "A", "A"]
     )
     expect(drawn).toEqual([
       [1, 1],
@@ -117,7 +123,8 @@ describe("stackSeries", () => {
       ],
       ["normal", "percent", "normal"],
       ["y", "y", "y"],
-      ["line", "line", "line"]
+      ["line", "line", "line"],
+      ["A", "A", "A"]
     )
     expect(drawn).toEqual([
       [2, 2],
@@ -128,7 +135,9 @@ describe("stackSeries", () => {
 
   it("leaves unstacked series as given", () => {
     const values = [[5, null, 7]]
-    expect(stackSeries(values, ["none"], ["y"], ["line"]).drawn).toEqual(values)
+    expect(stackSeries(values, ["none"], ["y"], ["line"], ["A"]).drawn).toEqual(
+      values
+    )
   })
 
   it("stacks negative series downwards from zero, apart from the positive ones", () => {
@@ -141,7 +150,8 @@ describe("stackSeries", () => {
       ],
       ["normal", "normal", "normal", "normal"],
       ["y", "y", "y", "y"],
-      ["line", "line", "line", "line"]
+      ["line", "line", "line", "line"],
+      ["A", "A", "A", "A"]
     )
     expect(drawn).toEqual([
       [10, 10],
@@ -161,7 +171,8 @@ describe("stackSeries", () => {
       ],
       ["percent", "percent", "percent", "percent"],
       ["y", "y", "y", "y"],
-      ["line", "line", "line", "line"]
+      ["line", "line", "line", "line"],
+      ["A", "A", "A", "A"]
     )
     expect(drawn).toEqual([
       [0.75, 0.75],
@@ -179,7 +190,8 @@ describe("stackSeries", () => {
       ],
       ["percent", "percent"],
       ["y", "y"],
-      ["line", "line"]
+      ["line", "line"],
+      ["A", "A"]
     )
     expect(drawn).toEqual([
       [1, 1],
@@ -192,9 +204,51 @@ describe("stackSeries", () => {
       [[1], [2], [3], [-1], [4], [-2], [5]],
       ["normal", "none", "normal", "normal", "percent", "normal", "normal"],
       ["y", "y", "y", "y", "y", "y", "y2"],
-      ["line", "line", "line", "line", "line", "line", "line"]
+      ["line", "line", "line", "line", "line", "line", "line"],
+      ["A", "A", "A", "A", "A", "A", "A"]
     )
     expect(below).toEqual([null, null, 0, null, null, 3, null])
+  })
+
+  it("stacks series of different groups separately", () => {
+    const { drawn, below } = stackSeries(
+      [
+        [1, 1],
+        [10, 10],
+        [100, 100],
+        [1000, 1000],
+      ],
+      ["normal", "normal", "normal", "normal"],
+      ["y", "y", "y", "y"],
+      ["line", "line", "line", "line"],
+      ["A", "B", "A", "B"]
+    )
+    expect(drawn).toEqual([
+      [1, 1],
+      [10, 10],
+      [101, 101],
+      [1010, 1010],
+    ])
+    expect(below).toEqual([null, null, 0, 1])
+  })
+
+  it("keeps a lone series of its own group unstacked", () => {
+    const { drawn } = stackSeries(
+      [
+        [1, 2],
+        [10, 20],
+        [100, 200],
+      ],
+      ["normal", "normal", "normal"],
+      ["y", "y", "y"],
+      ["line", "line", "line"],
+      ["A", "B", "A"]
+    )
+    expect(drawn).toEqual([
+      [1, 2],
+      [10, 20],
+      [101, 202],
+    ])
   })
 
   it("reports each series' stack direction", () => {
@@ -202,7 +256,8 @@ describe("stackSeries", () => {
       [[1], [-1], [2]],
       ["normal", "normal", "none"],
       ["y", "y", "y"],
-      ["line", "line", "line"]
+      ["line", "line", "line"],
+      ["A", "A", "A"]
     )
     expect(directions.slice(0, 2)).toEqual([1, -1])
   })

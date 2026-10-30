@@ -6,12 +6,16 @@ import { reduce } from "../reducers"
 import type { AlignedSeries } from "./align"
 import { spanShortGaps } from "./gaps"
 import {
+  fillPercent,
   formatTogether,
   seriesStyles,
   type AxisSettings,
   type StyledSeries,
 } from "./series-config"
 import { stackSeries, type Cell } from "./stack"
+import { transformValues } from "./value-transform"
+
+const defaultBandFill = 20
 
 export type ChartSeries = StyledSeries & {
   values: Cell[]
@@ -26,7 +30,11 @@ export const timeAxis: XAxis = { kind: "time" }
 
 export type PlotState = {
   data: [number[], ...Cell[][]]
-  bands: { series: [number, number]; dir: 1 | -1 }[]
+  bands: {
+    series: [number, number]
+    dir: 1 | -1
+    fill?: { color: string; percent: number }
+  }[]
   hidden: ReadonlySet<string>
 }
 
@@ -76,13 +84,39 @@ export function chartSeries(
   )
 }
 
-function joinedValues(
+function drawnValues(
   xs: readonly number[],
-  { values, spanNulls }: Pick<ChartSeries, "values" | "spanNulls">
+  { values, spanNulls, config }: ChartSeries
 ): Cell[] {
-  return typeof spanNulls === "number"
-    ? spanShortGaps(xs, values, spanNulls)
-    : values
+  const joined =
+    typeof spanNulls === "number"
+      ? spanShortGaps(xs, values, spanNulls)
+      : values
+  return transformValues(joined, config.valueTransform)
+}
+
+function fillBelowBands(
+  series: readonly ChartSeries[],
+  first: number
+): PlotState["bands"] {
+  return series.flatMap((entry, index) => {
+    const { fillBelowTo } = entry.config
+    if (fillBelowTo === undefined || entry.stack !== "none") return []
+    const lower = series.findIndex(
+      (other, at) => at !== index && other.label === fillBelowTo
+    )
+    if (lower < 0) return []
+    return [
+      {
+        series: [first + index, first + lower] as [number, number],
+        dir: -1 as const,
+        fill: {
+          color: entry.color,
+          percent: fillPercent(entry.style, entry.fill) || defaultBandFill,
+        },
+      },
+    ]
+  })
 }
 
 export function plotStateFor(
@@ -95,25 +129,29 @@ export function plotStateFor(
     hidden.has(key) ? "none" : stack
   )
   const { drawn, below, directions } = stackSeries(
-    series.map((entry) => joinedValues(xs, entry)),
+    series.map((entry) => drawnValues(xs, entry)),
     modes,
     series.map(({ axis }) => axis),
-    series.map(({ style }) => style)
+    series.map(({ style }) => style),
+    series.map(({ config }) => config.stackGroup)
   )
   const first = 1 + ghosts.length
   return {
     state: {
       data: [xs, ...ghosts, ...drawn],
-      bands: below.flatMap((lower, index) =>
-        lower === null
-          ? []
-          : [
-              {
-                series: [first + index, first + lower],
-                dir: directions[index] === 1 ? -1 : 1,
-              },
-            ]
-      ),
+      bands: [
+        ...below.flatMap((lower, index) =>
+          lower === null
+            ? []
+            : [
+                {
+                  series: [first + index, first + lower] as [number, number],
+                  dir: directions[index] === 1 ? (-1 as const) : (1 as const),
+                },
+              ]
+        ),
+        ...fillBelowBands(series, first),
+      ],
       hidden,
     },
     below,

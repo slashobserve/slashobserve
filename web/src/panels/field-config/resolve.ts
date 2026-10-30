@@ -49,6 +49,11 @@ export type FieldConfig = {
   axisGrid?: boolean
   axisBorder: boolean
   axisColor: "text" | "series"
+  valueTransform?: "negativeY" | "constant"
+  hideInLegend: boolean
+  hideInTooltip: boolean
+  stackGroup: string
+  fillBelowTo?: string
 }
 
 export type FieldResolver = {
@@ -91,6 +96,11 @@ const fieldPropKeys = [
   "axisGrid",
   "axisBorder",
   "axisColor",
+  "valueTransform",
+  "hideInLegend",
+  "hideInTooltip",
+  "stackGroup",
+  "fillBelowTo",
 ] as const satisfies readonly (keyof FieldProps)[]
 
 type Resolved = { seriesName: string; displayName: string; config: FieldConfig }

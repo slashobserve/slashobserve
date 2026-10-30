@@ -203,6 +203,15 @@ function seriesOptions(
   }
 }
 
+function bandOptions({
+  fill,
+  ...band
+}: PlotState["bands"][number]): uPlot.Band {
+  return fill
+    ? { ...band, fill: fillStyle(resolveColor(fill.color), fill.percent) }
+    : band
+}
+
 function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
   const { member, peerTooltip, host, latest, xAxis, draw } = config
   const timed = xAxis.kind === "time"
@@ -382,7 +391,7 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         seriesOptions(entry, state.hidden, customPainted)
       ),
     ],
-    bands: state.bands.map((band) => ({ ...band })),
+    bands: state.bands.map(bandOptions),
     cursor: {
       drag: { x: timed, y: false, setScale: false },
       points: {
@@ -553,10 +562,11 @@ export function TimeseriesChart({
   const order = useMemo(
     () =>
       legendOrder(
-        series.map(({ key, label, fieldValues }) => ({
+        series.map(({ key, label, fieldValues, config }) => ({
           key,
           label,
           values: fieldValues,
+          hidden: config.hideInLegend,
         })),
         {
           mode: legendMode,
@@ -637,6 +647,7 @@ export function TimeseriesChart({
         values: entry.values,
         stacked: stacked[index],
         below: below[index],
+        hideInTooltip: entry.config.hideInTooltip,
         rowColor,
       })),
     }
@@ -758,7 +769,7 @@ export function TimeseriesChart({
         }
       })
       plot.delBand(null)
-      state.bands.forEach((band) => plot.addBand({ ...band }))
+      state.bands.forEach((band) => plot.addBand(bandOptions(band)))
       plot.setData(state.data)
     })
     appliedRef.current = state

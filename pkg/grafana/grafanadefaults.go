@@ -209,7 +209,8 @@ var typeDefaults = map[spec.PanelType]map[string]any{
 
 var partialReasons = map[string]string{
 	"fieldConfig.defaults.custom.scaleDistribution": "Logarithmic axes are not supported yet.",
-	"fieldConfig.defaults.custom.transform":         "Negative-Y series are drawn as positive.",
+	"fieldConfig.defaults.custom.transform":         "Value transforms are drawn on time series and trend panels only.",
+	"fieldConfig.defaults.custom.fillBelowTo":       "Filling down to another series is drawn on time series and trend panels only.",
 	"fieldConfig.overrides":                         "Some overrides use matchers or properties that are not supported yet.",
 	"transformations":                               "Some transformations are not supported yet.",
 	"options.legend.displayMode":                    legendTableReason,
@@ -280,6 +281,9 @@ var cosmeticOptions = map[string]cosmeticOption{
 	},
 	"options.showFolderNames": {
 		why: "the dashboard list shows plain links without folder names",
+	},
+	"seriesOverrides[].zindex": {
+		why: "series are drawn in query order",
 	},
 	"fieldConfig.overrides[].__systemRef": {
 		why: "bookkeeping marker Grafana writes when a legend click hides a series; the hideFrom property beside it is the converted part",

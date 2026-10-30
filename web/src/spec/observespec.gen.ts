@@ -365,7 +365,31 @@ export type Match =
     }
   | {
       fieldType: "number" | "string" | "time" | "boolean";
+    }
+  | {
+      value: {
+        reducer: Reducer;
+        op: "eq" | "neq" | "lt" | "lte" | "gt" | "gte";
+        value: number;
+      };
     };
+export type Reducer =
+  | "last"
+  | "lastNotNull"
+  | "first"
+  | "firstNotNull"
+  | "min"
+  | "max"
+  | "mean"
+  | "median"
+  | "sum"
+  | "count"
+  | "range"
+  | "delta"
+  | "diff"
+  | "stdDev"
+  | "distinctCount"
+  | "changeCount";
 export type Transform =
   | {
       type: "merge";
@@ -572,23 +596,6 @@ export type Transform =
       nameMode?: "drop" | "field" | "label";
       nameLabel?: string;
     };
-export type Reducer =
-  | "last"
-  | "lastNotNull"
-  | "first"
-  | "firstNotNull"
-  | "min"
-  | "max"
-  | "mean"
-  | "median"
-  | "sum"
-  | "count"
-  | "range"
-  | "delta"
-  | "diff"
-  | "stdDev"
-  | "distinctCount"
-  | "changeCount";
 /**
  * A field name or series name in the panel's frames.
  */
@@ -802,6 +809,11 @@ export interface FieldProps {
   axisGrid?: boolean;
   axisBorder?: boolean;
   axisColor?: "text" | "series";
+  valueTransform?: "negativeY" | "constant";
+  hideInLegend?: boolean;
+  hideInTooltip?: boolean;
+  stackGroup?: string;
+  fillBelowTo?: string;
 }
 /**
  * Only the first step may omit value; it is then the base color below every other step.

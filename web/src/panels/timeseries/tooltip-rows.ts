@@ -1,3 +1,5 @@
+import type { Cell } from "./stack"
+
 export type TooltipSort = "none" | "asc" | "desc"
 
 export type TooltipRow = { index: number; value: number }
@@ -13,6 +15,19 @@ export type TooltipRowOptions = {
   hideZeros: boolean
   cumulative: boolean
   stack: readonly StackEntry[]
+}
+
+export function candidateRows(
+  entries: readonly { hideInTooltip: boolean; values: readonly Cell[] }[],
+  idx: number,
+  isShown: (index: number) => boolean
+): TooltipRow[] {
+  return entries.flatMap((entry, index) => {
+    const value = entry.values[idx]
+    return !entry.hideInTooltip && isShown(index) && typeof value === "number"
+      ? [{ index, value }]
+      : []
+  })
 }
 
 export type TooltipRows = { rows: TooltipRow[]; total: number }

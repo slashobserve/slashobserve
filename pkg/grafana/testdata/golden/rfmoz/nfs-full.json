@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 27,
-      "imported": 25,
-      "partial": 2,
+      "imported": 27,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -176,13 +176,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -208,13 +204,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "NFS",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "O",
@@ -2063,6 +2055,14 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "Operations/s errors (-) / success (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*errors.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "mean",
@@ -2101,6 +2101,14 @@
             "unit": "Bps",
             "fill": 40,
             "axisLabel": "Bytes write (-) / read (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*written.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "mean",

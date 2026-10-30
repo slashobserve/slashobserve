@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 8,
-      "imported": 7,
-      "partial": 1,
+      "imported": 8,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -190,13 +190,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network Policy drops",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -521,6 +517,14 @@
             "min": 0,
             "fill": 10,
             "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/^(?!(?:kube-dns-7d44cdb5d5-g85vg: UNSUPPORTED_PROTOCOL_FOR_NAT_MASQUERADE)$).*$/"
+                },
+                "hidden": true
+              }
+            ],
             "display": {
               "legendValues": [
                 "mean",

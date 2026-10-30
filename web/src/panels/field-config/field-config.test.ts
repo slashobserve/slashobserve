@@ -55,6 +55,9 @@ describe("field config resolution", () => {
       axisCenteredZero: false,
       axisBorder: false,
       axisColor: "text",
+      hideInLegend: false,
+      hideInTooltip: false,
+      stackGroup: "A",
       mappings: [],
       links: [],
     })
@@ -183,6 +186,72 @@ describe("field config resolution", () => {
     expect(resolver.configFor(f, f.fields[1]).noValue).toBe("num")
     expect(resolver.configFor(f, other).noValue).toBeUndefined()
     expect(resolver.configFor(f, f.fields[0]).noValue).toBeUndefined()
+  })
+
+  it("matches a number field by its reduced value", () => {
+    const low: WireField = { name: "low", type: "number", values: [1, 2, 3] }
+    const high: WireField = { name: "high", type: "number", values: [50, 60] }
+    const empty: WireField = { name: "empty", type: "number", values: [null] }
+    const label: WireField = { name: "text", type: "string", values: ["9"] }
+    const f = frame([time, low, high, empty, label])
+    const hit = (op: string, value: number, reducer = "max") =>
+      createFieldResolver(
+        panel({
+          overrides: [
+            {
+              match: { value: { reducer, op, value } },
+              noValue: "hit",
+            },
+          ],
+        } as Partial<DataPanel>)
+      )
+    const matched = (op: string, value: number, reducer?: string) => {
+      const resolver = hit(op, value, reducer)
+      return [low, high, empty, label].filter(
+        (field) => resolver.configFor(f, field).noValue === "hit"
+      )
+    }
+    expect(matched("gt", 3)).toEqual([high])
+    expect(matched("gte", 3)).toEqual([low, high])
+    expect(matched("lt", 3)).toEqual([])
+    expect(matched("lte", 3)).toEqual([low])
+    expect(matched("eq", 3)).toEqual([low])
+    expect(matched("neq", 3)).toEqual([high])
+    expect(matched("gt", 50, "min")).toEqual([])
+    expect(matched("eq", 3, "count")).toEqual([low])
+  })
+
+  it("resolves the series-drawing props with their defaults", () => {
+    const f = frame([time, value()])
+    const plain = createFieldResolver(panel()).configFor(f, f.fields[1])
+    expect(plain).toMatchObject({
+      hideInLegend: false,
+      hideInTooltip: false,
+      stackGroup: "A",
+    })
+    expect(plain.valueTransform).toBeUndefined()
+    expect(plain.fillBelowTo).toBeUndefined()
+    const resolver = createFieldResolver(
+      panel({
+        overrides: [
+          {
+            match: { fieldType: "number" },
+            valueTransform: "negativeY",
+            hideInLegend: true,
+            hideInTooltip: true,
+            stackGroup: "B",
+            fillBelowTo: "other",
+          },
+        ],
+      })
+    )
+    expect(resolver.configFor(f, f.fields[1])).toMatchObject({
+      valueTransform: "negativeY",
+      hideInLegend: true,
+      hideInTooltip: true,
+      stackGroup: "B",
+      fillBelowTo: "other",
+    })
   })
 
   it("applies overrides in order so the later one wins", () => {

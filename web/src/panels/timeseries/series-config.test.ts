@@ -35,6 +35,9 @@ function config(props: Partial<FieldConfig> = {}): FieldConfig {
     axisCenteredZero: false,
     axisBorder: false,
     axisColor: "text",
+    hideInLegend: false,
+    hideInTooltip: false,
+    stackGroup: "A",
     ...props,
   }
 }

@@ -29,7 +29,7 @@ function issuesFor(panelExtras: Record<string, unknown>) {
 
 describe("exclusive member issues", () => {
   const matchMessage =
-    "match must have exactly one of query, series, seriesRegex, field, fieldType"
+    "match must have exactly one of query, series, seriesRegex, field, fieldType, value"
   const mappingMessage =
     "mapping must have exactly one of value, range, regex, special"
 

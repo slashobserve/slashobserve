@@ -275,7 +275,7 @@ func TestRejectedDocuments(t *testing.T) {
 
 func TestExclusiveMemberIssues(t *testing.T) {
 	minimal := string(readExample(t, "minimal.json"))
-	const matchMessage = "match must have exactly one of query, series, seriesRegex, field, fieldType"
+	const matchMessage = "match must have exactly one of query, series, seriesRegex, field, fieldType, value"
 	const mappingMessage = "mapping must have exactly one of value, range, regex, special"
 	cases := []struct {
 		name    string

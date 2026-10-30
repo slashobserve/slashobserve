@@ -42,6 +42,9 @@ function config(props: Partial<FieldConfig> = {}): FieldConfig {
     axisCenteredZero: false,
     axisBorder: false,
     axisColor: "text",
+    hideInLegend: false,
+    hideInTooltip: false,
+    stackGroup: "A",
     ...props,
   }
 }
@@ -159,6 +162,125 @@ describe("plotStateFor", () => {
     const down2 = stacked("down2", [-2, -2])
     const { state } = plotStateFor([1, 2], [], [up, down1, down2], new Set())
     expect(state.bands).toEqual([{ series: [3, 2], dir: 1 }])
+  })
+})
+
+describe("plotStateFor value transforms", () => {
+  it("draws a negative-Y series negated and keeps its original values", () => {
+    const flipped = series("a", [1, null, 3], {
+      config: config({ valueTransform: "negativeY" }),
+    })
+    const { state } = plotStateFor([1, 2, 3], [], [flipped], new Set())
+    expect(state.data[1]).toEqual([-1, null, -3])
+    expect(flipped.values).toEqual([1, null, 3])
+    expect(flipped.fieldValues).toEqual([1, null, 3])
+  })
+
+  it("draws a constant series as its first value", () => {
+    const flat = series("a", [null, 4, 9], {
+      config: config({ valueTransform: "constant" }),
+    })
+    const { state } = plotStateFor([1, 2, 3], [], [flat], new Set())
+    expect(state.data[1]).toEqual([4, 4, 4])
+  })
+
+  it("stacks a negative-Y series below zero", () => {
+    const up = series("up", [5, 5], { stack: "normal" })
+    const down = series("down", [2, 2], {
+      stack: "normal",
+      config: config({ stack: "normal", valueTransform: "negativeY" }),
+    })
+    const { state } = plotStateFor([1, 2], [], [up, down], new Set())
+    expect(state.data.slice(1)).toEqual([
+      [5, 5],
+      [-2, -2],
+    ])
+  })
+})
+
+describe("plotStateFor stack groups", () => {
+  const inGroup = (key: string, values: Cell[], stackGroup: string) =>
+    series(key, values, {
+      stack: "normal",
+      config: config({ stack: "normal", stackGroup }),
+    })
+
+  it("stacks only the series of one group together", () => {
+    const { state, below } = plotStateFor(
+      [1, 2],
+      [],
+      [
+        inGroup("a", [1, 1], "A"),
+        inGroup("b", [10, 10], "B"),
+        inGroup("c", [100, 100], "A"),
+      ],
+      new Set()
+    )
+    expect(state.data.slice(1)).toEqual([
+      [1, 1],
+      [10, 10],
+      [101, 101],
+    ])
+    expect(below).toEqual([null, null, 0])
+    expect(state.bands).toEqual([{ series: [3, 1], dir: -1 }])
+  })
+})
+
+describe("plotStateFor fill below to", () => {
+  const upper = (props: Partial<FieldConfig> = {}, fill = 0) =>
+    series("up", [5, 6], {
+      fill,
+      config: config({ fillBelowTo: "down", ...props }),
+    })
+  const lower = series("down", [1, 2])
+
+  it("bands the series down to the one with that name at 20 percent", () => {
+    const { state } = plotStateFor([1, 2], [], [upper(), lower], new Set())
+    expect(state.bands).toEqual([
+      {
+        series: [1, 2],
+        dir: -1,
+        fill: { color: "var(--series-1)", percent: 20 },
+      },
+    ])
+  })
+
+  it("uses the series' own fill percent when it has one", () => {
+    const { state } = plotStateFor(
+      [1, 2],
+      [],
+      [upper({}, 35), lower],
+      new Set()
+    )
+    expect(state.bands[0].fill?.percent).toBe(35)
+  })
+
+  it("offsets the band past the ghost lines", () => {
+    const { state } = plotStateFor(
+      [1, 2],
+      [[7, 8]],
+      [upper(), lower],
+      new Set()
+    )
+    expect(state.bands[0].series).toEqual([2, 3])
+  })
+
+  it("ignores a name no series carries, itself and a stacked series", () => {
+    const missing = upper({ fillBelowTo: "nope" })
+    const itself = upper({ fillBelowTo: "up" })
+    expect(
+      plotStateFor([1, 2], [], [missing, lower], new Set()).state.bands
+    ).toEqual([])
+    expect(
+      plotStateFor([1, 2], [], [itself, lower], new Set()).state.bands
+    ).toEqual([])
+    const stackedUpper = series("up", [5, 6], {
+      stack: "normal",
+      config: config({ stack: "normal", fillBelowTo: "down" }),
+    })
+    expect(
+      plotStateFor([1, 2], [], [stackedUpper, lower], new Set()).state.bands
+    ).toEqual([])
   })
 })
 

@@ -1291,6 +1291,33 @@
             "text",
             "series"
           ]
+        },
+        "valueTransform": {
+          "x-omitFromPrompt": true,
+          "enum": [
+            "negativeY",
+            "constant"
+          ]
+        },
+        "hideInLegend": {
+          "x-omitFromPrompt": true,
+          "type": "boolean"
+        },
+        "hideInTooltip": {
+          "x-omitFromPrompt": true,
+          "type": "boolean"
+        },
+        "stackGroup": {
+          "x-omitFromPrompt": true,
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "fillBelowTo": {
+          "x-omitFromPrompt": true,
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
         }
       }
     },
@@ -1366,6 +1393,43 @@
           },
           "required": [
             "fieldType"
+          ]
+        },
+        {
+          "x-omitFromPrompt": true,
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "reducer": {
+                  "$ref": "#/$defs/reducer"
+                },
+                "op": {
+                  "enum": [
+                    "eq",
+                    "neq",
+                    "lt",
+                    "lte",
+                    "gt",
+                    "gte"
+                  ]
+                },
+                "value": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "reducer",
+                "op",
+                "value"
+              ]
+            }
+          },
+          "required": [
+            "value"
           ]
         }
       ]

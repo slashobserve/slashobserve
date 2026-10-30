@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 76,
-      "imported": 70,
-      "partial": 6,
+      "imported": 73,
+      "partial": 3,
       "placeholder": 0,
       "unverified": 0
     },
@@ -584,13 +584,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resource usage",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -637,13 +633,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resource usage",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -844,13 +836,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resource usage",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2859,6 +2847,14 @@
             "unit": "bytes",
             "fill": 10,
             "points": "never",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*read/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "mean",
@@ -2939,6 +2935,14 @@
             "unit": "short",
             "fill": 10,
             "points": "never",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*read.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "mean",
@@ -3264,6 +3268,14 @@
             "unit": "decbits",
             "fill": 10,
             "points": "never",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/read.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "mean",

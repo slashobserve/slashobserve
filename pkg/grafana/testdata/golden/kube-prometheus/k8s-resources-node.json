@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 5,
-      "imported": 2,
-      "partial": 3,
+      "imported": 5,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,14 +43,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Hiding a series from the tooltip is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[2]",
-          "fieldConfig.overrides[1].properties[2]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -132,14 +127,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Hiding a series from the tooltip is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[2]",
-          "fieldConfig.overrides[1].properties[2]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -172,14 +162,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Hiding a series from the tooltip is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[2]",
-          "fieldConfig.overrides[1].properties[2]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -364,7 +349,8 @@
             },
             "color": "#F2495C",
             "lineStyle": "dashed",
-            "stack": "none"
+            "stack": "none",
+            "hideInTooltip": true
           },
           {
             "match": {
@@ -373,7 +359,8 @@
             "color": "#FFA6B0",
             "fill": 0,
             "lineStyle": "dashed",
-            "stack": "none"
+            "stack": "none",
+            "hideInTooltip": true
           }
         ],
         "interval": "1m",
@@ -505,7 +492,8 @@
             },
             "color": "#F2495C",
             "lineStyle": "dashed",
-            "stack": "none"
+            "stack": "none",
+            "hideInTooltip": true
           },
           {
             "match": {
@@ -514,7 +502,8 @@
             "color": "#FFA6B0",
             "fill": 0,
             "lineStyle": "dashed",
-            "stack": "none"
+            "stack": "none",
+            "hideInTooltip": true
           }
         ],
         "interval": "1m",
@@ -562,7 +551,8 @@
             },
             "color": "#F2495C",
             "lineStyle": "dashed",
-            "stack": "none"
+            "stack": "none",
+            "hideInTooltip": true
           },
           {
             "match": {
@@ -571,7 +561,8 @@
             "color": "#FFA6B0",
             "fill": 0,
             "lineStyle": "dashed",
-            "stack": "none"
+            "stack": "none",
+            "hideInTooltip": true
           }
         ],
         "interval": "1m",

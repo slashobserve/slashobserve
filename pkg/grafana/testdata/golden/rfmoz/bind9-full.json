@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 21,
-      "imported": 19,
-      "partial": 2,
+      "imported": 21,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "General",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -537,13 +533,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "DNSsec",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -664,6 +656,14 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "queries (-) out / (+) in",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "mean",
@@ -1390,7 +1390,8 @@
                 "match": {
                   "seriesRegex": "/.*Errors.*/"
                 },
-                "color": "#F2495C"
+                "color": "#F2495C",
+                "valueTransform": "negativeY"
               }
             ],
             "display": {

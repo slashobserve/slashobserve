@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 13,
-      "imported": 11,
-      "partial": 2,
+      "imported": 13,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,14 +43,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -139,14 +134,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -544,6 +534,24 @@
         "fill": 10,
         "points": "never",
         "spanNulls": true,
+        "overrides": [
+          {
+            "match": {
+              "query": "B"
+            },
+            "color": "#F2495C",
+            "lineStyle": "dashed",
+            "lineWidth": 2
+          },
+          {
+            "match": {
+              "query": "C"
+            },
+            "color": "#FF9830",
+            "lineStyle": "dashed",
+            "lineWidth": 2
+          }
+        ],
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -705,6 +713,24 @@
         "fill": 10,
         "points": "never",
         "spanNulls": true,
+        "overrides": [
+          {
+            "match": {
+              "query": "B"
+            },
+            "color": "#F2495C",
+            "lineStyle": "dashed",
+            "lineWidth": 2
+          },
+          {
+            "match": {
+              "query": "C"
+            },
+            "color": "#FF9830",
+            "lineStyle": "dashed",
+            "lineWidth": 2
+          }
+        ],
         "interval": "1m",
         "display": {
           "legend": "right",

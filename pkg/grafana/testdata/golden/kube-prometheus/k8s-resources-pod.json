@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 16,
-      "imported": 13,
-      "partial": 3,
+      "imported": 15,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,14 +43,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -86,11 +81,11 @@
         "status": "partial",
         "reasons": [
           "The axis color mode thresholds is not supported yet.",
-          "Some overrides use matchers or properties that are not supported yet."
+          "This color scheme is not supported yet; series use the default palette."
         ],
         "paths": [
           "fieldConfig.defaults.custom.axisColorMode",
-          "fieldConfig.overrides[0]"
+          "fieldConfig.overrides[0].properties[1]"
         ],
         "queries": [
           {
@@ -159,14 +154,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -633,6 +623,24 @@
         "fill": 10,
         "points": "never",
         "spanNulls": true,
+        "overrides": [
+          {
+            "match": {
+              "query": "B"
+            },
+            "color": "#F2495C",
+            "lineStyle": "dashed",
+            "lineWidth": 2
+          },
+          {
+            "match": {
+              "query": "C"
+            },
+            "color": "#FF9830",
+            "lineStyle": "dashed",
+            "lineWidth": 2
+          }
+        ],
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -664,6 +672,22 @@
         "spanNulls": true,
         "axisSoftMin": 0,
         "axisSoftMax": 1,
+        "overrides": [
+          {
+            "match": {
+              "query": "A"
+            },
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 0.25,
+                "color": "critical"
+              }
+            ]
+          }
+        ],
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -787,6 +811,24 @@
         "fill": 10,
         "points": "never",
         "spanNulls": true,
+        "overrides": [
+          {
+            "match": {
+              "query": "B"
+            },
+            "color": "#F2495C",
+            "lineStyle": "dashed",
+            "lineWidth": 2
+          },
+          {
+            "match": {
+              "query": "C"
+            },
+            "color": "#FF9830",
+            "lineStyle": "dashed",
+            "lineWidth": 2
+          }
+        ],
         "interval": "1m",
         "display": {
           "legend": "right",

@@ -117,7 +117,7 @@ func TestLegacyGraphThresholdsKeepTheirColorMode(t *testing.T) {
 
 func TestSeriesOverridesWithUnparseableValuesAreReportedNotWritten(t *testing.T) {
 	cases := []struct{ name, member, path string }{
-		{"stack group", `"stack":"A"`, "seriesOverrides[0].stack"},
+		{"stack of a number", `"stack":7`, "seriesOverrides[0].stack"},
 		{"fill text", `"fill":"abc"`, "seriesOverrides[0].fill"},
 	}
 	for _, tc := range cases {
@@ -700,7 +700,7 @@ func TestOptionsTheRenderersAlreadyDrawTheSameWayAreNotReported(t *testing.T) {
 
 func TestOptionsThatChangeMeaningAreAlwaysReported(t *testing.T) {
 	cases := []struct{ name, doc string }{
-		{"negative-Y transform", panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":{},"overrides":[{"matcher":{"id":"byName","options":"a"},"properties":[{"id":"custom.transform","value":"negative-Y"}]}]}`)},
+		{"negative-Y transform on a bar chart", panelDoc("barchart", upTarget+`,"fieldConfig":{"defaults":{},"overrides":[{"matcher":{"id":"byName","options":"a"},"properties":[{"id":"custom.transform","value":"negative-Y"}]}]}`)},
 		{"query interval", panelDoc("timeseries", `"targets":[{"refId":"A","expr":"up","interval":"$interval"}]`)},
 	}
 	for _, tc := range cases {
