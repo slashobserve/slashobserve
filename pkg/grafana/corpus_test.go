@@ -504,6 +504,11 @@ func checkQueryText(t *testing.T, f corpusFile, res *grafana.Result) {
 				continue
 			}
 			kept++
+			for _, rewrite := range ql.Rewrites {
+				if strings.Contains(rewrite, " (instant) -> ") {
+					kept++
+				}
+			}
 			if i >= len(targets) {
 				t.Errorf("%s: query line %d has no Grafana target", p.path, i)
 				continue

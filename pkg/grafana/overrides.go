@@ -27,6 +27,10 @@ func (b *panelBuild) convertOverrides() {
 		override, ok := b.convertOverride(item, path)
 		if ok {
 			b.addOverride(override, path)
+			if instant, hasInstant := b.instantRefs[override.Match.Query]; hasInstant {
+				override.Match = spec.Match{Query: instant}
+				b.addOverride(override, path)
+			}
 		}
 	}
 }
