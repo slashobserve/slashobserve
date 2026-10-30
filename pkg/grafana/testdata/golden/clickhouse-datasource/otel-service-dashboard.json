@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 18,
-      "imported": 13,
-      "partial": 5,
+      "imported": 18,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -106,13 +106,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Server spans: ${service}",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.filterable"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -194,13 +190,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Client spans: ${service}",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.filterable"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -219,13 +211,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Errors & recent logs: ${service}",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.filterable"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -328,13 +316,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Internal spans: ${service}",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.filterable"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -416,13 +400,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Async spans (Producer + Consumer): ${service}",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.filterable"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -647,6 +627,7 @@
                 "format": "table"
               }
             ],
+            "filterable": true,
             "overrides": [
               {
                 "match": {
@@ -787,6 +768,7 @@
                 "format": "table"
               }
             ],
+            "filterable": true,
             "overrides": [
               {
                 "match": {
@@ -844,7 +826,14 @@
                 "format": "table"
               }
             ],
+            "filterable": true,
             "overrides": [
+              {
+                "match": {
+                  "field": "Kind"
+                },
+                "width": 90
+              },
               {
                 "match": {
                   "field": "Operation"
@@ -997,6 +986,7 @@
                 "format": "table"
               }
             ],
+            "filterable": true,
             "overrides": [
               {
                 "match": {
@@ -1138,7 +1128,14 @@
                 "format": "table"
               }
             ],
+            "filterable": true,
             "overrides": [
+              {
+                "match": {
+                  "field": "Kind"
+                },
+                "width": 90
+              },
               {
                 "match": {
                   "field": "P50"

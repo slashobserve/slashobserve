@@ -5,10 +5,12 @@ import { createFieldResolver } from "@/panels/field-config"
 import type { PreparedFrame } from "@/panels/transforms"
 import type { DataPanel } from "@/spec"
 
+import { initialSort } from "./table-layout"
 import {
   cellLinks,
   cellOf,
   cellSpecAt,
+  footerRows,
   gaugeFractionAt,
   rowFill,
   sparklineAt,
@@ -68,7 +70,8 @@ function build(
   display: Record<string, unknown> = {}
 ) {
   const fields = createFieldResolver(panel(extra))
-  const model = tableModel(frames, fields, display)
+  const model = tableModel(frames, fields)
+  const footer = footerRows(model.columns, model.rows, display)
   const column = (label: string): TableColumn => {
     const found = model.columns.find((candidate) => candidate.label === label)
     if (!found) throw new Error(`no column "${label}"`)
@@ -81,7 +84,7 @@ function build(
       vars: {},
       fields,
     })
-  return { fields, model, column, cell, links }
+  return { fields, model, footer, column, cell, links }
 }
 
 const labels = (model: TableModel) => model.columns.map((c) => c.label)
@@ -119,8 +122,8 @@ describe("table columns", () => {
     })
 
     it("takes the footer config of the query that shows the column", () => {
-      const { model } = build(frames(), hideA, { footer: ["sum"] })
-      expect(model.footer).toEqual([{ label: "Total", cells: [null, "3"] }])
+      const { footer } = build(frames(), hideA, { footer: ["sum"] })
+      expect(footer).toEqual([{ label: "Total", cells: [null, "3"] }])
     })
 
     it("heads the column with the display name of the queries that show it", () => {
@@ -213,7 +216,7 @@ describe("table columns", () => {
 
 describe("table footer", () => {
   it("sums and averages a column with decimals shared across rows", () => {
-    const { model } = build(
+    const { footer } = build(
       [
         frame([number([10.5])], { labels: { pod: "a" } }),
         frame([number([20])], { labels: { pod: "b" } }),
@@ -222,14 +225,14 @@ describe("table footer", () => {
       { unit: "percent" },
       { footer: ["sum", "mean"] }
     )
-    expect(model.footer).toEqual([
+    expect(footer).toEqual([
       { label: "Total", cells: [null, "33.75%"] },
       { label: "Mean", cells: [null, "11.25%"] },
     ])
   })
 
   it("leaves the unit-bearing footers empty and keeps the counts over a column that mixes units", () => {
-    const { model } = build(
+    const { footer } = build(
       [
         frame([number([90], "n")], { ref: "A" }),
         frame([number([2048], "n")], { ref: "B" }),
@@ -246,7 +249,7 @@ describe("table footer", () => {
         footer: ["sum", "mean", "count", "distinctCount", "changeCount"],
       }
     )
-    expect(model.footer).toEqual([
+    expect(footer).toEqual([
       { label: "Total", cells: [null, null] },
       { label: "Mean", cells: [null, null] },
       { label: "Count", cells: [null, "3"] },
@@ -256,7 +259,7 @@ describe("table footer", () => {
   })
 
   it("counts rows without the column unit", () => {
-    const { model } = build(
+    const { footer } = build(
       [
         frame([number([1])], { labels: { pod: "a" } }),
         frame([number([2])], { labels: { pod: "b" } }),
@@ -265,7 +268,62 @@ describe("table footer", () => {
       { unit: "bytes" },
       { footer: ["count"] }
     )
-    expect(model.footer).toEqual([{ label: "Count", cells: [null, "3"] }])
+    expect(footer).toEqual([{ label: "Count", cells: [null, "3"] }])
+  })
+
+  const two = () => [
+    frame([
+      text(["a", "b"], "route"),
+      number([1, 2], "x"),
+      number([10, 20], "y"),
+    ]),
+  ]
+
+  it("limits the footer to the named columns", () => {
+    const { footer } = build(
+      two(),
+      {},
+      { footer: ["sum"], footerFields: ["y"] }
+    )
+    expect(footer).toEqual([{ label: "Total", cells: [null, null, "30"] }])
+  })
+
+  it("adds a row count under the first column", () => {
+    const { footer } = build(two(), {}, { footerCountRows: true })
+    expect(footer).toEqual([{ label: "Rows", cells: ["2", null, null] }])
+  })
+
+  it("sums only the rows it is given", () => {
+    const { model } = build(two())
+    const first = footerRows(model.columns, model.rows.slice(0, 1), {
+      footer: ["sum"],
+    })
+    expect(first).toEqual([{ label: "Total", cells: [null, "1", "10"] }])
+  })
+})
+
+describe("initial sort", () => {
+  const columns = () =>
+    build([frame([text(["a"], "route"), number([1], "n")])]).model.columns
+
+  it.each([
+    [{ sortBy: "n" }, { key: "field:n", direction: "ascending" }],
+    [
+      { sortBy: "route", sortDesc: true },
+      { key: "field:route", direction: "descending" },
+    ],
+    [{ sortBy: "missing" }, null],
+    [{}, null],
+  ])("reads %j", (display, want) => {
+    expect(initialSort(columns(), display)).toEqual(want)
+  })
+
+  it("finds a column by its source field name when its header is renamed", () => {
+    const renamed = build([frame([number([1], "n")])], {
+      overrides: [{ match: { field: "n" }, displayName: "Count" }],
+    }).model.columns
+    expect(initialSort(renamed, { sortBy: "n" })?.key).toBe("field:n")
+    expect(initialSort(renamed, { sortBy: "Count" })?.key).toBe("field:n")
   })
 })
 

@@ -839,6 +839,30 @@ export interface FieldProps {
   axisBorder?: boolean;
   axisColor?: "text" | "series";
   /**
+   * A table column's fixed width in pixels; absent means the column shares the remaining width. Only table panels draw it.
+   */
+  width?: number;
+  /**
+   * The least width in pixels a table column shrinks to. Only table panels draw it.
+   */
+  minWidth?: number;
+  /**
+   * Where a table column puts its header and cells; auto right-aligns numbers and left-aligns the rest. Only table panels draw it.
+   */
+  align?: "auto" | "left" | "center" | "right";
+  /**
+   * Adds a value filter to the table column's header. Only table panels draw it.
+   */
+  filterable?: boolean;
+  /**
+   * Adds a button to every cell of the table column that opens its value in a dialog. Only table panels draw it.
+   */
+  inspect?: boolean;
+  /**
+   * Hides the text of the table column's header; screen readers still read it. Only table panels draw it.
+   */
+  hideHeader?: boolean;
+  /**
    * How a table column draws its cells; absent means the plain cell with colors from thresholds and colored mappings. Only table panels draw it.
    */
   cell?: {

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 16,
-      "imported": 9,
-      "partial": 7,
+      "imported": 11,
+      "partial": 5,
       "placeholder": 0,
       "unverified": 0
     },
@@ -250,17 +250,9 @@
         "type": "table",
         "source_type": "table",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[1]",
-          "fieldConfig.overrides[5].properties[0]",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -300,18 +292,9 @@
         "type": "table",
         "source_type": "table",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[1]",
-          "fieldConfig.overrides[7].properties[1]",
-          "fieldConfig.overrides[8].properties[1]",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -666,19 +649,34 @@
             "cell": {
               "type": "gauge",
               "gaugeStyle": "lcd"
-            }
+            },
+            "width": 357
+          },
+          {
+            "match": {
+              "field": "Name"
+            },
+            "width": 74
           },
           {
             "match": {
               "field": "Free space"
             },
-            "unit": "bytes"
+            "unit": "bytes",
+            "width": 96
+          },
+          {
+            "match": {
+              "field": "Path"
+            },
+            "width": 277
           },
           {
             "match": {
               "field": "Total space"
             },
-            "unit": "bytes"
+            "unit": "bytes",
+            "width": 103
           }
         ],
         "transform": [
@@ -820,9 +818,54 @@
         "overrides": [
           {
             "match": {
+              "field": "Engine"
+            },
+            "width": 200,
+            "filterable": true
+          },
+          {
+            "match": {
+              "field": "Number of tables"
+            },
+            "width": 128
+          },
+          {
+            "match": {
+              "field": "Total rows"
+            },
+            "width": 113
+          },
+          {
+            "match": {
+              "field": "Column count"
+            },
+            "width": 126
+          },
+          {
+            "match": {
+              "field": "Part count"
+            },
+            "width": 98
+          },
+          {
+            "match": {
+              "field": "Database"
+            },
+            "width": 205,
+            "filterable": true
+          },
+          {
+            "match": {
+              "field": "Partition count"
+            },
+            "width": 143
+          },
+          {
+            "match": {
               "field": "Size on disk"
             },
-            "unit": "bytes"
+            "unit": "bytes",
+            "width": 203
           },
           {
             "match": {
@@ -857,7 +900,11 @@
               "uncompressed_size"
             ]
           }
-        ]
+        ],
+        "display": {
+          "sortBy": "Uncompressed size",
+          "sortDesc": true
+        }
       },
       {
         "id": "p14",
@@ -874,6 +921,26 @@
           {
             "query": "SELECT source, type, status, count() \"count\" FROM system.dictionaries GROUP BY source, type, status ORDER BY status DESC, source",
             "format": "table"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "field": "Source"
+            },
+            "width": 85
+          },
+          {
+            "match": {
+              "field": "Type"
+            },
+            "width": 64
+          },
+          {
+            "match": {
+              "field": "Status"
+            },
+            "width": 71
           }
         ],
         "transform": [
@@ -908,15 +975,68 @@
         "overrides": [
           {
             "match": {
+              "field": "Engine"
+            },
+            "width": 86,
+            "filterable": true
+          },
+          {
+            "match": {
+              "field": "Total rows"
+            },
+            "width": 116
+          },
+          {
+            "match": {
+              "field": "Column count"
+            },
+            "width": 156
+          },
+          {
+            "match": {
+              "field": "Partition count"
+            },
+            "width": 138
+          },
+          {
+            "match": {
+              "field": "Part count"
+            },
+            "width": 113
+          },
+          {
+            "match": {
               "field": "Size on disk"
             },
-            "unit": "bytes"
+            "unit": "bytes",
+            "width": 145
+          },
+          {
+            "match": {
+              "field": "Row Count"
+            },
+            "width": 109
+          },
+          {
+            "match": {
+              "field": "Database"
+            },
+            "width": 286,
+            "filterable": true
+          },
+          {
+            "match": {
+              "field": "Table"
+            },
+            "width": 236,
+            "filterable": true
           },
           {
             "match": {
               "field": "Uncompressed size"
             },
-            "unit": "bytes"
+            "unit": "bytes",
+            "width": 171
           }
         ],
         "transform": [
@@ -949,7 +1069,11 @@
               "col_count"
             ]
           }
-        ]
+        ],
+        "display": {
+          "sortBy": "Size on disk",
+          "sortDesc": true
+        }
       },
       {
         "id": "p28",
@@ -966,6 +1090,62 @@
           {
             "query": "SELECT database, table, partition_id, name, disk, level FROM system.detached_parts WHERE database IN (${database:singlequote}) AND table IN (${table:singlequote})",
             "format": "table"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "field": "Database"
+            },
+            "width": 94
+          },
+          {
+            "match": {
+              "field": "Table"
+            },
+            "width": 116
+          },
+          {
+            "match": {
+              "field": "Partition id"
+            },
+            "width": 103
+          },
+          {
+            "match": {
+              "field": "Disk"
+            },
+            "width": 104
+          },
+          {
+            "match": {
+              "field": "Reason"
+            },
+            "width": 125
+          },
+          {
+            "match": {
+              "field": "Min block number"
+            },
+            "width": 141
+          },
+          {
+            "match": {
+              "field": "Max block number"
+            },
+            "width": 139
+          },
+          {
+            "match": {
+              "field": "Level"
+            },
+            "width": 89
+          },
+          {
+            "match": {
+              "field": "Name"
+            },
+            "width": 168
           }
         ],
         "transform": [
@@ -1116,7 +1296,62 @@
             ],
             "cell": {
               "type": "background"
-            }
+            },
+            "width": 77
+          },
+          {
+            "match": {
+              "field": "level"
+            },
+            "width": 69
+          },
+          {
+            "match": {
+              "field": "path"
+            },
+            "width": 286
+          },
+          {
+            "match": {
+              "field": "Database"
+            },
+            "width": 88
+          },
+          {
+            "match": {
+              "field": "Table"
+            },
+            "width": 111
+          },
+          {
+            "match": {
+              "field": "Partition Name"
+            },
+            "width": 226
+          },
+          {
+            "match": {
+              "field": "disk_name"
+            },
+            "width": 109
+          },
+          {
+            "match": {
+              "field": "marks"
+            },
+            "width": 65
+          },
+          {
+            "match": {
+              "field": "rows"
+            },
+            "width": 87
+          },
+          {
+            "match": {
+              "field": "bytes_on_disk"
+            },
+            "width": 112
           }
         ],
         "transform": [

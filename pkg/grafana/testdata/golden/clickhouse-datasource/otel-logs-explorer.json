@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 6,
-      "imported": 5,
-      "partial": 1,
+      "imported": 6,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -106,15 +106,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.inspect",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -473,7 +467,32 @@
               {
                 "query": "SELECT\n  SeverityText AS Level,\n  ServiceName AS Service,\n  replaceRegexpAll(Body, '(userId|orderId|cartId|requestId|traceId|spanId|ctId)=[a-zA-Z0-9-]+', '\\1=…') AS Message,\n  count() AS Count\nFROM ${database}.otel_logs\nWHERE $__timeFilter(Timestamp)\n  AND SeverityText IN ('ERROR', 'WARN', 'FATAL', 'Error', 'Warning', 'error', 'warning', 'fatal', 'CRITICAL')\n  AND $__conditionalAll(ServiceName IN (${service:singlequote}), $service)\n  AND $__conditionalAll(positionCaseInsensitive(Body, '$search') > 0, $search)\nGROUP BY Level, Service, Message\nORDER BY Count DESC\nLIMIT 20"
               }
-            ]
+            ],
+            "inspect": true,
+            "overrides": [
+              {
+                "match": {
+                  "field": "Count"
+                },
+                "width": 70
+              },
+              {
+                "match": {
+                  "field": "Level"
+                },
+                "width": 60
+              },
+              {
+                "match": {
+                  "field": "Service"
+                },
+                "width": 100
+              }
+            ],
+            "display": {
+              "sortBy": "Count",
+              "sortDesc": true
+            }
           }
         ]
       },

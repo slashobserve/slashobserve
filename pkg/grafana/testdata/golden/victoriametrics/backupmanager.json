@@ -192,13 +192,10 @@
         "row": "Stats",
         "status": "partial",
         "reasons": [
-          "Some transformations are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some transformations are not supported yet."
         ],
         "paths": [
-          "transformations[0]",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
+          "transformations[0]"
         ],
         "queries": [
           {
@@ -220,13 +217,10 @@
         "row": "Stats",
         "status": "partial",
         "reasons": [
-          "Some transformations are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some transformations are not supported yet."
         ],
         "paths": [
-          "transformations[0]",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
+          "transformations[0]"
         ],
         "queries": [
           {
@@ -317,13 +311,10 @@
         "row": "Backups",
         "status": "partial",
         "reasons": [
-          "Some transformations are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some transformations are not supported yet."
         ],
         "paths": [
-          "transformations[0]",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
+          "transformations[0]"
         ],
         "queries": [
           {
@@ -778,7 +769,24 @@
                 "instant": true,
                 "format": "table"
               }
-            ]
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "field": "name"
+                },
+                "width": 148
+              },
+              {
+                "match": {
+                  "field": "value"
+                },
+                "width": 101
+              }
+            ],
+            "display": {
+              "sortBy": "name"
+            }
           },
           {
             "id": "p21",
@@ -797,7 +805,24 @@
                 "instant": true,
                 "format": "table"
               }
-            ]
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "field": "value"
+                },
+                "width": 100
+              },
+              {
+                "match": {
+                  "field": "name"
+                },
+                "width": 150
+              }
+            ],
+            "display": {
+              "sortBy": "name"
+            }
           }
         ]
       },
@@ -904,7 +929,11 @@
                 "format": "table"
               }
             ],
-            "unit": "decbytes"
+            "unit": "decbytes",
+            "display": {
+              "sortBy": "backup",
+              "sortDesc": true
+            }
           },
           {
             "id": "p30",

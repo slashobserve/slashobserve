@@ -56,6 +56,12 @@ export type FieldConfig = {
   axisBorder: boolean
   axisColor: "text" | "series"
   cell?: FieldProps["cell"]
+  width?: number
+  minWidth?: number
+  align: "auto" | "left" | "center" | "right"
+  filterable: boolean
+  inspect: boolean
+  hideHeader: boolean
   valueTransform?: "negativeY" | "constant"
   hideInLegend: boolean
   hideInTooltip: boolean
@@ -112,6 +118,12 @@ const fieldPropKeys = [
   "axisBorder",
   "axisColor",
   "cell",
+  "width",
+  "minWidth",
+  "align",
+  "filterable",
+  "inspect",
+  "hideHeader",
   "valueTransform",
   "hideInLegend",
   "hideInTooltip",

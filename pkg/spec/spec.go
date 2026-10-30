@@ -337,6 +337,12 @@ type FieldProps struct {
 	AxisBorder        *bool       `json:"axisBorder,omitempty"`
 	AxisColor         string      `json:"axisColor,omitempty"`
 	Cell              *Cell       `json:"cell,omitempty"`
+	Width             int         `json:"width,omitempty"`
+	MinWidth          int         `json:"minWidth,omitempty"`
+	Align             string      `json:"align,omitempty"`
+	Filterable        *bool       `json:"filterable,omitempty"`
+	Inspect           *bool       `json:"inspect,omitempty"`
+	HideHeader        *bool       `json:"hideHeader,omitempty"`
 	ValueTransform    string      `json:"valueTransform,omitempty"`
 	HideInLegend      *bool       `json:"hideInLegend,omitempty"`
 	HideInTooltip     *bool       `json:"hideInTooltip,omitempty"`
@@ -503,6 +509,14 @@ type Display struct {
 	MaxHeight          int                `json:"maxHeight,omitempty"`
 	Header             *bool              `json:"header,omitempty"`
 	Footer             []string           `json:"footer,omitempty"`
+	FooterFields       []string           `json:"footerFields,omitempty"`
+	FooterCountRows    *bool              `json:"footerCountRows,omitempty"`
+	CellHeight         string             `json:"cellHeight,omitempty"`
+	Pagination         *bool              `json:"pagination,omitempty"`
+	FrozenColumns      int                `json:"frozenColumns,omitempty"`
+	SortBy             string             `json:"sortBy,omitempty"`
+	SortDesc           *bool              `json:"sortDesc,omitempty"`
+	TypeIcons          *bool              `json:"typeIcons,omitempty"`
 	PieType            string             `json:"pieType,omitempty"`
 	SliceLabels        []string           `json:"sliceLabels,omitempty"`
 	LegendShow         *[]string          `json:"legendShow,omitempty"`

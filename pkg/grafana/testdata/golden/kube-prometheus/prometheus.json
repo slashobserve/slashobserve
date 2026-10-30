@@ -48,15 +48,8 @@
           "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[1]",
           "fieldConfig.overrides[0].properties[2]",
-          "fieldConfig.overrides[1].properties[0]",
-          "fieldConfig.overrides[2].properties[0]",
-          "fieldConfig.overrides[3].properties[1]",
-          "fieldConfig.overrides[4].properties[1]",
-          "fieldConfig.overrides[5].properties[1]",
-          "fieldConfig.overrides[5].properties[4]",
-          "fieldConfig.overrides[6].properties[1]"
+          "fieldConfig.overrides[5].properties[4]"
         ],
         "queries": [
           {

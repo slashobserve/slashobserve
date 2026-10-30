@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 25,
-      "imported": 21,
-      "partial": 4,
+      "imported": 23,
+      "partial": 2,
       "placeholder": 0,
       "unverified": 0
     },
@@ -499,13 +499,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Kubernetes",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.filterable"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -524,13 +520,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Kubernetes",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.filterable"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1238,6 +1230,7 @@
             ],
             "unit": "none",
             "decimals": 4,
+            "minWidth": 100,
             "overrides": [
               {
                 "match": {
@@ -1698,6 +1691,7 @@
                 "color": "critical"
               }
             ],
+            "filterable": true,
             "overrides": [
               {
                 "match": {
@@ -1791,6 +1785,7 @@
                 "color": "critical"
               }
             ],
+            "filterable": true,
             "overrides": [
               {
                 "match": {
@@ -1805,7 +1800,8 @@
                 ],
                 "cell": {
                   "type": "background"
-                }
+                },
+                "width": 104
               }
             ],
             "transform": [

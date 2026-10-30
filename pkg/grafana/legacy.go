@@ -817,6 +817,20 @@ func (b *panelBuild) legacyTable() {
 	if present(b.raw["columns"]) {
 		b.partial("columns", "Column selections are not supported yet.")
 	}
+	b.legacyTableSort()
+}
+
+func (b *panelBuild) legacyTableSort() {
+	sort, ok := asObject(b.raw["sort"])
+	if !ok {
+		return
+	}
+	col, hasCol := asInt(sort["col"])
+	if !hasCol || (col == 0 && truthy(sort["desc"])) {
+		b.consume("sort")
+		return
+	}
+	b.partial("sort", "A table sorted by column position is not supported yet.")
 }
 
 var tableStyleHandled = []string{"pattern", "type", "unit", "decimals", "alias", "thresholds", "colors", "colorMode", "align"}
@@ -834,6 +848,7 @@ func (b *panelBuild) tableStyle(style map[string]any, path string) {
 		props.DisplayName, _ = cutRunes(alias, maxDisplayName)
 	}
 	props.Thresholds = b.styleThresholds(style, path)
+	props.Align = b.styleAlign(style, path)
 	b.styleExtras(style, path)
 	switch {
 	case pattern == "/.*/":
@@ -892,8 +907,17 @@ func (b *panelBuild) styleExtras(style map[string]any, path string) {
 	case "row", "cell":
 		b.partial(path+".colorMode", "Cell colors are drawn in the SlashObserve style.")
 	}
-	if align := asString(style["align"]); align != "" && align != "auto" {
-		b.partial(path+".align", "")
+}
+
+func (b *panelBuild) styleAlign(style map[string]any, path string) string {
+	switch align := asString(style["align"]); align {
+	case "left", "center", "right":
+		return align
+	case "", "auto":
+		return ""
+	default:
+		b.partial(path+".align", fmt.Sprintf("The column alignment %s is not supported yet.", align))
+		return ""
 	}
 }
 
@@ -906,6 +930,7 @@ func (b *panelBuild) mergeTableDefaults(props spec.FieldProps) {
 	if len(props.Thresholds) > 0 {
 		p.Thresholds = props.Thresholds
 	}
+	p.Align = cmp.Or(props.Align, p.Align)
 }
 
 func (b *panelBuild) legacyTableOverride(match spec.Match, props spec.FieldProps, path string) {

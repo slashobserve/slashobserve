@@ -1361,6 +1361,45 @@
             "series"
           ]
         },
+        "width": {
+          "x-omitFromPrompt": true,
+          "description": "A table column's fixed width in pixels; absent means the column shares the remaining width. Only table panels draw it.",
+          "type": "integer",
+          "minimum": 20,
+          "maximum": 2000
+        },
+        "minWidth": {
+          "x-omitFromPrompt": true,
+          "description": "The least width in pixels a table column shrinks to. Only table panels draw it.",
+          "type": "integer",
+          "minimum": 20,
+          "maximum": 2000
+        },
+        "align": {
+          "x-omitFromPrompt": true,
+          "description": "Where a table column puts its header and cells; auto right-aligns numbers and left-aligns the rest. Only table panels draw it.",
+          "enum": [
+            "auto",
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "filterable": {
+          "x-omitFromPrompt": true,
+          "description": "Adds a value filter to the table column's header. Only table panels draw it.",
+          "type": "boolean"
+        },
+        "inspect": {
+          "x-omitFromPrompt": true,
+          "description": "Adds a button to every cell of the table column that opens its value in a dialog. Only table panels draw it.",
+          "type": "boolean"
+        },
+        "hideHeader": {
+          "x-omitFromPrompt": true,
+          "description": "Hides the text of the table column's header; screen readers still read it. Only table panels draw it.",
+          "type": "boolean"
+        },
         "cell": {
           "x-omitFromPrompt": true,
           "description": "How a table column draws its cells; absent means the plain cell with colors from thresholds and colored mappings. Only table panels draw it.",
@@ -2857,6 +2896,61 @@
                     "items": {
                       "$ref": "#/$defs/reducer"
                     }
+                  },
+                  "footerFields": {
+                    "x-omitFromPrompt": true,
+                    "description": "Limits the footer to the columns with these field names; absent means every number column.",
+                    "type": "array",
+                    "maxItems": 50,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    }
+                  },
+                  "footerCountRows": {
+                    "x-omitFromPrompt": true,
+                    "description": "Adds a footer row with the number of rows.",
+                    "type": "boolean"
+                  },
+                  "cellHeight": {
+                    "x-omitFromPrompt": true,
+                    "description": "The height of a table row: sm is the compact row, md and lg add padding.",
+                    "enum": [
+                      "sm",
+                      "md",
+                      "lg"
+                    ]
+                  },
+                  "pagination": {
+                    "x-omitFromPrompt": true,
+                    "description": "Shows the rows in pages sized to the panel, with previous and next buttons.",
+                    "type": "boolean"
+                  },
+                  "frozenColumns": {
+                    "x-omitFromPrompt": true,
+                    "description": "The number of columns from the left that stay in view while the table scrolls sideways.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10
+                  },
+                  "sortBy": {
+                    "x-omitFromPrompt": true,
+                    "description": "The name of the column the table starts sorted by.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "sortDesc": {
+                    "x-omitFromPrompt": true,
+                    "description": "Sorts the starting sort from the largest value down.",
+                    "type": "boolean"
+                  },
+                  "typeIcons": {
+                    "x-omitFromPrompt": true,
+                    "description": "Shows an icon for the column type before each header.",
+                    "type": "boolean"
                   }
                 }
               }

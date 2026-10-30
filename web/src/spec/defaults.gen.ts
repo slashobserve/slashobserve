@@ -21,7 +21,11 @@ export const specDefaults = {
     "axisColor": "text",
     "hideInLegend": false,
     "hideInTooltip": false,
-    "stackGroup": "A"
+    "stackGroup": "A",
+    "align": "auto",
+    "filterable": false,
+    "inspect": false,
+    "hideHeader": false
   },
   "query": {
     "instant": false,
@@ -85,7 +89,13 @@ export const specDefaults = {
     },
     "table": {
       "header": true,
-      "footer": []
+      "footer": [],
+      "footerCountRows": false,
+      "cellHeight": "sm",
+      "pagination": false,
+      "frozenColumns": 0,
+      "sortDesc": false,
+      "typeIcons": false
     },
     "piechart": {
       "reduce": "lastNotNull",

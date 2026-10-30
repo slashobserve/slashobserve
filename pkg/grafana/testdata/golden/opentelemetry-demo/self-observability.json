@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 30,
-      "imported": 28,
-      "partial": 2,
+      "imported": 30,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -589,14 +589,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Metric pipeline",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -649,14 +644,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Metric cardinality overflow",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1573,7 +1563,10 @@
                   "otel_component_name"
                 ]
               }
-            ]
+            ],
+            "display": {
+              "sortBy": "Service"
+            }
           }
         ]
       },
@@ -1678,7 +1671,10 @@
                   "metric"
                 ]
               }
-            ]
+            ],
+            "display": {
+              "sortBy": "Service"
+            }
           }
         ]
       }

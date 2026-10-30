@@ -407,11 +407,7 @@ func displayTable(b *panelBuild) {
 	if flag, ok := b.boolOption("options.showHeader"); ok {
 		d.Header = flag
 	}
-	show, hasShow := b.boolOption("options.footer.show")
-	reducer, _ := b.take("options.footer.reducer")
-	if hasShow && *show {
-		d.Footer = b.footerReducers(reducer)
-	}
+	b.tableOptions(d)
 }
 
 func (b *panelBuild) footerReducers(v any) []string {

@@ -1,5 +1,5 @@
 {
-  "fieldProps": {"thresholdMode": "absolute", "colorBy": "last", "style": "line", "fill": 0, "lineStyle": "solid", "lineInterpolation": "linear", "lineWidth": 2, "points": "auto", "pointSize": 4, "spanNulls": false, "stack": "none", "axis": "left", "hidden": false, "scale": "linear", "logBase": 10, "axisCenteredZero": false, "axisBorder": false, "axisColor": "text", "hideInLegend": false, "hideInTooltip": false, "stackGroup": "A"},
+  "fieldProps": {"thresholdMode": "absolute", "colorBy": "last", "style": "line", "fill": 0, "lineStyle": "solid", "lineInterpolation": "linear", "lineWidth": 2, "points": "auto", "pointSize": 4, "spanNulls": false, "stack": "none", "axis": "left", "hidden": false, "scale": "linear", "logBase": 10, "axisCenteredZero": false, "axisBorder": false, "axisColor": "text", "hideInLegend": false, "hideInTooltip": false, "stackGroup": "A", "align": "auto", "filterable": false, "inspect": false, "hideHeader": false},
   "query": {"instant": false, "hide": false, "format": "timeseries"},
   "variable": {"refresh": "load", "multi": false, "includeAll": false},
   "row": {"collapsed": false},
@@ -10,7 +10,7 @@
     "stat": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "colorMode": "value", "graph": true, "orientation": "auto", "justify": "auto", "percentChange": false, "percentChangeColor": "standard"},
     "gauge": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "thresholdMarkers": true, "thresholdLabels": false},
     "bargauge": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "orientation": "auto", "barStyle": "basic", "valueMode": "color", "namePlacement": "auto", "showUnfilled": true},
-    "table": {"header": true, "footer": []},
+    "table": {"header": true, "footer": [], "footerCountRows": false, "cellHeight": "sm", "pagination": false, "frozenColumns": 0, "sortDesc": false, "typeIcons": false},
     "piechart": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "pieType": "pie", "legend": "right", "sliceLabels": [], "legendShow": ["value", "percent"], "legendMode": "list", "legendSortDesc": false, "tooltip": "single", "tooltipSort": "none", "tooltipHideZeros": false},
     "heatmap": {"calculate": false, "yScale": "linear"},
     "histogram": {},

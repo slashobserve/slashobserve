@@ -60,6 +60,10 @@ A table column imports how its cells are drawn (`custom.cellOptions`, or the old
 Gradient backgrounds and gauges, and the sparkline gradient mode, are drawn flat.
 Cell actions and the markdown and geo cell types are still reported.
 Thresholds are kept for the columns whose cells they color.
+A table column also imports its width and minimum width, alignment, filter, inspect and hidden header (`custom.width`, `custom.minWidth`, `custom.align`, `custom.filterable`, `custom.inspect` and `custom.hideHeader`), and the older table panel's column alignment.
+A table imports its row height (`sm`, `md` and `lg`; `auto` is reported), type icons, pagination, frozen columns, the first column of `sortBy` with its direction, and its footer: the reducers (a footer that is shown without a reducer sums), the columns it covers and the row count.
+A second sort column, more than 10 frozen columns, the per-column footer reducers, the cell tooltip, the wrapped header, the shown frame and the maximum row height are still reported.
+The older table panel's saved sort is dropped silently when it is Grafana's own default (the first column, descending) and reported otherwise, because it names a column by position.
 A logs panel imports its unique and common labels, log details and where they open (`detailsMode`), prettified JSON, deduplication, controls bar, font size and syntax highlighting; infinite scrolling, the field selector, the context toggle, the timestamp resolution, the log attributes switch and the displayed fields are still reported.
 A value SlashObserve does not support, such as a delay in days or a time zone name the server does not know, is left out and listed in the import report.
 A ClickHouse query from the Altinity plugin that starts with a whole-query macro (`$rate`, `$perSecond`, `$delta`, `$increase`, `$columns`, their `Columns`, `Ms` and `ColumnsAggregated` forms, and `$lttb`) is written out as plain ClickHouse SQL that uses SlashObserve's time macros, so the saved query no longer needs the Altinity macros.

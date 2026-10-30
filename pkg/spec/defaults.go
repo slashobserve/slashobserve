@@ -32,6 +32,10 @@ type FieldPropsDefaults struct {
 	HideInLegend      bool   `json:"hideInLegend"`
 	HideInTooltip     bool   `json:"hideInTooltip"`
 	StackGroup        string `json:"stackGroup"`
+	Align             string `json:"align"`
+	Filterable        bool   `json:"filterable"`
+	Inspect           bool   `json:"inspect"`
+	HideHeader        bool   `json:"hideHeader"`
 }
 
 type QueryDefaults struct {
@@ -118,6 +122,11 @@ func Defaults() DefaultsTable {
 	for panelType, display := range table.Display {
 		display.LegendValues = slices.Clone(display.LegendValues)
 		display.Footer = slices.Clone(display.Footer)
+		display.FooterFields = slices.Clone(display.FooterFields)
+		display.FooterCountRows = clonePointer(display.FooterCountRows)
+		display.Pagination = clonePointer(display.Pagination)
+		display.SortDesc = clonePointer(display.SortDesc)
+		display.TypeIcons = clonePointer(display.TypeIcons)
 		display.Graph = clonePointer(display.Graph)
 		display.ThresholdMarkers = clonePointer(display.ThresholdMarkers)
 		display.Header = clonePointer(display.Header)

@@ -38,6 +38,10 @@ function config(props: Partial<FieldConfig> = {}): FieldConfig {
     axisColor: "text",
     hideInLegend: false,
     hideInTooltip: false,
+    align: "auto",
+    filterable: false,
+    inspect: false,
+    hideHeader: false,
     stackGroup: "A",
     ...props,
   }

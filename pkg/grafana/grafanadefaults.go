@@ -249,9 +249,6 @@ var cosmeticOptions = map[string]cosmeticOption{
 	"fillGradient": {
 		why: "the renderer draws every fill flat by the no-gradients rule (decision 8)",
 	},
-	"fieldConfig.defaults.custom.minWidth": {
-		why: "table columns are sized by the browser from their content and have no minimum width",
-	},
 	"fieldConfig.defaults.custom.cellOptions.mode": {
 		values: []any{"gradient", "basic"},
 		why:    "table cells are drawn flat by the no-gradients rule (decision 8)",
@@ -266,9 +263,6 @@ var cosmeticOptions = map[string]cosmeticOption{
 	"options.tooltip.sort": {
 		values: []any{"desc"},
 		why:    "bar chart and histogram tooltips list their rows in series order and have no sort",
-	},
-	"fieldConfig.defaults.custom.width": {
-		why: "table columns are sized by the browser from their content and have no fixed width",
 	},
 	"options.zoomMode": {
 		why: "the node graph zooms only with its own buttons and ignores the scroll wheel",

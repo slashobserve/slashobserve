@@ -213,13 +213,10 @@
         "row": "Stats",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -1071,7 +1068,6 @@
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.overrides[1].properties[0]",
           "fieldConfig.overrides[2].properties[0]",
-          "fieldConfig.defaults.custom.filterable",
           "options.filterable",
           "options.showSearch"
         ],
@@ -2240,6 +2236,7 @@
                 "format": "table"
               }
             ],
+            "minWidth": 50,
             "overrides": [
               {
                 "match": {
@@ -2248,7 +2245,11 @@
                 "displayName": "Count"
               }
             ],
-            "titleHidden": true
+            "titleHidden": true,
+            "display": {
+              "sortBy": "Count",
+              "sortDesc": true
+            }
           },
           {
             "id": "p156",
@@ -3631,7 +3632,8 @@
                 "instant": true,
                 "format": "table"
               }
-            ]
+            ],
+            "filterable": true
           },
           {
             "id": "p129",
