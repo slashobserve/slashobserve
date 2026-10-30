@@ -52,6 +52,13 @@ var transformSpecs = map[string]transformSpec{
 	"calculateField":     {handled: []string{"mode", "alias", "binary", "reduce", "replaceFields"}, build: calculateTransform},
 	"sortBy":             {handled: []string{"sort"}, build: sortTransform},
 	"limit":              {handled: []string{"limitField"}, build: limitTransform},
+	"convertFieldType":   {handled: []string{"conversions", "fields"}, build: convertFieldTypeTransform},
+	"formatString":       {handled: []string{"stringField", "outputFormat", "substringStart", "substringEnd"}, build: formatStringTransform},
+	"formatTime":         {handled: []string{"timeField", "outputFormat", "useTimezone"}, build: formatTimeTransform},
+	"renameByRegex":      {handled: []string{"regex", "renamePattern"}, build: renameByRegexTransform},
+	"filterByValue":      {handled: []string{"type", "match", "filters"}, build: filterByValueTransform},
+	"filterByRefId":      {handled: []string{"include"}, build: filterByRefIDTransform},
+	"extractFields":      {handled: []string{"source", "format", "replace", "keepTime", "jsonPaths", "delimiter", "regExp"}, build: extractFieldsTransform},
 }
 
 func (b *panelBuild) convertTransforms() {

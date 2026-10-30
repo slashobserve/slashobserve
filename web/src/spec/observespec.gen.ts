@@ -274,6 +274,78 @@ export type Transform =
   | {
       type: "limit";
       count: number;
+    }
+  | {
+      type: "convertFieldType";
+      /**
+       * @minItems 1
+       * @maxItems 50
+       */
+      conversions: {
+        field: FieldName;
+        to: "number" | "string" | "time" | "boolean" | "enum" | "other";
+        dateFormat?: string;
+        joinWith?: string;
+      }[];
+    }
+  | {
+      type: "formatString";
+      field: FieldName;
+      format: "upper" | "lower" | "sentence" | "title" | "pascal" | "camel" | "snake" | "kebab" | "trim" | "substring";
+      start?: number;
+      end?: number;
+    }
+  | {
+      type: "formatTime";
+      field: FieldName;
+      format: string;
+      utc?: boolean;
+    }
+  | {
+      type: "renameByRegex";
+      regex: string;
+      renameTo: string;
+    }
+  | {
+      type: "filterByValue";
+      keep?: "include" | "exclude";
+      match?: "any" | "all";
+      /**
+       * @minItems 1
+       * @maxItems 20
+       */
+      filters: {
+        field: FieldName;
+        op: "gt" | "gte" | "lt" | "lte" | "eq" | "neq" | "null" | "notNull" | "regex" | "range";
+        value?: number | string;
+        from?: number;
+        to?: number;
+      }[];
+    }
+  | {
+      type: "filterByRefId";
+      /**
+       * @minItems 1
+       * @maxItems 26
+       */
+      include: QueryRef[];
+    }
+  | {
+      type: "extractFields";
+      field: FieldName;
+      format?: "auto" | "json" | "kvp" | "delimiter" | "regexp";
+      replace?: boolean;
+      keepTime?: boolean;
+      /**
+       * @minItems 1
+       * @maxItems 50
+       */
+      paths?: {
+        path: string;
+        alias?: string;
+      }[];
+      delimiter?: string;
+      regex?: string;
     };
 export type Reducer =
   | "last"
@@ -292,6 +364,10 @@ export type Reducer =
   | "stdDev"
   | "distinctCount"
   | "changeCount";
+/**
+ * A field name or series name in the panel's frames.
+ */
+export type FieldName = string;
 
 /**
  * ObserveSpec v0: one SlashObserve dashboard. Absent fields mean the default. Frozen for milestone 1 (Ishan, 2026-10-18).

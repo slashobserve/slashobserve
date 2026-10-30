@@ -46,12 +46,10 @@
         "status": "partial",
         "reasons": [
           "Grafana shows this panel without a title.",
-          "Some transformations are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "title",
-          "transformations[0]",
           "options.justifyMode",
           "options.reduceOptions.fields"
         ],
@@ -488,6 +486,15 @@
           }
         ],
         "transform": [
+          {
+            "type": "convertFieldType",
+            "conversions": [
+              {
+                "field": "Version",
+                "to": "string"
+              }
+            ]
+          },
           {
             "type": "organize",
             "rename": {

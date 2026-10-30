@@ -267,6 +267,40 @@ type Transform struct {
 	ReduceRow    string            `json:"reduceRow,omitempty"`
 	Desc         bool              `json:"desc,omitempty"`
 	Count        int               `json:"count,omitempty"`
+	Conversions  []Conversion      `json:"conversions,omitempty"`
+	Format       string            `json:"format,omitempty"`
+	Start        *int              `json:"start,omitempty"`
+	End          *int              `json:"end,omitempty"`
+	UTC          bool              `json:"utc,omitempty"`
+	Regex        string            `json:"regex,omitempty"`
+	RenameTo     string            `json:"renameTo,omitempty"`
+	Keep         string            `json:"keep,omitempty"`
+	Match        string            `json:"match,omitempty"`
+	Filters      []ValueFilter     `json:"filters,omitempty"`
+	Replace      bool              `json:"replace,omitempty"`
+	KeepTime     bool              `json:"keepTime,omitempty"`
+	Paths        []FieldPath       `json:"paths,omitempty"`
+	Delimiter    string            `json:"delimiter,omitempty"`
+}
+
+type Conversion struct {
+	Field      string `json:"field"`
+	To         string `json:"to"`
+	DateFormat string `json:"dateFormat,omitempty"`
+	JoinWith   string `json:"joinWith,omitempty"`
+}
+
+type ValueFilter struct {
+	Field string   `json:"field"`
+	Op    string   `json:"op"`
+	Value any      `json:"value,omitempty"`
+	From  *float64 `json:"from,omitempty"`
+	To    *float64 `json:"to,omitempty"`
+}
+
+type FieldPath struct {
+	Path  string `json:"path"`
+	Alias string `json:"alias,omitempty"`
 }
 
 type Display struct {
