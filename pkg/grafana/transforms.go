@@ -68,6 +68,12 @@ var transformSpecs = map[string]transformSpec{
 	"rowsToFields":       {handled: []string{"mappings"}, build: rowsToFieldsTransform},
 	"configFromData":     {handled: []string{"configRefId", "mappings", "applyTo"}, build: configFromDataTransform},
 	"concatenate":        {handled: []string{"frameNameMode", "frameNameLabel"}, build: concatenateTransform},
+	"groupBy":            {handled: []string{"fields"}, build: groupByTransform},
+	"groupingToMatrix":   {handled: []string{"columnField", "rowField", "valueField", "emptyValue"}, build: groupingToMatrixTransform},
+	"groupToNestedTable": {handled: []string{"fields", "showSubframeHeaders"}, build: groupToNestedTableTransform},
+	"histogram":          {handled: []string{"bucketCount", "bucketSize", "bucketOffset", "combine"}, build: histogramTransform},
+	"regression":         {handled: []string{"modelType", "degree", "xFieldName", "yFieldName", "predictionCount"}, build: regressionTransform},
+	"transpose":          {handled: []string{"firstFieldName", "restFieldsName", "emptyValue"}, build: transposeTransform},
 }
 
 func (b *panelBuild) convertTransforms() {

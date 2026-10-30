@@ -112,12 +112,10 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Exemplars are drawn on time series only.",
-          "Some transformations are not supported yet."
+          "Exemplars are drawn on time series only."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "transformations[1]"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -704,13 +702,11 @@
         "row": "Kubernetes Storage",
         "status": "partial",
         "reasons": [
-          "Exemplars are drawn on time series only.",
-          "Some transformations are not supported yet."
+          "Exemplars are drawn on time series only."
         ],
         "paths": [
           "targets[0].exemplar",
-          "targets[1].exemplar",
-          "transformations[0]"
+          "targets[1].exemplar"
         ],
         "queries": [
           {
@@ -1214,6 +1210,17 @@
                   "service",
                   "uid",
                   "Value"
+                ]
+              },
+              {
+                "type": "groupBy",
+                "by": [
+                  "created_by_kind",
+                  "host_ip",
+                  "namespace",
+                  "pod",
+                  "pod_ip",
+                  "priority_class"
                 ]
               }
             ]
@@ -2046,6 +2053,32 @@
               }
             ],
             "transform": [
+              {
+                "type": "groupBy",
+                "by": [
+                  "persistentvolumeclaim"
+                ],
+                "aggregate": [
+                  {
+                    "field": "Value",
+                    "reducers": [
+                      "lastNotNull"
+                    ]
+                  },
+                  {
+                    "field": "Value #A",
+                    "reducers": [
+                      "lastNotNull"
+                    ]
+                  },
+                  {
+                    "field": "Value #B",
+                    "reducers": [
+                      "lastNotNull"
+                    ]
+                  }
+                ]
+              },
               {
                 "type": "joinByField",
                 "field": "persistentvolumeclaim"

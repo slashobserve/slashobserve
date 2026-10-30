@@ -70,12 +70,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are drawn on time series only.",
-          "Some transformations are not supported yet."
+          "Exemplars are drawn on time series only."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "transformations[3]"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -469,6 +467,17 @@
               "job",
               "Time",
               "Value"
+            ]
+          },
+          {
+            "type": "groupBy",
+            "by": [
+              "group",
+              "job",
+              "namespace",
+              "removed_release",
+              "resource",
+              "version"
             ]
           }
         ],

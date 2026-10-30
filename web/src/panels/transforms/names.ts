@@ -8,6 +8,7 @@ import { isNumber } from "../reducers"
 export type PreparedField = WireField & {
   seriesName?: string
   config?: FieldProps
+  nested?: { headers: boolean }
 }
 export type PreparedFrame = Omit<WireFrame, "fields"> & {
   fields: PreparedField[]

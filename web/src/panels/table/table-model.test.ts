@@ -678,3 +678,48 @@ describe("table cell types", () => {
     })
   })
 })
+
+describe("nested frames", () => {
+  const inner = (values: number[]) =>
+    frame([number(values, "lat")], { name: "rows" })
+
+  it("keeps the nested field out of the columns and hands each row its frame", () => {
+    const grouped = frame([
+      text(["a", "b"], "host"),
+      {
+        name: "Nested frames",
+        type: "other",
+        values: [inner([1, 2]), inner([3])],
+        nested: { headers: false },
+      },
+    ])
+    const { model } = build([grouped])
+    expect(model.columns.map((column) => column.label)).toEqual(["host"])
+    expect(model.rows.map((row) => row.values)).toEqual([
+      { "field:host": "a" },
+      { "field:host": "b" },
+    ])
+    expect(model.rows[0].nested?.headers).toBe(false)
+    expect(model.rows[0].nested?.frame.fields[0].values).toEqual([1, 2])
+    expect(model.rows[1].nested?.frame.fields[0].values).toEqual([3])
+  })
+
+  it("gives a row without a nested frame no expansion", () => {
+    const grouped = frame([
+      text(["a", "b"], "host"),
+      {
+        name: "Nested frames",
+        type: "other",
+        values: [inner([1]), null],
+        nested: { headers: true },
+      },
+    ])
+    const { model } = build([grouped])
+    expect(model.rows.map((row) => row.nested !== null)).toEqual([true, false])
+  })
+
+  it("leaves other rows without nested frames", () => {
+    const { model } = build([frame([text(["a"], "host")])])
+    expect(model.rows[0].nested).toBeNull()
+  })
+})
