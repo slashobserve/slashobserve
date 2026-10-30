@@ -489,6 +489,68 @@ dashboards-id-versions-version-restore:
         $ref: "../openapi.yaml#/components/responses/InvalidSpec"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+dashboards-id-duplicate:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: duplicateDashboard
+    summary: Save the latest version as version 1 of a new dashboard.
+    description: >-
+      Needs View on the dashboard and Create in the target folder.
+      The copy keeps every Spec field except `title`, and the source version's `unverified` list.
+      Its datasource references are checked but its queries are not run, as for a restore,
+      so duplicating does not fail because an upstream is briefly down.
+      Versions, comments, agent requests and the import record stay with the original.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [title]
+            properties:
+              title:
+                type: string
+                description: The copy's title; it must pass the same rules as a Spec title.
+              folder_id:
+                type: string
+                format: uuid
+                description: >-
+                  The folder to create the dashboard in.
+                  Missing means the caller's last used folder they can still create in, else General.
+                  404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
+    responses:
+      "201":
+        description: The new dashboard and its first version.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/InvalidSpec"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
 dashboards-id-diff:
   parameters:
     - name: id
