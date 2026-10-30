@@ -149,7 +149,9 @@ func (s *tableScan) table(i int) int {
 	if s.isPunct(end+1, "(") || !exact || len(parts) > 2 {
 		return end
 	}
-	if full := strings.Join(parts, "."); !(len(parts) == 1 && slices.Contains(s.ctes, parts[0])) && !slices.Contains(s.tables, full) {
+	full := strings.Join(parts, ".")
+	isCTE := len(parts) == 1 && slices.Contains(s.ctes, full)
+	if !isCTE && !slices.Contains(s.tables, full) {
 		s.tables = append(s.tables, full)
 	}
 	return end
