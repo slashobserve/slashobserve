@@ -54,6 +54,9 @@ The legend imports its placement, list or table mode, the values it shows (value
 A legend sorted by a calculation such as Mean is still reported, and so are the pie chart's sort order, orientation and legend calculations.
 The tooltip imports its mode, sort, "Hide zeros" and maximum width and height.
 A series hidden from the legend or the tooltip in the field options imports on a pie chart as it does on a time series, and stays drawn.
+A heatmap imports its color mode, scheme, steps, scale and exponent, fill, range (`color.min` and `color.max`) and reverse, the cell gap and radius, the cell value unit and decimals, the legend toggle, the low and high value filters (`filterValues.le` and `ge`) and `showValue`, and it writes Grafana's own defaults when the panel does not set them (scheme mode with the Oranges scheme, 64 steps, a gap of 1 and values shown where they fit).
+Grafana ignores the scale, exponent and fill in scheme mode and the scheme in opacity mode, so they are left out without a note.
+A scheme with no color ramp (such as Warm) or a fill color with no matching theme color is reported, and the heatmap then uses the default scheme or the first series color.
 A stat panel imports its text alignment (`justifyMode`), title and value sizes (`text.titleSize` and `text.valueSize`, from 6 to 200 pixels), percent change (`showPercentChange` and `percentChangeColorMode`) and `wideLayout`; a size outside that range is reported, and the percent size (`text.percentSize`) is still reported.
 A gauge imports its threshold labels and a bar gauge its `lcd` display mode, value mode, name placement and unfilled area; both import their text sizes (`text.titleSize` and `text.valueSize`, from 1 to 200 pixels).
 The `basic` and `gradient` bar gauge display modes import as the basic bar, because bar gauges are drawn flat.

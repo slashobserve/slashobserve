@@ -105,12 +105,6 @@
           "fieldConfig.defaults.color",
           "options.calculation.xBuckets.mode",
           "options.calculation.yBuckets.mode",
-          "options.cellGap",
-          "options.color.exponent",
-          "options.color.fill",
-          "options.color.mode",
-          "options.color.scheme",
-          "options.legend.show",
           "options.tooltip.show",
           "options.tooltip.yHistogram",
           "options.yAxis.unit"
@@ -535,8 +529,14 @@
             "unit": "ms",
             "interval": "${interval}",
             "display": {
+              "legend": "hidden",
+              "colorMode": "scheme",
               "calculate": true,
-              "yScale": "log"
+              "yScale": "log",
+              "colorScheme": "oranges",
+              "colorSteps": 64,
+              "cellGap": 1,
+              "showValues": "auto"
             }
           },
           {

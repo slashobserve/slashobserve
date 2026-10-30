@@ -25,6 +25,19 @@ const (
 	minTooltipSize        = 100
 	maxTooltipSize        = 2000
 	legacyHeatmapV        = 37
+
+	grafanaHeatmapSteps     = 64
+	grafanaHeatmapScheme    = "Oranges"
+	grafanaHeatmapFill      = "dark-orange"
+	grafanaHeatmapExponent  = 0.5
+	grafanaHeatmapGap       = 1
+	grafanaHeatmapFilterLow = 1e-9
+	minColorSteps           = 2
+	maxColorSteps           = 128
+	minColorExponent        = 0.1
+	maxColorExponent        = 2
+	maxCellGap              = 25
+	maxCellRadius           = 10
 )
 
 var (
@@ -527,7 +540,159 @@ func displayHeatmap(b *panelBuild) {
 		calculate := format != "tsbuckets"
 		d.Calculate = &calculate
 		b.partial("dataFormat", "This heatmap uses the old Grafana heatmap; its options are imported as far as they map.")
+		return
 	}
+	b.heatmapColors(d)
+	b.heatmapCells(d)
+	b.heatmapValueFilters(d)
+	if shown, ok := b.boolOption("options.legend.show"); ok && !*shown {
+		d.Legend = "hidden"
+	}
+	b.heatmapShowValues(d)
+}
+
+func (b *panelBuild) heatmapColors(d *spec.Display) {
+	mode := b.enumOption("options.color.mode", "scheme", "opacity")
+	if mode == "" {
+		mode = "scheme"
+	}
+	if mode == "scheme" {
+		d.ColorMode = "scheme"
+		b.heatmapScheme(d)
+		b.consume("options.color.fill", "options.color.scale", "options.color.exponent")
+	} else {
+		b.heatmapFill(d)
+		b.heatmapScaleAndExponent(d)
+		b.consume("options.color.scheme")
+	}
+	d.ColorSteps = b.heatmapIntOption("options.color.steps", grafanaHeatmapSteps, minColorSteps, maxColorSteps)
+	d.ColorMin = b.heatmapNumberOption("options.color.min")
+	d.ColorMax = b.heatmapNumberOption("options.color.max")
+	if reverse, ok := b.boolOption("options.color.reverse"); ok && *reverse {
+		d.ColorReverse = reverse
+	}
+}
+
+func (b *panelBuild) heatmapScheme(d *spec.Display) {
+	const path = "options.color.scheme"
+	v, _ := b.take(path)
+	name := asString(v)
+	if name == "" {
+		name = grafanaHeatmapScheme
+	}
+	scheme, ok := heatmapSchemes[name]
+	switch {
+	case !ok:
+		b.partial(path, fmt.Sprintf("The heatmap color scheme %s is not supported yet.", name))
+	case scheme != spec.Defaults().Display[spec.Heatmap].ColorScheme:
+		d.ColorScheme = scheme
+	}
+}
+
+func (b *panelBuild) heatmapFill(d *spec.Display) {
+	const path = "options.color.fill"
+	v, _ := b.take(path)
+	name := strings.TrimSpace(asString(v))
+	if name == "" {
+		name = grafanaHeatmapFill
+	}
+	color, ok := thresholdColor(name)
+	if _, literal := literalColor(name); !ok || (!literal && strings.HasPrefix(color, "#")) {
+		b.partial(path, fmt.Sprintf("The heatmap color %q is not supported yet.", name))
+		return
+	}
+	d.ColorFill = color
+}
+
+func (b *panelBuild) heatmapScaleAndExponent(d *spec.Display) {
+	scale := b.enumOption("options.color.scale", "linear", "exponential")
+	if scale == "" {
+		scale = "exponential"
+	}
+	if scale == "linear" {
+		b.consume("options.color.exponent")
+		return
+	}
+	d.ColorScale = scale
+	const path = "options.color.exponent"
+	v, ok := b.take(path)
+	if !ok || v == nil {
+		return
+	}
+	exponent, isNumber := numberValue(v)
+	switch {
+	case !isNumber || exponent < minColorExponent || exponent > maxColorExponent:
+		b.partial(path, "The color exponent is kept between 0.1 and 2.")
+	case exponent != grafanaHeatmapExponent:
+		d.ColorExponent = &exponent
+	}
+}
+
+func (b *panelBuild) heatmapCells(d *spec.Display) {
+	d.CellGap = b.heatmapIntOption("options.cellGap", grafanaHeatmapGap, 0, maxCellGap)
+	d.CellRadius = b.heatmapIntOption("options.cellRadius", 0, 0, maxCellRadius)
+	if v, ok := b.take("options.cellValues.unit"); ok {
+		if unit, isText := v.(string); isText && unit != "" {
+			if imported, valid := importedUnit(unit); valid {
+				d.CellUnit = imported
+			} else {
+				b.partial("options.cellValues.unit", fmt.Sprintf("Unit %s is not supported yet.", unit))
+			}
+		}
+	}
+	if v, ok := b.take("options.cellValues.decimals"); ok && v != nil {
+		decimals, isNumber := numberValue(v)
+		n := int(decimals)
+		if !isNumber || float64(n) != decimals || n < 0 || n > maxDecimals {
+			b.partial("options.cellValues.decimals", "Decimals are kept as a whole number between 0 and 10.")
+			return
+		}
+		d.CellDecimals = &n
+	}
+}
+
+func (b *panelBuild) heatmapValueFilters(d *spec.Display) {
+	if low := b.heatmapNumberOption("options.filterValues.le"); low != nil && *low != grafanaHeatmapFilterLow && *low != 0 {
+		d.HideBelow = low
+	}
+	d.HideAbove = b.heatmapNumberOption("options.filterValues.ge")
+}
+
+func (b *panelBuild) heatmapShowValues(d *spec.Display) {
+	shown := b.enumOption("options.showValue", "auto", "always", "never")
+	if _, written := b.value("options.showValue"); shown == "" && !written {
+		shown = "auto"
+	}
+	if shown != "never" {
+		d.ShowValues = shown
+	}
+}
+
+func (b *panelBuild) heatmapNumberOption(path string) *float64 {
+	v, ok := b.take(path)
+	if !ok || v == nil {
+		return nil
+	}
+	f, isNumber := numberValue(v)
+	if !isNumber {
+		b.partial(path, "This value is not a number.")
+		return nil
+	}
+	return &f
+}
+
+func (b *panelBuild) heatmapIntOption(path string, fallback, low, high int) int {
+	v, ok := b.take(path)
+	if !ok || v == nil {
+		return fallback
+	}
+	f, isNumber := numberValue(v)
+	n := int(f)
+	if !isNumber || float64(n) != f || n < low || n > high {
+		b.partial(path, fmt.Sprintf("This value is kept as a whole number between %d and %d.", low, high))
+		return 0
+	}
+	return n
 }
 
 func (b *panelBuild) heatmapScale(d *spec.Display) {

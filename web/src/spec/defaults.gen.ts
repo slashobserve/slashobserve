@@ -135,7 +135,17 @@ export const specDefaults = {
     },
     "heatmap": {
       "calculate": false,
-      "yScale": "linear"
+      "yScale": "linear",
+      "colorMode": "opacity",
+      "colorScheme": "blues",
+      "colorScale": "linear",
+      "colorExponent": 0.5,
+      "colorReverse": false,
+      "cellGap": 0,
+      "cellRadius": 0,
+      "legend": "bottom",
+      "hideBelow": 0,
+      "showValues": "never"
     },
     "histogram": {},
     "state-timeline": {

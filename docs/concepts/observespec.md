@@ -168,6 +168,13 @@ When `legendMode` is absent the legend is a table if `legendValues` is not empty
 A `table` panel's `display` also takes `cellHeight` (`sm`, the default, `md` or `lg` row padding), `typeIcons` (an icon for the column type before each header), `pagination` (pages of rows sized to the panel, with previous and next buttons), `frozenColumns` (0 to 10 columns from the left that stay in view while the table scrolls sideways, which also fixes the column widths), `sortBy` (a column name, as written in the header) with `sortDesc`, which set the sort the table starts with, `footerFields` (column names; the footer then covers only those columns) and `footerCountRows` (a footer row with the number of rows).
 The footer and the row count cover the rows left after filtering.
 The agent prompt does not list these options.
+A `heatmap` panel colors its cells with `colorMode`: `opacity` (the default) varies the opacity of `colorFill` (a semantic color; the first series color when absent), and `scheme` takes the color of the ramp `colorScheme` names (the same names as the field prop, `blues` when absent).
+`colorSteps` (2 to 128) quantizes the colors into that many steps and is continuous when absent, `colorMin` and `colorMax` fix the counts that get the first and last color (the data otherwise; a scheme starts at the lowest count and opacity at zero), and `colorReverse` flips the ramp.
+`colorScale` (`linear`, the default, or `exponential`) and `colorExponent` (0.1 to 2, 0.5 when absent) bend the opacity of the opacity mode only.
+`cellGap` (0 to 25 pixels) and `cellRadius` (0 to 10) shape the cells, `showValues` (`auto` where the text fits, `always` or `never`, the default) writes each count in its cell, and `cellUnit` and `cellDecimals` format the counts in the cells, the tooltip and the color legend.
+`hideBelow` (0 when absent) and `hideAbove` leave out cells whose count is at or below, or at or above, them, and those cells do not count toward the color range.
+`legend: "hidden"` removes the color legend under the chart.
+The agent prompt does not list these options.
 A `state-timeline` or `status-history` panel sizes its bars with `rowHeight`, the share of each row the bar fills (0.1 to 1), and a `status-history` panel sizes its cells with `columnWidth`, the share of each cell's width (0.1 to 1).
 When either is absent the bar leaves a 2 pixel gap under it and a cell a 1 pixel inset on each side.
 `alignValue` (`left`, `center` or `right`) places a `state-timeline` segment's text.

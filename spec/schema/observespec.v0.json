@@ -3281,6 +3281,124 @@
                       "linear",
                       "log"
                     ]
+                  },
+                  "colorMode": {
+                    "x-omitFromPrompt": true,
+                    "description": "scheme colors the cells with colorScheme; opacity varies the opacity of colorFill. Absent means opacity.",
+                    "enum": [
+                      "scheme",
+                      "opacity"
+                    ]
+                  },
+                  "colorScheme": {
+                    "x-omitFromPrompt": true,
+                    "enum": [
+                      "greenYellowRed",
+                      "redYellowGreen",
+                      "blueYellowRed",
+                      "yellowRed",
+                      "bluePurple",
+                      "yellowBlue",
+                      "blues",
+                      "reds",
+                      "greens",
+                      "purples",
+                      "oranges",
+                      "viridis",
+                      "magma",
+                      "plasma",
+                      "inferno",
+                      "cividis"
+                    ]
+                  },
+                  "colorSteps": {
+                    "x-omitFromPrompt": true,
+                    "description": "Number of distinct colors in scheme mode; absent means a continuous ramp.",
+                    "type": "integer",
+                    "minimum": 2,
+                    "maximum": 128
+                  },
+                  "colorScale": {
+                    "x-omitFromPrompt": true,
+                    "enum": [
+                      "linear",
+                      "exponential"
+                    ]
+                  },
+                  "colorExponent": {
+                    "x-omitFromPrompt": true,
+                    "description": "Exponent of an exponential colorScale; 0.5 when absent.",
+                    "type": "number",
+                    "minimum": 0.1,
+                    "maximum": 2
+                  },
+                  "colorFill": {
+                    "x-omitFromPrompt": true,
+                    "description": "The color whose opacity varies in opacity mode; absent means the first series color.",
+                    "$ref": "#/$defs/color"
+                  },
+                  "colorMin": {
+                    "x-omitFromPrompt": true,
+                    "type": "number"
+                  },
+                  "colorMax": {
+                    "x-omitFromPrompt": true,
+                    "type": "number"
+                  },
+                  "colorReverse": {
+                    "x-omitFromPrompt": true,
+                    "type": "boolean"
+                  },
+                  "cellGap": {
+                    "x-omitFromPrompt": true,
+                    "description": "Pixels between cells.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 25
+                  },
+                  "cellRadius": {
+                    "x-omitFromPrompt": true,
+                    "description": "Cell corner radius in pixels.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10
+                  },
+                  "cellUnit": {
+                    "x-omitFromPrompt": true,
+                    "$ref": "#/$defs/unit"
+                  },
+                  "cellDecimals": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10
+                  },
+                  "legend": {
+                    "x-omitFromPrompt": true,
+                    "description": "Whether the color scale is shown under the chart; bottom when absent.",
+                    "enum": [
+                      "bottom",
+                      "hidden"
+                    ]
+                  },
+                  "hideBelow": {
+                    "x-omitFromPrompt": true,
+                    "description": "Cells with a value at or below this are not drawn; 0 when absent.",
+                    "type": "number"
+                  },
+                  "hideAbove": {
+                    "x-omitFromPrompt": true,
+                    "description": "Cells with a value at or above this are not drawn.",
+                    "type": "number"
+                  },
+                  "showValues": {
+                    "x-omitFromPrompt": true,
+                    "description": "Whether cells carry their value as text: auto only where it fits, always, or never (the default).",
+                    "enum": [
+                      "auto",
+                      "always",
+                      "never"
+                    ]
                   }
                 }
               }

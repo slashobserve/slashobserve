@@ -295,10 +295,6 @@
         "paths": [
           "options.calculation.xBuckets.mode",
           "options.calculation.xBuckets.value",
-          "options.cellGap",
-          "options.color.mode",
-          "options.color.scheme",
-          "options.color.steps",
           "options.yAxis.decimals",
           "options.yAxis.unit"
         ],
@@ -327,10 +323,6 @@
         "paths": [
           "options.calculation.xBuckets.mode",
           "options.calculation.xBuckets.value",
-          "options.cellGap",
-          "options.color.mode",
-          "options.color.scheme",
-          "options.color.steps",
           "options.yAxis.decimals",
           "options.yAxis.unit"
         ],
@@ -831,7 +823,13 @@
                 "format": "heatmap"
               }
             ],
-            "interval": "1m"
+            "interval": "1m",
+            "display": {
+              "colorMode": "scheme",
+              "colorScheme": "redYellowGreen",
+              "colorSteps": 128,
+              "showValues": "auto"
+            }
           },
           {
             "id": "p14",
@@ -852,7 +850,13 @@
                 "format": "heatmap"
               }
             ],
-            "interval": "1m"
+            "interval": "1m",
+            "display": {
+              "colorMode": "scheme",
+              "colorScheme": "redYellowGreen",
+              "colorSteps": 128,
+              "showValues": "auto"
+            }
           }
         ]
       },
