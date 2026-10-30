@@ -30,6 +30,7 @@ const eventNames = [
   "ready",
   "resync",
   "version.created",
+  "dashboard.deleted",
   "comment.created",
   "comment.updated",
   "revision.updated",
@@ -192,6 +193,22 @@ export function useDashboardEvents(
           return
         case "version.created":
           onVersionCreated(event)
+          return
+        case "dashboard.deleted":
+          if (
+            queryClient.isMutating({
+              mutationKey: dashboardKeys.deletes(dashboardId),
+            }) > 0
+          ) {
+            return
+          }
+          toast(
+            event.authorName
+              ? `${event.authorName} deleted this dashboard`
+              : "This dashboard was deleted",
+            { id: `deleted-${dashboardId}` }
+          )
+          void checkDashboard()
           return
         case "comment.created":
         case "comment.updated":

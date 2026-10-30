@@ -11,6 +11,7 @@ import {
   type RefObject,
 } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 
 import type { Selections } from "@/api/keys"
@@ -58,6 +59,7 @@ import {
 import { DashboardGrid, gridMargin, gridRowHeight } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardTopRow } from "./dashboard-top-row"
+import { DeleteDashboardDialog } from "./delete-dashboard-dialog"
 import { detailsBlockReason } from "./edit/details"
 import { DetailsDialog } from "./edit/details-dialog"
 import {
@@ -86,6 +88,7 @@ import type { DashboardAccess } from "./permissions"
 import {
   asDashboardSpec,
   dashboardVersionQuery,
+  forgetDashboard,
   latestDashboardQuery,
   type DashboardEnvelope,
 } from "./queries"
@@ -490,6 +493,9 @@ function DashboardView({
   const editGuard = useRef<EditGuard>(null)
   const [cursor] = useState(createSharedCursor)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const savedCursor = savedCursorSync(spec)
   const cursorSync = search.cursor ?? savedCursor
   useLayoutEffect(() => cursor.setMode(cursorSync), [cursor, cursorSync])
@@ -633,8 +639,10 @@ function DashboardView({
         editingLayout: editing,
         editingPanel,
       })}
+      deleteBlockedBy={editing ? "finish the layout first" : null}
       onEditLayout={beginLayoutEdit}
       onEditDetails={() => setDetailsOpen(true)}
+      onDelete={() => setDeleting(true)}
       onExport={() => downloadSpec(spec, spec.title, version)}
       cursorSync={cursorSync}
       onCursorSyncChange={chooseCursorSync}
@@ -784,6 +792,25 @@ function DashboardView({
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
         finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
+      />
+      <DeleteDashboardDialog
+        dashboard={{
+          id: dashboardId,
+          title: spec.title,
+          versions: latestVersion,
+        }}
+        open={deleting}
+        onOpenChange={setDeleting}
+        finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
+        onDeleted={async (alreadyGone) => {
+          toast.success(
+            alreadyGone
+              ? `${spec.title} was already deleted`
+              : `Deleted ${spec.title}`
+          )
+          await navigate({ to: "/dashboards", ignoreBlocker: true })
+          forgetDashboard(queryClient, dashboardId)
+        }}
       />
     </div>
   )

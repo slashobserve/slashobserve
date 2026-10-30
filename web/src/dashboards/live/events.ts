@@ -8,6 +8,7 @@ export type DashboardEvent =
       summary: string
       authorName: string
     }
+  | { type: "dashboard.deleted"; dashboardId: string; authorName: string }
   | {
       type: "comment.created" | "comment.updated" | "revision.updated"
       dashboardId: string
@@ -25,6 +26,11 @@ function versionNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isSafeInteger(value) && value > 0
     ? value
     : undefined
+}
+
+function authorNameOf(raw: Record<string, unknown>): string {
+  const author = isRecord(raw.author) ? raw.author : {}
+  return typeof author.name === "string" ? author.name : ""
 }
 
 export function parseEvent(
@@ -49,16 +55,21 @@ export function parseEvent(
     }
     case "resync":
       return { type: "resync", dashboardId }
+    case "dashboard.deleted":
+      return {
+        type: "dashboard.deleted",
+        dashboardId,
+        authorName: authorNameOf(raw),
+      }
     case "version.created": {
       const version = versionNumber(raw.version)
       if (version === undefined) return null
-      const author = isRecord(raw.author) ? raw.author : {}
       return {
         type: "version.created",
         dashboardId,
         version,
         summary: typeof raw.summary === "string" ? raw.summary : "",
-        authorName: typeof author.name === "string" ? author.name : "",
+        authorName: authorNameOf(raw),
       }
     }
     case "comment.created":

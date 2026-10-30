@@ -12,7 +12,7 @@ import type { paths } from "@/api/schema.gen"
 import { RelativeTime } from "@/components/relative-time"
 import { madeByLabel } from "@/lib/origin"
 
-import { MoveMenu } from "./move-menu"
+import { DashboardRowMenu } from "./row-menu"
 
 declare module "@tanstack/react-table" {
   /* eslint-disable @typescript-eslint/no-unused-vars -- a merged interface must repeat the library's type parameters */
@@ -125,7 +125,7 @@ export const actionsColumn = column.display({
   header: () => <span className="sr-only">Actions</span>,
   cell: ({ row }) =>
     row.original.permissions.edit ? (
-      <MoveMenu dashboard={row.original} />
+      <DashboardRowMenu dashboard={row.original} />
     ) : null,
   meta: {
     headerClassName: "w-10",

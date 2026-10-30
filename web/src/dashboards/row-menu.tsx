@@ -20,17 +20,47 @@ import { foldersQuery } from "@/folders/queries"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import type { DashboardSummary } from "./dashboard-columns"
+import { DeleteDashboardDialog } from "./delete-dashboard-dialog"
+import { neighbourAfterDelete } from "./delete-dashboard"
 import { useMoveDashboard } from "./queries"
 
 type Target = { id: string; title: string }
 
-export function MoveMenu({ dashboard }: { dashboard: DashboardSummary }) {
+function listedDashboardIds(): string[] {
+  return Array.from(
+    document.querySelectorAll<HTMLTableRowElement>("tr[data-dashboard-id]"),
+    (row) => row.dataset.dashboardId ?? ""
+  )
+}
+
+function focusAfterDelete(neighbour: string | null) {
+  const target =
+    neighbour === null
+      ? document.querySelector<HTMLElement>("main h1")
+      : document.querySelector<HTMLElement>(
+          `tr[data-dashboard-id="${neighbour}"] a`
+        )
+  if (target === null) return
+  if (neighbour === null && !target.hasAttribute("tabindex")) {
+    target.tabIndex = -1
+  }
+  target.focus()
+}
+
+export function DashboardRowMenu({
+  dashboard,
+}: {
+  dashboard: DashboardSummary
+}) {
   const folders = useQuery(foldersQuery()).data ?? []
   const move = useMoveDashboard()
   const trigger = useRef<HTMLButtonElement>(null)
   const refocus = useRef(false)
   const leaveFocusAlone = useRef(false)
+  const deleted = useRef(false)
+  const neighbour = useRef<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const current = dashboard.folder.id
   const choices = folders.filter(
     (folder) => folder.permissions.edit || folder.id === current
@@ -56,6 +86,24 @@ export function MoveMenu({ dashboard }: { dashboard: DashboardSummary }) {
         },
       }
     )
+  }
+
+  function startDelete() {
+    leaveFocusAlone.current = true
+    deleted.current = false
+    neighbour.current = neighbourAfterDelete(listedDashboardIds(), dashboard.id)
+    setDeleting(true)
+  }
+
+  function finishDelete(alreadyGone: boolean) {
+    deleted.current = true
+    toast.success(
+      alreadyGone
+        ? `${dashboard.title} was already deleted`
+        : `Deleted ${dashboard.title}`
+    )
+    setDeleting(false)
+    focusAfterDelete(neighbour.current)
   }
 
   return (
@@ -116,6 +164,10 @@ export function MoveMenu({ dashboard }: { dashboard: DashboardSummary }) {
           >
             New folder
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onClick={startDelete}>
+            Delete dashboard...
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <NewFolderDialog
@@ -123,6 +175,17 @@ export function MoveMenu({ dashboard }: { dashboard: DashboardSummary }) {
         onOpenChange={setCreating}
         onCreated={moveTo}
         finalFocus={trigger}
+      />
+      <DeleteDashboardDialog
+        dashboard={{
+          id: dashboard.id,
+          title: dashboard.title,
+          versions: dashboard.latest_version,
+        }}
+        open={deleting}
+        onOpenChange={setDeleting}
+        onDeleted={finishDelete}
+        finalFocus={() => (deleted.current ? false : (trigger.current ?? true))}
       />
     </>
   )

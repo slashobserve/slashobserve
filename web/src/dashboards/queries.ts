@@ -7,7 +7,14 @@ import {
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
-import { dashboardKeys, folderKeys } from "@/api/keys"
+import {
+  dashboardKeys,
+  datasourceKeys,
+  folderKeys,
+  importKeys,
+  observeKeys,
+  userKeys,
+} from "@/api/keys"
 import type { paths } from "@/api/schema.gen"
 import { validateSpecSchema, type Dashboard } from "@/spec"
 
@@ -89,6 +96,33 @@ export function useMoveDashboard() {
         queryClient.invalidateQueries({ queryKey: folderKeys.all }),
       ]),
   })
+}
+
+export function useDeleteDashboard(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationKey: dashboardKeys.deletes(id),
+    mutationFn: () =>
+      api.DELETE("/dashboards/{id}", { params: { path: { id } } }).then(unwrap),
+    onSettled: () =>
+      Promise.all(
+        [
+          dashboardKeys.list(),
+          dashboardKeys.titles(),
+          dashboardKeys.tags(),
+          folderKeys.all,
+          observeKeys.mineAll(),
+          importKeys.all,
+          datasourceKeys.all,
+          userKeys.all,
+        ].map((queryKey) => queryClient.invalidateQueries({ queryKey }))
+      ),
+  })
+}
+
+export function forgetDashboard(queryClient: QueryClient, id: string) {
+  queryClient.removeQueries({ queryKey: dashboardKeys.one(id) })
 }
 
 export function useAddVersion(id: string) {

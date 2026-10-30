@@ -23,6 +23,7 @@ export type DashboardListFilters = {
 
 export const dashboardKeys = {
   all: ["dashboards"] as const,
+  one: (id: string) => ["dashboards", id] as const,
   list: () => ["dashboards", "list"] as const,
   filtered: (filters: DashboardListFilters) =>
     ["dashboards", "list", filters] as const,
@@ -56,6 +57,7 @@ export const dashboardKeys = {
   revision: (id: string, revisionId: string) =>
     ["dashboards", id, "revision", revisionId] as const,
   saves: (id: string) => ["dashboards", id, "saves"] as const,
+  deletes: (id: string) => ["dashboards", id, "deletes"] as const,
   posts: (id: string) => ["dashboards", id, "posts"] as const,
 }
 
