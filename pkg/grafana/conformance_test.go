@@ -557,6 +557,32 @@ func TestConformanceCatalogs(t *testing.T) {
 			}
 		})
 	}
+	for _, key := range uncataloguedCosmeticOptions(cosmeticOptions, loadConformanceAreas(t, root)) {
+		t.Errorf("cosmeticOptions key %s has no expect: cosmetic entry in a panel conformance catalog", key)
+	}
+}
+
+func uncataloguedCosmeticOptions(options map[string]cosmeticOption, areas []*conformanceArea) []string {
+	catalogued := map[string]bool{}
+	for _, a := range areas {
+		if !a.rootIsPanel() {
+			continue
+		}
+		for _, e := range a.catalog.Entries {
+			if e.expectation() == expectCosmetic {
+				catalogued[normalizePath(e.Path)] = true
+			}
+		}
+	}
+	var missing []string
+	for key := range options {
+		schemaKey := strings.HasPrefix(key, "options.") || strings.HasPrefix(key, "fieldConfig.")
+		if schemaKey && !catalogued[key] {
+			missing = append(missing, key)
+		}
+	}
+	sort.Strings(missing)
+	return missing
 }
 
 func conformanceRoot(t *testing.T) *os.Root {
@@ -723,6 +749,50 @@ func TestConformanceCatalogProblems(t *testing.T) {
 			problems := strings.Join(a.problems(), "\n")
 			if tc.want == "" && problems != "" || !strings.Contains(problems, tc.want) {
 				t.Fatalf("problems = %q, want one containing %q", problems, tc.want)
+			}
+		})
+	}
+}
+
+func TestUncataloguedCosmeticOptions(t *testing.T) {
+	panelArea := func(root string, entries ...conformanceEntry) *conformanceArea {
+		return &conformanceArea{catalog: conformanceCatalog{Root: root, Entries: entries}}
+	}
+	cosmetic := func(path string) conformanceEntry {
+		return conformanceEntry{ID: path + "=1", Path: path, Value: 1, Expect: expectCosmetic}
+	}
+	options := map[string]cosmeticOption{
+		"options.zoomMode":                  {why: "w"},
+		"options.layers[].name":             {why: "w"},
+		"fieldConfig.defaults.custom.width": {why: "w"},
+		"fillGradient":                      {why: "w"},
+	}
+	cases := []struct {
+		name  string
+		areas []*conformanceArea
+		want  []string
+	}{
+		{"every schema key catalogued", []*conformanceArea{
+			panelArea("panels[0]", cosmetic("options.zoomMode"), cosmetic("options.layers[0].name"), cosmetic("fieldConfig.defaults.custom.width")),
+		}, nil},
+		{"legacy keys without a prefix are exempt", []*conformanceArea{
+			panelArea("panels[0]", cosmetic("options.zoomMode"), cosmetic("options.layers[0].name")),
+		}, []string{"fieldConfig.defaults.custom.width"}},
+		{"a convert entry does not count", []*conformanceArea{
+			panelArea("panels[0]", conformanceEntry{ID: "options.zoomMode=1", Path: "options.zoomMode", Value: 1}, cosmetic("options.layers[0].name"), cosmetic("fieldConfig.defaults.custom.width")),
+		}, []string{"options.zoomMode"}},
+		{"an area outside a panel root does not count", []*conformanceArea{
+			panelArea("", cosmetic("options.zoomMode"), cosmetic("options.layers[0].name"), cosmetic("fieldConfig.defaults.custom.width")),
+		}, []string{"fieldConfig.defaults.custom.width", "options.layers[].name", "options.zoomMode"}},
+		{"keys are collected across areas", []*conformanceArea{
+			panelArea("panels[0]", cosmetic("options.zoomMode")),
+			panelArea("panels[0]", cosmetic("options.layers[2].name"), cosmetic("fieldConfig.defaults.custom.width")),
+		}, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := uncataloguedCosmeticOptions(options, tc.areas); !slices.Equal(got, tc.want) {
+				t.Fatalf("uncatalogued = %v, want %v", got, tc.want)
 			}
 		})
 	}
