@@ -340,7 +340,7 @@
     { "id": "fieldConfig.defaults.mappings=value-text-color", "path": "fieldConfig.defaults.mappings", "value": [{"type": "value", "options": {"0": {"text": "Down", "color": "red", "index": 0}}}] },
     { "id": "fieldConfig.defaults.mappings=value-text-only", "path": "fieldConfig.defaults.mappings", "value": [{"type": "value", "options": {"1": {"text": "Up", "index": 0}}}] },
     { "id": "fieldConfig.defaults.mappings=value-color-only", "path": "fieldConfig.defaults.mappings", "value": [{"type": "value", "options": {"1": {"color": "green", "index": 0}}}] },
-    { "id": "fieldConfig.defaults.mappings=value-icon", "path": "fieldConfig.defaults.mappings", "value": [{"type": "value", "options": {"1": {"text": "Up", "icon": "arrow-up", "index": 0}}}] },
+    { "id": "fieldConfig.defaults.mappings=value-icon", "path": "fieldConfig.defaults.mappings", "value": [{"type": "value", "options": {"1": {"text": "Up", "icon": "arrow-up", "index": 0}}}], "expect": "excluded" },
     { "id": "fieldConfig.defaults.mappings=value-index-order", "path": "fieldConfig.defaults.mappings", "value": [{"type": "value", "options": {"a": {"text": "A", "index": 1}, "b": {"text": "B", "index": 0}}}] },
     { "id": "fieldConfig.defaults.mappings=range", "path": "fieldConfig.defaults.mappings", "value": [{"type": "range", "options": {"from": 0, "to": 10, "result": {"text": "Low", "color": "blue", "index": 0}}}] },
     { "id": "fieldConfig.defaults.mappings=range-open-end", "path": "fieldConfig.defaults.mappings", "value": [{"type": "range", "options": {"from": 90, "to": null, "result": {"text": "High", "index": 0}}}] },

@@ -144,3 +144,37 @@ func TestDisplayNameTokens(t *testing.T) {
 		})
 	}
 }
+
+func TestMappingIconIsReportedWhileTheMappingTextIsKept(t *testing.T) {
+	cases := []struct {
+		name     string
+		mappings string
+		path     string
+	}{
+		{"value", `[{"type":"value","options":{"1":{"text":"Up","icon":"arrow-up","index":0}}}]`, "fieldConfig.defaults.mappings[0]"},
+		{"range", `[{"type":"range","options":{"from":0,"to":10,"result":{"text":"Low","icon":"arrow-down","index":0}}}]`, "fieldConfig.defaults.mappings[0]"},
+		{"regex", `[{"type":"regex","options":{"pattern":"/^a/","result":{"text":"A","icon":"check","index":0}}}]`, "fieldConfig.defaults.mappings[0]"},
+		{"special", `[{"type":"special","options":{"match":"null","result":{"text":"None","icon":"minus","index":0}}}]`, "fieldConfig.defaults.mappings[0]"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			panel, line := convertedPanel(t, defaultsPanel("stat", `{"mappings":`+c.mappings+`}`))
+			if len(panel.Mappings) != 1 || panel.Mappings[0].Text == "" {
+				t.Fatalf("mappings = %+v, want the text kept", panel.Mappings)
+			}
+			if line.Status != statusPartial || !slices.Contains(line.Paths, c.path) {
+				t.Fatalf("line = %+v, want %s reported", line, c.path)
+			}
+			if !slices.ContainsFunc(line.Reasons, func(r string) bool { return strings.Contains(r, "icon") }) {
+				t.Fatalf("reasons = %v, want one naming the icon", line.Reasons)
+			}
+		})
+	}
+}
+
+func TestMappingWithoutIconStaysClean(t *testing.T) {
+	_, line := convertedPanel(t, defaultsPanel("stat", `{"mappings":[{"type":"value","options":{"1":{"text":"Up","index":0}}}]}`))
+	if !clean(line) {
+		t.Fatalf("line = %+v", line)
+	}
+}

@@ -42,6 +42,8 @@ const (
 
 	opaqueFillReason = "A fully transparent fill is drawn opaque."
 
+	mappingIconReason = "A mapping icon is not drawn, only its text and color."
+
 	oneClickReason = "One click links are drawn on stat, gauge, bar gauge and table panels only."
 )
 
@@ -1313,6 +1315,9 @@ func resultOf(v any) (mappingResult, string) {
 		} else {
 			return out, fmt.Sprintf("The mapping color %q is not supported yet.", raw)
 		}
+	}
+	if asString(r["icon"]) != "" {
+		return out, mappingIconReason
 	}
 	return out, ""
 }
