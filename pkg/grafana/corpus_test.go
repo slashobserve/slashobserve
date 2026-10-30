@@ -27,7 +27,7 @@ const (
 	corpusDir     = "corpus"
 	goldenDir     = "golden"
 	minimumRatio  = 90
-	minimumFull   = 21.1
+	minimumFull   = 20.8
 	fullSlack     = 0.5
 	worklistSize  = 10
 	maxLinePaths  = 100
@@ -177,7 +177,12 @@ type sourcePanel struct {
 	raw  map[string]any
 }
 
+var staticSourceTypes = map[string]bool{"text": true, "dashlist": true, "news": true}
+
 func (p sourcePanel) targets() []map[string]any {
+	if kind, _ := p.raw["type"].(string); staticSourceTypes[kind] {
+		return nil
+	}
 	items, _ := p.raw["targets"].([]any)
 	out := make([]map[string]any, 0, len(items))
 	for _, item := range items {

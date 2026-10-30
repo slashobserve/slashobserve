@@ -1,0 +1,2904 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "ArgoCD",
+    "uid": "LCAgc9rWz",
+    "schema_version": 39,
+    "bytes": 112068,
+    "panels": 44,
+    "rows": 10,
+    "variables": 7
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 43,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 44,
+      "imported": 2,
+      "partial": 42,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p26",
+        "grafana_id": 26,
+        "grafana_path": "panels[1]",
+        "title": "",
+        "type": "text",
+        "source_type": "text",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p32",
+        "grafana_id": 32,
+        "grafana_path": "panels[2]",
+        "title": "Uptime",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unitScale"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p94",
+        "grafana_id": 94,
+        "grafana_path": "panels[3]",
+        "title": "Clusters",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unitScale"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p75",
+        "grafana_id": 75,
+        "grafana_path": "panels[4]",
+        "title": "Applications",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unitScale"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p107",
+        "grafana_id": 107,
+        "grafana_path": "panels[5]",
+        "title": "Repositories",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unitScale"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p100",
+        "grafana_id": 100,
+        "grafana_path": "panels[6]",
+        "title": "Operations",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unitScale",
+          "options.orientation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p28",
+        "grafana_id": 28,
+        "grafana_path": "panels[7]",
+        "title": "Applications",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Hiding empty series from the legend is not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "legend.hideEmpty",
+          "legend.hideZero",
+          "fieldConfig.defaults.unitScale",
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "nullPointMode",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p105",
+        "grafana_id": 105,
+        "grafana_path": "panels[8].panels[0]",
+        "title": "Health Status",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Application Status",
+        "status": "partial",
+        "reasons": [
+          "Logarithmic axes are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "yaxes[0].logBase",
+          "fieldConfig.defaults.unitScale",
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "nullPointMode",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p106",
+        "grafana_id": 106,
+        "grafana_path": "panels[8].panels[1]",
+        "title": "Sync Status",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Application Status",
+        "status": "partial",
+        "reasons": [
+          "Logarithmic axes are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "yaxes[0].logBase",
+          "fieldConfig.defaults.unitScale",
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "nullPointMode",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p56",
+        "grafana_id": 56,
+        "grafana_path": "panels[9].panels[0]",
+        "title": "Sync Activity",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Sync Stats",
+        "status": "partial",
+        "reasons": [
+          "Hiding empty series from the legend is not supported yet.",
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.hideEmpty",
+          "legend.hideZero",
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p73",
+        "grafana_id": 73,
+        "grafana_path": "panels[9].panels[1]",
+        "title": "Sync Failures",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Sync Stats",
+        "status": "partial",
+        "reasons": [
+          "Hiding empty series from the legend is not supported yet.",
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.hideEmpty",
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p58",
+        "grafana_id": 58,
+        "grafana_path": "panels[10].panels[0]",
+        "title": "Reconciliation Activity",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Controller Stats",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p60",
+        "grafana_id": 60,
+        "grafana_path": "panels[10].panels[1]",
+        "title": "Reconciliation Performance",
+        "type": "heatmap",
+        "source_type": "heatmap",
+        "row": "Controller Stats",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "color.cardColor",
+          "color.colorScale",
+          "color.colorScheme",
+          "color.exponent",
+          "color.mode",
+          "dataFormat",
+          "hideZeroBuckets",
+          "highlightCards",
+          "legend.show",
+          "reverseYBuckets",
+          "tooltip.show",
+          "tooltip.showHistogram",
+          "tooltipDecimals",
+          "xAxis.show",
+          "yAxis.format",
+          "yAxis.logBase",
+          "yAxis.show",
+          "yBucketBound"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p80",
+        "grafana_id": 80,
+        "grafana_path": "panels[10].panels[2]",
+        "title": "K8s API Activity",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Controller Stats",
+        "status": "partial",
+        "reasons": [
+          "Hiding empty series from the legend is not supported yet.",
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.hideEmpty",
+          "legend.hideZero",
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "nullPointMode",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p96",
+        "grafana_id": 96,
+        "grafana_path": "panels[10].panels[3]",
+        "title": "Workqueue Depth",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Controller Stats",
+        "status": "partial",
+        "reasons": [
+          "Hiding empty series from the legend is not supported yet.",
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.hideZero",
+          "legend.alignAsTable",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p98",
+        "grafana_id": 98,
+        "grafana_path": "panels[10].panels[4]",
+        "title": "Pending kubectl run",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Controller Stats",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.alignAsTable",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p34",
+        "grafana_id": 34,
+        "grafana_path": "panels[11].panels[0]",
+        "title": "Memory Usage",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Controller Telemetry",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unitScale",
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "nullPointMode",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p108",
+        "grafana_id": 108,
+        "grafana_path": "panels[11].panels[1]",
+        "title": "CPU Usage",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Controller Telemetry",
+        "status": "partial",
+        "reasons": [
+          "Hiding empty series from the legend is not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "legend.hideEmpty",
+          "legend.hideZero",
+          "fieldConfig.defaults.unitScale",
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "nullPointMode",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p62",
+        "grafana_id": 62,
+        "grafana_path": "panels[11].panels[2]",
+        "title": "Goroutines",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Controller Telemetry",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unitScale",
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p34_2",
+        "grafana_id": 34,
+        "grafana_path": "panels[12].panels[0]",
+        "title": "Memory Usage",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "AppSet Controller Telemetry",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unitScale",
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "nullPointMode",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p108_2",
+        "grafana_id": 108,
+        "grafana_path": "panels[12].panels[1]",
+        "title": "CPU Usage",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "AppSet Controller Telemetry",
+        "status": "partial",
+        "reasons": [
+          "Hiding empty series from the legend is not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "legend.hideEmpty",
+          "legend.hideZero",
+          "fieldConfig.defaults.unitScale",
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "nullPointMode",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p62_2",
+        "grafana_id": 62,
+        "grafana_path": "panels[12].panels[2]",
+        "title": "Goroutines",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "AppSet Controller Telemetry",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unitScale",
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p90",
+        "grafana_id": 90,
+        "grafana_path": "panels[13].panels[0]",
+        "title": "Resource Objects Count",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Cluster Stats",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p92",
+        "grafana_id": 92,
+        "grafana_path": "panels[13].panels[1]",
+        "title": "API Resources Count",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Cluster Stats",
+        "status": "partial",
+        "reasons": [
+          "Hiding empty series from the legend is not supported yet.",
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.hideEmpty",
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p86",
+        "grafana_id": 86,
+        "grafana_path": "panels[13].panels[2]",
+        "title": "Cluster Events Count",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Cluster Stats",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p82",
+        "grafana_id": 82,
+        "grafana_path": "panels[14].panels[0]",
+        "title": "Git Requests (ls-remote)",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Repo Server Stats",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unitScale",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p84",
+        "grafana_id": 84,
+        "grafana_path": "panels[14].panels[1]",
+        "title": "Git Requests (checkout)",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Repo Server Stats",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unitScale",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p114",
+        "grafana_id": 114,
+        "grafana_path": "panels[14].panels[2]",
+        "title": "Git Fetch Performance",
+        "type": "heatmap",
+        "source_type": "heatmap",
+        "row": "Repo Server Stats",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "color.cardColor",
+          "color.colorScale",
+          "color.colorScheme",
+          "color.exponent",
+          "color.mode",
+          "dataFormat",
+          "fieldConfig.defaults.unitScale",
+          "hideZeroBuckets",
+          "highlightCards",
+          "legend.show",
+          "options.cellGap",
+          "options.color.exponent",
+          "options.color.fill",
+          "options.color.mode",
+          "options.color.reverse",
+          "options.color.scale",
+          "options.color.scheme",
+          "options.color.steps",
+          "options.exemplars.color",
+          "options.filterValues.le",
+          "options.legend.show",
+          "options.rowsFrame.layout",
+          "options.showValue",
+          "options.tooltip.showColorScale",
+          "options.tooltip.yHistogram",
+          "options.yAxis.axisPlacement",
+          "options.yAxis.reverse",
+          "options.yAxis.unit",
+          "reverseYBuckets",
+          "tooltip.show",
+          "tooltip.showHistogram",
+          "xAxis.show",
+          "yAxis.format",
+          "yAxis.logBase",
+          "yAxis.show",
+          "yBucketBound"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p116",
+        "grafana_id": 116,
+        "grafana_path": "panels[14].panels[3]",
+        "title": "Git Ls-Remote Performance",
+        "type": "heatmap",
+        "source_type": "heatmap",
+        "row": "Repo Server Stats",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "color.cardColor",
+          "color.colorScale",
+          "color.colorScheme",
+          "color.exponent",
+          "color.mode",
+          "dataFormat",
+          "fieldConfig.defaults.unitScale",
+          "hideZeroBuckets",
+          "highlightCards",
+          "legend.show",
+          "options.cellGap",
+          "options.color.exponent",
+          "options.color.fill",
+          "options.color.mode",
+          "options.color.reverse",
+          "options.color.scale",
+          "options.color.scheme",
+          "options.color.steps",
+          "options.exemplars.color",
+          "options.filterValues.le",
+          "options.legend.show",
+          "options.rowsFrame.layout",
+          "options.showValue",
+          "options.tooltip.showColorScale",
+          "options.tooltip.yHistogram",
+          "options.yAxis.axisPlacement",
+          "options.yAxis.reverse",
+          "options.yAxis.unit",
+          "reverseYBuckets",
+          "tooltip.show",
+          "tooltip.showHistogram",
+          "xAxis.show",
+          "yAxis.format",
+          "yAxis.logBase",
+          "yAxis.show",
+          "yBucketBound"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p71",
+        "grafana_id": 71,
+        "grafana_path": "panels[14].panels[4]",
+        "title": "Memory Used",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Repo Server Stats",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unitScale",
+          "nullPointMode",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p72",
+        "grafana_id": 72,
+        "grafana_path": "panels[14].panels[5]",
+        "title": "Goroutines",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Repo Server Stats",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p61",
+        "grafana_id": 61,
+        "grafana_path": "panels[15].panels[0]",
+        "title": "Memory Used",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Server Stats",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unitScale",
+          "nullPointMode",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p36",
+        "grafana_id": 36,
+        "grafana_path": "panels[15].panels[1]",
+        "title": "Goroutines",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Server Stats",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unitScale",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p38",
+        "grafana_id": 38,
+        "grafana_path": "panels[15].panels[2]",
+        "title": "GC Time Quantiles",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Server Stats",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unitScale",
+          "nullPointMode",
+          "paceLength"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p54",
+        "grafana_id": 54,
+        "grafana_path": "panels[15].panels[3]",
+        "title": "",
+        "type": "text",
+        "source_type": "text",
+        "row": "Server Stats",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p40",
+        "grafana_id": 40,
+        "grafana_path": "panels[15].panels[4]",
+        "title": "ApplicationService Requests",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Server Stats",
+        "status": "partial",
+        "reasons": [
+          "Hiding empty series from the legend is not supported yet.",
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.hideEmpty",
+          "legend.hideZero",
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "nullPointMode",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p42",
+        "grafana_id": 42,
+        "grafana_path": "panels[15].panels[5]",
+        "title": "ClusterService Requests",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Server Stats",
+        "status": "partial",
+        "reasons": [
+          "Hiding empty series from the legend is not supported yet.",
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.hideEmpty",
+          "legend.hideZero",
+          "legend.alignAsTable",
+          "nullPointMode",
+          "paceLength",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p44",
+        "grafana_id": 44,
+        "grafana_path": "panels[15].panels[6]",
+        "title": "ProjectService Requests",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Server Stats",
+        "status": "partial",
+        "reasons": [
+          "Hiding empty series from the legend is not supported yet.",
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.hideEmpty",
+          "legend.hideZero",
+          "legend.alignAsTable",
+          "nullPointMode",
+          "paceLength"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p46",
+        "grafana_id": 46,
+        "grafana_path": "panels[15].panels[7]",
+        "title": "RepositoryService Requests",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Server Stats",
+        "status": "partial",
+        "reasons": [
+          "Hiding empty series from the legend is not supported yet.",
+          "Thresholds below a value are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.hideEmpty",
+          "legend.hideZero",
+          "thresholds[0]",
+          "legend.alignAsTable",
+          "nullPointMode",
+          "paceLength"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p48",
+        "grafana_id": 48,
+        "grafana_path": "panels[15].panels[8]",
+        "title": "SessionService Requests",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Server Stats",
+        "status": "partial",
+        "reasons": [
+          "Hiding empty series from the legend is not supported yet.",
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.hideEmpty",
+          "legend.hideZero",
+          "legend.alignAsTable",
+          "nullPointMode",
+          "paceLength"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p49",
+        "grafana_id": 49,
+        "grafana_path": "panels[15].panels[9]",
+        "title": "VersionService Requests",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Server Stats",
+        "status": "partial",
+        "reasons": [
+          "Hiding empty series from the legend is not supported yet.",
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.hideEmpty",
+          "legend.hideZero",
+          "legend.alignAsTable",
+          "nullPointMode",
+          "paceLength"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p50",
+        "grafana_id": 50,
+        "grafana_path": "panels[15].panels[10]",
+        "title": "AccountService Requests",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Server Stats",
+        "status": "partial",
+        "reasons": [
+          "Hiding empty series from the legend is not supported yet.",
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.hideEmpty",
+          "legend.hideZero",
+          "legend.alignAsTable",
+          "nullPointMode",
+          "paceLength"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p99",
+        "grafana_id": 99,
+        "grafana_path": "panels[15].panels[11]",
+        "title": "SettingsService Requests",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Server Stats",
+        "status": "partial",
+        "reasons": [
+          "Hiding empty series from the legend is not supported yet.",
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.hideEmpty",
+          "legend.hideZero",
+          "legend.alignAsTable",
+          "nullPointMode",
+          "paceLength"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p112",
+        "grafana_id": 112,
+        "grafana_path": "panels[16].panels[0]",
+        "title": "Requests by result",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Redis Stats",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unitScale"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "ArgoCD",
+    "time": {
+      "from": "now-30m",
+      "to": "now"
+    },
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "namespace",
+        "type": "query",
+        "datasource": "${datasource}",
+        "query": "label_values(kube_pod_info, namespace)",
+        "regex": ".*argocd.*",
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "interval",
+        "type": "interval",
+        "options": [
+          "1m",
+          "5m",
+          "10m",
+          "30m",
+          "1h",
+          "2h",
+          "4h",
+          "8h"
+        ],
+        "auto": true,
+        "autoSteps": 30,
+        "autoMin": "1m"
+      },
+      {
+        "name": "grouping",
+        "type": "custom",
+        "options": [
+          "namespace",
+          "name",
+          "project"
+        ]
+      },
+      {
+        "name": "cluster",
+        "type": "query",
+        "datasource": "${datasource}",
+        "query": "label_values(argocd_cluster_info, server)",
+        "sort": "alpha",
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "health_status",
+        "type": "custom",
+        "options": [
+          "Healthy",
+          "Progressing",
+          "Suspended",
+          "Missing",
+          "Degraded",
+          "Unknown"
+        ],
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "sync_status",
+        "type": "custom",
+        "options": [
+          "Synced",
+          "OutOfSync",
+          "Unknown"
+        ],
+        "includeAll": true,
+        "allValue": ".*"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p68",
+        "type": "row",
+        "title": "Overview",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p26",
+            "type": "text",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 2,
+              "h": 4
+            },
+            "content": "![argoimage](https://avatars1.githubusercontent.com/u/30269780?s=110&v=4)"
+          },
+          {
+            "id": "p32",
+            "type": "stat",
+            "title": "Uptime",
+            "gridPos": {
+              "x": 2,
+              "y": 1,
+              "w": 3,
+              "h": 4
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "time() - max(process_start_time_seconds{job=\"argocd-server-metrics\",namespace=~\"$namespace\"})"
+              }
+            ],
+            "unit": "dtdurations",
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ],
+            "maxDataPoints": 100,
+            "display": {
+              "colorMode": "none",
+              "graph": false,
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p94",
+            "type": "stat",
+            "title": "Clusters",
+            "gridPos": {
+              "x": 5,
+              "y": 1,
+              "w": 3,
+              "h": 4
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "count(count by (server) (argocd_cluster_info{namespace=~\"$namespace\"}))"
+              }
+            ],
+            "unit": "none",
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ],
+            "color": "#1f78c1",
+            "mappings": [
+              {
+                "special": "null",
+                "text": "0"
+              }
+            ],
+            "maxDataPoints": 100,
+            "display": {
+              "colorMode": "none",
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p75",
+            "type": "stat",
+            "title": "Applications",
+            "gridPos": {
+              "x": 8,
+              "y": 1,
+              "w": 3,
+              "h": 4
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(argocd_app_info{namespace=~\"$namespace\",dest_server=~\"$cluster\",health_status=~\"$health_status\",sync_status=~\"$sync_status\"})"
+              }
+            ],
+            "unit": "none",
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ],
+            "color": "#1f78c1",
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ],
+            "maxDataPoints": 100,
+            "display": {
+              "colorMode": "none",
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p107",
+            "type": "stat",
+            "title": "Repositories",
+            "gridPos": {
+              "x": 11,
+              "y": 1,
+              "w": 3,
+              "h": 4
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "count(count by (repo) (argocd_app_info{namespace=~\"$namespace\"}))"
+              }
+            ],
+            "unit": "none",
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ],
+            "color": "#1f78c1",
+            "mappings": [
+              {
+                "special": "null",
+                "text": "0"
+              }
+            ],
+            "maxDataPoints": 100,
+            "display": {
+              "colorMode": "none",
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p100",
+            "type": "gauge",
+            "title": "Operations",
+            "gridPos": {
+              "x": 14,
+              "y": 1,
+              "w": 3,
+              "h": 4
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(argocd_app_info{namespace=~\"$namespace\",dest_server=~\"$cluster\",operation!=\"\"})",
+                "instant": true
+              }
+            ],
+            "unit": "none",
+            "min": 0,
+            "max": 100,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "0"
+              }
+            ]
+          },
+          {
+            "id": "p28",
+            "type": "timeseries",
+            "title": "Applications",
+            "gridPos": {
+              "x": 17,
+              "y": 1,
+              "w": 7,
+              "h": 4
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(argocd_app_info{namespace=~\"$namespace\",dest_server=~\"$cluster\",health_status=~\"$health_status\",sync_status=~\"$sync_status\"}) by (namespace)",
+                "legend": "{{namespace}}"
+              }
+            ],
+            "unit": "short",
+            "decimals": 0,
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "lastNotNull"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "p77",
+        "type": "row",
+        "title": "Application Status",
+        "gridPos": {
+          "x": 0,
+          "y": 5,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p105",
+            "type": "timeseries",
+            "title": "Health Status",
+            "gridPos": {
+              "x": 0,
+              "y": 6,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(argocd_app_info{namespace=~\"$namespace\",dest_server=~\"$cluster\",health_status=~\"$health_status\",sync_status=~\"$sync_status\",health_status!=\"\"}) by (health_status)",
+                "legend": "{{health_status}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "overrides": [
+              {
+                "match": {
+                  "series": "Degraded"
+                },
+                "color": "#E02F44"
+              },
+              {
+                "match": {
+                  "series": "Healthy"
+                },
+                "color": "#73BF69"
+              },
+              {
+                "match": {
+                  "series": "Missing"
+                },
+                "color": "#A352CC"
+              },
+              {
+                "match": {
+                  "series": "Progressing"
+                },
+                "color": "#3274D9"
+              },
+              {
+                "match": {
+                  "series": "Suspended"
+                },
+                "color": "#FF780A"
+              },
+              {
+                "match": {
+                  "series": "Unknown"
+                },
+                "color": "#ffffff"
+              }
+            ],
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "lastNotNull"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p106",
+            "type": "timeseries",
+            "title": "Sync Status",
+            "gridPos": {
+              "x": 12,
+              "y": 6,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(argocd_app_info{namespace=~\"$namespace\",dest_server=~\"$cluster\",health_status=~\"$health_status\",sync_status=~\"$sync_status\",health_status!=\"\"}) by (sync_status)",
+                "legend": "{{sync_status}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "overrides": [
+              {
+                "match": {
+                  "series": "Degraded"
+                },
+                "color": "#E02F44"
+              },
+              {
+                "match": {
+                  "series": "Healthy"
+                },
+                "color": "#73BF69"
+              },
+              {
+                "match": {
+                  "series": "Missing"
+                },
+                "color": "#A352CC"
+              },
+              {
+                "match": {
+                  "series": "OutOfSync"
+                },
+                "color": "#F2CC0C"
+              },
+              {
+                "match": {
+                  "series": "Progressing"
+                },
+                "color": "#3274D9"
+              },
+              {
+                "match": {
+                  "series": "Suspended"
+                },
+                "color": "#FF780A"
+              },
+              {
+                "match": {
+                  "series": "Synced"
+                },
+                "color": "#56A64B"
+              },
+              {
+                "match": {
+                  "series": "Unknown"
+                },
+                "color": "#ffffff"
+              }
+            ],
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "lastNotNull"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p104",
+        "type": "row",
+        "title": "Sync Stats",
+        "gridPos": {
+          "x": 0,
+          "y": 6,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p56",
+            "type": "timeseries",
+            "title": "Sync Activity",
+            "gridPos": {
+              "x": 0,
+              "y": 7,
+              "w": 24,
+              "h": 6
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(round(increase(argocd_app_sync_total{namespace=~\"$namespace\",dest_server=~\"$cluster\"}[$interval]))) by ($grouping)",
+                "legend": "{{$grouping}}"
+              }
+            ],
+            "unit": "short",
+            "decimals": 0,
+            "min": 0,
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "lastNotNull",
+                "sum"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p73",
+            "type": "timeseries",
+            "title": "Sync Failures",
+            "gridPos": {
+              "x": 0,
+              "y": 13,
+              "w": 24,
+              "h": 5
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(round(increase(argocd_app_sync_total{namespace=~\"$namespace\",phase=~\"Error|Failed\",dest_server=~\"$cluster\"}[$interval]))) by ($grouping, phase)",
+                "legend": "{{phase}}: {{$grouping}}"
+              }
+            ],
+            "unit": "none",
+            "decimals": 0,
+            "min": 0,
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "sum"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p64",
+        "type": "row",
+        "title": "Controller Stats",
+        "gridPos": {
+          "x": 0,
+          "y": 7,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p58",
+            "type": "timeseries",
+            "title": "Reconciliation Activity",
+            "gridPos": {
+              "x": 0,
+              "y": 8,
+              "w": 24,
+              "h": 6
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(increase(argocd_app_reconcile_count{namespace=~\"$namespace\",dest_server=~\"$cluster\"}[$interval])) by ($grouping)",
+                "legend": "{{$grouping}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "sum"
+              ]
+            }
+          },
+          {
+            "id": "p60",
+            "type": "heatmap",
+            "title": "Reconciliation Performance",
+            "gridPos": {
+              "x": 0,
+              "y": 14,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(increase(argocd_app_reconcile_bucket{namespace=~\"$namespace\"}[$interval])) by (le)",
+                "legend": "{{le}}",
+                "format": "heatmap",
+                "intervalFactor": 10
+              }
+            ]
+          },
+          {
+            "id": "p80",
+            "type": "timeseries",
+            "title": "K8s API Activity",
+            "gridPos": {
+              "x": 0,
+              "y": 21,
+              "w": 24,
+              "h": 6
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(increase(argocd_app_k8s_request_total{namespace=~\"$namespace\",server=~\"$cluster\"}[$interval])) by (verb, resource_kind)",
+                "legend": "{{verb}} {{resource_kind}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p96",
+            "type": "timeseries",
+            "title": "Workqueue Depth",
+            "gridPos": {
+              "x": 0,
+              "y": 27,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(workqueue_depth{namespace=~\"$namespace\",name=~\"app_.*\"}) by (name)",
+                "legend": "{{name}}"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p98",
+            "type": "timeseries",
+            "title": "Pending kubectl run",
+            "gridPos": {
+              "x": 12,
+              "y": 27,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(argocd_kubectl_exec_pending{namespace=~\"$namespace\"}) by (command)",
+                "legend": "{{command}}"
+              }
+            ],
+            "unit": "short",
+            "decimals": 0,
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p102",
+        "type": "row",
+        "title": "Controller Telemetry",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p34",
+            "type": "timeseries",
+            "title": "Memory Usage",
+            "gridPos": {
+              "x": 0,
+              "y": 9,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "go_memstats_heap_alloc_bytes{job=\"argocd-application-controller-metrics\",namespace=~\"$namespace\"}",
+                "legend": "{{namespace}}"
+              }
+            ],
+            "unit": "bytes",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ]
+            }
+          },
+          {
+            "id": "p108",
+            "type": "timeseries",
+            "title": "CPU Usage",
+            "gridPos": {
+              "x": 0,
+              "y": 16,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "irate(process_cpu_seconds_total{job=\"argocd-application-controller-metrics\",namespace=~\"$namespace\"}[1m])",
+                "legend": "{{namespace}}"
+              }
+            ],
+            "unit": "none",
+            "decimals": 1,
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ]
+            }
+          },
+          {
+            "id": "p62",
+            "type": "timeseries",
+            "title": "Goroutines",
+            "gridPos": {
+              "x": 0,
+              "y": 23,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "go_goroutines{job=\"argocd-application-controller-metrics\",namespace=~\"$namespace\"}",
+                "legend": "{{namespace}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "p102_2",
+        "type": "row",
+        "title": "AppSet Controller Telemetry",
+        "gridPos": {
+          "x": 0,
+          "y": 9,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p34_2",
+            "type": "timeseries",
+            "title": "Memory Usage",
+            "gridPos": {
+              "x": 0,
+              "y": 10,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "go_memstats_heap_alloc_bytes{job=\"argocd-applicationset-controller-metrics\",namespace=~\"$namespace\"}",
+                "legend": "{{namespace}}"
+              }
+            ],
+            "unit": "bytes",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ]
+            }
+          },
+          {
+            "id": "p108_2",
+            "type": "timeseries",
+            "title": "CPU Usage",
+            "gridPos": {
+              "x": 0,
+              "y": 17,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "irate(process_cpu_seconds_total{job=\"argocd-applicationset-controller-metrics\",namespace=~\"$namespace\"}[1m])",
+                "legend": "{{namespace}}"
+              }
+            ],
+            "unit": "none",
+            "decimals": 1,
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ]
+            }
+          },
+          {
+            "id": "p62_2",
+            "type": "timeseries",
+            "title": "Goroutines",
+            "gridPos": {
+              "x": 0,
+              "y": 24,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "go_goroutines{job=\"argocd-applicationset-controller-metrics\",namespace=~\"$namespace\"}",
+                "legend": "{{namespace}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "p88",
+        "type": "row",
+        "title": "Cluster Stats",
+        "gridPos": {
+          "x": 0,
+          "y": 10,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p90",
+            "type": "timeseries",
+            "title": "Resource Objects Count",
+            "gridPos": {
+              "x": 0,
+              "y": 11,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(argocd_cluster_api_resource_objects{namespace=~\"$namespace\",server=~\"$cluster\"}) by (server)",
+                "legend": "{{server}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "lastNotNull"
+              ]
+            }
+          },
+          {
+            "id": "p92",
+            "type": "timeseries",
+            "title": "API Resources Count",
+            "gridPos": {
+              "x": 0,
+              "y": 18,
+              "w": 24,
+              "h": 6
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "  sum(argocd_cluster_api_resources{namespace=~\"$namespace\",server=~\"$cluster\"}) by (server)",
+                "legend": "{{server}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "lastNotNull"
+              ]
+            }
+          },
+          {
+            "id": "p86",
+            "type": "timeseries",
+            "title": "Cluster Events Count",
+            "gridPos": {
+              "x": 0,
+              "y": 24,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(increase(argocd_cluster_events_total{namespace=~\"$namespace\",server=~\"$cluster\"}[$interval])) by (server)",
+                "legend": "{{server}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "p70",
+        "type": "row",
+        "title": "Repo Server Stats",
+        "gridPos": {
+          "x": 0,
+          "y": 11,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p82",
+            "type": "timeseries",
+            "title": "Git Requests (ls-remote)",
+            "gridPos": {
+              "x": 0,
+              "y": 12,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(increase(argocd_git_request_total{request_type=\"ls-remote\", namespace=~\"$namespace\"}[10m])) by (namespace)",
+                "legend": "{{namespace}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p84",
+            "type": "timeseries",
+            "title": "Git Requests (checkout)",
+            "gridPos": {
+              "x": 12,
+              "y": 12,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(increase(argocd_git_request_total{request_type=\"fetch\", namespace=~\"$namespace\"}[10m])) by (namespace)",
+                "legend": "{{namespace}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p114",
+            "type": "heatmap",
+            "title": "Git Fetch Performance",
+            "gridPos": {
+              "x": 0,
+              "y": 20,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(increase(argocd_git_request_duration_seconds_bucket{request_type=\"fetch\", namespace=~\"$namespace\"}[$interval])) by (le)",
+                "legend": "{{le}}",
+                "format": "heatmap",
+                "intervalFactor": 10
+              }
+            ]
+          },
+          {
+            "id": "p116",
+            "type": "heatmap",
+            "title": "Git Ls-Remote Performance",
+            "gridPos": {
+              "x": 12,
+              "y": 20,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(increase(argocd_git_request_duration_seconds_bucket{request_type=\"ls-remote\", namespace=~\"$namespace\"}[$interval])) by (le)",
+                "legend": "{{le}}",
+                "format": "heatmap",
+                "intervalFactor": 10
+              }
+            ]
+          },
+          {
+            "id": "p71",
+            "type": "timeseries",
+            "title": "Memory Used",
+            "gridPos": {
+              "x": 0,
+              "y": 28,
+              "w": 24,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "go_memstats_heap_alloc_bytes{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
+                "legend": "{{pod}}"
+              }
+            ],
+            "unit": "bytes",
+            "fill": 10,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p72",
+            "type": "timeseries",
+            "title": "Goroutines",
+            "gridPos": {
+              "x": 0,
+              "y": 36,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "go_goroutines{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
+                "legend": "{{pod}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p66",
+        "type": "row",
+        "title": "Server Stats",
+        "gridPos": {
+          "x": 0,
+          "y": 12,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p61",
+            "type": "timeseries",
+            "title": "Memory Used",
+            "gridPos": {
+              "x": 0,
+              "y": 13,
+              "w": 24,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "go_memstats_heap_alloc_bytes{job=\"argocd-repo-server-metrics\",namespace=~\"$namespace\"}",
+                "legend": "{{pod}}"
+              }
+            ],
+            "unit": "bytes",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p36",
+            "type": "timeseries",
+            "title": "Goroutines",
+            "gridPos": {
+              "x": 0,
+              "y": 21,
+              "w": 24,
+              "h": 9
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "go_goroutines{job=\"argocd-repo-server-metrics\",namespace=~\"$namespace\"}",
+                "legend": "{{pod}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p38",
+            "type": "timeseries",
+            "title": "GC Time Quantiles",
+            "gridPos": {
+              "x": 0,
+              "y": 30,
+              "w": 24,
+              "h": 9
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "go_gc_duration_seconds{job=\"argocd-server-metrics\", quantile=~\"1.0|1\", namespace=~\"$namespace\"}",
+                "legend": "{{pod}}",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p54",
+            "type": "text",
+            "gridPos": {
+              "x": 0,
+              "y": 39,
+              "w": 24,
+              "h": 2
+            },
+            "content": "#### gRPC Services:"
+          },
+          {
+            "id": "p40",
+            "type": "timeseries",
+            "title": "ApplicationService Requests",
+            "gridPos": {
+              "x": 0,
+              "y": 41,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"application.ApplicationService\",namespace=~\"$namespace\"}[$interval])) by (grpc_code, grpc_method)",
+                "legend": "{{grpc_code}},{{grpc_method}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "sum"
+              ]
+            }
+          },
+          {
+            "id": "p42",
+            "type": "timeseries",
+            "title": "ClusterService Requests",
+            "gridPos": {
+              "x": 12,
+              "y": 41,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"cluster.ClusterService\",namespace=~\"$namespace\"}[$interval])) by (grpc_code, grpc_method)",
+                "legend": "{{grpc_code}},{{grpc_method}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "sum"
+              ]
+            }
+          },
+          {
+            "id": "p44",
+            "type": "timeseries",
+            "title": "ProjectService Requests",
+            "gridPos": {
+              "x": 0,
+              "y": 50,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"project.ProjectService\",namespace=~\"$namespace\"}[$interval])) by (grpc_code, grpc_method)",
+                "legend": "{{grpc_code}},{{grpc_method}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "sum"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p46",
+            "type": "timeseries",
+            "title": "RepositoryService Requests",
+            "gridPos": {
+              "x": 12,
+              "y": 50,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"repository.RepositoryService\",namespace=~\"$namespace\"}[$interval])) by (grpc_code, grpc_method)",
+                "legend": "{{grpc_code}},{{grpc_method}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "sum"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p48",
+            "type": "timeseries",
+            "title": "SessionService Requests",
+            "gridPos": {
+              "x": 0,
+              "y": 59,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"session.SessionService\",namespace=~\"$namespace\"}[$interval])) by (grpc_code, grpc_method)",
+                "legend": "{{grpc_code}},{{grpc_method}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "sum"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p49",
+            "type": "timeseries",
+            "title": "VersionService Requests",
+            "gridPos": {
+              "x": 12,
+              "y": 59,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"version.VersionService\",namespace=~\"$namespace\"}[$interval])) by (grpc_code, grpc_method)",
+                "legend": "{{grpc_code}},{{grpc_method}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "sum"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p50",
+            "type": "timeseries",
+            "title": "AccountService Requests",
+            "gridPos": {
+              "x": 0,
+              "y": 68,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"account.AccountService\",namespace=~\"$namespace\"}[$interval])) by (grpc_code, grpc_method)",
+                "legend": "{{grpc_code}},{{grpc_method}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "sum"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p99",
+            "type": "timeseries",
+            "title": "SettingsService Requests",
+            "gridPos": {
+              "x": 12,
+              "y": 68,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(increase(grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"cluster.SettingsService\",namespace=~\"$namespace\"}[$interval])) by (grpc_code, grpc_method)",
+                "legend": "{{grpc_code}},{{grpc_method}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "sum"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p110",
+        "type": "row",
+        "title": "Redis Stats",
+        "gridPos": {
+          "x": 0,
+          "y": 13,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p112",
+            "type": "timeseries",
+            "title": "Requests by result",
+            "gridPos": {
+              "x": 0,
+              "y": 14,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(increase(argocd_redis_request_total{namespace=~\"$namespace\"}[$interval])) by (failed)"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
