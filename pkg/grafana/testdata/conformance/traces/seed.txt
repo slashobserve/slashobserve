@@ -1,0 +1,9 @@
+options.spanFilters.criticalPathOnly=true
+options.spanFilters.from=10ms
+options.spanFilters.matchesOnly=true
+options.spanFilters.query=checkout
+options.spanFilters.serviceName=checkout
+options.spanFilters.serviceNameOperator=not-equal
+options.spanFilters.spanName=GET
+options.spanFilters.spanNameOperator=not-equal
+options.spanFilters.to=1s
