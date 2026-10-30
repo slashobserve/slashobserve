@@ -125,6 +125,15 @@ func (r *Runner) checkSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 	if canceled() {
 		return nil, context.Canceled
 	}
+	addSourceFailures(d, entries, only, issues, panelIssues)
+	for _, pi := range panelIssues {
+		issues = append(issues, pi...)
+	}
+
+	return finish(issues), nil
+}
+
+func addSourceFailures(d *spec.Dashboard, entries []spec.PanelEntry, only map[string]bool, issues []spec.Issue, panelIssues [][]spec.Issue) {
 	for i, e := range entries {
 		if only != nil && !only[e.Pointer] {
 			continue
@@ -133,11 +142,6 @@ func (r *Runner) checkSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 			panelIssues[i] = append(panelIssues[i], *failed)
 		}
 	}
-	for _, pi := range panelIssues {
-		issues = append(issues, pi...)
-	}
-
-	return finish(issues), nil
 }
 
 func sourceFailure(d *spec.Dashboard, entries []spec.PanelEntry, issues []spec.Issue, panelIssues [][]spec.Issue, e spec.PanelEntry) *spec.Issue {
