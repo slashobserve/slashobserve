@@ -1,0 +1,8 @@
+allowCustomValue=false
+current=other
+hide=3
+includeAll=true
+multi=true
+refresh=2
+regex=excluding
+skipUrlSync=true

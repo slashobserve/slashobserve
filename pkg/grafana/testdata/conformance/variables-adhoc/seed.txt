@@ -1,0 +1,14 @@
+allowCustomValue=false
+baseFilters=equals
+defaultKeys=job
+filters=condition
+filters=equals
+filters=greater
+filters=labels
+filters=less
+filters=not-equals
+filters=not-regex
+filters=regex
+filters=values-list
+hide=3
+skipUrlSync=true

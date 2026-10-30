@@ -1,0 +1,4 @@
+allowCustomValue=false
+hide=3
+query=text-value-pairs
+skipUrlSync=true

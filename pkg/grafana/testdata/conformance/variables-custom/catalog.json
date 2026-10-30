@@ -1,0 +1,28 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "kinds/dashboard/dashboard_kind.cue",
+    "apps/dashboard/pkg/apis/dashboard/v2beta1/dashboard_spec.cue"
+  ],
+  "root": "templating.list[0]",
+  "entries": [
+    { "id": "query=a-y-z", "path": "query", "value": "a,y,z" },
+    { "id": "query=single", "path": "query", "value": "a" },
+    { "id": "query=text-value-pairs", "path": "query", "value": "A : a, B : b, C : c", "with": {"current": {"text": "A", "value": "a"}} },
+    { "id": "query=escaped-comma", "path": "query", "value": "a\\,b,c", "with": {"current": {"text": "a,b", "value": "a,b"}} },
+    { "id": "multi=true", "path": "multi", "value": true },
+    { "id": "includeAll=true", "path": "includeAll", "value": true },
+    { "id": "allValue=regex-all", "path": "allValue", "value": ".*", "with": {"includeAll": true} },
+    { "id": "allowCustomValue=false", "path": "allowCustomValue", "value": false },
+    { "id": "current=b", "path": "current", "value": {"text": "b", "value": "b"} },
+    { "id": "current=list", "path": "current", "value": {"text": ["a", "b"], "value": ["a", "b"]}, "with": {"multi": true} },
+    { "id": "current=all", "path": "current", "value": {"text": "All", "value": "$__all"}, "with": {"includeAll": true} },
+    { "id": "hide=1", "path": "hide", "value": 1 },
+    { "id": "hide=2", "path": "hide", "value": 2 },
+    { "id": "hide=3", "path": "hide", "value": 3 },
+    { "id": "label=Pod", "path": "label", "value": "Pod" },
+    { "id": "description=text", "path": "description", "value": "Pick a pod" },
+    { "id": "skipUrlSync=true", "path": "skipUrlSync", "value": true },
+    { "id": "options=saved", "path": "options", "value": [{"selected": true, "text": "a", "value": "a"}], "expect": "bookkeeping" }
+  ]
+}

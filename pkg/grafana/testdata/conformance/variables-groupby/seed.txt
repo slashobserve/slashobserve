@@ -1,0 +1,13 @@
+current=job
+current=list
+datasource=clickhouse
+defaultValue=job
+description=text
+hide=1
+hide=2
+hide=3
+label=Group-by
+multi=true
+options=saved-keys
+skipUrlSync=true
+type=groupby

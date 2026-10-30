@@ -1,0 +1,10 @@
+allowCustomValue=false
+hide=3
+refresh=0
+skipUrlSync=true
+sort=5
+sort=6
+staticOptions=none-option
+staticOptionsOrder=after
+staticOptionsOrder=before
+staticOptionsOrder=sorted

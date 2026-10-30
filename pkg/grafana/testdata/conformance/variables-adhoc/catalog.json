@@ -1,0 +1,30 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "kinds/dashboard/dashboard_kind.cue",
+    "apps/dashboard/pkg/apis/dashboard/v2beta1/dashboard_spec.cue",
+    "public/app/features/dashboard-scene/settings/variables/components/AdHocVariableForm.tsx"
+  ],
+  "root": "templating.list[0]",
+  "entries": [
+    { "id": "datasource=clickhouse", "path": "datasource", "value": {"type": "grafana-clickhouse-datasource", "uid": "ch"} },
+    { "id": "filters=equals", "path": "filters", "value": [{"key": "job", "operator": "=", "value": "api"}] },
+    { "id": "filters=not-equals", "path": "filters", "value": [{"key": "job", "operator": "!=", "value": "api"}] },
+    { "id": "filters=regex", "path": "filters", "value": [{"key": "job", "operator": "=~", "value": "api"}] },
+    { "id": "filters=not-regex", "path": "filters", "value": [{"key": "job", "operator": "!~", "value": "api"}] },
+    { "id": "filters=less", "path": "filters", "value": [{"key": "job", "operator": "<", "value": "api"}] },
+    { "id": "filters=greater", "path": "filters", "value": [{"key": "job", "operator": ">", "value": "api"}] },
+    { "id": "filters=values-list", "path": "filters", "value": [{"key": "job", "operator": "=~", "value": "api|web", "values": ["api", "web"]}] },
+    { "id": "filters=labels", "path": "filters", "value": [{"key": "job", "operator": "=", "value": "api", "keyLabel": "Job", "valueLabels": ["API"]}] },
+    { "id": "filters=condition", "path": "filters", "value": [{"key": "job", "operator": "=", "value": "api", "condition": "OR"}] },
+    { "id": "baseFilters=equals", "path": "baseFilters", "value": [{"key": "env", "operator": "=", "value": "prod"}] },
+    { "id": "defaultKeys=job", "path": "defaultKeys", "value": [{"text": "job", "value": "job"}] },
+    { "id": "allowCustomValue=false", "path": "allowCustomValue", "value": false },
+    { "id": "hide=1", "path": "hide", "value": 1 },
+    { "id": "hide=2", "path": "hide", "value": 2 },
+    { "id": "hide=3", "path": "hide", "value": 3 },
+    { "id": "label=Pod", "path": "label", "value": "Pod" },
+    { "id": "description=text", "path": "description", "value": "Pick a pod" },
+    { "id": "skipUrlSync=true", "path": "skipUrlSync", "value": true }
+  ]
+}
