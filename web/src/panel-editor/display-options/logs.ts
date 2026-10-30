@@ -45,9 +45,4 @@ export const logs: readonly DisplayOption[] = [
     ],
   },
   { kind: "toggle", key: "highlight", label: "Highlight key=value and levels" },
-  {
-    kind: "toggle",
-    key: "infiniteScroll",
-    label: "Infinite scrolling (not applied yet)",
-  },
 ]

@@ -37,7 +37,6 @@ func TestLogsToggleOptionsImportOnlyWhenTheyDifferFromTheSpecDefault(t *testing.
 		{"prettifyLogMessage", func(d spec.Display) *bool { return d.Prettify }},
 		{"showControls", func(d spec.Display) *bool { return d.Controls }},
 		{"syntaxHighlighting", func(d spec.Display) *bool { return d.Highlight }},
-		{"enableInfiniteScrolling", func(d spec.Display) *bool { return d.InfiniteScroll }},
 	}
 	for _, tc := range cases {
 		t.Run(tc.option, func(t *testing.T) {
@@ -102,7 +101,7 @@ func TestLogsUnknownDedupStrategyIsReported(t *testing.T) {
 func TestLogsWithoutLineOptionsWritesNoneOfThem(t *testing.T) {
 	d, line := logsPanel(t, `{"showTime":true}`)
 	if d.ShowLabels != nil || d.ShowCommonLabels != nil || d.Details != nil || d.Prettify != nil || d.Controls != nil ||
-		d.Highlight != nil || d.InfiniteScroll != nil || d.Dedup != "" || d.FontSize != "" || d.DetailsMode != "" {
+		d.Highlight != nil || d.Dedup != "" || d.FontSize != "" || d.DetailsMode != "" {
 		t.Fatalf("display = %+v", d)
 	}
 	if line.Status != statusImported {
@@ -112,6 +111,7 @@ func TestLogsWithoutLineOptionsWritesNoneOfThem(t *testing.T) {
 
 func TestLogsOptionsWithoutASpecKeyAreStillReported(t *testing.T) {
 	cases := []struct{ option, value string }{
+		{"enableInfiniteScrolling", `true`},
 		{"showFieldSelector", `true`},
 		{"showLogContextToggle", `true`},
 		{"timestampResolution", `"ns"`},
@@ -125,5 +125,13 @@ func TestLogsOptionsWithoutASpecKeyAreStillReported(t *testing.T) {
 				t.Fatalf("status %s, paths %v", line.Status, line.Paths)
 			}
 		})
+	}
+}
+
+func TestLogsInfiniteScrollingIsReportedWithItsOwnReason(t *testing.T) {
+	d, line := logsPanel(t, `{"enableInfiniteScrolling":true}`)
+	requireReported(t, line, "options.enableInfiniteScrolling", "Infinite scrolling of logs is not supported yet.")
+	if line.Status != statusPartial {
+		t.Fatalf("display = %+v, status %s", d, line.Status)
 	}
 }

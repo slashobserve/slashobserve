@@ -225,6 +225,7 @@ var partialReasons = map[string]string{
 	"options.layers":                                "Some layer options are not supported yet.",
 	"options.panZoom":                               "Panning and zooming the canvas is not supported.",
 	"options.infinitePan":                           "Panning and zooming the canvas is not supported.",
+	"options.enableInfiniteScrolling":               "Infinite scrolling of logs is not supported yet.",
 	"options.dashboardAlerts":                       "Listing only the alerts of this dashboard is not supported.",
 	"options.groupMode":                             "Grouping alerts is not supported.",
 	"options.groupBy":                               "Grouping alerts is not supported.",

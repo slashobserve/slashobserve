@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 3,
-      "imported": 2,
-      "partial": 1,
+      "imported": 1,
+      "partial": 2,
       "placeholder": 0,
       "unverified": 0
     },
@@ -89,9 +89,13 @@
         "type": "logs",
         "source_type": "logs",
         "row": null,
-        "status": "imported",
-        "reasons": [],
-        "paths": [],
+        "status": "partial",
+        "reasons": [
+          "Infinite scrolling of logs is not supported yet."
+        ],
+        "paths": [
+          "options.enableInfiniteScrolling"
+        ],
         "queries": [
           {
             "ref_id": "A",

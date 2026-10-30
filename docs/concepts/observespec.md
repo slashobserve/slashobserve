@@ -143,7 +143,6 @@ A `logs` panel shows its lines newest first (`order`), with `wrap` and `showTime
 `dedup` shows one line for messages the strategy counts as equal and writes "Repeated N times" beside it: `exact`, `numbers` (numbers are ignored) or `signature` (letters and numbers are ignored), `none` by default.
 `controls: true` adds a bar above the list to change the order, wrapping, time and deduplication while looking at the panel; the choices are not saved.
 `fontSize: small` draws the lines at 11px, and `highlight: true` colors `key=value` pairs and upper case level words in a message.
-`infiniteScroll` is kept but ignored, because a query returns one fixed set of lines.
 
 ## Maps, canvases and actions
 

@@ -25,7 +25,6 @@ export type LogsDisplay = {
   controls: boolean
   fontSize: "default" | "small"
   highlight: boolean
-  infiniteScroll: boolean
   detailsMode?: "inline" | "sidebar"
 }
 

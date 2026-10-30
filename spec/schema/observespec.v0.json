@@ -2795,10 +2795,6 @@
                     "type": "boolean",
                     "x-omitFromPrompt": true
                   },
-                  "infiniteScroll": {
-                    "type": "boolean",
-                    "x-omitFromPrompt": true
-                  },
                   "detailsMode": {
                     "enum": [
                       "inline",

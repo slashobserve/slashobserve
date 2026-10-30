@@ -107,8 +107,7 @@ export const specDefaults = {
       "dedup": "none",
       "controls": false,
       "fontSize": "default",
-      "highlight": false,
-      "infiniteScroll": false
+      "highlight": false
     },
     "barchart": {
       "orientation": "auto",

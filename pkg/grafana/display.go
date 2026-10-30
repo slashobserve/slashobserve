@@ -465,7 +465,6 @@ func (b *panelBuild) logsLines(d *spec.Display) {
 	d.Prettify, _ = b.boolOption("options.prettifyLogMessage")
 	d.Controls, _ = b.boolOption("options.showControls")
 	d.Highlight, _ = b.boolOption("options.syntaxHighlighting")
-	d.InfiniteScroll, _ = b.boolOption("options.enableInfiniteScrolling")
 	d.Dedup = b.enumOption("options.dedupStrategy", "none", "exact", "numbers", "signature")
 	d.FontSize = b.enumOption("options.fontSize", "default", "small")
 	d.DetailsMode = b.enumOption("options.detailsMode", "inline", "sidebar")

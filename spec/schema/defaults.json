@@ -15,7 +15,7 @@
     "heatmap": {"calculate": false, "yScale": "linear"},
     "histogram": {},
     "state-timeline": {"mergeValues": true, "showValues": "auto"},
-    "logs": {"wrap": false, "showTime": false, "order": "newest", "showLabels": false, "showCommonLabels": false, "details": true, "prettify": false, "dedup": "none", "controls": false, "fontSize": "default", "highlight": false, "infiniteScroll": false},
+    "logs": {"wrap": false, "showTime": false, "order": "newest", "showLabels": false, "showCommonLabels": false, "details": true, "prettify": false, "dedup": "none", "controls": false, "fontSize": "default", "highlight": false},
     "barchart": {"orientation": "auto", "showValues": "auto", "barWidth": 0.97, "groupWidth": 0.7, "legend": "bottom", "tooltip": "single"},
     "status-history": {"showValues": "auto"},
     "trend": {"legend": "bottom", "legendValues": [], "legendSortDesc": false, "legendHideZero": false, "legendHideEmpty": false, "tooltip": "single", "xAxis": "shown"},

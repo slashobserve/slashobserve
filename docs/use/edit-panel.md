@@ -88,7 +88,7 @@ The settings column has:
   A Stat panel also has **Alignment** (Auto or Center), **Title size** and **Value size** (pixels, empty for the default), **Show percent change** with its **Percent change color** (Standard, Inverted or Same as value, applied to the arrow only) and **Wide layout**, which puts the name beside the value on wide tiles.
   Gauge panels add **Show threshold labels**, **Minimum gauge width**, **Minimum gauge height**, **Title size** and **Value size**.
   Bar gauge panels add **Bar style** (Basic or LCD), **Value** (With threshold state, Plain text or Hidden), **Name placement**, **Show unfilled area**, **Minimum bar width**, **Minimum bar height**, **Maximum bar height**, **Title size** and **Value size**; sizes are in pixels.
-  Logs panels add **Show unique labels**, **Show common labels**, **Log details**, **Details placement** (under the line or in a side panel), **Prettify JSON messages**, **Deduplication**, **Controls bar**, **Font size** and **Highlight key=value and levels**; **Infinite scrolling** is kept but has no effect yet.
+  Logs panels add **Show unique labels**, **Show common labels**, **Log details**, **Details placement** (under the line or in a side panel), **Prettify JSON messages**, **Deduplication**, **Controls bar**, **Font size** and **Highlight key=value and levels**.
 
 A text panel has a **Content** box instead of queries: Markdown up to 20000 characters, with "HTML is removed.".
 A dashboard list or news panel has only the title and its display options.

@@ -128,7 +128,6 @@ func Defaults() DefaultsTable {
 		display.Prettify = clonePointer(display.Prettify)
 		display.Controls = clonePointer(display.Controls)
 		display.Highlight = clonePointer(display.Highlight)
-		display.InfiniteScroll = clonePointer(display.InfiniteScroll)
 		display.BarWidth = clonePointer(display.BarWidth)
 		display.GroupWidth = clonePointer(display.GroupWidth)
 		display.Lat = clonePointer(display.Lat)

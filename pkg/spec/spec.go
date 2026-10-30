@@ -409,7 +409,6 @@ type Display struct {
 	Controls           *bool              `json:"controls,omitempty"`
 	FontSize           string             `json:"fontSize,omitempty"`
 	Highlight          *bool              `json:"highlight,omitempty"`
-	InfiniteScroll     *bool              `json:"infiniteScroll,omitempty"`
 	DetailsMode        string             `json:"detailsMode,omitempty"`
 	XField             string             `json:"xField,omitempty"`
 	BarWidth           *float64           `json:"barWidth,omitempty"`

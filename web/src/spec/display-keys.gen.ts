@@ -92,7 +92,6 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "controls",
     "fontSize",
     "highlight",
-    "infiniteScroll",
     "detailsMode"
   ],
   "barchart": [
