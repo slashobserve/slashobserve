@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 8,
-      "imported": 2,
-      "partial": 6,
+      "imported": 3,
+      "partial": 5,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "text",
         "source_type": "text",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "HTML text is shown as Markdown."
-        ],
-        "paths": [
-          "options.mode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": []
       },
       {
@@ -320,7 +316,8 @@
           "w": 24,
           "h": 2
         },
-        "content": "This dashboard uses RED metrics generated for all services by the spanmetrics connector configured in the OpenTelemetry Collector.\n<br>\nChart panels may require 5 minutes after the Demo is started before rendering data."
+        "content": "This dashboard uses RED metrics generated for all services by the spanmetrics connector configured in the OpenTelemetry Collector.\n<br>\nChart panels may require 5 minutes after the Demo is started before rendering data.",
+        "mode": "html"
       },
       {
         "id": "p24",

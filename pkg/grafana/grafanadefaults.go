@@ -282,6 +282,9 @@ var cosmeticOptions = map[string]cosmeticOption{
 	"options.showAdvancedTypes": {
 		why: "the canvas has no drag editor, so its element picker is not shown",
 	},
+	"options.code.showMiniMap": {
+		why: "the code view has no minimap",
+	},
 	"options.showHeadings": {
 		why: "the dashboard list shows plain links without headings",
 	},
