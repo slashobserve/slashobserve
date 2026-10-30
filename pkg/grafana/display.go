@@ -330,8 +330,8 @@ func (b *panelBuild) convertPanelOptions() {
 		b.convertMaxDataPoints(v)
 	}
 	if interval := strings.TrimSpace(asString(b.raw["interval"])); interval != "" {
-		if intervalPattern.MatchString(interval) {
-			b.panel.Interval = interval
+		if value, ok := b.c.minStep(interval); ok {
+			b.panel.Interval = value
 		} else {
 			b.partial("interval", fmt.Sprintf("The min interval %s cannot be kept; SlashObserve picks the step.", interval))
 		}

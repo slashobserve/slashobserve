@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 4,
-      "imported": 0,
-      "partial": 4,
+      "imported": 4,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Alerts",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -68,14 +64,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Alerts",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor",
-          "targets[1].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -101,14 +92,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Notifications",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor",
-          "targets[1].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -134,15 +120,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Notifications",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor",
-          "targets[1].intervalFactor",
-          "targets[2].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -246,7 +226,8 @@
             "queries": [
               {
                 "query": "sum(alertmanager_alerts{namespace=~\"$namespace\",service=~\"$service\"}) by (namespace,service,instance)",
-                "legend": "{{instance}}"
+                "legend": "{{instance}}",
+                "intervalFactor": 2
               }
             ],
             "unit": "none",
@@ -272,11 +253,13 @@
             "queries": [
               {
                 "query": "sum(rate(alertmanager_alerts_received_total{namespace=~\"$namespace\",service=~\"$service\"}[$__rate_interval])) by (namespace,service,instance)",
-                "legend": "{{instance}} Received"
+                "legend": "{{instance}} Received",
+                "intervalFactor": 2
               },
               {
                 "query": "sum(rate(alertmanager_alerts_invalid_total{namespace=~\"$namespace\",service=~\"$service\"}[$__rate_interval])) by (namespace,service,instance)",
-                "legend": "{{instance}} Invalid"
+                "legend": "{{instance}} Invalid",
+                "intervalFactor": 2
               }
             ],
             "unit": "ops",
@@ -315,11 +298,13 @@
             "queries": [
               {
                 "query": "sum(rate(alertmanager_notifications_total{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (integration,namespace,service,instance)",
-                "legend": "{{instance}} Total"
+                "legend": "{{instance}} Total",
+                "intervalFactor": 2
               },
               {
                 "query": "sum(rate(alertmanager_notifications_failed_total{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (integration,namespace,service,instance)",
-                "legend": "{{instance}} Failed"
+                "legend": "{{instance}} Failed",
+                "intervalFactor": 2
               }
             ],
             "unit": "ops",
@@ -346,15 +331,18 @@
             "queries": [
               {
                 "query": "histogram_quantile(0.99,\n  sum(rate(alertmanager_notification_latency_seconds_bucket{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (le,namespace,service,instance)\n)\n",
-                "legend": "{{instance}} 99th Percentile"
+                "legend": "{{instance}} 99th Percentile",
+                "intervalFactor": 2
               },
               {
                 "query": "histogram_quantile(0.50,\n  sum(rate(alertmanager_notification_latency_seconds_bucket{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (le,namespace,service,instance)\n)\n",
-                "legend": "{{instance}} Median"
+                "legend": "{{instance}} Median",
+                "intervalFactor": 2
               },
               {
                 "query": "sum(rate(alertmanager_notification_latency_seconds_sum{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (namespace,service,instance)\n/\nsum(rate(alertmanager_notification_latency_seconds_count{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (namespace,service,instance)\n",
-                "legend": "{{instance}} Average"
+                "legend": "{{instance}} Average",
+                "intervalFactor": 2
               }
             ],
             "unit": "s",

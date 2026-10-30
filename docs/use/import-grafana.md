@@ -30,3 +30,7 @@ It saves the dashboard as version 1 and runs every query once.
 Failing queries mark their panels and variables unverified in the import report instead of failing the import.
 Later saves run every query too, but keep a failing panel or variable unverified, instead of failing, for as long as its queries and the variables they use are unchanged; a new or changed query must return data, and a panel whose queries pass again is no longer unverified.
 The original JSON is stored with the import so a newer importer can convert it again, and it is never shown to the agent.
+
+A query's min step written as a variable (`$name`, `${name}` or `[[name]]`) imports as `${name}`, so the query uses the step selected in that variable.
+A `custom` variable of durations that is single-select, has no All and is used as a min step becomes an `interval` variable, and the import report says so.
+A min step of `$__interval` or `$__rate_interval` imports as no minimum, and a resolution factor from 2 to 10 is kept as `intervalFactor`.

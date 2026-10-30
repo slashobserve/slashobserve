@@ -188,14 +188,15 @@ type Panel struct {
 }
 
 type Query struct {
-	Ref        string `json:"ref,omitempty"`
-	Query      string `json:"query"`
-	Legend     string `json:"legend,omitempty"`
-	Datasource string `json:"datasource,omitempty"`
-	Instant    bool   `json:"instant,omitempty"`
-	Format     string `json:"format,omitempty"`
-	Interval   string `json:"interval,omitempty"`
-	Hide       bool   `json:"hide,omitempty"`
+	Ref            string `json:"ref,omitempty"`
+	Query          string `json:"query"`
+	Legend         string `json:"legend,omitempty"`
+	Datasource     string `json:"datasource,omitempty"`
+	Instant        bool   `json:"instant,omitempty"`
+	Format         string `json:"format,omitempty"`
+	Interval       string `json:"interval,omitempty"`
+	IntervalFactor int    `json:"intervalFactor,omitempty"`
+	Hide           bool   `json:"hide,omitempty"`
 }
 
 type FieldProps struct {

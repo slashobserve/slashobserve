@@ -45,11 +45,9 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "interval",
           "fieldConfig.defaults.custom.lineWidth"
         ],
         "queries": [
@@ -156,11 +154,9 @@
         "row": "$service",
         "status": "partial",
         "reasons": [
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "interval",
           "fieldConfig.defaults.custom.lineWidth"
         ],
         "queries": [
@@ -372,6 +368,7 @@
                 "displayName": "trace"
               }
             ],
+            "interval": "${interval}",
             "display": {
               "legendValues": [
                 "sum"
@@ -570,6 +567,7 @@
                 "displayName": "trace"
               }
             ],
+            "interval": "${interval}",
             "display": {
               "legendValues": [
                 "sum"

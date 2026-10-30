@@ -106,12 +106,10 @@
         "status": "partial",
         "reasons": [
           "This color scheme is not supported yet; series use the default palette.",
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.defaults.color",
-          "interval",
           "options.calculation.xBuckets.mode",
           "options.calculation.yBuckets.mode",
           "options.cellGap",
@@ -145,13 +143,11 @@
         "status": "partial",
         "reasons": [
           "Grafana shows this panel without a title.",
-          "This color scheme is not supported yet; series use the default palette.",
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
+          "This color scheme is not supported yet; series use the default palette."
         ],
         "paths": [
           "title",
-          "fieldConfig.defaults.color",
-          "interval"
+          "fieldConfig.defaults.color"
         ],
         "queries": [
           {
@@ -173,12 +169,10 @@
         "row": "$service",
         "status": "partial",
         "reasons": [
-          "Grafana shows this panel without a title.",
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
+          "Grafana shows this panel without a title."
         ],
         "paths": [
-          "title",
-          "interval"
+          "title"
         ],
         "queries": [
           {
@@ -200,12 +194,10 @@
         "row": "$service",
         "status": "partial",
         "reasons": [
-          "Grafana shows this panel without a title.",
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
+          "Grafana shows this panel without a title."
         ],
         "paths": [
-          "title",
-          "interval"
+          "title"
         ],
         "queries": [
           {
@@ -227,12 +219,10 @@
         "row": "$service",
         "status": "partial",
         "reasons": [
-          "Grafana shows this panel without a title.",
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
+          "Grafana shows this panel without a title."
         ],
         "paths": [
-          "title",
-          "interval"
+          "title"
         ],
         "queries": [
           {
@@ -538,6 +528,7 @@
               }
             ],
             "unit": "ms",
+            "interval": "${interval}",
             "display": {
               "calculate": true,
               "yScale": "log"
@@ -561,6 +552,7 @@
                 "format": "table"
               }
             ],
+            "interval": "${interval}",
             "display": {
               "reduce": "sum",
               "colorMode": "none",
@@ -587,6 +579,7 @@
               }
             ],
             "color": "#F2495C",
+            "interval": "${interval}",
             "display": {
               "reduce": "sum",
               "colorMode": "none",
@@ -613,6 +606,7 @@
             ],
             "unit": "ms",
             "color": "#FF9830",
+            "interval": "${interval}",
             "display": {
               "colorMode": "none",
               "textMode": "valueAndName",
@@ -639,6 +633,7 @@
             ],
             "unit": "ms",
             "color": "#5794F2",
+            "interval": "${interval}",
             "display": {
               "colorMode": "none",
               "textMode": "valueAndName",

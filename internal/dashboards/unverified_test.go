@@ -12,6 +12,8 @@ import (
 type testPanel struct {
 	id, title, datasource, query string
 	extraQuery                   string
+	panelInterval                string
+	queryInterval                string
 	x                            int
 }
 
@@ -20,10 +22,17 @@ func testDashboard(t *testing.T, variables string, panels ...testPanel) *spec.Da
 	var items []string
 	for i, p := range panels {
 		queries := fmt.Sprintf(`{"query":%q}`, p.query)
+		if p.queryInterval != "" {
+			queries = fmt.Sprintf(`{"query":%q,"interval":%q}`, p.query, p.queryInterval)
+		}
+		panelInterval := ""
+		if p.panelInterval != "" {
+			panelInterval = fmt.Sprintf(`,"interval":%q`, p.panelInterval)
+		}
 		if p.extraQuery != "" {
 			queries += fmt.Sprintf(`,{"query":%q}`, p.extraQuery)
 		}
-		items = append(items, fmt.Sprintf(`{"id":%q,"type":"stat","title":%q,"gridPos":{"x":%d,"y":0,"w":6,"h":4},"datasource":%q,"queries":[%s]}`, p.id, p.title, i*6+p.x, p.datasource, queries))
+		items = append(items, fmt.Sprintf(`{"id":%q,"type":"stat","title":%q,"gridPos":{"x":%d,"y":0,"w":6,"h":4},"datasource":%q%s,"queries":[%s]}`, p.id, p.title, i*6+p.x, p.datasource, panelInterval, queries))
 	}
 	raw := fmt.Sprintf(`{"specVersion":"0","title":"t","time":{"from":"now-15m","to":"now"},"variables":[%s],"panels":[%s]}`, variables, strings.Join(items, ","))
 	d, err := spec.Parse([]byte(raw))
@@ -173,6 +182,33 @@ func TestCarryUnverifiedFollowsVariablesAPanelReaches(t *testing.T) {
 	dropped.Variables = nil
 	if _, blocking := CarryUnverified(base, prev, &dropped, []spec.Issue{issueAt("/panels/0/queries/0/query")}); len(blocking) != 1 {
 		t.Fatalf("variable no longer declared: blocking %v, want the panel blocking", blocking)
+	}
+}
+
+func TestCarryUnverifiedFollowsTheIntervalVariableAMinStepNames(t *testing.T) {
+	const resolution = `{"name":"iv","type":"interval","options":["30s","1m"]}`
+	const changed = `{"name":"iv","type":"interval","options":["30s","5m"]}`
+	cases := []struct {
+		name  string
+		panel testPanel
+	}{
+		{"panel interval", testPanel{id: "p", title: "P", datasource: "prom", query: "up", panelInterval: "${iv}"}},
+		{"query interval", testPanel{id: "p", title: "P", datasource: "prom", query: "up", queryInterval: "${iv}"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			base := testDashboard(t, resolution, tc.panel)
+			prev := Unverified{Panels: []UnverifiedPanel{{PanelID: "p", Issues: []spec.Issue{issueAt("/panels/0/queries/0/query")}}}}
+			fails := []spec.Issue{issueAt("/panels/0/queries/0/query")}
+
+			if carried, blocking := CarryUnverified(base, prev, base, fails); len(blocking) != 0 || len(carried.Panels) != 1 {
+				t.Fatalf("unchanged variable: carried %+v blocking %v, want the panel carried", carried, blocking)
+			}
+			edited := testDashboard(t, changed, tc.panel)
+			if carried, blocking := CarryUnverified(base, prev, edited, fails); len(blocking) != 1 || !carried.Empty() {
+				t.Fatalf("edited variable: carried %+v blocking %v, want the panel blocking", carried, blocking)
+			}
+		})
 	}
 }
 

@@ -3,6 +3,7 @@ package grafana
 import (
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"slices"
 	"strconv"
@@ -22,6 +23,9 @@ const (
 	sqlFormatLogs     = 2
 	sqlFormatTraces   = 3
 	expressionDropped = "Server-side expressions are not supported yet."
+
+	minResolutionFactor = 2
+	maxResolutionFactor = 10
 )
 
 var refPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]{0,19}$`)
@@ -230,11 +234,24 @@ func (tb *targetBuild) minInterval() string {
 	if interval == "" {
 		return tb.legacyStep()
 	}
-	if intervalPattern.MatchString(interval) {
-		return interval
+	if value, ok := tb.b.c.minStep(interval); ok {
+		return value
 	}
 	tb.partial("interval", fmt.Sprintf("The min step %s cannot be kept; SlashObserve picks the step.", interval))
 	return ""
+}
+
+func (tb *targetBuild) resolutionFactor() int {
+	tb.use("intervalFactor")
+	factor, ok := asFloat(tb.t["intervalFactor"])
+	switch {
+	case !ok || factor == 1:
+		return 0
+	case factor == math.Trunc(factor) && factor >= minResolutionFactor && factor <= maxResolutionFactor:
+		return int(factor)
+	}
+	tb.partial("intervalFactor", "The resolution factor of this query is not supported yet.")
+	return 0
 }
 
 func (tb *targetBuild) legacyStep() string {
@@ -256,7 +273,7 @@ func (tb *targetBuild) prometheus() (spec.Query, string) {
 	if strings.TrimSpace(expr) == "" {
 		return spec.Query{}, "The query is empty."
 	}
-	q := spec.Query{Query: expr, Legend: tb.legend(), Interval: tb.minInterval()}
+	q := spec.Query{Query: expr, Legend: tb.legend(), Interval: tb.minInterval(), IntervalFactor: tb.resolutionFactor()}
 	if truthy(tb.t["instant"]) {
 		q.Instant = !truthy(tb.t["range"])
 		if !q.Instant {
@@ -268,9 +285,6 @@ func (tb *targetBuild) prometheus() (spec.Query, string) {
 		q.Format = "table"
 	case "heatmap":
 		q.Format = "heatmap"
-	}
-	if factor, ok := asFloat(tb.t["intervalFactor"]); ok && factor != 1 {
-		tb.partial("intervalFactor", "The resolution factor of this query is not supported yet.")
 	}
 	if truthy(tb.t["exemplar"]) {
 		tb.partial("exemplar", "Exemplars are not supported yet.")
@@ -327,7 +341,7 @@ func (tb *targetBuild) altinity(declared map[string]bool) (spec.Query, string) {
 	if reason != "" {
 		return spec.Query{}, reason
 	}
-	q := spec.Query{Query: text, Interval: tb.minInterval()}
+	q := spec.Query{Query: text, Interval: tb.minInterval(), IntervalFactor: tb.resolutionFactor()}
 	switch asString(tb.t["format"]) {
 	case "table":
 		q.Format = "table"
@@ -335,9 +349,6 @@ func (tb *targetBuild) altinity(declared map[string]bool) (spec.Query, string) {
 		q.Format = "logs"
 	case "traces", "flamegraph":
 		q.Format = "table"
-	}
-	if factor, ok := asFloat(tb.t["intervalFactor"]); ok && factor != 1 {
-		tb.partial("intervalFactor", "The resolution factor of this query is not supported yet.")
 	}
 	if round := asString(tb.t["round"]); round != "" && round != "0s" {
 		tb.partial("round", "Rounding of the time range is not supported yet.")
@@ -679,4 +690,73 @@ func timeGroupReplacement(column, interval string) (string, bool) {
 		unit = strings.TrimSuffix(unit, "s")
 	}
 	return fmt.Sprintf("toStartOfInterval(toDateTime(%s), INTERVAL %s %s)", column, m[1], groupUnits[unit]), true
+}
+
+var (
+	minStepVariableRef = regexp.MustCompile(`^(?:\$([A-Za-z][A-Za-z0-9_]{0,39})|\$\{([A-Za-z][A-Za-z0-9_]{0,39})(?::[A-Za-z0-9_]+)?\}|\[\[([A-Za-z][A-Za-z0-9_]{0,39})(?::[A-Za-z0-9_]+)?\]\])$`)
+
+	builtInMinSteps = []string{"$__interval", "${__interval}", "$__rate_interval", "${__rate_interval}"}
+)
+
+func minStepVariable(text string) (string, bool) {
+	m := minStepVariableRef.FindStringSubmatch(text)
+	if m == nil {
+		return "", false
+	}
+	return m[1] + m[2] + m[3], true
+}
+
+func (c *converter) minStep(text string) (string, bool) {
+	switch {
+	case intervalPattern.MatchString(text):
+		return text, true
+	case slices.Contains(builtInMinSteps, text):
+		return "", true
+	}
+	name, ok := minStepVariable(text)
+	if !ok {
+		return "", false
+	}
+	for _, v := range c.vars {
+		if v.v.Name == name && v.v.Type == spec.IntervalVariable {
+			return "${" + name + "}", true
+		}
+	}
+	return "", false
+}
+
+func usedAsMinStep(dash map[string]any, name string) bool {
+	uses := func(value any) bool {
+		got, ok := minStepVariable(strings.TrimSpace(asString(value)))
+		return ok && got == name
+	}
+	var visit func(items []any) bool
+	visit = func(items []any) bool {
+		for _, item := range items {
+			p, _ := asObject(item)
+			if uses(p["interval"]) {
+				return true
+			}
+			for _, target := range anySlice(p["targets"]) {
+				t, _ := asObject(target)
+				if uses(t["interval"]) {
+					return true
+				}
+			}
+			if visit(anySlice(p["panels"])) {
+				return true
+			}
+		}
+		return false
+	}
+	if visit(anySlice(dash["panels"])) {
+		return true
+	}
+	for _, item := range anySlice(dash["rows"]) {
+		row, _ := asObject(item)
+		if visit(anySlice(row["panels"])) {
+			return true
+		}
+	}
+	return false
 }

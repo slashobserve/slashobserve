@@ -431,7 +431,6 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "This color scheme is not supported yet; series use the default palette.",
           "Some transformations are not supported yet.",
@@ -440,7 +439,6 @@
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.color",
           "transformations[0].options.replaceFields",
@@ -468,7 +466,6 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "This color scheme is not supported yet; series use the default palette.",
           "Some transformations are not supported yet.",
@@ -477,7 +474,6 @@
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.color",
           "transformations[0].options.replaceFields",
@@ -505,7 +501,6 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
@@ -513,7 +508,6 @@
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
@@ -542,7 +536,6 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight.",
@@ -550,7 +543,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation",
@@ -578,7 +570,6 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
@@ -586,7 +577,6 @@
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
@@ -615,7 +605,6 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
@@ -623,7 +612,6 @@
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
@@ -652,7 +640,6 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
@@ -660,7 +647,6 @@
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
@@ -689,7 +675,6 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
@@ -697,7 +682,6 @@
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
@@ -869,16 +853,13 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
@@ -911,16 +892,13 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
@@ -953,16 +931,13 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -994,16 +969,13 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -1035,16 +1007,13 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -1076,16 +1045,13 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -1116,6 +1082,14 @@
         "paths": [
           "annotations.list[1]",
           "annotations.list[2]"
+        ]
+      },
+      {
+        "subject": "variable resolution",
+        "status": "partial",
+        "reason": "Imported as an interval variable because queries use it as their min step.",
+        "paths": [
+          "templating.list[2].type"
         ]
       }
     ]
@@ -1150,7 +1124,7 @@
       },
       {
         "name": "resolution",
-        "type": "custom",
+        "type": "interval",
         "options": [
           "1s",
           "15s",
@@ -1571,7 +1545,8 @@
             "queries": [
               {
                 "query": "avg(sum by (instance, cpu) (rate(node_cpu_seconds_total{mode!~\"idle|iowait|steal\", cluster=\"$cluster\", job=\"$job\"}[$__rate_interval])))",
-                "legend": "CPU usage in %"
+                "legend": "CPU usage in %",
+                "interval": "${resolution}"
               }
             ],
             "unit": "percentunit",
@@ -1602,7 +1577,8 @@
             "queries": [
               {
                 "query": "sum(node_memory_MemTotal_bytes{cluster=\"$cluster\", job=\"$job\"} - node_memory_MemAvailable_bytes{cluster=\"$cluster\", job=\"$job\"}) / sum(node_memory_MemTotal_bytes{cluster=\"$cluster\", job=\"$job\"})",
-                "legend": "Memory usage in %"
+                "legend": "Memory usage in %",
+                "interval": "${resolution}"
               }
             ],
             "unit": "percentunit",
@@ -1638,7 +1614,8 @@
             "queries": [
               {
                 "query": "sum(rate(container_cpu_usage_seconds_total{image!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (namespace)",
-                "legend": "{{ namespace }}"
+                "legend": "{{ namespace }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "none",
@@ -1667,7 +1644,8 @@
             "queries": [
               {
                 "query": "sum(container_memory_working_set_bytes{image!=\"\", cluster=\"$cluster\"}) by (namespace)",
-                "legend": "{{ namespace }}"
+                "legend": "{{ namespace }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "bytes",
@@ -1695,7 +1673,8 @@
             "queries": [
               {
                 "query": "avg(sum by (instance, cpu) (rate(node_cpu_seconds_total{mode!~\"idle|iowait|steal\", cluster=\"$cluster\", job=\"$job\"}[$__rate_interval]))) by (instance)",
-                "legend": "{{ node }}"
+                "legend": "{{ node }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "percentunit",
@@ -1724,7 +1703,8 @@
             "queries": [
               {
                 "query": "sum(node_memory_MemTotal_bytes{cluster=\"$cluster\", job=\"$job\"} - node_memory_MemAvailable_bytes{cluster=\"$cluster\", job=\"$job\"}) by (instance)",
-                "legend": "{{ instance }}"
+                "legend": "{{ instance }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "bytes",
@@ -1753,7 +1733,8 @@
             "queries": [
               {
                 "query": "sum(rate(container_cpu_cfs_throttled_seconds_total{image!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (namespace) > 0",
-                "legend": "{{ namespace }}"
+                "legend": "{{ namespace }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "s",
@@ -1784,7 +1765,8 @@
             "queries": [
               {
                 "query": "sum(rate(node_cpu_core_throttles_total{cluster=\"$cluster\", job=\"$job\"}[$__rate_interval])) by (instance)",
-                "legend": "{{ instance }}"
+                "legend": "{{ instance }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "none",
@@ -1965,11 +1947,13 @@
             "queries": [
               {
                 "query": "sum(rate(node_network_receive_bytes_total{device!~\"(veth|azv|lxc).*\", cluster=\"$cluster\", job=\"$job\"}[$__rate_interval])) by (device)",
-                "legend": "Received : {{ device }}"
+                "legend": "Received : {{ device }}",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(node_network_transmit_bytes_total{device!~\"(veth|azv|lxc).*\", cluster=\"$cluster\", job=\"$job\"}[$__rate_interval])) by (device)",
-                "legend": "Transmitted : {{ device }}"
+                "legend": "Transmitted : {{ device }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "binBps",
@@ -1993,11 +1977,13 @@
             "queries": [
               {
                 "query": "sum(rate(node_network_receive_drop_total{cluster=\"$cluster\", job=\"$job\"}[$__rate_interval]))",
-                "legend": "Packets dropped (receive)"
+                "legend": "Packets dropped (receive)",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(node_network_transmit_drop_total{cluster=\"$cluster\", job=\"$job\"}[$__rate_interval]))",
-                "legend": "Packets dropped (transmit)"
+                "legend": "Packets dropped (transmit)",
+                "interval": "${resolution}"
               }
             ],
             "unit": "none",
@@ -2021,11 +2007,13 @@
             "queries": [
               {
                 "query": "sum(rate(container_network_receive_bytes_total{cluster=\"$cluster\"}[$__rate_interval])) by (namespace)",
-                "legend": "Received : {{ namespace }}"
+                "legend": "Received : {{ namespace }}",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(container_network_transmit_bytes_total{cluster=\"$cluster\"}[$__rate_interval])) by (namespace)",
-                "legend": "Transmitted : {{ namespace }}"
+                "legend": "Transmitted : {{ namespace }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "binBps",
@@ -2049,11 +2037,13 @@
             "queries": [
               {
                 "query": "sum(rate(node_network_receive_bytes_total{cluster=\"$cluster\", job=\"$job\"}[$__rate_interval])) by (instance)",
-                "legend": "Received bytes in {{ instance }}"
+                "legend": "Received bytes in {{ instance }}",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(node_network_transmit_bytes_total{cluster=\"$cluster\", job=\"$job\"}[$__rate_interval])) by (instance)",
-                "legend": "Transmitted bytes in {{ instance }}"
+                "legend": "Transmitted bytes in {{ instance }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "binBps",
@@ -2078,11 +2068,13 @@
             "queries": [
               {
                 "query": "sum(rate(node_network_receive_bytes_total{device!~\"(veth|azv|lxc|lo).*\", cluster=\"$cluster\", job=\"$job\"}[$__rate_interval])) by (instance)",
-                "legend": "Received bytes in {{ instance }}"
+                "legend": "Received bytes in {{ instance }}",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(node_network_transmit_bytes_total{device!~\"(veth|azv|lxc|lo).*\", cluster=\"$cluster\", job=\"$job\"}[$__rate_interval])) by (instance)",
-                "legend": "Transmitted bytes in {{ instance }}"
+                "legend": "Transmitted bytes in {{ instance }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "binBps",
@@ -2107,11 +2099,13 @@
             "queries": [
               {
                 "query": "sum(rate(node_network_receive_bytes_total{device=\"lo\", cluster=\"$cluster\", job=\"$job\"}[$__rate_interval])) by (instance)",
-                "legend": "Received bytes in {{ instance }}"
+                "legend": "Received bytes in {{ instance }}",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(node_network_transmit_bytes_total{device=\"lo\", cluster=\"$cluster\", job=\"$job\"}[$__rate_interval])) by (instance)",
-                "legend": "Transmitted bytes in {{ instance }}"
+                "legend": "Transmitted bytes in {{ instance }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "binBps",

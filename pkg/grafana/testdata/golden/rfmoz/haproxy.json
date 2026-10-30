@@ -45,17 +45,12 @@
         "row": "Basic General Info",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "This color scheme is not supported yet; series use the default palette.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
-          "targets[2].interval",
-          "targets[3].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.overrides[7].properties[3]",
           "fieldConfig.overrides[7].properties[4]",
@@ -107,14 +102,11 @@
         "row": "Basic General Info",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode"
@@ -146,14 +138,11 @@
         "row": "Basic General Info",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode"
@@ -185,14 +174,11 @@
         "row": "Basic General Info",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode"
@@ -224,14 +210,11 @@
         "row": "Basic General Info",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode"
@@ -263,12 +246,9 @@
         "row": "Basic General Info",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -319,16 +299,11 @@
         "row": "Requests / Responses",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
-          "targets[2].interval",
-          "targets[3].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.overrides[1].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
@@ -375,14 +350,11 @@
         "row": "Requests / Responses",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode"
@@ -414,11 +386,9 @@
         "row": "Requests / Responses",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -441,11 +411,9 @@
         "row": "Requests / Responses",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -468,12 +436,10 @@
         "row": "Requests / Responses",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode",
           "options.legend.sortBy",
           "options.legend.sortDesc"
@@ -498,11 +464,9 @@
         "row": "Requests / Responses",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -525,11 +489,9 @@
         "row": "Requests / Responses",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -552,12 +514,10 @@
         "row": "Requests / Responses",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode",
           "options.legend.sortBy",
           "options.legend.sortDesc"
@@ -582,11 +542,9 @@
         "row": "Requests / Responses",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -609,11 +567,9 @@
         "row": "Requests / Responses",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -636,11 +592,9 @@
         "row": "Requests / Responses",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -663,15 +617,11 @@
         "row": "Requests / Responses",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
-          "targets[2].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode"
@@ -710,15 +660,11 @@
         "row": "Requests / Responses",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
-          "targets[2].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode"
@@ -757,14 +703,11 @@
         "row": "Throughput / Connections",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode"
@@ -796,14 +739,11 @@
         "row": "Throughput / Connections",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode"
@@ -835,14 +775,11 @@
         "row": "Throughput / Connections",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode"
@@ -874,14 +811,11 @@
         "row": "Throughput / Connections",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode"
@@ -913,14 +847,11 @@
         "row": "Throughput / Connections",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode"
@@ -952,14 +883,11 @@
         "row": "Throughput / Connections",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode"
@@ -991,11 +919,9 @@
         "row": "Throughput / Connections",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1018,11 +944,9 @@
         "row": "Throughput / Connections",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1045,11 +969,9 @@
         "row": "Throughput / Connections",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1072,11 +994,9 @@
         "row": "Throughput / Connections",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1099,14 +1019,11 @@
         "row": "Throughput / Connections",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode"
@@ -1138,14 +1055,11 @@
         "row": "Throughput / Connections",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode"
@@ -1177,13 +1091,9 @@
         "row": "Throughput / Connections",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
-          "targets[2].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1220,12 +1130,9 @@
         "row": "Throughput / Connections",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1255,14 +1162,11 @@
         "row": "Sessions",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode"
@@ -1294,11 +1198,9 @@
         "row": "Sessions",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1321,11 +1223,9 @@
         "row": "Sessions",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1348,12 +1248,10 @@
         "row": "Sessions",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "fieldConfig.defaults.fieldMinMax",
           "options.legend.displayMode"
         ],
@@ -1377,12 +1275,10 @@
         "row": "Sessions",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "fieldConfig.defaults.fieldMinMax",
           "options.legend.displayMode"
         ],
@@ -1406,12 +1302,9 @@
         "row": "Sessions",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1441,12 +1334,9 @@
         "row": "Sessions",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1476,12 +1366,9 @@
         "row": "Sessions",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1511,11 +1398,9 @@
         "row": "Sessions",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1538,11 +1423,9 @@
         "row": "Sessions",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1565,11 +1448,9 @@
         "row": "Sessions",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1592,11 +1473,9 @@
         "row": "Times",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1619,11 +1498,9 @@
         "row": "Times",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1646,11 +1523,9 @@
         "row": "Times",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1673,11 +1548,9 @@
         "row": "Times",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1700,11 +1573,9 @@
         "row": "Times",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1727,11 +1598,9 @@
         "row": "Times",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1754,11 +1623,9 @@
         "row": "Times",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1781,11 +1648,9 @@
         "row": "Times",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1808,12 +1673,10 @@
         "row": "Health and Weight",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode",
           "options.tooltip.sort"
         ],
@@ -1837,14 +1700,11 @@
         "row": "Health and Weight",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "fieldConfig.overrides[0].properties[0]",
           "options.legend.displayMode",
           "options.tooltip.sort"
@@ -1876,11 +1736,9 @@
         "row": "Health and Weight",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1903,13 +1761,10 @@
         "row": "Health and Weight",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "fieldConfig.overrides[0].properties[0]",
           "options.legend.displayMode"
         ],
@@ -1940,11 +1795,9 @@
         "row": "Health and Weight",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1967,11 +1820,9 @@
         "row": "Health and Weight",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -1994,11 +1845,9 @@
         "row": "Health and Weight",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2021,11 +1870,9 @@
         "row": "Health and Weight",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2048,12 +1895,10 @@
         "row": "Health and Weight",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode",
           "options.tooltip.sort"
         ],
@@ -2077,11 +1922,9 @@
         "row": "Health and Weight",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2104,11 +1947,9 @@
         "row": "Health and Weight",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2131,11 +1972,9 @@
         "row": "Health and Weight",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2158,11 +1997,9 @@
         "row": "Health and Weight",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2185,11 +2022,9 @@
         "row": "Health and Weight",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2212,11 +2047,9 @@
         "row": "Health and Weight",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2239,13 +2072,10 @@
         "row": "Cache / Compressor",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode",
           "options.tooltip.sort"
         ],
@@ -2276,13 +2106,10 @@
         "row": "Cache / Compressor",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode",
           "options.tooltip.sort"
         ],
@@ -2313,15 +2140,11 @@
         "row": "Cache / Compressor",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
-          "targets[2].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode",
@@ -2361,15 +2184,11 @@
         "row": "Cache / Compressor",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
-          "targets[2].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode",
@@ -2409,12 +2228,10 @@
         "row": "Cache / Compressor",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode",
           "options.tooltip.sort"
         ],
@@ -2438,12 +2255,10 @@
         "row": "Cache / Compressor",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode",
           "options.tooltip.sort"
         ],
@@ -2467,11 +2282,9 @@
         "row": "Status",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2494,11 +2307,9 @@
         "row": "Status",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2521,12 +2332,10 @@
         "row": "Status",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode",
           "options.legend.sortBy",
           "options.legend.sortDesc"
@@ -2551,12 +2360,10 @@
         "row": "Status",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode",
           "options.legend.sortBy",
           "options.legend.sortDesc"
@@ -2581,11 +2388,9 @@
         "row": "Status",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2608,11 +2413,9 @@
         "row": "Status",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2635,11 +2438,9 @@
         "row": "Status",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2662,12 +2463,9 @@
         "row": "Status",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2697,12 +2495,9 @@
         "row": "Process Traffic",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2732,12 +2527,9 @@
         "row": "Process Traffic",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2767,12 +2559,9 @@
         "row": "Process Traffic",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2802,12 +2591,9 @@
         "row": "Process Traffic",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2837,12 +2623,9 @@
         "row": "Process Traffic",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2872,14 +2655,11 @@
         "row": "Process Traffic",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
           "options.legend.displayMode"
@@ -2911,13 +2691,9 @@
         "row": "Process Traffic",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
-          "targets[2].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2954,11 +2730,9 @@
         "row": "Process Traffic",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -2981,12 +2755,9 @@
         "row": "Process Traffic",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -3016,11 +2787,9 @@
         "row": "Process Misc",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -3043,14 +2812,10 @@
         "row": "Process Misc",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
-          "targets[2].interval",
           "fieldConfig.overrides[0].properties[1].value.group",
           "options.legend.displayMode"
         ],
@@ -3088,11 +2853,9 @@
         "row": "Process Misc",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -3115,13 +2878,9 @@
         "row": "Process Misc",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
-          "targets[2].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -3158,11 +2917,9 @@
         "row": "Process Misc",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -3185,12 +2942,9 @@
         "row": "Process Misc",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -3220,12 +2974,9 @@
         "row": "Process Misc",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -3255,12 +3006,9 @@
         "row": "Process Misc",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -3290,12 +3038,9 @@
         "row": "Process Misc",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -3325,12 +3070,9 @@
         "row": "Process Misc",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -3360,12 +3102,9 @@
         "row": "Process Misc",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
-          "targets[1].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -3395,11 +3134,9 @@
         "row": "Process Misc",
         "status": "partial",
         "reasons": [
-          "The min step $interval cannot be kept; SlashObserve picks the step.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "options.legend.displayMode"
         ],
         "queries": [
@@ -3541,19 +3278,23 @@
             "queries": [
               {
                 "query": "sum(rate(haproxy_frontend_http_responses_total{proxy=~\"$frontend\",code=~\"$code\",instance=\"$host\"}[$__rate_interval])) by (code)",
-                "legend": "Front {{ code }}"
+                "legend": "Front {{ code }}",
+                "interval": "${interval}"
               },
               {
                 "query": "sum(rate(haproxy_backend_http_responses_total{proxy=~\"$backend\",code=~\"$code\",instance=\"$host\"}[$__rate_interval])) by (code)",
-                "legend": "Back {{ code }}"
+                "legend": "Back {{ code }}",
+                "interval": "${interval}"
               },
               {
                 "query": "sum(rate(haproxy_frontend_http_requests_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])) by (instance)",
-                "legend": "Front requests"
+                "legend": "Front requests",
+                "interval": "${interval}"
               },
               {
                 "query": "sum(rate(haproxy_backend_http_requests_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])) by (instance)",
-                "legend": "Back requests"
+                "legend": "Back requests",
+                "interval": "${interval}"
               }
             ],
             "unit": "reqps",
@@ -3638,11 +3379,13 @@
             "queries": [
               {
                 "query": "sum(rate(haproxy_frontend_bytes_in_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])*8) by (instance)",
-                "legend": "IN Front"
+                "legend": "IN Front",
+                "interval": "${interval}"
               },
               {
                 "query": "sum(rate(haproxy_frontend_bytes_out_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])*8) by (instance)",
-                "legend": "OUT Front"
+                "legend": "OUT Front",
+                "interval": "${interval}"
               }
             ],
             "unit": "bps",
@@ -3671,12 +3414,14 @@
               {
                 "ref": "C",
                 "query": "sum(rate(haproxy_backend_bytes_in_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])*8) by (instance)",
-                "legend": "IN Back"
+                "legend": "IN Back",
+                "interval": "${interval}"
               },
               {
                 "ref": "D",
                 "query": "sum(rate(haproxy_backend_bytes_out_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])*8) by (instance)",
-                "legend": "OUT Back"
+                "legend": "OUT Back",
+                "interval": "${interval}"
               }
             ],
             "unit": "bps",
@@ -3704,11 +3449,13 @@
             "queries": [
               {
                 "query": "sum(rate(haproxy_frontend_sessions_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])) by (instance)",
-                "legend": "Front"
+                "legend": "Front",
+                "interval": "${interval}"
               },
               {
                 "query": "sum(rate(haproxy_backend_sessions_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])) by (instance)",
-                "legend": "Back"
+                "legend": "Back",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -3736,11 +3483,13 @@
             "queries": [
               {
                 "query": "sum(rate(haproxy_frontend_connections_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])) by (instance)",
-                "legend": "Front"
+                "legend": "Front",
+                "interval": "${interval}"
               },
               {
                 "query": "sum(rate(haproxy_backend_connection_attempts_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])) by (instance)",
-                "legend": "Back"
+                "legend": "Back",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -3768,11 +3517,13 @@
             "queries": [
               {
                 "query": "sum(haproxy_frontend_status{instance=\"$host\",state=\"UP\"} == 1)",
-                "legend": "Front Up"
+                "legend": "Front Up",
+                "interval": "${interval}"
               },
               {
                 "query": "sum(haproxy_backend_status{instance=\"$host\",state=\"UP\"} ==1)",
-                "legend": "Back Up"
+                "legend": "Back Up",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -3852,19 +3603,23 @@
             "queries": [
               {
                 "query": "rate(haproxy_frontend_http_requests_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Total {{ proxy }}"
+                "legend": "Total {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_frontend_request_errors_total{proxy=~\"$frontend\", instance=\"$host\"}[$__rate_interval])",
-                "legend": "Error {{ proxy }}"
+                "legend": "Error {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_frontend_requests_denied_total{proxy=~\"$frontend\", instance=\"$host\"}[$__rate_interval])",
-                "legend": "Denied {{ proxy }}"
+                "legend": "Denied {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_frontend_intercepted_requests_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Intercepted {{ proxy }}"
+                "legend": "Intercepted {{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "reqps",
@@ -3893,11 +3648,13 @@
             "queries": [
               {
                 "query": "rate(haproxy_backend_http_requests_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Total {{ proxy }}"
+                "legend": "Total {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_backend_requests_denied_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])",
-                "legend": "Denied {{ proxy }}"
+                "legend": "Denied {{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "reqps",
@@ -3926,7 +3683,8 @@
             "queries": [
               {
                 "query": "sum(rate(haproxy_frontend_http_responses_total{proxy=~\"$frontend\", code=~\"$code\",instance=\"$host\"}[$__rate_interval])) by (proxy)",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "reqps",
@@ -3954,7 +3712,8 @@
             "queries": [
               {
                 "query": "sum(rate(haproxy_backend_http_responses_total{proxy=~\"$backend\", code=~\"$code\",instance=\"$host\"}[$__rate_interval])) by (proxy)",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "reqps",
@@ -3982,7 +3741,8 @@
             "queries": [
               {
                 "query": "sum(rate(haproxy_server_http_responses_total{proxy=~\"$backend\",server=~\"$server\",code=~\"$code\",instance=\"$host\"}[$__rate_interval])) by (proxy, server)",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "reqps",
@@ -4012,7 +3772,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_frontend_http_responses_total{proxy=~\"$frontend\", code=~\"$code\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ code }} {{ proxy }}"
+                "legend": "{{ code }} {{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "reqps",
@@ -4040,7 +3801,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_backend_http_responses_total{proxy=~\"$backend\", code=~\"$code\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ code }} {{ proxy }}"
+                "legend": "{{ code }} {{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "reqps",
@@ -4068,7 +3830,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_server_http_responses_total{proxy=~\"$backend\",server=~\"$server\",code=~\"$code\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ code }} - {{ proxy }} / {{ server }}"
+                "legend": "{{ code }} - {{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "reqps",
@@ -4098,7 +3861,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_frontend_responses_denied_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "reqps",
@@ -4128,7 +3892,8 @@
               {
                 "ref": "B",
                 "query": "rate(haproxy_backend_responses_denied_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "reqps",
@@ -4158,7 +3923,8 @@
               {
                 "ref": "B",
                 "query": "rate(haproxy_server_responses_denied_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "reqps",
@@ -4188,15 +3954,18 @@
             "queries": [
               {
                 "query": "rate(haproxy_backend_redispatch_warnings_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])",
-                "legend": "Redispatch {{ proxy }}"
+                "legend": "Redispatch {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_backend_retry_warnings_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])",
-                "legend": "Retry {{ proxy }}"
+                "legend": "Retry {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_backend_response_errors_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])",
-                "legend": "Error {{ proxy }}"
+                "legend": "Error {{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "reqps",
@@ -4226,16 +3995,19 @@
               {
                 "ref": "B",
                 "query": "rate(haproxy_server_redispatch_warnings_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Redispatch {{ proxy }} / {{ server }}"
+                "legend": "Redispatch {{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               },
               {
                 "ref": "A",
                 "query": "rate(haproxy_server_retry_warnings_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Retry {{ proxy }} / {{ server }}"
+                "legend": "Retry {{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_server_response_errors_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Error {{ proxy }} / {{ server }}"
+                "legend": "Error {{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "reqps",
@@ -4279,11 +4051,13 @@
             "queries": [
               {
                 "query": "rate(haproxy_frontend_bytes_in_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])*8",
-                "legend": "IN {{ proxy }}"
+                "legend": "IN {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_frontend_bytes_out_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])*8",
-                "legend": "OUT {{ proxy }}"
+                "legend": "OUT {{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "bps",
@@ -4312,11 +4086,13 @@
             "queries": [
               {
                 "query": "rate(haproxy_backend_bytes_in_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])*8",
-                "legend": "IN {{ proxy }}"
+                "legend": "IN {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_backend_bytes_out_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])*8",
-                "legend": "OUT {{ proxy }}"
+                "legend": "OUT {{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "bps",
@@ -4345,11 +4121,13 @@
             "queries": [
               {
                 "query": "rate(haproxy_server_bytes_in_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])*8",
-                "legend": "IN {{ proxy }} / {{ server }}"
+                "legend": "IN {{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_server_bytes_out_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])*8",
-                "legend": "OUT {{ proxy }} / {{ server }}"
+                "legend": "OUT {{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "bps",
@@ -4379,11 +4157,13 @@
             "queries": [
               {
                 "query": "rate(haproxy_frontend_connections_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Accepted {{ proxy }}"
+                "legend": "Accepted {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_frontend_denied_connections_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Denied {{ proxy }}"
+                "legend": "Denied {{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -4412,11 +4192,13 @@
             "queries": [
               {
                 "query": "rate(haproxy_backend_connection_attempts_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Attempt {{ proxy }}"
+                "legend": "Attempt {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_backend_connection_errors_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Error {{ proxy }}"
+                "legend": "Error {{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -4446,12 +4228,14 @@
               {
                 "ref": "B",
                 "query": "rate(haproxy_server_connection_attempts_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Attempts {{ proxy }} / {{ server }}"
+                "legend": "Attempts {{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               },
               {
                 "ref": "A",
                 "query": "rate(haproxy_server_connection_errors_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Error {{ proxy }} / {{ server }}"
+                "legend": "Error {{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -4481,7 +4265,8 @@
             "queries": [
               {
                 "query": "haproxy_backend_current_queue{proxy=~\"$backend\",instance=\"$host\"}",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -4509,7 +4294,8 @@
             "queries": [
               {
                 "query": "haproxy_server_current_queue{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -4538,7 +4324,8 @@
               {
                 "ref": "C",
                 "query": "rate(haproxy_backend_connection_reuses_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -4568,7 +4355,8 @@
               {
                 "ref": "C",
                 "query": "rate(haproxy_server_connection_reuses_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Reuses {{ proxy }} / {{ server }}"
+                "legend": "Reuses {{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -4598,11 +4386,13 @@
             "queries": [
               {
                 "query": "rate(haproxy_backend_client_aborts_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Client {{ proxy }}"
+                "legend": "Client {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_backend_server_aborts_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Server {{ proxy }}"
+                "legend": "Server {{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -4630,11 +4420,13 @@
             "queries": [
               {
                 "query": "rate(haproxy_server_client_aborts_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Client {{ proxy }} / {{ server }}"
+                "legend": "Client {{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_server_server_aborts_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Server {{ proxy }} / {{ server }}"
+                "legend": "Server {{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -4664,15 +4456,18 @@
             "queries": [
               {
                 "query": "haproxy_server_used_connections_current{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
-                "legend": "Used {{ proxy }} / {{ server }}"
+                "legend": "Used {{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_server_idle_connections_current{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
-                "legend": "Idle {{ proxy }} / {{ server }}"
+                "legend": "Idle {{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_server_need_connections_current{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
-                "legend": "Need {{ proxy }} / {{ server }}"
+                "legend": "Need {{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -4700,11 +4495,13 @@
             "queries": [
               {
                 "query": "haproxy_server_safe_idle_connections_current{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
-                "legend": "Safe {{ proxy }} / {{ server }}"
+                "legend": "Safe {{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_server_unsafe_idle_connections_current{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
-                "legend": "Unsafe {{ proxy }} / {{ server }}"
+                "legend": "Unsafe {{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -4746,11 +4543,13 @@
             "queries": [
               {
                 "query": "rate(haproxy_frontend_sessions_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Accepted {{ proxy }}"
+                "legend": "Accepted {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_frontend_denied_sessions_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Denied {{ proxy }}"
+                "legend": "Denied {{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -4779,7 +4578,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_backend_sessions_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "Total {{ proxy }}"
+                "legend": "Total {{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -4809,7 +4609,8 @@
               {
                 "ref": "B",
                 "query": "rate(haproxy_server_sessions_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -4840,7 +4641,8 @@
               {
                 "ref": "C",
                 "query": "haproxy_frontend_current_sessions{proxy=~\"$frontend\", instance=\"$host\"} / on(proxy, instance) (haproxy_frontend_limit_sessions{proxy=~\"$frontend\", instance=\"$host\"} > 0) * 100",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "percent",
@@ -4871,7 +4673,8 @@
               {
                 "ref": "C",
                 "query": "haproxy_backend_current_sessions{proxy=~\"$backend\", instance=\"$host\"} / on(proxy, instance) (haproxy_backend_limit_sessions{proxy=~\"$backend\", instance=\"$host\"} > 0) * 100",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "percent",
@@ -4901,12 +4704,14 @@
             "queries": [
               {
                 "query": "haproxy_frontend_max_sessions{proxy=~\"$frontend\",instance=\"$host\"}",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "ref": "C",
                 "query": "haproxy_frontend_current_sessions{proxy=~\"$frontend\",instance=\"$host\"}",
                 "legend": "Current active {{ proxy }}",
+                "interval": "${interval}",
                 "hide": true
               }
             ],
@@ -4936,12 +4741,14 @@
             "queries": [
               {
                 "query": "haproxy_backend_max_sessions{proxy=~\"$backend\",instance=\"$host\"}",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "ref": "C",
                 "query": "haproxy_backend_current_sessions{proxy=~\"$backend\",instance=\"$host\"}",
                 "legend": "Current active {{ proxy }}",
+                "interval": "${interval}",
                 "hide": true
               }
             ],
@@ -4972,12 +4779,14 @@
               {
                 "ref": "B",
                 "query": "haproxy_server_max_sessions{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               },
               {
                 "ref": "C",
                 "query": "haproxy_server_current_sessions{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
                 "legend": "Current active {{ proxy }} / {{ server }}",
+                "interval": "${interval}",
                 "hide": true
               }
             ],
@@ -5008,7 +4817,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_frontend_failed_header_rewriting_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "eps",
@@ -5036,7 +4846,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_backend_failed_header_rewriting_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "eps",
@@ -5064,7 +4875,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_server_failed_header_rewriting_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "eps",
@@ -5109,7 +4921,8 @@
               {
                 "ref": "B",
                 "query": "haproxy_backend_connect_time_average_seconds{proxy=~\"$backend\",instance=\"$host\"}",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "s",
@@ -5138,7 +4951,8 @@
               {
                 "ref": "D",
                 "query": "haproxy_backend_total_time_average_seconds{proxy=~\"$backend\",instance=\"$host\"}",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "s",
@@ -5167,7 +4981,8 @@
               {
                 "ref": "B",
                 "query": "haproxy_server_connect_time_average_seconds{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "s",
@@ -5196,7 +5011,8 @@
               {
                 "ref": "D",
                 "query": "haproxy_server_total_time_average_seconds{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "s",
@@ -5225,7 +5041,8 @@
               {
                 "ref": "C",
                 "query": "haproxy_backend_response_time_average_seconds{proxy=~\"$backend\",instance=\"$host\"}",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "s",
@@ -5253,7 +5070,8 @@
             "queries": [
               {
                 "query": "haproxy_backend_queue_time_average_seconds{proxy=~\"$backend\",instance=\"$host\"}",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "s",
@@ -5282,7 +5100,8 @@
               {
                 "ref": "C",
                 "query": "haproxy_server_response_time_average_seconds{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "s",
@@ -5310,7 +5129,8 @@
             "queries": [
               {
                 "query": "haproxy_server_queue_time_average_seconds{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "s",
@@ -5352,7 +5172,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_backend_check_up_down_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "eps",
@@ -5380,11 +5201,13 @@
             "queries": [
               {
                 "query": "haproxy_backend_weight{proxy=~\"$backend\", instance=\"$host\"}",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_backend_uweight{proxy=~\"$backend\", instance=\"$host\"} - haproxy_backend_weight{proxy=~\"$backend\", instance=\"$host\"}",
-                "legend": "Weight reduction - {{ proxy }}"
+                "legend": "Weight reduction - {{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -5413,7 +5236,8 @@
               {
                 "ref": "B",
                 "query": "rate(haproxy_server_check_up_down_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "eps",
@@ -5443,11 +5267,13 @@
             "queries": [
               {
                 "query": "haproxy_server_weight{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_server_uweight{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"} - haproxy_server_weight{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
-                "legend": "Weight reduction - {{ proxy }} / {{ server }}"
+                "legend": "Weight reduction - {{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -5476,7 +5302,8 @@
             "queries": [
               {
                 "query": "haproxy_backend_active_servers{proxy=~\"$backend\",instance=\"$host\"}",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -5504,7 +5331,8 @@
               {
                 "ref": "B",
                 "query": "haproxy_backend_backup_servers{proxy=~\"$backend\",instance=\"$host\"}",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -5531,7 +5359,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_server_check_failures_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "eps",
@@ -5561,7 +5390,8 @@
             "queries": [
               {
                 "query": "haproxy_server_check_duration_seconds{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "s",
@@ -5590,7 +5420,8 @@
             "queries": [
               {
                 "query": "haproxy_server_last_session_seconds{proxy=~\"$backend\", server=~\"$server\",instance=\"$host\"}",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "s",
@@ -5620,7 +5451,8 @@
             "queries": [
               {
                 "query": "increase(haproxy_backend_downtime_seconds_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "s",
@@ -5648,7 +5480,8 @@
             "queries": [
               {
                 "query": "increase(haproxy_server_downtime_seconds_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "s",
@@ -5676,7 +5509,8 @@
             "queries": [
               {
                 "query": "haproxy_backend_last_session_seconds{proxy=~\"$backend\",instance=\"$host\"}",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "s",
@@ -5704,7 +5538,8 @@
             "queries": [
               {
                 "query": "haproxy_server_check_last_change_seconds{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "s",
@@ -5732,7 +5567,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_backend_loadbalanced_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -5760,7 +5596,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_server_loadbalanced_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -5802,11 +5639,13 @@
             "queries": [
               {
                 "query": "rate(haproxy_frontend_http_cache_lookups_total{proxy=~\"$frontend\", instance=\"$host\"}[$__rate_interval])",
-                "legend": "Lookups {{ proxy }}"
+                "legend": "Lookups {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_frontend_http_cache_hits_total{proxy=~\"$frontend\", instance=\"$host\"}[$__rate_interval])",
-                "legend": "Hits {{ proxy }}"
+                "legend": "Hits {{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "eps",
@@ -5842,11 +5681,13 @@
             "queries": [
               {
                 "query": "rate(haproxy_backend_http_cache_lookups_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])",
-                "legend": "Lookups {{ proxy }}"
+                "legend": "Lookups {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_backend_http_cache_hits_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])",
-                "legend": "Hits {{ proxy }}"
+                "legend": "Hits {{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "eps",
@@ -5882,15 +5723,18 @@
             "queries": [
               {
                 "query": "rate(haproxy_frontend_http_comp_bytes_in_total{proxy=~\"$frontend\", instance=\"$host\"}[$__rate_interval])*8",
-                "legend": "IN {{ proxy }}"
+                "legend": "IN {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_frontend_http_comp_bytes_out_total{proxy=~\"$frontend\", instance=\"$host\"}[$__rate_interval])*8",
-                "legend": "OUT {{ proxy }}"
+                "legend": "OUT {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_frontend_http_comp_bytes_bypassed_total{proxy=~\"$frontend\", instance=\"$host\"}[$__rate_interval])*8",
-                "legend": "Bypass {{ proxy }}"
+                "legend": "Bypass {{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "bps",
@@ -5926,15 +5770,18 @@
             "queries": [
               {
                 "query": "rate(haproxy_backend_http_comp_bytes_in_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])*8",
-                "legend": "IN {{ proxy }}"
+                "legend": "IN {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_backend_http_comp_bytes_out_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])*8",
-                "legend": "OUT {{ proxy }}"
+                "legend": "OUT {{ proxy }}",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_backend_http_comp_bytes_bypassed_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])*8",
-                "legend": "Bypass {{ proxy }}"
+                "legend": "Bypass {{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "bps",
@@ -5970,7 +5817,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_frontend_http_comp_responses_total{proxy=~\"$frontend\", instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "reqps",
@@ -5998,7 +5846,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_backend_http_comp_responses_total{proxy=~\"$backend\", instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "reqps",
@@ -6040,7 +5889,8 @@
             "queries": [
               {
                 "query": "haproxy_frontend_status{proxy=~\"$frontend\",instance=\"$host\",state=\"UP\"}",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "bool_on_off",
@@ -6077,7 +5927,8 @@
             "queries": [
               {
                 "query": "haproxy_backend_status{proxy=~\"$backend\",instance=\"$host\",state=\"UP\"}",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "bool_on_off",
@@ -6115,7 +5966,8 @@
               {
                 "ref": "B",
                 "query": "haproxy_server_status{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\",state=\"UP\"}",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "bool_on_off",
@@ -6154,7 +6006,8 @@
               {
                 "ref": "B",
                 "query": "haproxy_server_status{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\",state!~\"UP|DOWN\"}",
-                "legend": "{{ proxy }} / {{ server }} - {{state}}"
+                "legend": "{{ proxy }} / {{ server }} - {{state}}",
+                "interval": "${interval}"
               }
             ],
             "unit": "none",
@@ -6185,7 +6038,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_frontend_internal_errors_total{proxy=~\"$frontend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "eps",
@@ -6214,7 +6068,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_backend_internal_errors_total{proxy=~\"$backend\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }}"
+                "legend": "{{ proxy }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "eps",
@@ -6243,7 +6098,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_server_internal_errors_total{proxy=~\"$backend\",server=~\"$server\",instance=\"$host\"}[$__rate_interval])",
-                "legend": "{{ proxy }} / {{ server }}"
+                "legend": "{{ proxy }} / {{ server }}",
+                "interval": "${interval}"
               }
             ],
             "unit": "eps",
@@ -6272,11 +6128,13 @@
             "queries": [
               {
                 "query": "haproxy_sticktable_size{name=~\"$backend\",instance=\"$host\"}",
-                "legend": "{{ name }} - Size"
+                "legend": "{{ name }} - Size",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_sticktable_used{name=~\"$backend\",instance=\"$host\"}",
-                "legend": "{{ name }} - Used"
+                "legend": "{{ name }} - Used",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -6317,11 +6175,13 @@
             "queries": [
               {
                 "query": "haproxy_process_max_connection_rate{instance=\"$host\"}",
-                "legend": "Highest ConnRate reached on this worker process since started (in connections per second)"
+                "legend": "Highest ConnRate reached on this worker process since started (in connections per second)",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_process_limit_connection_rate{instance=\"$host\"}",
-                "legend": "Hard limit for ConnRate (global.maxconnrate)"
+                "legend": "Hard limit for ConnRate (global.maxconnrate)",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -6360,12 +6220,14 @@
             "queries": [
               {
                 "query": "haproxy_process_current_connections{instance=\"$host\"}",
-                "legend": "Current number of connections on this worker process"
+                "legend": "Current number of connections on this worker process",
+                "interval": "${interval}"
               },
               {
                 "ref": "C",
                 "query": "haproxy_process_hard_max_connections{instance=\"$host\"}",
-                "legend": "Hard limit on the number of per-process connections (imposed by Memmax_MB or ulimit -n)"
+                "legend": "Hard limit on the number of per-process connections (imposed by Memmax_MB or ulimit -n)",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -6404,11 +6266,13 @@
             "queries": [
               {
                 "query": "haproxy_process_max_session_rate{instance=\"$host\"}",
-                "legend": "Highest SessRate reached on this worker process since started (in sessions per second)"
+                "legend": "Highest SessRate reached on this worker process since started (in sessions per second)",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_process_limit_session_rate{instance=\"$host\"}",
-                "legend": "Hard limit for SessRate (global.maxsessrate)"
+                "legend": "Hard limit for SessRate (global.maxsessrate)",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -6446,11 +6310,13 @@
             "queries": [
               {
                 "query": "haproxy_process_max_ssl_rate{instance=\"$host\"}",
-                "legend": "Highest ConnRate reached on this worker process since started (in connections per second)"
+                "legend": "Highest ConnRate reached on this worker process since started (in connections per second)",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_process_limit_ssl_rate{instance=\"$host\"}",
-                "legend": "Hard limit for SslRate (global.maxsslrate)"
+                "legend": "Hard limit for SslRate (global.maxsslrate)",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -6489,11 +6355,13 @@
             "queries": [
               {
                 "query": "haproxy_process_current_ssl_connections{instance=\"$host\"}",
-                "legend": "SSL endpoints"
+                "legend": "SSL endpoints",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_process_max_ssl_connections{instance=\"$host\"}",
-                "legend": "Hard limit SSL endpoints"
+                "legend": "Hard limit SSL endpoints",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -6532,12 +6400,14 @@
             "queries": [
               {
                 "query": "haproxy_process_current_frontend_ssl_key_rate{instance=\"$host\"}",
-                "legend": "SSL keys created on frontends"
+                "legend": "SSL keys created on frontends",
+                "interval": "${interval}"
               },
               {
                 "ref": "D",
                 "query": "haproxy_process_current_backend_ssl_key_rate{instance=\"$host\"}",
-                "legend": "SSL keys created on backend"
+                "legend": "SSL keys created on backend",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -6565,15 +6435,18 @@
             "queries": [
               {
                 "query": "rate(haproxy_process_ssl_cache_lookups_total{instance=\"$host\"}[$__rate_interval])",
-                "legend": "Lookups"
+                "legend": "Lookups",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_process_ssl_cache_misses_total{instance=\"$host\"}[$__rate_interval])",
-                "legend": "Miss"
+                "legend": "Miss",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_process_ssl_connections_total{instance=\"$host\"}[$__rate_interval])",
-                "legend": "SSL Connections"
+                "legend": "SSL Connections",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -6616,7 +6489,8 @@
               {
                 "ref": "C",
                 "query": "haproxy_process_frontend_ssl_reuse{instance=\"$host\"}",
-                "legend": "Frontend SSL connections which did not require a new key"
+                "legend": "Frontend SSL connections which did not require a new key",
+                "interval": "${interval}"
               }
             ],
             "unit": "percent",
@@ -6644,11 +6518,13 @@
             "queries": [
               {
                 "query": "haproxy_process_current_zlib_memory{instance=\"$host\"}",
-                "legend": "Amount of memory currently used by HTTP compression"
+                "legend": "Amount of memory currently used by HTTP compression",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_process_max_zlib_memory{instance=\"$host\"}",
-                "legend": "Limit memory used by HTTP compression, above is auto disabled (in bytes, see global.maxzlibmem)"
+                "legend": "Limit memory used by HTTP compression, above is auto disabled (in bytes, see global.maxzlibmem)",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -6701,7 +6577,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_process_failed_resolutions{instance=\"$host\"}[$__rate_interval])",
-                "legend": "Total number of failed DNS resolutions in current worker process since started"
+                "legend": "Total number of failed DNS resolutions in current worker process since started",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -6737,15 +6614,18 @@
             "queries": [
               {
                 "query": "haproxy_process_max_pipes{instance=\"$host\"}",
-                "legend": "Pipes limit"
+                "legend": "Pipes limit",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_process_pipes_used_total{instance=\"$host\"}[$__rate_interval])",
-                "legend": "Used pipes"
+                "legend": "Used pipes",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_process_pipes_free_total{instance=\"$host\"}[$__rate_interval])",
-                "legend": "Free pipes"
+                "legend": "Free pipes",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -6792,7 +6672,8 @@
               {
                 "ref": "C",
                 "query": "haproxy_process_listeners{instance=\"$host\"}",
-                "legend": "Current number of active listeners"
+                "legend": "Current number of active listeners",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -6821,15 +6702,18 @@
             "queries": [
               {
                 "query": "haproxy_process_max_memory_bytes{instance=\"$host\"}",
-                "legend": "Memory limit; 0=unset"
+                "legend": "Memory limit; 0=unset",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_process_pool_allocated_bytes{instance=\"$host\"}",
-                "legend": "Memory allocated in pools"
+                "legend": "Memory allocated in pools",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_process_pool_used_bytes{instance=\"$host\"}",
-                "legend": "Memory used in pools"
+                "legend": "Memory used in pools",
+                "interval": "${interval}"
               }
             ],
             "unit": "bytes",
@@ -6867,7 +6751,8 @@
             "queries": [
               {
                 "query": "rate(haproxy_process_pool_failures_total{instance=\"$host\"}[$__rate_interval])",
-                "legend": "Failed pool allocations"
+                "legend": "Failed pool allocations",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -6897,11 +6782,13 @@
             "queries": [
               {
                 "query": "haproxy_process_jobs{instance=\"$host\"}",
-                "legend": "Current number of active jobs (listeners, sessions, open devices)"
+                "legend": "Current number of active jobs (listeners, sessions, open devices)",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_process_unstoppable_jobs{instance=\"$host\"}",
-                "legend": "Current number of active jobs that can't be stopped during a soft stop"
+                "legend": "Current number of active jobs that can't be stopped during a soft stop",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -6930,11 +6817,13 @@
             "queries": [
               {
                 "query": "haproxy_process_nbthread{instance=\"$host\"}",
-                "legend": "Threads"
+                "legend": "Threads",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_process_nbproc{instance=\"$host\"}",
-                "legend": "Processes"
+                "legend": "Processes",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -6962,11 +6851,13 @@
             "queries": [
               {
                 "query": "rate(haproxy_process_dropped_logs_total{instance=\"$host\"}[$__rate_interval])",
-                "legend": "Total number of dropped logs"
+                "legend": "Total number of dropped logs",
+                "interval": "${interval}"
               },
               {
                 "query": "rate(haproxy_process_recv_logs_total{instance=\"$host\"}[$__rate_interval])",
-                "legend": "Total number of log messages received by log-forwarding listeners"
+                "legend": "Total number of log messages received by log-forwarding listeners",
+                "interval": "${interval}"
               }
             ],
             "unit": "ops",
@@ -6995,11 +6886,13 @@
             "queries": [
               {
                 "query": "haproxy_process_active_peers{instance=\"$host\"}",
-                "legend": "Active peers"
+                "legend": "Active peers",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_process_connected_peers{instance=\"$host\"}",
-                "legend": "Connected peers"
+                "legend": "Connected peers",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -7027,11 +6920,13 @@
             "queries": [
               {
                 "query": "haproxy_process_current_tasks{instance=\"$host\"}",
-                "legend": "Total number of tasks in the current worker process (active + sleeping)"
+                "legend": "Total number of tasks in the current worker process (active + sleeping)",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_process_current_run_queue{instance=\"$host\"}",
-                "legend": "Total number of active tasks+tasklets in the current worker process"
+                "legend": "Total number of active tasks+tasklets in the current worker process",
+                "interval": "${interval}"
               }
             ],
             "unit": "short",
@@ -7059,11 +6954,13 @@
             "queries": [
               {
                 "query": "haproxy_process_idle_time_percent{instance=\"$host\"}",
-                "legend": "Idle to total ratio over last sample (percent)"
+                "legend": "Idle to total ratio over last sample (percent)",
+                "interval": "${interval}"
               },
               {
                 "query": "haproxy_process_stopping{instance=\"$host\"}",
-                "legend": "Non zero means stopping in progress"
+                "legend": "Non zero means stopping in progress",
+                "interval": "${interval}"
               }
             ],
             "unit": "percent",
@@ -7092,7 +6989,8 @@
             "queries": [
               {
                 "query": "haproxy_process_uptime_seconds{instance=\"$host\"}",
-                "legend": "How long ago this worker process was started"
+                "legend": "How long ago this worker process was started",
+                "interval": "${interval}"
               }
             ],
             "unit": "s",

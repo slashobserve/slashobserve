@@ -23,7 +23,7 @@
       "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }, "datasource": "prom", "unit": "reqps",
       "queries": [
         { "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\"}[$__rate_interval]))", "legend": "{{pod}}" },
-        { "ref": "B", "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\",status=~\"5..\"}[$__rate_interval]))", "legend": "errors {{pod}}" }
+        { "ref": "B", "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\",status=~\"5..\"}[$__rate_interval]))", "legend": "errors {{pod}}", "interval": "${window}", "intervalFactor": 2 }
       ],
       "overrides": [{ "match": { "query": "B" }, "color": "critical", "lineStyle": "dashed" }],
       "display": { "legend": "right", "tooltip": "all" } },

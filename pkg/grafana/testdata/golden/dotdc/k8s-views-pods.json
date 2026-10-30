@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 25,
-      "imported": 6,
-      "partial": 19,
+      "imported": 10,
+      "partial": 15,
       "placeholder": 0,
       "unverified": 0
     },
@@ -200,13 +200,9 @@
         "type": "gauge",
         "source_type": "gauge",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "targets[0].interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -225,13 +221,9 @@
         "type": "gauge",
         "source_type": "gauge",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "targets[0].interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -250,13 +242,9 @@
         "type": "gauge",
         "source_type": "gauge",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "targets[0].interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -275,13 +263,9 @@
         "type": "gauge",
         "source_type": "gauge",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "targets[0].interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -358,7 +342,6 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "This color scheme is not supported yet; series use the default palette.",
           "Some Grafana options of this panel are not supported yet.",
@@ -367,7 +350,6 @@
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.color",
           "fieldConfig.defaults.custom.axisLabel",
@@ -444,7 +426,6 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
@@ -452,7 +433,6 @@
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
@@ -512,7 +492,6 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
@@ -520,7 +499,6 @@
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
@@ -679,15 +657,12 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -719,15 +694,12 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -759,15 +731,12 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -799,15 +768,12 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -838,6 +804,14 @@
         "paths": [
           "annotations.list[1]",
           "annotations.list[2]"
+        ]
+      },
+      {
+        "subject": "variable resolution",
+        "status": "partial",
+        "reason": "Imported as an interval variable because queries use it as their min step.",
+        "paths": [
+          "templating.list[4].type"
         ]
       }
     ]
@@ -891,7 +865,7 @@
       },
       {
         "name": "resolution",
-        "type": "custom",
+        "type": "interval",
         "options": [
           "1s",
           "15s",
@@ -1196,7 +1170,8 @@
               {
                 "query": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", cluster=\"$cluster\"}[$__rate_interval])) / sum(kube_pod_container_resource_requests{namespace=\"$namespace\", pod=~\"$pod\", resource=\"cpu\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1))",
                 "legend": "Requests",
-                "instant": true
+                "instant": true,
+                "interval": "${resolution}"
               }
             ],
             "unit": "percentunit",
@@ -1237,7 +1212,8 @@
               {
                 "query": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", cluster=\"$cluster\"}[$__rate_interval])) / sum(kube_pod_container_resource_limits{namespace=\"$namespace\", pod=~\"$pod\", resource=\"cpu\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1))",
                 "legend": "Limits",
-                "instant": true
+                "instant": true,
+                "interval": "${resolution}"
               }
             ],
             "unit": "percentunit",
@@ -1277,7 +1253,8 @@
               {
                 "query": "sum(container_memory_working_set_bytes{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", cluster=\"$cluster\"}) / sum(kube_pod_container_resource_requests{namespace=\"$namespace\", pod=~\"$pod\", resource=\"memory\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1))",
                 "legend": "Requests",
-                "instant": true
+                "instant": true,
+                "interval": "${resolution}"
               }
             ],
             "unit": "percentunit",
@@ -1319,7 +1296,8 @@
                 "ref": "B",
                 "query": "sum(container_memory_working_set_bytes{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", cluster=\"$cluster\"}) / sum(kube_pod_container_resource_limits{namespace=\"$namespace\", pod=~\"$pod\", resource=\"memory\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1)) ",
                 "legend": "Limits",
-                "instant": true
+                "instant": true,
+                "interval": "${resolution}"
               }
             ],
             "unit": "percentunit",
@@ -1512,7 +1490,8 @@
             "queries": [
               {
                 "query": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (container) / sum(kube_pod_container_resource_requests{namespace=\"$namespace\", pod=~\"$pod\", resource=\"cpu\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1)) by (container)",
-                "legend": "{{ container }}  REQUESTS"
+                "legend": "{{ container }}  REQUESTS",
+                "interval": "${resolution}"
               },
               {
                 "query": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (container) / sum(kube_pod_container_resource_limits{namespace=\"$namespace\", pod=~\"$pod\", resource=\"cpu\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1)) by (container)",
@@ -1616,7 +1595,8 @@
             "queries": [
               {
                 "query": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", container!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (container, id)",
-                "legend": "{{ container }}"
+                "legend": "{{ container }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "none",
@@ -1685,7 +1665,8 @@
             "queries": [
               {
                 "query": "sum(rate(container_cpu_cfs_throttled_seconds_total{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", container!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (container)",
-                "legend": "{{ container }}"
+                "legend": "{{ container }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "s",
@@ -1958,11 +1939,13 @@
             "queries": [
               {
                 "query": "sum(rate(container_network_receive_bytes_total{namespace=\"$namespace\", pod=~\"$pod\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "legend": "Received"
+                "legend": "Received",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(container_network_transmit_bytes_total{namespace=\"$namespace\", pod=~\"$pod\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "legend": "Transmitted"
+                "legend": "Transmitted",
+                "interval": "${resolution}"
               }
             ],
             "unit": "binBps",
@@ -1985,11 +1968,13 @@
             "queries": [
               {
                 "query": "sum(rate(container_network_receive_packets_total{namespace=\"$namespace\", pod=~\"$pod\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "legend": "Received"
+                "legend": "Received",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(container_network_transmit_packets_total{namespace=\"$namespace\", pod=~\"$pod\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "legend": "Transmitted"
+                "legend": "Transmitted",
+                "interval": "${resolution}"
               }
             ],
             "unit": "pps",
@@ -2012,11 +1997,13 @@
             "queries": [
               {
                 "query": "sum(rate(container_network_receive_packets_dropped_total{namespace=\"$namespace\", pod=~\"$pod\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "legend": "Received"
+                "legend": "Received",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(container_network_transmit_packets_dropped_total{namespace=\"$namespace\", pod=~\"$pod\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "legend": "Transmitted"
+                "legend": "Transmitted",
+                "interval": "${resolution}"
               }
             ],
             "unit": "pps",
@@ -2039,11 +2026,13 @@
             "queries": [
               {
                 "query": "sum(rate(container_network_receive_errors_total{namespace=\"$namespace\", pod=~\"$pod\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "legend": "Received"
+                "legend": "Received",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(container_network_transmit_errors_total{namespace=\"$namespace\", pod=~\"$pod\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "legend": "Transmitted"
+                "legend": "Transmitted",
+                "interval": "${resolution}"
               }
             ],
             "unit": "pps",

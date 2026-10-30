@@ -1,0 +1,28 @@
+{
+  "specVersion": "0",
+  "title": "Minimal",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": "p1",
+      "type": "timeseries",
+      "title": "Up",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "prom",
+      "interval": "${resolution}",
+      "queries": [
+        {
+          "query": "up"
+        }
+      ]
+    }
+  ]
+}

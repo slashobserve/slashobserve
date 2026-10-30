@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 8,
-      "imported": 6,
-      "partial": 2,
+      "imported": 7,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "CPU",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -347,7 +343,8 @@
             "queries": [
               {
                 "query": "(\n  (1 - sum without (mode) (rate(node_cpu_seconds_total{job=\"node-exporter\", mode=~\"idle|iowait|steal\", instance=\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])))\n/ ignoring(cpu) group_left\n  count without (cpu, mode) (node_cpu_seconds_total{job=\"node-exporter\", mode=\"idle\", instance=\"$instance\", cluster=~\"$cluster\"})\n)\n",
-                "legend": "{{cpu}}"
+                "legend": "{{cpu}}",
+                "intervalFactor": 5
               }
             ],
             "unit": "percentunit",

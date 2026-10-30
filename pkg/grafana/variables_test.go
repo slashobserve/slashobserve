@@ -189,3 +189,173 @@ func TestClickHouseAdhocNoteListsTheQueriesItWillNotFilter(t *testing.T) {
 		})
 	}
 }
+
+const (
+	resolutionCustom   = `{"name":"resolution","type":"custom","query":"1s,15s,30s,1m","current":{"value":"30s"}}`
+	intervalDeclared   = `{"name":"iv","type":"interval","query":"1m,5m","current":{"value":"5m"}}`
+	promotedNoteReason = "Imported as an interval variable because queries use it as their min step."
+)
+
+func minStepDoc(variables, panelMembers, targetMembers string) string {
+	if panelMembers != "" {
+		panelMembers += ","
+	}
+	return fmt.Sprintf(`{"title":"T","schemaVersion":39,%s,"panels":[{%s,"type":"timeseries",%s"targets":[{"refId":"A","expr":"up"%s}]}]}`,
+		templating(variables), panelFrame, panelMembers, targetMembers)
+}
+
+func TestMinStepWrittenAsAnIntervalVariableImportsAsAReference(t *testing.T) {
+	forms := []string{"$iv", "${iv}", "[[iv]]", "${iv:text}", "[[iv:raw]]", " ${iv} "}
+	for _, form := range forms {
+		t.Run(form, func(t *testing.T) {
+			panel, line := convertedPanel(t, minStepDoc(intervalDeclared, "", `,"interval":"`+form+`"`))
+			if got := panel.Queries[0].Interval; got != "${iv}" {
+				t.Fatalf("query interval = %q, want ${iv}", got)
+			}
+			if line.Status != statusImported {
+				t.Fatalf("status = %s, reasons %v, want imported", line.Status, line.Reasons)
+			}
+		})
+	}
+}
+
+func TestPanelMinIntervalWrittenAsAnIntervalVariableImportsAsAReference(t *testing.T) {
+	panel, line := convertedPanel(t, minStepDoc(intervalDeclared, `"interval":"$iv"`, ""))
+	if panel.Interval != "${iv}" || line.Status != statusImported {
+		t.Fatalf("panel interval = %q, status %s (%v), want ${iv} imported", panel.Interval, line.Status, line.Reasons)
+	}
+}
+
+func TestBuiltInIntervalAsAMinStepImportsAsNoMinimum(t *testing.T) {
+	for _, form := range []string{"$__interval", "${__interval}", "$__rate_interval", "${__rate_interval}"} {
+		t.Run(form, func(t *testing.T) {
+			panel, line := convertedPanel(t, minStepDoc("", `"interval":"`+form+`"`, `,"interval":"`+form+`"`))
+			if panel.Interval != "" || panel.Queries[0].Interval != "" || line.Status != statusImported {
+				t.Fatalf("panel interval %q, query interval %q, status %s (%v), want no minimum and imported", panel.Interval, panel.Queries[0].Interval, line.Status, line.Reasons)
+			}
+		})
+	}
+}
+
+func TestMinStepNamingAnUnusableVariableKeepsTheOldReport(t *testing.T) {
+	cases := []struct {
+		name      string
+		variables string
+		interval  string
+	}{
+		{"undeclared", "", "$missing"},
+		{"textbox variable", `{"name":"tb","type":"textbox","query":"30s"}`, "$tb"},
+		{"not a name", "", "$iv + 1"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := convertedPanel(t, minStepDoc(tc.variables, "", `,"interval":"`+tc.interval+`"`))
+			if panel.Queries[0].Interval != "" || line.Status != statusPartial || !slices.Contains(line.Paths, "targets[0].interval") {
+				t.Fatalf("interval %q, status %s, paths %v, want the min step reported", panel.Queries[0].Interval, line.Status, line.Paths)
+			}
+			want := fmt.Sprintf("The min step %s cannot be kept; SlashObserve picks the step.", tc.interval)
+			if !slices.Contains(line.Reasons, want) {
+				t.Fatalf("reasons = %v, want %q", line.Reasons, want)
+			}
+		})
+	}
+}
+
+func TestCustomVariableUsedAsAMinStepImportsAsAnIntervalVariable(t *testing.T) {
+	docs := map[string]string{
+		"target":       minStepDoc(resolutionCustom, "", `,"interval":"$resolution"`),
+		"panel":        minStepDoc(resolutionCustom, `"interval":"${resolution}"`, ""),
+		"legacy style": minStepDoc(resolutionCustom, "", `,"interval":"[[resolution]]"`),
+	}
+	for name, doc := range docs {
+		t.Run(name, func(t *testing.T) {
+			res := convertDoc(t, doc)
+			v := variableNamed(t, res, "resolution")
+			if v.Type != spec.IntervalVariable || !slices.Equal(v.Options, []string{"1s", "15s", "30s", "1m"}) || v.Auto {
+				t.Fatalf("variable = %+v, want an interval variable with the four options and no auto", v)
+			}
+			if v.Default == nil || !slices.Equal(v.Default.Values, []string{"30s"}) {
+				t.Fatalf("default = %+v, want 30s", v.Default)
+			}
+			notes := notesFor(res, "variable resolution")
+			if len(notes) != 1 || notes[0].Reason != promotedNoteReason {
+				t.Fatalf("notes = %+v, want the promotion note once", notes)
+			}
+			if line := panelLine(t, res, "p1"); line.Status != statusImported {
+				t.Fatalf("panel line = %+v, want imported", line)
+			}
+		})
+	}
+}
+
+func TestCustomVariableNotUsedAsAMinStepStaysCustom(t *testing.T) {
+	res := convertDoc(t, minStepDoc(resolutionCustom, "", `,"legendFormat":"{{pod}} $resolution"`))
+	if v := variableNamed(t, res, "resolution"); v.Type != spec.CustomVariable {
+		t.Fatalf("type = %q, want custom", v.Type)
+	}
+	if notes := notesFor(res, "variable resolution"); len(notes) != 0 {
+		t.Fatalf("notes = %+v, want none", notes)
+	}
+}
+
+func TestCustomVariableThatIsNotASingleListOfDurationsStaysCustom(t *testing.T) {
+	cases := map[string]string{
+		"multi-select":      `{"name":"resolution","type":"custom","query":"1s,15s","multi":true,"current":{"value":["1s"]}}`,
+		"with All":          `{"name":"resolution","type":"custom","query":"1s,15s","includeAll":true,"current":{"value":"1s"}}`,
+		"text : value form": `{"name":"resolution","type":"custom","query":"Fast : 1s,Slow : 15s","current":{"value":"1s"}}`,
+		"not all durations": `{"name":"resolution","type":"custom","query":"1s,15s,auto","current":{"value":"1s"}}`,
+	}
+	for name, variable := range cases {
+		t.Run(name, func(t *testing.T) {
+			res := convertDoc(t, minStepDoc(variable, "", `,"interval":"$resolution"`))
+			if v := variableNamed(t, res, "resolution"); v.Type != spec.CustomVariable {
+				t.Fatalf("type = %q, want custom", v.Type)
+			}
+			if slices.ContainsFunc(res.Report.Notes, func(n Note) bool { return n.Reason == promotedNoteReason }) {
+				t.Fatalf("notes = %+v, want no promotion note", res.Report.Notes)
+			}
+			line := panelLine(t, res, "p1")
+			if line.Status != statusPartial || !slices.Contains(line.Paths, "targets[0].interval") {
+				t.Fatalf("line = %+v, want a partial panel naming targets[0].interval", line)
+			}
+		})
+	}
+}
+
+func TestCustomVariableUsedOnlyInsideACollapsedRowPromotes(t *testing.T) {
+	child := `{"id":2,"type":"timeseries","title":"C","gridPos":{"x":0,"y":1,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prom"},"targets":[{"refId":"A","expr":"up","interval":"$resolution"}]}`
+	doc := fmt.Sprintf(`{"title":"T","schemaVersion":39,%s,"panels":[%s]}`, templating(resolutionCustom), rowJSON(1, 0, true, `"panels":[`+child+`]`))
+	res := convertDoc(t, doc)
+	if v := variableNamed(t, res, "resolution"); v.Type != spec.IntervalVariable {
+		t.Fatalf("type = %q, want interval", v.Type)
+	}
+}
+
+func TestResolutionFactorImportsWhenItIsTwoToTen(t *testing.T) {
+	cases := []struct {
+		factor  string
+		want    int
+		partial bool
+	}{
+		{"1", 0, false},
+		{"2", 2, false},
+		{"5", 5, false},
+		{"10", 10, false},
+		{"11", 0, true},
+		{"0", 0, true},
+		{"2.5", 0, true},
+		{"-2", 0, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.factor, func(t *testing.T) {
+			panel, line := convertedPanel(t, minStepDoc("", "", `,"intervalFactor":`+tc.factor))
+			if got := panel.Queries[0].IntervalFactor; got != tc.want {
+				t.Fatalf("intervalFactor = %d, want %d", got, tc.want)
+			}
+			reported := slices.Contains(line.Reasons, "The resolution factor of this query is not supported yet.")
+			if reported != tc.partial || (line.Status == statusPartial) != tc.partial {
+				t.Fatalf("status %s, reasons %v, want partial = %v", line.Status, line.Reasons, tc.partial)
+			}
+		})
+	}
+}

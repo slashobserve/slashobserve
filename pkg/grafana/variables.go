@@ -414,6 +414,10 @@ func (c *converter) customVariable(raw map[string]any, path, name string) (spec.
 		c.dropVariable(subject, path+".query", "It has no options.")
 		return spec.Variable{}, false
 	}
+	if !paired && c.promotesToInterval(raw, name, options) {
+		c.note(subject, "Imported as an interval variable because queries use it as their min step.", path+".type")
+		return spec.Variable{Type: spec.IntervalVariable, Options: options, Default: intervalDefault(raw, options)}, true
+	}
 	v := spec.Variable{Type: spec.CustomVariable, Options: options}
 	c.listFlags(&v, raw, path, subject)
 	v.Default = c.variableDefault(raw, path, subject, &v, options)
@@ -517,12 +521,23 @@ func (c *converter) intervalVariable(raw map[string]any, path, name string) (spe
 			c.note(subject, "The smallest automatic interval is not valid in SlashObserve and is not kept.", path+".auto_min")
 		}
 	}
-	if current, ok := asObject(raw["current"]); ok {
-		if value := asString(current["value"]); slices.Contains(options, value) {
-			v.Default = &spec.Selection{Values: []string{value}}
-		}
-	}
+	v.Default = intervalDefault(raw, options)
 	return v, true
+}
+
+func intervalDefault(raw map[string]any, options []string) *spec.Selection {
+	current, _ := asObject(raw["current"])
+	if value := asString(current["value"]); slices.Contains(options, value) {
+		return &spec.Selection{Values: []string{value}}
+	}
+	return nil
+}
+
+func (c *converter) promotesToInterval(raw map[string]any, name string, options []string) bool {
+	return !truthy(raw["multi"]) && !truthy(raw["includeAll"]) &&
+		len(options) <= maxIntervalOptions &&
+		!slices.ContainsFunc(options, func(option string) bool { return !intervalPattern.MatchString(option) }) &&
+		usedAsMinStep(c.src.dash, name)
 }
 
 func (c *converter) textboxVariable(raw map[string]any, path, name string) (spec.Variable, bool) {

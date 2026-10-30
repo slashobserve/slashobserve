@@ -190,6 +190,10 @@ export type Mapping =
       color?: Color;
     };
 export type QueryRef = string;
+/**
+ * A minimum step such as 30s, or ${name} naming an interval variable; queries then use the step selected in that variable.
+ */
+export type IntervalRef = string;
 export type Override = FieldProps & Override1;
 export type Match =
   | {
@@ -507,7 +511,7 @@ export interface DataPanel1 {
   maxPerRow?: number;
   timeFrom?: string;
   timeShift?: string;
-  interval?: string;
+  interval?: IntervalRef;
   maxDataPoints?: number;
   display?: {};
 }
@@ -530,7 +534,11 @@ export interface PanelQuery {
   datasource?: DatasourceRef;
   instant?: boolean;
   format?: "timeseries" | "table" | "heatmap" | "logs";
-  interval?: string;
+  interval?: IntervalRef;
+  /**
+   * Grafana's resolution 1/N: the query's step is multiplied by N.
+   */
+  intervalFactor?: number;
   hide?: boolean;
 }
 export interface Override1 {

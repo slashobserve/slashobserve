@@ -134,6 +134,17 @@ This is `spec/examples/datasource-variable.json` without its title and time rang
 The Datasources page and the datasource filter on the Dashboards page count a dashboard under a datasource variable's `default`.
 A datasource variable with no `default` adds nothing to those counts.
 
+## Interval variables as a minimum step
+
+An `interval` variable can also set how fine a panel's queries are.
+Write `${name}` as the `interval` of a panel or of a query, and the query's step is at least the step selected in that variable, with `$__auto` choosing a step from the time range and the variable's `autoSteps` and `autoMin`.
+The form is exactly `${name}`, and the variable must be an `interval` variable: an undeclared name is rejected as `unknown_variable` and another type as `invalid_reference`.
+A query's own `interval` wins over the panel's.
+`$__interval` in the query follows the step, so a coarser step also widens it.
+
+A query can also set `intervalFactor`, a whole number from 2 to 10, to multiply its step after the minimum is applied.
+An instant query passes the selected step on as its minimum interval, and the factor does not apply to it.
+
 ## Ad hoc filters
 
 An `adhoc` variable lets a viewer add key, operator and value filters (`=`, `!=`, `=~` and `!~`).
