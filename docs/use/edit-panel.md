@@ -91,7 +91,9 @@ The settings column has:
   Bar gauge panels add **Bar style** (Basic or LCD), **Value** (With threshold state, Plain text or Hidden), **Name placement**, **Show unfilled area**, **Minimum bar width**, **Minimum bar height**, **Maximum bar height**, **Title size** and **Value size**; sizes are in pixels.
   Logs panels add **Show unique labels**, **Show common labels**, **Log details**, **Details placement** (under the line or in a side panel), **Prettify JSON messages**, **Deduplication**, **Controls bar**, **Font size** and **Highlight key=value and levels**.
 
-A text panel has a **Content** box instead of queries: Markdown up to 20000 characters, with "HTML is removed.".
+A text panel has a **Content** box instead of queries: Markdown up to 20000 characters, which may contain HTML.
+The box notes that HTML is cleaned: scripts, styles, forms and embeds are removed.
+Set the panel's `mode` to `html` or `code` in the JSON view (see [Panels and layout](../concepts/observespec.md#panels-and-layout)).
 A dashboard list or news panel has only the title and its display options.
 Canvas elements and connections are edited in the JSON view.
 

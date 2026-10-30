@@ -108,6 +108,10 @@ The other panel types are:
   An image in the Markdown loads through the server, and only from an https address on an allowed domain (see [Outbound access](../operate/outbound-access.md#images-and-geojson)); otherwise the panel shows its alt text.
   Its optional `mode` is `markdown` (the default), `html` (sanitized HTML) or `code` (the content shown as code, with `code.language` and `code.lineNumbers`).
   People and Grafana imports can write `html`; the agent and MCP clients cannot (see [Maps, canvases and actions](#maps-canvases-and-actions)).
+  In `markdown` and `html` modes HTML is cleaned before it is drawn: scripts, styles, forms, embedded frames, SVG and event handlers are removed, links keep only http, https and mailto addresses, and every image loads through the server.
+  Inline `style` attributes keep colours, fonts, spacing, borders, sizes and simple layout, and drop positioning, backgrounds with images, `var()` and anything that loads a resource.
+  Whatever the HTML draws stays inside its panel.
+  Variable values are inserted as text in all three modes, never as HTML.
 - `dashlist` and `news`, which list other dashboards and the items of an RSS or Atom feed.
   They have no datasource and no queries.
 - `row`, described below.

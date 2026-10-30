@@ -1,106 +1,81 @@
-import { useMemo } from "react"
-import { ExternalLinkIcon } from "lucide-react"
-import Markdown, { type Components } from "react-markdown"
+import { Fragment, useMemo } from "react"
+import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
-import { cn } from "@/lib/utils"
+import { textDefaults } from "@/spec/defaults"
+import type { TextPanel as TextPanelSpec } from "@/spec"
 
-import { RemoteImage } from "../remote-image"
 import type { StaticPanelRenderer } from "../types"
+import { components, markdownRehypePlugins, renderHtml } from "./html"
 import { interpolateText } from "./interpolate"
-import { isExternal, safeUrl } from "./safe-url"
+import { safeUrl } from "./safe-url"
 
-const heading = "mt-2 font-semibold"
-const block = "my-2 first:mt-0 last:mb-0"
-
-const components: Components = {
-  a({ href, title, children }) {
-    if (!href) return <span>{children}</span>
-    const external = isExternal(href)
-    return (
-      <a
-        href={href}
-        title={title}
-        rel="noopener noreferrer"
-        target={external ? "_blank" : undefined}
-        className="underline underline-offset-2"
-      >
-        {children}
-        {external ? (
-          <ExternalLinkIcon
-            aria-hidden="true"
-            className="ml-0.5 inline size-3 align-baseline"
-          />
-        ) : null}
-      </a>
-    )
-  },
-  img({ src, alt }) {
-    if (typeof src !== "string") return <>{alt}</>
-    return <RemoteImage src={src} alt={alt ?? ""} className="max-w-full" />
-  },
-  h1: ({ children }) => (
-    <h1 className={cn(heading, "text-[18px]")}>{children}</h1>
-  ),
-  h2: ({ children }) => (
-    <h2 className={cn(heading, "text-[16px]")}>{children}</h2>
-  ),
-  h3: ({ children }) => (
-    <h3 className={cn(heading, "text-[14px]")}>{children}</h3>
-  ),
-  h4: ({ children }) => (
-    <h4 className={cn(heading, "text-[14px]")}>{children}</h4>
-  ),
-  h5: ({ children }) => (
-    <h5 className={cn(heading, "text-[14px]")}>{children}</h5>
-  ),
-  h6: ({ children }) => (
-    <h6 className={cn(heading, "text-[14px]")}>{children}</h6>
-  ),
-  p: ({ children }) => (
-    <p className={cn(block, "text-[14px] leading-normal")}>{children}</p>
-  ),
-  ul: ({ children }) => (
-    <ul className={cn(block, "list-disc pl-[18px]")}>{children}</ul>
-  ),
-  ol: ({ children }) => (
-    <ol className={cn(block, "list-decimal pl-[18px]")}>{children}</ol>
-  ),
-  code: ({ children }) => <code className="font-mono text-xs">{children}</code>,
-  pre: ({ children }) => (
-    <pre className={cn(block, "overflow-auto rounded-control border p-2")}>
-      {children}
+function CodeView({
+  text,
+  code,
+}: {
+  text: string
+  code: TextPanelSpec["code"]
+}) {
+  const lines = text.split("\n")
+  return (
+    <pre
+      data-language={code?.language}
+      className="my-2 overflow-auto rounded-control border p-2 first:mt-0 last:mb-0"
+    >
+      {code?.lineNumbers ? (
+        <code className="grid grid-cols-[auto_1fr] font-mono text-xs">
+          {lines.map((line, index) => (
+            <Fragment key={index}>
+              <span
+                aria-hidden="true"
+                className="pr-3 text-right text-muted-foreground select-none"
+              >
+                {index + 1}
+              </span>
+              <span className="whitespace-pre">{line}</span>
+            </Fragment>
+          ))}
+        </code>
+      ) : (
+        <code className="font-mono text-xs">{text}</code>
+      )}
     </pre>
-  ),
-  table: ({ children }) => (
-    <div className={cn(block, "overflow-x-auto")}>
-      <table className="border-collapse text-[13px]">{children}</table>
-    </div>
-  ),
-  th: ({ children }) => (
-    <th className="border px-2 py-1 text-left font-semibold">{children}</th>
-  ),
-  td: ({ children }) => <td className="border px-2 py-1">{children}</td>,
-  blockquote: ({ children }) => (
-    <blockquote className={cn(block, "pl-3 text-muted-foreground")}>
-      {children}
-    </blockquote>
-  ),
+  )
 }
 
 const TextPanel: StaticPanelRenderer = ({ panel, vars }) => {
   const content = panel.type === "text" ? panel.content : ""
-  const text = useMemo(() => interpolateText(content, vars), [content, vars])
+  const mode = (panel.type === "text" && panel.mode) || textDefaults.mode
+  const code = panel.type === "text" ? panel.code : undefined
+  const text = useMemo(
+    () => interpolateText(content, vars, mode),
+    [content, vars, mode]
+  )
+  const html = useMemo(
+    () => (mode === "html" ? renderHtml(text) : null),
+    [mode, text]
+  )
   return (
-    <div data-text-panel className="size-full overflow-auto p-3 pt-0">
-      <Markdown
-        remarkPlugins={[remarkGfm]}
-        skipHtml
-        urlTransform={(url) => safeUrl(url)}
-        components={components}
-      >
-        {text}
-      </Markdown>
+    <div
+      data-text-panel
+      data-mode={mode}
+      className="isolate size-full overflow-auto p-3 pt-0 [contain:paint]"
+    >
+      {mode === "markdown" ? (
+        <Markdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={markdownRehypePlugins}
+          urlTransform={(url) => safeUrl(url)}
+          components={components}
+        >
+          {text}
+        </Markdown>
+      ) : mode === "html" ? (
+        html
+      ) : (
+        <CodeView text={text} code={code} />
+      )}
     </div>
   )
 }
