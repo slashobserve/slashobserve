@@ -281,6 +281,24 @@ A datasource is a uid from the datasources file or `${name}`, naming a datasourc
 An `adhoc` variable filters Prometheus queries automatically, and filters ClickHouse queries that leave out `$name` only when it sets `applyToAll`.
 See [Datasources and variables](datasources-and-variables.md).
 
+## Expressions
+
+A query can be an expression instead of datasource text: it has a required `ref` and an `expression` object, and no `query` or `datasource`.
+The server computes it from other queries of the same panel, after they have run.
+The `type` of the expression says what it does:
+
+- `math` takes `math`, arithmetic over query refs written `$A` or `${A}`, such as `$A * 2` or `abs($A) / $B`.
+- `reduce` takes an `input` ref and a `reducer` (`mean`, `min`, `max`, `sum`, `count`, `last` or `median`), and turns each series into one number.
+  `mode` says what happens to a value that is not a number: `strict` (the default) gives no number for a series that has one, `dropNonNumbers` leaves it out, and `replaceNonNumbers` swaps it for `replaceWith`, which that mode requires and every other mode refuses.
+- `resample` takes an `input` ref, a `window` such as `1m`, a `downsampler` (`mean`, `min`, `max`, `sum` or `last`) and an `upsampler` (`pad`, `backfill` or `fillNA`), and puts the series on a regular grid of that width.
+- `threshold` takes an `input` ref, an `evaluator` (`gt`, `lt`, `withinRange`, `outsideRange`, `withinRangeIncluded` or `outsideRangeIncluded`) and `params`, one number for `gt` and `lt` and a lower and an upper number for the range evaluators, and turns each number into 1 or 0.
+
+A ref that the panel does not have, or expressions that depend on each other in a circle, are refused when the document is saved.
+A query that an expression reads can set `hide` to stay out of the panel's data.
+The server runs a hidden query only when an expression that is itself shown names it.
+
+An expression that cannot be computed, such as a `resample` whose input is a single number instead of a time series, fails with status `422` and the code `expression_error`.
+
 ## Field options, overrides and transforms
 
 A data panel carries its display options directly, and an override repeats the same options for the series or fields it matches.

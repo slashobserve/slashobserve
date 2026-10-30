@@ -1898,7 +1898,7 @@
                   ]
                 },
                 "mode": {
-                  "description": "How non-number values are treated; strict (the default) fails the expression on one.",
+                  "description": "How non-number values are treated; strict (the default) reduces a series holding one to NaN.",
                   "enum": [
                     "strict",
                     "dropNonNumbers",

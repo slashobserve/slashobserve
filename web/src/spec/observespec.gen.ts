@@ -1048,7 +1048,7 @@ export interface ExpressionQuery {
         input: QueryRef;
         reducer: "mean" | "min" | "max" | "sum" | "count" | "last" | "median";
         /**
-         * How non-number values are treated; strict (the default) fails the expression on one.
+         * How non-number values are treated; strict (the default) reduces a series holding one to NaN.
          */
         mode?: "strict" | "dropNonNumbers" | "replaceNonNumbers";
         /**
