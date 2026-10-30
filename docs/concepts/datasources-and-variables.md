@@ -28,19 +28,27 @@ Variable names are unique, and a document has at most 20 variables.
 A query refers to a variable as `$name`, `${name}` or `${name:format}`.
 Each type has its own fields:
 
-| Type         | Fields                                                                                          | Values                                                             |
-| ------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `query`      | `datasource`, `query`, `regex`, `sort`, `refresh`, `multi`, `includeAll`, `allValue`, `default` | The result of the query on its datasource.                         |
-| `custom`     | `options`, `multi`, `includeAll`, `allValue`, `default`                                         | The listed options, up to 200.                                     |
-| `constant`   | `value`                                                                                         | The one value. It has no control.                                  |
-| `interval`   | `options`, `auto`, `autoSteps`, `autoMin`, `default`                                            | Durations such as `1m` or `1h`, plus `$__auto` when `auto` is set. |
-| `textbox`    | `default`                                                                                       | Free text up to 200 characters.                                    |
-| `datasource` | `datasourceType`, `regex`, `default`                                                            | The uids of the configured datasources of that type.               |
-| `adhoc`      | `datasource`                                                                                    | Key, operator and value filters that the viewer adds.              |
+| Type         | Fields                                                                                                              | Values                                                             |
+| ------------ | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `query`      | `datasource`, `query`, `regex`, `sort`, `refresh`, `multi`, `includeAll`, `allValue`, `allowCustomValue`, `default` | The result of the query on its datasource.                         |
+| `custom`     | `options`, `multi`, `includeAll`, `allValue`, `allowCustomValue`, `default`                                         | The listed options, up to 200.                                     |
+| `constant`   | `value`                                                                                                             | The one value. It has no control.                                  |
+| `interval`   | `options`, `auto`, `autoSteps`, `autoMin`, `default`                                                                | Durations such as `1m` or `1h`, plus `$__auto` when `auto` is set. |
+| `textbox`    | `default`                                                                                                           | Free text up to 200 characters.                                    |
+| `datasource` | `datasourceType`, `regex`, `default`                                                                                | The uids of the configured datasources of that type.               |
+| `adhoc`      | `datasource`, `default`                                                                                             | Key, operator and value filters that the viewer adds.              |
 
 A `query` variable on Prometheus uses `label_values(label)` or `label_values(selector, label)`.
 On ClickHouse it is one `SELECT`, and the first column gives the values.
-`regex` keeps only the values it matches, or the part of each value it captures, and `sort` is `alpha`, `alphaDesc`, `num` or `numDesc`.
+`regex` keeps only the values it matches, or the part of each value it captures, and `sort` is one of:
+
+- `alpha` and `alphaDesc` compare by character, so every capital letter sorts before every lowercase letter.
+- `alphaCaseInsensitive` and `alphaCaseInsensitiveDesc` compare by character after lowercasing, so `a` comes before `B`; values that differ only in case keep a fixed order, capitals first.
+- `num` and `numDesc` compare by the first number in each value, and values with no number come first in `num`.
+- `natural` and `naturalDesc` compare digit runs as numbers and other text by character, so `a9` comes before `a10`; with equal numbers, the longer run comes first, so `007` comes before `7`.
+
+`allowCustomValue: true` on a `query` or `custom` variable lets the viewer enter a value that is not in its list.
+A `custom` variable refuses a value outside its `options` unless it sets `allowCustomValue`, and a `query` variable accepts any value either way.
 
 Variables are resolved in the order they are declared.
 A `query` variable's query can use only variables declared before it, so a `service` variable can feed a `route` variable but not the reverse, and it cannot use an `adhoc` variable.
@@ -153,3 +161,8 @@ ClickHouse filters are not applied automatically.
 A ClickHouse query has to include the variable itself, as `$name` in a `WHERE` clause such as `AND $name`, which becomes the filters joined by `AND`, or `1 = 1` when there are none.
 A query on a ClickHouse datasource that leaves out `$name` ignores the filters.
 The Grafana importer lists the queries that a ClickHouse ad hoc variable will not filter.
+
+An `adhoc` variable can start with filters: `default` is up to 20 objects, each with a `key` (1 to 200 characters), an `operator` (`=`, `!=`, `=~` or `!~`) and a `value` (up to 500 characters, possibly empty).
+Without a `var-<name>` parameter the dashboard uses these filters, and a link that sets the parameter replaces them.
+`var-<name>=` with nothing after the equals sign means no filters, which is how a viewer clears the saved ones.
+An operator outside the four is a schema error when the Spec is saved, and a key that is not a label name (Prometheus) or a column name (ClickHouse) fails the save checks.

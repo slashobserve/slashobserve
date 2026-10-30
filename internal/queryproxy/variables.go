@@ -82,6 +82,7 @@ func (r *Runner) Defaults(ctx context.Context, d *spec.Dashboard, rng datasource
 }
 
 func (r *Runner) complete(ctx context.Context, d *spec.Dashboard, upto int, rng datasource.TimeRange, given map[string]Selection, user datasource.QueryUser, st *varState) (map[string]Selection, error) {
+	given = withoutEmptyAdhoc(d, given)
 	for _, name := range slices.Sorted(maps.Keys(given)) {
 		idx := variableIndex(d, name)
 		if idx < 0 {
@@ -122,6 +123,35 @@ func (r *Runner) complete(ctx context.Context, d *spec.Dashboard, upto int, rng 
 	return out, nil
 }
 
+func withoutEmptyAdhoc(d *spec.Dashboard, given map[string]Selection) map[string]Selection {
+	var out map[string]Selection
+	for name, sel := range given {
+		i := variableIndex(d, name)
+		if i < 0 || d.Variables[i].Type != spec.AdhocVariable || sel.All || len(sel.Values) != 1 || sel.Values[0] != "" {
+			continue
+		}
+		if out == nil {
+			out = maps.Clone(given)
+		}
+		out[name] = Selection{}
+	}
+	if out == nil {
+		return given
+	}
+	return out
+}
+
+func adhocDefault(v spec.Variable) Selection {
+	if v.Default == nil {
+		return Selection{}
+	}
+	values := make([]string, len(v.Default.Filters))
+	for i, f := range v.Default.Filters {
+		values[i] = f.Key + "|" + f.Operator + "|" + f.Value
+	}
+	return Selection{Values: values}
+}
+
 func checkNeedsEarlier(v spec.Variable) bool {
 	return v.Type == spec.DatasourceVariable && len(scanQueryUse(v.Regex).variables) > 0
 }
@@ -154,7 +184,7 @@ func fixedDefault(v spec.Variable) (Selection, bool) {
 	case spec.TextboxVariable:
 		return Selection{Values: []string{declaredValue(v)}}, true
 	case spec.AdhocVariable:
-		return Selection{}, true
+		return adhocDefault(v), true
 	case spec.QueryVariable, spec.CustomVariable:
 		if v.Default != nil && len(v.Default.Values) > 0 {
 			if slices.Contains(v.Default.Values, spec.SelectAll) {
@@ -681,7 +711,7 @@ func checkListSelection(v spec.Variable, sel Selection) error {
 		if err := checkValue(v.Name, value); err != nil {
 			return err
 		}
-		if v.Type == spec.CustomVariable && !slices.Contains(v.Options, value) {
+		if v.Type == spec.CustomVariable && !v.AllowCustomValue && !slices.Contains(v.Options, value) {
 			return fmt.Errorf("%w: variable %q has a value that is not one of its options", ErrInvalidRequest, v.Name)
 		}
 	}

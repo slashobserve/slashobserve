@@ -1801,6 +1801,37 @@ func TestPanelDataWithTheNewVariableTypes(t *testing.T) {
 	}
 }
 
+func TestPanelDataUsesSavedAdhocFiltersUnlessTheParameterIsGiven(t *testing.T) {
+	hn := newHarness(t)
+	hn.addVariables(spec.Variable{
+		Name: "pf", Type: spec.AdhocVariable, Datasource: "prom",
+		Default: &spec.Selection{Filters: []spec.AdhocFilter{{Key: "namespace", Operator: "=", Value: "checkout"}}},
+	})
+	hn.addPanels(spec.Panel{ID: "p_saved", Type: spec.Timeseries, Title: "saved", Datasource: "prom", Queries: []spec.Query{{Query: "up"}}})
+	saved := []datasource.AdhocFilter{{Key: "namespace", Op: "=", Value: "checkout"}}
+	explicit := []datasource.AdhocFilter{{Key: "job", Op: "=", Value: "api"}}
+
+	for _, tt := range []struct {
+		name  string
+		query string
+		want  []datasource.AdhocFilter
+	}{
+		{"no parameter", "var-job=api", saved},
+		{"an empty parameter", "var-job=api&var-pf=", nil},
+		{"explicit filters", "var-job=api&var-pf=job%7C%3D%7Capi", explicit},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := hn.get(hn.dataPath("p_saved", window+"&"+tt.query), "")
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
+			}
+			if got := hn.ds.lastQuery().Filters; !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("filters = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}
+
 func referencingPreviewHarness(t *testing.T, selected string) *harness {
 	t.Helper()
 	hn := newPreviewHarness(t)
