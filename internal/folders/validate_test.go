@@ -103,3 +103,13 @@ func TestParseEntriesNormalizesEmailAndKeepsLevel(t *testing.T) {
 		t.Errorf("entry = %+v", got[0])
 	}
 }
+
+func TestParseEntriesReadsTheCommentLevel(t *testing.T) {
+	got, err := parseEntries([]entryBody{{Group: str("sre"), Level: "comment"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].level != LevelComment {
+		t.Errorf("level = %s, want comment", got[0].level)
+	}
+}

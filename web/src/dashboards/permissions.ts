@@ -31,7 +31,7 @@ export function readerNote(mode: ComposerMode, role: Role): string | null {
     case "comment-only":
       return `You can view and comment as a ${roleLabels[role]}. An Editor can send your comment to the agent or change the panels.`
     case "read-only":
-      return `You can view this dashboard as a ${roleLabels[role]}. Ask an Admin if you need to comment.`
+      return `You can view this dashboard as a ${roleLabels[role]}. To comment, ask an Admin to make you a Commenter.`
   }
 }
 

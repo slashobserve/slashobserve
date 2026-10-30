@@ -21,18 +21,21 @@ A folder is open or restricted, and the folder's settings page (**Folder setting
   Everyone else gets no trace of its dashboards: they are missing from lists, search, tags and datasource counts, their panel data, events and comments are refused, and the agent cannot reach them.
   Removing the last entry opens the folder to everyone again.
 
-Each entry gives a level, and a person gets the higher of the level their role gives and the levels of the entries that match them, so an entry never lowers access:
+Each entry gives a level.
+A person gets the higher of the level their role gives and the levels of the entries that match them, but never more than their role allows, so an entry never lowers access and never lifts a Viewer or Commenter:
 
-| Level | May                                                                              |
-| ----- | -------------------------------------------------------------------------------- |
-| View  | See the folder and its dashboards.                                               |
-| Edit  | Also change dashboards, comment, send requests to the agent and move dashboards. |
-| Admin | Also rename the folder, delete it and change its list.                           |
+| Level   | May                                                                     |
+| ------- | ----------------------------------------------------------------------- |
+| View    | See the folder and its dashboards.                                      |
+| Comment | Also comment and reply.                                                 |
+| Edit    | Also change dashboards, send requests to the agent and move dashboards. |
+| Admin   | Also rename the folder, delete it and change its list.                  |
 
 Some rules that follow from the roles:
 
-- A Commenter or Viewer can be given up to Edit, never Admin.
-  They then edit and comment in that folder but cannot manage it.
+- A Viewer only views and a Commenter only comments, whatever their entry says; change their role on the People page to give more.
+  An entry still matters to them on a restricted folder, because it lets them see the folder.
+- An Editor always edits the folders they can see, and an Admin entry makes them the folder's Admin.
 - Creating a dashboard, in the web, through the API or by importing, needs the Editor role as well as Edit on the folder.
 - The person who created a folder is its Admin and keeps seeing it when it is restricted, even if the list does not name them.
 - Admins have the Admin level on every folder.

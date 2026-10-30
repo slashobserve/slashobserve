@@ -62,7 +62,7 @@ A restore checks the document and that its datasources are still configured, but
 Restoring a known-good version therefore does not fail because a datasource is briefly down.
 The restored version keeps the list of panels and variables that were unverified when it was first saved.
 
-Restoring needs Edit on the dashboard's folder, so a Commenter or Viewer sees no **Restore** button unless a folder grants it (see [Roles](../teams/roles.md) and [Folders and access](../teams/folders.md)).
+Restoring needs Edit on the dashboard's folder, so a Commenter or Viewer never sees a **Restore** button (see [Roles](../teams/roles.md) and [Folders and access](../teams/folders.md)).
 Over the API it is `POST /api/v1/dashboards/{id}/versions/{version}/restore` with the `parent_version` it builds on, and it can answer `409` like any save.
 MCP has no restore tool.
 
@@ -72,7 +72,7 @@ A comment is anchored to a panel id and to the version it was written on, or to 
 It does not move when later versions change the panel.
 Replies join the thread of the comment they answer and take the same version and panel.
 
-Commenters, Editors and Admins can comment, and so can a Viewer to whom a folder grants Edit.
+Commenters, Editors and Admins can comment; Viewers cannot.
 A thread is open until someone resolves it.
 When it is resolved with a version, the thread shows "Resolved by version N", and a revision that the agent made from the thread records its own version there.
 

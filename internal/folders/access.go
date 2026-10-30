@@ -118,7 +118,7 @@ func (a *Access) Levels(ctx context.Context, p auth.Principal) (Levels, error) {
 		}
 		entries = append(entries, folderLevel{
 			Folder:    Folder{ID: r.ID, Title: r.Title, General: r.General, Restricted: r.Restricted},
-			Abilities: AbilitiesFor(p.Role, level),
+			Abilities: AbilitiesFor(level),
 		})
 	}
 	return Levels{entries: entries}, nil

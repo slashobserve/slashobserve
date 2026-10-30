@@ -200,33 +200,63 @@ describe("entriesForPut", () => {
 })
 
 describe("levelOptions", () => {
-  const all = [
+  const viewer =
+    "A Viewer only views. Change their role on People to give more."
+  const commenter =
+    "A Commenter only comments. Change their role on People to give more."
+  const editor = "An Editor always edits folders they can see."
+  const admin = "Admins manage every folder."
+  const open = [
     { level: "view", disabledReason: null },
+    { level: "comment", disabledReason: null },
     { level: "edit", disabledReason: null },
     { level: "admin", disabledReason: null },
   ]
-  const noAdmin = [
-    { level: "view", disabledReason: null },
-    { level: "edit", disabledReason: null },
-    { level: "admin", disabledReason: "Needs the Editor role or higher" },
-  ]
 
   test.each([
-    ["a viewer", priya, noAdmin],
+    [
+      "a viewer",
+      priya,
+      [
+        { level: "view", disabledReason: null },
+        { level: "comment", disabledReason: viewer },
+        { level: "edit", disabledReason: viewer },
+        { level: "admin", disabledReason: viewer },
+      ],
+    ],
     [
       "a commenter",
       { ...priya, user: { ...priya.user!, role: "commenter" as const } },
-      noAdmin,
+      [
+        { level: "view", disabledReason: null },
+        { level: "comment", disabledReason: null },
+        { level: "edit", disabledReason: commenter },
+        { level: "admin", disabledReason: commenter },
+      ],
     ],
     [
       "an editor",
       { ...priya, user: { ...priya.user!, role: "editor" as const } },
-      all,
+      [
+        { level: "view", disabledReason: editor },
+        { level: "comment", disabledReason: editor },
+        { level: "edit", disabledReason: null },
+        { level: "admin", disabledReason: null },
+      ],
     ],
-    ["an admin", ishan, all],
-    ["a group", sre, all],
-    ["a person about to be added", { email: "new@example.com" }, all],
-    ["a group about to be added", { group: "platform" }, all],
+    [
+      "an admin",
+      ishan,
+      [
+        { level: "view", disabledReason: admin },
+        { level: "comment", disabledReason: admin },
+        { level: "edit", disabledReason: admin },
+        { level: "admin", disabledReason: null },
+      ],
+    ],
+    ["a group", sre, open],
+    ["a person about to be added", { email: "new@example.com" }, open],
+    ["a group about to be added", { group: "platform" }, open],
   ])("offers %s the right levels", (_name, target, expected) => {
     expect(levelOptions(target)).toEqual(expected)
   })
