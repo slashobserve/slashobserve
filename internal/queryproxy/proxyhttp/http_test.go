@@ -73,8 +73,10 @@ type fakeDatasource struct {
 	valuesFor  func(q datasource.Query) []string
 	onLint     func(ctx context.Context, query string) ([]datasource.Diagnostic, error)
 	onDiscover func(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error)
+	onExemplar func(ctx context.Context, r datasource.TimeRange, step time.Duration) ([]datasource.Frame, error)
 
 	mu            sync.Mutex
+	exemplarCalls int
 	discovered    []datasource.DiscoverRequest
 	rangeCalls    int
 	instantCalls  int
@@ -180,6 +182,22 @@ func (f *fakeDatasource) QueryRange(ctx context.Context, q datasource.Query, r d
 		return f.onRange(ctx, r, step)
 	}
 	return sampleFrames(), nil
+}
+
+func (f *fakeDatasource) QueryExemplars(ctx context.Context, _ datasource.Query, r datasource.TimeRange, step time.Duration) ([]datasource.Frame, error) {
+	f.mu.Lock()
+	f.exemplarCalls++
+	f.mu.Unlock()
+	if f.onExemplar != nil {
+		return f.onExemplar(ctx, r, step)
+	}
+	return nil, nil
+}
+
+func (f *fakeDatasource) exemplarCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.exemplarCalls
 }
 
 func (f *fakeDatasource) QueryInstant(ctx context.Context, _ datasource.Query, r datasource.TimeRange) ([]datasource.Frame, error) {
@@ -1862,5 +1880,86 @@ func TestPreviewNeedsEditOnTheDashboard(t *testing.T) {
 				t.Fatalf("%d upstream queries for a refused preview", ranges)
 			}
 		})
+	}
+}
+
+func exemplarSample() []datasource.Frame {
+	return []datasource.Frame{{
+		Name:   "latency_bucket",
+		Labels: map[string]string{"pod": "a"},
+		Fields: []datasource.Field{
+			{Name: "Time", Type: datasource.FieldTime, Values: []any{time.UnixMilli(1760000000000).UTC()}},
+			{Name: "Value", Type: datasource.FieldNumber, Values: []any{0.5}},
+			{Name: "trace_id", Type: datasource.FieldString, Values: []any{"abc"}},
+		},
+	}}
+}
+
+const wantExemplars = `[{"ref":"A","name":"latency_bucket","labels":{"pod":"a"},"fields":[{"name":"Time","type":"time","values":[1760000000000]},{"name":"Value","type":"number","values":[0.5]},{"name":"trace_id","type":"string","values":["abc"]}]}]`
+
+func TestPanelDataCarriesExemplarsAndTheirStatusAndReplaysThemFromTheCache(t *testing.T) {
+	hn := newHarness(t)
+	hn.ds.onExemplar = func(context.Context, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+		return exemplarSample(), nil
+	}
+	hn.addPanels(multiQueryPanel("p_ex", spec.Query{Query: "with", Exemplar: true}, spec.Query{Ref: "quiet", Query: "without"}))
+	path := hn.dataPath("p_ex", window)
+
+	first := decodeData(t, hn.get(path, ""))
+	if string(first.Exemplars) != wantExemplars {
+		t.Fatalf("exemplars = %s, want %s", first.Exemplars, wantExemplars)
+	}
+	if got := []string{first.Meta.Queries[0].Exemplars, first.Meta.Queries[1].Exemplars}; got[0] != queryproxy.ExemplarsOK || got[1] != "" {
+		t.Fatalf("exemplar statuses = %q, want ok for A and none for quiet", got)
+	}
+
+	second := decodeData(t, hn.get(path, ""))
+	if !second.Meta.Cached || string(second.Exemplars) != wantExemplars || !slices.Equal(second.Meta.Queries, first.Meta.Queries) {
+		t.Fatalf("cached response = %+v, want the exemplars and statuses replayed", second)
+	}
+	if n := hn.ds.exemplarCount(); n != 1 {
+		t.Fatalf("%d exemplar calls for two identical requests, want 1", n)
+	}
+}
+
+func TestPanelDataWithoutExemplarQueriesHasNoExemplarFields(t *testing.T) {
+	hn := newHarness(t)
+	rec := hn.get(hn.dataPath("p_ts", window+"&var-job=api"), "")
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if _, present := raw["exemplars"]; present {
+		t.Fatalf("response has an exemplars field: %s", rec.Body.String())
+	}
+	if strings.Contains(string(raw["meta"]), "exemplars") {
+		t.Fatalf("meta mentions exemplars: %s", raw["meta"])
+	}
+}
+
+func TestPanelDataKeepsAFailedExemplarFetchFromFailingThePanel(t *testing.T) {
+	hn := newHarness(t)
+	hn.ds.onExemplar = func(context.Context, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+		return nil, datasource.Errorf(datasource.ErrUnavailable, "down")
+	}
+	hn.addPanels(multiQueryPanel("p_ex", spec.Query{Query: "with", Exemplar: true}))
+	rec := hn.get(hn.dataPath("p_ex", window), "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+	body := decodeData(t, rec)
+	if string(body.Exemplars) != "[]" || body.Meta.Queries[0].Exemplars != queryproxy.ExemplarsUnavailable {
+		t.Fatalf("exemplars %s status %q, want an empty list and unavailable", body.Exemplars, body.Meta.Queries[0].Exemplars)
+	}
+}
+
+func TestPreviewFetchesExemplars(t *testing.T) {
+	hn := newPreviewHarness(t)
+	hn.ds.onExemplar = func(context.Context, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+		return exemplarSample(), nil
+	}
+	body := decodeData(t, hn.previewAs(auth.KindUser, "prom", func(p *spec.Panel) { p.Queries[0].Exemplar = true }))
+	if string(body.Exemplars) != wantExemplars || body.Meta.Queries[0].Exemplars != queryproxy.ExemplarsOK {
+		t.Fatalf("preview exemplars %s status %q, want the sample and ok", body.Exemplars, body.Meta.Queries[0].Exemplars)
 	}
 }

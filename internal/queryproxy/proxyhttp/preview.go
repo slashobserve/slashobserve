@@ -114,6 +114,7 @@ func (h *Handler) preview(c *gin.Context) {
 		Selections:    selections,
 		MaxDataPoints: al.maxDataPoints,
 		Limits:        queryproxy.DraftLimits,
+		Exemplars:     true,
 		User:          user,
 	})
 	if err != nil {

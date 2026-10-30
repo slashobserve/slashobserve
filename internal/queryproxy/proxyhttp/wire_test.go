@@ -125,3 +125,26 @@ func TestMarshalFramesTagsEachFrameWithItsQueryRefInPanelOrder(t *testing.T) {
 		t.Fatalf("frames = %v, want %s", got, want)
 	}
 }
+
+func TestMarshalExemplarsTagsFramesWithTheQueryRefAndConvertsTimes(t *testing.T) {
+	q := queryproxy.QueryResult{Ref: "errors", Exemplars: []datasource.Frame{{
+		Name:   "m",
+		Labels: map[string]string{"pod": "a"},
+		Fields: []datasource.Field{
+			{Name: "Time", Type: datasource.FieldTime, Values: []any{time.UnixMilli(1760000000123).UTC()}},
+			{Name: "Value", Type: datasource.FieldNumber, Values: []any{math.NaN()}},
+			{Name: "trace_id", Type: datasource.FieldString, Values: []any{"abc"}},
+		},
+	}}}
+	body, err := marshalExemplars(q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `[{"ref":"errors","name":"m","labels":{"pod":"a"},"fields":[{"name":"Time","type":"time","values":[1760000000123]},{"name":"Value","type":"number","values":[null]},{"name":"trace_id","type":"string","values":["abc"]}]}]`
+	if string(body) != want {
+		t.Fatalf("exemplars = %s, want %s", body, want)
+	}
+	if empty, err := marshalExemplars(queryproxy.QueryResult{Ref: "A"}); err != nil || string(empty) != "[]" {
+		t.Fatalf("no exemplars = %s, %v, want []", empty, err)
+	}
+}

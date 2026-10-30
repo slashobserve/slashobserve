@@ -101,8 +101,9 @@ type dataMeta struct {
 }
 
 type dataResponse struct {
-	Frames json.RawMessage `json:"frames"`
-	Meta   dataMeta        `json:"meta"`
+	Frames    json.RawMessage `json:"frames"`
+	Exemplars json.RawMessage `json:"exemplars,omitempty"`
+	Meta      dataMeta        `json:"meta"`
 }
 
 type valuesResponse struct {
@@ -205,6 +206,7 @@ func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, 
 		Range:         al.rng,
 		Selections:    selections,
 		MaxDataPoints: al.maxDataPoints,
+		Exemplars:     true,
 		User:          user,
 	})
 	if err != nil {
@@ -225,6 +227,7 @@ func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dat
 	}()
 	found, _ := req.Dashboard.FindDataPanel(req.PanelID)
 	parts := make([][]byte, len(found.Panel.Queries))
+	exemplarParts := make([][]byte, len(found.Panel.Queries))
 	var (
 		mu    sync.Mutex
 		total int
@@ -235,10 +238,17 @@ func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dat
 			h.logger.ErrorContext(ctx, "convert panel frames", append([]any{slog.String("panel_id", req.PanelID)}, failureAttrs(err)...)...)
 			return errInternal
 		}
+		var exemplars []byte
+		if q.ExemplarStatus != "" {
+			if exemplars, err = marshalExemplars(q); err != nil {
+				h.logger.ErrorContext(ctx, "convert panel exemplars", append([]any{slog.String("panel_id", req.PanelID)}, failureAttrs(err)...)...)
+				return errInternal
+			}
+		}
 		mu.Lock()
 		defer mu.Unlock()
-		parts[index] = part
-		if total += len(part); total > maxResponseBytes {
+		parts[index], exemplarParts[index] = part, exemplars
+		if total += len(part) + len(exemplars); total > maxResponseBytes {
 			return &queryproxy.AbortError{Err: errTooLarge}
 		}
 		return nil
@@ -248,10 +258,16 @@ func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dat
 		return dataEntry{}, err
 	}
 	queries := make([]queryMeta, len(res.Queries))
+	asked := false
 	for i, q := range res.Queries {
-		queries[i] = queryMeta{Ref: q.Ref, Kind: q.Kind, StepMS: q.Step.Milliseconds()}
+		queries[i] = queryMeta{Ref: q.Ref, Kind: q.Kind, StepMS: q.Step.Milliseconds(), Exemplars: q.ExemplarStatus}
+		asked = asked || q.ExemplarStatus != ""
 	}
-	return dataEntry{frames: joinFrames(parts), queries: queries, kind: res.Kind, from: res.Range.From, to: res.Range.To, step: res.Step, executedAt: time.Now()}, nil
+	var exemplars json.RawMessage
+	if asked {
+		exemplars = joinFrames(exemplarParts)
+	}
+	return dataEntry{frames: joinFrames(parts), exemplars: exemplars, queries: queries, kind: res.Kind, from: res.Range.From, to: res.Range.To, step: res.Step, executedAt: time.Now()}, nil
 }
 
 func (h *Handler) logPanic(ctx context.Context, panelID string, p any) {
@@ -272,7 +288,8 @@ func cacheScope(ctx context.Context, v loadedVersion) (user datasource.QueryUser
 
 func writeData(c *gin.Context, e dataEntry, cached bool, executedAt time.Time) {
 	c.JSON(http.StatusOK, dataResponse{
-		Frames: e.frames,
+		Frames:    e.frames,
+		Exemplars: e.exemplars,
 		Meta: dataMeta{
 			Kind:       e.kind,
 			From:       formatTime(e.from),

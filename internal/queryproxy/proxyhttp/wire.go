@@ -25,19 +25,35 @@ type wireField struct {
 func marshalFrames(queries []queryproxy.QueryResult) ([]byte, error) {
 	out := []wireFrame{}
 	for _, q := range queries {
-		for _, f := range q.Frames {
-			wf := wireFrame{Ref: q.Ref, Name: f.Name, Labels: f.Labels, Fields: make([]wireField, len(f.Fields))}
-			for j, field := range f.Fields {
-				values, err := wireValues(field)
-				if err != nil {
-					return nil, err
-				}
-				wf.Fields[j] = wireField{Name: field.Name, Type: field.Type, Values: values}
-			}
-			out = append(out, wf)
+		var err error
+		if out, err = appendWireFrames(out, q.Ref, q.Frames); err != nil {
+			return nil, err
 		}
 	}
 	return json.Marshal(out)
+}
+
+func marshalExemplars(q queryproxy.QueryResult) ([]byte, error) {
+	out, err := appendWireFrames([]wireFrame{}, q.Ref, q.Exemplars)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(out)
+}
+
+func appendWireFrames(out []wireFrame, ref string, frames []datasource.Frame) ([]wireFrame, error) {
+	for _, f := range frames {
+		wf := wireFrame{Ref: ref, Name: f.Name, Labels: f.Labels, Fields: make([]wireField, len(f.Fields))}
+		for j, field := range f.Fields {
+			values, err := wireValues(field)
+			if err != nil {
+				return nil, err
+			}
+			wf.Fields[j] = wireField{Name: field.Name, Type: field.Type, Values: values}
+		}
+		out = append(out, wf)
+	}
+	return out, nil
 }
 
 func joinFrames(parts [][]byte) []byte {
