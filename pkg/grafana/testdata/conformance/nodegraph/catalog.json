@@ -12,7 +12,7 @@
     { "id": "options.nodes.arcs=ok-errors", "path": "options.nodes.arcs", "value": [{"field": "ok", "color": "green"}, {"field": "errors", "color": "red"}] },
     { "id": "options.edges.mainStatUnit=ms", "path": "options.edges.mainStatUnit", "value": "ms" },
     { "id": "options.edges.secondaryStatUnit=percent", "path": "options.edges.secondaryStatUnit", "value": "percent" },
-    { "id": "options.zoomMode=greedy", "path": "options.zoomMode", "value": "greedy", "expect": "cosmetic" },
+    { "id": "options.zoomMode=greedy", "path": "options.zoomMode", "value": "greedy" },
     { "id": "options.layoutAlgorithm=force", "path": "options.layoutAlgorithm", "value": "force" },
     { "id": "options.layoutAlgorithm=grid", "path": "options.layoutAlgorithm", "value": "grid" }
   ]

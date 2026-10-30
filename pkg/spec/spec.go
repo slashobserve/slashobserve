@@ -636,6 +636,7 @@ type Display struct {
 	Close              string             `json:"close,omitempty"`
 	Volume             string             `json:"volume,omitempty"`
 	Layout             string             `json:"layout,omitempty"`
+	WheelZoom          *bool              `json:"wheelZoom,omitempty"`
 	View               string             `json:"view,omitempty"`
 	Lat                *float64           `json:"lat,omitempty"`
 	Lon                *float64           `json:"lon,omitempty"`

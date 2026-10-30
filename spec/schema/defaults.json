@@ -22,7 +22,7 @@
     "trend": {"legend": "bottom", "legendValues": [], "legendSortDesc": false, "legendHideZero": false, "legendHideEmpty": false, "tooltip": "single", "tooltipSort": "desc", "tooltipHideZeros": false, "tooltipCumulative": false, "xAxis": "shown"},
     "xychart": {"show": "points", "pointSize": 5, "pointSizeMin": 4, "pointSizeMax": 30, "legend": "bottom", "legendValues": [], "legendSortDesc": false, "tooltip": "single", "tooltipSort": "none", "tooltipHideZeros": false},
     "candlestick": {"mode": "candles+volume", "candleStyle": "candles", "colorStrategy": "open-close", "upColor": "ok", "downColor": "critical", "includeAllFields": false, "legend": "bottom", "tooltip": "single", "tooltipSort": "desc", "tooltipHideZeros": false, "tooltipCumulative": false, "xAxis": "shown"},
-    "nodeGraph": {"layout": "layered"},
+    "nodeGraph": {"layout": "layered", "wheelZoom": false},
     "traces": {},
     "flamegraph": {},
     "geomap": {"view": "fit", "location": "auto", "markerSize": 5, "markerSizeMax": 15, "basemap": "outline", "basemapTheme": "auto", "basemapLabels": true, "showZoom": true, "mouseWheelZoom": false, "showAttribution": true, "showScale": false, "showMeasure": false, "showDebug": false, "tooltip": "details"},

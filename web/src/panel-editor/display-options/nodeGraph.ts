@@ -7,7 +7,9 @@ export const nodeGraph: readonly DisplayOption[] = [
     label: "Layout",
     options: [
       { value: "layered", label: "Layered" },
+      { value: "force", label: "Force" },
       { value: "grid", label: "Grid" },
     ],
   },
+  { kind: "toggle", key: "wheelZoom", label: "Zoom with the scroll wheel" },
 ]

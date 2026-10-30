@@ -25,7 +25,16 @@ import {
   type GraphEdge,
   type GraphNode,
 } from "./graph-model"
+import { forceLayout } from "./force-layout"
 import { gridLayout, layeredLayout, type Layout, type Point } from "./layout"
+import {
+  initialView,
+  maxZoom,
+  minZoom,
+  wheelFactor,
+  zoomStep,
+  zoomView,
+} from "./zoom"
 
 const cellWidth = 200
 const cellHeight = 120
@@ -38,9 +47,6 @@ const sideRoom = 90
 const bottomRoom = labelDrop + 20
 const topRoom = ringOuter + 4
 const maxFit = 1.5
-const minZoom = 0.25
-const maxZoom = 4
-const zoomStep = 1.25
 const dragThreshold = 3
 const parallelShift = 5
 const fullTurn = Math.PI * 2
@@ -48,7 +54,6 @@ const fullTurn = Math.PI * 2
 const mutedStroke = "var(--muted-foreground)"
 const strongStroke = "var(--foreground)"
 
-type View = { zoom: number; panX: number; panY: number }
 type Selection = { kind: "node" | "edge"; id: string }
 type Drag = {
   x: number
@@ -58,20 +63,10 @@ type Drag = {
   moved: boolean
 }
 
-const initialView: View = { zoom: 1, panX: 0, panY: 0 }
+const forceSeed = 1
 
 function clip(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text
-}
-
-function layoutOf(
-  nodes: GraphNode[],
-  edges: GraphEdge[],
-  display: Record<string, unknown>
-): Layout {
-  return display.layout === "grid"
-    ? gridLayout(nodes)
-    : layeredLayout(nodes, edges)
 }
 
 function scaled(layout: Layout): Map<string, Point> {
@@ -81,6 +76,21 @@ function scaled(layout: Layout): Map<string, Point> {
       { x: x * cellWidth, y: y * cellHeight },
     ])
   )
+}
+
+function pointsOf(
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  layout: unknown
+): Map<string, Point> {
+  if (layout === "grid") return scaled(gridLayout(nodes))
+  if (layout !== "force") return scaled(layeredLayout(nodes, edges))
+  const columns = Math.ceil(Math.sqrt(nodes.length))
+  return forceLayout(nodes, edges, {
+    width: columns * cellWidth,
+    height: Math.ceil(nodes.length / columns) * cellHeight,
+    seed: forceSeed,
+  })
 }
 
 function boundsOf(points: Map<string, Point>) {
@@ -368,9 +378,10 @@ type GraphProps = {
 
 function Graph({ nodes, edges, note, display, width, height }: GraphProps) {
   const markerPrefix = useId().replaceAll(":", "")
+  const layout = display.layout
   const points = useMemo(
-    () => scaled(layoutOf(nodes, edges, display)),
-    [nodes, edges, display]
+    () => pointsOf(nodes, edges, layout),
+    [nodes, edges, layout]
   )
   const bounds = useMemo(() => boundsOf(points), [points])
   const nodesById = useMemo(
@@ -407,16 +418,27 @@ function Graph({ nodes, edges, note, display, width, height }: GraphProps) {
   const markerColors = [...new Set(strokes)]
 
   function zoomBy(factor: number) {
-    setView((current) => {
-      const zoom = Math.min(maxZoom, Math.max(minZoom, current.zoom * factor))
-      const ratio = zoom / current.zoom
-      return {
-        zoom,
-        panX: current.panX * ratio,
-        panY: current.panY * ratio,
-      }
-    })
+    setView((current) => zoomView(current, factor))
   }
+
+  const wheelZoom = display.wheelZoom === true
+  const svgRef = useRef<SVGSVGElement>(null)
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!wheelZoom || !svg) return
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      const box = svg.getBoundingClientRect()
+      const anchor = {
+        x: event.clientX - box.left - width / 2,
+        y: event.clientY - box.top - height / 2,
+      }
+      const factor = wheelFactor(event.deltaY, event.deltaMode)
+      setView((current) => zoomView(current, factor, anchor))
+    }
+    svg.addEventListener("wheel", onWheel, { passive: false })
+    return () => svg.removeEventListener("wheel", onWheel)
+  }, [wheelZoom, width, height])
 
   function onPointerDown(event: PointerEvent<SVGSVGElement>) {
     if (event.button !== 0) return
@@ -468,6 +490,7 @@ function Graph({ nodes, edges, note, display, width, height }: GraphProps) {
       data-edges={edges.length}
     >
       <svg
+        ref={svgRef}
         role="group"
         aria-label={`Node graph, ${nodes.length} services, ${edges.length} connections`}
         width={width}

@@ -11,7 +11,6 @@ import (
 const (
 	datagridReason      = "Editing cells is not supported; the grid is shown as a table."
 	shareReason         = "Only row heights and column widths from 0.1 to 1 are supported."
-	forceLayoutReason   = "The force layout is drawn layered."
 	xyMatcherReason     = "Only fields chosen by name, and Y fields chosen by name, names or a regular expression, are supported."
 	xyExcludeReason     = "The excluded fields must be a list of names."
 	xySeriesCountReason = "At most 20 series are supported."
@@ -417,12 +416,9 @@ func (b *panelBuild) candleColor(path string) string {
 
 func displayNodeGraph(b *panelBuild) {
 	d := b.disp()
-	switch layout := b.enumOption("options.layoutAlgorithm", "layered", "force", "grid"); layout {
-	case "force":
-		d.Layout = "layered"
-		b.partial("options.layoutAlgorithm", forceLayoutReason)
-	default:
-		d.Layout = layout
+	d.Layout = b.enumOption("options.layoutAlgorithm", "layered", "force", "grid")
+	if b.enumOption("options.zoomMode", "cooperative", "greedy") == "greedy" {
+		d.WheelZoom = ptr(true)
 	}
 	b.statUnitOverride("mainStatUnit", "mainstat")
 	b.statUnitOverride("secondaryStatUnit", "secondarystat")
