@@ -255,6 +255,42 @@ describe("field config resolution", () => {
     })
   })
 
+  it("carries color, cell and series-drawing props through one override", () => {
+    const f = frame([time, value()])
+    const resolver = createFieldResolver(
+      panel({
+        colorMode: "scheme",
+        colorScheme: "blues",
+        colorBy: "min",
+        overrides: [
+          {
+            match: { fieldType: "number" },
+            colorMode: "scheme",
+            colorScheme: "reds",
+            colorBy: "max",
+            cell: { type: "background", wholeRow: true },
+            valueTransform: "constant",
+            hideInLegend: true,
+            hideInTooltip: true,
+            stackGroup: "B",
+            fillBelowTo: "other",
+          },
+        ],
+      })
+    )
+    expect(resolver.configFor(f, f.fields[1])).toMatchObject({
+      colorMode: "scheme",
+      colorScheme: "reds",
+      colorBy: "max",
+      cell: { type: "background", wholeRow: true },
+      valueTransform: "constant",
+      hideInLegend: true,
+      hideInTooltip: true,
+      stackGroup: "B",
+      fillBelowTo: "other",
+    })
+  })
+
   it("applies overrides in order so the later one wins", () => {
     const f = frame([time, value()])
     const resolver = createFieldResolver(

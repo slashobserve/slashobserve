@@ -340,6 +340,40 @@ describe("table cells", () => {
     expect(cell("n", 1).color).toBeNull()
   })
 
+  it("colors a cell by its color scheme with no thresholds", () => {
+    const ends = frame([number([0, 100], "n")])
+    const { cell } = build([ends], {
+      min: 0,
+      max: 100,
+      colorMode: "scheme",
+      colorScheme: "greenYellowRed",
+    })
+    expect(cell("n", 0)).toEqual({
+      text: "0",
+      color: "var(--threshold-ok)",
+      level: "base",
+      word: "",
+    })
+    expect(cell("n", 1).color).toBe("var(--threshold-critical)")
+  })
+
+  it("leaves a column uncolored when an override resets its scheme to the palette", () => {
+    const ends = frame([number([0, 100], "n")])
+    const { cell } = build([ends], {
+      min: 0,
+      max: 100,
+      colorMode: "scheme",
+      colorScheme: "greenYellowRed",
+      overrides: [{ match: { field: "n" }, colorMode: "palette" }],
+    })
+    expect(cell("n", 1)).toEqual({
+      text: "100",
+      color: null,
+      level: null,
+      word: "",
+    })
+  })
+
   it("takes the config of a label column from a fieldType string override", () => {
     const { cell } = build(podFrames("A", [1, 2]), {
       overrides: [

@@ -175,3 +175,25 @@ func TestColorOverridesResetOnlyWhatThePanelSet(t *testing.T) {
 		})
 	}
 }
+
+func TestAnOverrideResetsColorHideAndStackGroupTogether(t *testing.T) {
+	defaults := `{"color":{"mode":"continuous-GrYlRd","seriesBy":"max"},"custom":{"hideFrom":{"legend":true,"tooltip":true,"viz":false},"stacking":{"mode":"normal","group":"B"}}}`
+	properties := []string{
+		property("color", `{"mode":"palette-classic"}`),
+		property("custom.hideFrom", `{"legend":false,"tooltip":false,"viz":false}`),
+		property("custom.stacking", `{"mode":"normal","group":"A"}`),
+	}
+	doc := panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":`+defaults+`,"overrides":[{"matcher":`+byUp+`,"properties":[`+strings.Join(properties, ",")+`]}]}`)
+	panel, line := convertedPanel(t, doc)
+	requireImported(t, line)
+	if panel.ColorMode != "scheme" || panel.ColorBy != "max" || panel.StackGroup != "B" {
+		t.Fatalf("panel = %q %q %q, want scheme max B", panel.ColorMode, panel.ColorBy, panel.StackGroup)
+	}
+	got := onlyOverride(t, panel)
+	if got.ColorMode != "palette" || got.StackGroup != "A" {
+		t.Fatalf("override color mode %q stack group %q, want palette A", got.ColorMode, got.StackGroup)
+	}
+	if got.HideInLegend == nil || *got.HideInLegend || got.HideInTooltip == nil || *got.HideInTooltip {
+		t.Fatalf("override = %+v, want both hide resets written as false", got.FieldProps)
+	}
+}
