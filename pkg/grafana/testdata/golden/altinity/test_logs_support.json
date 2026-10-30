@@ -41,9 +41,9 @@
     "verified": false,
     "counts": {
       "total": 3,
-      "imported": 0,
+      "imported": 1,
       "partial": 2,
-      "placeholder": 1,
+      "placeholder": 0,
       "unverified": 0
     },
     "panels": [
@@ -80,22 +80,28 @@
         "grafana_id": 2,
         "grafana_path": "panels[1]",
         "title": "Altinity Plugin Logs",
-        "type": "placeholder",
+        "type": "logs",
         "source_type": "logs",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $adhoc builds the whole query and is not supported; rewrite it as SQL."
+          "Saved ad hoc filters are not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].adHocFilters"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $adhoc builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$table -> default.test_logs",
+              "$timeFilter -> $__timeFilter(event_time)",
+              "$adhoc -> $adhoc_variable",
+              "$conditionalTest( -> $__conditionalAll("
+            ],
+            "dropped": null
           }
         ]
       },
@@ -107,13 +113,9 @@
         "type": "logs",
         "source_type": "logs",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Imported the generated SQL; the query builder settings are not kept."
-        ],
-        "paths": [
-          "targets[0].builderOptions"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -192,7 +194,7 @@
       },
       {
         "id": "p2",
-        "type": "placeholder",
+        "type": "logs",
         "title": "Altinity Plugin Logs",
         "description": "reproduce https://github.com/Altinity/clickhouse-grafana/issues/125 and https://github.com/Altinity/clickhouse-grafana/issues/331",
         "gridPos": {
@@ -201,8 +203,16 @@
           "w": 11,
           "h": 9
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $adhoc builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "logs"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT *\nFROM default.test_logs\n\nWHERE $__timeFilter(event_time) AND $adhoc_variable\n$__conditionalAll(AND content ILIKE ${filter:sqlstring},$filter)",
+            "format": "logs"
+          }
+        ],
+        "display": {
+          "showTime": true
+        }
       },
       {
         "id": "p3",

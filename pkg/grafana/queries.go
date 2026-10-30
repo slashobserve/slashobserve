@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -17,7 +18,6 @@ const (
 	maxPanelQueries   = 26
 	maxLegend         = 200
 	altinityPlugin    = "vertamedia-clickhouse-datasource"
-	builderReason     = "Imported the generated SQL; the query builder settings are not kept."
 	genericQueryNote  = "Some Grafana options of this query are not supported yet."
 	sqlFormatTable    = 1
 	sqlFormatLogs     = 2
@@ -44,6 +44,9 @@ type targetBuild struct {
 	src      *sourceDS
 	used     map[string]bool
 	rewrites []string
+
+	rateMacro bool
+	expanded  bool
 }
 
 var targetSilent = map[string]bool{
@@ -52,7 +55,7 @@ var targetSilent = map[string]bool{
 	"datetimeLoading": true, "tableLoading": true, "initialized": true, "expand": true,
 	"metric": true, "key": true, "requestId": true, "hide": true, "step": true,
 	"queryType": true, "builderOptions": true, "editorType": true, "format": true,
-	"extrapolate": true, "skip_comments": true, "add_metadata": true, "contextWindowSize": true,
+	"skip_comments": true, "add_metadata": true, "contextWindowSize": true,
 	"useWindowFuncForMacros": true, "nullifySparse": true, "database": true, "table": true,
 	"dateColDataType": true, "dateTimeColDataType": true, "dateTimeType": true,
 	"useBackend": true, "disableTextWrap": true, "fullMetaSearch": true, "includeNullMetadata": true,
@@ -302,9 +305,6 @@ func (tb *targetBuild) officialClickHouse() (spec.Query, string) {
 	if reason != "" {
 		return spec.Query{}, reason
 	}
-	if asString(tb.t["editorType"]) == "builder" {
-		tb.partial("builderOptions", builderReason)
-	}
 	return spec.Query{Query: sql, Format: format}, ""
 }
 
@@ -332,7 +332,7 @@ func (tb *targetBuild) clickHouseFormat() (string, string) {
 }
 
 func (tb *targetBuild) altinity(declared map[string]bool) (spec.Query, string) {
-	tb.use("query", "interval", "intervalFactor", "round", "adHocFilters", "adHocValuesQuery")
+	tb.use("query", "interval", "intervalFactor", "round", "extrapolate", "adHocFilters", "adHocValuesQuery")
 	query := asString(tb.t["query"])
 	if strings.TrimSpace(query) == "" {
 		return spec.Query{}, "The query is empty."
@@ -350,8 +350,11 @@ func (tb *targetBuild) altinity(declared map[string]bool) (spec.Query, string) {
 	case "traces", "flamegraph":
 		q.Format = "table"
 	}
-	if round := asString(tb.t["round"]); round != "" && round != "0s" {
-		tb.partial("round", "Rounding of the time range is not supported yet.")
+	tb.reportRound(q)
+	if tb.rateMacro {
+		if extrapolate, set := tb.t["extrapolate"]; !set || truthy(extrapolate) {
+			tb.partial("extrapolate", "Edge extrapolation of rate macros is not kept.")
+		}
 	}
 	for _, key := range []string{"adHocFilters", "adHocValuesQuery"} {
 		if present(tb.t[key]) {
@@ -362,6 +365,45 @@ func (tb *targetBuild) altinity(declared map[string]bool) (spec.Query, string) {
 		tb.partial("dateTimeType", "The time column is a Unix timestamp; check the time filter.")
 	}
 	return q, ""
+}
+
+func (tb *targetBuild) reportRound(q spec.Query) {
+	round := strings.TrimSpace(asString(tb.t["round"]))
+	if round == "" || round == "0s" || round == "$step" {
+		return
+	}
+	if step, ok := tb.minimumStep(q); ok {
+		if size, err := spec.ParseInterval(round); err == nil && size > 0 && step%size == 0 {
+			return
+		}
+	}
+	tb.partial("round", "Rounding of the time range is not supported yet.")
+}
+
+func (tb *targetBuild) minimumStep(q spec.Query) (time.Duration, bool) {
+	panelInterval := ""
+	if raw := strings.TrimSpace(asString(tb.b.raw["interval"])); raw != "" {
+		value, ok := tb.b.c.minStep(raw)
+		if !ok {
+			return 0, false
+		}
+		panelInterval = value
+	}
+	var step time.Duration
+	for _, text := range []string{q.Interval, panelInterval} {
+		if text == "" {
+			continue
+		}
+		d, err := spec.ParseInterval(text)
+		if err != nil {
+			return 0, false
+		}
+		step = max(step, d)
+	}
+	if step == 0 {
+		return 0, false
+	}
+	return step * time.Duration(max(q.IntervalFactor, 1)), true
 }
 
 func (tb *targetBuild) timeColumnIsUnix() bool {
@@ -504,10 +546,10 @@ func (b *panelBuild) assignQueries() {
 	}
 }
 
-var altinityDropped = map[string]bool{
+var altinityWholeQuery = map[string]bool{
 	"columns": true, "columnsMs": true, "rate": true, "rateColumns": true, "perSecond": true,
 	"perSecondColumns": true, "delta": true, "deltaColumns": true, "increase": true,
-	"increaseColumns": true, "lttb": true, "adhoc": true, "timeFilterByColumn": true,
+	"increaseColumns": true, "lttb": true,
 	"rateColumnsAggregated": true, "perSecondColumnsAggregated": true,
 	"deltaColumnsAggregated": true, "increaseColumnsAggregated": true,
 }
@@ -525,7 +567,21 @@ func identAt(s string, from int) string {
 	return s[from:end]
 }
 
+func altinityDropReason(name string) string {
+	return fmt.Sprintf("Altinity macro $%s builds the whole query and is not supported; rewrite it as SQL.", name)
+}
+
 func (tb *targetBuild) rewriteAltinity(text string, declared map[string]bool) (string, string) {
+	before := len(tb.rewrites)
+	tb.expanded = false
+	out, reason := tb.rewriteAltinityText(text, declared, true)
+	if reason == "" && tb.expanded {
+		tb.rewrites = append(tb.rewrites[:before:before], text+" -> "+out)
+	}
+	return out, reason
+}
+
+func (tb *targetBuild) rewriteAltinityText(text string, declared map[string]bool, wholeQuery bool) (string, string) {
 	var out strings.Builder
 	for i := 0; i < len(text); {
 		if text[i] != '$' {
@@ -540,17 +596,79 @@ func (tb *targetBuild) rewriteAltinity(text string, declared map[string]bool) (s
 			i = end
 			continue
 		}
-		if altinityDropped[name] {
-			return "", fmt.Sprintf("Altinity macro $%s builds the whole query and is not supported; rewrite it as SQL.", name)
+		if altinityWholeQuery[name] {
+			expanded, reason := tb.expandWholeQuery(name, text, end, declared, wholeQuery && blankOrComments(text[:i]))
+			if reason != "" {
+				return "", reason
+			}
+			return out.String() + expanded, ""
 		}
-		replacement, next, ok := tb.altinityMacro(name, text, i, end)
-		if !ok {
-			replacement, next = text[i:end], end
+		replacement, next, reason := tb.inlineAltinity(name, text, i, end)
+		if reason != "" {
+			return "", reason
 		}
 		out.WriteString(replacement)
 		i = next
 	}
 	return out.String(), ""
+}
+
+func (tb *targetBuild) expandWholeQuery(name, text string, end int, declared map[string]bool, allowed bool) (string, string) {
+	if !allowed || !strings.HasPrefix(text[end:], "(") {
+		return "", altinityDropReason(name)
+	}
+	args, rest, ok := splitAltinityCall(text, end)
+	if !ok {
+		return "", altinityDropReason(name)
+	}
+	sql, ok := tb.expandAltinity(name, args, rest)
+	if !ok {
+		return "", altinityDropReason(name)
+	}
+	tb.expanded = true
+	tb.rateMacro = tb.rateMacro || isCounterMacro(name)
+	return tb.rewriteAltinityText(sql, declared, false)
+}
+
+func (tb *targetBuild) inlineAltinity(name, text string, start, end int) (string, int, string) {
+	switch name {
+	case "adhoc":
+		replacement := tb.adhocReplacement(text, end)
+		tb.addRewrite("$adhoc", replacement)
+		return replacement, end, ""
+	case "timeFilterByColumn":
+		m := timeFilterColumnArgument.FindStringSubmatch(text[end:])
+		if m == nil {
+			return "", 0, altinityDropReason(name)
+		}
+		replacement := "$__timeFilter(" + m[1] + ")"
+		tb.addRewrite(text[start:end+len(m[0])], replacement)
+		return replacement, end + len(m[0]), ""
+	}
+	replacement, next, ok := tb.altinityMacro(name, text, start, end)
+	if !ok {
+		replacement, next = text[start:end], end
+	}
+	return replacement, next, ""
+}
+
+var timeFilterColumnArgument = regexp.MustCompile(`^\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)`)
+
+func (tb *targetBuild) adhocReplacement(text string, end int) string {
+	var names []string
+	for _, v := range tb.b.c.vars {
+		if v.v.Type == spec.AdhocVariable && tb.b.c.adhocSources[v.v.Name] == tb.src {
+			names = append(names, v.v.Name)
+		}
+	}
+	if len(names) != 1 {
+		tb.partial("query", "Ad hoc filters inside this query are not applied.")
+		return "1"
+	}
+	if end < len(text) && isSQLIdentByte(text[end]) {
+		return "${" + names[0] + "}"
+	}
+	return "$" + names[0]
 }
 
 func (tb *targetBuild) altinityMacro(name, text string, start, end int) (string, int, bool) {

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 3,
-      "imported": 2,
-      "partial": 1,
+      "imported": 3,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Imported the generated SQL; the query builder settings are not kept."
-        ],
-        "paths": [
-          "targets[0].builderOptions"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",

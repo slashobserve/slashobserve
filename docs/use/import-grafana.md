@@ -44,3 +44,12 @@ The `basic` and `gradient` bar gauge display modes import as the basic bar, beca
 When the sizing is Manual, a gauge or bar gauge imports its minimum width and height (and a bar gauge its maximum height), using Grafana's own defaults when they are not set; with Auto sizing Grafana ignores these limits, so they are left out without a note.
 A logs panel imports its unique and common labels, log details and where they open (`detailsMode`), prettified JSON, deduplication, controls bar, font size and syntax highlighting; infinite scrolling, the field selector, the context toggle, the timestamp resolution, the log attributes switch and the displayed fields are still reported.
 A value SlashObserve does not support, such as a delay in days or a time zone name the server does not know, is left out and listed in the import report.
+A ClickHouse query from the Altinity plugin that starts with a whole-query macro (`$rate`, `$perSecond`, `$delta`, `$increase`, `$columns`, their `Columns`, `Ms` and `ColumnsAggregated` forms, and `$lttb`) is written out as plain ClickHouse SQL that uses SlashObserve's time macros, so the saved query no longer needs the Altinity macros.
+The `Columns` forms return one row per time and key (time, key, value), which SlashObserve draws as one series per key, named by the key.
+Counter macros always use window functions (`lagInFrame`), whatever the plugin's `useWindowFuncForMacros` says, because `runningDifference` is deprecated in current ClickHouse versions.
+The first point of a counter series has nothing to subtract from: a rate treats the previous point as one step earlier, a delta or increase is 0, and a per-second value is empty.
+A macro that is not at the start of the query, or whose arguments cannot be read, is still left out and listed in the import report.
+`$adhoc` becomes the dashboard's ad hoc variable when exactly one ad hoc variable uses the query's datasource, and `1` (with a note in the report) otherwise.
+`$timeFilterByColumn(column)` becomes `$__timeFilter(column)`.
+The plugin's `extrapolate` option, which the plugin applies in the browser to the edges of a rate series, is reported on the rate family; `round` is dropped silently only when it is `$step`, `0s` or divides the query's explicit minimum step, and reported otherwise.
+A ClickHouse query that keeps its generated SQL drops the query builder's settings without a note.

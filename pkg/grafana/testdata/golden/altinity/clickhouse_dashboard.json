@@ -29,9 +29,9 @@
     "verified": false,
     "counts": {
       "total": 11,
-      "imported": 3,
-      "partial": 0,
-      "placeholder": 8,
+      "imported": 7,
+      "partial": 4,
+      "placeholder": 0,
       "unverified": 0
     },
     "panels": [
@@ -40,22 +40,21 @@
         "grafana_id": 2,
         "grafana_path": "panels[0]",
         "title": "Array template variable",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "graph",
         "row": null,
-        "status": "placeholder",
-        "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
-        ],
+        "status": "imported",
+        "reasons": [],
         "paths": [],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$columns(service_name,\r\n    count() c\r\n)\r\nFROM $table  WHERE [service_name, ' test array'] IN (${array_var}) AND $timeFilter\r\n -> SELECT t, toString(service_name) AS service_name, c AS Value FROM (SELECT $__timeInterval(event_time) AS t, service_name, count() c\nFROM default.test_grafana  WHERE [service_name, ' test array'] IN (${array_var}) AND $__timeFilter(event_time)\r\n\nGROUP BY t, service_name\nORDER BY t, service_name) ORDER BY t, service_name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -64,22 +63,21 @@
         "grafana_id": 3,
         "grafana_path": "panels[1]",
         "title": "remote and array",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "graph",
         "row": null,
-        "status": "placeholder",
-        "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
-        ],
+        "status": "imported",
+        "reasons": [],
         "paths": [],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$columns(service_name,\r\n    count() c\r\n)\r\nFROM remote('${remote_host}',default.test_grafana)  WHERE [service_name, ' test array'] IN (${array_var}) AND $timeFilter -> SELECT t, toString(service_name) AS service_name, c AS Value FROM (SELECT $__timeInterval(event_time) AS t, service_name, count() c\nFROM remote('${remote_host}',default.test_grafana)  WHERE [service_name, ' test array'] IN (${array_var}) AND $__timeFilter(event_time)\nGROUP BY t, service_name\nORDER BY t, service_name) ORDER BY t, service_name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -88,22 +86,21 @@
         "grafana_id": 4,
         "grafana_path": "panels[2]",
         "title": "cluster and array",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "graph",
         "row": null,
-        "status": "placeholder",
-        "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
-        ],
+        "status": "imported",
+        "reasons": [],
         "paths": [],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$columns(service_name,\r\n    count() c\r\n)\r\nFROM cluster('${cluster_name}',default.test_grafana)  WHERE [service_name, ' test array'] IN (${array_var}) AND $timeFilter\r\n -> SELECT t, toString(service_name) AS service_name, c AS Value FROM (SELECT $__timeInterval(event_time) AS t, service_name, count() c\nFROM cluster('${cluster_name}',default.test_grafana)  WHERE [service_name, ' test array'] IN (${array_var}) AND $__timeFilter(event_time)\r\n\nGROUP BY t, service_name\nORDER BY t, service_name) ORDER BY t, service_name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -112,22 +109,27 @@
         "grafana_id": 5,
         "grafana_path": "panels[3]",
         "title": "Repeated ${repeated_service}",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "graph",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
+          "Some Grafana options of this panel are not supported yet."
         ],
-        "paths": [],
+        "paths": [
+          "scopedVars.repeated_service.selected",
+          "scopedVars.repeated_service.text",
+          "scopedVars.repeated_service.value"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$columns(service_name,\r\n    count() c\r\n)\r\nFROM $table  WHERE service_name IN (${repeated_service}) AND $timeFilter -> SELECT t, toString(service_name) AS service_name, c AS Value FROM (SELECT $__timeInterval(event_time) AS t, service_name, count() c\nFROM default.test_grafana  WHERE service_name IN (${repeated_service}) AND $__timeFilter(event_time)\nGROUP BY t, service_name\nORDER BY t, service_name) ORDER BY t, service_name"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -210,22 +212,25 @@
         "grafana_id": 16,
         "grafana_path": "panels[8]",
         "title": "turn off skip_comments example",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "graph",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "/* test comment1 */\r\n-- test comment2\r\n/* \r\n  test multiline comment3\r\n*/  \r\n$rate(countIf(service_name='mysql' AND from_user='bob') AS mysql_bob, countIf(service_name='postgres') AS postgres) \r\nFROM $table\r\nWHERE from_user='bob'\r\n\r\n/* comment4 */\r\n-- comment 5 -> /* test comment1 */\r\n-- test comment2\r\n/* \r\n  test multiline comment3\r\n*/  \r\nSELECT t, mysql_bob / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS mysql_bobRate, postgres / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS postgresRate FROM (SELECT $__timeInterval(event_time) AS t, countIf(service_name='mysql' AND from_user='bob') AS mysql_bob, countIf(service_name='postgres') AS postgres\nFROM default.test_grafana\r\nWHERE $__timeFilter(event_time) AND from_user='bob'\r\n\r\n/* comment4 */\r\n-- comment 5\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -234,22 +239,25 @@
         "grafana_id": 14,
         "grafana_path": "panels[9]",
         "title": "$rate + from in field name example",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "graph",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$rate(\r\n countIf(service_name='mysql' AND from_user='bob') AS mysql_bob, countIf(service_name='postgres') AS postgres\r\n) \r\nFROM $table\r\nWHERE from_user IN ('bob','alice') -> SELECT t, mysql_bob / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS mysql_bobRate, postgres / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS postgresRate FROM (SELECT $__timeInterval(event_time) AS t, countIf(service_name='mysql' AND from_user='bob') AS mysql_bob, countIf(service_name='postgres') AS postgres\nFROM default.test_grafana\r\nWHERE $__timeFilter(event_time) AND from_user IN ('bob','alice')\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -258,22 +266,25 @@
         "grafana_id": 18,
         "grafana_path": "panels[10]",
         "title": "$rateColumns + subquery",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "graph",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL."
+          "Edge extrapolation of rate macros is not kept."
         ],
-        "paths": [],
+        "paths": [
+          "targets[0].extrapolate"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$rateColumns(\n    'User.' || toString(from_user) || ', Serv.' || toString(service_name) as key,\n    sum(count) as value\n) FROM\n(\n    SELECT\n        toStartOfMinute(event_time) AS event_time,\n        service_name,\n        from_user,\n        count() as count\n    FROM $table\n\n    WHERE\n        $timeFilter\n    GROUP BY\n        event_time,\n        from_user,\n        service_name\n) -> SELECT t, toString(key) AS key, value / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS Value FROM (SELECT $__timeInterval(event_time) AS t, 'User.' || toString(from_user) || ', Serv.' || toString(service_name) as key, sum(count) as value\nFROM\n(\n    SELECT\n        toStartOfMinute(event_time) AS event_time,\n        service_name,\n        from_user,\n        count() as count\n    FROM default.test_grafana\n\n    WHERE\n        $__timeFilter(event_time)\n    GROUP BY\n        event_time,\n        from_user,\n        service_name\n)\nGROUP BY t, key\nORDER BY t, key) WINDOW w AS (PARTITION BY key ORDER BY t) ORDER BY t, key"
+            ],
+            "dropped": null
           }
         ]
       },
@@ -282,22 +293,21 @@
         "grafana_id": 20,
         "grafana_path": "panels[11]",
         "title": "$columns + ARRAY JOIN",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "graph",
         "row": null,
-        "status": "placeholder",
-        "reasons": [
-          "None of this panel's queries can be imported.",
-          "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
-        ],
+        "status": "imported",
+        "reasons": [],
         "paths": [],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$columns(\r\n  substring(concat(JobName as JobName,' # ' , Metrics.Name as MetricName), 1, 50) as JobSource,\r\n  sum(rand() % (Metrics.Value+1)) as Kafka_lag_max\r\n)\r\nFROM $table\r\nARRAY JOIN Metrics -> SELECT t, toString(JobSource) AS JobSource, Kafka_lag_max AS Value FROM (SELECT $__timeInterval(d) AS t, substring(concat(JobName as JobName,' # ' , Metrics.Name as MetricName), 1, 50) as JobSource, sum(rand() % (Metrics.Value+1)) as Kafka_lag_max\nFROM default.test_array_join_nested\r\nARRAY JOIN Metrics\nWHERE $__timeFilter(d)\nGROUP BY t, JobSource\nORDER BY t, JobSource) ORDER BY t, JobSource"
+            ],
+            "dropped": null
           }
         ]
       }
@@ -338,11 +348,19 @@
       {
         "subject": "variable adhoc",
         "status": "partial",
-        "reason": "Grafana applies these filters to every query on this datasource; SlashObserve applies them only in queries that use $adhoc, so 3 queries are not filtered.",
+        "reason": "Grafana applies these filters to every query on this datasource; SlashObserve applies them only in queries that use $adhoc, so 11 queries are not filtered.",
         "paths": [
+          "panels[0].targets[0]",
+          "panels[1].targets[0]",
+          "panels[2].targets[0]",
+          "panels[3].targets[0]",
           "panels[5].targets[0]",
           "panels[6].targets[0]",
-          "panels[7].targets[0]"
+          "panels[7].targets[0]",
+          "panels[8].targets[0]",
+          "panels[9].targets[0]",
+          "panels[10].targets[0]",
+          "panels[11].targets[0]"
         ]
       }
     ]
@@ -398,7 +416,7 @@
     "panels": [
       {
         "id": "p2",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "Array template variable",
         "gridPos": {
           "x": 0,
@@ -406,12 +424,22 @@
           "w": 8,
           "h": 9
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "graph"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(service_name) AS service_name, c AS Value FROM (SELECT $__timeInterval(event_time) AS t, service_name, count() c\nFROM default.test_grafana  WHERE [service_name, ' test array'] IN (${array_var}) AND $__timeFilter(event_time)\r\n\nGROUP BY t, service_name\nORDER BY t, service_name) ORDER BY t, service_name"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "display": {
+          "tooltip": "all",
+          "tooltipSort": "none"
+        }
       },
       {
         "id": "p3",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "remote and array",
         "gridPos": {
           "x": 8,
@@ -419,12 +447,22 @@
           "w": 8,
           "h": 9
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "graph"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(service_name) AS service_name, c AS Value FROM (SELECT $__timeInterval(event_time) AS t, service_name, count() c\nFROM remote('${remote_host}',default.test_grafana)  WHERE [service_name, ' test array'] IN (${array_var}) AND $__timeFilter(event_time)\nGROUP BY t, service_name\nORDER BY t, service_name) ORDER BY t, service_name"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "display": {
+          "tooltip": "all",
+          "tooltipSort": "none"
+        }
       },
       {
         "id": "p4",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "cluster and array",
         "gridPos": {
           "x": 16,
@@ -432,12 +470,22 @@
           "w": 8,
           "h": 9
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "graph"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(service_name) AS service_name, c AS Value FROM (SELECT $__timeInterval(event_time) AS t, service_name, count() c\nFROM cluster('${cluster_name}',default.test_grafana)  WHERE [service_name, ' test array'] IN (${array_var}) AND $__timeFilter(event_time)\r\n\nGROUP BY t, service_name\nORDER BY t, service_name) ORDER BY t, service_name"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "display": {
+          "tooltip": "all",
+          "tooltipSort": "none"
+        }
       },
       {
         "id": "p5",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "Repeated ${repeated_service}",
         "gridPos": {
           "x": 0,
@@ -445,8 +493,19 @@
           "w": 12,
           "h": 9
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "graph"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(service_name) AS service_name, c AS Value FROM (SELECT $__timeInterval(event_time) AS t, service_name, count() c\nFROM default.test_grafana  WHERE service_name IN (${repeated_service}) AND $__timeFilter(event_time)\nGROUP BY t, service_name\nORDER BY t, service_name) ORDER BY t, service_name"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "repeat": "repeated_service",
+        "display": {
+          "tooltip": "all",
+          "tooltipSort": "none"
+        }
       },
       {
         "id": "p7",
@@ -521,7 +580,7 @@
       },
       {
         "id": "p16",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "turn off skip_comments example",
         "description": "see https://github.com/Altinity/clickhouse-grafana/issues/265",
         "gridPos": {
@@ -530,12 +589,22 @@
           "w": 8,
           "h": 9
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "graph"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "/* test comment1 */\r\n-- test comment2\r\n/* \r\n  test multiline comment3\r\n*/  \r\nSELECT t, mysql_bob / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS mysql_bobRate, postgres / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS postgresRate FROM (SELECT $__timeInterval(event_time) AS t, countIf(service_name='mysql' AND from_user='bob') AS mysql_bob, countIf(service_name='postgres') AS postgres\nFROM default.test_grafana\r\nWHERE $__timeFilter(event_time) AND from_user='bob'\r\n\r\n/* comment4 */\r\n-- comment 5\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "display": {
+          "tooltip": "all",
+          "tooltipSort": "none"
+        }
       },
       {
         "id": "p14",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$rate + from in field name example",
         "description": "see https://github.com/Altinity/clickhouse-grafana/issues/256",
         "gridPos": {
@@ -544,12 +613,22 @@
           "w": 8,
           "h": 9
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "graph"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, mysql_bob / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS mysql_bobRate, postgres / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS postgresRate FROM (SELECT $__timeInterval(event_time) AS t, countIf(service_name='mysql' AND from_user='bob') AS mysql_bob, countIf(service_name='postgres') AS postgres\nFROM default.test_grafana\r\nWHERE $__timeFilter(event_time) AND from_user IN ('bob','alice')\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "display": {
+          "tooltip": "all",
+          "tooltipSort": "none"
+        }
       },
       {
         "id": "p18",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$rateColumns + subquery",
         "description": "see https://github.com/Altinity/clickhouse-grafana/issues/276",
         "gridPos": {
@@ -558,12 +637,22 @@
           "w": 8,
           "h": 9
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "graph"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(key) AS key, value / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS Value FROM (SELECT $__timeInterval(event_time) AS t, 'User.' || toString(from_user) || ', Serv.' || toString(service_name) as key, sum(count) as value\nFROM\n(\n    SELECT\n        toStartOfMinute(event_time) AS event_time,\n        service_name,\n        from_user,\n        count() as count\n    FROM default.test_grafana\n\n    WHERE\n        $__timeFilter(event_time)\n    GROUP BY\n        event_time,\n        from_user,\n        service_name\n)\nGROUP BY t, key\nORDER BY t, key) WINDOW w AS (PARTITION BY key ORDER BY t) ORDER BY t, key"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "display": {
+          "tooltip": "all",
+          "tooltipSort": "none"
+        }
       },
       {
         "id": "p20",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "$columns + ARRAY JOIN",
         "description": "see https://github.com/Altinity/clickhouse-grafana/issues/284",
         "gridPos": {
@@ -572,8 +661,18 @@
           "w": 8,
           "h": 9
         },
-        "reason": "None of this panel's queries can be imported. Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL.",
-        "sourceType": "graph"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT t, toString(JobSource) AS JobSource, Kafka_lag_max AS Value FROM (SELECT $__timeInterval(d) AS t, substring(concat(JobName as JobName,' # ' , Metrics.Name as MetricName), 1, 50) as JobSource, sum(rand() % (Metrics.Value+1)) as Kafka_lag_max\nFROM default.test_array_join_nested\r\nARRAY JOIN Metrics\nWHERE $__timeFilter(d)\nGROUP BY t, JobSource\nORDER BY t, JobSource) ORDER BY t, JobSource"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "display": {
+          "tooltip": "all",
+          "tooltipSort": "none"
+        }
       }
     ]
   }
