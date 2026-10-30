@@ -2908,6 +2908,99 @@
                       "right",
                       "hidden"
                     ]
+                  },
+                  "sliceLabels": {
+                    "type": "array",
+                    "maxItems": 3,
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "name",
+                        "value",
+                        "percent"
+                      ]
+                    },
+                    "x-omitFromPrompt": false
+                  },
+                  "titleSize": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200,
+                    "x-omitFromPrompt": true
+                  },
+                  "valueSize": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200,
+                    "x-omitFromPrompt": true
+                  },
+                  "legendShow": {
+                    "type": "array",
+                    "maxItems": 2,
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "value",
+                        "percent"
+                      ]
+                    },
+                    "x-omitFromPrompt": true
+                  },
+                  "legendMode": {
+                    "enum": [
+                      "list",
+                      "table"
+                    ],
+                    "x-omitFromPrompt": true
+                  },
+                  "legendSortBy": {
+                    "enum": [
+                      "name",
+                      "value"
+                    ],
+                    "x-omitFromPrompt": true
+                  },
+                  "legendSortDesc": {
+                    "type": "boolean",
+                    "x-omitFromPrompt": true
+                  },
+                  "legendWidth": {
+                    "type": "integer",
+                    "minimum": 40,
+                    "maximum": 2000,
+                    "x-omitFromPrompt": true
+                  },
+                  "tooltip": {
+                    "enum": [
+                      "single",
+                      "all",
+                      "hidden"
+                    ],
+                    "x-omitFromPrompt": false
+                  },
+                  "tooltipSort": {
+                    "enum": [
+                      "none",
+                      "asc",
+                      "desc"
+                    ],
+                    "x-omitFromPrompt": true
+                  },
+                  "tooltipHideZeros": {
+                    "type": "boolean",
+                    "x-omitFromPrompt": true
+                  },
+                  "tooltipMaxWidth": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 2000,
+                    "x-omitFromPrompt": true
+                  },
+                  "tooltipMaxHeight": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 2000,
+                    "x-omitFromPrompt": true
                   }
                 }
               }

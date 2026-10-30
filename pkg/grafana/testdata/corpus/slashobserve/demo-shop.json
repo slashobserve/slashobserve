@@ -536,11 +536,19 @@
       },
       "id": 12,
       "options": {
-        "displayLabels": [],
+        "displayLabels": [
+          "percent"
+        ],
         "legend": {
-          "displayMode": "list",
+          "displayMode": "table",
           "placement": "right",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Value",
+          "sortDesc": true,
+          "values": [
+            "value",
+            "percent"
+          ]
         },
         "pieType": "donut",
         "reduceOptions": {
@@ -551,8 +559,8 @@
           "values": false
         },
         "tooltip": {
-          "mode": "single",
-          "sort": "none"
+          "mode": "multi",
+          "sort": "desc"
         }
       },
       "pluginVersion": "11.2.0",

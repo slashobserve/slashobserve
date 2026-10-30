@@ -92,7 +92,17 @@ export const specDefaults = {
       "allValues": false,
       "limit": 5000,
       "pieType": "pie",
-      "legend": "right"
+      "legend": "right",
+      "sliceLabels": [],
+      "legendShow": [
+        "value",
+        "percent"
+      ],
+      "legendMode": "list",
+      "legendSortDesc": false,
+      "tooltip": "single",
+      "tooltipSort": "none",
+      "tooltipHideZeros": false
     },
     "heatmap": {
       "calculate": false,

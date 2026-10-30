@@ -434,11 +434,91 @@ func (b *panelBuild) footerReducers(v any) []string {
 	return out
 }
 
+var (
+	pieSliceLabelOrder = []string{"name", "value", "percent"}
+	pieLegendOrder     = []string{"value", "percent"}
+)
+
 func displayPie(b *panelBuild) {
 	d := b.disp()
 	b.reduceOption(d)
 	d.PieType = b.enumOption("options.pieType", "pie", "donut")
 	d.Legend = b.legendPlacement("bottom")
+	d.SliceLabels = b.pieChoices("options.displayLabels", pieSliceLabelOrder, "Some slice labels are not supported yet.")
+	b.pieLegend(d)
+	b.pieTooltip(d)
+	b.vizTextSizes(d)
+}
+
+func (b *panelBuild) pieChoices(path string, order []string, reason string) []string {
+	v, present := b.value(path)
+	if !present {
+		return nil
+	}
+	items, isList := asArray(v)
+	if !isList {
+		return nil
+	}
+	b.consume(path)
+	chosen := stringList(items)
+	if len(chosen) != len(items) || slices.ContainsFunc(chosen, func(id string) bool { return !slices.Contains(order, id) }) {
+		b.partial(path, reason)
+	}
+	var out []string
+	for _, id := range order {
+		if slices.Contains(chosen, id) {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+func (b *panelBuild) pieLegend(d *spec.Display) {
+	if b.n.sourceType == "piechart" {
+		shown := b.pieChoices("options.legend.values", pieLegendOrder, "Some legend values are not supported yet.")
+		if !slices.Equal(shown, pieLegendOrder) {
+			d.LegendShow = ptr(append([]string{}, shown...))
+		}
+	}
+	table := b.enumOption("options.legend.displayMode", "table", "list") == "table"
+	if v, ok := b.boolOption("options.legend.asTable"); ok && *v {
+		table = true
+	}
+	if table {
+		d.LegendMode = "table"
+	}
+	if v, ok := b.take("options.legend.sortBy"); ok {
+		b.legendSortBy(d, "options.legend.sortBy", v, pieSortKey)
+	}
+	b.legendSortDesc(d, "options.legend.sortDesc")
+	b.legendWidth(d, "options.legend.width")
+}
+
+func pieSortKey(name string) (string, bool) {
+	switch name {
+	case "Name":
+		return "name", true
+	case "Value", "Percent":
+		return "value", true
+	}
+	return "", false
+}
+
+func (b *panelBuild) pieTooltip(d *spec.Display) {
+	switch b.enumOption("options.tooltip.mode", "single", "multi", "none") {
+	case "multi":
+		d.Tooltip = "all"
+	case "none":
+		d.Tooltip = "hidden"
+	}
+	if hide, ok := b.boolOption("options.tooltip.hideZeros"); ok && *hide {
+		d.TooltipHideZeros = hide
+	}
+	d.TooltipMaxWidth = b.tooltipSizeOption("options.tooltip.maxWidth")
+	d.TooltipMaxHeight = b.tooltipSizeOption("options.tooltip.maxHeight")
+	if sort := b.enumOption("options.tooltip.sort", "none", "asc", "desc"); sort != "none" {
+		d.TooltipSort = sort
+	}
 }
 
 func displayHeatmap(b *panelBuild) {

@@ -504,6 +504,8 @@ type Display struct {
 	Header             *bool              `json:"header,omitempty"`
 	Footer             []string           `json:"footer,omitempty"`
 	PieType            string             `json:"pieType,omitempty"`
+	SliceLabels        []string           `json:"sliceLabels,omitempty"`
+	LegendShow         *[]string          `json:"legendShow,omitempty"`
 	Calculate          *bool              `json:"calculate,omitempty"`
 	YScale             string             `json:"yScale,omitempty"`
 	BucketSize         *float64           `json:"bucketSize,omitempty"`

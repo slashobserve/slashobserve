@@ -114,6 +114,8 @@ var plotPanelTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: 
 
 var seriesDrawingTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true}
 
+var legendTooltipHidingTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true, spec.PieChart: true}
+
 var seriesDrawingPropIDs = map[string]bool{"custom.transform": true, "custom.fillBelowTo": true}
 
 var lineStyleDrawnOnlyByGrafana = map[spec.PanelType]bool{
@@ -911,9 +913,9 @@ func propHideFrom(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	for _, key := range []string{"legend", "tooltip"} {
 		hide, isBool := cfg[key].(bool)
 		switch {
-		case !seriesDrawingTypes[b.typ]:
+		case !legendTooltipHidingTypes[b.typ]:
 			if hide {
-				b.partial(s.at("."+key), fmt.Sprintf("Hiding series from the %s works on time series and trend panels only.", key))
+				b.partial(s.at("."+key), fmt.Sprintf("Hiding series from the %s works on time series, trend and pie chart panels only.", key))
 			}
 		case hide || (isBool && s.whole && panelLevel[key] != nil && *panelLevel[key]):
 			*targets[key] = &hide
