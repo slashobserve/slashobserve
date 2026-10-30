@@ -340,3 +340,41 @@ func TestUnverifiedOfReplacesNULInMessages(t *testing.T) {
 		t.Fatalf("message %q, want the NUL replaced", msg)
 	}
 }
+
+func expressionDashboard(t *testing.T, variables, expression string) *spec.Dashboard {
+	t.Helper()
+	raw := fmt.Sprintf(`{"specVersion":"0","title":"t","time":{"from":"now-15m","to":"now"},"variables":[%s],"panels":[{"id":"p","type":"timeseries","title":"P","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":"prom","queries":[{"ref":"A","query":"up","datasource":"ch","hide":true},{"ref":"B","expression":%s}]}]}`, variables, expression)
+	d, err := spec.Parse([]byte(raw))
+	if err != nil {
+		t.Fatalf("parse test dashboard: %v", err)
+	}
+	return d
+}
+
+func TestReachedByPanelLetsAnExpressionReachOnlyWhatItsInputsReach(t *testing.T) {
+	const double = `{"type":"math","math":"$A * 2"}`
+	adhoc := func(datasource string) string {
+		return `{"name":"filters","type":"adhoc","datasource":"` + datasource + `"}`
+	}
+	onPanelDatasource := expressionDashboard(t, adhoc("prom"), double)
+	if got, ok := reachedByPanel(onPanelDatasource, &onPanelDatasource.Panels[0]); !ok || len(got) != 0 {
+		t.Fatalf("reached = %v, %v; want nothing, because the expression adds no datasource of its own", got, ok)
+	}
+	onInputDatasource := expressionDashboard(t, adhoc("ch"), double)
+	if got, ok := reachedByPanel(onInputDatasource, &onInputDatasource.Panels[0]); !ok || len(got) != 1 {
+		t.Fatalf("reached = %v, %v; want the adhoc variable on the input's datasource", got, ok)
+	}
+}
+
+func TestCarryUnverifiedBlocksAChangedExpression(t *testing.T) {
+	prev := Unverified{Panels: []UnverifiedPanel{{PanelID: "p", Issues: []spec.Issue{issueAt("/panels/0/queries/1/expression")}}}}
+	fails := []spec.Issue{issueAt("/panels/0/queries/1/expression")}
+	base := expressionDashboard(t, ``, `{"type":"math","math":"$A * 2"}`)
+
+	if carried, blocking := CarryUnverified(base, prev, expressionDashboard(t, ``, `{"type":"math","math":"$A * 2"}`), fails); len(blocking) != 0 || len(carried.Panels) != 1 {
+		t.Fatalf("unchanged expression: carried %+v blocking %v, want carried", carried, blocking)
+	}
+	if _, blocking := CarryUnverified(base, prev, expressionDashboard(t, ``, `{"type":"math","math":"$A * 3"}`), fails); len(blocking) != 1 {
+		t.Fatalf("changed expression: blocking %v, want the panel blocking", blocking)
+	}
+}
