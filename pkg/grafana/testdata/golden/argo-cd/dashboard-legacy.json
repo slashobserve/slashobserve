@@ -643,12 +643,10 @@
         "row": "Server Stats:",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Thresholds below a value are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "thresholds[0]",
           "paceLength"
         ],
@@ -672,12 +670,10 @@
         "row": "Server Stats:",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Thresholds below a value are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "thresholds[0]",
           "paceLength"
         ],
@@ -701,12 +697,10 @@
         "row": "Server Stats:",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Thresholds below a value are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "thresholds[0]",
           "paceLength"
         ],
@@ -730,12 +724,10 @@
         "row": "Server Stats:",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Thresholds below a value are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "thresholds[0]",
           "paceLength"
         ],
@@ -759,12 +751,10 @@
         "row": "Server Stats:",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Thresholds below a value are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "thresholds[0]",
           "paceLength"
         ],
@@ -788,12 +778,10 @@
         "row": "Server Stats:",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Thresholds below a value are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "thresholds[0]",
           "paceLength"
         ],
@@ -817,12 +805,10 @@
         "row": "Server Stats:",
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Thresholds below a value are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "thresholds[0]",
           "paceLength"
         ],
@@ -1746,6 +1732,7 @@
               }
             ],
             "unit": "short",
+            "nullAsZero": true,
             "display": {
               "tooltip": "all"
             }
@@ -1768,6 +1755,7 @@
               }
             ],
             "unit": "short",
+            "nullAsZero": true,
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -1791,6 +1779,7 @@
               }
             ],
             "unit": "short",
+            "nullAsZero": true,
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -1814,6 +1803,7 @@
               }
             ],
             "unit": "short",
+            "nullAsZero": true,
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -1837,6 +1827,7 @@
               }
             ],
             "unit": "short",
+            "nullAsZero": true,
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -1860,6 +1851,7 @@
               }
             ],
             "unit": "short",
+            "nullAsZero": true,
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -1883,6 +1875,7 @@
               }
             ],
             "unit": "short",
+            "nullAsZero": true,
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"

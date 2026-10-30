@@ -29,6 +29,11 @@ const (
 	defaultLogBase = 10
 	maxStackGroup  = 50
 	maxFillBelowTo = 200
+	maxBarMaxWidth = 200
+
+	minBarWidthFactor    = 0.05
+	canvasBarWidthFactor = 0.6
+	canvasBarMaxWidth    = 64
 
 	defaultStackGroup = "A"
 
@@ -59,6 +64,7 @@ var propOrder = []string{
 	"custom.axisCenteredZero", "custom.axisWidth", "custom.axisGridShow", "custom.axisBorderShow", "custom.axisColorMode",
 	"custom.cellOptions", "custom.displayMode", "custom.wrapText",
 	"custom.transform", "custom.fillBelowTo",
+	"custom.insertNulls", "custom.barAlignment", "custom.barWidthFactor", "custom.barMaxWidth", "custom.thresholdsStyle",
 }
 
 var propHandlers = map[string]propHandler{
@@ -97,6 +103,11 @@ var propHandlers = map[string]propHandler{
 	"custom.wrapText":          propWrapText,
 	"custom.transform":         propValueTransform,
 	"custom.fillBelowTo":       propFillBelowTo,
+	"custom.insertNulls":       propInsertNulls,
+	"custom.barAlignment":      propBarAlignment,
+	"custom.barWidthFactor":    propBarWidthFactor,
+	"custom.barMaxWidth":       propBarMaxWidth,
+	"custom.thresholdsStyle":   propThresholdsStyle,
 }
 
 var lineStylePropIDs = map[string]bool{
@@ -106,6 +117,11 @@ var lineStylePropIDs = map[string]bool{
 var axisPropIDs = map[string]bool{
 	"custom.axisLabel": true, "custom.axisSoftMin": true, "custom.axisSoftMax": true, "custom.scaleDistribution": true,
 	"custom.axisCenteredZero": true, "custom.axisWidth": true, "custom.axisGridShow": true, "custom.axisBorderShow": true, "custom.axisColorMode": true,
+}
+
+var plotDrawnPropIDs = map[string]bool{
+	"custom.insertNulls": true, "custom.barAlignment": true, "custom.barWidthFactor": true, "custom.barMaxWidth": true,
+	"custom.thresholdsStyle": true,
 }
 
 var plotPanelTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true, spec.Candlestick: true}
@@ -127,6 +143,9 @@ func (b *panelBuild) propHandler(id string) (propHandler, bool) {
 		return nil, false
 	}
 	if seriesDrawingPropIDs[id] && !seriesDrawingTypes[b.typ] {
+		return nil, false
+	}
+	if plotDrawnPropIDs[id] && !plotPanelTypes[b.typ] {
 		return nil, false
 	}
 	if !plotPanelTypes[b.typ] {
@@ -740,6 +759,87 @@ func propFillBelowTo(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 		return
 	}
 	p.FillBelowTo = name
+}
+
+const insertNullsReason = "Inserting nulls at the query interval is not supported; give the gap in milliseconds."
+
+var thresholdsStyleModes = []string{"off", "line", "dashed", "area", "line+area", "dashed+area", "series"}
+
+func propInsertNulls(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	f, isNumber := numberValue(v)
+	switch on, isBool := v.(bool); {
+	case isBool && on:
+		b.partial(s.at(""), insertNullsReason)
+	case isNumber && f >= 1:
+		p.InsertNulls = int64(math.Round(min(f, maxSpanNullsMs)))
+	case (isBool || isNumber) && s.whole && b.panel.InsertNulls > 0:
+		b.partial(s.at(""), "An override cannot turn off the nulls a panel inserts.")
+	}
+}
+
+func (b *panelBuild) barsDrawn(p *spec.FieldProps) bool {
+	return p.Style == "bars" || b.panel.Style == "bars"
+}
+
+func propBarAlignment(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	if !s.whole && !b.barsDrawn(p) {
+		return
+	}
+	f, ok := numberValue(v)
+	switch {
+	case !ok:
+	case f == -1:
+		p.BarAlignment = "before"
+	case f == 1:
+		p.BarAlignment = "after"
+	case f == 0:
+		if s.whole {
+			p.BarAlignment = "center"
+		}
+	default:
+		b.partial(s.at(""), "Bars align before, on or after their sample.")
+	}
+}
+
+func propBarWidthFactor(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	f, ok := numberValue(v)
+	if !ok || (!s.whole && !b.barsDrawn(p)) {
+		return
+	}
+	factor := math.Round(min(max(f, minBarWidthFactor), 1)*100) / 100
+	if factor != canvasBarWidthFactor || s.whole {
+		p.BarWidthFactor = &factor
+	}
+}
+
+func propBarMaxWidth(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	f, ok := numberValue(v)
+	if !ok || (!s.whole && !b.barsDrawn(p)) {
+		return
+	}
+	width := int(math.Round(min(max(f, 1), maxBarMaxWidth)))
+	if width != canvasBarMaxWidth || s.whole {
+		p.BarMaxWidth = &width
+	}
+}
+
+func propThresholdsStyle(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value + ".mode")
+	cfg, ok := asObject(v)
+	if !ok {
+		return
+	}
+	switch mode := asString(cfg["mode"]); {
+	case mode == "":
+	case slices.Contains(thresholdsStyleModes, mode):
+		p.ThresholdsStyle = mode
+	default:
+		b.partial(s.at(".mode"), fmt.Sprintf("The threshold style %s is not supported yet.", mode))
+	}
 }
 
 func propAxisPlacement(b *panelBuild, p *spec.FieldProps, v any, s propSite) {

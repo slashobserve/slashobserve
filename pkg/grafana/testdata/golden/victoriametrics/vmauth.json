@@ -1053,6 +1053,7 @@
             "min": 0,
             "lineInterpolation": "stepAfter",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -1257,7 +1258,8 @@
                 "query": "sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
                 "legend": "unauthorized_user"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p19",
@@ -1282,6 +1284,7 @@
               }
             ],
             "unit": "s",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "max",
@@ -1312,7 +1315,8 @@
                 "query": "sum(rate(vmauth_unauthorized_user_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
                 "legend": "unauthorized_user"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p16",
@@ -1331,7 +1335,8 @@
                 "query": "sum(rate(vmauth_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (reason) > 0",
                 "legend": "__auto"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p14",
@@ -1364,6 +1369,7 @@
               }
             ],
             "style": "bars",
+            "thresholdsStyle": "dashed",
             "display": {
               "legendValues": [
                 "max",
@@ -1401,7 +1407,8 @@
                 "legend": "global at {{ $instance }}"
               }
             ],
-            "style": "bars"
+            "style": "bars",
+            "thresholdsStyle": "off"
           }
         ]
       },
@@ -1446,6 +1453,7 @@
             "unit": "percentunit",
             "min": 0,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1485,6 +1493,7 @@
             "unit": "percentunit",
             "min": 0,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1517,6 +1526,7 @@
             "min": 0,
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1550,6 +1560,7 @@
             "min": 0,
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1585,6 +1596,7 @@
             "decimals": 2,
             "min": 0,
             "points": "never",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -1628,6 +1640,7 @@
             "min": 0,
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1663,6 +1676,7 @@
             "min": 0,
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1727,6 +1741,7 @@
                 "legend": "__auto"
               }
             ],
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -1757,7 +1772,8 @@
                 "query": "sum(rate(vmauth_unauthorized_user_request_backend_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
                 "legend": "unauthorized_user"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p39",
@@ -1784,7 +1800,8 @@
                 "url": "https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering",
                 "newTab": true
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           }
         ]
       },
@@ -1824,6 +1841,7 @@
             "unit": "short",
             "min": 0,
             "points": "never",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -1879,6 +1897,7 @@
             "unit": "bytes",
             "min": 0,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",

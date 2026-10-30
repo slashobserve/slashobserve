@@ -296,6 +296,7 @@
             "fill": 25,
             "points": "never",
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -339,6 +340,7 @@
             "fill": 25,
             "points": "never",
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -382,6 +384,7 @@
             "fill": 25,
             "points": "never",
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -426,6 +429,7 @@
             "fill": 25,
             "points": "never",
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -458,7 +462,8 @@
               }
             ],
             "unit": "short",
-            "fill": 21
+            "fill": 21,
+            "thresholdsStyle": "off"
           },
           {
             "id": "p16",

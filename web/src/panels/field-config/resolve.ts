@@ -61,6 +61,12 @@ export type FieldConfig = {
   hideInTooltip: boolean
   stackGroup: string
   fillBelowTo?: string
+  insertNulls?: number
+  nullAsZero: boolean
+  barAlignment: "before" | "center" | "after"
+  barWidthFactor: number
+  barMaxWidth: number
+  thresholdsStyle: NonNullable<FieldProps["thresholdsStyle"]>
 }
 
 export type FieldResolver = {
@@ -112,6 +118,12 @@ const fieldPropKeyFlags: Record<keyof FieldProps, true> = {
   hideInTooltip: true,
   stackGroup: true,
   fillBelowTo: true,
+  insertNulls: true,
+  nullAsZero: true,
+  barAlignment: true,
+  barWidthFactor: true,
+  barMaxWidth: true,
+  thresholdsStyle: true,
 }
 
 const fieldPropKeys = Object.keys(fieldPropKeyFlags) as (keyof FieldProps)[]

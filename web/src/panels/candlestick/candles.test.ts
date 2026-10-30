@@ -98,6 +98,27 @@ describe("selectCandles", () => {
     ).toBe(false)
   })
 
+  it("appends the other number fields after the candle columns when asked", () => {
+    const options = candleOptions({ includeAllFields: true })
+    expect(options.includeAllFields).toBe(true)
+    const selection = selectCandles([frame([...all, "vwap"])], options)
+    expect(
+      "frame" in selection && selection.frame.fields.map((f) => f.name)
+    ).toEqual(["time", "Open", "HIGH", "low", "Close", "Volume", "vwap"])
+    expect("columns" in selection && selection.columns).toHaveLength(5)
+  })
+
+  it("keeps a field left out by the mode as an extra line", () => {
+    const selection = selectCandles(
+      [frame(all)],
+      candleOptions({ mode: "candles", includeAllFields: true })
+    )
+    expect(
+      "frame" in selection && selection.frame.fields.map((f) => f.name)
+    ).toEqual(["time", "Open", "HIGH", "low", "Close", "Volume"])
+    expect("columns" in selection && selection.columns).toHaveLength(4)
+  })
+
   it("explains a frame missing one of open, high, low or close", () => {
     const selection = selectCandles(
       [frame(["open", "high", "low"])],

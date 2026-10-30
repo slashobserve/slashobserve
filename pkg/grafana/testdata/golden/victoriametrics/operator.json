@@ -866,6 +866,7 @@
                 "legend": "{{object_type_name}} {{event_type}}"
               }
             ],
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "max",
@@ -933,6 +934,7 @@
             "unit": "short",
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -963,6 +965,7 @@
             "unit": "short",
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1010,6 +1013,7 @@
             "unit": "short",
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1040,6 +1044,7 @@
             "unit": "short",
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1070,6 +1075,7 @@
             "unit": "short",
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "max",
@@ -1100,6 +1106,7 @@
             "unit": "s",
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1129,6 +1136,7 @@
                 "legend": "{{method}} {{code}}"
               }
             ],
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "max",
@@ -1158,6 +1166,7 @@
                 "legend": "Max"
               }
             ],
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -1186,7 +1195,8 @@
                 "legend": "__auto"
               }
             ],
-            "unit": "s"
+            "unit": "s",
+            "thresholdsStyle": "off"
           },
           {
             "id": "p35",
@@ -1207,6 +1217,7 @@
               }
             ],
             "unit": "s",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "max",
@@ -1260,6 +1271,7 @@
             "unit": "bytes",
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -1290,6 +1302,7 @@
             "unit": "short",
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -1315,6 +1328,7 @@
             "unit": "short",
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -1340,6 +1354,7 @@
             "unit": "s",
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",

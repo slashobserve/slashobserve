@@ -282,6 +282,12 @@ type FieldProps struct {
 	HideInTooltip     *bool       `json:"hideInTooltip,omitempty"`
 	StackGroup        string      `json:"stackGroup,omitempty"`
 	FillBelowTo       string      `json:"fillBelowTo,omitempty"`
+	InsertNulls       int64       `json:"insertNulls,omitempty"`
+	NullAsZero        *bool       `json:"nullAsZero,omitempty"`
+	BarAlignment      string      `json:"barAlignment,omitempty"`
+	BarWidthFactor    *float64    `json:"barWidthFactor,omitempty"`
+	BarMaxWidth       *int        `json:"barMaxWidth,omitempty"`
+	ThresholdsStyle   string      `json:"thresholdsStyle,omitempty"`
 }
 
 type Cell struct {
@@ -419,6 +425,7 @@ type Display struct {
 	TooltipMaxWidth    int                `json:"tooltipMaxWidth,omitempty"`
 	TooltipMaxHeight   int                `json:"tooltipMaxHeight,omitempty"`
 	XAxis              string             `json:"xAxis,omitempty"`
+	IncludeAllFields   *bool              `json:"includeAllFields,omitempty"`
 	Reduce             string             `json:"reduce,omitempty"`
 	AllValues          *bool              `json:"allValues,omitempty"`
 	Fields             string             `json:"fields,omitempty"`

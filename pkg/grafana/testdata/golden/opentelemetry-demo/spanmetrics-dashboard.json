@@ -741,6 +741,7 @@
             "unit": "ms",
             "fill": 15,
             "lineInterpolation": "smooth",
+            "thresholdsStyle": "off",
             "interval": "5m",
             "display": {
               "legendValues": [

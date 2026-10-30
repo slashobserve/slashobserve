@@ -259,6 +259,7 @@
                 "exemplar": true
               }
             ],
+            "thresholdsStyle": "off",
             "interval": "2m"
           }
         ]
@@ -318,6 +319,7 @@
                 "exemplar": true
               }
             ],
+            "thresholdsStyle": "off",
             "interval": "2m"
           }
         ]

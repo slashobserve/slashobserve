@@ -1399,6 +1399,7 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "axisLabel": "Percent",
+            "thresholdsStyle": "area",
             "display": {
               "legend": "right",
               "legendMode": "table",
@@ -1457,6 +1458,7 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "axisLabel": "Percent",
+            "thresholdsStyle": "area",
             "display": {
               "legend": "right",
               "legendMode": "table",
@@ -1488,6 +1490,7 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "axisLabel": "CPU Cores",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -1531,6 +1534,7 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "axisLabel": "Bytes",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -1566,6 +1570,7 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "axisLabel": "SECONDS",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -1622,6 +1627,7 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "axisLabel": "Percent",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendMode": "table",
@@ -1660,6 +1666,7 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "axisLabel": "Percent",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendMode": "table",
@@ -1886,6 +1893,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -1920,6 +1928,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -1954,6 +1963,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -1988,6 +1998,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"

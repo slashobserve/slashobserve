@@ -1007,6 +1007,7 @@
         "spanNulls": true,
         "axisLabel": "Rows in part",
         "axisWidth": 3,
+        "thresholdsStyle": "off",
         "transform": [
           {
             "type": "organize",

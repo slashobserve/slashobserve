@@ -271,6 +271,7 @@
             "unit": "short",
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -300,6 +301,7 @@
             "unit": "short",
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -338,6 +340,7 @@
             "unit": "short",
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -371,6 +374,7 @@
             "unit": "short",
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -400,6 +404,7 @@
             "unit": "short",
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -440,6 +445,7 @@
             "unit": "bytes",
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -467,6 +473,7 @@
             "unit": "short",
             "fill": 10,
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"

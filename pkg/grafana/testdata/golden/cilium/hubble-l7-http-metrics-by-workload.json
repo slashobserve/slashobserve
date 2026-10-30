@@ -480,6 +480,7 @@
             ],
             "unit": "s",
             "min": 0,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "lastNotNull"
@@ -519,6 +520,7 @@
             ],
             "unit": "reqps",
             "min": 0,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "max",
@@ -547,6 +549,7 @@
             ],
             "unit": "percentunit",
             "min": 0,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -586,6 +589,7 @@
             ],
             "unit": "s",
             "min": 0,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -614,6 +618,7 @@
             ],
             "unit": "none",
             "min": 0,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -655,6 +660,7 @@
             ],
             "unit": "reqps",
             "min": 0,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "max",
@@ -683,6 +689,7 @@
             ],
             "unit": "percentunit",
             "min": 0,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "mean",
@@ -722,6 +729,7 @@
             ],
             "unit": "s",
             "min": 0,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",
@@ -750,6 +758,7 @@
             ],
             "unit": "none",
             "min": 0,
+            "thresholdsStyle": "off",
             "display": {
               "legendValues": [
                 "min",

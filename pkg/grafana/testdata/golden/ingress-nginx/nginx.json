@@ -766,6 +766,7 @@
         "fill": 10,
         "points": "never",
         "spanNulls": true,
+        "thresholdsStyle": "off",
         "display": {
           "legend": "right",
           "legendValues": [
@@ -796,6 +797,7 @@
         "unit": "percentunit",
         "points": "never",
         "spanNulls": true,
+        "thresholdsStyle": "off",
         "overrides": [
           {
             "match": {
@@ -852,6 +854,7 @@
         "fill": 10,
         "points": "never",
         "spanNulls": true,
+        "thresholdsStyle": "off",
         "display": {
           "legend": "hidden",
           "legendValues": [
@@ -885,6 +888,7 @@
         "unit": "bytes",
         "points": "never",
         "spanNulls": true,
+        "thresholdsStyle": "off",
         "overrides": [
           {
             "match": {
@@ -938,6 +942,7 @@
         "points": "never",
         "spanNulls": true,
         "axisLabel": "cores",
+        "thresholdsStyle": "line+area",
         "display": {
           "legend": "hidden",
           "legendValues": [
@@ -1084,6 +1089,7 @@
           }
         ],
         "unit": "s",
+        "thresholdsStyle": "off",
         "display": {
           "tooltip": "all",
           "tooltipSort": "none"

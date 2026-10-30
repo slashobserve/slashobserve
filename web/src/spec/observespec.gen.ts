@@ -849,6 +849,12 @@ export interface FieldProps {
   hideInTooltip?: boolean;
   stackGroup?: string;
   fillBelowTo?: string;
+  insertNulls?: number;
+  nullAsZero?: boolean;
+  barAlignment?: "before" | "center" | "after";
+  barWidthFactor?: number;
+  barMaxWidth?: number;
+  thresholdsStyle?: "off" | "line" | "dashed" | "area" | "line+area" | "dashed+area" | "series";
 }
 /**
  * Only the first step may omit value; it is then the base color below every other step.

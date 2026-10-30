@@ -124,7 +124,8 @@
           {
             "query": "SELECT\n    $__timeInterval(event_time) as t,\n    sum(too_big_value) as v,\n    service_name\nFROM default.test_grafana\n\nWHERE $__timeFilter(event_time)\n$__conditionalAll(AND service_name IN ($service_name), $service_name)\nGROUP BY t, service_name\nORDER BY t\n"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p2",

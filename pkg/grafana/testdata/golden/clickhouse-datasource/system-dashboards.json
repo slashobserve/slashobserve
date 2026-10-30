@@ -1039,7 +1039,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_Query)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p2",
@@ -1056,7 +1057,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_OSCPUVirtualTimeMicroseconds) / 1000000\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p3",
@@ -1073,7 +1075,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(CurrentMetric_Query)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p4",
@@ -1090,7 +1093,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(CurrentMetric_Merge)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p5",
@@ -1107,7 +1111,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_SelectedBytes)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p6",
@@ -1124,7 +1129,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_OSIOWaitMicroseconds) / 1000000\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p7",
@@ -1141,7 +1147,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_OSCPUWaitMicroseconds) / 1000000\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p8",
@@ -1158,7 +1165,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM merge('system', '^asynchronous_metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time) AND metric = 'OSUserTimeNormalized'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p9",
@@ -1175,7 +1183,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM merge('system', '^asynchronous_metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time) AND metric = 'OSSystemTimeNormalized'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p10",
@@ -1192,7 +1201,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_OSReadBytes)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p11",
@@ -1209,7 +1219,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_OSReadChars)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p12",
@@ -1226,7 +1237,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(CurrentMetric_MemoryTracking)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p13",
@@ -1243,7 +1255,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM merge('system', '^asynchronous_metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time) AND metric = 'LoadAverage15'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p14",
@@ -1260,7 +1273,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_SelectedRows)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p15",
@@ -1277,7 +1291,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_InsertedRows)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p16",
@@ -1294,7 +1309,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM merge('system', '^asynchronous_metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time) AND metric = 'TotalPartsOfMergeTreeTables'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p17",
@@ -1311,7 +1327,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, max(value)\nFROM merge('system', '^asynchronous_metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time) AND metric = 'MaxPartCountForPartition'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p18",
@@ -1328,7 +1345,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n    sum(CurrentMetric_TCPConnection) AS TCP_Connections,\n    sum(CurrentMetric_MySQLConnection) AS MySQL_Connections,\n    sum(CurrentMetric_HTTPConnection) AS HTTP_Connections\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           }
         ]
       },
@@ -1358,7 +1376,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_Query) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p20",
@@ -1375,7 +1394,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(metric) / 1000000\nFROM (\n  SELECT event_time, sum(ProfileEvent_OSCPUVirtualTimeMicroseconds) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time) GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p21",
@@ -1392,7 +1412,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(CurrentMetric_Query) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p22",
@@ -1409,7 +1430,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(CurrentMetric_Merge) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p23",
@@ -1426,7 +1448,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_SelectedBytes) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p24",
@@ -1443,7 +1466,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_OSIOWaitMicroseconds) / 1000000 AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p25",
@@ -1460,7 +1484,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_ReadBufferFromS3Microseconds) / 1000000 AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p26",
@@ -1477,7 +1502,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_ReadBufferFromS3RequestsErrors) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p27",
@@ -1494,7 +1520,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_OSCPUWaitMicroseconds) / 1000000 AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p28",
@@ -1511,7 +1538,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM clusterAllReplicas(default, merge('system', '^asynchronous_metric_log'))\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nAND metric = 'OSUserTimeNormalized'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p29",
@@ -1528,7 +1556,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM clusterAllReplicas(default, merge('system', '^asynchronous_metric_log'))\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nAND metric = 'OSSystemTimeNormalized'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p30",
@@ -1545,7 +1574,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_OSReadBytes) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p31",
@@ -1562,7 +1592,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_OSReadChars) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p32",
@@ -1579,7 +1610,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(CurrentMetric_MemoryTracking) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p33",
@@ -1596,7 +1628,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM (\n  SELECT event_time, sum(value) AS value\n  FROM clusterAllReplicas(default, merge('system', '^asynchronous_metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n    AND metric = 'LoadAverage15'\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p34",
@@ -1613,7 +1646,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_SelectedRows) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p35",
@@ -1630,7 +1664,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_InsertedRows) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p36",
@@ -1647,7 +1682,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, max(value)\nFROM clusterAllReplicas(default, merge('system', '^asynchronous_metric_log'))\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nAND metric = 'TotalPartsOfMergeTreeTables'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p37",
@@ -1664,7 +1700,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, max(value)\nFROM clusterAllReplicas(default, merge('system', '^asynchronous_metric_log'))\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nAND metric = 'MaxPartCountForPartition'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p38",
@@ -1681,7 +1718,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_ReadBufferFromS3Bytes) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p39",
@@ -1698,7 +1736,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(CurrentMetric_FilesystemCacheSize) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p40",
@@ -1715,7 +1754,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_DiskS3PutObject + ProfileEvent_DiskS3UploadPart + ProfileEvent_DiskS3CreateMultipartUpload + ProfileEvent_DiskS3CompleteMultipartUpload) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p41",
@@ -1732,7 +1772,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_DiskS3GetObject + ProfileEvent_DiskS3HeadObject + ProfileEvent_DiskS3ListObjects) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p42",
@@ -1749,7 +1790,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_CachedReadBufferReadFromCacheBytes) / (sum(ProfileEvent_CachedReadBufferReadFromCacheBytes) + sum(ProfileEvent_CachedReadBufferReadFromSourceBytes)) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p43",
@@ -1766,7 +1808,8 @@
               {
                 "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, greatest(0, (sum(ProfileEvent_OSReadChars) - sum(ProfileEvent_OSReadBytes)) / (sum(ProfileEvent_OSReadChars) + sum(ProfileEvent_ReadBufferFromS3Bytes))) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p44",
@@ -1783,7 +1826,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM (\n  SELECT event_time, sum(value) AS value\n  FROM clusterAllReplicas(default, merge('system', '^asynchronous_metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n    AND metric LIKE 'NetworkReceiveBytes%'\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p45",
@@ -1800,7 +1844,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM (\n  SELECT event_time, sum(value) AS value\n  FROM clusterAllReplicas(default, merge('system', '^asynchronous_metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n    AND metric LIKE 'NetworkSendBytes%'\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           },
           {
             "id": "p46",
@@ -1817,7 +1862,8 @@
               {
                 "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, max(TCP_Connections), max(MySQL_Connections), max(HTTP_Connections) FROM (SELECT event_time, sum(CurrentMetric_TCPConnection) AS TCP_Connections, sum(CurrentMetric_MySQLConnection) AS MySQL_Connections, sum(CurrentMetric_HTTPConnection) AS HTTP_Connections FROM clusterAllReplicas(default, merge('system', '^metric_log')) WHERE $__dateFilter(event_date) AND $__timeFilter(event_time) GROUP BY event_time) GROUP BY t ORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
               }
-            ]
+            ],
+            "thresholdsStyle": "off"
           }
         ]
       }

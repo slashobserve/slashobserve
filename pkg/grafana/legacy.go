@@ -221,7 +221,8 @@ func (b *panelBuild) graphLine(p *spec.FieldProps) {
 	case "connected":
 		p.SpanNulls = true
 	case "null as zero":
-		b.partial("nullPointMode", "Drawing missing values as zero is not supported yet.")
+		zero := true
+		p.NullAsZero = &zero
 	}
 	b.consume("linewidth", "steppedLine", "nullPointMode")
 }
@@ -457,10 +458,10 @@ func (b *panelBuild) seriesOverrideKey(props *spec.FieldProps, key string, o map
 		props.Hidden = &hidden
 		return true
 	}
-	return seriesDrawingOverrideKey(props, key, o)
+	return b.seriesDrawingOverrideKey(props, key, o)
 }
 
-func seriesDrawingOverrideKey(props *spec.FieldProps, key string, o map[string]any) bool {
+func (b *panelBuild) seriesDrawingOverrideKey(props *spec.FieldProps, key string, o map[string]any) bool {
 	v := o[key]
 	switch key {
 	case "stack":
@@ -480,7 +481,7 @@ func seriesDrawingOverrideKey(props *spec.FieldProps, key string, o map[string]a
 	case "zindex":
 		return isCosmetic("seriesOverrides[].zindex", v)
 	}
-	return lineShapeOverrideKey(props, key, o)
+	return b.lineShapeOverrideKey(props, key, o)
 }
 
 func legacyStack(props *spec.FieldProps, v any) bool {
@@ -522,7 +523,7 @@ func setLegacyHide(target **bool, v any, hideWhen bool) bool {
 	return isBool
 }
 
-func lineShapeOverrideKey(props *spec.FieldProps, key string, o map[string]any) bool {
+func (b *panelBuild) lineShapeOverrideKey(props *spec.FieldProps, key string, o map[string]any) bool {
 	v := o[key]
 	switch key {
 	case "points":
@@ -552,9 +553,15 @@ func lineShapeOverrideKey(props *spec.FieldProps, key string, o map[string]any) 
 		switch asString(v) {
 		case "connected":
 			props.SpanNulls = true
+			b.resetNullAsZero(props)
 			return true
 		case "null":
 			props.SpanNulls = false
+			b.resetNullAsZero(props)
+			return true
+		case "null as zero":
+			zero := true
+			props.NullAsZero = &zero
 			return true
 		}
 		return false
@@ -562,6 +569,13 @@ func lineShapeOverrideKey(props *spec.FieldProps, key string, o map[string]any) 
 		return true
 	}
 	return false
+}
+
+func (b *panelBuild) resetNullAsZero(props *spec.FieldProps) {
+	if b.panel.NullAsZero != nil && *b.panel.NullAsZero {
+		zero := false
+		props.NullAsZero = &zero
+	}
 }
 
 func lineStyleFor(dashed bool) string {

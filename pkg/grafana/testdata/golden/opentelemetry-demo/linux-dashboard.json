@@ -1369,6 +1369,7 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "stack": "percent",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -1457,6 +1458,7 @@
             "fill": 40,
             "points": "never",
             "stack": "normal",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -1637,6 +1639,7 @@
             "points": "never",
             "spanNulls": 3600000,
             "axisLabel": "Receive (-) / Transmit (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -1680,6 +1683,7 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "axisLabel": "Read (-) / Write (+)",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {

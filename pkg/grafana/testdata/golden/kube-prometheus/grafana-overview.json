@@ -334,6 +334,7 @@
         "fill": 10,
         "points": "never",
         "stack": "normal",
+        "thresholdsStyle": "off",
         "display": {
           "tooltip": "all",
           "tooltipSort": "none"
@@ -373,6 +374,7 @@
         "unit": "ms",
         "fill": 10,
         "points": "never",
+        "thresholdsStyle": "off",
         "display": {
           "tooltip": "all",
           "tooltipSort": "none"

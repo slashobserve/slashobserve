@@ -670,6 +670,7 @@
         "spanNulls": true,
         "axisSoftMin": 0,
         "axisSoftMax": 1,
+        "thresholdsStyle": "dashed+area",
         "overrides": [
           {
             "match": {

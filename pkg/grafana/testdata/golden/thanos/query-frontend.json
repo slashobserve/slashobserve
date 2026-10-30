@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 11,
-      "imported": 0,
-      "partial": 11,
+      "imported": 10,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Query Frontend API",
-        "status": "partial",
-        "reasons": [
-          "Drawing missing values as zero is not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -68,13 +64,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Query Frontend API",
-        "status": "partial",
-        "reasons": [
-          "Drawing missing values as zero is not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -93,13 +85,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Query Frontend API",
-        "status": "partial",
-        "reasons": [
-          "Drawing missing values as zero is not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -120,14 +108,12 @@
         "row": "Query Frontend API",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this query are not supported yet.",
-          "Drawing missing values as zero is not supported yet."
+          "Some Grafana options of this query are not supported yet."
         ],
         "paths": [
           "targets[0].logBase",
           "targets[1].logBase",
-          "targets[2].logBase",
-          "nullPointMode"
+          "targets[2].logBase"
         ],
         "queries": [
           {
@@ -161,13 +147,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Cache Operations",
-        "status": "partial",
-        "reasons": [
-          "Drawing missing values as zero is not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -186,13 +168,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Cache Operations",
-        "status": "partial",
-        "reasons": [
-          "Drawing missing values as zero is not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -218,13 +196,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Cache Operations",
-        "status": "partial",
-        "reasons": [
-          "Drawing missing values as zero is not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -243,13 +217,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Cache Operations",
-        "status": "partial",
-        "reasons": [
-          "Drawing missing values as zero is not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -268,13 +238,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "Drawing missing values as zero is not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -328,13 +294,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "Drawing missing values as zero is not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -353,13 +315,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "Drawing missing values as zero is not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -457,6 +415,7 @@
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",
+            "nullAsZero": true,
             "overrides": [
               {
                 "match": {
@@ -515,6 +474,7 @@
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",
+            "nullAsZero": true,
             "overrides": [
               {
                 "match": {
@@ -572,6 +532,7 @@
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",
+            "nullAsZero": true,
             "overrides": [
               {
                 "match": {
@@ -616,6 +577,7 @@
             "unit": "s",
             "min": 0,
             "fill": 10,
+            "nullAsZero": true,
             "overrides": [
               {
                 "match": {
@@ -677,7 +639,8 @@
             "min": 0,
             "fill": 100,
             "lineWidth": 0,
-            "stack": "normal"
+            "stack": "normal",
+            "nullAsZero": true
           },
           {
             "id": "p6",
@@ -709,7 +672,8 @@
             "min": 0,
             "fill": 100,
             "lineWidth": 0,
-            "stack": "normal"
+            "stack": "normal",
+            "nullAsZero": true
           },
           {
             "id": "p7",
@@ -735,7 +699,8 @@
             "min": 0,
             "fill": 100,
             "lineWidth": 0,
-            "stack": "normal"
+            "stack": "normal",
+            "nullAsZero": true
           },
           {
             "id": "p8",
@@ -761,7 +726,8 @@
             "min": 0,
             "fill": 100,
             "lineWidth": 0,
-            "stack": "normal"
+            "stack": "normal",
+            "nullAsZero": true
           }
         ]
       },
@@ -828,7 +794,8 @@
             ],
             "unit": "bytes",
             "min": 0,
-            "fill": 10
+            "fill": 10,
+            "nullAsZero": true
           },
           {
             "id": "p10",
@@ -851,7 +818,8 @@
             ],
             "unit": "short",
             "min": 0,
-            "fill": 10
+            "fill": 10,
+            "nullAsZero": true
           },
           {
             "id": "p11",
@@ -874,7 +842,8 @@
             ],
             "unit": "short",
             "min": 0,
-            "fill": 10
+            "fill": 10,
+            "nullAsZero": true
           }
         ]
       }

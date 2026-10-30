@@ -43,6 +43,7 @@ import {
   cursorPlugin,
   exemplarsPlugin,
   thresholdsPlugin,
+  thresholdStroke,
   tooltipPlugin,
   type ExemplarLayer,
   type TooltipSeries,
@@ -50,6 +51,7 @@ import {
 } from "./plugins"
 import { scaleDistribution } from "./axis-scale"
 import { isolatedPoints } from "./points"
+import { thresholdParts } from "./threshold-style"
 import {
   axesInUse,
   axisRange,
@@ -73,10 +75,11 @@ const minSelectWidth = 5
 const axisFontSize = 12
 const axisLabelSize = 18
 const noSelect = { left: 0, top: 0, width: 0, height: 0 }
-const barSize: [number, number] = [0.6, 64]
 const ghostDash = [2, 3]
 const noteHeight = 16
 const noExemplars: ExemplarLayer = { points: [], seriesKeys: [] }
+
+const barAlign = { before: -1, center: 0, after: 1 } as const
 
 const pathBuilders: Record<Interpolation, uPlot.Series.PathBuilder> = {
   linear: uPlot.paths.linear!(),
@@ -105,6 +108,7 @@ type Model = {
   tooltip: "single" | "all" | "hidden"
   tooltipView: TooltipView
   xAxisShown: boolean
+  painted: number
 }
 
 type PlotConfig = {
@@ -156,7 +160,8 @@ function linePoints(entry: ChartSeries, stroke: string): uPlot.Series.Points {
 function seriesOptions(
   entry: ChartSeries,
   hidden: ReadonlySet<string>,
-  customPainted: boolean
+  customPainted: boolean,
+  lineStroke?: uPlot.Series.Stroke
 ): uPlot.Series {
   const stroke = resolveColor(entry.color)
   const fill = fillPercent(entry.style, entry.fill)
@@ -176,7 +181,10 @@ function seriesOptions(
       ...base,
       width: 1,
       fill: fillStyle(stroke, fill),
-      paths: uPlot.paths.bars!({ size: barSize }),
+      paths: uPlot.paths.bars!({
+        size: [entry.config.barWidthFactor, entry.config.barMaxWidth],
+        align: barAlign[entry.config.barAlignment],
+      }),
       points: { show: false },
     }
   }
@@ -197,6 +205,7 @@ function seriesOptions(
   return {
     ...base,
     width: entry.lineWidth,
+    ...(lineStroke ? { stroke: lineStroke } : {}),
     paths: pathBuilders[entry.interpolation],
     ...(fill > 0 ? { fill: fillStyle(stroke, fill) } : {}),
     points: linePoints(entry, stroke),
@@ -210,6 +219,27 @@ function bandOptions({
   return fill
     ? { ...band, fill: fillStyle(resolveColor(fill.color), fill.percent) }
     : band
+}
+
+function thresholdLineStroke(
+  model: Model,
+  entry: ChartSeries
+): uPlot.Series.Stroke | undefined {
+  const { thresholds } = model
+  if (
+    !thresholds ||
+    !thresholdParts(thresholds.style).series ||
+    entry.axis !== "left" ||
+    entry.style !== "line"
+  ) {
+    return undefined
+  }
+  return thresholdStroke(
+    thresholds.list,
+    thresholds.mode,
+    (color) => resolveColor(thresholdColor(color)),
+    resolveColor(entry.color)
+  )
 }
 
 function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
@@ -244,8 +274,11 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
   }
   if (model.thresholds) {
     plugins.push(
-      thresholdsPlugin(model.thresholds.list, model.thresholds.mode, (color) =>
-        resolveColor(thresholdColor(color))
+      thresholdsPlugin(
+        model.thresholds.list,
+        model.thresholds.mode,
+        model.thresholds.style,
+        (color) => resolveColor(thresholdColor(color))
       )
     )
   }
@@ -387,15 +420,20 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         spanGaps: false,
         points: { show: false },
       })),
-      ...series.map((entry) =>
-        seriesOptions(entry, state.hidden, customPainted)
+      ...series.map((entry, index) =>
+        seriesOptions(
+          entry,
+          state.hidden,
+          index < model.painted,
+          thresholdLineStroke(model, entry)
+        )
       ),
     ],
     bands: state.bands.map(bandOptions),
     cursor: {
       drag: { x: timed, y: false, setScale: false },
       points: {
-        size: (_u, index) => (index < first || customPainted ? 0 : 6),
+        size: (_u, index) => (index < first + model.painted ? 0 : 6),
       },
     },
     hooks: timed
@@ -436,7 +474,8 @@ function modelFor(
     | "tooltipMaxHeight"
     | "xAxis"
   >,
-  tightRange: boolean
+  tightRange: boolean,
+  painted: number
 ): Model {
   const axes = axesInUse(
     series,
@@ -460,6 +499,7 @@ function modelFor(
       maxHeight: options.tooltipMaxHeight,
     },
     xAxisShown: options.xAxis !== "hidden",
+    painted,
   }
 }
 
@@ -509,6 +549,7 @@ export type ChartProps = PanelRendererProps & {
   configs: FieldConfig[]
   xAxis?: XAxis
   draw?: uPlot.Plugin
+  painted?: number
   rowColor?: (row: number) => string
 }
 
@@ -525,6 +566,7 @@ export function TimeseriesChart({
   configs,
   xAxis = timeAxis,
   draw,
+  painted,
   rowColor,
   exemplars,
 }: ChartProps) {
@@ -666,7 +708,8 @@ export function TimeseriesChart({
     series,
     ghosts.length,
     options,
-    draw !== undefined
+    draw !== undefined,
+    draw === undefined ? 0 : (painted ?? series.length)
   )
 
   const latest = useRef<Latest>({
@@ -754,7 +797,9 @@ export function TimeseriesChart({
     ghosts.length,
     panelAxisKey,
     panel.thresholdMode,
+    panel.thresholdsStyle,
     thresholdsKey,
+    model.painted,
   ])
 
   useLayoutEffect(() => {

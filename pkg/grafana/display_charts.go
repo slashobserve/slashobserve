@@ -160,6 +160,9 @@ func displayCandlestick(b *panelBuild) {
 	d.Low = b.fieldNameOption("options.fields.low")
 	d.Close = b.fieldNameOption("options.fields.close")
 	d.Volume = b.fieldNameOption("options.fields.volume")
+	if v, ok := b.boolOption("options.includeAllFields"); ok && *v {
+		d.IncludeAllFields = v
+	}
 	b.legendAndTooltip(d)
 	b.tooltipOptions(d)
 }

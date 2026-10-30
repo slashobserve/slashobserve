@@ -182,11 +182,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "tooltip.msResolution"
         ],
         "queries": [
@@ -598,6 +596,7 @@
         "unit": "bytes",
         "min": 0,
         "fill": 10,
+        "nullAsZero": true,
         "overrides": [
           {
             "match": {

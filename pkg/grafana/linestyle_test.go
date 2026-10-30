@@ -156,16 +156,6 @@ func TestLineStyleLegacyGraphOptions(t *testing.T) {
 	}
 }
 
-func TestLineStyleLegacyNullAsZeroIsStillReported(t *testing.T) {
-	_, line := graphPanel(t, `"nullPointMode":"null as zero"`)
-	if line.Status != statusPartial || len(line.Paths) != 1 || line.Paths[0] != "nullPointMode" {
-		t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
-	}
-	if !strings.Contains(strings.Join(line.Reasons, " "), "Drawing missing values as zero is not supported yet.") {
-		t.Fatalf("reasons = %v", line.Reasons)
-	}
-}
-
 func TestLineStyleLegacySeriesOverrides(t *testing.T) {
 	cases := []struct {
 		name, override string
@@ -190,12 +180,5 @@ func TestLineStyleLegacySeriesOverrides(t *testing.T) {
 				t.Fatalf("override props = %+v", panel.Overrides[0].FieldProps)
 			}
 		})
-	}
-}
-
-func TestLineStyleLegacySeriesOverrideNullAsZeroIsReported(t *testing.T) {
-	_, line := graphPanel(t, `"seriesOverrides":[{"alias":"a","nullPointMode":"null as zero"}]`)
-	if line.Status != statusPartial || len(line.Paths) != 1 || line.Paths[0] != "seriesOverrides[0].nullPointMode" {
-		t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
 	}
 }

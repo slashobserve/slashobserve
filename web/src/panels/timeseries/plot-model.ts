@@ -47,6 +47,7 @@ export type PlotStateFor = {
 export type ThresholdLines = {
   list: Threshold[]
   mode: FieldConfig["thresholdMode"]
+  style: FieldConfig["thresholdsStyle"]
 }
 
 type Aligned = Pick<AlignedSeries, "key" | "label" | "values" | "field">
@@ -187,7 +188,7 @@ export function ghostsDrawn(
 export function thresholdsFor(
   series: readonly Pick<ChartSeries, "axis" | "config">[],
   left: AxisSettings | undefined,
-  panel: Pick<DataPanel, "thresholds" | "thresholdMode">
+  panel: Pick<DataPanel, "thresholds" | "thresholdMode" | "thresholdsStyle">
 ): ThresholdLines | null {
   if (!left || left.percent) return null
   const firstLeft = series.find(({ axis }) => axis === "left")
@@ -196,7 +197,10 @@ export function thresholdsFor(
   const mode = firstLeft
     ? firstLeft.config.thresholdMode
     : (panel.thresholdMode ?? "absolute")
-  return { list, mode }
+  const style = firstLeft
+    ? firstLeft.config.thresholdsStyle
+    : (panel.thresholdsStyle ?? "dashed")
+  return { list, mode, style }
 }
 
 export function thresholdValueAt(

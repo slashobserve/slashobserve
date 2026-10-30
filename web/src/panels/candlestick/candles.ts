@@ -20,6 +20,7 @@ export type CandleOptions = {
   downColor: string
   legend: "bottom" | "right" | "hidden"
   tooltip: "single" | "all" | "hidden"
+  includeAllFields: boolean
   names: Partial<Record<CandleRole, string>>
 }
 
@@ -74,6 +75,7 @@ export function candleOptions(display: Record<string, unknown>): CandleOptions {
       display.tooltip === "all" || display.tooltip === "hidden"
         ? display.tooltip
         : "single",
+    includeAllFields: display.includeAllFields === true,
     names,
   }
 }
@@ -120,9 +122,18 @@ export function selectCandles(
     const time = frame.fields.find((field) => field.type === "time")
     const columns = time ? columnsFor(frame, options) : null
     if (time && columns) {
+      const used = new Set(columns.map((c) => c.field))
+      const extras = options.includeAllFields
+        ? frame.fields.filter(
+            (field) => field.type === "number" && !used.has(field)
+          )
+        : []
       return {
         reason: null,
-        frame: { ...frame, fields: [time, ...columns.map((c) => c.field)] },
+        frame: {
+          ...frame,
+          fields: [time, ...columns.map((c) => c.field), ...extras],
+        },
         columns,
       }
     }

@@ -710,7 +710,8 @@
           {
             "query": "SELECT t, max_0 - lagInFrame(max_0, 1, max_0) OVER w AS max_0_Delta FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p2",
@@ -728,7 +729,8 @@
           {
             "query": "SELECT t, max_0 - lagInFrame(max_0, 1, max_0) OVER w AS max_0_Delta FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p21",
@@ -746,7 +748,8 @@
           {
             "query": "SELECT t, toString(Name) AS Name, max_0 - lagInFrame(max_0, 1, max_0) OVER w AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p22",
@@ -764,7 +767,8 @@
           {
             "query": "SELECT t, toString(Name) AS Name, max_0 - lagInFrame(max_0, 1, max_0) OVER w AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p23",
@@ -782,7 +786,8 @@
           {
             "query": "SELECT t, toString(Name) AS Name, sum(ValueDelta) AS ValueDeltaAgg FROM (SELECT t, Name, subName, Value - lagInFrame(Value, 1, Value) OVER w AS ValueDelta FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p24",
@@ -800,7 +805,8 @@
           {
             "query": "SELECT t, toString(Name) AS Name, sum(ValueDelta) AS ValueDeltaAgg FROM (SELECT t, Name, subName, Value - lagInFrame(Value, 1, Value) OVER w AS ValueDelta FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p3",
@@ -818,7 +824,8 @@
           {
             "query": "SELECT t, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, 0, max_0 - lagInFrame(max_0, 1, max_0) OVER w) AS max_0_Increase FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p4",
@@ -836,7 +843,8 @@
           {
             "query": "SELECT t, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, 0, max_0 - lagInFrame(max_0, 1, max_0) OVER w) AS max_0_Increase FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p17",
@@ -854,7 +862,8 @@
           {
             "query": "SELECT t, toString(Name) AS Name, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, 0, max_0 - lagInFrame(max_0, 1, max_0) OVER w) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p18",
@@ -872,7 +881,8 @@
           {
             "query": "SELECT t, toString(Name) AS Name, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, 0, max_0 - lagInFrame(max_0, 1, max_0) OVER w) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p19",
@@ -890,7 +900,8 @@
           {
             "query": "SELECT t, toString(Name) AS Name, sum(ValueIncrease) AS ValueIncreaseAgg FROM (SELECT t, Name, subName, if((Value - lagInFrame(Value, 1, Value) OVER w) < 0, 0, Value - lagInFrame(Value, 1, Value) OVER w) AS ValueIncrease FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p20",
@@ -908,7 +919,8 @@
           {
             "query": "SELECT t, toString(Name) AS Name, sum(ValueIncrease) AS ValueIncreaseAgg FROM (SELECT t, Name, subName, if((Value - lagInFrame(Value, 1, Value) OVER w) < 0, 0, Value - lagInFrame(Value, 1, Value) OVER w) AS ValueIncrease FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p5",
@@ -926,7 +938,8 @@
           {
             "query": "SELECT t, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, nan, (max_0 - lagInFrame(max_0, 1, max_0) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS max_0_PerSecond FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p6",
@@ -944,7 +957,8 @@
           {
             "query": "SELECT t, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, nan, (max_0 - lagInFrame(max_0, 1, max_0) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS max_0_PerSecond FROM (SELECT $__timeInterval(EventTime) AS t, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p13",
@@ -962,7 +976,8 @@
           {
             "query": "SELECT t, toString(Name) AS Name, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, nan, (max_0 - lagInFrame(max_0, 1, max_0) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p14",
@@ -980,7 +995,8 @@
           {
             "query": "SELECT t, toString(Name) AS Name, if((max_0 - lagInFrame(max_0, 1, max_0) OVER w) < 0, nan, (max_0 - lagInFrame(max_0, 1, max_0) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, toFloat64(max(Value)) AS max_0\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY Name, t) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p15",
@@ -998,7 +1014,8 @@
           {
             "query": "SELECT t, toString(Name) AS Name, sum(ValuePerSecond) AS ValuePerSecondAgg FROM (SELECT t, Name, subName, if((Value - lagInFrame(Value, 1, Value) OVER w) < 0, nan, (Value - lagInFrame(Value, 1, Value) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS ValuePerSecond FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p16",
@@ -1016,7 +1033,8 @@
           {
             "query": "SELECT t, toString(Name) AS Name, sum(ValuePerSecond) AS ValuePerSecondAgg FROM (SELECT t, Name, subName, if((Value - lagInFrame(Value, 1, Value) OVER w) < 0, nan, (Value - lagInFrame(Value, 1, Value) OVER w) / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t))) OVER w)) AS ValuePerSecond FROM (SELECT $__timeInterval(EventTime) AS t, Name, 'test2' AS subName, toFloat64(max(Value)) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, subName, t\nORDER BY Name, subName, t) WINDOW w AS (PARTITION BY Name, subName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p7",
@@ -1034,7 +1052,8 @@
           {
             "query": "SELECT t, vSumValue / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS vSumValueRate FROM (SELECT $__timeInterval(EventTime) AS t, sum(Value) AS vSumValue\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p8",
@@ -1052,7 +1071,8 @@
           {
             "query": "SELECT t, vSumValue / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS vSumValueRate FROM (SELECT $__timeInterval(EventTime) AS t, sum(Value) AS vSumValue\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t ORDER BY t) WINDOW w AS (ORDER BY t) ORDER BY t"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p9",
@@ -1070,7 +1090,8 @@
           {
             "query": "SELECT t, toString(Name) AS Name, vSumValue / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, sum(Value) AS vSumValue\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY t, Name) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p10",
@@ -1088,7 +1109,8 @@
           {
             "query": "SELECT t, toString(Name) AS Name, vSumValue / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS Value FROM (SELECT $__timeInterval(EventTime) AS t, Name, sum(Value) AS vSumValue\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY t, Name\nORDER BY t, Name) WINDOW w AS (PARTITION BY Name ORDER BY t) ORDER BY t, Name"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p11",
@@ -1106,7 +1128,8 @@
           {
             "query": "SELECT t, toString(Name) AS Name, sum(ValueRate) AS ValueRateAgg FROM (SELECT t, Name, SubName, Value / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS ValueRate FROM (SELECT $__timeInterval(EventTime) AS t, Name, if(today() % 2,'subTest1','subTest2') AS SubName, max(Value) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, SubName, t\nORDER BY Name, SubName, t) WINDOW w AS (PARTITION BY Name, SubName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       },
       {
         "id": "p12",
@@ -1124,7 +1147,8 @@
           {
             "query": "SELECT t, toString(Name) AS Name, sum(ValueRate) AS ValueRateAgg FROM (SELECT t, Name, SubName, Value / (toInt64(toUnixTimestamp(t)) - lagInFrame(toInt64(toUnixTimestamp(t)), 1, toInt64(toUnixTimestamp(t)) - $__interval_s) OVER w) AS ValueRate FROM (SELECT $__timeInterval(EventTime) AS t, Name, if(today() % 2,'subTest1','subTest2') AS SubName, max(Value) AS Value\nFROM default.test_alerts\nWHERE $__dateTimeFilter(EventDate, EventTime)\nGROUP BY Name, SubName, t\nORDER BY Name, SubName, t) WINDOW w AS (PARTITION BY Name, SubName ORDER BY t)) GROUP BY Name, t ORDER BY t, Name"
           }
-        ]
+        ],
+        "thresholdsStyle": "off"
       }
     ]
   }

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 4,
-      "imported": 0,
-      "partial": 4,
+      "imported": 3,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Bucket Replicate Runs",
-        "status": "partial",
-        "reasons": [
-          "Drawing missing values as zero is not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -68,13 +64,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Bucket Replicate Runs",
-        "status": "partial",
-        "reasons": [
-          "Drawing missing values as zero is not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -95,14 +87,12 @@
         "row": "Bucket Replicate Runs",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this query are not supported yet.",
-          "Drawing missing values as zero is not supported yet."
+          "Some Grafana options of this query are not supported yet."
         ],
         "paths": [
           "targets[0].logBase",
           "targets[1].logBase",
-          "targets[2].logBase",
-          "nullPointMode"
+          "targets[2].logBase"
         ],
         "queries": [
           {
@@ -136,13 +126,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Bucket Replication",
-        "status": "partial",
-        "reasons": [
-          "Drawing missing values as zero is not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -267,6 +253,7 @@
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",
+            "nullAsZero": true,
             "overrides": [
               {
                 "match": {
@@ -300,7 +287,8 @@
             "min": 0,
             "fill": 100,
             "lineWidth": 0,
-            "stack": "normal"
+            "stack": "normal",
+            "nullAsZero": true
           },
           {
             "id": "p3",
@@ -337,6 +325,7 @@
             "unit": "s",
             "min": 0,
             "fill": 10,
+            "nullAsZero": true,
             "overrides": [
               {
                 "match": {
@@ -419,7 +408,8 @@
             ],
             "unit": "short",
             "min": 0,
-            "fill": 10
+            "fill": 10,
+            "nullAsZero": true
           }
         ]
       }

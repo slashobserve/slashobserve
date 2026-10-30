@@ -942,6 +942,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "legendValues": [
@@ -975,6 +976,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "legendValues": [
@@ -1024,6 +1026,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "legendValues": [
@@ -1057,6 +1060,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "legendValues": [
@@ -1090,6 +1094,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "legendValues": [
@@ -1123,6 +1128,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "legendValues": [
@@ -1173,6 +1179,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "legendValues": [
@@ -1206,6 +1213,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "legendValues": [
@@ -1239,6 +1247,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "legendValues": [
@@ -1284,6 +1293,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "legendValues": [
@@ -1317,6 +1327,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "legendValues": [
@@ -1354,6 +1365,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "legendValues": [
@@ -1387,6 +1399,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "legendValues": [
@@ -1420,6 +1433,7 @@
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "legendValues": [
@@ -1470,6 +1484,7 @@
             "points": "never",
             "spanNulls": true,
             "axisLabel": "CPU Cores",
+            "thresholdsStyle": "off",
             "overrides": [
               {
                 "match": {
@@ -1514,6 +1529,7 @@
             "points": "never",
             "spanNulls": true,
             "axisLabel": "Bytes",
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "legendValues": [
@@ -1560,6 +1576,7 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -1598,6 +1615,7 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -1632,6 +1650,7 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "right",
               "legendMode": "table",
@@ -1682,6 +1701,7 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "tooltip": "all",
@@ -1718,6 +1738,7 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "tooltip": "all",
@@ -1754,6 +1775,7 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "tooltip": "all",
@@ -1790,6 +1812,7 @@
             "lineInterpolation": "smooth",
             "points": "never",
             "spanNulls": true,
+            "thresholdsStyle": "off",
             "display": {
               "legend": "hidden",
               "tooltip": "all",

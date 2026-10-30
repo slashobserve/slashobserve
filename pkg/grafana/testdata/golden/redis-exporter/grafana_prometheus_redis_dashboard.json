@@ -611,6 +611,7 @@
         "points": "never",
         "spanNulls": true,
         "stack": "normal",
+        "thresholdsStyle": "off",
         "display": {
           "legend": "hidden",
           "tooltip": "all"
@@ -646,6 +647,7 @@
         "fill": 10,
         "points": "never",
         "spanNulls": true,
+        "thresholdsStyle": "off",
         "display": {
           "legend": "hidden",
           "tooltip": "all",
@@ -681,6 +683,7 @@
         "min": 0,
         "fill": 10,
         "points": "never",
+        "thresholdsStyle": "off",
         "overrides": [
           {
             "match": {
@@ -723,6 +726,7 @@
         "fill": 10,
         "points": "never",
         "spanNulls": true,
+        "thresholdsStyle": "off",
         "display": {
           "tooltip": "all",
           "tooltipSort": "none"
@@ -752,6 +756,7 @@
         "points": "never",
         "spanNulls": true,
         "stack": "normal",
+        "thresholdsStyle": "off",
         "display": {
           "legendValues": [
             "lastNotNull"
@@ -791,6 +796,7 @@
         "points": "never",
         "spanNulls": true,
         "stack": "normal",
+        "thresholdsStyle": "off",
         "display": {
           "tooltip": "all",
           "tooltipSort": "none"
@@ -825,6 +831,7 @@
         "fill": 10,
         "points": "never",
         "spanNulls": true,
+        "thresholdsStyle": "off",
         "overrides": [
           {
             "match": {
@@ -874,6 +881,7 @@
         "unit": "short",
         "fill": 10,
         "points": "never",
+        "thresholdsStyle": "off",
         "display": {
           "tooltip": "all",
           "tooltipSort": "none"
@@ -901,6 +909,7 @@
         "unit": "s",
         "points": "never",
         "spanNulls": true,
+        "thresholdsStyle": "off",
         "display": {
           "tooltip": "all"
         }
@@ -929,6 +938,7 @@
         "points": "never",
         "spanNulls": true,
         "stack": "normal",
+        "thresholdsStyle": "off",
         "display": {
           "tooltip": "all"
         }

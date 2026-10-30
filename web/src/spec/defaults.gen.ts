@@ -21,7 +21,12 @@ export const specDefaults = {
     "axisColor": "text",
     "hideInLegend": false,
     "hideInTooltip": false,
-    "stackGroup": "A"
+    "stackGroup": "A",
+    "nullAsZero": false,
+    "barAlignment": "center",
+    "barWidthFactor": 0.6,
+    "barMaxWidth": 64,
+    "thresholdsStyle": "dashed"
   },
   "query": {
     "instant": false,
@@ -151,6 +156,7 @@ export const specDefaults = {
       "colorStrategy": "open-close",
       "upColor": "ok",
       "downColor": "critical",
+      "includeAllFields": false,
       "legend": "bottom",
       "tooltip": "single",
       "tooltipSort": "desc",
