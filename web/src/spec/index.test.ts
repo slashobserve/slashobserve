@@ -90,6 +90,60 @@ describe("exclusive member issues", () => {
   })
 })
 
+describe("query and expression issues", () => {
+  const expression = { type: "reduce", input: "A", reducer: "max" }
+
+  it("accepts a datasource query next to an expression", () => {
+    expect(
+      issuesFor({
+        queries: [
+          { ref: "A", query: "up" },
+          { ref: "B", expression },
+        ],
+      })
+    ).toEqual([])
+  })
+
+  it.each([
+    [
+      "a query with a bad option",
+      [{ query: "up", intervalFactor: 1 }],
+      "/panels/0/queries/0/intervalFactor",
+    ],
+    [
+      "an expression with a bad reducer",
+      [
+        { ref: "A", query: "up" },
+        { ref: "B", expression: { ...expression, reducer: "mode" } },
+      ],
+      "/panels/0/queries/1/expression/reducer",
+    ],
+    [
+      "an expression without a ref",
+      [{ query: "up" }, { expression }],
+      "/panels/0/queries/1",
+    ],
+    [
+      "an item with neither a query nor an expression",
+      [{ query: "up" }, { ref: "E" }],
+      "/panels/0/queries/1",
+    ],
+  ])("reports only the chosen branch for %s", (_name, queries, path) => {
+    const issues = issuesFor({ queries })
+    expect(issues.length).toBeGreaterThan(0)
+    expect(issues.every((issue) => issue.path === path)).toBe(true)
+  })
+
+  it("does not blame the query side for an expression with a query key", () => {
+    const issues = issuesFor({
+      queries: [{ ref: "B", expression, query: "up" }],
+    })
+    expect(issues).toEqual([
+      { path: "/panels/0/queries/0", message: 'unknown property "query"' },
+    ])
+  })
+})
+
 describe("variable sort, custom values and saved filters", () => {
   const variableOptions = JSON.parse(variableOptionsText)
 

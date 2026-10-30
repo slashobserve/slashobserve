@@ -1,7 +1,9 @@
 import {
   dashlistPanel,
   dataPanel,
+  expressionQuery,
   newsPanel,
+  panelQuery,
   placeholderPanel,
   rowPanel,
   textPanel,
@@ -45,6 +47,11 @@ const panelBranches: Record<string, AjvValidate> = {
   row: rowPanel as unknown as AjvValidate,
   dashlist: dashlistPanel as unknown as AjvValidate,
   news: newsPanel as unknown as AjvValidate,
+}
+
+const queryBranches = {
+  query: panelQuery as unknown as AjvValidate,
+  expression: expressionQuery as unknown as AjvValidate,
 }
 
 function branchFor(panel: Record<string, unknown>): AjvValidate | undefined {
@@ -126,7 +133,30 @@ function panelErrors(value: unknown, errors: AjvError[]): AjvError[] {
       }
     }
   }
-  return kept
+  return sites
+    .filter((site) =>
+      (dataPanelTypes as readonly unknown[]).includes(site.panel.type)
+    )
+    .reduce(queryErrors, kept)
+}
+
+function queryErrors(errors: AjvError[], site: PanelSite): AjvError[] {
+  const queries = site.panel.queries
+  if (!Array.isArray(queries)) return errors
+  let out = errors
+  queries.forEach((query, i) => {
+    if (!isRecord(query)) return
+    const pointer = `${site.pointer}/queries/${i}`
+    const branch = Object.hasOwn(query, "expression")
+      ? queryBranches.expression
+      : queryBranches.query
+    branch(query, { instancePath: pointer })
+    out = [
+      ...out.filter((error) => !isWithin(error.instancePath, pointer)),
+      ...(branch.errors ?? []),
+    ]
+  })
+  return out
 }
 
 const exclusiveMembers = [

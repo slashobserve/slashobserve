@@ -47,62 +47,76 @@ func tokenize(text string) ([]token, error) {
 	var out []token
 	for i := 0; i < len(text); {
 		c := text[i]
-		switch {
-		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
+		if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
 			i++
-		case c >= '0' && c <= '9' || c == '.':
-			end := scanNumber(text, i)
-			n, err := strconv.ParseFloat(text[i:end], 64)
-			if err != nil {
-				return nil, fmt.Errorf("%q is not a number", text[i:end])
-			}
-			out = append(out, token{kind: tokNumber, num: n, text: text[i:end]})
-			i = end
-		case c == '$':
-			name, end, ok := scanRef(text, i)
-			if !ok {
-				return nil, fmt.Errorf("a $ must be followed by a query ref at position %d", i)
-			}
-			out = append(out, token{kind: tokRef, text: name})
-			i = end
-		case isIdentStart(c):
-			end := i
-			for end < len(text) && (isIdentStart(text[end]) || text[end] >= '0' && text[end] <= '9') {
-				end++
-			}
-			out = append(out, token{kind: tokIdent, text: text[i:end]})
-			i = end
-		default:
-			op := matchOperator(text[i:])
-			if op == "" {
-				return nil, fmt.Errorf("unexpected character %q at position %d", string(c), i)
-			}
-			out = append(out, token{kind: tokOp, text: op})
-			i += len(op)
+			continue
 		}
+		tok, end, err := nextToken(text, i)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, tok)
+		i = end
 	}
 	return append(out, token{kind: tokEOF}), nil
 }
 
+func nextToken(text string, i int) (token, int, error) {
+	c := text[i]
+	switch {
+	case isDigit(c) || c == '.':
+		end := scanNumber(text, i)
+		n, err := strconv.ParseFloat(text[i:end], 64)
+		if err != nil {
+			return token{}, 0, fmt.Errorf("%q is not a number", text[i:end])
+		}
+		return token{kind: tokNumber, num: n, text: text[i:end]}, end, nil
+	case c == '$':
+		name, end, ok := scanRef(text, i)
+		if !ok {
+			return token{}, 0, fmt.Errorf("a $ must be followed by a query ref at position %d", i)
+		}
+		return token{kind: tokRef, text: name}, end, nil
+	case isIdentStart(c):
+		end := i
+		for end < len(text) && (isIdentStart(text[end]) || isDigit(text[end])) {
+			end++
+		}
+		return token{kind: tokIdent, text: text[i:end]}, end, nil
+	}
+	op := matchOperator(text[i:])
+	if op == "" {
+		return token{}, 0, fmt.Errorf("unexpected character %q at position %d", string(c), i)
+	}
+	return token{kind: tokOp, text: op}, i + len(op), nil
+}
+
 func scanNumber(text string, start int) int {
 	end := start
-	for end < len(text) && (text[end] >= '0' && text[end] <= '9' || text[end] == '.') {
+	for end < len(text) && (isDigit(text[end]) || text[end] == '.') {
 		end++
 	}
-	if end < len(text) && (text[end] == 'e' || text[end] == 'E') {
-		next := end + 1
-		if next < len(text) && (text[next] == '+' || text[next] == '-') {
-			next++
-		}
-		if next < len(text) && text[next] >= '0' && text[next] <= '9' {
-			for next < len(text) && text[next] >= '0' && text[next] <= '9' {
-				next++
-			}
-			end = next
-		}
-	}
-	return end
+	return scanExponent(text, end)
 }
+
+func scanExponent(text string, end int) int {
+	if end >= len(text) || (text[end] != 'e' && text[end] != 'E') {
+		return end
+	}
+	next := end + 1
+	if next < len(text) && (text[next] == '+' || text[next] == '-') {
+		next++
+	}
+	if next >= len(text) || !isDigit(text[next]) {
+		return end
+	}
+	for next < len(text) && isDigit(text[next]) {
+		next++
+	}
+	return next
+}
+
+func isDigit(c byte) bool { return c >= '0' && c <= '9' }
 
 func scanRef(text string, at int) (string, int, bool) {
 	start, braced := at+1, false

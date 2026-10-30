@@ -3,6 +3,7 @@ package expr
 import (
 	"errors"
 	"math"
+	"slices"
 	"testing"
 	"time"
 
@@ -57,18 +58,12 @@ func valuesOf(t *testing.T, f datasource.Frame) []float64 {
 }
 
 func sameValues(got, want []float64) bool {
-	if len(got) != len(want) {
-		return false
-	}
-	for i := range got {
-		if math.IsNaN(got[i]) != math.IsNaN(want[i]) {
-			return false
+	return slices.EqualFunc(got, want, func(a, b float64) bool {
+		if math.IsNaN(a) || math.IsNaN(b) {
+			return math.IsNaN(a) == math.IsNaN(b)
 		}
-		if !math.IsNaN(got[i]) && math.Abs(got[i]-want[i]) > 1e-9 {
-			return false
-		}
-	}
-	return true
+		return math.Abs(a-b) <= 1e-9
+	})
 }
 
 var window = datasource.TimeRange{From: at(0), To: at(60)}
