@@ -113,12 +113,6 @@ var typeDefaults = map[spec.PanelType]map[string]any{
 	spec.Text: {
 		"options.mode": "markdown",
 	},
-	spec.BarChart: {
-		"options.xTickLabelRotation": 0,
-		"options.xTickLabelSpacing":  0,
-		"options.barRadius":          0,
-		"options.fullHighlight":      false,
-	},
 	spec.StatusHistory: {
 		"options.colWidth": 0.9,
 	},
@@ -215,11 +209,6 @@ var partialReasons = map[string]string{
 	"transformations":                               "Some transformations are not supported yet.",
 	"options.legend.displayMode":                    legendTableReason,
 	"options.legend.asTable":                        legendTableReason,
-	"options.colorByField":                          "Coloring bars by a field is not supported yet.",
-	"options.xTickLabelRotation":                    "Axis labels are drawn in the SlashObserve style.",
-	"options.xTickLabelSpacing":                     "Axis labels are drawn in the SlashObserve style.",
-	"options.barRadius":                             "Bars are drawn in the SlashObserve style.",
-	"options.fullHighlight":                         "Highlighting a whole bar group is not supported yet.",
 	"options.includeAllFields":                      "Drawing the other fields as lines is not supported yet.",
 	"rowHeight":                                     "A row height in pixels is not supported; rows share the height of the panel.",
 	"options.controls":                              "Map controls are not configurable.",
@@ -262,10 +251,6 @@ var cosmeticOptions = map[string]cosmeticOption{
 	"options.displayMode": {
 		values: []any{"gradient", "basic"},
 		why:    "bar gauges are drawn flat by the no-gradients rule (decision 8)",
-	},
-	"options.tooltip.sort": {
-		values: []any{"desc"},
-		why:    "bar chart and histogram tooltips list their rows in series order and have no sort",
 	},
 	"fieldConfig.defaults.custom.width": {
 		why: "table columns are sized by the browser from their content and have no fixed width",

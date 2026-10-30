@@ -454,9 +454,9 @@
       },
       "id": 10,
       "options": {
-        "barRadius": 0,
+        "barRadius": 0.2,
         "barWidth": 0.97,
-        "fullHighlight": false,
+        "fullHighlight": true,
         "groupWidth": 0.7,
         "legend": {
           "calcs": [],

@@ -162,7 +162,7 @@
     { "id": "options.tooltip.mode=multi", "path": "options.tooltip.mode", "value": "multi" },
     { "id": "options.tooltip.mode=none", "path": "options.tooltip.mode", "value": "none" },
     { "id": "options.tooltip.sort=asc", "path": "options.tooltip.sort", "value": "asc" },
-    { "id": "options.tooltip.sort=desc", "path": "options.tooltip.sort", "value": "desc", "expect": "cosmetic" },
+    { "id": "options.tooltip.sort=desc", "path": "options.tooltip.sort", "value": "desc" },
     { "id": "options.tooltip.hideZeros=true", "path": "options.tooltip.hideZeros", "value": true },
     { "id": "options.tooltip.maxHeight=200", "path": "options.tooltip.maxHeight", "value": 200 },
     { "id": "options.tooltip.maxWidth=300", "path": "options.tooltip.maxWidth", "value": 300 },

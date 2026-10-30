@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 18,
-      "imported": 12,
-      "partial": 6,
+      "imported": 15,
+      "partial": 3,
       "placeholder": 0,
       "unverified": 0
     },
@@ -246,15 +246,9 @@
         "type": "barchart",
         "source_type": "barchart",
         "row": "Backups",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Axis labels are drawn in the SlashObserve style."
-        ],
-        "paths": [
-          "options.legend.calcs",
-          "options.xTickLabelSpacing"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -343,13 +337,9 @@
         "type": "barchart",
         "source_type": "barchart",
         "row": "Backups",
-        "status": "partial",
-        "reasons": [
-          "Axis labels are drawn in the SlashObserve style."
-        ],
-        "paths": [
-          "options.xTickLabelSpacing"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -431,13 +421,9 @@
         "type": "barchart",
         "source_type": "barchart",
         "row": "Drilldown",
-        "status": "partial",
-        "reasons": [
-          "Axis labels are drawn in the SlashObserve style."
-        ],
-        "paths": [
-          "options.xTickLabelSpacing"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -840,9 +826,17 @@
               }
             ],
             "fill": 80,
+            "lineWidth": 1,
             "interval": "1h",
             "display": {
-              "legend": "hidden"
+              "legend": "hidden",
+              "legendValues": [
+                "max",
+                "min",
+                "mean"
+              ],
+              "legendMode": "list",
+              "xTickSpacing": 100
             }
           },
           {
@@ -925,9 +919,11 @@
             ],
             "unit": "none",
             "fill": 80,
+            "lineWidth": 1,
             "stack": "normal",
             "interval": "1d",
             "display": {
+              "xTickSpacing": 100,
               "groupWidth": 0.85
             }
           },
@@ -997,6 +993,7 @@
               }
             ],
             "fill": 80,
+            "lineWidth": 1,
             "interval": "1h"
           },
           {
@@ -1051,9 +1048,11 @@
             ],
             "unit": "s",
             "fill": 80,
+            "lineWidth": 1,
             "interval": "1h",
             "display": {
-              "legend": "hidden"
+              "legend": "hidden",
+              "xTickSpacing": 100
             }
           }
         ]

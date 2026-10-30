@@ -87,12 +87,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "The color mode thresholds is not drawn on histogram panels.",
-          "Some Grafana options of this panel are not supported yet."
+          "The color mode thresholds is not drawn on histogram panels."
         ],
         "paths": [
-          "fieldConfig.defaults.color",
-          "options.bucketOffset"
+          "fieldConfig.defaults.color"
         ],
         "queries": [
           {
@@ -420,6 +418,7 @@
           }
         ],
         "fill": 80,
+        "lineWidth": 1,
         "overrides": [
           {
             "match": {
@@ -427,7 +426,12 @@
             },
             "unit": "ms"
           }
-        ]
+        ],
+        "display": {
+          "tooltip": "single",
+          "tooltipHideZeros": false,
+          "stack": "none"
+        }
       },
       {
         "id": "p8",

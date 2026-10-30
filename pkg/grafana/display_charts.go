@@ -22,7 +22,42 @@ const (
 	minShare            = 0.1
 	maxFieldName        = 200
 	maxPointSize        = 40
+	minTickRotation     = -90
+	maxTickRotation     = 90
+	maxTickSpacing      = 500
+	maxTickLength       = 200
+	minBarValueSize     = 6
+	maxBarValueSize     = 100
+	maxBarRadius        = 0.5
 )
+
+func (b *panelBuild) boundedIntOption(path string, lo, hi int) int {
+	v, ok := b.value(path)
+	if !ok {
+		return 0
+	}
+	n, isInt := asInt(v)
+	if !isInt || n < lo || n > hi {
+		b.partial(path, fmt.Sprintf("The value must be a whole number from %d to %d.", lo, hi))
+		return 0
+	}
+	b.consume(path)
+	return n
+}
+
+func (b *panelBuild) radiusOption(path string) float64 {
+	v, ok := b.value(path)
+	if !ok {
+		return 0
+	}
+	f, isNumber := numberValue(v)
+	if !isNumber || f < 0 || f > maxBarRadius {
+		b.partial(path, "Only bar radii from 0 to 0.5 are supported.")
+		return 0
+	}
+	b.consume(path)
+	return f
+}
 
 func (b *panelBuild) fieldNameOption(path string) string {
 	v, ok := b.take(path)
@@ -80,7 +115,16 @@ func displayBarChart(b *panelBuild) {
 	d.ShowValues = b.enumOption("options.showValue", "auto", "always", "never")
 	d.BarWidth = b.fractionOption("options.barWidth")
 	d.GroupWidth = b.fractionOption("options.groupWidth")
-	b.legendAndTooltip(d)
+	d.XTickRotation = b.boundedIntOption("options.xTickLabelRotation", minTickRotation, maxTickRotation)
+	d.XTickSpacing = b.boundedIntOption("options.xTickLabelSpacing", 0, maxTickSpacing)
+	d.XTickMaxLength = b.boundedIntOption("options.xTickLabelMaxLength", 0, maxTickLength)
+	d.BarRadius = b.radiusOption("options.barRadius")
+	if flag, ok := b.boolOption("options.fullHighlight"); ok && *flag {
+		d.FullHighlight = flag
+	}
+	d.ColorByField = b.fieldNameOption("options.colorByField")
+	d.ValueSize = b.boundedIntOption("options.text.valueSize", minBarValueSize, maxBarValueSize)
+	b.seriesLegendAndTooltip(d)
 	if mode := b.enumOption("options.stacking", "none", "normal", "percent"); mode != "" {
 		b.panel.Stack = mode
 	}

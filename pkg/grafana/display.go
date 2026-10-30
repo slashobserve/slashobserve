@@ -158,7 +158,10 @@ func (b *panelBuild) legendPlacement(fallback string) string {
 }
 
 func displayTimeseries(b *panelBuild) {
-	d := b.disp()
+	b.seriesLegendAndTooltip(b.disp())
+}
+
+func (b *panelBuild) seriesLegendAndTooltip(d *spec.Display) {
 	b.legendAndTooltip(d)
 	b.tooltipOptions(d)
 	if v, ok := b.value("options.legend.calcs"); ok {
@@ -212,6 +215,9 @@ func (b *panelBuild) tooltipSizeOption(path string) int {
 }
 
 func (b *panelBuild) writtenTooltipSort(d *spec.Display, sort string) string {
+	if barPanelTypes[b.typ] {
+		return sort
+	}
 	if sort == "desc" || !b.listsSeveralSeries(d) {
 		return ""
 	}
@@ -550,6 +556,28 @@ func (b *panelBuild) heatmapScale(d *spec.Display) {
 
 func displayHistogram(b *panelBuild) {
 	d := b.disp()
+	if d.Stack == "" {
+		d.Stack = "none"
+	}
+	if flag, ok := b.boolOption("options.combine"); ok && *flag {
+		d.Combine = flag
+	}
+	if v, ok := b.take("options.bucketOffset"); ok {
+		if offset, isNumber := numberValue(v); isNumber && offset != 0 {
+			d.BucketOffset = &offset
+		}
+	}
+	b.seriesLegendAndTooltip(d)
+	if d.Tooltip == "" {
+		d.Tooltip = "single"
+	}
+	if d.TooltipHideZeros == nil {
+		d.TooltipHideZeros = ptr(false)
+	}
+	b.histogramBuckets(d)
+}
+
+func (b *panelBuild) histogramBuckets(d *spec.Display) {
 	if v, ok := b.take("options.bucketSize"); ok {
 		if size, isNumber := numberValue(v); isNumber && size > 0 {
 			d.BucketSize = &size

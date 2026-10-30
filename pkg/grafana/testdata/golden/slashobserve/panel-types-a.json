@@ -41,8 +41,8 @@
     "verified": false,
     "counts": {
       "total": 19,
-      "imported": 10,
-      "partial": 6,
+      "imported": 11,
+      "partial": 5,
       "placeholder": 3,
       "unverified": 0
     },
@@ -55,15 +55,9 @@
         "type": "barchart",
         "source_type": "barchart",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Coloring bars by a field is not supported yet.",
-          "Axis labels are drawn in the SlashObserve style."
-        ],
-        "paths": [
-          "options.colorByField",
-          "options.xTickLabelRotation"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -484,9 +478,12 @@
         ],
         "unit": "short",
         "fill": 80,
+        "lineWidth": 1,
         "stack": "normal",
         "display": {
           "orientation": "horizontal",
+          "xTickRotation": -45,
+          "colorByField": "pod",
           "showValues": "always",
           "xField": "pod",
           "barWidth": 0.6
