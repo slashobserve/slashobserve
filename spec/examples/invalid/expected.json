@@ -16,6 +16,7 @@
     { "file": "schema/mapping-two-keys.json", "layer": "schema", "code": "schema", "path": "/panels/0/mappings/0" },
     { "file": "schema/row-child-unknown-unit.json", "layer": "schema", "code": "unknown_unit", "path": "/panels/0/panels/0/unit" },
     { "file": "schema/bad-threshold-color.json", "layer": "schema", "code": "schema", "path": "/panels/0/thresholds/0/color" },
+    { "file": "schema/interval-factor-one.json", "layer": "schema", "code": "schema", "path": "/panels/0/queries/0/intervalFactor" },
     { "file": "semantic/duplicate-panel-id.json", "layer": "semantic", "code": "duplicate_panel_id", "path": "/panels/1/id" },
     { "file": "semantic/duplicate-panel-id-in-row.json", "layer": "semantic", "code": "duplicate_panel_id", "path": "/panels/1/panels/0/id" },
     { "file": "semantic/duplicate-variable-name.json", "layer": "semantic", "code": "duplicate_variable_name", "path": "/variables/1/name" },
@@ -46,6 +47,8 @@
     { "file": "semantic/canvas-unknown-element.json", "layer": "semantic", "code": "unknown_element", "path": "/panels/0/display/connections/0/to" },
     { "file": "semantic/unknown-datasource-variable.json", "layer": "semantic", "code": "unknown_variable", "path": "/panels/0/datasource" },
     { "file": "semantic/datasource-ref-not-datasource-variable.json", "layer": "semantic", "code": "invalid_reference", "path": "/panels/0/datasource" },
+    { "file": "semantic/interval-ref-unknown.json", "layer": "semantic", "code": "unknown_variable", "path": "/panels/0/interval" },
+    { "file": "semantic/interval-ref-not-interval.json", "layer": "semantic", "code": "invalid_reference", "path": "/panels/0/queries/0/interval" },
     { "file": "semantic/datasource-variable-order.json", "layer": "semantic", "code": "variable_order", "path": "/variables/0/datasource" }
   ]
 }

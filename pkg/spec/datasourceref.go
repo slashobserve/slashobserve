@@ -6,10 +6,10 @@ import (
 	"strconv"
 )
 
-var datasourceVariableRef = regexp.MustCompile(`^\$\{([A-Za-z][A-Za-z0-9_]{0,39})\}$`)
+var bracedVariableRef = regexp.MustCompile(`^\$\{([A-Za-z][A-Za-z0-9_]{0,39})\}$`)
 
 func DatasourceVariableName(ref string) (string, bool) {
-	m := datasourceVariableRef.FindStringSubmatch(ref)
+	m := bracedVariableRef.FindStringSubmatch(ref)
 	if m == nil {
 		return "", false
 	}

@@ -114,6 +114,12 @@
       "type": "string",
       "pattern": "^([A-Za-z0-9][A-Za-z0-9_-]{0,39}|\\$\\{[A-Za-z][A-Za-z0-9_]{0,39}\\})$"
     },
+    "intervalRef": {
+      "title": "IntervalRef",
+      "description": "A minimum step such as 30s, or ${name} naming an interval variable; queries then use the step selected in that variable.",
+      "type": "string",
+      "pattern": "^([1-9][0-9]{0,4}(ms|[smhdwy])|\\$\\{[A-Za-z][A-Za-z0-9_]{0,39}\\})$"
+    },
     "query": {
       "type": "string",
       "minLength": 1,
@@ -1097,8 +1103,13 @@
           ]
         },
         "interval": {
-          "type": "string",
-          "pattern": "^[1-9][0-9]{0,4}(ms|[smhdwy])$"
+          "$ref": "#/$defs/intervalRef"
+        },
+        "intervalFactor": {
+          "description": "Grafana's resolution 1/N: the query's step is multiplied by N.",
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 10
         },
         "hide": {
           "type": "boolean"
@@ -2218,8 +2229,7 @@
           "pattern": "^[1-9][0-9]*[smhdwMy]$"
         },
         "interval": {
-          "type": "string",
-          "pattern": "^[1-9][0-9]{0,4}(ms|[smhdwy])$"
+          "$ref": "#/$defs/intervalRef"
         },
         "maxDataPoints": {
           "type": "integer",
