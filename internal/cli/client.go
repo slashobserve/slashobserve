@@ -129,6 +129,10 @@ func (c *client) patch(ctx context.Context, path string, payload any) ([]byte, e
 	return c.send(ctx, http.MethodPatch, path, payload)
 }
 
+func (c *client) delete(ctx context.Context, path string) ([]byte, error) {
+	return c.do(ctx, http.MethodDelete, path, nil, nil)
+}
+
 func (c *client) send(ctx context.Context, method, path string, payload any) ([]byte, error) {
 	data, err := json.Marshal(payload)
 	if err != nil {

@@ -28,6 +28,7 @@ Folder access applies on top: a tool that names a dashboard or folder the key ca
 It lists the folders the key can see, with `can_create` for each, and sets `truncated` when there are more than fit in the result.
 `create_dashboard` takes an optional `folder_id` from that list; without it, the dashboard goes to the folder the key last created a dashboard in, else General.
 A `folder_id` the key cannot create in returns `forbidden_role`, and an unknown one `not_found`.
+No tool deletes or moves a dashboard: people do that in the web app, with `observe dashboards delete`, or through the HTTP API.
 
 MCP clients can read open comments with `list_comments`, reply with `reply_to_comment` and resolve with `resolve_comment`, passing the version that fixed the comment.
 A dashboard made by Claude Code can then be reviewed by the team without a model on the server.
