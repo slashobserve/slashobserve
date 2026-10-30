@@ -836,6 +836,11 @@
         "datasource": {
           "$ref": "#/$defs/datasourceRef"
         },
+        "applyToAll": {
+          "x-omitFromPrompt": true,
+          "const": true,
+          "description": "ClickHouse only: also filter every query on this datasource that does not use this variable, on each table the query reads."
+        },
         "default": {
           "x-omitFromPrompt": true,
           "type": "array",

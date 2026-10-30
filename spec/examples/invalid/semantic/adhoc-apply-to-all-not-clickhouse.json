@@ -1,0 +1,40 @@
+{
+  "specVersion": "0",
+  "title": "Minimal",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "variables": [
+    {
+      "name": "source",
+      "type": "datasource",
+      "datasourceType": "prometheus"
+    },
+    {
+      "name": "filters",
+      "type": "adhoc",
+      "datasource": "${source}",
+      "applyToAll": true
+    }
+  ],
+  "panels": [
+    {
+      "id": "p1",
+      "type": "stat",
+      "title": "Up",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "${source}",
+      "queries": [
+        {
+          "query": "up"
+        }
+      ]
+    }
+  ]
+}

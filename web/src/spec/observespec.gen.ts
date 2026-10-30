@@ -742,6 +742,10 @@ export interface AdhocVariable {
   type: "adhoc";
   datasource: DatasourceRef;
   /**
+   * ClickHouse only: also filter every query on this datasource that does not use this variable, on each table the query reads.
+   */
+  applyToAll?: true;
+  /**
    * @minItems 1
    * @maxItems 20
    */
