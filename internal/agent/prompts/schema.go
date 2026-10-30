@@ -50,13 +50,21 @@ var schema = sync.OnceValue(func() []byte {
 	return out
 })
 
-func stripSchema(raw json.RawMessage) ([]byte, error) {
+type stripper struct {
+	keepMarked bool
+}
+
+func stripSchema(raw json.RawMessage) ([]byte, error) { return stripper{}.strip(raw) }
+
+func (s stripper) strip(raw json.RawMessage) ([]byte, error) {
 	var out bytes.Buffer
-	if err := writeSchema(&out, raw); err != nil {
+	if err := s.writeSchema(&out, raw); err != nil {
 		return nil, err
 	}
 	return out.Bytes(), nil
 }
+
+func (s stripper) omitted(raw json.RawMessage) bool { return !s.keepMarked && omittedFromPrompt(raw) }
 
 func omittedFromPrompt(raw json.RawMessage) bool {
 	members, isObject, err := objectMembers(raw)
@@ -105,7 +113,7 @@ func objectMembers(raw json.RawMessage) ([]member, bool, error) {
 	return members, true, nil
 }
 
-func writeSchema(out *bytes.Buffer, raw json.RawMessage) error {
+func (s stripper) writeSchema(out *bytes.Buffer, raw json.RawMessage) error {
 	members, isObject, err := objectMembers(raw)
 	if err != nil {
 		return err
@@ -116,18 +124,18 @@ func writeSchema(out *bytes.Buffer, raw json.RawMessage) error {
 	return writeMembers(out, members, func(m member) error {
 		switch {
 		case schemaMapKeywords[m.key]:
-			return writeSchemaMap(out, m.value)
+			return s.writeSchemaMap(out, m.value)
 		case schemaArrayKeywords[m.key]:
-			return writeSchemaArray(out, m.key, m.value)
+			return s.writeSchemaArray(out, m.key, m.value)
 		case schemaKeywords[m.key]:
-			return writeSchema(out, m.value)
+			return s.writeSchema(out, m.value)
 		default:
 			return json.Compact(out, m.value)
 		}
 	}, annotationKeywords)
 }
 
-func writeSchemaMap(out *bytes.Buffer, raw json.RawMessage) error {
+func (s stripper) writeSchemaMap(out *bytes.Buffer, raw json.RawMessage) error {
 	members, isObject, err := objectMembers(raw)
 	if err != nil {
 		return err
@@ -137,14 +145,14 @@ func writeSchemaMap(out *bytes.Buffer, raw json.RawMessage) error {
 	}
 	kept := make([]member, 0, len(members))
 	for _, m := range members {
-		if !omittedFromPrompt(m.value) {
+		if !s.omitted(m.value) {
 			kept = append(kept, m)
 		}
 	}
-	return writeMembers(out, kept, func(m member) error { return writeSchema(out, m.value) }, nil)
+	return writeMembers(out, kept, func(m member) error { return s.writeSchema(out, m.value) }, nil)
 }
 
-func writeSchemaArray(out *bytes.Buffer, keyword string, raw json.RawMessage) error {
+func (s stripper) writeSchemaArray(out *bytes.Buffer, keyword string, raw json.RawMessage) error {
 	var items []json.RawMessage
 	if err := json.Unmarshal(raw, &items); err != nil {
 		return err
@@ -152,7 +160,7 @@ func writeSchemaArray(out *bytes.Buffer, keyword string, raw json.RawMessage) er
 	omittable := keyword == "anyOf" || keyword == "oneOf"
 	kept := make([]json.RawMessage, 0, len(items))
 	for _, item := range items {
-		if !omittedFromPrompt(item) {
+		if !s.omitted(item) {
 			kept = append(kept, item)
 			continue
 		}
@@ -168,7 +176,7 @@ func writeSchemaArray(out *bytes.Buffer, keyword string, raw json.RawMessage) er
 		if i > 0 {
 			out.WriteByte(',')
 		}
-		if err := writeSchema(out, item); err != nil {
+		if err := s.writeSchema(out, item); err != nil {
 			return err
 		}
 	}
