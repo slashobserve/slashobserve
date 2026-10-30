@@ -46,15 +46,19 @@ const rgbOf: RgbOf = (color) => {
   return null
 }
 
+const percentBody = { width: 100, height: 100 }
+
 function build(
   frames: PreparedFrame[],
   display: Record<string, unknown>,
-  extra: Partial<DataPanel> = {}
+  extra: Partial<DataPanel> = {},
+  body = percentBody
 ) {
   return canvasModel(
     frames,
     createFieldResolver(panel(extra)),
     displayWithDefaults("canvas", display),
+    body,
     rgbOf
   )
 }
@@ -256,7 +260,7 @@ describe("canvasModel colors and text", () => {
     const { elements } = build([], {
       elements: [
         { ...rect("a", 0, 0), kind: "image", text: "x" },
-        { ...rect("b", 0, 0), kind: "button" },
+        { ...rect("b", 0, 0), kind: "gauge" },
         { ...rect("c", 0, 0), width: 0 },
         { ...rect("d", 0, 0), left: "5" },
         "text",
@@ -354,5 +358,521 @@ describe("canvasModel connections", () => {
       { thresholds: [{ color: "ok" }, { value: 80, color: "critical" }] }
     )
     expect(lines[0].color).toBe("var(--threshold-critical)")
+  })
+})
+
+const textFrame = (
+  field: string,
+  values: (string | null)[]
+): PreparedFrame => ({
+  ref: "B",
+  name: "labels",
+  labels: {},
+  fields: [
+    { name: "Time", type: "time", values: values.map((_, i) => i) },
+    { name: field, type: "string", values },
+  ],
+})
+
+const newKinds = [
+  "icon",
+  "button",
+  "server",
+  "triangle",
+  "cloud",
+  "parallelogram",
+  "windTurbine",
+  "droneTop",
+  "droneFront",
+  "droneSide",
+]
+
+describe("canvasModel element kinds and styling", () => {
+  it.each(newKinds)("accepts the %s kind", (kind) => {
+    const { elements } = build([], {
+      elements: [{ ...rect("a", 0, 0), kind }],
+    })
+    expect(elements.map((element) => element.kind)).toEqual([kind])
+  })
+
+  it("applies the element defaults of the Spec to a plain element", () => {
+    const [element] = build([], { elements: [rect("a", 0, 0)] }).elements
+    expect(element).toMatchObject({
+      valign: "middle",
+      rotation: 0,
+      borderWidth: 1,
+      radius: 0,
+      ownRadius: null,
+      background: null,
+      icon: null,
+      image: null,
+      iconColor: null,
+      accent: null,
+      server: "single",
+      buttonStyle: "primary",
+      angle: 0,
+      details: [],
+    })
+  })
+
+  it("reads rotation, vertical alignment, border width and radius, clamped into the Spec ranges", () => {
+    const [set, wild] = build([], {
+      elements: [
+        rect("a", 0, 0, {
+          rotation: -45,
+          valign: "bottom",
+          borderWidth: 4,
+          radius: 12,
+        }),
+        rect("b", 0, 0, {
+          rotation: 900,
+          valign: "diagonal",
+          borderWidth: 99,
+          radius: -3,
+        }),
+      ],
+    }).elements
+    expect(set).toMatchObject({
+      rotation: -45,
+      valign: "bottom",
+      borderWidth: 4,
+      radius: 12,
+      ownRadius: 12,
+    })
+    expect(wild).toMatchObject({
+      rotation: 360,
+      valign: "middle",
+      borderWidth: 20,
+      radius: 0,
+      ownRadius: 0,
+    })
+  })
+
+  it("reads the icon name and colors it through the color validator", () => {
+    const [icon, hostile] = build([], {
+      elements: [
+        rect("a", 0, 0, { kind: "icon", icon: "server", iconColor: "warning" }),
+        rect("b", 0, 0, {
+          kind: "icon",
+          icon: "",
+          iconColor: "url(javascript:1)",
+        }),
+      ],
+    }).elements
+    expect(icon).toMatchObject({
+      icon: "server",
+      iconColor: "var(--threshold-warning)",
+    })
+    expect(hostile).toMatchObject({ icon: null, iconColor: null })
+  })
+
+  it("takes an image from a URL, or from the last text of the bound field", () => {
+    const frames = [
+      textFrame("logo", [
+        "https://a.example/1.png",
+        "",
+        "https://a.example/2.png",
+        null,
+      ]),
+    ]
+    const { elements } = build(frames, {
+      elements: [
+        rect("a", 0, 0, {
+          kind: "icon",
+          image: { url: "https://b.example/x.png" },
+        }),
+        rect("b", 0, 0, { kind: "icon", image: { field: "logo" } }),
+        rect("c", 0, 0, { kind: "icon", image: { field: "missing" } }),
+        rect("d", 0, 0, { kind: "icon", image: { field: 7 } }),
+        rect("e", 0, 0, { kind: "icon", image: { url: "" } }),
+      ],
+    })
+    expect(elements.map((element) => element.image)).toEqual([
+      "https://b.example/x.png",
+      "https://a.example/2.png",
+      null,
+      null,
+      null,
+    ])
+  })
+
+  it("does not read an image from a number field", () => {
+    const { elements } = build([series("a", [1])], {
+      elements: [rect("a", 0, 0, { kind: "icon", image: { field: "Value" } })],
+    })
+    expect(elements[0].image).toBeNull()
+  })
+
+  it("reads an element background and sizes it to contain by default", () => {
+    const frames = [textFrame("map", ["https://a.example/map.png"])]
+    const [sized, fallback, bound, none] = build(frames, {
+      elements: [
+        rect("a", 0, 0, {
+          backgroundImage: { url: "https://a.example/b.png" },
+          backgroundSize: "tile",
+        }),
+        rect("b", 0, 0, {
+          backgroundImage: { url: "https://a.example/b.png" },
+          backgroundSize: "stretch",
+        }),
+        rect("c", 0, 0, {
+          backgroundImage: { field: "map" },
+          backgroundSize: "cover",
+        }),
+        rect("d", 0, 0, { backgroundSize: "cover" }),
+      ],
+    }).elements
+    expect(sized.background).toEqual({
+      url: "https://a.example/b.png",
+      size: "tile",
+    })
+    expect(fallback.background?.size).toBe("contain")
+    expect(bound.background).toEqual({
+      url: "https://a.example/map.png",
+      size: "cover",
+    })
+    expect(none.background).toBeNull()
+  })
+
+  it("reads the server variant and a status light color", () => {
+    const [stack, plain, hostile] = build([], {
+      elements: [
+        rect("a", 0, 0, {
+          kind: "server",
+          server: "stack",
+          accentColor: "#112233",
+        }),
+        rect("b", 0, 0, { kind: "server", server: "rack" }),
+        rect("c", 0, 0, { kind: "server", accentColor: "red" }),
+      ],
+    }).elements
+    expect(stack).toMatchObject({ server: "stack", accent: "#112233" })
+    expect(plain.server).toBe("single")
+    expect(hostile.accent).toBeNull()
+  })
+
+  it("reads the button style and falls back to primary", () => {
+    const styles = build([], {
+      elements: ["success", "destructive", "secondary", "loud"].map(
+        (style, i) =>
+          rect(`b${i}`, 0, 0, {
+            kind: "button",
+            text: "Go",
+            buttonStyle: style,
+          })
+      ),
+    }).elements.map((element) => element.buttonStyle)
+    expect(styles).toEqual(["success", "destructive", "secondary", "primary"])
+  })
+})
+
+describe("canvasModel placement", () => {
+  const body = { width: 400, height: 200 }
+
+  it("turns the percent box into pixels of the body", () => {
+    const [element] = build(
+      [],
+      { elements: [rect("a", 10, 20, { width: 25, height: 50 })] },
+      {},
+      body
+    ).elements
+    expect(element.box).toEqual({ left: 40, top: 40, width: 100, height: 100 })
+  })
+
+  it("lets a placement win over the percent box", () => {
+    const [element] = build(
+      [],
+      {
+        elements: [
+          rect("a", 10, 20, {
+            placement: {
+              horizontal: "right",
+              vertical: "bottom",
+              right: 10,
+              bottom: 5,
+              width: 80,
+              height: 30,
+            },
+          }),
+        ],
+      },
+      {},
+      body
+    ).elements
+    expect(element.box).toEqual({ left: 310, top: 165, width: 80, height: 30 })
+  })
+
+  it("ignores a placement the Spec would not accept", () => {
+    const [element] = build(
+      [],
+      {
+        elements: [
+          rect("a", 10, 20, {
+            width: 25,
+            height: 50,
+            placement: { horizontal: "middle", vertical: "top" },
+          }),
+        ],
+      },
+      {},
+      body
+    ).elements
+    expect(element.box).toEqual({ left: 40, top: 40, width: 100, height: 100 })
+  })
+
+  it("starts a connection at the edge of a placed element", () => {
+    const left = { horizontal: "left", vertical: "top" }
+    const right = { horizontal: "right", vertical: "top" }
+    const { lines } = build(
+      [],
+      {
+        elements: [
+          rect("a", 0, 0, {
+            placement: { ...left, left: 0, top: 0, width: 100, height: 100 },
+          }),
+          rect("b", 0, 0, {
+            placement: { ...right, right: 0, top: 0, width: 100, height: 100 },
+          }),
+        ],
+        connections: [{ from: "a", to: "b" }],
+      },
+      {},
+      body
+    )
+    expect(lines[0]).toMatchObject({ x1: 100, y1: 50, x2: 300, y2: 50 })
+  })
+})
+
+describe("canvasModel tooltips and bound values", () => {
+  it("lists the value of a metric and of any element naming a field", () => {
+    const { elements } = build([series("a", [1, 7])], {
+      elements: [
+        metric(),
+        rect("r", 0, 50, { field: "Value", fill: "field" }),
+        rect("t", 0, 70, { kind: "text", text: "plain" }),
+        rect("u", 0, 80, { fill: "field" }),
+      ],
+    })
+    expect(elements[0].details).toHaveLength(1)
+    expect(elements[0].details[0].text).toBe("7")
+    expect(elements[1].details).toHaveLength(1)
+    expect(elements[1].details[0].text).toBe("7")
+    expect(elements[2].details).toEqual([])
+    expect(elements[3].details).toEqual([])
+  })
+
+  it("adds the rate of a wind turbine", () => {
+    const frames = [series("a", [1], "Value"), series("b", [42], "rpm")]
+    const [turbine, other] = build(frames, {
+      elements: [
+        rect("a", 0, 0, { kind: "windTurbine", rateField: "rpm" }),
+        rect("b", 0, 0, { kind: "rectangle", rateField: "rpm" }),
+      ],
+    }).elements
+    expect(turbine.details.map((detail) => detail.text)).toEqual(["42"])
+    expect(other.details).toEqual([])
+  })
+
+  it("rotates each drone by its own angle field in degrees", () => {
+    const frames = [
+      series("a", [10], "yaw"),
+      series("b", [20], "roll"),
+      series("c", [30], "pitch"),
+    ]
+    const drone = (id: string, kind: string) =>
+      rect(id, 0, 0, {
+        kind,
+        yawField: "yaw",
+        rollField: "roll",
+        pitchField: "pitch",
+      })
+    const angles = build(frames, {
+      elements: [
+        drone("a", "droneTop"),
+        drone("b", "droneFront"),
+        drone("c", "droneSide"),
+        drone("d", "rectangle"),
+        rect("e", 0, 0, { kind: "droneTop", yawField: "missing" }),
+        rect("f", 0, 0, { kind: "droneTop" }),
+      ],
+    }).elements.map((element) => element.angle)
+    expect(angles).toEqual([10, 20, 30, 0, 0, 0])
+  })
+})
+
+describe("canvasModel panel root", () => {
+  it("has no look of its own by default", () => {
+    expect(build([], {}).root).toEqual({
+      backgroundColor: null,
+      borderColor: null,
+      borderWidth: 0,
+      borderRadius: 0,
+      background: null,
+      panZoom: false,
+      infinitePan: false,
+      tooltip: false,
+    })
+  })
+
+  it("reads colors, border, background and controls", () => {
+    const { root } = build([], {
+      backgroundColor: "info",
+      borderColor: "#112233",
+      borderWidth: 3,
+      borderRadius: 8,
+      backgroundImage: { url: "https://a.example/bg.png" },
+      backgroundSize: "cover",
+      panZoom: true,
+      infinitePan: true,
+      tooltip: "details",
+    })
+    expect(root).toEqual({
+      backgroundColor: "var(--threshold-info)",
+      borderColor: "#112233",
+      borderWidth: 3,
+      borderRadius: 8,
+      background: { url: "https://a.example/bg.png", size: "cover" },
+      panZoom: true,
+      infinitePan: true,
+      tooltip: true,
+    })
+  })
+
+  it("keeps hostile colors and field colors out of the root", () => {
+    const { root } = build([], {
+      backgroundColor: "field",
+      borderColor: "expression(alert(1))",
+    })
+    expect(root.backgroundColor).toBeNull()
+    expect(root.borderColor).toBeNull()
+  })
+})
+
+describe("canvasModel styled connections", () => {
+  const two = [rect("a", 0, 40), rect("b", 60, 40)]
+  const body = { width: 400, height: 200 }
+
+  it("draws a straight solid line without arrows by default", () => {
+    const [line] = build([], {
+      elements: two,
+      connections: [{ from: "a", to: "b" }],
+    }).lines
+    expect(line).toMatchObject({
+      path: "straight",
+      lineStyle: "solid",
+      arrow: "none",
+    })
+    expect(line.points).toEqual([
+      { x: 20, y: 45 },
+      { x: 60, y: 45 },
+    ])
+  })
+
+  it("reads path, line style and arrows, ignoring unknown values", () => {
+    const lines = build([], {
+      elements: two,
+      connections: [
+        {
+          from: "a",
+          to: "b",
+          path: "curved",
+          lineStyle: "dashed",
+          arrow: "both",
+        },
+        { from: "a", to: "b", path: "zigzag", lineStyle: "wavy", arrow: "up" },
+      ],
+    }).lines
+    expect(lines[0]).toMatchObject({
+      path: "curved",
+      lineStyle: "dashed",
+      arrow: "both",
+    })
+    expect(lines[1]).toMatchObject({
+      path: "straight",
+      lineStyle: "solid",
+      arrow: "none",
+    })
+  })
+
+  it("bends through vertices given in percent of the body, clamped, and aims the ends at them", () => {
+    const [line] = build(
+      [],
+      {
+        elements: [rect("a", 0, 0), rect("b", 80, 0)],
+        connections: [
+          {
+            from: "a",
+            to: "b",
+            vertices: [
+              { x: 50, y: 100 },
+              { x: "x", y: 5 },
+              { x: 150, y: 5 },
+              { x: 75, y: 90 },
+            ],
+          },
+        ],
+      },
+      {},
+      body
+    ).lines
+    expect(line.points.slice(1, -1)).toEqual([
+      { x: 200, y: 200 },
+      { x: 400, y: 10 },
+      { x: 300, y: 180 },
+    ])
+    const start = line.points[0]
+    const end = line.points[line.points.length - 1]
+    expect(start.x).toBeGreaterThan(0)
+    expect(start.y).toBeGreaterThan(0)
+    expect(end.x).toBeLessThan(400)
+    expect(end.y).toBeGreaterThan(0)
+  })
+
+  it("keeps a line between overlapping boxes when it has vertices", () => {
+    const { lines } = build([], {
+      elements: [rect("a", 0, 0), rect("b", 0, 0)],
+      connections: [{ from: "a", to: "b", vertices: [{ x: 50, y: 50 }] }],
+    })
+    expect(lines).toHaveLength(1)
+  })
+
+  it("scales the width between the limits over the field range", () => {
+    const frames = [series("a", [0, 100, 40], "rate")]
+    const widthOf = (extra: Record<string, unknown>, panelExtra = {}) =>
+      build(
+        frames,
+        {
+          elements: two,
+          connections: [{ from: "a", to: "b", widthField: "rate", ...extra }],
+        },
+        panelExtra
+      ).lines[0].width
+    expect(widthOf({})).toBeCloseTo(4.6)
+    expect(widthOf({ minWidth: 2, maxWidth: 6 })).toBeCloseTo(3.6)
+    expect(
+      widthOf({ minWidth: 2, maxWidth: 6 }, { min: 0, max: 200 })
+    ).toBeCloseTo(2.8)
+  })
+
+  it("uses the width key when the width field has no value", () => {
+    const [missing, empty] = build([series("a", [null, null], "rate")], {
+      elements: two,
+      connections: [
+        { from: "a", to: "b", width: 5, widthField: "ghost" },
+        { from: "a", to: "b", width: 5, widthField: "rate" },
+      ],
+    }).lines
+    expect(missing.width).toBe(5)
+    expect(empty.width).toBe(5)
+  })
+
+  it("gives a constant field the narrow width", () => {
+    const [line] = build([series("a", [7, 7], "rate")], {
+      elements: two,
+      connections: [
+        { from: "a", to: "b", widthField: "rate", minWidth: 3, maxWidth: 9 },
+      ],
+    }).lines
+    expect(line.width).toBe(3)
   })
 })
