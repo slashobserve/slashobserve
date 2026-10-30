@@ -519,7 +519,11 @@
             "alpha",
             "alphaDesc",
             "num",
-            "numDesc"
+            "numDesc",
+            "alphaCaseInsensitive",
+            "alphaCaseInsensitiveDesc",
+            "natural",
+            "naturalDesc"
           ]
         },
         "refresh": {
@@ -527,6 +531,10 @@
             "load",
             "timeRange"
           ]
+        },
+        "allowCustomValue": {
+          "x-omitFromPrompt": true,
+          "type": "boolean"
         },
         "multi": {
           "type": "boolean"
@@ -587,6 +595,10 @@
             "minLength": 1,
             "maxLength": 200
           }
+        },
+        "allowCustomValue": {
+          "x-omitFromPrompt": true,
+          "type": "boolean"
         },
         "multi": {
           "type": "boolean"
@@ -823,6 +835,40 @@
         },
         "datasource": {
           "$ref": "#/$defs/datasourceRef"
+        },
+        "default": {
+          "x-omitFromPrompt": true,
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "operator": {
+                "enum": [
+                  "=",
+                  "!=",
+                  "=~",
+                  "!~"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "maxLength": 500
+              }
+            },
+            "required": [
+              "key",
+              "operator",
+              "value"
+            ]
+          }
         }
       },
       "required": [

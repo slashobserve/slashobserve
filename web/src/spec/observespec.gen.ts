@@ -659,8 +659,17 @@ export interface QueryVariable {
   datasource: DatasourceRef;
   query: Query;
   regex?: string;
-  sort?: "alpha" | "alphaDesc" | "num" | "numDesc";
+  sort?:
+    | "alpha"
+    | "alphaDesc"
+    | "num"
+    | "numDesc"
+    | "alphaCaseInsensitive"
+    | "alphaCaseInsensitiveDesc"
+    | "natural"
+    | "naturalDesc";
   refresh?: "load" | "timeRange";
+  allowCustomValue?: boolean;
   multi?: boolean;
   includeAll?: boolean;
   allValue?: string;
@@ -677,6 +686,7 @@ export interface CustomVariable {
    * @maxItems 200
    */
   options: string[];
+  allowCustomValue?: boolean;
   multi?: boolean;
   includeAll?: boolean;
   allValue?: string;
@@ -731,6 +741,15 @@ export interface AdhocVariable {
   hide?: "label" | "variable";
   type: "adhoc";
   datasource: DatasourceRef;
+  /**
+   * @minItems 1
+   * @maxItems 20
+   */
+  default?: {
+    key: string;
+    operator: "=" | "!=" | "=~" | "!~";
+    value: string;
+  }[];
 }
 /**
  * Panel, dashboard or data link; ${var} and ${__data.fields.x} are interpolated.

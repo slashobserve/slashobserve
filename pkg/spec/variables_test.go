@@ -1,6 +1,7 @@
 package spec_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -89,6 +90,149 @@ func TestSortVariableValues(t *testing.T) {
 		if !slices.Equal(input, tc.values) {
 			t.Errorf("sort %q changed its input", tc.order)
 		}
+	}
+}
+
+func TestSortVariableValuesSharedCases(t *testing.T) {
+	var cases []struct {
+		Order  string   `json:"order"`
+		Values []string `json:"values"`
+		Want   []string `json:"want"`
+	}
+	if err := json.Unmarshal(readExample(t, "variables/sort-cases.json"), &cases); err != nil {
+		t.Fatal(err)
+	}
+	if len(cases) < 15 {
+		t.Fatalf("%d cases, want at least 15", len(cases))
+	}
+	for _, tc := range cases {
+		input := slices.Clone(tc.Values)
+		if got := spec.SortVariableValues(input, tc.Order); !slices.Equal(got, tc.Want) {
+			t.Errorf("sort %q of %q = %q, want %q", tc.Order, tc.Values, got, tc.Want)
+		}
+		if !slices.Equal(input, tc.Values) {
+			t.Errorf("sort %q changed its input", tc.Order)
+		}
+	}
+}
+
+func TestSortVariableValuesGivesOneOrderForEveryInputOrder(t *testing.T) {
+	values := []string{"b", "A", "a", "B", "007", "7", "08", "a10", "a9"}
+	for _, order := range []string{"alphaCaseInsensitive", "alphaCaseInsensitiveDesc", "natural", "naturalDesc"} {
+		want := spec.SortVariableValues(values, order)
+		reversed := slices.Clone(values)
+		slices.Reverse(reversed)
+		if got := spec.SortVariableValues(reversed, order); !slices.Equal(got, want) {
+			t.Errorf("sort %q of the reversed input = %q, want %q", order, got, want)
+		}
+	}
+}
+
+func TestVariableOptionsExample(t *testing.T) {
+	d, err := spec.Parse(readExample(t, "variables/options.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]spec.Variable{}
+	for _, v := range d.Variables {
+		byName[v.Name] = v
+	}
+	if !byName["pod"].AllowCustomValue || byName["pod"].Sort != "natural" {
+		t.Errorf("pod = %+v, want natural sort and allowCustomValue", byName["pod"])
+	}
+	if byName["job"].AllowCustomValue || byName["job"].Sort != "alphaCaseInsensitiveDesc" {
+		t.Errorf("job = %+v, want alphaCaseInsensitiveDesc and no allowCustomValue", byName["job"])
+	}
+	if !byName["env"].AllowCustomValue {
+		t.Errorf("env = %+v, want allowCustomValue", byName["env"])
+	}
+	want := []spec.AdhocFilter{
+		{Key: "namespace", Operator: "=", Value: "checkout"},
+		{Key: "pod", Operator: "!~", Value: "canary-.*"},
+	}
+	if got := byName["filters"].Default; got == nil || !slices.Equal(got.Filters, want) {
+		t.Errorf("filters default = %+v, want %+v", got, want)
+	}
+}
+
+func TestAdhocDefaultSchema(t *testing.T) {
+	minimal := string(readExample(t, "minimal.json"))
+	with := func(variable string) []byte {
+		return []byte(strings.Replace(minimal, `"panels"`, fmt.Sprintf(`"variables": [%s], "panels"`, variable), 1))
+	}
+	filter := func(op string) string {
+		return fmt.Sprintf(`{"key":"job","operator":%q,"value":"api"}`, op)
+	}
+	cases := []struct {
+		name     string
+		variable string
+		wantPath string
+	}{
+		{"every accepted operator", `{"name":"f","type":"adhoc","datasource":"prom","default":[` + strings.Join([]string{filter("="), filter("!="), filter("=~"), filter("!~")}, ",") + `]}`, ""},
+		{"empty value", `{"name":"f","type":"adhoc","datasource":"prom","default":[{"key":"job","operator":"=","value":""}]}`, ""},
+		{"twenty filters", `{"name":"f","type":"adhoc","datasource":"prom","default":[` + strings.TrimSuffix(strings.Repeat(filter("=")+",", 20), ",") + `]}`, ""},
+		{"twenty-one filters", `{"name":"f","type":"adhoc","datasource":"prom","default":[` + strings.TrimSuffix(strings.Repeat(filter("=")+",", 21), ",") + `]}`, "/variables/0/default"},
+		{"no filters", `{"name":"f","type":"adhoc","datasource":"prom","default":[]}`, "/variables/0/default"},
+		{"less than", `{"name":"f","type":"adhoc","datasource":"prom","default":[` + filter("<") + `]}`, "/variables/0/default/0/operator"},
+		{"empty key", `{"name":"f","type":"adhoc","datasource":"prom","default":[{"key":"","operator":"=","value":"x"}]}`, "/variables/0/default/0/key"},
+		{"value over 500 characters", `{"name":"f","type":"adhoc","datasource":"prom","default":[{"key":"job","operator":"=","value":"` + strings.Repeat("x", 501) + `"}]}`, "/variables/0/default/0/value"},
+		{"unknown filter field", `{"name":"f","type":"adhoc","datasource":"prom","default":[{"key":"job","operator":"=","value":"x","extra":1}]}`, "/variables/0/default/0"},
+		{"string default", `{"name":"f","type":"adhoc","datasource":"prom","default":"job|=|x"}`, "/variables/0/default"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			data := with(tc.variable)
+			if tc.wantPath == "" {
+				d, err := spec.Parse(data)
+				if err != nil {
+					t.Fatalf("Parse: %v", err)
+				}
+				out, err := json.Marshal(d)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err := spec.Parse(out); err != nil {
+					t.Fatalf("reparse marshaled result: %v", err)
+				}
+				return
+			}
+			issues := parseIssues(t, data)
+			if !slices.ContainsFunc(issues, func(i spec.Issue) bool { return i.Path == tc.wantPath }) {
+				t.Fatalf("issues = %+v, want one at %q", issues, tc.wantPath)
+			}
+		})
+	}
+}
+
+func TestAllowCustomValueSchema(t *testing.T) {
+	minimal := string(readExample(t, "minimal.json"))
+	with := func(variable string) []byte {
+		return []byte(strings.Replace(minimal, `"panels"`, fmt.Sprintf(`"variables": [%s], "panels"`, variable), 1))
+	}
+	cases := []struct {
+		name     string
+		variable string
+		wantPath string
+	}{
+		{"query", `{"name":"v","type":"query","datasource":"prom","query":"label_values(up, job)","allowCustomValue":true}`, ""},
+		{"custom", `{"name":"v","type":"custom","options":["a"],"allowCustomValue":true}`, ""},
+		{"not a boolean", `{"name":"v","type":"custom","options":["a"],"allowCustomValue":"yes"}`, "/variables/0/allowCustomValue"},
+		{"interval has none", `{"name":"v","type":"interval","options":["1m"],"allowCustomValue":true}`, "/variables/0"},
+		{"textbox has none", `{"name":"v","type":"textbox","allowCustomValue":true}`, "/variables/0"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.wantPath == "" {
+				if _, err := spec.Parse(with(tc.variable)); err != nil {
+					t.Fatalf("Parse: %v", err)
+				}
+				return
+			}
+			issues := parseIssues(t, with(tc.variable))
+			if !slices.ContainsFunc(issues, func(i spec.Issue) bool { return i.Path == tc.wantPath }) {
+				t.Fatalf("issues = %+v, want one at %q", issues, tc.wantPath)
+			}
+		})
 	}
 }
 

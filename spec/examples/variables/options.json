@@ -1,0 +1,67 @@
+{
+  "specVersion": "0",
+  "title": "Variable sort, custom values and saved filters",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "variables": [
+    {
+      "name": "pod",
+      "type": "query",
+      "datasource": "prom",
+      "query": "label_values(up, pod)",
+      "sort": "natural",
+      "allowCustomValue": true
+    },
+    {
+      "name": "job",
+      "type": "query",
+      "datasource": "prom",
+      "query": "label_values(up, job)",
+      "sort": "alphaCaseInsensitiveDesc"
+    },
+    {
+      "name": "env",
+      "type": "custom",
+      "options": ["prod", "staging"],
+      "allowCustomValue": true
+    },
+    {
+      "name": "filters",
+      "type": "adhoc",
+      "datasource": "prom",
+      "default": [
+        {
+          "key": "namespace",
+          "operator": "=",
+          "value": "checkout"
+        },
+        {
+          "key": "pod",
+          "operator": "!~",
+          "value": "canary-.*"
+        }
+      ]
+    }
+  ],
+  "panels": [
+    {
+      "id": "p_up",
+      "type": "timeseries",
+      "title": "Up",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "sum by (pod) (up{pod=~\"$pod\", job=~\"$job\", env=\"$env\"})"
+        }
+      ]
+    }
+  ]
+}
