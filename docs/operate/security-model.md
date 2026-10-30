@@ -27,15 +27,22 @@ description: What SlashObserve protects and what an operator should know.
   ClickHouse is queried only as a read-only user.
 - **The agent can only save dashboards.**
   Its only product is a dashboard definition that the server validates, and no code or markup written by the model is rendered.
+  A save from the agent or an MCP client is refused when it writes HTML in a text panel (`html_not_allowed`) or adds or changes a canvas action (`action_not_allowed`), so only people and imports can create them.
   Through MCP, a key can also list datasources, run bounded queries and sample rows, and create and update dashboards.
 - **Outbound requests are allowlisted.**
   The server fetches content from other sites only for domains on the allowlist, which starts empty, and only over `https` to public addresses; private, loopback and metadata addresses are refused even when a name resolves to one.
+  This covers news feeds, images, map tiles, GeoJSON files and canvas actions.
   Redirects are checked hop by hop, and no cookies or credentials are sent.
+  A canvas action also needs Edit on the dashboard and a confirmation in the browser, and the server never follows a redirect for it.
   See [Outbound access](outbound-access.md).
 - **The browser loads nothing from other sites.**
   Every response carries a strict `Content-Security-Policy`: scripts, stylesheets, images, fonts and connections come only from the server's own origin (images may also be `data:` or `blob:` URLs, and inline styles are allowed), and plugins, frames, media and `<base>` are refused.
   So even if a sanitizer were ever bypassed, injected script could not run or send data to another site.
   Images and GeoJSON from other sites reach the browser only through the server, which fetches them from allowlisted domains (see [Outbound access](outbound-access.md#images-and-geojson)).
+- **HTML in text panels is sanitized.**
+  HTML written by a person or imported from Grafana passes through one allowlist in the browser before it is drawn.
+  Scripts, styles, forms, embedded frames, event handler attributes, links and images with any scheme but http, https and (for links) mailto are removed, and so are inline style declarations that load a resource or read a variable.
+  Every image loads through the server, so the policy above still decides what the browser fetches.
 - **Framing is refused.**
   Responses carry `X-Frame-Options: DENY` and `frame-ancestors 'none'` in the policy.
 - **Keep keys short-lived.**

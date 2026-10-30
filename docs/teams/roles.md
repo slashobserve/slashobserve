@@ -8,12 +8,13 @@ Every person and every service account has one of four instance roles, from the 
 | Role      | May                                                                                                                                                                      |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Admin     | Everything an Editor may, in every folder, plus the People and Datasources pages (change roles, sign people out), service accounts and keys, and the outbound allowlist. |
-| Editor    | Create, edit, import and restore dashboards, create folders, chat and send requests to the agent, comment, and keep their own saved prompts.                             |
+| Editor    | Create, edit, import and restore dashboards, run canvas actions, create folders, chat and send requests to the agent, comment, and keep their own saved prompts.         |
 | Commenter | View dashboards and versions, and add comments. Cannot create, import or edit dashboards or send requests to the agent, in any folder.                                   |
 | Viewer    | View dashboards and versions only, in any folder.                                                                                                                        |
 
 A request the role does not allow is refused with `403` and the code `forbidden_role`.
 A service-account key can never create or revoke keys, whatever its role.
+A canvas action sends a request to another site on a person's behalf (see [Canvas actions](../operate/outbound-access.md#canvas-actions)), so it needs Edit on the dashboard and a person: a service-account key cannot run one, whatever its role.
 
 A person's role is decided in this order, and the first rule that applies wins:
 

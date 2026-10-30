@@ -48,6 +48,18 @@ Panels that draw a GeoJSON layer use `GET /api/v1/assets/geojson?url=<file addre
 Geomap panels that draw map tiles load each tile through the image route, and they draw tiles only when every host the tile address can produce is allowed (CARTO uses `a.basemaps.cartocdn.com` to `d.basemaps.cartocdn.com`); otherwise the map shows country outlines and a note names the host to allow.
 Only signed-in people can call these routes, not service-account keys, and the address must be an https address on an allowed domain.
 
+To show a basemap, allow the host of its tiles:
+
+| Basemap | Domain to allow |
+| --- | --- |
+| `carto` | `*.basemaps.cartocdn.com` |
+| `esri` | `services.arcgisonline.com` |
+| `osm` | `tile.openstreetmap.org` |
+| `xyz` | The host in the panel's tile address. |
+
+The OpenStreetMap servers are volunteer-run and limit heavy use; read their [tile usage policy](https://operations.osmfoundation.org/policies/tiles/) before you allow them.
+For dashboards many people open, prefer CARTO or your own tile server (an `xyz` basemap).
+
 - An image can be a PNG, JPEG, GIF, WebP, AVIF or SVG, up to 5 MiB, and its bytes must match the type the site declared.
   The server sends it with a policy that forbids scripts, so an SVG opened on its own never runs script, and the browser keeps it for 1 hour.
 - A GeoJSON file can be served as `application/geo+json`, `application/json` or `text/plain`, up to 5 MiB, and must be a JSON object whose `type` is a GeoJSON type.

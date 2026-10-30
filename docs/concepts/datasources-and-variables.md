@@ -37,6 +37,7 @@ Each type has its own fields:
 | `textbox`    | `default`                                                                                                           | Free text up to 200 characters.                                    |
 | `datasource` | `datasourceType`, `regex`, `default`                                                                                | The uids of the configured datasources of that type.               |
 | `adhoc`      | `datasource`, `default`                                                                                             | Key, operator and value filters that the viewer adds.              |
+| `groupby`    | `datasource`, `default`                                                                                             | Labels the viewer picks to group by.                               |
 
 A `query` variable on Prometheus uses `label_values(label)` or `label_values(selector, label)`.
 On ClickHouse it is one `SELECT`, and the first column gives the values.
@@ -164,6 +165,9 @@ A ClickHouse query uses the variable explicitly, as `$name` in a `WHERE` clause 
 A ClickHouse variable with `applyToAll` also filters every query on its datasource that leaves out `$name`, through `additional_table_filters` on the tables the query reads, and each table gets only the filters whose key is one of its columns.
 A query on a ClickHouse datasource that leaves out `$name` ignores the filters when the variable does not set `applyToAll`.
 The Grafana importer sets `applyToAll` on every ClickHouse ad hoc variable.
+
+A `groupby` variable (Prometheus only) lets a viewer pick labels, up to 20, and adds them to the grouping of every aggregation in every query on its datasource, as Grafana does, so the queries need no change.
+Its `default` lists the labels selected from the start, and a query that writes `$name` gets the labels there and no automatic grouping.
 
 An `adhoc` variable can start with filters: `default` is up to 20 objects, each with a `key` (1 to 200 characters), an `operator` (`=`, `!=`, `=~` or `!~`) and a `value` (up to 500 characters, possibly empty).
 Without a `var-<name>` parameter the dashboard uses these filters, and a link that sets the parameter replaces them.
