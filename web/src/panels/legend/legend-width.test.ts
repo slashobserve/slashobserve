@@ -64,4 +64,10 @@ describe("rightLegendWidth", () => {
   it("caps a value table at half the panel", () => {
     expect(rightLegendWidth(520, 640)).toBe(320)
   })
+
+  it("uses a configured width and leaves the chart 120 px", () => {
+    expect(rightLegendWidth(240, 640, 200)).toBe(200)
+    expect(rightLegendWidth(null, 640, 900)).toBe(520)
+    expect(rightLegendWidth(null, 100, 300)).toBe(0)
+  })
 })

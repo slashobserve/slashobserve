@@ -184,17 +184,10 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideEmpty",
-          "legend.hideZero",
           "fieldConfig.defaults.unitScale",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc",
           "nullPointMode",
           "paceLength",
           "tooltip.sort"
@@ -220,15 +213,11 @@
         "status": "partial",
         "reasons": [
           "Logarithmic axes are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].logBase",
           "fieldConfig.defaults.unitScale",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc",
           "nullPointMode",
           "paceLength",
           "tooltip.sort"
@@ -254,15 +243,11 @@
         "status": "partial",
         "reasons": [
           "Logarithmic axes are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].logBase",
           "fieldConfig.defaults.unitScale",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc",
           "nullPointMode",
           "paceLength",
           "tooltip.sort"
@@ -287,16 +272,9 @@
         "row": "Sync Stats",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideEmpty",
-          "legend.hideZero",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc",
           "paceLength",
           "tooltip.sort"
         ],
@@ -320,15 +298,9 @@
         "row": "Sync Stats",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideEmpty",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc",
           "paceLength",
           "tooltip.sort"
         ],
@@ -352,13 +324,9 @@
         "row": "Controller Stats",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc",
           "paceLength",
           "tooltip.sort"
         ],
@@ -424,16 +392,9 @@
         "row": "Controller Stats",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideEmpty",
-          "legend.hideZero",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc",
           "nullPointMode",
           "paceLength",
           "tooltip.sort"
@@ -458,13 +419,9 @@
         "row": "Controller Stats",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideZero",
-          "legend.alignAsTable",
           "tooltip.sort"
         ],
         "queries": [
@@ -487,11 +444,9 @@
         "row": "Controller Stats",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.alignAsTable",
           "tooltip.sort"
         ],
         "queries": [
@@ -514,14 +469,10 @@
         "row": "Controller Telemetry",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc",
           "nullPointMode",
           "paceLength",
           "tooltip.sort"
@@ -546,17 +497,10 @@
         "row": "Controller Telemetry",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideEmpty",
-          "legend.hideZero",
           "fieldConfig.defaults.unitScale",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc",
           "nullPointMode",
           "paceLength",
           "tooltip.sort"
@@ -581,14 +525,10 @@
         "row": "Controller Telemetry",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc",
           "paceLength",
           "tooltip.sort"
         ],
@@ -612,14 +552,10 @@
         "row": "AppSet Controller Telemetry",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc",
           "nullPointMode",
           "paceLength",
           "tooltip.sort"
@@ -644,17 +580,10 @@
         "row": "AppSet Controller Telemetry",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideEmpty",
-          "legend.hideZero",
           "fieldConfig.defaults.unitScale",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc",
           "nullPointMode",
           "paceLength",
           "tooltip.sort"
@@ -679,14 +608,10 @@
         "row": "AppSet Controller Telemetry",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc",
           "paceLength",
           "tooltip.sort"
         ],
@@ -710,13 +635,9 @@
         "row": "Cluster Stats",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc",
           "tooltip.sort"
         ],
         "queries": [
@@ -739,15 +660,9 @@
         "row": "Cluster Stats",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideEmpty",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc",
           "tooltip.sort"
         ],
         "queries": [
@@ -770,13 +685,9 @@
         "row": "Cluster Stats",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc",
           "tooltip.sort"
         ],
         "queries": [
@@ -1120,16 +1031,9 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideEmpty",
-          "legend.hideZero",
-          "legend.alignAsTable",
-          "legend.sort",
-          "legend.sortDesc",
           "nullPointMode",
           "paceLength",
           "tooltip.sort"
@@ -1154,14 +1058,9 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideEmpty",
-          "legend.hideZero",
-          "legend.alignAsTable",
           "nullPointMode",
           "paceLength",
           "tooltip.sort"
@@ -1186,14 +1085,9 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideEmpty",
-          "legend.hideZero",
-          "legend.alignAsTable",
           "nullPointMode",
           "paceLength"
         ],
@@ -1217,16 +1111,11 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
           "Thresholds below a value are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideEmpty",
-          "legend.hideZero",
           "thresholds[0]",
-          "legend.alignAsTable",
           "nullPointMode",
           "paceLength"
         ],
@@ -1250,14 +1139,9 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideEmpty",
-          "legend.hideZero",
-          "legend.alignAsTable",
           "nullPointMode",
           "paceLength"
         ],
@@ -1281,14 +1165,9 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideEmpty",
-          "legend.hideZero",
-          "legend.alignAsTable",
           "nullPointMode",
           "paceLength"
         ],
@@ -1312,14 +1191,9 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideEmpty",
-          "legend.hideZero",
-          "legend.alignAsTable",
           "nullPointMode",
           "paceLength"
         ],
@@ -1343,14 +1217,9 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideEmpty",
-          "legend.hideZero",
-          "legend.alignAsTable",
           "nullPointMode",
           "paceLength"
         ],
@@ -1716,7 +1585,11 @@
               "legend": "right",
               "legendValues": [
                 "lastNotNull"
-              ]
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendHideZero": true,
+              "legendHideEmpty": true
             }
           }
         ]
@@ -1795,6 +1668,8 @@
               "legendValues": [
                 "lastNotNull"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1872,6 +1747,8 @@
               "legendValues": [
                 "lastNotNull"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           }
@@ -1917,6 +1794,10 @@
                 "lastNotNull",
                 "sum"
               ],
+              "legendSortBy": "sum",
+              "legendSortDesc": true,
+              "legendHideZero": true,
+              "legendHideEmpty": true,
               "tooltip": "all"
             }
           },
@@ -1947,6 +1828,9 @@
               "legendValues": [
                 "sum"
               ],
+              "legendSortBy": "sum",
+              "legendSortDesc": true,
+              "legendHideEmpty": true,
               "tooltip": "all"
             }
           }
@@ -1990,7 +1874,9 @@
                 "lastNotNull",
                 "max",
                 "sum"
-              ]
+              ],
+              "legendSortBy": "sum",
+              "legendSortDesc": true
             }
           },
           {
@@ -2038,6 +1924,10 @@
                 "mean",
                 "lastNotNull"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendHideZero": true,
+              "legendHideEmpty": true,
               "tooltip": "all"
             }
           },
@@ -2067,6 +1957,7 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendHideZero": true,
               "tooltip": "all"
             }
           },
@@ -2139,7 +2030,9 @@
                 "mean",
                 "lastNotNull",
                 "max"
-              ]
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true
             }
           },
           {
@@ -2168,7 +2061,11 @@
                 "mean",
                 "lastNotNull",
                 "max"
-              ]
+              ],
+              "legendSortBy": "mean",
+              "legendSortDesc": true,
+              "legendHideZero": true,
+              "legendHideEmpty": true
             }
           },
           {
@@ -2196,7 +2093,9 @@
                 "mean",
                 "lastNotNull",
                 "max"
-              ]
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true
             }
           }
         ]
@@ -2238,7 +2137,9 @@
                 "mean",
                 "lastNotNull",
                 "max"
-              ]
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true
             }
           },
           {
@@ -2267,7 +2168,11 @@
                 "mean",
                 "lastNotNull",
                 "max"
-              ]
+              ],
+              "legendSortBy": "mean",
+              "legendSortDesc": true,
+              "legendHideZero": true,
+              "legendHideEmpty": true
             }
           },
           {
@@ -2295,7 +2200,9 @@
                 "mean",
                 "lastNotNull",
                 "max"
-              ]
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true
             }
           }
         ]
@@ -2335,7 +2242,9 @@
               "legend": "right",
               "legendValues": [
                 "lastNotNull"
-              ]
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true
             }
           },
           {
@@ -2361,7 +2270,10 @@
               "legend": "right",
               "legendValues": [
                 "lastNotNull"
-              ]
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "legendHideEmpty": true
             }
           },
           {
@@ -2388,7 +2300,9 @@
               "legendValues": [
                 "mean",
                 "lastNotNull"
-              ]
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true
             }
           }
         ]
@@ -2663,7 +2577,11 @@
                 "mean",
                 "lastNotNull",
                 "sum"
-              ]
+              ],
+              "legendSortBy": "sum",
+              "legendSortDesc": true,
+              "legendHideZero": true,
+              "legendHideEmpty": true
             }
           },
           {
@@ -2690,7 +2608,9 @@
                 "mean",
                 "lastNotNull",
                 "sum"
-              ]
+              ],
+              "legendHideZero": true,
+              "legendHideEmpty": true
             }
           },
           {
@@ -2718,6 +2638,8 @@
                 "lastNotNull",
                 "sum"
               ],
+              "legendHideZero": true,
+              "legendHideEmpty": true,
               "tooltip": "all"
             }
           },
@@ -2746,6 +2668,8 @@
                 "lastNotNull",
                 "sum"
               ],
+              "legendHideZero": true,
+              "legendHideEmpty": true,
               "tooltip": "all"
             }
           },
@@ -2774,6 +2698,8 @@
                 "lastNotNull",
                 "sum"
               ],
+              "legendHideZero": true,
+              "legendHideEmpty": true,
               "tooltip": "all"
             }
           },
@@ -2802,6 +2728,8 @@
                 "lastNotNull",
                 "sum"
               ],
+              "legendHideZero": true,
+              "legendHideEmpty": true,
               "tooltip": "all"
             }
           },
@@ -2830,6 +2758,8 @@
                 "lastNotNull",
                 "sum"
               ],
+              "legendHideZero": true,
+              "legendHideEmpty": true,
               "tooltip": "all"
             }
           },
@@ -2858,6 +2788,8 @@
                 "lastNotNull",
                 "sum"
               ],
+              "legendHideZero": true,
+              "legendHideEmpty": true,
               "tooltip": "all"
             }
           }

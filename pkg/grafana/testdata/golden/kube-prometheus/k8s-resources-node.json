@@ -46,15 +46,12 @@
         "status": "partial",
         "reasons": [
           "Hiding a series from the tooltip is not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[2]",
           "fieldConfig.overrides[1].properties[2]",
-          "fieldConfig.defaults.custom.spanNulls",
-          "options.legend.asTable",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.spanNulls"
         ],
         "queries": [
           {
@@ -140,15 +137,12 @@
         "status": "partial",
         "reasons": [
           "Hiding a series from the tooltip is not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[2]",
           "fieldConfig.overrides[1].properties[2]",
-          "fieldConfig.defaults.custom.spanNulls",
-          "options.legend.asTable",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.spanNulls"
         ],
         "queries": [
           {
@@ -185,15 +179,12 @@
         "status": "partial",
         "reasons": [
           "Hiding a series from the tooltip is not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[2]",
           "fieldConfig.overrides[1].properties[2]",
-          "fieldConfig.defaults.custom.spanNulls",
-          "options.legend.asTable",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.spanNulls"
         ],
         "queries": [
           {

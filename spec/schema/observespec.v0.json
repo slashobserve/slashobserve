@@ -1699,6 +1699,36 @@
                       "$ref": "#/$defs/reducer"
                     }
                   },
+                  "legendMode": {
+                    "enum": [
+                      "list",
+                      "table"
+                    ]
+                  },
+                  "legendSortBy": {
+                    "anyOf": [
+                      {
+                        "const": "name"
+                      },
+                      {
+                        "$ref": "#/$defs/reducer"
+                      }
+                    ]
+                  },
+                  "legendSortDesc": {
+                    "type": "boolean"
+                  },
+                  "legendWidth": {
+                    "type": "integer",
+                    "minimum": 40,
+                    "maximum": 2000
+                  },
+                  "legendHideZero": {
+                    "type": "boolean"
+                  },
+                  "legendHideEmpty": {
+                    "type": "boolean"
+                  },
                   "tooltip": {
                     "enum": [
                       "single",
@@ -2110,6 +2140,36 @@
                     "items": {
                       "$ref": "#/$defs/reducer"
                     }
+                  },
+                  "legendMode": {
+                    "enum": [
+                      "list",
+                      "table"
+                    ]
+                  },
+                  "legendSortBy": {
+                    "anyOf": [
+                      {
+                        "const": "name"
+                      },
+                      {
+                        "$ref": "#/$defs/reducer"
+                      }
+                    ]
+                  },
+                  "legendSortDesc": {
+                    "type": "boolean"
+                  },
+                  "legendWidth": {
+                    "type": "integer",
+                    "minimum": 40,
+                    "maximum": 2000
+                  },
+                  "legendHideZero": {
+                    "type": "boolean"
+                  },
+                  "legendHideEmpty": {
+                    "type": "boolean"
                   },
                   "tooltip": {
                     "enum": [

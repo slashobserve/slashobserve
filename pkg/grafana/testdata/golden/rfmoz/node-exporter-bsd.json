@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 36,
-      "imported": 5,
-      "partial": 31,
+      "imported": 18,
+      "partial": 18,
       "placeholder": 0,
       "unverified": 0
     },
@@ -300,11 +300,9 @@
         "row": "Basic CPU / Mem / Net / Disk",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.maxHeight"
         ],
         "queries": [
@@ -353,13 +351,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Basic CPU / Mem / Net / Disk",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -416,13 +410,11 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -452,13 +444,11 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -485,13 +475,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Basic CPU / Mem / Net / Disk",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -513,14 +499,12 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.custom.axisLabel",
-          "fieldConfig.defaults.fieldMinMax",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.fieldMinMax"
         ],
         "queries": [
           {
@@ -557,13 +541,11 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -593,13 +575,11 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -629,13 +609,11 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -665,13 +643,11 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -698,13 +674,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network Traffic",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "P",
@@ -723,13 +695,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network Traffic",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -748,13 +716,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "System",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -773,13 +737,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "System",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -807,11 +767,9 @@
         "row": "System",
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.legend.displayMode",
           "options.tooltip.maxHeight"
         ],
         "queries": [
@@ -853,13 +811,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "System",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -878,13 +832,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "System",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -910,13 +860,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "System",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -938,13 +884,11 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -974,13 +918,11 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -1007,13 +949,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Disk Filesystem",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1032,13 +970,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Disk Filesystem",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1064,13 +998,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Disk Filesystem",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -1096,13 +1026,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Node Exporter",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1749,6 +1675,7 @@
                 "mean",
                 "max"
               ],
+              "legendWidth": 250,
               "tooltip": "all"
             }
           },
@@ -1844,6 +1771,7 @@
                 "mean",
                 "max"
               ],
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },

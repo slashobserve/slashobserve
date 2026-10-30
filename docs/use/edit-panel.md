@@ -81,6 +81,8 @@ The settings column has:
 - **Thresholds**, up to 10 rows, each with a colour and the value it starts from; the first row can leave the value empty ("Base").
 - **Title**, up to 200 characters.
 - The display options that belong to the chosen type.
+  For Time series and Trend panels the legend options are **Legend** (bottom, right or hidden), **Legend values**, **Legend mode** (List or Table, "Table when values are shown" until you choose), **Sort legend by** (Name or one of the legend values, "Series order" until you choose), **Sort descending**, **Legend width** (pixels, for a legend on the right), **Hide series that are all zero** and **Hide series with no values**.
+  A series hidden from the legend is still drawn.
 
 A text panel has a **Content** box instead of queries: Markdown up to 20000 characters, with "HTML is removed.".
 A dashboard list or news panel has only the title and its display options.

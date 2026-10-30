@@ -365,15 +365,13 @@
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.lineInterpolation"
         ],
         "queries": [
           {
@@ -397,14 +395,12 @@
         "reasons": [
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.lineInterpolation"
         ],
         "queries": [
           {
@@ -429,17 +425,13 @@
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation",
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
+          "fieldConfig.defaults.custom.lineInterpolation"
         ],
         "queries": [
           {
@@ -1684,7 +1676,8 @@
             "unit": "none",
             "fill": 25,
             "display": {
-              "legend": "right"
+              "legend": "right",
+              "legendMode": "table"
             }
           },
           {
@@ -1708,7 +1701,8 @@
             "unit": "bytes",
             "fill": 25,
             "display": {
-              "legend": "right"
+              "legend": "right",
+              "legendMode": "table"
             }
           },
           {
@@ -1740,6 +1734,8 @@
                 "max",
                 "mean"
               ],
+              "legendSortBy": "max",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           }

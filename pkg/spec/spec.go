@@ -324,6 +324,12 @@ type FieldPath struct {
 type Display struct {
 	Legend             string             `json:"legend,omitempty"`
 	LegendValues       []string           `json:"legendValues,omitempty"`
+	LegendMode         string             `json:"legendMode,omitempty"`
+	LegendSortBy       string             `json:"legendSortBy,omitempty"`
+	LegendSortDesc     *bool              `json:"legendSortDesc,omitempty"`
+	LegendWidth        int                `json:"legendWidth,omitempty"`
+	LegendHideZero     *bool              `json:"legendHideZero,omitempty"`
+	LegendHideEmpty    *bool              `json:"legendHideEmpty,omitempty"`
 	Tooltip            string             `json:"tooltip,omitempty"`
 	Reduce             string             `json:"reduce,omitempty"`
 	ColorMode          string             `json:"colorMode,omitempty"`

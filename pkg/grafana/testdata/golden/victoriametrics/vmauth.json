@@ -88,16 +88,12 @@
         "status": "partial",
         "reasons": [
           "Smoothed or stepped lines are drawn straight.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.defaults.custom.lineInterpolation",
           "options.annotations.clustering",
           "options.annotations.multiLane",
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -276,15 +272,11 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "options.annotations.clustering",
-          "options.annotations.multiLane",
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
+          "options.annotations.multiLane"
         ],
         "queries": [
           {
@@ -372,15 +364,11 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "options.annotations.clustering",
-          "options.annotations.multiLane",
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
+          "options.annotations.multiLane"
         ],
         "queries": [
           {
@@ -442,15 +430,11 @@
         "row": "Resource usage",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "options.annotations.clustering",
-          "options.annotations.multiLane",
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
+          "options.annotations.multiLane"
         ],
         "queries": [
           {
@@ -486,15 +470,11 @@
         "row": "Resource usage",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "options.annotations.clustering",
-          "options.annotations.multiLane",
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
+          "options.annotations.multiLane"
         ],
         "queries": [
           {
@@ -530,15 +510,11 @@
         "row": "Resource usage",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "options.annotations.clustering",
-          "options.annotations.multiLane",
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
+          "options.annotations.multiLane"
         ],
         "queries": [
           {
@@ -560,15 +536,11 @@
         "row": "Resource usage",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "options.annotations.clustering",
-          "options.annotations.multiLane",
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
+          "options.annotations.multiLane"
         ],
         "queries": [
           {
@@ -590,15 +562,11 @@
         "row": "Resource usage",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "options.annotations.clustering",
-          "options.annotations.multiLane",
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
+          "options.annotations.multiLane"
         ],
         "queries": [
           {
@@ -620,15 +588,11 @@
         "row": "Resource usage",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "options.annotations.clustering",
-          "options.annotations.multiLane",
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
+          "options.annotations.multiLane"
         ],
         "queries": [
           {
@@ -650,15 +614,11 @@
         "row": "Resource usage",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "options.annotations.clustering",
-          "options.annotations.multiLane",
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
+          "options.annotations.multiLane"
         ],
         "queries": [
           {
@@ -714,13 +674,11 @@
         "row": "Troubleshooting",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "options.annotations.clustering",
-          "options.annotations.multiLane",
-          "options.legend.displayMode"
+          "options.annotations.multiLane"
         ],
         "queries": [
           {
@@ -801,15 +759,11 @@
         "row": "Drilldown",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "options.annotations.clustering",
-          "options.annotations.multiLane",
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
+          "options.annotations.multiLane"
         ],
         "queries": [
           {
@@ -838,15 +792,11 @@
         "row": "Drilldown",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "options.annotations.clustering",
-          "options.annotations.multiLane",
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc"
+          "options.annotations.multiLane"
         ],
         "queries": [
           {
@@ -1105,6 +1055,8 @@
               "legendValues": [
                 "lastNotNull"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1325,7 +1277,9 @@
               "legendValues": [
                 "max",
                 "mean"
-              ]
+              ],
+              "legendSortBy": "max",
+              "legendSortDesc": true
             }
           },
           {
@@ -1406,6 +1360,8 @@
                 "max",
                 "mean"
               ],
+              "legendSortBy": "mean",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1486,6 +1442,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1522,6 +1480,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1551,6 +1511,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1580,6 +1542,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1619,6 +1583,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1650,6 +1616,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1681,6 +1649,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           }
@@ -1846,6 +1816,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           },
@@ -1890,6 +1862,8 @@
                 "lastNotNull",
                 "max"
               ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
               "tooltip": "all"
             }
           }

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 10,
-      "imported": 1,
-      "partial": 9,
+      "imported": 3,
+      "partial": 7,
       "placeholder": 0,
       "unverified": 0
     },
@@ -141,12 +141,10 @@
         "row": "Tool calls",
         "status": "partial",
         "reasons": [
-          "Unit items/sec is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Unit items/sec is not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.unit"
         ],
         "queries": [
           {
@@ -168,12 +166,10 @@
         "row": "Tool calls",
         "status": "partial",
         "reasons": [
-          "Unit items/sec is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Unit items/sec is not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.unit"
         ],
         "queries": [
           {
@@ -195,12 +191,10 @@
         "row": "Chatbot",
         "status": "partial",
         "reasons": [
-          "Unit items/sec is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Unit items/sec is not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.unit"
         ],
         "queries": [
           {
@@ -220,13 +214,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "LLM performance",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -245,13 +235,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "LLM performance",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -272,12 +258,10 @@
         "row": "LLM performance",
         "status": "partial",
         "reasons": [
-          "Unit items/sec is not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Unit items/sec is not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.unit"
         ],
         "queries": [
           {

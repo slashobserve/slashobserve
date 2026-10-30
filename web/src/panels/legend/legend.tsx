@@ -1,9 +1,11 @@
 import type { Ref } from "react"
 
 import { cn } from "@/lib/utils"
+import type { Reducer } from "@/spec"
 
 import type { LineStyle } from "../colors"
-import type { DrawStyle } from "./series-config"
+import type { DrawStyle } from "../timeseries/series-config"
+import { inlineValues } from "./legend-model"
 
 export type LegendItem = {
   key: string
@@ -67,6 +69,8 @@ export function rootFontSize(): number {
 type Props = {
   ref?: Ref<HTMLDivElement>
   items: LegendItem[]
+  reducers?: Reducer[]
+  cells?: string[][]
   hidden: ReadonlySet<string>
   placement: LegendPlacement
   available: number
@@ -77,6 +81,8 @@ type Props = {
 export function Legend({
   ref,
   items,
+  reducers = [],
+  cells = [],
   hidden,
   placement,
   available,
@@ -101,7 +107,7 @@ export function Legend({
           : { width }
       }
     >
-      {items.map((item) => {
+      {items.map((item, row) => {
         const visible = !hidden.has(item.key)
         return (
           <button
@@ -118,6 +124,11 @@ export function Legend({
               style={item.style}
             />
             <span className="truncate">{item.label}</span>
+            {reducers.length > 0 ? (
+              <span className="text-muted-foreground tabular-nums">
+                {inlineValues(reducers, cells[row])}
+              </span>
+            ) : null}
           </button>
         )
       })}

@@ -41,8 +41,8 @@
     "verified": false,
     "counts": {
       "total": 27,
-      "imported": 23,
-      "partial": 2,
+      "imported": 24,
+      "partial": 1,
       "placeholder": 2,
       "unverified": 0
     },
@@ -97,13 +97,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Traffic",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",

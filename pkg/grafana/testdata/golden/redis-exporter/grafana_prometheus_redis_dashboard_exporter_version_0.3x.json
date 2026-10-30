@@ -249,11 +249,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.alignAsTable",
           "nullPointMode",
           "tooltip.msResolution"
         ],

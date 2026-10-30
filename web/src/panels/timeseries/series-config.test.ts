@@ -216,6 +216,9 @@ describe("timeseriesDisplay", () => {
     expect(timeseriesDisplay(displayWithDefaults("timeseries", {}))).toEqual({
       legend: "bottom",
       legendValues: [],
+      legendSortDesc: false,
+      legendHideZero: false,
+      legendHideEmpty: false,
       tooltip: "single",
     })
   })
@@ -226,12 +229,24 @@ describe("timeseriesDisplay", () => {
         displayWithDefaults("timeseries", {
           legend: "right",
           legendValues: ["mean", "max"],
+          legendMode: "list",
+          legendSortBy: "name",
+          legendSortDesc: true,
+          legendWidth: 300,
+          legendHideZero: true,
+          legendHideEmpty: true,
           tooltip: "hidden",
         })
       )
     ).toEqual({
       legend: "right",
       legendValues: ["mean", "max"],
+      legendMode: "list",
+      legendSortBy: "name",
+      legendSortDesc: true,
+      legendWidth: 300,
+      legendHideZero: true,
+      legendHideEmpty: true,
       tooltip: "hidden",
     })
   })

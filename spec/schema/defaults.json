@@ -6,7 +6,7 @@
   "link": {"newTab": false},
   "dashboard": {"cursorSync": "off"},
   "display": {
-    "timeseries": {"legend": "bottom", "legendValues": [], "tooltip": "single"},
+    "timeseries": {"legend": "bottom", "legendValues": [], "legendSortDesc": false, "legendHideZero": false, "legendHideEmpty": false, "tooltip": "single"},
     "stat": {"reduce": "lastNotNull", "colorMode": "value", "graph": true, "orientation": "auto"},
     "gauge": {"reduce": "lastNotNull", "thresholdMarkers": true},
     "bargauge": {"reduce": "lastNotNull", "orientation": "auto"},
@@ -18,7 +18,7 @@
     "logs": {"wrap": false, "showTime": false, "order": "newest"},
     "barchart": {"orientation": "auto", "showValues": "auto", "barWidth": 0.97, "groupWidth": 0.7, "legend": "bottom", "tooltip": "single"},
     "status-history": {"showValues": "auto"},
-    "trend": {"legend": "bottom", "legendValues": [], "tooltip": "single"},
+    "trend": {"legend": "bottom", "legendValues": [], "legendSortDesc": false, "legendHideZero": false, "legendHideEmpty": false, "tooltip": "single"},
     "xychart": {"show": "points", "pointSize": 5, "legend": "bottom", "tooltip": "single"},
     "candlestick": {"mode": "candles+volume", "candleStyle": "candles", "colorStrategy": "open-close", "upColor": "ok", "downColor": "critical", "legend": "bottom", "tooltip": "single"},
     "nodeGraph": {"layout": "layered"},

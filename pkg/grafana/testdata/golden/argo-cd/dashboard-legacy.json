@@ -110,12 +110,9 @@
         "row": "Applications",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideEmpty",
-          "legend.hideZero",
           "nullPointMode",
           "paceLength",
           "tooltip.sort"
@@ -368,12 +365,9 @@
         "row": "Controller Stats",
         "status": "partial",
         "reasons": [
-          "Hiding empty series from the legend is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "legend.hideEmpty",
-          "legend.hideZero",
           "paceLength",
           "tooltip.sort"
         ],
@@ -1083,6 +1077,8 @@
             "stack": "normal",
             "display": {
               "legend": "hidden",
+              "legendHideZero": true,
+              "legendHideEmpty": true,
               "tooltip": "all"
             }
           }
@@ -1495,6 +1491,8 @@
             "min": 0,
             "display": {
               "legend": "hidden",
+              "legendHideZero": true,
+              "legendHideEmpty": true,
               "tooltip": "all"
             }
           },

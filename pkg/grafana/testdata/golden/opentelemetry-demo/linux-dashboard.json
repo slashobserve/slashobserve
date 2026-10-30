@@ -1444,6 +1444,7 @@
               }
             ],
             "display": {
+              "legendWidth": 250,
               "tooltip": "all"
             }
           },
@@ -1630,6 +1631,7 @@
               }
             ],
             "display": {
+              "legendWidth": 350,
               "tooltip": "all"
             }
           },

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 11,
-      "imported": 3,
-      "partial": 8,
+      "imported": 9,
+      "partial": 2,
       "placeholder": 0,
       "unverified": 0
     },
@@ -120,13 +120,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Requests by Source",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -145,13 +141,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Requests by Source",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -172,14 +164,12 @@
         "row": "Requests by Source",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Exemplars are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
           "targets[1].exemplar",
-          "targets[2].exemplar",
-          "options.legend.displayMode"
+          "targets[2].exemplar"
         ],
         "queries": [
           {
@@ -213,13 +203,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Requests by Source",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -238,13 +224,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Requests by Destination",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -263,13 +245,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Requests by Destination",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -290,14 +268,12 @@
         "row": "Requests by Destination",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Exemplars are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
           "targets[1].exemplar",
-          "targets[2].exemplar",
-          "options.legend.displayMode"
+          "targets[2].exemplar"
         ],
         "queries": [
           {
@@ -331,13 +307,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Requests by Destination",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -517,7 +489,8 @@
             "display": {
               "legendValues": [
                 "lastNotNull"
-              ]
+              ],
+              "legendMode": "list"
             }
           }
         ]

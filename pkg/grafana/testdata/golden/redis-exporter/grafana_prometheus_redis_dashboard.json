@@ -744,6 +744,7 @@
           "legendValues": [
             "lastNotNull"
           ],
+          "legendMode": "list",
           "tooltip": "all"
         }
       },

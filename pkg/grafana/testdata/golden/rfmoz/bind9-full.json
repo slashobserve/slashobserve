@@ -79,12 +79,10 @@
         "row": "General",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -106,12 +104,10 @@
         "row": "General",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -133,12 +129,10 @@
         "row": "General",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -160,12 +154,10 @@
         "row": "General",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -229,12 +221,10 @@
         "row": "Issues",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -256,12 +246,10 @@
         "row": "Issues",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -297,12 +285,10 @@
         "row": "Issues",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -324,12 +310,10 @@
         "row": "Issues",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -358,12 +342,10 @@
         "row": "Detail",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -385,12 +367,10 @@
         "row": "Detail",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -412,12 +392,10 @@
         "row": "Detail",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -439,12 +417,10 @@
         "row": "Detail",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -480,12 +456,10 @@
         "row": "Detail",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -507,12 +481,10 @@
         "row": "Detail",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -541,12 +513,10 @@
         "row": "Detail",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -582,12 +552,10 @@
         "row": "Detail",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -609,12 +577,10 @@
         "row": "Detail",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -644,13 +610,11 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[1]",
-          "fieldConfig.defaults.custom.axisLabel",
-          "options.legend.displayMode"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -775,6 +739,7 @@
                 "max",
                 "min"
               ],
+              "legendMode": "list",
               "tooltip": "all"
             }
           },
