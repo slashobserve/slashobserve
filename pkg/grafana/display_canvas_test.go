@@ -196,7 +196,7 @@ func TestCanvasActionKeepsTheActionWithoutACredentialHeader(t *testing.T) {
 	if strings.Contains(string(data), "Bearer") || strings.Contains(string(data), "api_key") {
 		t.Errorf("a credential survived: %s", data)
 	}
-	if !slices.Contains(line.Reasons, canvasActionCredentialReason) || line.Status != statusPartial {
+	if !slices.Contains(line.Reasons, canvasActionAuthDroppedReason) || line.Status != statusPartial {
 		t.Errorf("reasons = %v", line.Reasons)
 	}
 }

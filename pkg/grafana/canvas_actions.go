@@ -18,17 +18,17 @@ const (
 	canvasActionConfirmMax   = 500
 	canvasActionPointer      = "/panels/0/display/elements/0/actions/0"
 
-	canvasLinkLimitReason        = "A canvas element holds at most 10 links."
-	canvasActionLimitReason      = "A canvas element holds at most 10 actions."
-	canvasActionURLReason        = "Actions run only against https addresses written out in full."
-	canvasActionCredentialReason = "A credential was left out of this action; SlashObserve never stores credentials in a dashboard."
-	canvasActionReference        = "This action refers to a variable or value SlashObserve cannot fill in, so it was left out."
-	canvasActionBodyReason       = "An action body holds at most 10000 characters, so the action was left out."
-	canvasActionInvalidReason    = "This action cannot be kept as written, so it was left out."
-	canvasActionTypeReason       = "Only HTTP fetch actions are supported."
-	canvasActionMethodReason     = "This HTTP method is not supported yet."
-	canvasActionHeaderReason     = "A header or query parameter that cannot be kept was left out of this action."
-	canvasOneClickReason         = "Only one link or action can open on a single click."
+	canvasLinkLimitReason         = "A canvas element holds at most 10 links."
+	canvasActionLimitReason       = "A canvas element holds at most 10 actions."
+	canvasActionURLReason         = "Actions run only against https addresses written out in full."
+	canvasActionAuthDroppedReason = "A credential was left out of this action; SlashObserve never stores credentials in a dashboard."
+	canvasActionReference         = "This action refers to a variable or value SlashObserve cannot fill in, so it was left out."
+	canvasActionBodyReason        = "An action body holds at most 10000 characters, so the action was left out."
+	canvasActionInvalidReason     = "This action cannot be kept as written, so it was left out."
+	canvasActionTypeReason        = "Only HTTP fetch actions are supported."
+	canvasActionMethodReason      = "This HTTP method is not supported yet."
+	canvasActionHeaderReason      = "A header or query parameter that cannot be kept was left out of this action."
+	canvasOneClickReason          = "Only one link or action can open on a single click."
 )
 
 var (
@@ -294,7 +294,7 @@ func (c *canvasBuild) withoutBadParams(at string, action spec.Action, issues []s
 	action.Headers = keepUnmarked(action.Headers, badHeaders)
 	action.Query = keepUnmarked(action.Query, badQuery)
 	if credential {
-		c.b.issues.add(at, canvasActionCredentialReason)
+		c.b.issues.add(at, canvasActionAuthDroppedReason)
 	} else {
 		c.b.issues.add(at, canvasActionHeaderReason)
 	}

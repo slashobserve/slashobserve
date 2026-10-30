@@ -194,13 +194,6 @@ var canvasServerKinds = []string{"single", "stack", "database", "terminal"}
 
 var canvasButtonStyles = []string{"primary", "secondary", "success", "destructive"}
 
-var canvasAngleFields = map[string]string{
-	"windTurbine": "config.rpm.field",
-	"droneTop":    "config.yawAngle.field",
-	"droneFront":  "config.rollAngle.field",
-	"droneSide":   "config.pitchAngle.field",
-}
-
 func canvasKind(el map[string]any, typ string) string {
 	if typ == "text" && asString(lookupValue(el, "config.text.mode")) == "field" {
 		return "metric"
@@ -299,6 +292,18 @@ func optionalNumber(v any) *float64 {
 }
 
 func axisPlace(kind string, start, end, size *float64, total float64) (pos, length float64, ok bool) {
+	if pos, length, ok = axisAs(kind, start, end, size, total); ok {
+		return pos, length, true
+	}
+	for _, fallback := range []string{"start", "end", "both"} {
+		if pos, length, ok = axisAs(fallback, start, end, size, total); ok {
+			return pos, length, true
+		}
+	}
+	return 0, 0, false
+}
+
+func axisAs(kind string, start, end, size *float64, total float64) (pos, length float64, ok bool) {
 	switch {
 	case kind == "center" && start != nil && size != nil:
 		return total/2 + *start - *size/2, *size, true
@@ -306,12 +311,8 @@ func axisPlace(kind string, start, end, size *float64, total float64) (pos, leng
 		return total - *end - *size, *size, true
 	case kind == "both" && start != nil && end != nil:
 		return *start, total - *start - *end, true
-	case start != nil && size != nil:
+	case kind == "start" && start != nil && size != nil:
 		return *start, *size, true
-	case end != nil && size != nil:
-		return total - *end - *size, *size, true
-	case start != nil && end != nil:
-		return *start, total - *start - *end, true
 	}
 	return 0, 0, false
 }
