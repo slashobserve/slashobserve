@@ -130,7 +130,7 @@ export function createFieldResolver(panel: DataPanel): FieldResolver {
 
   function resolve(frame: PreparedFrame, field: PreparedField): Resolved {
     const seriesName = preparedSeriesName(frame, field)
-    let config = base
+    let config = field.config ? withProps(base, field.config) : base
     for (const { matches, props } of overrides) {
       if (matches({ frame, field, seriesName })) {
         config = withProps(config, props)

@@ -502,6 +502,75 @@ export type Transform =
       }[];
       delimiter?: string;
       regex?: string;
+    }
+  | {
+      type: "labelsToFields";
+      mode?: "columns" | "rows";
+      /**
+       * @minItems 1
+       * @maxItems 100
+       */
+      include?: FieldName[];
+      valueLabel?: string;
+    }
+  | {
+      type: "joinByLabels";
+      value: FieldName;
+      /**
+       * @minItems 1
+       * @maxItems 20
+       */
+      on?: FieldName[];
+    }
+  | {
+      type: "partitionByValues";
+      /**
+       * @minItems 1
+       * @maxItems 10
+       */
+      fields: FieldName[];
+      keepFields?: boolean;
+      naming?: "labels" | ("name" | "append");
+    }
+  | {
+      type: "prepareTimeSeries";
+      format: "wide" | "many" | "long";
+    }
+  | {
+      type: "timeSeriesTable";
+      stats?: {
+        [k: string]: Reducer;
+      };
+    }
+  | {
+      type: "rowsToFields";
+      /**
+       * @minItems 1
+       * @maxItems 20
+       */
+      mappings?: {
+        field: FieldName;
+        to: "name" | "value" | "unit" | "min" | "max" | "decimals" | "displayName" | "noValue" | "color";
+      }[];
+    }
+  | {
+      type: "configFromData";
+      configQuery: QueryRef;
+      /**
+       * @minItems 1
+       * @maxItems 20
+       */
+      mappings: {
+        field: FieldName;
+        to: "unit" | "min" | "max" | "decimals" | "displayName" | "noValue" | "color";
+        reducer?: Reducer;
+      }[];
+      applyTo?: Match;
+    }
+  | {
+      type: "concatenate";
+      nameMode?: "drop" | "field" | "label";
+      nameLabel?: string;
     };
 export type Reducer =
   | "last"

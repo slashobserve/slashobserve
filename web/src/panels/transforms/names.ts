@@ -1,9 +1,14 @@
 import type { WireFrame } from "@/dashboards/queries"
 
+import type { FieldProps } from "@/spec"
+
 import { seriesLabel, type WireField } from "../frames"
 import { isNumber } from "../reducers"
 
-export type PreparedField = WireField & { seriesName?: string }
+export type PreparedField = WireField & {
+  seriesName?: string
+  config?: FieldProps
+}
 export type PreparedFrame = Omit<WireFrame, "fields"> & {
   fields: PreparedField[]
 }
@@ -41,6 +46,16 @@ export function withFields(
   fields: PreparedField[]
 ): PreparedFrame {
   return { ...frame, fields }
+}
+
+export function labelKeys(frame: PreparedFrame): string[] {
+  return Object.keys(frame.labels ?? {}).sort()
+}
+
+export function firstTimeField(
+  frame: PreparedFrame
+): PreparedField | undefined {
+  return frame.fields.find((field) => field.type === "time")
 }
 
 export function copyFrame(frame: PreparedFrame): PreparedFrame {

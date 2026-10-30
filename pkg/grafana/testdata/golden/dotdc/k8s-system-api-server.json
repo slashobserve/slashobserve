@@ -76,7 +76,6 @@
         ],
         "paths": [
           "targets[0].exemplar",
-          "transformations[0]",
           "transformations[3]",
           "options.sortBy[0].desc",
           "options.sortBy[0].displayName"
@@ -473,6 +472,17 @@
           }
         ],
         "transform": [
+          {
+            "type": "labelsToFields",
+            "include": [
+              "group",
+              "job",
+              "removed_release",
+              "resource",
+              "version",
+              "name"
+            ]
+          },
           {
             "type": "merge"
           },

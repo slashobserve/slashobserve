@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 5,
-      "imported": 3,
-      "partial": 2,
+      "imported": 4,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -85,13 +85,9 @@
         "type": "table",
         "source_type": "table",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some transformations are not supported yet."
-        ],
-        "paths": [
-          "transformations[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -285,6 +281,9 @@
           }
         ],
         "transform": [
+          {
+            "type": "labelsToFields"
+          },
           {
             "type": "merge"
           },

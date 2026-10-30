@@ -2,6 +2,8 @@ import type { WireFrame } from "@/dashboards/queries"
 import type { DataPanel, Transform } from "@/spec"
 
 import { calculateField } from "./calculate"
+import { concatenate } from "./concatenate"
+import { configFromData } from "./config-from-data"
 import { convertFieldType } from "./convert-type"
 import { extractFields } from "./extract-fields"
 import { filterFieldsByName } from "./filter"
@@ -11,14 +13,20 @@ import { applyQueryFormats } from "./format"
 import { formatString } from "./format-string"
 import { formatTime } from "./format-time"
 import { joinByField } from "./join"
+import { joinByLabels } from "./join-by-labels"
+import { labelsToFields } from "./labels-to-fields"
 import { limit } from "./limit"
 import { merge } from "./merge"
 import { organize } from "./organize"
+import { partitionByValues } from "./partition-by-values"
+import { prepareTimeSeries } from "./prepare-time-series"
 import { reduceFrames } from "./reduce"
 import { renameByRegex } from "./rename-regex"
+import { rowsToFields } from "./rows-to-fields"
 import { stampSeriesNames, type DatasourceTypeOf } from "./series-names"
 import { seriesToRows } from "./series-to-rows"
 import { sortBy } from "./sort"
+import { timeSeriesTable } from "./time-series-table"
 import type { PreparedFrame } from "./names"
 export type { DatasourceTypeOf } from "./series-names"
 
@@ -66,6 +74,22 @@ function applyTransform(
       return filterByRefId(frames, transform)
     case "extractFields":
       return extractFields(frames, transform)
+    case "labelsToFields":
+      return labelsToFields(frames, transform)
+    case "joinByLabels":
+      return joinByLabels(frames, transform)
+    case "partitionByValues":
+      return partitionByValues(frames, transform)
+    case "prepareTimeSeries":
+      return prepareTimeSeries(frames, transform)
+    case "timeSeriesTable":
+      return timeSeriesTable(frames, transform)
+    case "rowsToFields":
+      return rowsToFields(frames, transform)
+    case "configFromData":
+      return configFromData(frames, transform)
+    case "concatenate":
+      return concatenate(frames, transform)
   }
 }
 
