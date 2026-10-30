@@ -135,6 +135,11 @@ export function reduce(
   }
 }
 
+export function uniqueValues(values: readonly unknown[]): string | null {
+  const distinct = [...new Set(values.filter(isPresent))]
+  return distinct.length > 0 ? distinct.map(String).join(", ") : null
+}
+
 export function reduceField(field: WireField, reducer: Reducer): number | null {
   return reduce(field.values, reducer)
 }

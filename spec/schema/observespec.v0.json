@@ -505,6 +505,42 @@
         "changeCount"
       ]
     },
+    "aggregateReducer": {
+      "title": "AggregateReducer",
+      "description": "A reducer for a grouping step: every reducer, and uniqueValues, which lists the distinct values as text.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/reducer"
+        },
+        {
+          "x-omitFromPrompt": true,
+          "enum": [
+            "uniqueValues"
+          ]
+        }
+      ]
+    },
+    "heatmapBuckets": {
+      "x-omitFromPrompt": true,
+      "title": "HeatmapBuckets",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "size",
+            "count"
+          ]
+        },
+        "value": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "mode"
+      ]
+    },
     "selection": {
       "title": "Selection",
       "description": "Default selection: one value, several for a multi variable, or $__all.",
@@ -2854,7 +2890,7 @@
                     "maxItems": 10,
                     "uniqueItems": true,
                     "items": {
-                      "$ref": "#/$defs/reducer"
+                      "$ref": "#/$defs/aggregateReducer"
                     }
                   }
                 },
@@ -2932,7 +2968,7 @@
                     "maxItems": 10,
                     "uniqueItems": true,
                     "items": {
-                      "$ref": "#/$defs/reducer"
+                      "$ref": "#/$defs/aggregateReducer"
                     }
                   }
                 },
@@ -3034,6 +3070,41 @@
                 "true",
                 "false"
               ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "x-omitFromPrompt": true,
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "heatmap"
+            },
+            "xBuckets": {
+              "$ref": "#/$defs/heatmapBuckets"
+            },
+            "yBuckets": {
+              "$ref": "#/$defs/heatmapBuckets"
+            },
+            "yScale": {
+              "enum": [
+                "linear",
+                "log",
+                "symlog"
+              ]
+            },
+            "yLogBase": {
+              "enum": [
+                2,
+                10
+              ]
+            },
+            "keepOriginalData": {
+              "type": "boolean"
             }
           },
           "required": [

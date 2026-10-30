@@ -1,6 +1,6 @@
 import type { Transform } from "@/spec"
 
-import { reduce } from "../reducers"
+import { reduce, uniqueValues } from "../reducers"
 import {
   cell,
   copyFrame,
@@ -45,16 +45,22 @@ export function groupFrame(
   }))
   for (const { source, reducers } of aggregates) {
     for (const reducer of reducers) {
-      fields.push({
-        name: `${source.name} (${reducer})`,
-        type: "number",
-        values: groups.map((group) =>
-          reduce(
-            group.rows.map((row) => cell(source, row)),
-            reducer
-          )
-        ),
-      })
+      const name = `${source.name} (${reducer})`
+      const column = (group: Group) =>
+        group.rows.map((row) => cell(source, row))
+      fields.push(
+        reducer === "uniqueValues"
+          ? {
+              name,
+              type: "string",
+              values: groups.map((group) => uniqueValues(column(group))),
+            }
+          : {
+              name,
+              type: "number",
+              values: groups.map((group) => reduce(column(group), reducer)),
+            }
+      )
     }
   }
   return { keys, groups, fields }

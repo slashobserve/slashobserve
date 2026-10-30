@@ -46,6 +46,25 @@ describe("groupBy", () => {
     ])
   })
 
+  it("lists the distinct values of a group as a text field for uniqueValues", () => {
+    const [out] = groupBy([table], {
+      type: "groupBy",
+      by: ["host"],
+      aggregate: [{ field: "env", reducers: ["uniqueValues", "count"] }],
+    })
+    expect(names(out)).toEqual(["host", "env (uniqueValues)", "env (count)"])
+    expect(out.fields.map((field) => field.values)).toEqual([
+      ["a", "b"],
+      ["p", "p, q"],
+      [3, 2],
+    ])
+    expect(out.fields.map((field) => field.type)).toEqual([
+      "string",
+      "string",
+      "number",
+    ])
+  })
+
   it("groups by several fields together", () => {
     const [out] = groupBy([table], {
       type: "groupBy",

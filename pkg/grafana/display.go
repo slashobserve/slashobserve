@@ -582,7 +582,7 @@ func (b *panelBuild) isLegacyHeatmap() bool {
 func (b *panelBuild) heatmapCalculation(d *spec.Display) {
 	d.XBuckets = b.heatmapBuckets("options.calculation.xBuckets", xBucketSize)
 	d.YBuckets = b.heatmapBuckets("options.calculation.yBuckets", yBucketSize)
-	b.heatmapXBucketScale()
+	b.heatmapXBucketScale("options.calculation.xBuckets.scale")
 	b.heatmapYBucketScale(d)
 }
 
@@ -634,8 +634,7 @@ func xBucketSize(v any) (float64, bool) {
 	return n * bucketDurationSeconds[m[2]], true
 }
 
-func (b *panelBuild) heatmapXBucketScale() {
-	const path = "options.calculation.xBuckets.scale"
+func (b *panelBuild) heatmapXBucketScale(path string) {
 	scale := b.enumOption(path+".type", "linear", "log", "symlog")
 	if scale == "log" || scale == "symlog" {
 		b.partial(path+".type", "Logarithmic time buckets are not supported yet.")
@@ -645,18 +644,23 @@ func (b *panelBuild) heatmapXBucketScale() {
 }
 
 func (b *panelBuild) heatmapYBucketScale(d *spec.Display) {
-	const path = "options.calculation.yBuckets.scale"
-	scale := b.enumOption(path+".type", "linear", "log", "symlog")
+	scale, base, written := b.heatmapRowScale("options.calculation.yBuckets.scale")
 	if scale != "linear" || d.YScale != "" {
 		d.YBucketScale = scale
 	}
-	if scale != "log" && scale != "symlog" {
-		b.consume(path + ".log")
-		return
-	}
-	if base, written := b.heatmapLogBase(path + ".log"); written {
+	if written {
 		d.YBucketLogBase = base
 	}
+}
+
+func (b *panelBuild) heatmapRowScale(path string) (scale string, base int, written bool) {
+	scale = b.enumOption(path+".type", "linear", "log", "symlog")
+	if scale != "log" && scale != "symlog" {
+		b.consume(path + ".log")
+		return scale, 0, false
+	}
+	base, written = b.heatmapLogBase(path + ".log")
+	return scale, base, written
 }
 
 func (b *panelBuild) heatmapLogBase(path string) (int, bool) {

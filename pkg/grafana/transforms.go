@@ -32,6 +32,10 @@ func isReducer(id string) bool {
 	return ok
 }
 
+func isAggregateReducer(id string) bool {
+	return id == uniqueValuesReducer || isReducer(id)
+}
+
 var exprPattern = regexp.MustCompile(`^\s*\S+\s*[-+*/]\s*\S+\s*$`)
 
 type transformBuilder func(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool)
@@ -73,6 +77,7 @@ var transformSpecs = map[string]transformSpec{
 	"groupToNestedTable": {handled: []string{"fields", "showSubframeHeaders"}, build: groupToNestedTableTransform},
 	"histogram":          {handled: []string{"bucketCount", "bucketSize", "bucketOffset", "combine"}, build: histogramTransform},
 	"regression":         {handled: []string{"modelType", "degree", "xFieldName", "yFieldName", "predictionCount"}, build: regressionTransform},
+	"heatmap":            {handled: []string{"xBuckets", "yBuckets", "keepOriginalData"}, build: heatmapTransform},
 	"transpose":          {handled: []string{"firstFieldName", "restFieldsName", "emptyValue"}, build: transposeTransform},
 }
 
@@ -198,11 +203,15 @@ func fieldOrder(b *panelBuild, v any, path string) []string {
 }
 
 func reducerList(b *panelBuild, v any, path string) []string {
+	return acceptedReducers(b, v, path, isReducer)
+}
+
+func acceptedReducers(b *panelBuild, v any, path string, accepted func(string) bool) []string {
 	var out []string
 	unsupported := false
 	for _, item := range stringList(v) {
 		switch {
-		case !isReducer(item):
+		case !accepted(item):
 			unsupported = true
 		case !slices.Contains(out, item) && len(out) < maxReducers:
 			out = append(out, item)

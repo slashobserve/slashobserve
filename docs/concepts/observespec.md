@@ -364,10 +364,11 @@ Eight more steps reshape frames by their labels and layout:
 `rowsToFields` (each row becomes a field, with `mappings` of a column `field` to `name`, `value`, `unit`, `min`, `max`, `decimals`, `displayName`, `noValue` or `color`),
 `configFromData` (reads field settings from the frame of the `configQuery` ref, with `mappings` of `field` to `unit`, `min`, `max`, `decimals`, `displayName`, `noValue` or `color` and an optional `reducer`, and applies them to the number fields or to the fields `applyTo` matches) and
 `concatenate` (puts the fields of every frame side by side, and `nameMode` of `drop`, `field` or `label` with `nameLabel` says where the frame name goes).
-Six more steps group rows and compute new data:
-`groupBy` (one row per distinct combination of the `by` fields, with `aggregate` entries of a `field` and its `reducers`, each giving a `<field> (<reducer>)` column; only those fields are kept),
+Seven more steps group rows and compute new data:
+`groupBy` (one row per distinct combination of the `by` fields, with `aggregate` entries of a `field` and its `reducers`, each giving a `<field> (<reducer>)` column; only those fields are kept; besides the reducers, `uniqueValues` lists the distinct values as text),
 `groupToNestedTable` (the same `by` and `aggregate`, with the rows of each group in a nested table that opens from the row, and `hideHeaders` to drop its header),
 `groupingToMatrix` (a matrix of the `row` field by the `column` field holding the `value` field, the first three fields unless named, and `empty` of `empty`, `zero`, `true` or `false` for cells without data),
+`heatmap` (counts the samples of the time series into the cells of a time column and a value row, with `xBuckets` and `yBuckets` of a `mode` of `size` or `count` and a `value`, `yScale` of `linear`, `log` or `symlog` with `yLogBase` of 2 or 10, and one output row per non-empty cell with `xMin`, `yMin`, `yMax` and `count`; `keepOriginalData` puts the original frames before it),
 `histogram` (counts every number field into `bucketCount` or `bucketSize` buckets shifted by `bucketOffset`, or all of them together with `combine`),
 `regression` (a least squares `model` of `linear` or `polynomial` with a `degree` of 1 to 5, 2 by default, fitted from the `x` field to the `y` field and added as a series named after the `y` field and "regression", at `predictions` evenly spaced points) and
 `transpose` (fields become rows and rows become fields, `firstName` names the first column, `restName` the others and `empty` fills missing cells).

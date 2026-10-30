@@ -49,7 +49,7 @@ type BucketSpec = { mode: BucketMode; value: number | null }
 type BucketScale = "linear" | "log" | "symlog"
 type RowsLayout = "auto" | "le" | "ge" | "unknown"
 
-function bucketSpec(raw: unknown): BucketSpec | null {
+export function bucketSpec(raw: unknown): BucketSpec | null {
   if (typeof raw !== "object" || raw === null) return null
   const { mode, value } = raw as { mode?: unknown; value?: unknown }
   if (mode !== "size" && mode !== "count") return null
@@ -169,12 +169,17 @@ function rowGrid(
   }
 }
 
-type Entry = {
+export function logBaseOf(value: unknown): number {
+  return value === 10 ? 10 : defaultLogBase
+}
+
+export type AlignedSeries = {
   frame: PreparedFrame
   field: PreparedField
-  config: FieldConfig
   values: (number | null)[]
 }
+
+type Entry = AlignedSeries & { config: FieldConfig }
 
 function parseBound(text: string | undefined): number | null {
   const trimmed = text?.trim()
@@ -184,10 +189,10 @@ function parseBound(text: string | undefined): number | null {
   return Number.isFinite(bound) ? bound : null
 }
 
-function entriesOf(
-  frames: PreparedFrame[],
-  fields: FieldResolver
-): { xs: number[]; entries: Entry[] } {
+export function alignOnTime(frames: PreparedFrame[]): {
+  xs: number[]
+  series: AlignedSeries[]
+} {
   const usable = frames.flatMap((frame) => {
     const time = frame.fields.find((field) => field.type === "time")
     return time ? [{ frame, time }] : []
@@ -198,20 +203,30 @@ function entriesOf(
   }
   const xs = [...stamps].sort((a, b) => a - b)
   const index = new Map(xs.map((ms, position) => [ms, position]))
-  const entries = usable.flatMap(({ frame, time }) =>
-    frame.fields.flatMap((field): Entry[] => {
+  const series = usable.flatMap(({ frame, time }) =>
+    frame.fields.flatMap((field): AlignedSeries[] => {
       if (field.type !== "number") return []
-      const config = fields.configFor(frame, field)
-      if (config.hidden) return []
       const values: (number | null)[] = new Array(xs.length).fill(null)
       time.values.forEach((ms, row) => {
         const position = isNumber(ms) ? index.get(ms) : undefined
         const value = field.values[row]
         if (position !== undefined && isNumber(value)) values[position] = value
       })
-      return [{ frame, field, config, values }]
+      return [{ frame, field, values }]
     })
   )
+  return { xs, series }
+}
+
+function entriesOf(
+  frames: PreparedFrame[],
+  fields: FieldResolver
+): { xs: number[]; entries: Entry[] } {
+  const { xs, series } = alignOnTime(frames)
+  const entries = series.flatMap((aligned): Entry[] => {
+    const config = fields.configFor(aligned.frame, aligned.field)
+    return config.hidden ? [] : [{ ...aligned, config }]
+  })
   return { xs, entries }
 }
 
@@ -323,15 +338,15 @@ function bucketModel(
   return { rows, cells: cumulative ? deaccumulate(raw) : raw }
 }
 
-type Calculation = {
+export type Calculation = {
   x: BucketSpec | null
   y: BucketSpec | null
   scale: BucketScale
   base: number
 }
 
-function calculatedModel(
-  entries: Entry[],
+export function calculatedModel(
+  entries: Pick<AlignedSeries, "values">[],
   xs: number[],
   labelling: Labelling,
   calculation: Calculation
@@ -543,7 +558,7 @@ export function heatmapModel(
       x: bucketSpec(display.xBuckets),
       y: bucketSpec(display.yBuckets),
       scale: scale ?? "linear",
-      base: display.yBucketLogBase === 10 ? 10 : defaultLogBase,
+      base: logBaseOf(display.yBucketLogBase),
     })
     xs = calculated.xs
     shape = calculated

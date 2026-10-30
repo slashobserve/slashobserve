@@ -613,7 +613,7 @@ export type Transform =
          * @minItems 1
          * @maxItems 10
          */
-        reducers: Reducer[];
+        reducers: AggregateReducer[];
       }[];
     }
   | {
@@ -640,7 +640,7 @@ export type Transform =
          * @minItems 1
          * @maxItems 10
          */
-        reducers: Reducer[];
+        reducers: AggregateReducer[];
       }[];
       hideHeaders?: boolean;
     }
@@ -664,11 +664,23 @@ export type Transform =
       firstName?: FieldName;
       restName?: FieldName;
       empty?: "empty" | "zero" | "true" | "false";
+    }
+  | {
+      type: "heatmap";
+      xBuckets?: HeatmapBuckets;
+      yBuckets?: HeatmapBuckets;
+      yScale?: "linear" | "log" | "symlog";
+      yLogBase?: 2 | 10;
+      keepOriginalData?: boolean;
     };
 /**
  * A field name or series name in the panel's frames.
  */
 export type FieldName = string;
+/**
+ * A reducer for a grouping step: every reducer, and uniqueValues, which lists the distinct values as text.
+ */
+export type AggregateReducer = Reducer | "uniqueValues";
 
 /**
  * ObserveSpec v0: one SlashObserve dashboard. Absent fields mean the default. Frozen for milestone 1 (Ishan, 2026-10-18).
@@ -1150,6 +1162,10 @@ export interface ExpressionQuery {
 }
 export interface Override1 {
   match: Match;
+}
+export interface HeatmapBuckets {
+  mode: "size" | "count";
+  value?: number;
 }
 export interface TextPanel {
   /**

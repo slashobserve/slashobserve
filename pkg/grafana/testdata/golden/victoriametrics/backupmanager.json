@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 18,
-      "imported": 16,
-      "partial": 2,
+      "imported": 18,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -190,13 +190,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Stats",
-        "status": "partial",
-        "reasons": [
-          "Some reducers are not supported yet."
-        ],
-        "paths": [
-          "transformations[0].options.fields.instance.aggregations"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -215,13 +211,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Stats",
-        "status": "partial",
-        "reasons": [
-          "Some reducers are not supported yet."
-        ],
-        "paths": [
-          "transformations[0].options.fields.instance.aggregations"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -772,6 +764,14 @@
                 "by": [
                   "name",
                   "value"
+                ],
+                "aggregate": [
+                  {
+                    "field": "instance",
+                    "reducers": [
+                      "uniqueValues"
+                    ]
+                  }
                 ]
               }
             ],
@@ -817,6 +817,14 @@
                 "by": [
                   "name",
                   "value"
+                ],
+                "aggregate": [
+                  {
+                    "field": "instance",
+                    "reducers": [
+                      "uniqueValues"
+                    ]
+                  }
                 ]
               }
             ],

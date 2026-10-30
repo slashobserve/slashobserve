@@ -17,6 +17,8 @@ const (
 	defaultRestName    = "Value"
 	groupByOperation   = "groupby"
 	aggregateOperation = "aggregate"
+
+	uniqueValuesReducer = "uniqueValues"
 )
 
 var emptyFills = []string{"empty", "zero", "true", "false"}
@@ -41,7 +43,7 @@ func (b *panelBuild) groupFields(v any, path string) ([]string, []spec.Aggregati
 			}
 			by = append(by, name)
 		case aggregateOperation:
-			reducers := reducerList(b, item["aggregations"], itemPath+".aggregations")
+			reducers := acceptedReducers(b, item["aggregations"], itemPath+".aggregations", isAggregateReducer)
 			switch {
 			case len(reducers) == 0:
 			case len(aggregate) >= maxGroupFields:
@@ -172,6 +174,54 @@ func transposeTransform(b *panelBuild, opts map[string]any, path string) (spec.T
 	}
 	if t.RestName == defaultRestName {
 		t.RestName = ""
+	}
+	return t, true
+}
+
+var (
+	bucketKeys      = []string{"mode", "value", "scale"}
+	bucketScaleKeys = []string{"type", "log"}
+	bucketScales    = []string{"linear", "log", "symlog"}
+	bucketModes     = []string{"size", "count"}
+)
+
+func (b *panelBuild) transformBuckets(opts map[string]any, key string, size func(any) (float64, bool), path string) (*spec.Buckets, map[string]any) {
+	item, ok := asObject(opts[key])
+	if !ok {
+		if present(opts[key]) {
+			b.partial(path+".options."+key, "")
+		}
+		return nil, nil
+	}
+	itemPath := path + ".options." + key
+	b.reportOtherKeys(item, bucketKeys, itemPath)
+	if mode := asString(item["mode"]); present(item["mode"]) && !slices.Contains(bucketModes, mode) {
+		b.partial(itemPath+".mode", "")
+	}
+	scale, _ := asObject(item["scale"])
+	b.reportOtherKeys(scale, bucketScaleKeys, itemPath+".scale")
+	if kind := asString(scale["type"]); present(scale["type"]) && !slices.Contains(bucketScales, kind) {
+		b.partial(itemPath+".scale.type", "")
+	}
+	return b.heatmapBuckets(itemPath, size), scale
+}
+
+func heatmapTransform(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool) {
+	t := spec.Transform{Type: "heatmap", KeepOriginalData: truthy(opts["keepOriginalData"])}
+	var xScale, yScale map[string]any
+	t.XBuckets, xScale = b.transformBuckets(opts, "xBuckets", xBucketSize, path)
+	t.YBuckets, yScale = b.transformBuckets(opts, "yBuckets", yBucketSize, path)
+	if present(xScale) {
+		b.heatmapXBucketScale(path + ".options.xBuckets.scale")
+	}
+	if present(yScale) {
+		scale, base, written := b.heatmapRowScale(path + ".options.yBuckets.scale")
+		if scale != "linear" {
+			t.YScale = scale
+		}
+		if written {
+			t.YLogBase = base
+		}
 	}
 	return t, true
 }

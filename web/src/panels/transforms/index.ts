@@ -15,6 +15,7 @@ import { formatTime } from "./format-time"
 import { groupBy } from "./group-by"
 import { groupToNestedTable } from "./group-to-nested-table"
 import { groupingToMatrix } from "./grouping-to-matrix"
+import { heatmap } from "./heatmap"
 import { histogram } from "./histogram"
 import { joinByField } from "./join"
 import { joinByLabels } from "./join-by-labels"
@@ -102,6 +103,8 @@ function applyTransform(
       return groupingToMatrix(frames, transform)
     case "groupToNestedTable":
       return groupToNestedTable(frames, transform)
+    case "heatmap":
+      return heatmap(frames, transform)
     case "histogram":
       return histogram(frames, transform)
     case "regression":

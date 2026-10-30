@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { Reducer } from "@/spec"
 
-import { reduce, reduceField, reducerLabels } from "./reducers"
+import { reduce, reduceField, reducerLabels, uniqueValues } from "./reducers"
 
 const values = [1, null, 3, 2]
 
@@ -73,6 +73,13 @@ describe("reduce", () => {
   it("counts changes and distinct values over non-null values", () => {
     expect(reduce([1, 1, null, 2, 1], "changeCount")).toBe(2)
     expect(reduce([1, 1, null, 2, 1], "distinctCount")).toBe(2)
+  })
+
+  it("lists the distinct values in order of first appearance as text", () => {
+    expect(uniqueValues(["b", "a", "b", null, undefined, "c"])).toBe("b, a, c")
+    expect(uniqueValues([2, 1, 2])).toBe("2, 1")
+    expect(uniqueValues([])).toBeNull()
+    expect(uniqueValues([null, undefined])).toBeNull()
   })
 
   it("handles large arrays", () => {
