@@ -40,6 +40,8 @@ export type FieldConfig = {
   lineWidth: number
   points: "auto" | "always" | "never"
   pointSize: number
+  pointShape?: "circle" | "square"
+  pointStrokeWidth?: number
   spanNulls: boolean | number
   stack: "none" | "normal" | "percent"
   axis: "left" | "right" | "hidden"
@@ -108,6 +110,8 @@ const fieldPropKeyFlags: Record<keyof FieldProps, true> = {
   lineWidth: true,
   points: true,
   pointSize: true,
+  pointShape: true,
+  pointStrokeWidth: true,
   spanNulls: true,
   stack: true,
   axis: true,

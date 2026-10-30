@@ -117,9 +117,8 @@ var typeDefaults = map[spec.PanelType]map[string]any{
 		"options.colWidth": 0.9,
 	},
 	spec.XYChart: {
-		"options.mapping":                              "auto",
-		"fieldConfig.defaults.custom.pointShape":       "circle",
-		"fieldConfig.defaults.custom.pointStrokeWidth": 1,
+		"options.mapping":                        "auto",
+		"fieldConfig.defaults.custom.pointShape": "circle",
 	},
 	spec.Candlestick: {
 		"options.colors.flat": "gray",

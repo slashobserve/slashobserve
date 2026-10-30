@@ -10,6 +10,8 @@ export const specDefaults = {
     "lineWidth": 2,
     "points": "auto",
     "pointSize": 4,
+    "pointShape": "circle",
+    "pointStrokeWidth": 0,
     "spanNulls": false,
     "stack": "none",
     "axis": "left",
@@ -207,8 +209,14 @@ export const specDefaults = {
     "xychart": {
       "show": "points",
       "pointSize": 5,
+      "pointSizeMin": 4,
+      "pointSizeMax": 30,
       "legend": "bottom",
-      "tooltip": "single"
+      "legendValues": [],
+      "legendSortDesc": false,
+      "tooltip": "single",
+      "tooltipSort": "none",
+      "tooltipHideZeros": false
     },
     "candlestick": {
       "mode": "candles+volume",

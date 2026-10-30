@@ -855,6 +855,8 @@ export interface FieldProps {
   lineWidth?: number;
   points?: "auto" | "always" | "never";
   pointSize?: number;
+  pointShape?: "circle" | "square";
+  pointStrokeWidth?: number;
   spanNulls?: boolean | number;
   stack?: "none" | "normal" | "percent";
   axis?: "left" | "right" | "hidden";

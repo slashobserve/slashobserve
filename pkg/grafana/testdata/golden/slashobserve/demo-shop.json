@@ -5,7 +5,7 @@
     "title": "Demo shop (Grafana)",
     "uid": "demo-shop",
     "schema_version": 39,
-    "bytes": 67097,
+    "bytes": 67819,
     "panels": 27,
     "rows": 6,
     "variables": 2
@@ -950,14 +950,23 @@
             "datasource": "ch",
             "queries": [
               {
-                "query": "SELECT sumIf(Duration, SpanName = 'authorize_card') / 1e6 AS authorize_ms, sumIf(Duration, SpanName = 'POST /api/checkout') / 1e6 AS checkout_ms FROM otel_traces WHERE $__timeFilter(Timestamp) AND SpanName IN ('authorize_card', 'POST /api/checkout') GROUP BY TraceId HAVING authorize_ms > 0 AND checkout_ms > 0 LIMIT 500",
+                "query": "SELECT sumIf(Duration, SpanName = 'authorize_card') / 1e6 AS authorize_ms, sumIf(Duration, SpanName = 'POST /api/checkout') / 1e6 AS checkout_ms, count() AS spans, max(Duration) / 1e6 AS slowest_ms FROM otel_traces WHERE $__timeFilter(Timestamp) AND SpanName IN ('authorize_card', 'POST /api/checkout') GROUP BY TraceId HAVING authorize_ms > 0 AND checkout_ms > 0 LIMIT 500",
                 "format": "table"
               }
             ],
             "unit": "ms",
             "fill": 50,
+            "pointStrokeWidth": 1,
             "display": {
-              "xField": "authorize_ms"
+              "series": [
+                {
+                  "x": "authorize_ms",
+                  "y": "checkout_ms",
+                  "size": "spans",
+                  "color": "slowest_ms",
+                  "name": "Checkout"
+                }
+              ]
             }
           },
           {

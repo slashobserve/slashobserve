@@ -3,32 +3,39 @@ import { useCallback, useMemo, useState } from "react"
 import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
+import { useSeriesLegend } from "../legend/use-series-legend"
 import type { PanelRenderer } from "../types"
 import { toPixelX, toPixelY, XyCanvas } from "./xy-canvas"
 import {
   axisTicks,
-  legendOf,
+  legendEntries,
   nearestPoint,
-  pointSizeOf,
   pointSummary,
   pointsAtX,
-  showOf,
-  tooltipOf,
+  tooltipHits,
+  xyData,
   xyModel,
+  xyOptions,
+  type XyAxis,
   type XyHit,
   type XyModel,
+  type XyOptions,
   type XyTick,
 } from "./xy-model"
 
 const padTop = 8
+const padLeft = 4
 const padRight = 12
-const xAxisHeight = 24
+const xTickHeight = 24
+const axisLabelThickness = 18
 const characterWidth = 7
 const minYLabelWidth = 28
 const yTickSpacing = 40
 const xTickSpacing = 88
 const hoverRadius = 24
 const tooltipOffset = 12
+const markerPadding = 4
+const minMarker = 12
 
 type Size = { width: number; height: number }
 type Hover = { x: number; y: number }
@@ -57,27 +64,47 @@ function YLabels({
   model,
   width,
   height,
+  atEnd,
 }: {
   ticks: XyTick[]
   model: XyModel
   width: number
   height: number
+  atEnd: boolean
 }) {
+  const { label } = model.y.settings
+  const tint = model.y.color ?? undefined
   return (
     <div
       aria-hidden="true"
       className="relative shrink-0 text-xs text-muted-foreground tabular-nums"
-      style={{ width, height }}
+      style={{ width, height, color: tint }}
     >
       {ticks.map((tick) => (
         <span
           key={tick.value}
-          className="absolute right-2 translate-y-[-50%] leading-4 whitespace-nowrap"
-          style={{ top: toPixelY(tick.value, model.y, height) }}
+          className={cn(
+            "absolute translate-y-[-50%] leading-4 whitespace-nowrap",
+            atEnd ? "left-2" : "right-2"
+          )}
+          style={{ top: toPixelY(model, tick.value, height) }}
         >
           {tick.text}
         </span>
       ))}
+      {label ? (
+        <span
+          data-part="axis-label"
+          className="absolute top-0 h-full text-center leading-[18px] whitespace-nowrap"
+          style={{
+            writingMode: "vertical-rl",
+            transform: atEnd ? undefined : "rotate(180deg)",
+            [atEnd ? "right" : "left"]: 0,
+          }}
+        >
+          {label}
+        </span>
+      ) : null}
     </div>
   )
 }
@@ -87,63 +114,45 @@ function XLabels({
   model,
   width,
   offset,
+  axis,
 }: {
   ticks: XyTick[]
   model: XyModel
   width: number
   offset: number
+  axis: XyAxis
 }) {
+  const { label } = axis.settings
   return (
     <div
       aria-hidden="true"
       className="relative shrink-0 text-xs text-muted-foreground tabular-nums"
-      style={{ marginLeft: offset, width, height: xAxisHeight }}
+      style={{
+        marginLeft: offset,
+        width,
+        height: xTickHeight + (label ? axisLabelThickness : 0),
+        color: axis.color ?? undefined,
+      }}
     >
       {ticks.map((tick) => (
         <span
           key={tick.value}
           className="absolute top-1.5 -translate-x-1/2 leading-4 whitespace-nowrap"
-          style={{ left: toPixelX(tick.value, model.x, width) }}
+          style={{ left: toPixelX(model, tick.value, width) }}
         >
           {tick.text}
         </span>
       ))}
+      {label ? (
+        <span
+          data-part="axis-label"
+          className="absolute inset-x-0 text-center leading-[18px] whitespace-nowrap"
+          style={{ top: xTickHeight }}
+        >
+          {label}
+        </span>
+      ) : null}
     </div>
-  )
-}
-
-function Legend({
-  model,
-  placement,
-}: {
-  model: XyModel
-  placement: "bottom" | "right"
-}) {
-  const bottom = placement === "bottom"
-  return (
-    <ul
-      aria-label="Legend"
-      data-placement={placement}
-      className={cn(
-        "m-0 flex list-none overflow-y-auto p-0 text-xs",
-        bottom
-          ? "max-h-[40%] shrink-0 flex-wrap gap-x-4 gap-y-1 px-3 pt-1 pb-2"
-          : "w-[clamp(140px,35%,260px)] shrink-0 flex-col gap-1 py-2 pr-3"
-      )}
-    >
-      {model.series.map((series) => (
-        <li key={series.key} className="flex min-w-0 items-center gap-1.5">
-          <span
-            aria-hidden="true"
-            className="size-2.5 shrink-0"
-            style={{ backgroundColor: series.color }}
-          />
-          <span title={series.name} className="min-w-0 truncate">
-            {series.name}
-          </span>
-        </li>
-      ))}
-    </ul>
   )
 }
 
@@ -153,42 +162,59 @@ function Tooltip({
   at,
   width,
   height,
+  options,
 }: {
   model: XyModel
   hits: XyHit[]
   at: Hover
   width: number
   height: number
+  options: XyOptions
 }) {
   const onRight = at.x > width / 2
   const first = pointSummary(model, hits[0])
   return (
     <div
       role="tooltip"
-      className="pointer-events-none absolute z-10 min-w-36 rounded-control border border-border bg-popover px-2 py-1.5 text-xs text-popover-foreground"
+      className="pointer-events-none absolute z-10 min-w-36 overflow-hidden rounded-control border border-border bg-popover px-2 py-1.5 text-xs text-popover-foreground"
       style={{
         top: Math.min(at.y + tooltipOffset, Math.max(0, height - 64)),
+        maxWidth: options.tooltipMaxWidth,
+        maxHeight: options.tooltipMaxHeight,
         ...(onRight
           ? { right: width - at.x + tooltipOffset }
           : { left: at.x + tooltipOffset }),
       }}
     >
       <div className="mb-1 flex justify-between gap-3 text-muted-foreground tabular-nums">
-        <span className="min-w-0 truncate">{model.xAxis?.name}</span>
+        <span className="min-w-0 truncate">
+          {model.series[hits[0].series].xName}
+        </span>
         <span>{first.x}</span>
       </div>
       {hits.map((hit) => {
         const series = model.series[hit.series]
         const text = pointSummary(model, hit)
         return (
-          <div key={series.key} className="flex items-center gap-1.5">
-            <span
-              aria-hidden="true"
-              className="size-2 shrink-0"
-              style={{ backgroundColor: series.points[hit.index][2] }}
-            />
-            <span className="min-w-0 flex-1 truncate">{series.name}</span>
-            <span className="font-medium tabular-nums">{text.y}</span>
+          <div key={series.key}>
+            <div className="flex items-center gap-1.5">
+              <span
+                aria-hidden="true"
+                className="size-2 shrink-0"
+                style={{ backgroundColor: series.points[hit.index][2] }}
+              />
+              <span className="min-w-0 flex-1 truncate">{series.name}</span>
+              <span className="font-medium tabular-nums">{text.y}</span>
+            </div>
+            {text.extras.map((extra) => (
+              <div
+                key={extra.name}
+                className="flex justify-between gap-3 pl-3.5 text-muted-foreground tabular-nums"
+              >
+                <span className="min-w-0 truncate">{extra.name}</span>
+                <span>{extra.text}</span>
+              </div>
+            ))}
           </div>
         )
       })}
@@ -205,50 +231,69 @@ function Message({ children }: { children: string }) {
 }
 
 const XychartPanel: PanelRenderer = ({
+  panel,
   frames,
   fields,
   display,
   width,
   height,
+  stateScope,
 }) => {
   const { resolved: theme } = useTheme()
   const [size, measure] = useMeasuredSize()
   const [hover, setHover] = useState<Hover | null>(null)
-  const model = useMemo(
-    () => xyModel(frames, fields, display),
+  const options = useMemo(() => xyOptions(display), [display])
+  const data = useMemo(
+    () => xyData(frames, fields, display),
     [frames, fields, display]
   )
-  const show = showOf(display)
-  const legend = legendOf(display)
-  const tooltip = tooltipOf(display)
-  const pointSize = pointSizeOf(display)
-  const showLegend = legend !== "hidden" && model.series.length > 1
+  const legend = useSeriesLegend({
+    stateKey: `${stateScope}:${panel.id}`,
+    entries: useMemo(() => legendEntries(data.series), [data.series]),
+    options,
+    width,
+    height,
+  })
+  const model = useMemo(
+    () => xyModel(data, legend.hidden),
+    [data, legend.hidden]
+  )
+  const { show, tooltip } = options
+  const yHidden = model.y.settings.side === "hidden"
+  const xHidden = model.x.settings.side === "hidden"
+  const atEnd = model.y.settings.side === "end"
 
-  const widest = (ticks: XyTick[]) =>
-    Math.max(0, ...ticks.map((tick) => tick.text.length))
-  const plotHeight = size ? size.height - xAxisHeight : 0
+  const xAxisHeight = xHidden
+    ? 0
+    : xTickHeight + (model.x.settings.label ? axisLabelThickness : 0)
+  const plotHeight = size ? size.height - xAxisHeight - padTop : 0
   const yTicks = useMemo(
     () =>
       axisTicks(
-        model.y,
-        model.yAxis?.config,
-        Math.floor(plotHeight / yTickSpacing)
+        model.y.range,
+        model.y.config,
+        Math.floor(plotHeight / yTickSpacing),
+        model.y.scale
       ),
-    [model.y, model.yAxis, plotHeight]
+    [model.y, plotHeight]
   )
-  const labelWidth = Math.max(
-    minYLabelWidth,
-    widest(yTicks) * characterWidth + 12
-  )
-  const plotWidth = size ? size.width - labelWidth - padRight : 0
+  const widest = Math.max(0, ...yTicks.map((tick) => tick.text.length))
+  const autoWidth =
+    Math.max(minYLabelWidth, widest * characterWidth + 12) +
+    (model.y.settings.label ? axisLabelThickness : 0)
+  const axisWidth = yHidden ? padLeft : (model.y.settings.width ?? autoWidth)
+  const leftWidth = atEnd ? padLeft : axisWidth
+  const rightWidth = (atEnd ? axisWidth : 0) + padRight
+  const plotWidth = size ? size.width - leftWidth - rightWidth : 0
   const xTicks = useMemo(
     () =>
       axisTicks(
-        model.x,
-        model.xAxis?.config,
-        Math.floor(plotWidth / xTickSpacing)
+        model.x.range,
+        model.x.config,
+        Math.floor(plotWidth / xTickSpacing),
+        model.x.scale
       ),
-    [model.x, model.xAxis, plotWidth]
+    [model.x, plotWidth]
   )
   const ready = size !== null && plotWidth > 0 && plotHeight > 0
 
@@ -260,29 +305,47 @@ const XychartPanel: PanelRenderer = ({
       radius: hoverRadius,
     })
     if (!nearest) return []
-    if (tooltip === "single") return [nearest]
-    const x = model.series[nearest.series].points[nearest.index][0]
-    return pointsAtX(model, x)
-  }, [hover, tooltip, ready, model, plotWidth, plotHeight])
+    const found =
+      tooltip === "single"
+        ? [nearest]
+        : pointsAtX(
+            model,
+            model.series[nearest.series].points[nearest.index][0]
+          )
+    return tooltipHits(model, found, options)
+  }, [hover, tooltip, ready, model, plotWidth, plotHeight, options])
 
   const marked = hits[0]
   const markedPoint = marked
     ? model.series[marked.series].points[marked.index]
     : null
+  const markerSize = markedPoint
+    ? Math.max(minMarker, markedPoint[3] + markerPadding)
+    : minMarker
+
+  const yLabels = (
+    <YLabels
+      ticks={yTicks}
+      model={model}
+      width={atEnd ? axisWidth : leftWidth}
+      height={plotHeight}
+      atEnd={atEnd}
+    />
+  )
 
   return (
     <div
       data-series={model.series.length}
       data-show={show}
-      data-legend={legend}
+      data-legend={legend.placement ?? "hidden"}
       className={cn(
         "flex min-h-0 min-w-0",
-        legend === "right" ? "flex-row" : "flex-col"
+        legend.placement === "right" ? "flex-row" : "flex-col"
       )}
       style={{ width, height }}
     >
-      {model.reason ? (
-        <Message>{model.reason}</Message>
+      {data.reason ? (
+        <Message>{data.reason}</Message>
       ) : (
         <>
           <div
@@ -293,12 +356,11 @@ const XychartPanel: PanelRenderer = ({
             {ready ? (
               <>
                 <div className="flex">
-                  <YLabels
-                    ticks={yTicks}
-                    model={model}
-                    width={labelWidth}
-                    height={plotHeight}
-                  />
+                  {atEnd || yHidden ? (
+                    <div style={{ width: padLeft }} />
+                  ) : (
+                    yLabels
+                  )}
                   <div className="relative" style={{ width: plotWidth }}>
                     <XyCanvas
                       model={model}
@@ -306,7 +368,6 @@ const XychartPanel: PanelRenderer = ({
                       height={plotHeight}
                       theme={theme}
                       show={show}
-                      pointSize={pointSize}
                       xTicks={xTicks}
                       yTicks={yTicks}
                       label={`XY chart with ${model.series.length} series`}
@@ -315,10 +376,12 @@ const XychartPanel: PanelRenderer = ({
                     {markedPoint ? (
                       <span
                         aria-hidden="true"
-                        className="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-foreground"
+                        className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-foreground"
                         style={{
-                          left: toPixelX(markedPoint[0], model.x, plotWidth),
-                          top: toPixelY(markedPoint[1], model.y, plotHeight),
+                          width: markerSize,
+                          height: markerSize,
+                          left: toPixelX(model, markedPoint[0], plotWidth),
+                          top: toPixelY(model, markedPoint[1], plotHeight),
                         }}
                       />
                     ) : null}
@@ -329,25 +392,25 @@ const XychartPanel: PanelRenderer = ({
                         at={hover}
                         width={plotWidth}
                         height={plotHeight}
+                        options={options}
                       />
                     ) : null}
                   </div>
+                  {atEnd && !yHidden ? yLabels : null}
                 </div>
-                <XLabels
-                  ticks={xTicks}
-                  model={model}
-                  width={plotWidth}
-                  offset={labelWidth}
-                />
+                {xHidden ? null : (
+                  <XLabels
+                    ticks={xTicks}
+                    model={model}
+                    width={plotWidth}
+                    offset={leftWidth}
+                    axis={model.x}
+                  />
+                )}
               </>
             ) : null}
           </div>
-          {showLegend ? (
-            <Legend
-              model={model}
-              placement={legend === "right" ? "right" : "bottom"}
-            />
-          ) : null}
+          {legend.node}
         </>
       )}
     </div>

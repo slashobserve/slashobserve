@@ -348,6 +348,8 @@ type FieldProps struct {
 	LineWidth         *int        `json:"lineWidth,omitempty"`
 	Points            string      `json:"points,omitempty"`
 	PointSize         *int        `json:"pointSize,omitempty"`
+	PointShape        string      `json:"pointShape,omitempty"`
+	PointStrokeWidth  *int        `json:"pointStrokeWidth,omitempty"`
 	SpanNulls         any         `json:"spanNulls,omitempty"`
 	Stack             string      `json:"stack,omitempty"`
 	Axis              string      `json:"axis,omitempty"`
@@ -589,6 +591,9 @@ type Display struct {
 	GroupWidth         *float64           `json:"groupWidth,omitempty"`
 	Show               string             `json:"show,omitempty"`
 	PointSize          int                `json:"pointSize,omitempty"`
+	PointSizeMin       int                `json:"pointSizeMin,omitempty"`
+	PointSizeMax       int                `json:"pointSizeMax,omitempty"`
+	Series             []XYSeries         `json:"series,omitempty"`
 	Mode               string             `json:"mode,omitempty"`
 	CandleStyle        string             `json:"candleStyle,omitempty"`
 	ColorStrategy      string             `json:"colorStrategy,omitempty"`
@@ -650,6 +655,16 @@ type Display struct {
 	KeepTime           *bool              `json:"keepTime,omitempty"`
 	IncludeVars        *bool              `json:"includeVars,omitempty"`
 	FeedURL            string             `json:"feedUrl,omitempty"`
+}
+
+type XYSeries struct {
+	Query string `json:"query,omitempty"`
+	Frame string `json:"frame,omitempty"`
+	X     string `json:"x,omitempty"`
+	Y     string `json:"y,omitempty"`
+	Size  string `json:"size,omitempty"`
+	Color string `json:"color,omitempty"`
+	Name  string `json:"name,omitempty"`
 }
 
 type CanvasElement struct {

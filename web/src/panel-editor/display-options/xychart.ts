@@ -1,7 +1,24 @@
 import type { DisplayOption } from "./types"
-import { fieldOption, legend, tooltip } from "./shared"
+import {
+  fieldOption,
+  legend,
+  legendMode,
+  legendSortBy,
+  legendSortDesc,
+  legendValues,
+  legendWidth,
+  tooltip,
+  tooltipHideZeros,
+  tooltipMaxHeight,
+  tooltipMaxWidth,
+  tooltipSort,
+} from "./shared"
 
 export const xychart: readonly DisplayOption[] = [
+  {
+    kind: "note",
+    text: "Edit the series mapping (x, y, size and color fields per series) in the JSON view.",
+  },
   fieldOption("xField", "X field", "First number field"),
   {
     kind: "choice",
@@ -20,6 +37,29 @@ export const xychart: readonly DisplayOption[] = [
     hint: "A whole number from 1 to 40.",
     rule: { min: 1, max: 40, integer: true },
   },
+  {
+    kind: "number",
+    key: "pointSizeMin",
+    label: "Smallest point size",
+    hint: "A whole number from 1 to 100. Used at the low end of the size field.",
+    rule: { min: 1, max: 100, integer: true },
+  },
+  {
+    kind: "number",
+    key: "pointSizeMax",
+    label: "Largest point size",
+    hint: "A whole number from 1 to 100. Used at the high end of the size field.",
+    rule: { min: 1, max: 100, integer: true },
+  },
   legend,
+  legendMode,
+  legendValues,
+  legendSortBy,
+  legendSortDesc,
+  legendWidth,
   tooltip,
+  tooltipSort,
+  tooltipHideZeros,
+  tooltipMaxWidth,
+  tooltipMaxHeight,
 ]

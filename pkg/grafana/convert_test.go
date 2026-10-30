@@ -629,7 +629,7 @@ func TestLegendTablesAreReportedWhereTheChartHasNoTableLegend(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, line := convertedPanel(t, panelDoc("xychart", upTarget+`,"options":{"legend":`+tc.legend+`}`))
+			_, line := convertedPanel(t, panelDoc("stat", upTarget+`,"options":{"legend":`+tc.legend+`}`))
 			if line.Status != statusPartial || !slices.Equal(line.Paths, tc.paths) || !slices.Contains(line.Reasons, wantLegendTableReason) {
 				t.Fatalf("status %s, paths %v, reasons %v, want %v and %q", line.Status, line.Paths, line.Reasons, tc.paths, wantLegendTableReason)
 			}
@@ -782,15 +782,13 @@ func TestChartPanelTypesImportTheirOptions(t *testing.T) {
 		},
 		{
 			name: "xy chart manual mapping", typ: "xychart",
-			members: `"options":{"mapping":"manual","series":[{"x":{"matcher":{"id":"byName","options":"severity"}},"y":{"matcher":{"id":"byNames","options":["len"]}},"size":{"matcher":{"id":"byName","options":"n"}}}]}`,
-			display: `{"xField":"severity"}`,
-			paths:   []string{"options.series[0].y", "options.series[0].size"},
+			members: `"options":{"mapping":"manual","series":[{"x":{"matcher":{"id":"byName","options":"severity"}},"y":{"matcher":{"id":"byName","options":"len"}},"size":{"matcher":{"id":"byName","options":"n"}}}]}`,
+			display: `{"series":[{"x":"severity","y":"len","size":"n"}]}`,
 		},
 		{
 			name: "xy chart with two series", typ: "xychart",
 			members: `"options":{"mapping":"manual","series":[{"x":{"matcher":{"id":"byName","options":"a"}}},{"x":{"matcher":{"id":"byName","options":"b"}}}]}`,
-			display: "null",
-			paths:   []string{"options.mapping", "options.series"},
+			display: `{"series":[{"x":"a"},{"x":"b"}]}`,
 		},
 		{
 			name: "xy chart point size outside the range", typ: "xychart",

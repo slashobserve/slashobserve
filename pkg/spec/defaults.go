@@ -20,6 +20,8 @@ type FieldPropsDefaults struct {
 	LineWidth         int     `json:"lineWidth"`
 	Points            string  `json:"points"`
 	PointSize         int     `json:"pointSize"`
+	PointShape        string  `json:"pointShape"`
+	PointStrokeWidth  int     `json:"pointStrokeWidth"`
 	SpanNulls         bool    `json:"spanNulls"`
 	Stack             string  `json:"stack"`
 	Axis              string  `json:"axis"`

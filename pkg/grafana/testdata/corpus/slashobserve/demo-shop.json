@@ -911,16 +911,44 @@
       },
       "id": 16,
       "options": {
-        "dims": {
-          "x": "authorize_ms"
-        },
         "legend": {
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
         },
-        "mapping": "auto",
+        "mapping": "manual",
+        "series": [
+          {
+            "color": {
+              "matcher": {
+                "id": "byName",
+                "options": "slowest_ms"
+              }
+            },
+            "name": {
+              "fixed": "Checkout"
+            },
+            "size": {
+              "matcher": {
+                "id": "byName",
+                "options": "spans"
+              }
+            },
+            "x": {
+              "matcher": {
+                "id": "byName",
+                "options": "authorize_ms"
+              }
+            },
+            "y": {
+              "matcher": {
+                "id": "byName",
+                "options": "checkout_ms"
+              }
+            }
+          }
+        ],
         "tooltip": {
           "mode": "single",
           "sort": "none"
@@ -947,7 +975,7 @@
           },
           "pluginVersion": "4.5.1",
           "queryType": "table",
-          "rawSql": "SELECT sumIf(Duration, SpanName = 'authorize_card') / 1e6 AS authorize_ms, sumIf(Duration, SpanName = 'POST /api/checkout') / 1e6 AS checkout_ms FROM otel_traces WHERE $__timeFilter(Timestamp) AND SpanName IN ('authorize_card', 'POST /api/checkout') GROUP BY TraceId HAVING authorize_ms > 0 AND checkout_ms > 0 LIMIT 500",
+          "rawSql": "SELECT sumIf(Duration, SpanName = 'authorize_card') / 1e6 AS authorize_ms, sumIf(Duration, SpanName = 'POST /api/checkout') / 1e6 AS checkout_ms, count() AS spans, max(Duration) / 1e6 AS slowest_ms FROM otel_traces WHERE $__timeFilter(Timestamp) AND SpanName IN ('authorize_card', 'POST /api/checkout') GROUP BY TraceId HAVING authorize_ms > 0 AND checkout_ms > 0 LIMIT 500",
           "refId": "A"
         }
       ],

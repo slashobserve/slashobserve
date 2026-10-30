@@ -42,6 +42,7 @@ const canvasKeysTheEditorPlansDeclareLater = [
 
 const editedElsewhere: Partial<Record<DisplayPanelType, string[]>> = {
   geomap: geomapKeysTheEditorPlansDeclareLater,
+  xychart: ["series"],
   canvas: ["elements", "connections", ...canvasKeysTheEditorPlansDeclareLater],
 }
 
