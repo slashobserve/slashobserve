@@ -1,4 +1,17 @@
 import type { DisplayOption } from "./types"
+import {
+  legend,
+  legendMode,
+  legendSortBy,
+  legendSortDesc,
+  legendValues,
+  legendWidth,
+  tooltip,
+  tooltipHideZeros,
+  tooltipMaxHeight,
+  tooltipMaxWidth,
+  tooltipSort,
+} from "./shared"
 
 export const histogram: readonly DisplayOption[] = [
   {
@@ -15,4 +28,33 @@ export const histogram: readonly DisplayOption[] = [
     hint: "A whole number from 1 to 1000. Empty is automatic.",
     rule: { min: 1, max: 1000, integer: true },
   },
+  {
+    kind: "number",
+    key: "bucketOffset",
+    label: "Bucket offset",
+    hint: "Shifts the bucket edges. Empty is 0.",
+    rule: { min: -Infinity, max: Infinity },
+  },
+  {
+    kind: "choice",
+    key: "stack",
+    label: "Stacking",
+    options: [
+      { value: "normal", label: "Stacked" },
+      { value: "percent", label: "Percent" },
+      { value: "none", label: "Overlaid" },
+    ],
+  },
+  { kind: "toggle", key: "combine", label: "Combine all series" },
+  legend,
+  legendMode,
+  legendValues,
+  legendSortBy,
+  legendSortDesc,
+  legendWidth,
+  tooltip,
+  tooltipSort,
+  tooltipHideZeros,
+  tooltipMaxWidth,
+  tooltipMaxHeight,
 ]

@@ -1,5 +1,20 @@
 import type { DisplayOption, NumberRule } from "./types"
-import { fieldOption, legend, orientation, showValues, tooltip } from "./shared"
+import {
+  fieldOption,
+  legend,
+  legendMode,
+  legendSortBy,
+  legendSortDesc,
+  legendValues,
+  legendWidth,
+  orientation,
+  showValues,
+  tooltip,
+  tooltipHideZeros,
+  tooltipMaxHeight,
+  tooltipMaxWidth,
+  tooltipSort,
+} from "./shared"
 
 const share: NumberRule = { min: 0, minExclusive: true, max: 1 }
 const shareHint = "A number above 0, at most 1."
@@ -7,7 +22,15 @@ const shareHint = "A number above 0, at most 1."
 export const barchart: readonly DisplayOption[] = [
   orientation,
   fieldOption("xField", "X field", "First text or time field"),
+  fieldOption("colorByField", "Color by field", "Color by each series"),
   showValues,
+  {
+    kind: "number",
+    key: "valueSize",
+    label: "Value text size",
+    hint: "A whole number of pixels from 6 to 100. Empty is 12.",
+    rule: { min: 6, max: 100, integer: true },
+  },
   {
     kind: "number",
     key: "barWidth",
@@ -22,6 +45,48 @@ export const barchart: readonly DisplayOption[] = [
     hint: shareHint,
     rule: share,
   },
+  {
+    kind: "number",
+    key: "barRadius",
+    label: "Bar radius",
+    hint: "Share of the bar width, from 0 to 0.5.",
+    rule: { min: 0, max: 0.5 },
+  },
+  {
+    kind: "toggle",
+    key: "fullHighlight",
+    label: "Highlight the whole category",
+  },
+  {
+    kind: "number",
+    key: "xTickRotation",
+    label: "X label rotation",
+    hint: "Degrees, a whole number from -90 to 90.",
+    rule: { min: -90, max: 90, integer: true },
+  },
+  {
+    kind: "number",
+    key: "xTickSpacing",
+    label: "X label spacing",
+    hint: "Minimum pixels between labels, from 0 to 500. 0 is automatic.",
+    rule: { min: 0, max: 500, integer: true },
+  },
+  {
+    kind: "number",
+    key: "xTickMaxLength",
+    label: "X label max length",
+    hint: "Characters shown, a whole number from 1 to 200. Empty shows all.",
+    rule: { min: 1, max: 200, integer: true },
+  },
   legend,
+  legendMode,
+  legendValues,
+  legendSortBy,
+  legendSortDesc,
+  legendWidth,
   tooltip,
+  tooltipSort,
+  tooltipHideZeros,
+  tooltipMaxWidth,
+  tooltipMaxHeight,
 ]

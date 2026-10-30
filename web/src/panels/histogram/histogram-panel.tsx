@@ -1,28 +1,44 @@
-import { memo, useCallback, useMemo, useState, type MouseEvent } from "react"
+import {
+  memo,
+  useCallback,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+} from "react"
 
 import { formatValue } from "@/lib/units"
+import { cn } from "@/lib/utils"
 
+import { useSeriesLegend } from "../legend/use-series-legend"
 import type { PanelRenderer } from "../types"
+import { scalePosition } from "../value-axis"
 import {
-  countTicks,
+  histogramEntries,
   histogramModel,
+  histogramOptions,
   labelStride,
-  stackedMax,
+  legendEntries,
+  tooltipSeries,
+  valueTicks,
+  type HistogramHover,
   type HistogramModel,
+  type HistogramOptions,
 } from "./histogram-model"
 
 const padTop = 8
 const padLeft = 4
 const padRight = 12
 const xAxisHeight = 24
-const legendHeight = 24
+const legendHeight = 28
 const tickSpacing = 28
 const characterWidth = 7
 const labelGap = 12
 const tooltipOffset = 12
 const minGapBucketWidth = 3
+const axisLabelThickness = 18
 
-type Hover = { index: number; x: number; y: number }
+type Hover = HistogramHover & { x: number; y: number }
 
 function bucketText(
   model: HistogramModel,
@@ -34,13 +50,15 @@ function bucketText(
 
 const Bars = memo(function Bars({
   model,
-  top,
+  min,
+  max,
   ticks,
   plotWidth,
   hovered,
 }: {
   model: HistogramModel
-  top: number
+  min: number
+  max: number
   ticks: number[]
   plotWidth: number
   hovered: number | null
@@ -48,74 +66,125 @@ const Bars = memo(function Bars({
   const buckets = model.edges.length - 1
   const bucketWidth = plotWidth / buckets
   const gap = bucketWidth >= minGapBucketWidth ? 1 : 0
+  const { settings, color } = model.axis
+  const position = (value: number) =>
+    scalePosition(value, min, max, model.scale) * 100
+  const borderX = settings.side === "end" ? plotWidth : 0
   return (
     <>
-      {ticks.map((tick) => (
-        <line
-          key={tick}
-          x1={0}
-          x2={plotWidth}
-          y1={100 - (tick / top) * 100}
-          y2={100 - (tick / top) * 100}
-          vectorEffect="non-scaling-stroke"
-          style={{ stroke: "var(--border)", strokeWidth: 1 }}
-        />
+      {settings.grid
+        ? ticks.map((tick) => (
+            <line
+              key={tick}
+              x1={0}
+              x2={plotWidth}
+              y1={100 - position(tick)}
+              y2={100 - position(tick)}
+              vectorEffect="non-scaling-stroke"
+              style={{ stroke: "var(--border)", strokeWidth: 1 }}
+            />
+          ))
+        : null}
+      {Array.from({ length: buckets }, (_, index) => (
+        <g
+          key={index}
+          style={{
+            opacity: hovered !== null && hovered !== index ? 0.5 : 1,
+          }}
+        >
+          {model.series.map((series, seriesIndex) => {
+            if (series.counts[index] === 0) return null
+            const { start, end } = model.bars[seriesIndex][index]
+            const low = position(start)
+            const high = position(end)
+            const style: CSSProperties = {
+              fill: series.color,
+              fillOpacity: series.fillOpacity,
+              stroke: series.borderWidth > 0 ? series.color : "none",
+              strokeWidth: series.borderWidth,
+            }
+            return (
+              <rect
+                key={series.key}
+                data-series={series.key}
+                x={index * bucketWidth + gap / 2}
+                width={bucketWidth - gap}
+                y={100 - high}
+                height={Math.max(0, high - low)}
+                vectorEffect="non-scaling-stroke"
+                style={style}
+              />
+            )
+          })}
+        </g>
       ))}
-      {Array.from({ length: buckets }, (_, index) => {
-        let base = 0
-        return (
-          <g
-            key={index}
-            style={{
-              opacity: hovered !== null && hovered !== index ? 0.5 : 1,
-            }}
-          >
-            {model.series.map((series) => {
-              const count = series.counts[index]
-              if (count === 0) return null
-              base += count
-              return (
-                <rect
-                  key={series.key}
-                  x={index * bucketWidth + gap / 2}
-                  width={bucketWidth - gap}
-                  y={100 - (base / top) * 100}
-                  height={(count / top) * 100}
-                  style={{ fill: series.color }}
-                />
-              )
-            })}
-          </g>
-        )
-      })}
+      {settings.border && settings.side !== "hidden" ? (
+        <line
+          data-part="axis-border"
+          x1={borderX}
+          x2={borderX}
+          y1={0}
+          y2={100}
+          vectorEffect="non-scaling-stroke"
+          style={{ stroke: color ?? "var(--muted-foreground)", strokeWidth: 1 }}
+        />
+      ) : null}
     </>
   )
 })
 
 function YLabels({
-  ticks,
-  top,
+  labels,
+  min,
+  max,
+  model,
   width,
+  label,
+  color,
+  atEnd,
 }: {
-  ticks: number[]
-  top: number
+  labels: { tick: number; text: string }[]
+  min: number
+  max: number
+  model: HistogramModel
   width: number
+  label: string | undefined
+  color: string | null
+  atEnd: boolean
 }) {
   return (
     <div
       aria-hidden="true"
-      className="relative shrink-0 text-xs text-muted-foreground tabular-nums"
-      style={{ width }}
+      className="relative shrink-0 text-xs tabular-nums"
+      style={{ width, color: color ?? "var(--muted-foreground)" }}
     >
-      {ticks.map((tick) => (
+      {labels.map(({ tick, text }) => (
         <span
           key={tick}
-          className="absolute right-2 translate-y-1/2 leading-4"
-          style={{ bottom: `${(tick / top) * 100}%` }}
+          className={cn(
+            "absolute translate-y-1/2 leading-4",
+            atEnd ? "left-2" : "right-2"
+          )}
+          style={{
+            bottom: `${scalePosition(tick, min, max, model.scale) * 100}%`,
+          }}
         >
-          {tick}
+          {text}
         </span>
       ))}
+      {label ? (
+        <span
+          data-part="axis-label"
+          className="absolute top-0 h-full text-center leading-[18px] whitespace-nowrap"
+          style={{
+            writingMode: "vertical-rl",
+            transform: atEnd ? undefined : "rotate(180deg)",
+            [atEnd ? "right" : "left"]: 0,
+          }}
+        >
+          {label}
+        </span>
+      ) : null}
     </div>
   )
 }
@@ -163,51 +232,32 @@ function XLabels({
   )
 }
 
-function Legend({ series }: { series: HistogramModel["series"] }) {
-  return (
-    <ul
-      aria-label="Legend"
-      className="m-0 flex max-h-[40%] shrink-0 list-none flex-wrap gap-x-4 gap-y-1 overflow-y-auto px-3 pt-1 pb-2 text-xs"
-    >
-      {series.map((item) => (
-        <li key={item.key} className="flex min-w-0 items-center gap-1.5">
-          <span
-            aria-hidden="true"
-            className="size-2.5 shrink-0"
-            style={{ backgroundColor: item.color }}
-          />
-          <span title={item.name} className="min-w-0 truncate">
-            {item.name}
-          </span>
-        </li>
-      ))}
-    </ul>
-  )
-}
-
 function Tooltip({
   model,
   hover,
   plotWidth,
   format,
+  options,
 }: {
   model: HistogramModel
   hover: Hover
   plotWidth: number
   format: (edge: number) => string
+  options: HistogramOptions
 }) {
   const onRight = hover.x > plotWidth / 2
-  const rows = model.series.filter(({ counts }) => counts[hover.index] > 0)
-  const total = model.series.reduce(
-    (sum, { counts }) => sum + counts[hover.index],
-    0
-  )
+  const { rows, total } = tooltipSeries(model, hover, options)
+  const all = options.tooltip === "all"
+  const listed = all && model.series.length < 2 ? [] : rows
+  if (listed.length === 0 && !all) return null
   return (
     <div
       role="tooltip"
-      className="pointer-events-none absolute z-10 min-w-36 rounded-control border border-border bg-popover px-2 py-1.5 text-xs text-popover-foreground"
+      className="pointer-events-none absolute z-10 min-w-36 overflow-hidden rounded-control border border-border bg-popover px-2 py-1.5 text-xs text-popover-foreground"
       style={{
         top: Math.max(0, hover.y - tooltipOffset),
+        maxWidth: options.tooltipMaxWidth,
+        maxHeight: options.tooltipMaxHeight,
         ...(onRight
           ? { right: plotWidth - hover.x + tooltipOffset }
           : { left: hover.x + tooltipOffset }),
@@ -216,23 +266,26 @@ function Tooltip({
       <div className="mb-1 text-muted-foreground tabular-nums">
         {bucketText(model, hover.index, format)}
       </div>
-      {model.series.length > 1
-        ? rows.map((series) => (
-            <div key={series.key} className="flex items-center gap-1.5">
-              <span
-                aria-hidden="true"
-                className="size-2 shrink-0"
-                style={{ backgroundColor: series.color }}
-              />
-              <span className="min-w-0 flex-1 truncate">{series.name}</span>
-              <span className="tabular-nums">{series.counts[hover.index]}</span>
-            </div>
-          ))
-        : null}
-      <div className="flex justify-between gap-3 font-medium">
-        <span>Total</span>
-        <span className="tabular-nums">{total}</span>
-      </div>
+      {listed.map(({ index }) => {
+        const series = model.series[index]
+        return (
+          <div key={series.key} className="flex items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className="size-2 shrink-0"
+              style={{ backgroundColor: series.color }}
+            />
+            <span className="min-w-0 flex-1 truncate">{series.name}</span>
+            <span className="tabular-nums">{series.counts[hover.index]}</span>
+          </div>
+        )
+      })}
+      {all ? (
+        <div className="flex justify-between gap-3 font-medium">
+          <span>Total</span>
+          <span className="tabular-nums">{total}</span>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -254,36 +307,76 @@ function useMeasuredHeight(): [
 }
 
 const HistogramPanel: PanelRenderer = ({
+  panel,
   frames,
   fields,
   display,
   width,
   height,
+  stateScope,
 }) => {
   const [hover, setHover] = useState<Hover | null>(null)
+  const options = useMemo(() => histogramOptions(display), [display])
+  const entries = useMemo(
+    () => histogramEntries(frames, fields, options.combine),
+    [frames, fields, options.combine]
+  )
+  const legend = useSeriesLegend({
+    stateKey: `${stateScope}:${panel.id}`,
+    entries: useMemo(() => legendEntries(entries), [entries]),
+    options,
+    width,
+    height,
+  })
   const model = useMemo(
-    () => histogramModel(frames, fields, display),
-    [frames, fields, display]
+    () => histogramModel(entries, display, legend.hidden),
+    [entries, display, legend.hidden]
   )
   const buckets = Math.max(0, model.edges.length - 1)
-  const multiple = model.series.length > 1
-  const top = Math.max(1, stackedMax(model))
   const [measuredHeight, plotRef] = useMeasuredHeight()
   const estimatedHeight =
-    height - padTop - xAxisHeight - (multiple ? legendHeight : 0)
+    height -
+    padTop -
+    xAxisHeight -
+    (legend.placement === "bottom" ? legendHeight : 0)
   const plotHeight = measuredHeight ?? estimatedHeight
-  const ticks = useMemo(
-    () => countTicks(top, plotHeight / tickSpacing),
-    [top, plotHeight]
+  const axis = useMemo(
+    () => valueTicks(model, plotHeight / tickSpacing),
+    [model, plotHeight]
   )
-  const yTop = ticks[ticks.length - 1]
-  const yAxisWidth = padLeft + String(yTop).length * characterWidth + labelGap
-  const plotWidth = width - yAxisWidth - padRight
+  const labels = useMemo(
+    () =>
+      axis.ticks.map((tick) => ({
+        tick,
+        text:
+          model.stack === "percent"
+            ? formatValue(tick, "percent", 0)
+            : String(tick),
+      })),
+    [axis.ticks, model.stack]
+  )
+  const { settings } = model.axis
+  const hiddenAxis = settings.side === "hidden"
+  const atEnd = settings.side === "end"
+  const labelsWidth =
+    padLeft +
+    Math.max(0, ...labels.map(({ text }) => text.length)) * characterWidth +
+    labelGap
+  const axisWidth = hiddenAxis
+    ? padLeft
+    : (settings.width ?? labelsWidth) +
+      (settings.label ? axisLabelThickness : 0)
+  const leftWidth = atEnd || hiddenAxis ? padLeft : axisWidth
+  const rightWidth = atEnd ? axisWidth : 0
+  const plotWidth = width - legend.width - leftWidth - rightWidth - padRight
   const format = useMemo(
     () => (edge: number) => formatValue(edge, model.unit, model.decimals),
     [model.unit, model.decimals]
   )
-  const labels = useMemo(() => model.edges.map(format), [model.edges, format])
+  const edgeLabels = useMemo(
+    () => model.edges.map(format),
+    [model.edges, format]
+  )
   const ready = buckets > 0 && plotWidth > 0 && estimatedHeight > 0
 
   function onMove(event: MouseEvent<HTMLDivElement>) {
@@ -293,56 +386,93 @@ const HistogramPanel: PanelRenderer = ({
       buckets - 1,
       Math.max(0, Math.floor((x / box.width) * buckets))
     )
-    setHover({ index, x, y: event.clientY - box.top })
+    const target = event.target as Element
+    const series =
+      target.closest("[data-series]")?.getAttribute("data-series") ?? null
+    setHover({ index, series, x, y: event.clientY - box.top })
   }
+
+  const hoverShown =
+    hover && options.tooltip !== "hidden" && model.series.length > 0
+      ? hover
+      : null
+  const yLabels = (
+    <YLabels
+      labels={labels}
+      min={axis.min}
+      max={axis.max}
+      model={model}
+      width={atEnd ? rightWidth : leftWidth}
+      label={settings.label}
+      color={model.axis.color}
+      atEnd={atEnd}
+    />
+  )
 
   return (
     <div
       data-buckets={buckets}
       data-series={model.series.length}
-      className="flex flex-col"
+      data-legend={legend.placement ?? "hidden"}
+      className={cn(
+        "flex",
+        legend.placement === "right" ? "flex-row" : "flex-col"
+      )}
       style={{ width, height }}
     >
       {ready ? (
         <>
-          <div
-            className="flex min-h-0 flex-1"
-            style={{ paddingTop: padTop, paddingRight: padRight }}
-          >
-            <YLabels ticks={ticks} top={yTop} width={yAxisWidth} />
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div
-              ref={plotRef}
-              className="relative min-w-0 flex-1"
-              onMouseMove={onMove}
-              onMouseLeave={() => setHover(null)}
+              className="flex min-h-0 flex-1"
+              style={{ paddingTop: padTop, paddingRight: padRight }}
             >
-              <svg
-                role="img"
-                aria-label={`Histogram of ${model.total} values in ${buckets} buckets`}
-                viewBox={`0 0 ${plotWidth} 100`}
-                preserveAspectRatio="none"
-                className="size-full"
+              {!atEnd && !hiddenAxis ? (
+                yLabels
+              ) : (
+                <div style={{ width: padLeft }} />
+              )}
+              <div
+                ref={plotRef}
+                className="relative min-w-0 flex-1"
+                onMouseMove={onMove}
+                onMouseLeave={() => setHover(null)}
               >
-                <Bars
-                  model={model}
-                  top={yTop}
-                  ticks={ticks}
-                  plotWidth={plotWidth}
-                  hovered={hover?.index ?? null}
-                />
-              </svg>
-              {hover ? (
-                <Tooltip
-                  model={model}
-                  hover={hover}
-                  plotWidth={plotWidth}
-                  format={format}
-                />
-              ) : null}
+                <svg
+                  role="img"
+                  aria-label={`Histogram of ${model.total} values in ${buckets} buckets`}
+                  viewBox={`0 0 ${plotWidth} 100`}
+                  preserveAspectRatio="none"
+                  className="size-full"
+                >
+                  <Bars
+                    model={model}
+                    min={axis.min}
+                    max={axis.max}
+                    ticks={axis.ticks}
+                    plotWidth={plotWidth}
+                    hovered={hover?.index ?? null}
+                  />
+                </svg>
+                {hoverShown ? (
+                  <Tooltip
+                    model={model}
+                    hover={hoverShown}
+                    plotWidth={plotWidth}
+                    format={format}
+                    options={options}
+                  />
+                ) : null}
+              </div>
+              {atEnd ? yLabels : null}
             </div>
+            <XLabels
+              labels={edgeLabels}
+              plotWidth={plotWidth}
+              offset={leftWidth}
+            />
           </div>
-          <XLabels labels={labels} plotWidth={plotWidth} offset={yAxisWidth} />
-          {multiple ? <Legend series={model.series} /> : null}
+          {legend.node}
         </>
       ) : null}
     </div>

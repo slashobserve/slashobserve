@@ -510,6 +510,15 @@ type Display struct {
 	YScale             string             `json:"yScale,omitempty"`
 	BucketSize         *float64           `json:"bucketSize,omitempty"`
 	BucketCount        int                `json:"bucketCount,omitempty"`
+	BucketOffset       *float64           `json:"bucketOffset,omitempty"`
+	Combine            *bool              `json:"combine,omitempty"`
+	Stack              string             `json:"stack,omitempty"`
+	XTickRotation      int                `json:"xTickRotation,omitempty"`
+	XTickSpacing       int                `json:"xTickSpacing,omitempty"`
+	XTickMaxLength     int                `json:"xTickMaxLength,omitempty"`
+	BarRadius          float64            `json:"barRadius,omitempty"`
+	FullHighlight      *bool              `json:"fullHighlight,omitempty"`
+	ColorByField       string             `json:"colorByField,omitempty"`
 	MergeValues        *bool              `json:"mergeValues,omitempty"`
 	ShowValues         string             `json:"showValues,omitempty"`
 	RowHeight          *float64           `json:"rowHeight,omitempty"`

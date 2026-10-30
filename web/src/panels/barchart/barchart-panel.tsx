@@ -13,23 +13,31 @@ import { cn } from "@/lib/utils"
 
 import { resolveColor } from "../colors"
 import { cssColorToRgb, readableText } from "../contrast"
+import { useSeriesLegend } from "../legend/use-series-legend"
 import type { PanelRenderer } from "../types"
+import { logTicks, scalePosition, symlogTicks } from "../value-axis"
 import {
   axisTicks,
+  barOptions,
   barRect,
+  barSource,
   barchartModel,
+  categoryBand,
   hitTest,
   labelHeight,
   labelSpot,
-  labelStride,
-  legendOf,
+  labelStep,
+  legendEntries,
+  lineHeightFor,
+  rotatedExtent,
+  roundedBarPath,
   shareOf,
   showValuesOf,
-  tooltipOf,
-  type BarSeries,
-  type BarchartLegend,
+  textWidthFor,
+  tooltipIndexes,
+  truncateLabel,
+  type BarOptions,
   type BarchartModel,
-  type BarchartTooltip,
   type Hit,
   type LabelSpot,
   type Layout,
@@ -38,16 +46,20 @@ import {
 
 const padTop = 8
 const padRight = 12
+const padSide = 12
 const axisThickness = 24
 const characterWidth = 7
 const axisGap = 16
 const tickSpacing = 32
 const horizontalTickSpacing = 72
 const maxLabelWidth = 120
+const maxRotatedLabelWidth = 160
 const strideLabelWidth = 80
 const tooltipOffset = 12
 const sidebarShare = 0.4
 const edgeGap = 4
+const axisLabelThickness = 18
+const rotatedPad = 8
 
 type Size = { width: number; height: number }
 type Pointer = Hit & { x: number; y: number }
@@ -75,102 +87,121 @@ function textWidth(text: string): number {
   return text.length * characterWidth
 }
 
-const Legend = memo(function Legend({
-  series,
-  placement,
-}: {
-  series: BarSeries[]
-  placement: Exclude<BarchartLegend, "hidden">
-}) {
-  const bottom = placement === "bottom"
-  return (
-    <ul
-      aria-label="Legend"
-      data-placement={placement}
-      className={cn(
-        "m-0 flex list-none overflow-y-auto p-0 text-xs",
-        bottom
-          ? "max-h-[40%] shrink-0 flex-wrap gap-x-4 gap-y-1 px-3 pt-1 pb-2"
-          : "w-[clamp(120px,25%,220px)] shrink-0 flex-col gap-1 py-2 pr-3"
-      )}
-    >
-      {series.map((item) => (
-        <li key={item.key} className="flex min-w-0 items-center gap-1.5">
-          <span
-            aria-hidden="true"
-            className="size-2.5 shrink-0"
-            style={{ backgroundColor: item.color }}
-          />
-          <span title={item.name} className="min-w-0 truncate">
-            {item.name}
-          </span>
-        </li>
-      ))}
-    </ul>
-  )
-})
-
 const Bars = memo(function Bars({
   model,
   layout,
   ticks,
   hovered,
+  options,
 }: {
   model: BarchartModel
   layout: Layout
   ticks: number[]
   hovered: Hit | null
+  options: Pick<BarOptions, "barRadius" | "fullHighlight">
 }) {
   const vertical = layout.orientation === "vertical"
   const { width, height } = layout.plot
+  const { settings } = model.axis
   const position = (value: number) => {
-    const share = (value - layout.min) / (layout.max - layout.min)
+    const share = scalePosition(value, layout.min, layout.max, layout.scale)
     return vertical ? height - share * height : share * width
   }
   const zero = position(0)
+  const edge =
+    settings.side === "end" ? (vertical ? width : 0) : vertical ? 0 : height
+  const borderStroke = model.axis.color ?? "var(--muted-foreground)"
+  const band =
+    options.fullHighlight && hovered
+      ? categoryBand(layout, hovered.category)
+      : null
   return (
     <>
-      {ticks
-        .filter((tick) => tick !== 0)
-        .map((tick) => (
-          <line
-            key={tick}
-            x1={vertical ? 0 : position(tick)}
-            x2={vertical ? width : position(tick)}
-            y1={vertical ? position(tick) : 0}
-            y2={vertical ? position(tick) : height}
-            style={{ stroke: "var(--border)", strokeWidth: 1 }}
-          />
-        ))}
+      {settings.grid
+        ? ticks
+            .filter((tick) => tick !== 0)
+            .map((tick) => (
+              <line
+                key={tick}
+                x1={vertical ? 0 : position(tick)}
+                x2={vertical ? width : position(tick)}
+                y1={vertical ? position(tick) : 0}
+                y2={vertical ? position(tick) : height}
+                style={{ stroke: "var(--border)", strokeWidth: 1 }}
+              />
+            ))
+        : null}
+      {band ? (
+        <rect
+          data-part="highlight"
+          {...band}
+          style={{ fill: "var(--foreground)", opacity: 0.06 }}
+        />
+      ) : null}
       {model.bars.map((row, category) =>
         row.map((bar, index) => {
           if (bar.value === null) return null
           const series = model.series[index]
           const rect = barRect(layout, category, series.slot, bar)
           const outlined =
-            hovered?.category === category && hovered.bar === index
-          return (
+            !options.fullHighlight &&
+            hovered?.category === category &&
+            hovered.bar === index
+          const path = bar.roundEnd
+            ? roundedBarPath(
+                rect,
+                layout.orientation,
+                bar.end < bar.start,
+                options.barRadius
+              )
+            : null
+          const style: CSSProperties = {
+            fill: bar.color,
+            fillOpacity: series.fillOpacity,
+            stroke: outlined
+              ? "var(--foreground)"
+              : series.borderWidth > 0
+                ? bar.color
+                : "none",
+            strokeWidth: outlined ? 1 : series.borderWidth,
+          }
+          return path ? (
+            <path
+              key={`${category}:${series.key}`}
+              data-series={series.key}
+              d={path}
+              style={style}
+            />
+          ) : (
             <rect
               key={`${category}:${series.key}`}
               data-series={series.key}
               {...rect}
-              style={{
-                fill: bar.color,
-                stroke: outlined ? "var(--foreground)" : "none",
-                strokeWidth: 1,
-              }}
+              style={style}
             />
           )
         })
       )}
-      <line
-        data-part="baseline"
-        x1={vertical ? 0 : zero}
-        x2={vertical ? width : zero}
-        y1={vertical ? zero : 0}
-        y2={vertical ? zero : height}
-        style={{ stroke: "var(--border)", strokeWidth: 1 }}
-      />
+      {layout.scale.kind === "log" ? null : (
+        <line
+          data-part="baseline"
+          x1={vertical ? 0 : zero}
+          x2={vertical ? width : zero}
+          y1={vertical ? zero : 0}
+          y2={vertical ? zero : height}
+          style={{ stroke: "var(--border)", strokeWidth: 1 }}
+        />
+      )}
+      {settings.border && settings.side !== "hidden" ? (
+        <line
+          data-part="axis-border"
+          x1={vertical ? edge : 0}
+          x2={vertical ? edge : width}
+          y1={vertical ? 0 : edge}
+          y2={vertical ? height : edge}
+          style={{ stroke: borderStroke, strokeWidth: 1 }}
+        />
+      ) : null}
     </>
   )
 })
@@ -180,17 +211,18 @@ function valueLabelStyle(
   orientation: Layout["orientation"],
   plot: Size,
   spot: Exclude<LabelSpot, null>,
-  negative: boolean
+  negative: boolean,
+  lineHeight: number
 ): CSSProperties {
   const inside = spot === "inside"
   if (orientation === "vertical") {
     const top = inside
       ? negative
-        ? rect.y + rect.height - labelHeight - 2
+        ? rect.y + rect.height - lineHeight - 2
         : rect.y + 2
       : negative
         ? rect.y + rect.height
-        : rect.y - labelHeight
+        : rect.y - lineHeight
     return { left: rect.x + rect.width / 2, top, transform: "translateX(-50%)" }
   }
   const top = rect.y + rect.height / 2
@@ -210,13 +242,16 @@ function ValueLabels({
   layout,
   mode,
   textColors,
+  fontSize,
 }: {
   model: BarchartModel
   layout: Layout
   mode: ReturnType<typeof showValuesOf>
   textColors: Map<string, string | undefined>
+  fontSize: number
 }) {
   if (mode === "never") return null
+  const lineHeight = lineHeightFor(fontSize)
   return (
     <>
       {model.bars.map((row, category) =>
@@ -230,22 +265,25 @@ function ValueLabels({
             rect,
             layout.orientation,
             layout.plot,
-            textWidth(bar.shown.text),
-            { stacked: series.stack !== "none", negative }
+            textWidthFor(bar.shown.text, fontSize),
+            { stacked: series.stack !== "none", negative, lineHeight }
           )
           if (spot === null) return null
           return (
             <span
               key={`${category}:${series.key}`}
               aria-hidden="true"
-              className="pointer-events-none absolute text-xs leading-4 whitespace-nowrap tabular-nums"
+              className="pointer-events-none absolute whitespace-nowrap tabular-nums"
               style={{
+                fontSize,
+                lineHeight: `${lineHeight}px`,
                 ...valueLabelStyle(
                   rect,
                   layout.orientation,
                   layout.plot,
                   spot,
-                  negative
+                  negative,
+                  lineHeight
                 ),
                 color:
                   spot === "inside" ? textColors.get(bar.color) : undefined,
@@ -265,31 +303,55 @@ function CategoryLabels({
   layout,
   labelWidth,
   gutter,
+  options,
 }: {
   model: BarchartModel
   layout: Layout
   labelWidth: number
   gutter: number
+  options: Pick<BarOptions, "xTickRotation" | "xTickSpacing" | "xTickMaxLength">
 }) {
   const vertical = layout.orientation === "vertical"
   const across = vertical ? layout.plot.width : layout.plot.height
   const slot = across / layout.count
-  const widest = Math.max(
-    0,
-    ...model.categories.map((category) => textWidth(category.label))
+  const rotation = vertical ? options.xTickRotation : 0
+  const labels = model.categories.map((category) =>
+    truncateLabel(category.label, options.xTickMaxLength)
   )
-  const stride = labelStride(
+  const widest = Math.max(0, ...labels.map(textWidth))
+  const step = labelStep(
     layout.count,
     across,
-    vertical ? Math.min(widest, strideLabelWidth) + 8 : labelHeight
+    vertical ? Math.min(widest, strideLabelWidth) + 8 : labelHeight,
+    options.xTickSpacing
   )
   return (
     <>
       {model.categories.map((category, index) => {
-        if (index % stride !== 0) return null
+        if (index % step !== 0) return null
         const center = index * slot + slot / 2
+        const text = labels[index]
+        if (rotation !== 0) {
+          const toRight = rotation > 0
+          return (
+            <span
+              key={category.key}
+              title={category.title}
+              aria-hidden="true"
+              className="absolute text-xs leading-4 whitespace-nowrap text-muted-foreground"
+              style={{
+                left: center,
+                top: layout.plot.height + rotatedPad,
+                transformOrigin: toRight ? "right top" : "left top",
+                transform: `translateX(${toRight ? "-100%" : "0"}) rotate(${-rotation}deg)`,
+              }}
+            >
+              {text}
+            </span>
+          )
+        }
         const half = Math.min(
-          (slot * stride) / 2,
+          (slot * step) / 2,
           center + gutter - edgeGap,
           layout.plot.width - center + padRight - edgeGap
         )
@@ -315,44 +377,6 @@ function CategoryLabels({
                   }
             }
           >
-            {category.label}
-          </span>
-        )
-      })}
-    </>
-  )
-}
-
-function ValueAxis({
-  layout,
-  labels,
-}: {
-  layout: Layout
-  labels: { tick: number; text: string }[]
-}) {
-  const vertical = layout.orientation === "vertical"
-  const { width, height } = layout.plot
-  return (
-    <>
-      {labels.map(({ tick, text }) => {
-        const share = (tick - layout.min) / (layout.max - layout.min)
-        return (
-          <span
-            key={tick}
-            aria-hidden="true"
-            className={cn(
-              "absolute text-xs leading-4 whitespace-nowrap text-muted-foreground tabular-nums",
-              vertical ? "right-full pr-2" : "top-full pt-2"
-            )}
-            style={
-              vertical
-                ? {
-                    top: height - share * height,
-                    transform: "translateY(-50%)",
-                  }
-                : { left: share * width, transform: "translateX(-50%)" }
-            }
-          >
             {text}
           </span>
         )
@@ -361,32 +385,111 @@ function ValueAxis({
   )
 }
 
+function ValueAxis({
+  model,
+  layout,
+  labels,
+  extent,
+}: {
+  model: BarchartModel
+  layout: Layout
+  labels: { tick: number; text: string }[]
+  extent: number
+}) {
+  const { settings, color } = model.axis
+  if (settings.side === "hidden") return null
+  const vertical = layout.orientation === "vertical"
+  const atEnd = settings.side === "end"
+  const { width, height } = layout.plot
+  const tone = color ? { color } : undefined
+  return (
+    <>
+      {labels.map(({ tick, text }) => {
+        const share = scalePosition(tick, layout.min, layout.max, layout.scale)
+        return (
+          <span
+            key={tick}
+            aria-hidden="true"
+            className={cn(
+              "absolute text-xs leading-4 whitespace-nowrap tabular-nums",
+              color ? undefined : "text-muted-foreground",
+              vertical
+                ? atEnd
+                  ? "left-full pl-2"
+                  : "right-full pr-2"
+                : atEnd
+                  ? "bottom-full pb-2"
+                  : "top-full pt-2"
+            )}
+            style={{
+              ...tone,
+              ...(vertical
+                ? {
+                    top: height - share * height,
+                    transform: "translateY(-50%)",
+                  }
+                : { left: share * width, transform: "translateX(-50%)" }),
+            }}
+          >
+            {text}
+          </span>
+        )
+      })}
+      {settings.label ? (
+        <span
+          data-part="axis-label"
+          aria-hidden="true"
+          className="absolute text-center text-xs leading-[18px] whitespace-nowrap text-muted-foreground"
+          style={
+            vertical
+              ? {
+                  writingMode: "vertical-rl",
+                  transform: atEnd ? undefined : "rotate(180deg)",
+                  top: 0,
+                  height,
+                  ...(atEnd
+                    ? { left: width + extent - axisLabelThickness }
+                    : { left: -extent }),
+                }
+              : {
+                  left: 0,
+                  width,
+                  ...(atEnd
+                    ? { top: -extent }
+                    : { top: height + extent - axisLabelThickness }),
+                }
+          }
+        >
+          {settings.label}
+        </span>
+      ) : null}
+    </>
+  )
+}
+
 function Tooltip({
   model,
   pointer,
-  mode,
+  indexes,
   plot,
+  options,
 }: {
   model: BarchartModel
   pointer: Pointer
-  mode: Exclude<BarchartTooltip, "hidden">
+  indexes: number[]
   plot: Size
+  options: Pick<BarOptions, "tooltipMaxWidth" | "tooltipMaxHeight">
 }) {
   const row = model.bars[pointer.category]
-  const indexes =
-    mode === "single"
-      ? pointer.bar === null
-        ? []
-        : [pointer.bar]
-      : row.flatMap((bar, index) => (bar.value === null ? [] : [index]))
-  if (indexes.length === 0) return null
   const onRight = pointer.x > plot.width / 2
   return (
     <div
       role="tooltip"
-      className="pointer-events-none absolute z-10 min-w-36 rounded-control border border-border bg-popover px-2 py-1.5 text-xs text-popover-foreground"
+      className="pointer-events-none absolute z-10 min-w-36 overflow-hidden rounded-control border border-border bg-popover px-2 py-1.5 text-xs text-popover-foreground"
       style={{
         top: Math.max(0, pointer.y - tooltipOffset),
+        maxWidth: options.tooltipMaxWidth,
+        maxHeight: options.tooltipMaxHeight,
         ...(onRight
           ? { right: plot.width - pointer.x + tooltipOffset }
           : { left: pointer.x + tooltipOffset }),
@@ -418,41 +521,72 @@ function Tooltip({
 function Plot({
   model,
   display,
+  options,
   size,
 }: {
   model: BarchartModel
   display: Record<string, unknown>
+  options: BarOptions
   size: Size
 }) {
   const { resolved: theme } = useTheme()
   const [pointer, setPointer] = useState<Pointer | null>(null)
   const vertical = model.orientation === "vertical"
+  const { settings } = model.axis
   const count = model.categories.length
-  const widest = Math.max(
-    0,
-    ...model.categories.map((category) => textWidth(category.label))
+  const labels = useMemo(
+    () =>
+      model.categories.map((category) =>
+        truncateLabel(category.label, options.xTickMaxLength)
+      ),
+    [model.categories, options.xTickMaxLength]
   )
-  const plotHeight = size.height - padTop - axisThickness
+  const widest = Math.max(0, ...labels.map(textWidth))
+  const rotation = vertical ? options.xTickRotation : 0
+  const categoryExtent =
+    rotation === 0
+      ? axisThickness
+      : rotatedExtent(
+          Math.min(widest, maxRotatedLabelWidth),
+          rotation,
+          labelHeight
+        ) + rotatedPad
   const labelWidth = Math.min(
     Math.min(widest, maxLabelWidth) + axisGap,
     size.width * sidebarShare
   )
-  const tickLength = vertical ? plotHeight : size.width - labelWidth - padRight
-  const scale = useMemo(
-    () =>
-      axisTicks(
-        model.min,
-        model.max,
-        tickLength / (vertical ? tickSpacing : horizontalTickSpacing)
-      ),
-    [model.min, model.max, tickLength, vertical]
-  )
+  const hiddenAxis = settings.side === "hidden"
+  const atEnd = settings.side === "end"
+  const axisLabel = settings.label && !hiddenAxis ? axisLabelThickness : 0
+  const measureLength = vertical
+    ? size.height - padTop - categoryExtent
+    : size.width - labelWidth - padRight
+  const scale = useMemo(() => {
+    const maxTicks =
+      measureLength / (vertical ? tickSpacing : horizontalTickSpacing)
+    const { kind, logBase, linearThreshold } = model.scale
+    if (kind === "log") {
+      return {
+        min: model.min,
+        max: model.max,
+        ticks: logTicks(model.min, model.max, logBase, maxTicks),
+      }
+    }
+    if (kind === "symlog") {
+      return {
+        min: model.min,
+        max: model.max,
+        ticks: symlogTicks(model.min, model.max, linearThreshold, maxTicks),
+      }
+    }
+    return axisTicks(model.min, model.max, maxTicks)
+  }, [model.min, model.max, model.scale, measureLength, vertical])
   const decimals = axisDecimals(
     scale.ticks,
     model.axis.unit,
     model.axis.decimals
   )
-  const labels = useMemo(
+  const labelTexts = useMemo(
     () =>
       scale.ticks.map((tick) => ({
         tick,
@@ -460,24 +594,39 @@ function Plot({
       })),
     [scale.ticks, model.axis.unit, decimals]
   )
-  const valueWidth =
-    Math.max(0, ...labels.map(({ text }) => textWidth(text))) + axisGap
-  const left = vertical ? valueWidth : labelWidth
+  const valueTextWidth =
+    Math.max(0, ...labelTexts.map(({ text }) => textWidth(text))) + axisGap
+  const naturalExtent = vertical ? valueTextWidth : axisThickness
+  const valueExtent = hiddenAxis
+    ? 0
+    : (settings.width ?? naturalExtent) + axisLabel
+  const left = vertical
+    ? atEnd || hiddenAxis
+      ? padSide
+      : valueExtent
+    : labelWidth
+  const right = vertical ? (atEnd ? valueExtent : padRight) : padRight
+  const top = vertical ? padTop : atEnd ? valueExtent : padTop
+  const bottom = vertical
+    ? categoryExtent
+    : hiddenAxis || atEnd
+      ? padTop
+      : valueExtent
   const plot = {
-    width: size.width - left - padRight,
-    height: plotHeight,
+    width: size.width - left - right,
+    height: size.height - top - bottom,
   }
   const layout: Layout = {
     orientation: model.orientation,
     plot,
     min: scale.min,
     max: scale.max,
+    scale: model.scale,
     count,
     slotCount: model.slotCount,
     groupWidth: shareOf(display, "groupWidth", 0.7),
     barWidth: shareOf(display, "barWidth", 0.97),
   }
-  const tooltip = tooltipOf(display)
   const mode = showValuesOf(display)
   const textColors = useMemo(() => {
     const colors = new Map<string, string | undefined>()
@@ -501,11 +650,15 @@ function Plot({
     setPointer({ ...hitTest(layout, model, x, y), x, y })
   }
 
-  const hit = tooltip === "all" || pointer?.bar != null ? pointer : null
+  const hit = options.tooltip === "all" || pointer?.bar != null ? pointer : null
+  const indexes =
+    options.tooltip !== "hidden" && hit
+      ? tooltipIndexes(model, hit, options)
+      : []
   return (
     <div
       className="absolute"
-      style={{ left, top: padTop, width: plot.width, height: plot.height }}
+      style={{ left, top, width: plot.width, height: plot.height }}
     >
       <svg
         role="img"
@@ -522,46 +675,72 @@ function Plot({
           layout={layout}
           ticks={scale.ticks}
           hovered={pointer}
+          options={options}
         />
       </svg>
-      <ValueAxis layout={layout} labels={labels} />
+      <ValueAxis
+        model={model}
+        layout={layout}
+        labels={labelTexts}
+        extent={valueExtent}
+      />
       <CategoryLabels
         model={model}
         layout={layout}
         labelWidth={labelWidth}
         gutter={left}
+        options={options}
       />
       <ValueLabels
         model={model}
         layout={layout}
         mode={mode}
         textColors={textColors}
+        fontSize={options.valueSize}
       />
-      {tooltip !== "hidden" && hit ? (
-        <Tooltip model={model} pointer={hit} mode={tooltip} plot={plot} />
+      {hit && indexes.length > 0 ? (
+        <Tooltip
+          model={model}
+          pointer={hit}
+          indexes={indexes}
+          plot={plot}
+          options={options}
+        />
       ) : null}
     </div>
   )
 }
 
 const BarchartPanel: PanelRenderer = ({
+  panel,
   frames,
   fields,
   display,
   width,
   height,
+  stateScope,
 }) => {
+  const options = useMemo(() => barOptions(display), [display])
+  const source = useMemo(
+    () => barSource(frames, fields, display),
+    [frames, fields, display]
+  )
+  const entries = useMemo(() => legendEntries(source), [source])
+  const legend = useSeriesLegend({
+    stateKey: `${stateScope}:${panel.id}`,
+    entries,
+    options,
+    width,
+    height,
+  })
   const model = useMemo(
-    () => barchartModel(frames, fields, display, { width, height }),
-    [frames, fields, display, width, height]
+    () => barchartModel(source, display, { width, height }, legend.hidden),
+    [source, display, width, height, legend.hidden]
   )
   const [measured, plotRef] = useMeasuredSize()
-  const requested = legendOf(display)
-  const legend =
-    requested !== "hidden" && model.series.length > 1 ? requested : null
   const estimate = {
-    width: width - (legend === "right" ? 160 : 0),
-    height: height - (legend === "bottom" ? 28 : 0),
+    width: width - legend.width,
+    height: height - (legend.placement === "bottom" ? 28 : 0),
   }
   const size = measured ?? estimate
   return (
@@ -569,10 +748,10 @@ const BarchartPanel: PanelRenderer = ({
       data-orientation={model.orientation}
       data-categories={model.categories.length}
       data-series={model.series.length}
-      data-legend={legend ?? "hidden"}
+      data-legend={legend.placement ?? "hidden"}
       className={cn(
         "flex min-h-0 min-w-0",
-        legend === "right" ? "flex-row" : "flex-col"
+        legend.placement === "right" ? "flex-row" : "flex-col"
       )}
       style={{ width, height }}
     >
@@ -582,7 +761,12 @@ const BarchartPanel: PanelRenderer = ({
         <>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div ref={plotRef} className="relative min-h-0 min-w-0 flex-1">
-              <Plot model={model} display={display} size={size} />
+              <Plot
+                model={model}
+                display={display}
+                options={options}
+                size={size}
+              />
             </div>
             {model.note ? (
               <p className="m-0 shrink-0 px-3 pb-1 text-xs text-muted-foreground">
@@ -590,7 +774,7 @@ const BarchartPanel: PanelRenderer = ({
               </p>
             ) : null}
           </div>
-          {legend ? <Legend series={model.series} placement={legend} /> : null}
+          {legend.node}
         </>
       )}
     </div>

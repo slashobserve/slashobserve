@@ -92,7 +92,21 @@ export const displayKeysByType: Record<string, readonly string[]> = {
   ],
   "histogram": [
     "bucketSize",
-    "bucketCount"
+    "bucketCount",
+    "bucketOffset",
+    "combine",
+    "stack",
+    "legend",
+    "tooltip",
+    "legendMode",
+    "legendValues",
+    "legendSortBy",
+    "legendSortDesc",
+    "legendWidth",
+    "tooltipSort",
+    "tooltipHideZeros",
+    "tooltipMaxWidth",
+    "tooltipMaxHeight"
   ],
   "state-timeline": [
     "mergeValues",
@@ -129,7 +143,23 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "barWidth",
     "groupWidth",
     "legend",
-    "tooltip"
+    "tooltip",
+    "legendMode",
+    "legendValues",
+    "legendSortBy",
+    "legendSortDesc",
+    "legendWidth",
+    "tooltipSort",
+    "tooltipHideZeros",
+    "tooltipMaxWidth",
+    "tooltipMaxHeight",
+    "xTickRotation",
+    "xTickSpacing",
+    "xTickMaxLength",
+    "barRadius",
+    "fullHighlight",
+    "colorByField",
+    "valueSize"
   ],
   "status-history": [
     "showValues",
