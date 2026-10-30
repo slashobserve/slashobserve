@@ -1,0 +1,6 @@
+adhocFilters=job
+exemplar=true
+groupByKeys=job
+instant=true+range
+interval=var:resolution
+scopes=team-a

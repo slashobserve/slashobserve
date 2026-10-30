@@ -1,0 +1,38 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "packages/grafana-prometheus/src/dataquery.ts",
+    "packages/grafana-data/src/types/dataQuery.ts",
+    "kinds/dashboard/dashboard_kind.cue"
+  ],
+  "root": "panels[0].targets[0]",
+  "entries": [
+    { "id": "interval=1m", "path": "interval", "value": "1m" },
+    { "id": "interval=var:interval", "path": "interval", "value": "$interval" },
+    { "id": "interval=var:braces", "path": "interval", "value": "${interval}" },
+    { "id": "interval=var:legacy", "path": "interval", "value": "[[interval]]" },
+    { "id": "interval=var:resolution", "path": "interval", "value": "$resolution" },
+    { "id": "interval=var:format", "path": "interval", "value": "${interval:text}" },
+    { "id": "intervalFactor=2", "path": "intervalFactor", "value": 2 },
+    { "id": "intervalFactor=3", "path": "intervalFactor", "value": 3 },
+    { "id": "intervalFactor=4", "path": "intervalFactor", "value": 4 },
+    { "id": "intervalFactor=5", "path": "intervalFactor", "value": 5 },
+    { "id": "intervalFactor=10", "path": "intervalFactor", "value": 10 },
+    { "id": "exemplar=true", "path": "exemplar", "value": true },
+    { "id": "instant=true+range", "path": "instant", "value": true, "with": {"range": true} },
+    { "id": "instant=true+range-off", "path": "instant", "value": true, "with": {"range": false} },
+    { "id": "format=table", "path": "format", "value": "table" },
+    { "id": "format=heatmap", "path": "format", "value": "heatmap" },
+    { "id": "legendFormat=pod-label", "path": "legendFormat", "value": "{{pod}}" },
+    { "id": "legendFormat=auto", "path": "legendFormat", "value": "__auto" },
+    { "id": "hide=true", "path": "hide", "value": true },
+    { "id": "refId=B", "path": "refId", "value": "B" },
+    { "id": "scopes=team-a", "path": "scopes", "value": [{"name": "team-a"}] },
+    { "id": "adhocFilters=job", "path": "adhocFilters", "value": [{"key": "job", "operator": "=", "value": "api"}] },
+    { "id": "groupByKeys=job", "path": "groupByKeys", "value": ["job"] },
+    { "id": "editorMode=builder", "path": "editorMode", "value": "builder", "expect": "bookkeeping" },
+    { "id": "queryType=time-series", "path": "queryType", "value": "timeSeriesQuery", "expect": "bookkeeping" },
+    { "id": "key=Q-1", "path": "key", "value": "Q-1", "expect": "bookkeeping" },
+    { "id": "requestId=Q100", "path": "requestId", "value": "Q100", "expect": "bookkeeping" }
+  ]
+}

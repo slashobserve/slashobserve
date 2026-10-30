@@ -1,0 +1,14 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/datasource/dashboard/types.ts",
+    "packages/grafana-data/src/types/dataQuery.ts"
+  ],
+  "root": "panels[1]",
+  "entries": [
+    { "id": "targets[0]=dashboard-source", "path": "targets[0]", "value": {"datasource": {"type": "datasource", "uid": "-- Dashboard --"}, "panelId": 1, "refId": "A"}, "with": {"datasource": {"type": "datasource", "uid": "-- Dashboard --"}} },
+    { "id": "targets[0].withTransforms=true", "path": "targets[0].withTransforms", "value": true, "with": {"datasource": {"type": "datasource", "uid": "-- Dashboard --"}, "targets[0]": {"datasource": {"type": "datasource", "uid": "-- Dashboard --"}, "panelId": 1, "refId": "A"}} },
+    { "id": "targets[0].adHocFiltersEnabled=true", "path": "targets[0].adHocFiltersEnabled", "value": true, "with": {"datasource": {"type": "datasource", "uid": "-- Dashboard --"}, "targets[0]": {"datasource": {"type": "datasource", "uid": "-- Dashboard --"}, "panelId": 1, "refId": "A"}} },
+    { "id": "targets[0].hide=true", "path": "targets[0].hide", "value": true, "with": {"datasource": {"type": "datasource", "uid": "-- Dashboard --"}, "targets[0]": {"datasource": {"type": "datasource", "uid": "-- Dashboard --"}, "panelId": 1, "refId": "A"}} }
+  ]
+}
