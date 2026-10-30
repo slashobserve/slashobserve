@@ -62,6 +62,8 @@ paths:
     $ref: "./paths/dashboards.yaml#/dashboards-id-versions-version"
   /dashboards/{id}/versions/{version}/restore:
     $ref: "./paths/dashboards.yaml#/dashboards-id-versions-version-restore"
+  /dashboards/{id}/duplicate:
+    $ref: "./paths/dashboards.yaml#/dashboards-id-duplicate"
   /dashboards/{id}/diff:
     $ref: "./paths/dashboards.yaml#/dashboards-id-diff"
   /dashboards/{id}/import:

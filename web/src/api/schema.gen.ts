@@ -570,6 +570,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboards/{id}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save the latest version as version 1 of a new dashboard.
+         * @description Needs View on the dashboard and Create in the target folder. The copy keeps every Spec field except `title`, and the source version's `unverified` list. Its datasource references are checked but its queries are not run, as for a restore, so duplicating does not fail because an upstream is briefly down. Versions, comments, agent requests and the import record stay with the original.
+         */
+        post: operations["duplicateDashboard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboards/{id}/diff": {
         parameters: {
             query?: never;
@@ -3465,6 +3487,48 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["VersionConflict"];
+            413: components["responses"]["TooLarge"];
+            422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    duplicateDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The copy's title; it must pass the same rules as a Spec title. */
+                    title: string;
+                    /**
+                     * Format: uuid
+                     * @description The folder to create the dashboard in. Missing means the caller's last used folder they can still create in, else General. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
+                     */
+                    folder_id?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The new dashboard and its first version. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             413: components["responses"]["TooLarge"];
             422: components["responses"]["InvalidSpec"];
             500: components["responses"]["Internal"];
