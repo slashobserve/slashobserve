@@ -64,7 +64,7 @@ func TestViolationDropsHandlerHeadersAndKeepsSecurityHeaders(t *testing.T) {
 			t.Errorf("violation response leaks %s: %q", name, v)
 		}
 	}
-	if rec.Header().Get("X-Frame-Options") != "DENY" || rec.Header().Get("Content-Security-Policy") != "frame-ancestors 'none'" {
+	if rec.Header().Get("X-Frame-Options") != "DENY" || rec.Header().Get("Content-Security-Policy") != contentSecurityPolicy {
 		t.Errorf("security headers are missing: %v", rec.Header())
 	}
 	if got := rec.Header().Get("Content-Type"); !strings.HasPrefix(got, "application/json") {
@@ -72,6 +72,37 @@ func TestViolationDropsHandlerHeadersAndKeepsSecurityHeaders(t *testing.T) {
 	}
 	if !strings.Contains(logs.String(), contractViolation) {
 		t.Errorf("violation was not logged: %s", logs.String())
+	}
+}
+
+func TestDocumentedImageRoutePassesTheContractCheck(t *testing.T) {
+	cases := map[string]string{
+		"image/png":     "\x89PNG\r\n\x1a\n\x00\x00",
+		"image/jpeg":    "\xff\xd8\xff\xe0",
+		"image/gif":     "GIF89a\x01\x00",
+		"image/webp":    "RIFF\x00\x00\x00\x00WEBPVP8 ",
+		"image/avif":    "\x00\x00\x00\x1cftypavif\x00\x00\x00\x00",
+		"image/svg+xml": `<svg xmlns="http://www.w3.org/2000/svg"/>`,
+	}
+	for mediaType, body := range cases {
+		t.Run(mediaType, func(t *testing.T) {
+			var logs bytes.Buffer
+			engine := contractEngine(t, &logs, func(g *gin.RouterGroup) {
+				g.GET("/assets/image", func(c *gin.Context) {
+					c.Header("Cache-Control", "private, max-age=3600")
+					c.Header("Content-Security-Policy", "default-src 'none'")
+					c.Header("Cross-Origin-Resource-Policy", "same-origin")
+					c.Data(http.StatusOK, mediaType, []byte(body))
+				})
+			})
+			rec := serve(engine, httptest.NewRequest(http.MethodGet, "/api/v1/assets/image?url=https%3A%2F%2Fcdn.example.com%2Fa", nil))
+			if rec.Code != http.StatusOK || rec.Body.String() != body {
+				t.Fatalf("status %d, body %q (logs: %s)", rec.Code, rec.Body, logs.String())
+			}
+			if rec.Header().Get("Content-Type") != mediaType {
+				t.Errorf("content type %q", rec.Header().Get("Content-Type"))
+			}
+		})
 	}
 }
 

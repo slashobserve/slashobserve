@@ -1,6 +1,6 @@
 ---
 title: Outbound access
-description: Control which domains the server may fetch from, including the feeds in news panels.
+description: Control which domains the server may fetch from, including the feeds in news panels and the images and GeoJSON files that panels show.
 ---
 
 SlashObserve can show content that dashboards fetch from other sites, such as the feeds in news panels.
@@ -39,3 +39,20 @@ The feed must be an RSS or Atom feed on an https address, up to 1 MiB, and its d
 The server caches a feed for 15 minutes and returns at most 50 items as plain text.
 A feed whose domain is not allowed shows a message naming the domain.
 Item links open in a new tab and are not limited by the allowlist: the allowlist controls what the server fetches, not where a person may click.
+
+## Images and GeoJSON
+
+The browser never loads an image or a file from another site.
+A page's Content-Security-Policy allows only the server's own origin, so panels that show a remote image, such as an image in a text panel's Markdown, ask the server for it with `GET /api/v1/assets/image?url=<image address>`.
+Panels that draw a GeoJSON layer use `GET /api/v1/assets/geojson?url=<file address>`.
+Only signed-in people can call these routes, not service-account keys, and the address must be an https address on an allowed domain.
+
+- An image can be a PNG, JPEG, GIF, WebP, AVIF or SVG, up to 5 MiB, and its bytes must match the type the site declared.
+  The server sends it with a policy that forbids scripts, so an SVG opened on its own never runs script, and the browser keeps it for 1 hour.
+- A GeoJSON file can be served as `application/geo+json`, `application/json` or `text/plain`, up to 5 MiB, and must be a JSON object whose `type` is a GeoJSON type.
+- Both are cached on the server for 1 hour, in a cache separate from the news feeds'.
+- A domain that is not allowed answers `403 outbound_domain_not_allowed`, and the panel shows the image's alt text instead.
+  A file that cannot be fetched, is too large or is not what it claims to be answers `502 asset_unavailable`.
+- A site that redirects to a content network needs that network's domain on the allowlist too, because each redirect hop is checked.
+
+Each refusal is logged at INFO as `asset fetch failed` with the host, the code and the person's id (`actor_id`), never the address's path or query.

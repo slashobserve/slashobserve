@@ -105,6 +105,7 @@ Its `type` is one of `timeseries`, `stat`, `gauge`, `bargauge`, `table`, `piecha
 The other panel types are:
 
 - `text`, which holds Markdown in `content`, rendered sanitized.
+  An image in the Markdown loads through the server, and only from an https address on an allowed domain (see [Outbound access](../operate/outbound-access.md#images-and-geojson)); otherwise the panel shows its alt text.
   Its optional `mode` is `markdown` (the default), `html` (sanitized HTML) or `code` (the content shown as code, with `code.language` and `code.lineNumbers`).
   People and Grafana imports can write `html`; the agent and MCP clients cannot (see [Maps, canvases and actions](#maps-canvases-and-actions)).
 - `dashlist` and `news`, which list other dashboards and the items of an RSS or Atom feed.
