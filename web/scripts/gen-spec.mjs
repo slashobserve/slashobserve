@@ -40,6 +40,7 @@ let code = standaloneCode(ajv, {
   rowPanel: `${schema.$id}#/$defs/rowPanel`,
   panelQuery: `${schema.$id}#/$defs/panelQuery`,
   expressionQuery: `${schema.$id}#/$defs/expressionQuery`,
+  dashboardQuery: `${schema.$id}#/$defs/dashboardQuery`,
 })
 code = code.replace(
   /const (\w+) = require\("ajv\/dist\/runtime\/ucs2length"\)\.default;/g,

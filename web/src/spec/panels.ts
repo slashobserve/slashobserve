@@ -1,4 +1,5 @@
 import type {
+  DashboardQuery,
   Dashboard,
   DataPanel,
   ExpressionQuery,
@@ -71,10 +72,32 @@ export function findPanel(spec: Dashboard, id: string): PanelEntry | undefined {
   return allPanels(spec).find((entry) => entry.panel.id === id)
 }
 
-export type DataQuery = PanelQuery | ExpressionQuery
+export type DataQuery = PanelQuery | ExpressionQuery | DashboardQuery
 
 export function isExpressionQuery(query: DataQuery): query is ExpressionQuery {
   return "expression" in query
+}
+
+export function isDashboardQuery(query: DataQuery): query is DashboardQuery {
+  return "source" in query
+}
+
+export function isPanelQuery(query: DataQuery): query is PanelQuery {
+  return !isExpressionQuery(query) && !isDashboardQuery(query)
+}
+
+export function reusesPanel(panel: DataPanel): boolean {
+  return panel.queries.some(isDashboardQuery)
+}
+
+export function sourcePanelOf(
+  spec: Dashboard,
+  panel: DataPanel
+): DataPanel | undefined {
+  const query = panel.queries.find(isDashboardQuery)
+  if (!query) return undefined
+  const source = findPanel(spec, query.source.panel)?.panel
+  return source && isDataPanel(source) ? source : undefined
 }
 
 export function queryRef(query: DataQuery, index: number): string {

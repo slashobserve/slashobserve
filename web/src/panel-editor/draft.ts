@@ -2,7 +2,7 @@ import {
   displayKeysByType,
   instantPanelTypes,
   isDataPanel,
-  isExpressionQuery,
+  isPanelQuery,
   queryRef,
   type DashlistPanel,
   type DataPanel,
@@ -66,7 +66,7 @@ export function runsAsRange(
   panelType: DataPanelType
 ): boolean {
   return (
-    !isExpressionQuery(query) &&
+    isPanelQuery(query) &&
     query.instant !== true &&
     !instantPanelTypes.includes(panelType)
   )
@@ -110,10 +110,10 @@ function editQuery(
   edit: (query: PanelQuery) => void
 ): EditorDraft {
   const target = isDataPanel(state.panel) ? state.panel.queries[index] : null
-  if (!target || isExpressionQuery(target)) return state
+  if (!target || !isPanelQuery(target)) return state
   return editData(state, (panel) => {
     const query = panel.queries[index]
-    if (!isExpressionQuery(query)) edit(query)
+    if (isPanelQuery(query)) edit(query)
   })
 }
 

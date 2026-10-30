@@ -1,8 +1,9 @@
 import { sameJson } from "@/lib/json"
 import { joinNames } from "@/observe/conversation"
 import {
+  isDashboardQuery,
   isDataPanel,
-  isExpressionQuery,
+  isPanelQuery,
   queryRef,
   type DataQuery,
   type Threshold,
@@ -197,7 +198,7 @@ function withoutRef(query: DataQuery): Fields {
 }
 
 function normaliseQuery(query: DataQuery): DataQuery {
-  if (isExpressionQuery(query)) return query
+  if (!isPanelQuery(query)) return query
   const next = { ...query }
   const legend = next.legend?.trim()
   if (legend) next.legend = legend
@@ -267,11 +268,12 @@ function queryChanges(base: Fields, draft: Fields): Change[] {
       changes.push({ key: `queries.${ref}.new`, label: `new query ${ref}` })
       return
     }
-    if (isExpressionQuery(before) || isExpressionQuery(query)) {
+    if (!isPanelQuery(before) || !isPanelQuery(query)) {
       if (!sameJson(withoutRef(before), withoutRef(query))) {
+        const reuses = isDashboardQuery(before) || isDashboardQuery(query)
         changes.push({
-          key: `queries.${ref}.expression`,
-          label: `expression ${ref}`,
+          key: `queries.${ref}.${reuses ? "source" : "expression"}`,
+          label: `${reuses ? "reused panel" : "expression"} ${ref}`,
         })
       }
       return

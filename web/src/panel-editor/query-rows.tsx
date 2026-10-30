@@ -15,8 +15,11 @@ import type { CodeEditorHandle } from "@/query-editor/code-editor"
 import { cn } from "@/lib/utils"
 import {
   isDataPanel,
+  isDashboardQuery,
   isExpressionQuery,
+  isPanelQuery,
   queryRef,
+  reusesPanel,
   type DatasourceVariable,
 } from "@/spec"
 
@@ -27,6 +30,7 @@ import {
   type EditablePanel,
 } from "./draft"
 import { ExpressionRow } from "./expression-row"
+import { SourceRow } from "./source-row"
 import { QueryRow, type ResolveDatasource } from "./query-row"
 
 export const maxContentLength = 20000
@@ -39,6 +43,7 @@ type Props = {
   datasourceVariables: readonly DatasourceVariable[]
   resolveDatasource: ResolveDatasource
   issuesByQuery: ReadonlyMap<string, string[]>
+  sourceTitle: (panelId: string) => string
   onActiveChange: (ref: string) => void
   onRemoved: (ref: string) => void
   focusFirst: boolean
@@ -91,6 +96,7 @@ export function QueryRows({
   datasourceVariables,
   resolveDatasource,
   issuesByQuery,
+  sourceTitle,
   onActiveChange,
   onRemoved,
   focusFirst,
@@ -151,6 +157,16 @@ export function QueryRows({
             />
           )
         }
+        if (isDashboardQuery(query)) {
+          return (
+            <SourceRow
+              key={ref}
+              refName={ref}
+              query={query}
+              sourceTitle={sourceTitle(query.source.panel)}
+            />
+          )
+        }
         return (
           <QueryRow
             key={ref}
@@ -158,9 +174,9 @@ export function QueryRows({
             refName={ref}
             query={query}
             baseQuery={
-              baseQuery && !isExpressionQuery(baseQuery) ? baseQuery : undefined
+              baseQuery && isPanelQuery(baseQuery) ? baseQuery : undefined
             }
-            panelDatasource={draft.datasource}
+            panelDatasource={draft.datasource ?? ""}
             datasourceVariables={datasourceVariables}
             resolveDatasource={resolveDatasource}
             readOnly={readOnly}
@@ -193,7 +209,9 @@ export function QueryRows({
         variant="ghost"
         size="sm"
         className="self-start px-0 text-muted-foreground hover:bg-transparent dark:hover:bg-transparent"
-        disabled={readOnly || draft.queries.length >= maxQueries}
+        disabled={
+          readOnly || reusesPanel(draft) || draft.queries.length >= maxQueries
+        }
         onClick={() => {
           focusNew.current = true
           dispatch({ type: "addQuery" })

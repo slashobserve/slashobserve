@@ -71,6 +71,7 @@ type converter struct {
 	staleRows    []string
 	dsFallback   map[string]bool
 	adhocSources map[string]*sourceDS
+	reusable     map[int]reusableSource
 }
 
 func Convert(raw []byte, opts Options) (*Result, error) {
@@ -491,9 +492,12 @@ func (c *converter) convertAnnotations(dash map[string]any) {
 }
 
 func (c *converter) convertPanels() {
+	var later []func()
 	for _, n := range c.src.nodes {
 		if !n.row {
-			c.built = append(c.built, c.convertPanel(n))
+			i := len(c.built)
+			c.built = append(c.built, nil)
+			c.convertOrDefer(n, false, &later, func(bp *builtPanel) { c.built[i] = bp })
 			continue
 		}
 		title := strings.TrimSpace(n.title)
@@ -515,9 +519,14 @@ func (c *converter) convertPanels() {
 		}
 		for _, child := range n.children {
 			child.rowTitle = ptr(title)
-			row.children = append(row.children, c.convertPanel(child))
+			j := len(row.children)
+			row.children = append(row.children, nil)
+			c.convertOrDefer(child, row.repeat != "", &later, func(bp *builtPanel) { row.children[j] = bp })
 		}
 		c.built = append(c.built, row)
+	}
+	for _, convert := range later {
+		convert()
 	}
 	if len(c.emptyRows) > 0 {
 		c.note("rows", "Rows without a title are named Row.", c.emptyRows...)

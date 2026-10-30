@@ -1042,6 +1042,10 @@ func (c *converter) schemaVersion() int {
 
 func (b *panelBuild) convertPanelOptions() {
 	b.convertRepeat()
+	if b.reusesPanel() {
+		b.dropOwnQuerySettings()
+		return
+	}
 	b.convertPanelTimes()
 	if v, ok := b.value("maxDataPoints"); ok {
 		b.convertMaxDataPoints(v)

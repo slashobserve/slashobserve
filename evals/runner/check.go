@@ -45,7 +45,7 @@ func dataPanels(d *spec.Dashboard) []*spec.Panel {
 func (o observation) panelDatasourceTypes(p *spec.Panel) []string {
 	var types []string
 	for j, q := range p.Queries {
-		if q.IsExpression() {
+		if q.IsExpression() || q.IsDashboardSource() {
 			continue
 		}
 		uid := p.QueryDatasource(j)

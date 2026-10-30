@@ -13,7 +13,8 @@ import { noSharedCursor } from "@/panels/shared-cursor"
 import { prepareFrames } from "@/panels/transforms"
 import {
   isDataPanel,
-  isExpressionQuery,
+  isPanelQuery,
+  reusesPanel,
   validateSpecSchema,
   type DataPanel,
   type Dashboard,
@@ -65,7 +66,7 @@ function useContentWidth() {
 function draftIsValid(spec: Dashboard, draft: DataPanel): boolean {
   if (
     draft.queries.some(
-      (query) => !isExpressionQuery(query) && query.query.trim() === ""
+      (query) => isPanelQuery(query) && query.query.trim() === ""
     )
   )
     return false
@@ -268,17 +269,24 @@ export function PreviewSection({
   let content = null
   if (width > 0) {
     content = isDataPanel(draft) ? (
-      <DataPreview
-        dashboardId={dashboardId}
-        spec={spec}
-        version={version}
-        baseVersion={baseVersion}
-        base={base}
-        draft={draft}
-        timeRange={timeRange}
-        selections={selections}
-        width={width}
-      />
+      reusesPanel(draft) ? (
+        <p className="px-2 py-6 text-center text-[13px] text-muted-foreground">
+          This panel shows another panel's results, so it has no preview of its
+          own.
+        </p>
+      ) : (
+        <DataPreview
+          dashboardId={dashboardId}
+          spec={spec}
+          version={version}
+          baseVersion={baseVersion}
+          base={base}
+          draft={draft}
+          timeRange={timeRange}
+          selections={selections}
+          width={width}
+        />
+      )
     ) : (
       <>
         <div className="pb-1.5 pl-2 text-xs text-muted-foreground">Preview</div>

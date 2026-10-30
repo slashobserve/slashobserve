@@ -472,6 +472,10 @@ func (ref dsRef) label() string {
 	return "This datasource"
 }
 
+func (ref dsRef) isDashboard() bool {
+	return ref.kind == refSpecial && ref.special == "dashboard"
+}
+
 func (ref dsRef) supported() bool {
 	return ref.kind == refSource && ref.src.kind != ""
 }

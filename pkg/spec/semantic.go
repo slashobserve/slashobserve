@@ -24,8 +24,9 @@ func checkSemantics(d *Dashboard) []Issue {
 	issues = append(issues, checkTimezone(d.Timezone)...)
 	issues = append(issues, checkThresholds(entries)...)
 	issues = append(issues, checkMinMax(entries)...)
-	issues = append(issues, checkQueryRefs(entries)...)
+	issues = append(issues, checkQueryRefs(d, entries)...)
 	issues = append(issues, checkExpressions(entries)...)
+	issues = append(issues, checkDashboardSources(d, entries)...)
 	issues = append(issues, checkOverrideMembers(entries)...)
 	issues = append(issues, checkRepeat(d, entries)...)
 	issues = append(issues, checkDatasourceRefs(d)...)
@@ -592,7 +593,7 @@ func checkMinMax(entries []PanelEntry) []Issue {
 	return issues
 }
 
-func checkQueryRefs(entries []PanelEntry) []Issue {
+func checkQueryRefs(d *Dashboard, entries []PanelEntry) []Issue {
 	var issues []Issue
 	for _, e := range entries {
 		p := e.Panel
@@ -617,11 +618,18 @@ func checkQueryRefs(entries []PanelEntry) []Issue {
 				Message: fmt.Sprintf("query ref %q is already used by %s", ref, e.Pointer+pointer("queries", strconv.Itoa(k))),
 			})
 		}
+		overridable := first
+		if source, reuses := d.SourceOf(p.ID); reuses {
+			overridable = map[string]int{}
+			for j := range source.Panel.Queries {
+				overridable[source.Panel.QueryRef(j)] = j
+			}
+		}
 		for k, o := range p.Overrides {
 			if o.Match.Query == "" {
 				continue
 			}
-			if _, ok := first[o.Match.Query]; ok {
+			if _, ok := overridable[o.Match.Query]; ok {
 				continue
 			}
 			issues = append(issues, Issue{

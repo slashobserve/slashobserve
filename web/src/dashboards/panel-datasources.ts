@@ -1,6 +1,6 @@
 import {
   isDataPanel,
-  isExpressionQuery,
+  isPanelQuery,
   resolveDatasourceRef,
   type Panel,
 } from "@/spec"
@@ -14,7 +14,7 @@ export function panelDatasourceUids(
   for (const ref of [
     panel.datasource,
     ...panel.queries.map((query) =>
-      isExpressionQuery(query) ? undefined : query.datasource
+      isPanelQuery(query) ? query.datasource : undefined
     ),
   ]) {
     if (ref) uids.add(resolveDatasourceRef(ref, selections) ?? ref)

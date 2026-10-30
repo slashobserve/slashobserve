@@ -5,7 +5,7 @@ import {
   formatValue,
   ownDecimals,
 } from "@/lib/units"
-import { isExpressionQuery, type DataPanel } from "@/spec"
+import { isPanelQuery, type DataPanel } from "@/spec"
 
 import type { FieldConfig, FieldResolver } from "../field-config"
 import { rangePosition, schemeColor, type ColorScheme } from "../color-scheme"
@@ -568,7 +568,7 @@ export function heatmapModel(
       sampleXs,
       labelling,
       queries.some(
-        (query) => !isExpressionQuery(query) && query.format === "heatmap"
+        (query) => isPanelQuery(query) && query.format === "heatmap"
       ),
       layout === "ge" ? "ge" : "le",
       (entry) => boundOf(entry) ?? Infinity

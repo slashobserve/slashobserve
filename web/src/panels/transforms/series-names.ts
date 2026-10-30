@@ -1,10 +1,5 @@
 import type { WireFrame } from "@/dashboards/queries"
-import {
-  isExpressionQuery,
-  queryRef,
-  type DataPanel,
-  type PanelQuery,
-} from "@/spec"
+import { isPanelQuery, queryRef, type DataPanel, type PanelQuery } from "@/spec"
 
 import {
   numberFieldCount,
@@ -105,8 +100,8 @@ function resolveSource(
   const found = panel.queries.find(
     (candidate, index) => queryRef(candidate, index) === frame.ref
   )
-  const query = found && !isExpressionQuery(found) ? found : undefined
-  const type = datasourceTypeOf?.(query?.datasource ?? panel.datasource)
+  const query = found && isPanelQuery(found) ? found : undefined
+  const type = datasourceTypeOf?.(query?.datasource ?? panel.datasource ?? "")
   // Fallback while datasource types are unknown (list loading or failed).
   const kind =
     type === undefined

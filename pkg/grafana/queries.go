@@ -42,6 +42,7 @@ type builtQuery struct {
 	copyOf       *builtQuery
 	expr         *pendingExpression
 	late         *targetBuild
+	reuses       *builtPanel
 }
 
 type targetBuild struct {
@@ -56,6 +57,7 @@ type targetBuild struct {
 	rateMacro    bool
 	expanded     bool
 	expr         *pendingExpression
+	reuses       *builtPanel
 }
 
 var targetSilent = map[string]bool{
@@ -114,8 +116,8 @@ func (b *panelBuild) convertQueries() {
 			b.dropTarget(i, target, reason)
 			continue
 		}
-		bq := &builtQuery{q: q, refID: asString(target["refId"]), index: i, src: tb.src, splitInstant: tb.splitInstant, expr: tb.expr}
-		if tb.expr != nil {
+		bq := &builtQuery{q: q, refID: asString(target["refId"]), index: i, src: tb.src, splitInstant: tb.splitInstant, expr: tb.expr, reuses: tb.reuses}
+		if tb.expr != nil || tb.reuses != nil {
 			bq.late = tb
 		} else {
 			tb.reportUnconsumed()
@@ -124,6 +126,7 @@ func (b *panelBuild) convertQueries() {
 		line.Rewrites = append(line.Rewrites, tb.rewrites...)
 		b.built = append(b.built, bq)
 	}
+	b.dropMixedSources()
 	b.dropBrokenExpressions()
 	b.splitInstantQueries()
 	if overflow {
@@ -225,6 +228,9 @@ func (tb *targetBuild) addRewrite(from, to string) {
 func (tb *targetBuild) convert(ref dsRef, declared map[string]bool) (spec.Query, string) {
 	if ref.kind == refSpecial && ref.special == "expression" {
 		return tb.expression()
+	}
+	if ref.isDashboard() {
+		return tb.dashboardSource()
 	}
 	if !ref.supported() {
 		return spec.Query{}, ref.label() + " is not supported yet."
@@ -562,7 +568,10 @@ func effectiveRefs(built []*builtQuery) []string {
 func (b *panelBuild) assignQueries() {
 	refs := effectiveRefs(b.built)
 	explicit := explicitRefIDs(b.built)
-	panelDS := b.built[b.firstDataQuery()].src.ref()
+	panelDS := ""
+	if k := b.firstDataQuery(); k >= 0 {
+		panelDS = b.built[k].src.ref()
+	}
 	b.panel.Datasource = panelDS
 	for k, bq := range b.built {
 		q := bq.q
@@ -597,6 +606,7 @@ func (b *panelBuild) assignQueries() {
 		}
 	}
 	b.finishExpressions()
+	b.adoptSourceRefs()
 }
 
 const impliedRefLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"

@@ -42,6 +42,9 @@ func (r *Runner) CheckPanels(ctx context.Context, d *spec.Dashboard, now time.Ti
 	for _, e := range d.DataPanels() {
 		if slices.Contains(ids, e.Panel.ID) {
 			only[e.Pointer] = true
+			if source, reuses := d.SourceOf(e.Panel.ID); reuses {
+				only[source.Pointer] = true
+			}
 		}
 	}
 	if len(only) == 0 {
@@ -105,6 +108,9 @@ func (r *Runner) checkSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 		if only != nil && !only[e.Pointer] {
 			continue
 		}
+		if _, reuses := e.Panel.DashboardSource(); reuses {
+			continue
+		}
 		skip, unresolved := panelSkips(e, badQueries[e.Pointer], failed)
 		panelIssues[i] = append(panelIssues[i], unresolved...)
 		if !slices.Contains(skip, false) {
@@ -119,6 +125,7 @@ func (r *Runner) checkSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 	if canceled() {
 		return nil, context.Canceled
 	}
+	addSourceFailures(d, entries, only, issues, panelIssues)
 	for _, pi := range panelIssues {
 		issues = append(issues, pi...)
 	}
@@ -126,11 +133,42 @@ func (r *Runner) checkSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 	return finish(issues), nil
 }
 
+func addSourceFailures(d *spec.Dashboard, entries []spec.PanelEntry, only map[string]bool, issues []spec.Issue, panelIssues [][]spec.Issue) {
+	for i, e := range entries {
+		if only != nil && !only[e.Pointer] {
+			continue
+		}
+		if failed := sourceFailure(d, entries, issues, panelIssues, e); failed != nil {
+			panelIssues[i] = append(panelIssues[i], *failed)
+		}
+	}
+}
+
+func sourceFailure(d *spec.Dashboard, entries []spec.PanelEntry, issues []spec.Issue, panelIssues [][]spec.Issue, e spec.PanelEntry) *spec.Issue {
+	source, reuses := d.SourceOf(e.Panel.ID)
+	if !reuses {
+		return nil
+	}
+	at := slices.IndexFunc(entries, func(candidate spec.PanelEntry) bool { return candidate.Pointer == source.Pointer })
+	if at < 0 {
+		return nil
+	}
+	own := map[string]bool{source.Pointer: true}
+	failures := append(slices.Clone(panelIssues[at]), slices.DeleteFunc(slices.Clone(issues), func(i spec.Issue) bool { return !issueInPanels(i, own) })...)
+	if len(failures) == 0 {
+		return nil
+	}
+	sortIssues(failures)
+	first := failures[0]
+	found := issue(e.Pointer+"/queries/0/source/panel", first.Code, "the panel it reuses (%s) failed: %s", source.Panel.ID, first.Message)
+	return &found
+}
+
 func panelSkips(e spec.PanelEntry, bad []bool, failed map[string]bool) ([]bool, []spec.Issue) {
 	skip := slices.Clone(bad)
 	var issues []spec.Issue
 	for j, q := range e.Panel.Queries {
-		if skip[j] || q.IsExpression() {
+		if skip[j] || q.IsExpression() || q.IsDashboardSource() {
 			continue
 		}
 		if name := cmp.Or(failedReference(q.Query, failed), failedDatasource(e.Panel.QueryDatasource(j), failed)); name != "" {
@@ -171,7 +209,7 @@ func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVa
 		bad := make([]bool, len(e.Panel.Queries))
 		panelDatasourceReported := false
 		for j, q := range e.Panel.Queries {
-			if q.IsExpression() {
+			if q.IsExpression() || q.IsDashboardSource() {
 				continue
 			}
 			base := e.Pointer + "/datasource"
