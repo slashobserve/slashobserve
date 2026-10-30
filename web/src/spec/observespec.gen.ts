@@ -614,9 +614,33 @@ export interface Dashboard {
   tags?: string[];
   time: TimeRange;
   /**
-   * Auto-refresh interval such as 30s, 1m or 1h.
+   * Auto-refresh interval such as 30s, 1m, 1h or 1d.
    */
   refresh?: string;
+  /**
+   * What the time picker offers: hidden removes it, refreshIntervals replaces the auto-refresh choices and quickRanges the preset ranges. A refresh that is not in refreshIntervals is still allowed.
+   */
+  timePicker?: {
+    hidden?: boolean;
+    /**
+     * @minItems 1
+     * @maxItems 20
+     */
+    refreshIntervals?: string[];
+    /**
+     * @minItems 1
+     * @maxItems 30
+     */
+    quickRanges?: {
+      display: string;
+      from: TimeExpression;
+      to: TimeExpression;
+    }[];
+  };
+  /**
+   * Refresh the dashboard every few seconds until a refresh interval is chosen, as Grafana's live now redraws time charts continuously.
+   */
+  liveNow?: boolean;
   /**
    * browser, utc or an IANA zone such as Asia/Kolkata. Relative times (now/d, now-1d) resolve in this zone.
    */
@@ -644,7 +668,7 @@ export interface Dashboard {
   /**
    * @maxItems 20
    */
-  links?: Link[];
+  links?: DashboardLink[];
   /**
    * At most 200 panels in total, row children included; ids are unique across all of them.
    *
@@ -769,12 +793,20 @@ export interface AdhocVariable {
   }[];
 }
 /**
- * Panel, dashboard or data link; ${var} and ${__data.fields.x} are interpolated.
+ * A dashboard link, either to an address (title and url) or, with type dashboards, to the other dashboards that carry every one of the tags (all other dashboards when there are none), shown inline or as one dropdown. keepTime adds the current from and to and includeVars the var-* selections.
  */
-export interface Link {
+export interface DashboardLink {
+  type?: "dashboards";
   title: string;
-  url: string;
+  url?: string;
+  /**
+   * @maxItems 20
+   */
+  tags?: string[];
+  asDropdown?: boolean;
   newTab?: boolean;
+  keepTime?: boolean;
+  includeVars?: boolean;
 }
 /**
  * Display properties shared by a panel and its overrides.
@@ -868,6 +900,14 @@ export interface FieldProps {
 export interface Threshold {
   value?: number;
   color: Color;
+}
+/**
+ * Panel, dashboard or data link; ${var} and ${__data.fields.x} are interpolated.
+ */
+export interface Link {
+  title: string;
+  url: string;
+  newTab?: boolean;
 }
 export interface DataPanel1 {
   /**

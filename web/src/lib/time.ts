@@ -1,6 +1,6 @@
 import type { Dashboard } from "@/spec"
 
-export const quickRanges: { label: string; from: string; to: string }[] = [
+export const quickRanges: QuickRange[] = [
   { label: "Last 5 minutes", from: "now-5m", to: "now" },
   { label: "Last 15 minutes", from: "now-15m", to: "now" },
   { label: "Last 30 minutes", from: "now-30m", to: "now" },
@@ -110,10 +110,14 @@ export function describeDuration(text: string): string | null {
   return durationText(count, match[2])
 }
 
-export function describeRange(from: string, to: string): string {
-  const quick = quickRanges.find(
-    (range) => range.from === from && range.to === to
-  )
+export type QuickRange = { label: string; from: string; to: string }
+
+export function describeRange(
+  from: string,
+  to: string,
+  ranges: QuickRange[] = quickRanges
+): string {
+  const quick = ranges.find((range) => range.from === from && range.to === to)
   return (
     quick?.label ??
     describeRelativeRange(from, to) ??
@@ -459,11 +463,13 @@ export const refreshOptions = [
   "1h",
 ]
 
-export const refreshPattern = /^[1-9][0-9]{0,4}[smh]$/
+export const refreshPattern = /^[1-9][0-9]{0,4}[smhd]$/
 
-const refreshUnitMs = { s: 1000, m: 60_000, h: 3_600_000 }
+export const liveNowRefresh = "5s"
+
+const refreshUnitMs = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }
 const minRefreshMs = 5000
-const maxRefreshMs = 86_400_000
+const maxRefreshMs = 2_147_483_647
 
 export function refreshToMs(value: string | undefined): number | null {
   if (value === undefined || !refreshPattern.test(value)) return null

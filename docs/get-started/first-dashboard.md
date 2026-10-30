@@ -88,6 +88,7 @@ Both accept `now-6h`, `now/d` and `2026-10-17 09:00`, and **Apply** sets them.
 On a time series panel you can also drag across the chart to zoom to that range.
 
 The **Auto-refresh** menu next to **Refresh now** reloads the panels on an interval.
+A dashboard can set its own refresh choices and quick ranges, start on a refresh interval, or hide the time picker except for **Refresh now**.
 
 If the dashboard has variables, a bar of selectors appears under the top row: a menu for a query or custom variable, with an All choice when the dashboard allows it, a text box for a textbox variable, and so on.
 The agent adds variables only when the prompt asks for a breakdown people will filter, so a dashboard from the prompt above may have none.

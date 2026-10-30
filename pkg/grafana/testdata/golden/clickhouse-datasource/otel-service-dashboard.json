@@ -436,14 +436,6 @@
     ],
     "notes": [
       {
-        "subject": "dashboard links",
-        "status": "partial",
-        "reason": "Only plain links are supported; links to other dashboards and other kinds are not kept.",
-        "paths": [
-          "links[0]"
-        ]
-      },
-      {
         "subject": "annotations",
         "status": "partial",
         "reason": "Annotation queries are not supported yet.",
@@ -532,6 +524,19 @@
         "label": "Search",
         "description": "Free-text search applied to SpanName on trace panels and to log Body on the Logs panel. Leave blank to disable.",
         "type": "textbox"
+      }
+    ],
+    "links": [
+      {
+        "type": "dashboards",
+        "title": "OpenTelemetry Dashboards",
+        "tags": [
+          "clickhouse",
+          "otel"
+        ],
+        "asDropdown": true,
+        "keepTime": true,
+        "includeVars": true
       }
     ],
     "panels": [

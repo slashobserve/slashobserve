@@ -18,7 +18,7 @@ import {
   formatTimeValue,
   isAbsoluteOrdered,
   parseUserTime,
-  quickRanges,
+  type QuickRange,
 } from "@/lib/time"
 
 import { useSetDashboardSearch } from "./search"
@@ -28,9 +28,18 @@ type Props = {
   version: number
   from: string
   to: string
+  quickRanges: QuickRange[]
+  hidden: boolean
 }
 
-export function TimeRangePicker({ dashboardId, version, from, to }: Props) {
+export function TimeRangePicker({
+  dashboardId,
+  version,
+  from,
+  to,
+  quickRanges,
+  hidden,
+}: Props) {
   const queryClient = useQueryClient()
   const setSearch = useSetDashboardSearch()
   const fromId = useId()
@@ -69,83 +78,85 @@ export function TimeRangePicker({ dashboardId, version, from, to }: Props) {
     choose(parsedFrom, parsedTo)
   }
 
-  const rangeLabel = describeRange(from, to)
+  const rangeLabel = describeRange(from, to, quickRanges)
 
   return (
     <div className="flex items-center gap-1">
-      <Popover open={open} onOpenChange={onOpenChange}>
-        <PopoverTrigger
-          render={
-            <Button
-              variant="outline"
-              className="h-[30px]"
-              aria-label={`Time range: ${rangeLabel}`}
-            />
-          }
-        >
-          <ClockIcon />
-          {rangeLabel}
-        </PopoverTrigger>
-        <PopoverContent
-          align="end"
-          className="w-[min(34rem,calc(100vw-1rem))] gap-3 p-3"
-        >
-          <PopoverTitle className="sr-only">Time range</PopoverTitle>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <div
-              role="group"
-              aria-label="Quick ranges"
-              className="grid grid-cols-2 gap-1 sm:flex sm:w-44 sm:shrink-0 sm:flex-col sm:gap-0 sm:border-r sm:pr-2"
-            >
-              {quickRanges.map((range) => (
-                <Button
-                  key={range.label}
-                  variant="ghost"
-                  size="sm"
-                  className="justify-start aria-pressed:bg-muted"
-                  aria-pressed={range.from === from && range.to === to}
-                  onClick={() => choose(range.from, range.to)}
-                >
-                  {range.label}
+      {hidden ? null : (
+        <Popover open={open} onOpenChange={onOpenChange}>
+          <PopoverTrigger
+            render={
+              <Button
+                variant="outline"
+                className="h-[30px]"
+                aria-label={`Time range: ${rangeLabel}`}
+              />
+            }
+          >
+            <ClockIcon />
+            {rangeLabel}
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            className="w-[min(34rem,calc(100vw-1rem))] gap-3 p-3"
+          >
+            <PopoverTitle className="sr-only">Time range</PopoverTitle>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div
+                role="group"
+                aria-label="Quick ranges"
+                className="grid grid-cols-2 gap-1 sm:flex sm:w-44 sm:shrink-0 sm:flex-col sm:gap-0 sm:border-r sm:pr-2"
+              >
+                {quickRanges.map((range) => (
+                  <Button
+                    key={range.label}
+                    variant="ghost"
+                    size="sm"
+                    className="justify-start aria-pressed:bg-muted"
+                    aria-pressed={range.from === from && range.to === to}
+                    onClick={() => choose(range.from, range.to)}
+                  >
+                    {range.label}
+                  </Button>
+                ))}
+              </div>
+              <form onSubmit={onSubmit} className="flex flex-1 flex-col gap-2">
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor={fromId}>From</Label>
+                  <Input
+                    id={fromId}
+                    value={draftFrom}
+                    onChange={(event) => setDraftFrom(event.target.value)}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor={toId}>To</Label>
+                  <Input
+                    id={toId}
+                    value={draftTo}
+                    onChange={(event) => setDraftTo(event.target.value)}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </div>
+                <PopoverDescription className="text-xs">
+                  Use now-6h, now/d or 2026-10-17 09:00
+                </PopoverDescription>
+                {error ? (
+                  <p role="alert" className="text-xs text-destructive">
+                    {error}
+                  </p>
+                ) : null}
+                <Button type="submit" className="self-start">
+                  Apply
                 </Button>
-              ))}
+              </form>
             </div>
-            <form onSubmit={onSubmit} className="flex flex-1 flex-col gap-2">
-              <div className="flex flex-col gap-1">
-                <Label htmlFor={fromId}>From</Label>
-                <Input
-                  id={fromId}
-                  value={draftFrom}
-                  onChange={(event) => setDraftFrom(event.target.value)}
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor={toId}>To</Label>
-                <Input
-                  id={toId}
-                  value={draftTo}
-                  onChange={(event) => setDraftTo(event.target.value)}
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-              </div>
-              <PopoverDescription className="text-xs">
-                Use now-6h, now/d or 2026-10-17 09:00
-              </PopoverDescription>
-              {error ? (
-                <p role="alert" className="text-xs text-destructive">
-                  {error}
-                </p>
-              ) : null}
-              <Button type="submit" className="self-start">
-                Apply
-              </Button>
-            </form>
-          </div>
-        </PopoverContent>
-      </Popover>
+          </PopoverContent>
+        </Popover>
+      )}
       <Button
         variant="outline"
         size="icon"

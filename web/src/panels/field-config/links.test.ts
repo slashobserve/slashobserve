@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { WireFrame } from "@/dashboards/queries"
-import type { DataPanel, Link } from "@/spec"
+import type { DashboardLink, DataPanel, Link } from "@/spec"
 
 import {
+  appendLinkParams,
   createFieldResolver,
   dashboardLinks,
   isDataLink,
@@ -445,5 +446,54 @@ describe("dashboardLinks", () => {
     ).toEqual([])
     expect(dashboardLinks([window], scope(), now, {})).toEqual([])
     expect(dashboardLinks(undefined, scope(), now, {})).toEqual([])
+  })
+
+  it("adds the range and the selections to the address on request", () => {
+    const links: DashboardLink[] = [
+      {
+        title: "Both",
+        url: "https://example.com/d",
+        keepTime: true,
+        includeVars: true,
+      },
+      { title: "Time", url: "/d?x=1", keepTime: true },
+      { title: "Vars", url: "/d", includeVars: true },
+      { title: "None", url: "/d" },
+    ]
+    expect(
+      dashboardLinks(
+        links,
+        scope({ vars: { pod: ["a", "b c"] }, from: "now-1h", to: "now" }),
+        now,
+        {}
+      ).map((link) => link.href)
+    ).toEqual([
+      "https://example.com/d?from=now-1h&to=now&var-pod=a&var-pod=b%20c",
+      "/d?x=1&from=now-1h&to=now",
+      "/d?var-pod=a&var-pod=b%20c",
+      "/d",
+    ])
+  })
+})
+
+describe("appendLinkParams", () => {
+  const range = { vars: { env: ["prod"] }, from: "now-6h", to: "now" }
+  const both = { keepTime: true, includeVars: true }
+
+  it.each([
+    ["/d", "/d?from=now-6h&to=now&var-env=prod"],
+    ["/d?", "/d?from=now-6h&to=now&var-env=prod"],
+    ["/d?a=1&", "/d?a=1&from=now-6h&to=now&var-env=prod"],
+    ["/d?a=1", "/d?a=1&from=now-6h&to=now&var-env=prod"],
+    ["/d#top", "/d?from=now-6h&to=now&var-env=prod#top"],
+    ["/d?a=1#top", "/d?a=1&from=now-6h&to=now&var-env=prod#top"],
+    ["mailto:ops@example.com", "mailto:ops@example.com"],
+  ])("puts the parameters of %s before the fragment", (href, want) => {
+    expect(appendLinkParams(href, both, range)).toBe(want)
+  })
+
+  it("adds nothing without a flag or without a range to carry", () => {
+    expect(appendLinkParams("/d", {}, range)).toBe("/d")
+    expect(appendLinkParams("/d", { keepTime: true }, { vars: {} })).toBe("/d")
   })
 })

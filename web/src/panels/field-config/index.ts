@@ -5,6 +5,7 @@ export {
   type DisplayValue,
 } from "./display"
 export {
+  appendLinkParams,
   dashboardLinks,
   isDataLink,
   panelLinks,
