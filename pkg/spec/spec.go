@@ -538,6 +538,22 @@ type Transform struct {
 	Cumulative       *Cumulative       `json:"cumulative,omitempty"`
 	Window           *Window           `json:"window,omitempty"`
 	Then             []SortKey         `json:"then,omitempty"`
+	Action           string            `json:"action,omitempty"`
+	Source           *SpatialLocation  `json:"source,omitempty"`
+	Calc             string            `json:"calc,omitempty"`
+	Modify           string            `json:"modify,omitempty"`
+	Target           *SpatialLocation  `json:"target,omitempty"`
+	LookupField      string            `json:"lookupField,omitempty"`
+	Gazetteer        string            `json:"gazetteer,omitempty"`
+}
+
+type SpatialLocation struct {
+	Mode      string `json:"mode,omitempty"`
+	Latitude  string `json:"latitude,omitempty"`
+	Longitude string `json:"longitude,omitempty"`
+	Geohash   string `json:"geohash,omitempty"`
+	Lookup    string `json:"lookup,omitempty"`
+	Gazetteer string `json:"gazetteer,omitempty"`
 }
 
 type Unary struct {

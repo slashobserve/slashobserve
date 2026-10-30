@@ -16,6 +16,7 @@ import { RendererBoundary } from "./renderer-boundary"
 import type { SharedCursor } from "./shared-cursor"
 import { prepareFrames, type DatasourceTypeOf } from "./transforms"
 import type { ReusedFilter } from "./transforms/ad-hoc-filter"
+import { useGazetteers } from "./transforms/use-gazetteers"
 import type { PanelRendererProps, StaticPanelProps } from "./types"
 import { Unsupported } from "./unsupported"
 
@@ -83,16 +84,25 @@ export function PanelBody({
     },
     [datasources.data, vars]
   )
+  const gazetteers = useGazetteers(panel.transform)
   const frames = useMemo(
-    () => prepareFrames(panel, data.frames, typeOf, reusedFilter, vars),
-    [panel, data.frames, typeOf, reusedFilter, vars]
+    () =>
+      prepareFrames(panel, data.frames, typeOf, reusedFilter, vars, gazetteers),
+    [panel, data.frames, typeOf, reusedFilter, vars, gazetteers]
   )
   const ghostFrames = useMemo(
     () =>
       ghost
-        ? prepareFrames(panel, ghost.frames, typeOf, reusedFilter, vars)
+        ? prepareFrames(
+            panel,
+            ghost.frames,
+            typeOf,
+            reusedFilter,
+            vars,
+            gazetteers
+          )
         : undefined,
-    [panel, ghost, typeOf, reusedFilter, vars]
+    [panel, ghost, typeOf, reusedFilter, vars, gazetteers]
   )
   const fields = useMemo(() => createFieldResolver(panel, vars), [panel, vars])
   const display = useMemo(

@@ -392,6 +392,12 @@ Seven more steps group rows and compute new data:
 `histogram` (counts every number field into `bucketCount` or `bucketSize` buckets shifted by `bucketOffset`, or all of them together with `combine`),
 `regression` (a least squares `model` of `linear` or `polynomial` with a `degree` of 1 to 5, 2 by default, fitted from the `x` field to the `y` field and added as a series named after the `y` field and "regression", at `predictions` evenly spaced points) and
 `transpose` (fields become rows and rows become fields, `firstName` names the first column, `restName` the others and `empty` fills missing cells).
+Two steps add locations to rows so a map can draw them:
+`fieldLookup` (looks the `lookupField` text field, the first text field by default, up in the built-in `gazetteer` of `countries` (the default) or `usa-states` by name or code, and adds `lat` and `lon` fields, empty where nothing matched) and
+`spatial` (its `source` says where a row is: `mode` `auto` (the default) takes fields named lat, latitude, lon, lng or longitude, else a field named geohash; `coords`, `geohash` and `lookup` name the fields, and a lookup takes a `gazetteer`;
+the `action` `prepare` (the default) adds `lat` and `lon`, `calculate` adds a field named by `field` with the `calc` `heading` (degrees, the default), `distance` (meters) or `area` (square meters of the polygon the rows outline, repeated on every row) measured from the previous located row,
+and `modify` with `modify` `lineBuilder` (the default) turns each row into a two-row frame from the `source` to the `target` location, or `asLine` keeps the located rows in order for the map's route layer).
+A lookup step waits for its gazetteer to load and changes nothing until it has.
 Any step can carry `queries`, a list of query refs: the step then reshapes only the frames of those queries and passes the others through unchanged, and a list that matches no frame changes nothing.
 The first steps take more options:
 `organize` adds `include` (keep only the listed fields, before `exclude`, `rename` and `order`),
