@@ -104,20 +104,47 @@ const (
 )
 
 type Dashboard struct {
-	SpecVersion          string     `json:"specVersion"`
-	Title                string     `json:"title"`
-	Description          string     `json:"description,omitempty"`
-	Tags                 []string   `json:"tags,omitempty"`
-	Time                 TimeRange  `json:"time"`
-	Refresh              string     `json:"refresh,omitempty"`
-	Timezone             string     `json:"timezone,omitempty"`
-	WeekStart            WeekStart  `json:"weekStart,omitempty"`
-	FiscalYearStartMonth int        `json:"fiscalYearStartMonth,omitempty"`
-	NowDelay             string     `json:"nowDelay,omitempty"`
-	CursorSync           CursorSync `json:"cursorSync,omitempty"`
-	Variables            []Variable `json:"variables,omitempty"`
-	Links                []Link     `json:"links,omitempty"`
-	Panels               []Panel    `json:"panels"`
+	SpecVersion          string          `json:"specVersion"`
+	Title                string          `json:"title"`
+	Description          string          `json:"description,omitempty"`
+	Tags                 []string        `json:"tags,omitempty"`
+	Time                 TimeRange       `json:"time"`
+	Refresh              string          `json:"refresh,omitempty"`
+	TimePicker           *TimePicker     `json:"timePicker,omitempty"`
+	LiveNow              bool            `json:"liveNow,omitempty"`
+	Timezone             string          `json:"timezone,omitempty"`
+	WeekStart            WeekStart       `json:"weekStart,omitempty"`
+	FiscalYearStartMonth int             `json:"fiscalYearStartMonth,omitempty"`
+	NowDelay             string          `json:"nowDelay,omitempty"`
+	CursorSync           CursorSync      `json:"cursorSync,omitempty"`
+	Variables            []Variable      `json:"variables,omitempty"`
+	Links                []DashboardLink `json:"links,omitempty"`
+	Panels               []Panel         `json:"panels"`
+}
+
+type TimePicker struct {
+	Hidden           bool         `json:"hidden,omitempty"`
+	RefreshIntervals []string     `json:"refreshIntervals,omitempty"`
+	QuickRanges      []QuickRange `json:"quickRanges,omitempty"`
+}
+
+type QuickRange struct {
+	Display string `json:"display"`
+	From    string `json:"from"`
+	To      string `json:"to"`
+}
+
+const DashboardsLinkType = "dashboards"
+
+type DashboardLink struct {
+	Type        string   `json:"type,omitempty"`
+	Title       string   `json:"title"`
+	URL         string   `json:"url,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+	AsDropdown  bool     `json:"asDropdown,omitempty"`
+	NewTab      bool     `json:"newTab,omitempty"`
+	KeepTime    bool     `json:"keepTime,omitempty"`
+	IncludeVars bool     `json:"includeVars,omitempty"`
 }
 
 type TimeRange struct {

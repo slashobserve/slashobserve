@@ -425,6 +425,9 @@ func (c *issueCollector) leafIssue(ve *jsonschema.ValidationError) Issue {
 		Code:    CodeSchema,
 		Message: ve.ErrorKind.LocalizedString(c.printer),
 	}
+	if _, ok := ve.ErrorKind.(*kind.FalseSchema); ok {
+		issue.Message = "this property is not allowed with the other properties written here"
+	}
 	return issue
 }
 

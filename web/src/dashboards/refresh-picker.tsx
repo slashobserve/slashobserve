@@ -7,19 +7,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { refreshOptions } from "@/lib/time"
 
 import { useSetDashboardSearch } from "./search"
 
-const items = refreshOptions.map((value) => ({
-  value,
-  label: value === "off" ? "Off" : value,
-}))
+type Props = { value: string; choices: string[] }
 
-type Props = { value: string }
-
-export function RefreshPicker({ value }: Props) {
+export function RefreshPicker({ value, choices }: Props) {
   const setSearch = useSetDashboardSearch()
+  const items = choices.map((choice) => ({
+    value: choice,
+    label: choice === "off" ? "Off" : choice,
+  }))
   const options = items.some((item) => item.value === value)
     ? items
     : [...items, { value, label: value }]

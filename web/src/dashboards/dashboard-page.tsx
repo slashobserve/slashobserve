@@ -84,6 +84,11 @@ import {
   useDashboardSearch,
   useSetDashboardSearch,
 } from "./search"
+import {
+  effectiveRefresh,
+  pickerQuickRanges,
+  pickerRefreshOptions,
+} from "./time-picker-settings"
 import { TimeRangePicker } from "./time-range-picker"
 import { maxDataPointsFor, usePanelData } from "./use-panel-data"
 import { useSeen } from "./use-seen"
@@ -425,7 +430,7 @@ function DashboardView({
     () => ({ from: search.from, to: search.to }),
     [search.from, search.to]
   )
-  const refreshValue = search.refresh ?? spec.refresh ?? "off"
+  const refreshValue = effectiveRefresh(search.refresh, spec)
   const refreshMs = refreshToMs(refreshValue)
 
   const pinned = search.version !== undefined
@@ -555,8 +560,15 @@ function DashboardView({
         version={version}
         from={effectiveFrom}
         to={effectiveTo}
+        quickRanges={pickerQuickRanges(spec)}
+        hidden={spec.timePicker?.hidden === true}
       />
-      <RefreshPicker value={refreshValue} />
+      {spec.timePicker?.hidden ? null : (
+        <RefreshPicker
+          value={refreshValue}
+          choices={pickerRefreshOptions(spec)}
+        />
+      )}
     </div>,
   ]
   const actions: ReactNode[] = [
@@ -622,6 +634,7 @@ function DashboardView({
         <VariablesBar states={states} unverified={unverified.variables} />
         <DashboardLinks
           links={spec.links}
+          dashboardId={dashboardId}
           timeOptions={timeOptions}
           scope={{ vars: selections, from: effectiveFrom, to: effectiveTo }}
         />

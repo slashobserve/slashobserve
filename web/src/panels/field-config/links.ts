@@ -3,7 +3,12 @@ import { ALL } from "@/dashboards/search"
 import { resolveTime, type TimeOptions } from "@/lib/time"
 import type { WireFrame } from "@/dashboards/queries"
 import { matchesName } from "@/panels/transforms"
-import { linkDefaults, type DataPanel, type Link } from "@/spec"
+import {
+  linkDefaults,
+  type DashboardLink,
+  type DataPanel,
+  type Link,
+} from "@/spec"
 
 import type { FieldResolver } from "./resolve"
 
@@ -194,8 +199,34 @@ export function panelLinks(panel: DataPanel, scope: LinkScope): ResolvedLink[] {
   )
 }
 
+export function appendLinkParams(
+  href: string,
+  options: Pick<DashboardLink, "keepTime" | "includeVars">,
+  scope: Pick<LinkScope, "vars" | "from" | "to">
+): string {
+  if (/^mailto:/i.test(href)) return href
+  const params: [string, string][] = []
+  if (options.keepTime && scope.from !== undefined && scope.to !== undefined) {
+    params.push(["from", scope.from], ["to", scope.to])
+  }
+  if (options.includeVars) {
+    for (const [name, values] of Object.entries(scope.vars)) {
+      for (const value of values) params.push([`var-${name}`, value])
+    }
+  }
+  if (params.length === 0) return href
+  const hashAt = href.indexOf("#")
+  const path = hashAt < 0 ? href : href.slice(0, hashAt)
+  const hash = hashAt < 0 ? "" : href.slice(hashAt)
+  const query = params
+    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+    .join("&")
+  const joiner = !path.includes("?") ? "?" : /[?&]$/.test(path) ? "" : "&"
+  return `${path}${joiner}${query}${hash}`
+}
+
 export function dashboardLinks(
-  links: Link[] | undefined,
+  links: DashboardLink[] | undefined,
   scope: LinkScope,
   now: number,
   timeOptions: TimeOptions
@@ -206,9 +237,18 @@ export function dashboardLinks(
       : resolveTime(scope.from, now, false, timeOptions)
   const toMs =
     scope.to === undefined ? NaN : resolveTime(scope.to, now, true, timeOptions)
-  return resolvedLinks(links ?? [], {
+  const full = {
     ...scope,
     fromMs: Number.isNaN(fromMs) ? undefined : fromMs,
     toMs: Number.isNaN(toMs) ? undefined : toMs,
+  }
+  return (links ?? []).flatMap((link) => {
+    if (link.url === undefined) return []
+    const resolved = resolveLink(
+      { title: link.title, url: link.url, newTab: link.newTab },
+      full
+    )
+    if (!resolved || unresolvedRange.test(resolved.href)) return []
+    return [{ ...resolved, href: appendLinkParams(resolved.href, link, scope) }]
   })
 }

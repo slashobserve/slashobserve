@@ -40,20 +40,59 @@ It has one variable, two Prometheus panels and a ClickHouse table:
   "time": { "from": "now-6h", "to": "now" },
   "refresh": "30s",
   "variables": [
-    { "name": "pod", "type": "query", "datasource": "prom", "multi": true, "includeAll": true,
-      "query": "label_values(http_requests_total{service=\"checkout\"}, pod)" }
+    {
+      "name": "pod",
+      "type": "query",
+      "datasource": "prom",
+      "multi": true,
+      "includeAll": true,
+      "query": "label_values(http_requests_total{service=\"checkout\"}, pod)"
+    }
   ],
   "panels": [
-    { "id": "p_rps", "type": "timeseries", "title": "Requests per second by pod",
-      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }, "datasource": "prom", "unit": "reqps",
-      "queries": [{ "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\"}[$__rate_interval]))", "legend": "{{pod}}" }] },
-    { "id": "p_p99", "type": "timeseries", "title": "p99 latency",
-      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 }, "datasource": "prom", "unit": "s",
-      "queries": [{ "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"checkout\"}[$__rate_interval])))" }],
-      "thresholds": [{ "value": 0.25, "color": "warning" }, { "value": 0.5, "color": "critical" }] },
-    { "id": "p_errlogs", "type": "table", "title": "Error logs by message (ClickHouse)",
-      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 }, "datasource": "ch",
-      "queries": [{ "query": "SELECT Body AS message, count() AS n FROM otel_logs WHERE ServiceName = 'checkout' AND SeverityText = 'ERROR' AND $__timeFilter(Timestamp) GROUP BY message ORDER BY n DESC LIMIT 20" }] }
+    {
+      "id": "p_rps",
+      "type": "timeseries",
+      "title": "Requests per second by pod",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": "prom",
+      "unit": "reqps",
+      "queries": [
+        {
+          "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\"}[$__rate_interval]))",
+          "legend": "{{pod}}"
+        }
+      ]
+    },
+    {
+      "id": "p_p99",
+      "type": "timeseries",
+      "title": "p99 latency",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": "prom",
+      "unit": "s",
+      "queries": [
+        {
+          "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"checkout\"}[$__rate_interval])))"
+        }
+      ],
+      "thresholds": [
+        { "value": 0.25, "color": "warning" },
+        { "value": 0.5, "color": "critical" }
+      ]
+    },
+    {
+      "id": "p_errlogs",
+      "type": "table",
+      "title": "Error logs by message (ClickHouse)",
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+      "datasource": "ch",
+      "queries": [
+        {
+          "query": "SELECT Body AS message, count() AS n FROM otel_logs WHERE ServiceName = 'checkout' AND SeverityText = 'ERROR' AND $__timeFilter(Timestamp) GROUP BY message ORDER BY n DESC LIMIT 20"
+        }
+      ]
+    }
   ]
 }
 ```
@@ -63,21 +102,23 @@ It has one variable, two Prometheus panels and a ClickHouse table:
 `specVersion`, `title`, `time` and `panels` are required.
 The rest is optional, and an absent field means its default.
 
-| Field                  | Meaning                                                                                                                 |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `title`                | 1 to 200 characters.                                                                                                    |
-| `description`          | Up to 2000 characters.                                                                                                  |
-| `tags`                 | Up to 20 lowercase tags of 1 to 40 characters, each starting with a letter or digit.                                    |
-| `time`                 | The default range, `from` and `to`. A value is relative, such as `now-6h`, `now-1d/d` or `now/fy`, or an RFC 3339 time. |
-| `refresh`              | An auto-refresh interval such as `30s`, `1m` or `1h`.                                                                   |
-| `timezone`             | `browser`, `utc` or an IANA zone such as `Asia/Kolkata`. Relative times resolve in this zone.                           |
-| `weekStart`            | The first day of the week for `now/w`: `monday` (the default), `sunday` or `saturday`.                                  |
-| `fiscalYearStartMonth` | The month the fiscal year starts in for `now/fy` and `now/fQ`, from 0 (January, the default) to 11 (December).          |
-| `nowDelay`             | How far behind the real time `now` is for every relative time, such as `30s` or `1m`.                                   |
-| `cursorSync`           | How hovering one time chart shows on the others: `off`, `crosshair` or `tooltip`.                                       |
-| `variables`            | Up to 20 [variables](datasources-and-variables.md#variables).                                                           |
-| `links`                | Up to 20 links, each with a `title`, a `url` and optionally `newTab`.                                                   |
-| `panels`               | 1 to 200 panels, counting the children of rows.                                                                         |
+| Field                  | Meaning                                                                                                                                                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `title`                | 1 to 200 characters.                                                                                                                                                                                                |
+| `description`          | Up to 2000 characters.                                                                                                                                                                                              |
+| `tags`                 | Up to 20 lowercase tags of 1 to 40 characters, each starting with a letter or digit.                                                                                                                                |
+| `time`                 | The default range, `from` and `to`. A value is relative, such as `now-6h`, `now-1d/d` or `now/fy`, or an RFC 3339 time.                                                                                             |
+| `refresh`              | An auto-refresh interval such as `30s`, `1m`, `1h` or `1d`.                                                                                                                                                         |
+| `timePicker`           | What the time picker offers: `hidden` removes it, `refreshIntervals` (1 to 20) replaces the auto-refresh choices and `quickRanges` (1 to 30 of `display`, `from` and `to`) the preset ranges.                       |
+| `liveNow`              | `true` refreshes the dashboard every 5 seconds until someone picks another interval.                                                                                                                                |
+| `timezone`             | `browser`, `utc` or an IANA zone such as `Asia/Kolkata`. Relative times resolve in this zone.                                                                                                                       |
+| `weekStart`            | The first day of the week for `now/w`: `monday` (the default), `sunday` or `saturday`.                                                                                                                              |
+| `fiscalYearStartMonth` | The month the fiscal year starts in for `now/fy` and `now/fQ`, from 0 (January, the default) to 11 (December).                                                                                                      |
+| `nowDelay`             | How far behind the real time `now` is for every relative time, such as `30s` or `1m`.                                                                                                                               |
+| `cursorSync`           | How hovering one time chart shows on the others: `off`, `crosshair` or `tooltip`.                                                                                                                                   |
+| `variables`            | Up to 20 [variables](datasources-and-variables.md#variables).                                                                                                                                                       |
+| `links`                | Up to 20 links: a `title` with a `url` (and optionally `newTab`, `keepTime`, `includeVars`), or `"type": "dashboards"` with `tags` to list the other dashboards that carry every tag (`asDropdown` shows one menu). |
+| `panels`               | 1 to 200 panels, counting the children of rows.                                                                                                                                                                     |
 
 ### Relative times
 
@@ -185,7 +226,13 @@ A connection can set `path`, `vertices`, `lineStyle`, `arrow`, `widthField`, `mi
 An element's `actions` are HTTP requests that a person triggers from the panel:
 
 ```json
-{ "title": "Deploy", "method": "POST", "url": "https://deploy.example.com/api/deploy", "body": "{\"env\": \"${env}\"}", "confirm": "Deploy to ${env}?" }
+{
+  "title": "Deploy",
+  "method": "POST",
+  "url": "https://deploy.example.com/api/deploy",
+  "body": "{\"env\": \"${env}\"}",
+  "confirm": "Deploy to ${env}?"
+}
 ```
 
 - A `url` is an `https` address with the host written out; `${name}` references may appear only after the host.

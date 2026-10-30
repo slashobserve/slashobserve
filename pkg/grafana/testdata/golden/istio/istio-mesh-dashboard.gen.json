@@ -254,17 +254,7 @@
         ]
       }
     ],
-    "notes": [
-      {
-        "subject": "dashboard links",
-        "status": "partial",
-        "reason": "Only plain links are supported; links to other dashboards and other kinds are not kept.",
-        "paths": [
-          "links[0]",
-          "links[1]"
-        ]
-      }
-    ]
+    "notes": []
   },
   "spec": {
     "specVersion": "0",
@@ -282,6 +272,26 @@
         "type": "datasource",
         "datasourceType": "prometheus",
         "default": "prom"
+      }
+    ],
+    "links": [
+      {
+        "type": "dashboards",
+        "title": "Service Dashboard",
+        "tags": [
+          "3ce50c812b834468cea4e52a35e02f35"
+        ],
+        "keepTime": true,
+        "includeVars": true
+      },
+      {
+        "type": "dashboards",
+        "title": "Workload Dashboard",
+        "tags": [
+          "fe06a478395b51cc61c8d7d7e83e2f22"
+        ],
+        "keepTime": true,
+        "includeVars": true
       }
     ],
     "panels": [

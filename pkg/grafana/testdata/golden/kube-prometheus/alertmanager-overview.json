@@ -160,6 +160,11 @@
       "from": "now-1h",
       "to": "now"
     },
+    "timePicker": {
+      "refreshIntervals": [
+        "30s"
+      ]
+    },
     "timezone": "utc",
     "cursorSync": "crosshair",
     "variables": [

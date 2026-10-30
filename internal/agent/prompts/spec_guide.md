@@ -78,6 +78,9 @@ The schema here leaves out rare, import-only and purely visual options; when a S
 - Honor a requested window: "last 6h" is `"time": {"from": "now-6h", "to": "now"}`; otherwise use `now-1h`.
 - Leave out `cursorSync` unless asked to link hover across charts: `crosshair` marks the hovered time on every time chart, `tooltip` also opens their tooltips.
 
+## Links
+- Add `links` only when asked: `{"title": "Runbook", "url": "https://..."}` opens an address, and `{"type": "dashboards", "title": "Related", "tags": ["checkout"]}` lists the other dashboards that carry every one of the tags.
+
 ## Saving
 - Every query runs during the save; every data panel except an `alertlist` must return data for the default time range and variable values, or the save is rejected with the reason; fix the named panels and save again.
 - Never put HTML or scripts in any field; all text is plain.

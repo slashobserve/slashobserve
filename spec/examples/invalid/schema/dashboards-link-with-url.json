@@ -1,0 +1,28 @@
+{
+  "specVersion": "0",
+  "links": [{ "type": "dashboards", "title": "Prod", "url": "https://example.com" }],
+  "title": "Minimal",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": "p1",
+      "type": "stat",
+      "title": "Log rows",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "ch",
+      "queries": [
+        {
+          "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+        }
+      ]
+    }
+  ]
+}

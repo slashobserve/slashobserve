@@ -204,16 +204,7 @@
         ]
       }
     ],
-    "notes": [
-      {
-        "subject": "dashboard links",
-        "status": "partial",
-        "reason": "Only plain links are supported; links to other dashboards and other kinds are not kept.",
-        "paths": [
-          "links[0]"
-        ]
-      }
-    ]
+    "notes": []
   },
   "spec": {
     "specVersion": "0",
@@ -268,6 +259,18 @@
         "refresh": "timeRange",
         "allowCustomValue": true,
         "default": "kube-system"
+      }
+    ],
+    "links": [
+      {
+        "type": "dashboards",
+        "title": "Kubernetes",
+        "tags": [
+          "kubernetes-mixin"
+        ],
+        "asDropdown": true,
+        "keepTime": true,
+        "includeVars": true
       }
     ],
     "panels": [

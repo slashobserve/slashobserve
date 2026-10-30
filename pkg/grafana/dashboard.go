@@ -9,31 +9,48 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
-	defaultTitle = "Imported dashboard"
-	maxLinks     = 20
-	maxTags      = 20
+	defaultTitle        = "Imported dashboard"
+	maxLinks            = 20
+	maxTags             = 20
+	maxRefreshIntervals = 20
+	maxQuickRanges      = 30
+	maxEpochMillis      = 253402300799999
 )
 
 var (
 	timePattern          = regexp.MustCompile(`^(now([+-][1-9][0-9]*[smhdwMy])?(/(fy|fQ|[smhdwMy]))?|[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,9})?(Z|[+-][0-9]{2}:[0-9]{2}))$`)
 	shortIntervalPattern = regexp.MustCompile(`^[1-9][0-9]{0,4}[smh]$`)
+	refreshPattern       = regexp.MustCompile(`^[1-9][0-9]{0,4}[smhd]$`)
+	epochMillisPattern   = regexp.MustCompile(`^[0-9]{1,15}$`)
 	zonePattern          = regexp.MustCompile(`^(browser|utc|[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){0,2})$`)
 	tagPattern           = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,39}$`)
 	tagInvalid           = regexp.MustCompile(`[^a-z0-9_.-]`)
 )
 
-var timeSettingKeys = []string{"weekStart", "fiscalYearStartMonth"}
+var timeSettingKeys = []string{"weekStart", "fiscalYearStartMonth", "timepicker", "liveNow"}
+
+var timePickerHandledKeys = []string{"hidden", "refresh_intervals", "quick_ranges", "nowDelay"}
+
+var timePickerGrafanaDefaults = map[string]any{
+	"collapse":     false,
+	"enable":       true,
+	"type":         "timepicker",
+	"notice":       false,
+	"status":       "Stable",
+	"time_options": []any{"5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"},
+}
 
 var silentDashboardKeys = map[string]bool{
 	"id": true, "uid": true, "version": true, "editable": true, "gnetId": true,
-	"graphTooltip": true, "liveNow": true,
-	"style": true, "iteration": true, "schemaVersion": true,
-	"__inputs": true, "__requires": true, "__elements": true, "timepicker": true,
+	"graphTooltip": true,
+	"style":        true, "iteration": true, "schemaVersion": true,
+	"__inputs": true, "__requires": true, "__elements": true,
 	"hideControls": true, "preload": true, "revision": true, "sharedCrosshair": true,
 	"title": true, "description": true, "tags": true, "time": true, "refresh": true,
 	"timezone": true, "templating": true, "links": true, "annotations": true,
@@ -116,11 +133,10 @@ func (c *converter) convertHead() {
 	c.convertFiscalYearStartMonth(dash)
 	c.convertNowDelay(dash)
 	c.convertCursorSync(dash)
+	c.convertTimePicker(dash)
+	c.head.LiveNow = truthy(dash["liveNow"])
 	c.convertLinks(dash)
 	c.convertAnnotations(dash)
-	if picker, ok := asObject(dash["timepicker"]); ok && truthy(picker["hidden"]) {
-		c.note("time picker", "The time picker is always shown.", "timepicker.hidden")
-	}
 	var unknown []string
 	for _, key := range sortedKeys(dash) {
 		if !silentDashboardKeys[key] && !slices.Contains(timeSettingKeys, key) && present(dash[key]) {
@@ -162,12 +178,28 @@ func (c *converter) convertTime(dash map[string]any) {
 	if !ok {
 		return
 	}
-	from, to := asString(t["from"]), asString(t["to"])
-	if !timePattern.MatchString(from) || !timePattern.MatchString(to) {
+	from, fromOK := specTime(t["from"])
+	to, toOK := specTime(t["to"])
+	if !fromOK || !toOK {
 		c.note("time", "The default time range is not supported, so the last 6 hours is used.", "time")
 		return
 	}
 	c.head.Time = spec.TimeRange{From: from, To: to}
+}
+
+func specTime(raw any) (string, bool) {
+	text := asString(raw)
+	if timePattern.MatchString(text) {
+		return text, true
+	}
+	if !epochMillisPattern.MatchString(text) {
+		return "", false
+	}
+	ms, err := strconv.ParseInt(text, 10, 64)
+	if err != nil || ms > maxEpochMillis {
+		return "", false
+	}
+	return time.UnixMilli(ms).UTC().Format(time.RFC3339Nano), true
 }
 
 func (c *converter) convertRefresh(dash map[string]any) {
@@ -175,7 +207,7 @@ func (c *converter) convertRefresh(dash map[string]any) {
 	case string:
 		switch {
 		case v == "":
-		case shortIntervalPattern.MatchString(v):
+		case refreshPattern.MatchString(v):
 			c.head.Refresh = v
 		default:
 			c.note("refresh", "The auto-refresh interval is not supported and is not kept.", "refresh")
@@ -184,6 +216,83 @@ func (c *converter) convertRefresh(dash map[string]any) {
 	default:
 		c.note("refresh", "The auto-refresh interval is not supported and is not kept.", "refresh")
 	}
+}
+
+func (c *converter) convertTimePicker(dash map[string]any) {
+	picker, ok := asObject(dash["timepicker"])
+	if !ok {
+		return
+	}
+	var out spec.TimePicker
+	out.Hidden = truthy(picker["hidden"])
+	out.RefreshIntervals = c.refreshIntervals(picker)
+	out.QuickRanges = c.quickRanges(picker)
+	if out.Hidden || len(out.RefreshIntervals) > 0 || len(out.QuickRanges) > 0 {
+		c.head.TimePicker = &out
+	}
+	var unsupported []string
+	for _, key := range sortedKeys(picker) {
+		if slices.Contains(timePickerHandledKeys, key) || !present(picker[key]) {
+			continue
+		}
+		if def, ok := timePickerGrafanaDefaults[key]; ok && sameJSON(picker[key], def) {
+			continue
+		}
+		unsupported = append(unsupported, "timepicker."+key)
+	}
+	if len(unsupported) > 0 {
+		c.note("time picker", "Some Grafana time picker options are not supported yet.", unsupported...)
+	}
+}
+
+func (c *converter) refreshIntervals(picker map[string]any) []string {
+	items, _ := asArray(picker["refresh_intervals"])
+	var kept, dropped []string
+	for i, item := range items {
+		value := asString(item)
+		switch {
+		case !refreshPattern.MatchString(value):
+			dropped = append(dropped, fmt.Sprintf("timepicker.refresh_intervals[%d]", i))
+		case slices.Contains(kept, value):
+		case len(kept) >= maxRefreshIntervals:
+			dropped = append(dropped, fmt.Sprintf("timepicker.refresh_intervals[%d]", i))
+		default:
+			kept = append(kept, value)
+		}
+	}
+	if len(dropped) > 0 {
+		c.note("time picker", "Some auto-refresh choices are shorter than a second, not a whole number of seconds, minutes, hours or days, or are past the first 20, and are not kept.", dropped...)
+	}
+	return kept
+}
+
+func (c *converter) quickRanges(picker map[string]any) []spec.QuickRange {
+	items, _ := asArray(picker["quick_ranges"])
+	var kept []spec.QuickRange
+	var dropped []string
+	for i, item := range items {
+		path := fmt.Sprintf("timepicker.quick_ranges[%d]", i)
+		r, ok := asObject(item)
+		if !ok {
+			dropped = append(dropped, path)
+			continue
+		}
+		display, cut := cutRunes(strings.TrimSpace(asString(r["display"])), 100)
+		from, fromOK := specTime(r["from"])
+		to, toOK := specTime(r["to"])
+		if display == "" || !fromOK || !toOK || len(kept) >= maxQuickRanges {
+			dropped = append(dropped, path)
+			continue
+		}
+		if cut {
+			c.note("time picker", "A quick range name was cut to 100 characters.", path+".display")
+		}
+		kept = append(kept, spec.QuickRange{Display: display, From: from, To: to})
+	}
+	if len(dropped) > 0 {
+		c.note("time picker", "Some quick ranges have no name, a time that is not supported, or are past the first 30, and are not kept.", dropped...)
+	}
+	return kept
 }
 
 func (c *converter) convertTimezone(dash map[string]any) {
@@ -271,45 +380,96 @@ func grafanaCursorSync(dash map[string]any) (spec.CursorSync, bool) {
 
 func (c *converter) convertLinks(dash map[string]any) {
 	items, _ := asArray(dash["links"])
-	var unsupported, invalid, keepTime, includeVars []string
+	var unsupported, invalid, badTags []string
 	for i, item := range items {
 		link, ok := asObject(item)
 		path := fmt.Sprintf("links[%d]", i)
-		if !ok || asString(link["type"]) != "link" {
+		if !ok {
 			unsupported = append(unsupported, path)
 			continue
 		}
-		url := strings.TrimSpace(asString(link["url"]))
-		title := strings.TrimSpace(asString(link["title"]))
-		if title == "" {
-			title = url
+		var converted spec.DashboardLink
+		var valid bool
+		switch asString(link["type"]) {
+		case "link":
+			converted, valid = urlLink(link)
+		case spec.DashboardsLinkType:
+			var tagsOK bool
+			if converted, tagsOK = dashboardsLink(link); !tagsOK {
+				badTags = append(badTags, path)
+				continue
+			}
+			valid = true
+		default:
+			unsupported = append(unsupported, path)
+			continue
 		}
-		_, longURL := cutRunes(url, 2000)
-		if url == "" || longURL || hasForeignScheme(url) || len(c.head.Links) >= maxLinks {
+		if !valid || len(c.head.Links) >= maxLinks {
 			invalid = append(invalid, path)
 			continue
 		}
-		title, _ = cutRunes(title, 200)
-		c.head.Links = append(c.head.Links, spec.Link{Title: title, URL: url, NewTab: truthy(link["targetBlank"])})
-		if truthy(link["keepTime"]) {
-			keepTime = append(keepTime, path+".keepTime")
-		}
-		if truthy(link["includeVars"]) {
-			includeVars = append(includeVars, path+".includeVars")
-		}
+		c.head.Links = append(c.head.Links, converted)
 	}
 	if len(unsupported) > 0 {
-		c.note("dashboard links", "Only plain links are supported; links to other dashboards and other kinds are not kept.", unsupported...)
+		c.note("dashboard links", "Only links to an address and links to other dashboards by tag are supported; this link is not kept.", unsupported...)
 	}
-	if len(keepTime) > 0 {
-		c.note("dashboard links", "Links do not carry the time range along.", keepTime...)
-	}
-	if len(includeVars) > 0 {
-		c.note("dashboard links", "Links do not carry the variable selections along.", includeVars...)
+	if len(badTags) > 0 {
+		c.note("dashboard links", "These links to dashboards use more than 20 tags or a tag that starts with a symbol, which dashboards cannot carry here, so they are not kept.", badTags...)
 	}
 	if len(invalid) > 0 {
 		c.note("dashboard links", "Some links have no address, a very long address, an address that does not start with http, https or mailto, or are past the first 20, and are not kept.", invalid...)
 	}
+}
+
+func urlLink(link map[string]any) (spec.DashboardLink, bool) {
+	url := strings.TrimSpace(asString(link["url"]))
+	title := strings.TrimSpace(asString(link["title"]))
+	if title == "" {
+		title = url
+	}
+	_, longURL := cutRunes(url, 2000)
+	if url == "" || longURL || hasForeignScheme(url) {
+		return spec.DashboardLink{}, false
+	}
+	title, _ = cutRunes(title, 200)
+	return spec.DashboardLink{
+		Title:       title,
+		URL:         url,
+		NewTab:      truthy(link["targetBlank"]),
+		KeepTime:    truthy(link["keepTime"]),
+		IncludeVars: truthy(link["includeVars"]),
+	}, true
+}
+
+func dashboardsLink(link map[string]any) (spec.DashboardLink, bool) {
+	title, _ := cutRunes(strings.TrimSpace(asString(link["title"])), 200)
+	if title == "" {
+		title = "Dashboards"
+	}
+	out := spec.DashboardLink{
+		Type:        spec.DashboardsLinkType,
+		Title:       title,
+		AsDropdown:  truthy(link["asDropdown"]),
+		NewTab:      truthy(link["targetBlank"]),
+		KeepTime:    truthy(link["keepTime"]),
+		IncludeVars: truthy(link["includeVars"]),
+	}
+	tags, _ := asArray(link["tags"])
+	for _, raw := range tags {
+		tag, _ := raw.(string)
+		tag = tagInvalid.ReplaceAllString(strings.ToLower(tag), "-")
+		tag, _ = cutRunes(tag, 40)
+		switch {
+		case !tagPattern.MatchString(tag):
+			return spec.DashboardLink{}, false
+		case slices.Contains(out.Tags, tag):
+		case len(out.Tags) >= maxTags:
+			return spec.DashboardLink{}, false
+		default:
+			out.Tags = append(out.Tags, tag)
+		}
+	}
+	return out, true
 }
 
 func (c *converter) convertAnnotations(dash map[string]any) {

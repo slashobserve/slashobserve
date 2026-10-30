@@ -10,7 +10,18 @@
   "fiscalYearStartMonth": 3,
   "nowDelay": "1m",
   "cursorSync": "crosshair",
-  "links": [{ "title": "Runbook", "url": "https://example.com/runbook", "newTab": true }],
+  "timePicker": {
+    "refreshIntervals": ["10s", "30s", "1m", "1d"],
+    "quickRanges": [
+      { "display": "Last 2 days", "from": "now-2d", "to": "now" },
+      { "display": "Previous fiscal year", "from": "now-1y/fy", "to": "now-1y/fy" }
+    ]
+  },
+  "liveNow": true,
+  "links": [
+    { "title": "Runbook", "url": "https://example.com/runbook", "newTab": true, "keepTime": true, "includeVars": true },
+    { "type": "dashboards", "title": "Production", "tags": ["prod", "checkout"], "asDropdown": true, "keepTime": true }
+  ],
   "variables": [
     { "name": "pod", "type": "query", "datasource": "prom", "multi": true, "includeAll": true,
       "query": "label_values(http_requests_total{service=\"checkout\"}, pod)", "default": "$__all" },
