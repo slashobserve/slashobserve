@@ -116,6 +116,7 @@ export function PanelBody({
             onTimeRangeSelect={onTimeRangeSelect}
             links={links}
             ghostFrames={ghostFrames}
+            exemplars={data.exemplars}
           />
         ) : (
           <Unsupported />

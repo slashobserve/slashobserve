@@ -24,6 +24,8 @@ const (
 	sqlFormatTraces   = 3
 	expressionDropped = "Server-side expressions are not supported yet."
 
+	exemplarsTimeSeriesOnly = "Exemplars are drawn on time series only."
+
 	minResolutionFactor = 2
 	maxResolutionFactor = 10
 )
@@ -315,7 +317,11 @@ func (tb *targetBuild) prometheus() (spec.Query, string) {
 		q.Format = "heatmap"
 	}
 	if truthy(tb.t["exemplar"]) {
-		tb.partial("exemplar", "Exemplars are not supported yet.")
+		if q.Instant || tb.b.typ != spec.Timeseries {
+			tb.partial("exemplar", exemplarsTimeSeriesOnly)
+		} else {
+			q.Exemplar = true
+		}
 	}
 	return q, ""
 }

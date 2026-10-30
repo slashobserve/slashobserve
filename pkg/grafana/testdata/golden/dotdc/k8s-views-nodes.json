@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 35,
-      "imported": 4,
-      "partial": 31,
+      "imported": 29,
+      "partial": 6,
       "placeholder": 0,
       "unverified": 0
     },
@@ -87,7 +87,7 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet."
+          "Exemplars are drawn on time series only."
         ],
         "paths": [
           "targets[0].exemplar"
@@ -112,7 +112,7 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
+          "Exemplars are drawn on time series only.",
           "Some transformations are not supported yet."
         ],
         "paths": [
@@ -160,7 +160,7 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet."
+          "Exemplars are drawn on time series only."
         ],
         "paths": [
           "targets[0].exemplar"
@@ -206,7 +206,7 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet."
+          "Exemplars are drawn on time series only."
         ],
         "paths": [
           "targets[0].exemplar"
@@ -231,7 +231,7 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet."
+          "Exemplars are drawn on time series only."
         ],
         "paths": [
           "targets[0].exemplar"
@@ -254,13 +254,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -279,19 +275,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar",
-          "targets[2].exemplar",
-          "targets[3].exemplar",
-          "targets[4].exemplar",
-          "targets[5].exemplar",
-          "targets[6].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -352,13 +338,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -377,13 +359,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -402,13 +380,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -427,15 +401,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "System",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar",
-          "targets[2].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -468,14 +436,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "System",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -501,14 +464,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "System",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -534,14 +492,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "System",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -567,14 +520,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -600,14 +548,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -633,14 +576,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -666,14 +604,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -699,13 +632,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -724,14 +653,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -757,13 +681,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Kubernetes Storage",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -784,7 +704,7 @@
         "row": "Kubernetes Storage",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
+          "Exemplars are drawn on time series only.",
           "This color scheme is not supported yet; series use the default palette.",
           "Some transformations are not supported yet."
         ],
@@ -819,13 +739,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Kubernetes Storage",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -844,13 +760,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Node Storage",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -869,13 +781,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Node Storage",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -894,13 +802,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Node Storage",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -919,13 +823,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Node Storage",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -944,13 +844,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Node Storage",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -969,13 +865,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Node Storage",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -994,13 +886,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Node Storage",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1019,13 +907,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Node Storage",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1489,7 +1373,8 @@
               {
                 "query": "avg(rate(node_cpu_seconds_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]) * 100) by (mode)",
                 "legend": "{{ mode }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "percent",
@@ -1517,37 +1402,44 @@
               {
                 "query": "node_memory_MemTotal_bytes{instance=\"$instance\", cluster=\"$cluster\"} - node_memory_MemFree_bytes{instance=\"$instance\", cluster=\"$cluster\"} - (node_memory_Cached_bytes{instance=\"$instance\", cluster=\"$cluster\"} + node_memory_Buffers_bytes{instance=\"$instance\", cluster=\"$cluster\"})",
                 "legend": "RAM Used",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "node_memory_MemTotal_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
                 "legend": "RAM Total",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "node_memory_Cached_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
                 "legend": "RAM Cache",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "node_memory_Buffers_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
                 "legend": "RAM Buffer",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "node_memory_MemFree_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
                 "legend": "RAM Free",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "node_memory_SwapTotal_bytes{instance=\"$instance\", cluster=\"$cluster\"} - node_memory_SwapFree_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
                 "legend": "SWAP Used",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "node_memory_SwapTotal_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
                 "legend": "SWAP Total",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "bytes",
@@ -1574,7 +1466,8 @@
               {
                 "query": "sum(rate(container_cpu_usage_seconds_total{node=\"$node\", image!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (pod)",
                 "legend": "{{ pod }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "none",
@@ -1602,7 +1495,8 @@
               {
                 "query": "sum(container_memory_working_set_bytes{node=\"$node\", image!=\"\", cluster=\"$cluster\"}) by (pod)",
                 "legend": "{{ pod }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "bytes",
@@ -1630,7 +1524,8 @@
               {
                 "query": "sum(rate(node_cpu_core_throttles_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
                 "legend": "Nb of cpu core throttles",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "none",
@@ -1680,17 +1575,20 @@
               {
                 "query": "node_load1{instance=\"$instance\", cluster=\"$cluster\"}",
                 "legend": "1m",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "node_load5{instance=\"$instance\", cluster=\"$cluster\"}",
                 "legend": "5m",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "node_load15{instance=\"$instance\", cluster=\"$cluster\"}",
                 "legend": "15m",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "fill": 25,
@@ -1715,12 +1613,14 @@
               {
                 "query": "rate(node_context_switches_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
                 "legend": "Context switches",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "rate(node_intr_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
                 "legend": "Interrupts",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "fill": 25,
@@ -1745,12 +1645,14 @@
               {
                 "query": "node_filefd_maximum{instance=\"$instance\", cluster=\"$cluster\"}",
                 "legend": "Maximum file descriptors",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "node_filefd_allocated{instance=\"$instance\", cluster=\"$cluster\"}",
                 "legend": "Allocated file descriptors",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "fill": 25,
@@ -1776,12 +1678,14 @@
               {
                 "query": "node_timex_estimated_error_seconds{instance=\"$instance\", cluster=\"$cluster\"}",
                 "legend": "Estimated error in seconds",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "node_timex_maxerror_seconds{instance=\"$instance\", cluster=\"$cluster\"}",
                 "legend": "Maximum error in seconds",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "s",
@@ -1820,12 +1724,14 @@
               {
                 "query": "sum(rate(node_network_receive_bytes_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
                 "legend": "In",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "- sum(rate(node_network_transmit_bytes_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
                 "legend": "Out",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "binBps",
@@ -1853,12 +1759,14 @@
               {
                 "query": "sum(rate(node_network_receive_errs_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
                 "legend": "In",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "- sum(rate(node_network_transmit_errs_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
                 "legend": "Out",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "none",
@@ -1886,12 +1794,14 @@
               {
                 "query": "sum(rate(node_network_receive_packets_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
                 "legend": "In",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "- sum(rate(node_network_transmit_packets_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
                 "legend": "Out",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "pps",
@@ -1919,12 +1829,14 @@
               {
                 "query": "sum(rate(node_network_receive_drop_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
                 "legend": "In",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "- sum(rate(node_network_transmit_drop_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
                 "legend": "Out",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "none",
@@ -1952,7 +1864,8 @@
               {
                 "query": "node_netstat_Tcp_CurrEstab{instance=\"$instance\", cluster=\"$cluster\"}",
                 "legend": "TCP Currently Established",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "none",
@@ -1980,12 +1893,14 @@
               {
                 "query": "node_nf_conntrack_entries{instance=\"$instance\", cluster=\"$cluster\"}",
                 "legend": "NF Conntrack entries",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               },
               {
                 "query": "node_nf_conntrack_entries_limit{instance=\"$instance\", cluster=\"$cluster\"}",
                 "legend": "NF Conntrack limit",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "none",
@@ -2034,7 +1949,8 @@
               {
                 "query": "max(kubelet_volume_stats_used_bytes{node=\"$node\", cluster=\"$cluster\"}) by (persistentvolumeclaim, namespace) / max(kubelet_volume_stats_capacity_bytes{node=\"$node\", cluster=\"$cluster\"}) by (persistentvolumeclaim, namespace)",
                 "legend": "{{ namespace }} - {{ persistentvolumeclaim }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "percentunit",
@@ -2099,7 +2015,8 @@
               {
                 "query": "sum(kubelet_volume_stats_inodes_used{node=\"$node\", cluster=\"$cluster\"}) by (persistentvolumeclaim) / sum(kubelet_volume_stats_inodes{node=\"$node\", cluster=\"$cluster\"}) by (persistentvolumeclaim) * 100",
                 "legend": "{{ persistentvolumeclaim }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "percent",
@@ -2140,7 +2057,8 @@
               {
                 "query": "100 - ((node_filesystem_avail_bytes{instance=\"$instance\", cluster=\"$cluster\"} * 100) / node_filesystem_size_bytes{instance=\"$instance\", cluster=\"$cluster\"})",
                 "legend": "{{ mountpoint }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "percent",
@@ -2168,7 +2086,8 @@
               {
                 "query": "100 - (node_filesystem_files_free{instance=\"$instance\", cluster=\"$cluster\"} / node_filesystem_files{instance=\"$instance\", cluster=\"$cluster\"} * 100)",
                 "legend": "{{ mountpoint }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "percent",
@@ -2196,7 +2115,8 @@
               {
                 "query": "rate(node_disk_read_bytes_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
                 "legend": "{{device}}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "bytes",
@@ -2224,7 +2144,8 @@
               {
                 "query": "rate(node_disk_written_bytes_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
                 "legend": "{{device}}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "bytes",
@@ -2252,7 +2173,8 @@
               {
                 "query": "rate(node_disk_reads_completed_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
                 "legend": "{{device}}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "suffix:read/s",
@@ -2280,7 +2202,8 @@
               {
                 "query": "rate(node_disk_writes_completed_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
                 "legend": "{{device}}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "suffix:write/s",
@@ -2308,7 +2231,8 @@
               {
                 "query": "rate(node_disk_io_now{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]) ",
                 "legend": "{{device}}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "suffix:io/s",
@@ -2336,7 +2260,8 @@
               {
                 "query": "sum(node_filesystem_device_error{instance=\"$instance\", cluster=\"$cluster\"}) by (mountpoint)",
                 "legend": "{{ mountpoint }}",
-                "interval": "${resolution}"
+                "interval": "${resolution}",
+                "exemplar": true
               }
             ],
             "unit": "none",

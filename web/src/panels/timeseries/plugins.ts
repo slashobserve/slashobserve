@@ -2,9 +2,10 @@ import uPlot from "uplot"
 
 import type { Threshold } from "@/spec"
 
-import type { LineStyle } from "../colors"
+import { resolveColor, type LineStyle } from "../colors"
 import type { FieldConfig } from "../field-config"
 import type { CursorMember } from "../shared-cursor"
+import { exemplarAt, type ExemplarPoint } from "./exemplars"
 import {
   bandBase,
   nearestSpan,
@@ -23,6 +24,8 @@ import {
 const maxTooltipRows = 10
 const tooltipGap = 12
 const tooltipEdge = 4
+const markerSize = 7
+const hitRadius = 6
 
 export type TooltipSeries = {
   label: string
@@ -84,6 +87,121 @@ function tooltipRow(
   return line
 }
 
+export type ExemplarLayer = {
+  points: ExemplarPoint[]
+  seriesKeys: string[]
+}
+
+type ExemplarHit = { point: ExemplarPoint; entry: TooltipSeries | undefined }
+
+function shownExemplars(
+  u: uPlot,
+  first: number,
+  layer: ExemplarLayer
+): { point: ExemplarPoint; index: number }[] {
+  const indexOf = new Map(layer.seriesKeys.map((key, index) => [key, index]))
+  return layer.points.flatMap((point) => {
+    if (point.seriesKey === undefined) return [{ point, index: -1 }]
+    const index = indexOf.get(point.seriesKey)
+    return index !== undefined && u.series[first + index]?.show
+      ? [{ point, index }]
+      : []
+  })
+}
+
+function exemplarHit(
+  u: uPlot,
+  first: number,
+  layer: ExemplarLayer,
+  entries: TooltipSeries[],
+  left: number,
+  top: number
+): ExemplarHit | null {
+  const shown = shownExemplars(u, first, layer)
+  const point = exemplarAt(
+    shown.map((item) => item.point),
+    left,
+    top,
+    hitRadius,
+    (candidate) => [
+      u.valToPos(candidate.x, "x"),
+      u.valToPos(candidate.y, candidate.scale),
+    ]
+  )
+  if (!point) return null
+  const index = shown.find((item) => item.point === point)?.index ?? -1
+  return { point, entry: index >= 0 ? entries[index] : undefined }
+}
+
+function exemplarSection(hit: ExemplarHit, config: FieldConfig): HTMLElement {
+  const section = document.createElement("div")
+  section.className = "mb-1 border-b border-border pb-1"
+  const title = document.createElement("div")
+  title.className = "font-medium"
+  title.textContent = "Exemplar"
+  const value = document.createElement("div")
+  value.className = "tabular-nums"
+  value.textContent = formatTogether([{ value: hit.point.y, config }])[0]
+  const list = document.createElement("dl")
+  list.className = "mt-0.5 flex flex-col text-muted-foreground"
+  for (const [key, text] of hit.point.labels) {
+    const row = document.createElement("div")
+    row.className = "flex gap-1.5"
+    const term = document.createElement("dt")
+    term.textContent = `${key}:`
+    const detail = document.createElement("dd")
+    detail.className = "min-w-0 break-all text-popover-foreground"
+    detail.textContent = text
+    row.append(term, detail)
+    list.append(row)
+  }
+  section.append(title, value, list)
+  return section
+}
+
+export function exemplarsPlugin(
+  first: number,
+  layer: () => ExemplarLayer,
+  series: () => TooltipSeries[]
+): uPlot.Plugin {
+  return {
+    hooks: {
+      draw: (u) => {
+        const { points } = layer()
+        if (points.length === 0) return
+        const colors = series().map((entry) => resolveColor(entry.color))
+        const fallback = resolveColor("var(--muted-foreground)")
+        const outline = resolveColor("var(--background)")
+        const { ctx } = u
+        const { left, top, width, height } = u.bbox
+        const ratio = uPlot.pxRatio
+        const half = (markerSize * ratio) / 2
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(left, top, width, height)
+        ctx.clip()
+        ctx.lineWidth = Math.max(1, Math.round(ratio))
+        ctx.strokeStyle = outline
+        for (const { point, index } of shownExemplars(u, first, layer())) {
+          const x = left + u.valToPos(point.x, "x", true)
+          const y = top + u.valToPos(point.y, point.scale, true)
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+          ctx.fillStyle = colors[index] ?? fallback
+          ctx.beginPath()
+          ctx.moveTo(x, y - half)
+          ctx.lineTo(x + half, y)
+          ctx.lineTo(x, y + half)
+          ctx.lineTo(x - half, y)
+          ctx.closePath()
+          ctx.fill()
+          ctx.stroke()
+        }
+        ctx.restore()
+      },
+    },
+  }
+}
+
 function moreLine(count: number): HTMLElement {
   const more = document.createElement("div")
   more.className = "ts-tooltip-more"
@@ -117,7 +235,8 @@ export function tooltipPlugin(
   first: number,
   series: () => TooltipSeries[],
   heading: (x: number) => string,
-  peerTooltip: () => boolean
+  peerTooltip: () => boolean,
+  exemplars: () => ExemplarLayer
 ): uPlot.Plugin {
   let tooltip: HTMLDivElement | null = null
   let plot: uPlot | null = null
@@ -209,8 +328,22 @@ export function tooltipPlugin(
         title.className = "ts-tooltip-time"
         title.textContent = heading(u.data[0][idx])
 
+        const hit = anchor.peer
+          ? null
+          : exemplarHit(u, first, exemplars(), meta, left, cursorTop)
+        const section = hit
+          ? exemplarSection(
+              hit,
+              (
+                hit.entry ??
+                meta.find((entry) => entry.scale === "y") ??
+                meta[0]
+              ).config
+            )
+          : null
+
         const render = (count: number, withMore = false) => {
-          const children: HTMLElement[] = [title]
+          const children: HTMLElement[] = section ? [title, section] : [title]
           for (let position = 0; position < count; position++) {
             children.push(
               tooltipRow(meta[candidates[position].index], texts[position], idx)

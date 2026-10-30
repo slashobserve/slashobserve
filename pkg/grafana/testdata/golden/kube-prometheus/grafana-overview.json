@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 5,
-      "imported": 4,
-      "partial": 1,
+      "imported": 5,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -127,15 +127,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar",
-          "targets[2].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -360,17 +354,20 @@
           {
             "query": "histogram_quantile(0.99, sum(irate(grafana_http_request_duration_seconds_bucket{instance=~\"$instance\", job=~\"$job\"}[$__rate_interval])) by (le)) * 1",
             "legend": "99th Percentile",
-            "interval": "1m"
+            "interval": "1m",
+            "exemplar": true
           },
           {
             "query": "histogram_quantile(0.50, sum(irate(grafana_http_request_duration_seconds_bucket{instance=~\"$instance\", job=~\"$job\"}[$__rate_interval])) by (le)) * 1",
             "legend": "50th Percentile",
-            "interval": "1m"
+            "interval": "1m",
+            "exemplar": true
           },
           {
             "query": "sum(irate(grafana_http_request_duration_seconds_sum{instance=~\"$instance\", job=~\"$job\"}[$__rate_interval])) * 1 / sum(irate(grafana_http_request_duration_seconds_count{instance=~\"$instance\", job=~\"$job\"}[$__rate_interval]))",
             "legend": "Average",
-            "interval": "1m"
+            "interval": "1m",
+            "exemplar": true
           }
         ],
         "unit": "ms",

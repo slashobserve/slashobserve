@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 76,
-      "imported": 61,
-      "partial": 15,
+      "imported": 70,
+      "partial": 6,
       "placeholder": 0,
       "unverified": 0
     },
@@ -616,13 +616,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resource usage",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -722,13 +718,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resource usage",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -977,13 +969,9 @@
         "row": "Troubleshooting",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
           "This color scheme is not supported yet; series use the default palette."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar",
-          "targets[2].exemplar",
           "fieldConfig.overrides[2].properties[0]"
         ],
         "queries": [
@@ -1039,13 +1027,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Troubleshooting",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1071,13 +1055,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Troubleshooting",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1232,14 +1212,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Storage",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar",
-          "targets[1].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1650,13 +1625,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Storage",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1765,13 +1736,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Drilldown",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1790,13 +1757,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Drilldown",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1906,13 +1869,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Drilldown",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are not supported yet."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2928,7 +2887,8 @@
               {
                 "query": "max(\n    max_over_time(process_open_fds{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_max_fds{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
                 "legend": "{{job}}",
-                "intervalFactor": 2
+                "intervalFactor": 2,
+                "exemplar": true
               }
             ],
             "unit": "percentunit",
@@ -3085,7 +3045,8 @@
               {
                 "query": "sum(max_over_time(process_num_threads{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
                 "legend": "__auto",
-                "intervalFactor": 2
+                "intervalFactor": 2,
+                "exemplar": true
               }
             ],
             "unit": "short",
@@ -3489,15 +3450,18 @@
             "queries": [
               {
                 "query": "max(\n    (\n        rate(vm_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n        /\n        rate(vm_cache_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    )\n    and\n    (\n        vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"}\n        /\n        (vm_cache_size_max_bytes{job=~\"$job\", instance=~\"$instance\"} > 0)\n        >= 0.95\n    )\n) by(type)",
-                "legend": "{{type}}"
+                "legend": "{{type}}",
+                "exemplar": true
               },
               {
                 "query": "max(\n    (\n        rate(vm_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n        /\n        rate(vm_cache_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    )\n    and\n    (\n        vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"}\n        /\n        (vm_cache_size_max_bytes{job=~\"$job\", instance=~\"$instance\"} > 0)\n        < 0.95\n    )\n) by(type)",
-                "legend": "{{type}}"
+                "legend": "{{type}}",
+                "exemplar": true
               },
               {
                 "query": "max(\n    (\n        rate(vm_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n        /\n        rate(vm_cache_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    )\n    unless\n    (\n        vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"}\n        /\n        (vm_cache_size_max_bytes{job=~\"$job\", instance=~\"$instance\"} > 0)\n    )\n) by(type)",
-                "legend": "{{type}} (capacity unknown)"
+                "legend": "{{type}} (capacity unknown)",
+                "exemplar": true
               }
             ],
             "unit": "percentunit",
@@ -3575,7 +3539,8 @@
             "queries": [
               {
                 "query": "sum(increase(vm_rows_ignored_total{job=~\"$job\", instance=~\"$instance\"}[1h])) by (job, reason)",
-                "legend": "{{instance}} - {{reason}}"
+                "legend": "{{instance}} - {{reason}}",
+                "exemplar": true
               },
               {
                 "query": "sum(increase(vm_relabel_metrics_dropped_total{job=~\"$job\", instance=~\"$instance\"}[1h])) by(job)",
@@ -3611,7 +3576,8 @@
             "queries": [
               {
                 "query": "sum(rate(vm_deduplicated_samples_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, type) >0",
-                "legend": "__auto"
+                "legend": "__auto",
+                "exemplar": true
               }
             ],
             "unit": "short",
@@ -3855,11 +3821,13 @@
             "queries": [
               {
                 "query": "max(\n    max_over_time(vm_concurrent_insert_current{job=~\"$job\", \n    instance=~\"$instance\"}[$__rate_interval])\n)",
-                "legend": "current"
+                "legend": "current",
+                "exemplar": true
               },
               {
                 "query": "min(vm_concurrent_insert_capacity{job=~\"$job\", instance=~\"$instance\"})",
-                "legend": "max"
+                "legend": "max",
+                "exemplar": true
               }
             ],
             "unit": "short",
@@ -4498,7 +4466,8 @@
             "queries": [
               {
                 "query": "vm_snapshots{job=~\"$job\", instance=~\"$instance\"}",
-                "legend": "{{job}}"
+                "legend": "{{job}}",
+                "exemplar": true
               }
             ],
             "unit": "short",
@@ -4624,7 +4593,8 @@
             "queries": [
               {
                 "query": "max_over_time(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
-                "legend": "{{instance}} ({{job}})"
+                "legend": "{{instance}} ({{job}})",
+                "exemplar": true
               }
             ],
             "unit": "decbytes",
@@ -4656,7 +4626,8 @@
             "queries": [
               {
                 "query": "max_over_time(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
-                "legend": "{{instance}} ({{job}})"
+                "legend": "{{instance}} ({{job}})",
+                "exemplar": true
               }
             ],
             "unit": "decbytes",
@@ -4831,7 +4802,8 @@
               {
                 "query": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (job, instance, level, app_version, location) > 0",
                 "legend": "{{instance}} ({{job}}) - {{level}}: {{location}}",
-                "interval": "5m"
+                "interval": "5m",
+                "exemplar": true
               }
             ],
             "unit": "short",

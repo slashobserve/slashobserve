@@ -19,6 +19,7 @@ import type { DatasourceVariable, PanelQuery } from "@/spec"
 
 import { queryChanged } from "./changes"
 import { DatasourceSelect } from "./datasource-select"
+import { CheckboxField } from "./field-controls"
 
 export const maxQueryLength = 20000
 const maxLegendLength = 200
@@ -46,6 +47,8 @@ type Props = {
   onChange: (query: string) => void
   onLegendChange: (legend: string) => void
   onDatasourceChange: (uid: string | null) => void
+  exemplarsOffered: boolean
+  onExemplarChange: (exemplar: boolean) => void
   onRemove: () => void
   canRemove: boolean
   onFocus: () => void
@@ -125,6 +128,8 @@ export function QueryRow({
   onChange,
   onLegendChange,
   onDatasourceChange,
+  exemplarsOffered,
+  onExemplarChange,
   onRemove,
   canRemove,
   onFocus,
@@ -215,6 +220,16 @@ export function QueryRow({
           {line}
         </p>
       ))}
+      {exemplarsOffered &&
+      resolveDatasource(query.datasource ?? panelDatasource).type ===
+        "prometheus" ? (
+        <CheckboxField
+          label="Exemplars"
+          checked={query.exemplar === true}
+          disabled={readOnly}
+          onChange={onExemplarChange}
+        />
+      ) : null}
       <div className="mt-1 flex flex-col gap-1.5">
         <Label htmlFor={legendId} className="text-[13px]">
           Legend
