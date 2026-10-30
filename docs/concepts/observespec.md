@@ -167,6 +167,7 @@ A query has the text in `query` and, optionally:
 - `format`, one of `timeseries`, `table`, `heatmap` or `logs`.
 - `interval`, the smallest step: a duration such as `30s`, or `${name}` naming an `interval` variable, which then gives the step the viewer selected, `$__auto` included.
 - `intervalFactor`, a whole number from 2 to 10 that multiplies the query's step, as Grafana's resolution 1/N does.
+- `exemplar`, on a Prometheus range query, to also fetch its exemplars.
 - `hide`, to keep the query out of the panel's data.
 
 The query language follows the datasource: PromQL for Prometheus and a single SQL `SELECT` for ClickHouse.

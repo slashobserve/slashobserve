@@ -23,3 +23,10 @@ prometheus:
 | `headersFromEnv`, `headersFromFile` | Maps of header name to an environment variable name or a file path, for header values that are secrets. |
 | `basicAuth`                         | `username` plus one of `passwordEnv` or `passwordFile`. The password is required.                       |
 | `bearerTokenEnv`, `bearerTokenFile` | A bearer token from an environment variable or a file. Not combinable with `basicAuth`.                 |
+
+## Exemplars
+
+A time series query with `exemplar: true` also asks Prometheus for exemplars over the same range, through `/api/v1/query_exemplars`.
+Prometheus returns them only when it runs with `--enable-feature=exemplar-storage` and the scraped application exposes them.
+SlashObserve keeps at most one exemplar per step, the one with the highest value, and at most 2,000 per query.
+If the exemplar request fails, the panel still shows its series.

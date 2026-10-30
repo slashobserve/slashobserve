@@ -1326,6 +1326,10 @@
           "minimum": 2,
           "maximum": 10
         },
+        "exemplar": {
+          "description": "Prometheus only: also fetch exemplars for this range query and mark them on the chart.",
+          "type": "boolean"
+        },
         "hide": {
           "type": "boolean"
         }

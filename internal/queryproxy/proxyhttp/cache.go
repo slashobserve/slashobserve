@@ -46,18 +46,20 @@ type loadedVersion struct {
 }
 
 type queryMeta struct {
-	Ref    string          `json:"ref"`
-	Kind   queryproxy.Kind `json:"kind"`
-	StepMS int64           `json:"step_ms"`
+	Ref       string          `json:"ref"`
+	Kind      queryproxy.Kind `json:"kind"`
+	StepMS    int64           `json:"step_ms"`
+	Exemplars string          `json:"exemplars,omitempty"`
 }
 
 type dataEntry struct {
-	frames  json.RawMessage
-	queries []queryMeta
-	kind    queryproxy.Kind
-	from    time.Time
-	to      time.Time
-	step    time.Duration
+	frames    json.RawMessage
+	exemplars json.RawMessage
+	queries   []queryMeta
+	kind      queryproxy.Kind
+	from      time.Time
+	to        time.Time
+	step      time.Duration
 
 	executedAt time.Time
 }
@@ -83,7 +85,7 @@ func newCaches(logger *slog.Logger) *caches {
 	}
 }
 
-func (e dataEntry) cost() int64 { return int64(dataEntryBase + len(e.frames)) }
+func (e dataEntry) cost() int64 { return int64(dataEntryBase + len(e.frames) + len(e.exemplars)) }
 
 func (e valuesEntry) cost() int64 {
 	cost := int64(valuesEntryBase)

@@ -17,6 +17,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/logtest"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -1187,5 +1188,282 @@ func TestRunPanelPassesTheDashboardTitleAndCallerToEveryQuery(t *testing.T) {
 		if c.query.Dashboard != "Checkout health" || c.query.User != user {
 			t.Errorf("%s call %q saw dashboard %q and user %+v", c.method, c.query.Text, c.query.Dashboard, c.query.User)
 		}
+	}
+}
+
+func exemplarFrameOf(labels map[string]string, times []time.Time, values []any) datasource.Frame {
+	timeValues := make([]any, len(times))
+	traces := make([]any, len(times))
+	for i, at := range times {
+		timeValues[i] = at
+		traces[i] = fmt.Sprintf("trace-%d", at.UnixMilli())
+	}
+	return datasource.Frame{Labels: labels, Fields: []datasource.Field{
+		{Name: "Time", Type: datasource.FieldTime, Values: timeValues},
+		{Name: "Value", Type: datasource.FieldNumber, Values: values},
+		{Name: "trace_id", Type: datasource.FieldString, Values: traces},
+	}}
+}
+
+func exemplarRequest(d *spec.Dashboard) Request {
+	return Request{Dashboard: d, PanelID: "p1", Range: testRange(), Exemplars: true}
+}
+
+func exemplarPanel(queries ...spec.Query) *spec.Dashboard {
+	return dashboardOf([]spec.Panel{multiPanel(spec.Timeseries, queries...)})
+}
+
+func TestRunPanelFetchesExemplarsForTheRangeCallsStepAndRange(t *testing.T) {
+	fake := newFake("prometheus")
+	at := testRange().From.Add(time.Hour)
+	fake.onExemplar = func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+		return []datasource.Frame{exemplarFrameOf(map[string]string{"job": "api"}, []time.Time{at}, []any{0.5})}, nil
+	}
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := exemplarPanel(spec.Query{Query: "up", Exemplar: true, IntervalFactor: 2})
+	res, err := runner.RunPanel(t.Context(), exemplarRequest(d))
+	if err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	q := res.Queries[0]
+	if q.ExemplarStatus != ExemplarsOK || len(q.Exemplars) != 1 || q.Exemplars[0].Labels["job"] != "api" {
+		t.Fatalf("exemplars = %+v status %q, want one ok frame for job api", q.Exemplars, q.ExemplarStatus)
+	}
+	if len(q.Frames) == 0 {
+		t.Fatal("the range frames are missing")
+	}
+	ranges, exemplars := fake.callsTo("range"), fake.callsTo("exemplars")
+	if len(ranges) != 1 || len(exemplars) != 1 {
+		t.Fatalf("calls = %+v, want one range and one exemplars call", fake.recorded())
+	}
+	if exemplars[0].step != ranges[0].step || exemplars[0].rng != ranges[0].rng || exemplars[0].query.Text != "up" {
+		t.Fatalf("exemplars call %+v differs from range call %+v", exemplars[0], ranges[0])
+	}
+}
+
+func TestRunPanelDoesNotFetchExemplarsUnlessAsked(t *testing.T) {
+	tests := []struct {
+		name    string
+		request bool
+		query   spec.Query
+	}{
+		{"request does not ask", false, spec.Query{Query: "up", Exemplar: true}},
+		{"query does not ask", true, spec.Query{Query: "up"}},
+		{"hidden query never runs", true, spec.Query{Query: "up", Exemplar: true, Hide: true}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFake("prometheus")
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+			req := exemplarRequest(exemplarPanel(tt.query, spec.Query{Ref: "other", Query: "other"}))
+			req.Exemplars = tt.request
+			res, err := runner.RunPanel(t.Context(), req)
+			if err != nil {
+				t.Fatalf("RunPanel: %v", err)
+			}
+			if n := len(fake.callsTo("exemplars")); n != 0 {
+				t.Fatalf("%d exemplars calls, want none", n)
+			}
+			for _, q := range res.Queries {
+				if q.ExemplarStatus != "" || q.Exemplars != nil {
+					t.Fatalf("query %s has exemplar status %q, want none", q.Ref, q.ExemplarStatus)
+				}
+			}
+		})
+	}
+}
+
+func TestRunPanelMarksOnlyTheQueriesThatAskedForExemplars(t *testing.T) {
+	fake := newFake("prometheus")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := exemplarPanel(spec.Query{Ref: "asks", Query: "a", Exemplar: true}, spec.Query{Ref: "quiet", Query: "b"})
+	res, err := runner.RunPanel(t.Context(), exemplarRequest(d))
+	if err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	if res.Queries[0].ExemplarStatus != ExemplarsOK || res.Queries[1].ExemplarStatus != "" {
+		t.Fatalf("statuses = %q and %q, want ok and empty", res.Queries[0].ExemplarStatus, res.Queries[1].ExemplarStatus)
+	}
+}
+
+func TestRunPanelReportsExemplarsUnavailableWithoutFailingThePanel(t *testing.T) {
+	const secret = "hunter2-token"
+	fake := newFake("prometheus")
+	fake.onExemplar = func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+		return nil, datasource.Errorf(datasource.ErrTimeout, "exemplars slow, password="+secret)
+	}
+	logger, logs := logtest.New()
+	runner := newTestRunner(t, logger, map[string]*fakeDatasource{"prom": fake})
+	d := exemplarPanel(spec.Query{Ref: "asks", Query: "a", Exemplar: true})
+	res, err := runner.RunPanel(t.Context(), exemplarRequest(d))
+	if err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	q := res.Queries[0]
+	if q.ExemplarStatus != ExemplarsUnavailable || len(q.Exemplars) != 0 || len(q.Frames) == 0 {
+		t.Fatalf("query = %+v, want unavailable exemplars next to the range frames", q)
+	}
+	record := logs.Find(t, "exemplar fetch failed")
+	if record["level"] != "WARN" || record["query_ref"] != "asks" {
+		t.Fatalf("log record = %v, want a WARN naming query_ref asks", record)
+	}
+	logs.AssertSafeFailure(t, record, "query_timeout", secret)
+}
+
+func TestRunPanelReportsExemplarsUnsupported(t *testing.T) {
+	tests := []struct {
+		name  string
+		query spec.Query
+		inst  func(*fakeDatasource) datasource.Datasource
+	}{
+		{"datasource without exemplars", spec.Query{Query: "up", Exemplar: true}, func(f *fakeDatasource) datasource.Datasource { return withoutExemplars{f} }},
+		{"instant query", spec.Query{Query: "up", Exemplar: true, Instant: true}, func(f *fakeDatasource) datasource.Datasource { return f }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFake("prometheus")
+			runner := newRunnerOf(t, discardLogger(), datasource.Instance{UID: "prom", Datasource: tt.inst(fake)})
+			res, err := runner.RunPanel(t.Context(), exemplarRequest(exemplarPanel(tt.query)))
+			if err != nil {
+				t.Fatalf("RunPanel: %v", err)
+			}
+			q := res.Queries[0]
+			if q.ExemplarStatus != ExemplarsUnsupported || len(q.Exemplars) != 0 || len(q.Frames) == 0 {
+				t.Fatalf("query = %+v, want unsupported with its frames", q)
+			}
+			if n := len(fake.callsTo("exemplars")); n != 0 {
+				t.Fatalf("%d exemplars calls, want none", n)
+			}
+		})
+	}
+}
+
+func TestRunPanelSkipsExemplarsWhenTheRangeQueryFails(t *testing.T) {
+	fake := newFake("prometheus")
+	fake.onRange = failWith(datasource.Errorf(datasource.ErrUnavailable, "down"))
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	_, err := runner.RunPanel(t.Context(), exemplarRequest(exemplarPanel(spec.Query{Query: "up", Exemplar: true})))
+	if err == nil {
+		t.Fatal("RunPanel succeeded, want the range error")
+	}
+	if n := len(fake.callsTo("exemplars")); n != 0 {
+		t.Fatalf("%d exemplars calls after a failed range query, want none", n)
+	}
+}
+
+func TestRunPanelKeepsTheHighestExemplarPerStepBucket(t *testing.T) {
+	from := testRange().From
+	step := 22 * time.Second
+	at := func(bucket int, offset time.Duration) time.Time { return from.Add(time.Duration(bucket)*step + offset) }
+	fake := newFake("prometheus")
+	fake.onExemplar = func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+		return []datasource.Frame{
+			exemplarFrameOf(map[string]string{"job": "a"},
+				[]time.Time{at(3, time.Second), at(3, 5*time.Second), at(3, 9*time.Second), at(4, 0), at(7, time.Second)},
+				[]any{1.0, 9.0, 4.0, nil, 2.0}),
+			exemplarFrameOf(map[string]string{"job": "b"}, []time.Time{at(3, 2*time.Second)}, []any{0.1}),
+		}, nil
+	}
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	res, err := runner.RunPanel(t.Context(), exemplarRequest(exemplarPanel(spec.Query{Query: "up", Exemplar: true})))
+	if err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	q := res.Queries[0]
+	if q.ExemplarStatus != ExemplarsOK || len(q.Exemplars) != 2 {
+		t.Fatalf("status %q with %d frames, want ok and 2", q.ExemplarStatus, len(q.Exemplars))
+	}
+	wantTimes := []any{at(3, 5*time.Second), at(4, 0), at(7, time.Second)}
+	wantValues := []any{9.0, nil, 2.0}
+	if got := q.Exemplars[0].Fields[0].Values; !slices.Equal(got, wantTimes) {
+		t.Fatalf("job a times = %v, want %v", got, wantTimes)
+	}
+	if got := q.Exemplars[0].Fields[1].Values; !slices.Equal(got, wantValues) {
+		t.Fatalf("job a values = %v, want %v", got, wantValues)
+	}
+	if got := q.Exemplars[0].Fields[2].Values; got[0] != fmt.Sprintf("trace-%d", at(3, 5*time.Second).UnixMilli()) {
+		t.Fatalf("job a trace_id = %v, want the trace of the kept exemplar", got)
+	}
+	if q.Exemplars[1].Labels["job"] != "b" {
+		t.Fatalf("second frame = %v, want job b kept apart from job a", q.Exemplars[1].Labels)
+	}
+}
+
+func TestRunPanelCapsExemplarsAtTheNewest2000(t *testing.T) {
+	const step = 2 * time.Second
+	from := testRange().From
+	build := func(n int) []datasource.Frame {
+		var evens, odds []time.Time
+		var evenValues, oddValues []any
+		for i := 0; i < n; i++ {
+			at := from.Add(time.Duration(i) * step)
+			if i%2 == 0 {
+				evens, evenValues = append(evens, at), append(evenValues, 1.0)
+			} else {
+				odds, oddValues = append(odds, at), append(oddValues, 1.0)
+			}
+		}
+		return []datasource.Frame{
+			exemplarFrameOf(map[string]string{"parity": "even"}, evens, evenValues),
+			exemplarFrameOf(map[string]string{"parity": "odd"}, odds, oddValues),
+		}
+	}
+	tests := []struct {
+		name       string
+		count      int
+		wantStatus string
+		wantOldest time.Time
+	}{
+		{"2000 fit", 2000, ExemplarsOK, from},
+		{"2001 truncate to the newest", 2001, ExemplarsTruncated, from.Add(step)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFake("prometheus")
+			fake.onExemplar = func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+				return build(tt.count), nil
+			}
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+			req := exemplarRequest(exemplarPanel(spec.Query{Query: "up", Exemplar: true}))
+			req.MaxDataPoints = 11000
+			res, err := runner.RunPanel(t.Context(), req)
+			if err != nil {
+				t.Fatalf("RunPanel: %v", err)
+			}
+			q := res.Queries[0]
+			if q.Step != step {
+				t.Fatalf("step = %v, want %v for this test's buckets", q.Step, step)
+			}
+			total, oldest := 0, time.Time{}
+			for _, f := range q.Exemplars {
+				for _, v := range f.Fields[0].Values {
+					total++
+					if at := v.(time.Time); oldest.IsZero() || at.Before(oldest) {
+						oldest = at
+					}
+				}
+			}
+			if q.ExemplarStatus != tt.wantStatus || total != 2000 || !oldest.Equal(tt.wantOldest) {
+				t.Fatalf("status %q with %d exemplars from %v, want %q with 2000 from %v", q.ExemplarStatus, total, oldest, tt.wantStatus, tt.wantOldest)
+			}
+		})
+	}
+}
+
+func TestRunPanelHoldsTheUpstreamSlotDuringTheExemplarCall(t *testing.T) {
+	fake := newFake("prometheus")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	var allFree bool
+	fake.onExemplar = func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+		if allFree = runner.sem.TryAcquire(maxUpstreamCalls); allFree {
+			runner.sem.Release(maxUpstreamCalls)
+		}
+		return nil, nil
+	}
+	if _, err := runner.RunPanel(t.Context(), exemplarRequest(exemplarPanel(spec.Query{Query: "up", Exemplar: true}))); err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	if allFree {
+		t.Fatal("every upstream slot was free during the exemplars call, want the query's slot held")
 	}
 }

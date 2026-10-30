@@ -53,6 +53,7 @@ type Request struct {
 	MaxDataPoints int
 	Limits        datasource.Limits
 	IncludeHidden bool
+	Exemplars     bool
 	User          datasource.QueryUser
 	Admit         func(index int, q QueryResult) error // an *AbortError stops the other queries and fails the request with its Err
 
@@ -63,11 +64,22 @@ func UserFor(p auth.Principal) datasource.QueryUser {
 	return datasource.QueryUser{ID: p.ID, Login: cmp.Or(p.Email, p.Name), Email: p.Email, Name: p.Name}
 }
 
+const (
+	ExemplarsOK          = "ok"
+	ExemplarsTruncated   = "truncated"
+	ExemplarsUnavailable = "unavailable"
+	ExemplarsUnsupported = "unsupported"
+
+	maxExemplars = 2000
+)
+
 type QueryResult struct {
-	Ref    string
-	Kind   Kind
-	Step   time.Duration
-	Frames []datasource.Frame
+	Ref            string
+	Kind           Kind
+	Step           time.Duration
+	Frames         []datasource.Frame
+	Exemplars      []datasource.Frame
+	ExemplarStatus string
 }
 
 type Result struct {
@@ -262,7 +274,7 @@ func (r *Runner) runQueries(ctx context.Context, req Request, st *varState, requ
 		prepared[j] = pq
 	}
 
-	frames, abortErr := r.runPrepared(ctx, req, panel, prepared, errs)
+	outs, abortErr := r.runPrepared(ctx, req, panel, prepared, errs)
 	if abortErr != nil {
 		return panel, Result{}, nil, abortErr
 	}
@@ -275,13 +287,13 @@ func (r *Runner) runQueries(ctx context.Context, req Request, st *varState, requ
 		if pq == nil || errs[j] != nil || panel.Queries[j].Hide {
 			continue
 		}
-		res.Queries = append(res.Queries, QueryResult{Ref: panel.QueryRef(j), Kind: pq.kind, Step: pq.step, Frames: frames[j]})
+		res.Queries = append(res.Queries, pq.result(panel.QueryRef(j), outs[j]))
 	}
 	return panel, res, errs, nil
 }
 
-func (r *Runner) runPrepared(ctx context.Context, req Request, panel *spec.Panel, prepared []*preparedQuery, errs []error) (frames [][]datasource.Frame, abortErr error) {
-	frames = make([][]datasource.Frame, len(panel.Queries))
+func (r *Runner) runPrepared(ctx context.Context, req Request, panel *spec.Panel, prepared []*preparedQuery, errs []error) (outs []fetched, abortErr error) {
+	outs = make([]fetched, len(panel.Queries))
 	runCtx, stop := context.WithCancel(ctx)
 	defer stop()
 	var (
@@ -309,25 +321,147 @@ func (r *Runner) runPrepared(ctx context.Context, req Request, panel *spec.Panel
 				errs[j] = &QueryError{Ref: panel.QueryRef(j), Index: j, Err: err}
 				return nil
 			}
-			frames[j] = out
+			outs[j] = out
 			return nil
 		})
 	}
 	_ = group.Wait()
-	return frames, abortErr
+	return outs, abortErr
 }
 
-func (r *Runner) runQuery(ctx context.Context, req Request, panel *spec.Panel, j int, pq *preparedQuery) ([]datasource.Frame, error) {
-	out, err := upstream(ctx, r, panel.ID, pq.inst, pq.call)
+type fetched struct {
+	frames    []datasource.Frame
+	exemplars []datasource.Frame
+	status    string
+}
+
+func (r *Runner) runQuery(ctx context.Context, req Request, panel *spec.Panel, j int, pq *preparedQuery) (fetched, error) {
+	ref := panel.QueryRef(j)
+	out, err := upstream(ctx, r, panel.ID, pq.inst, func(ctx context.Context) (fetched, error) {
+		frames, err := pq.call(ctx)
+		if err != nil {
+			return fetched{}, err
+		}
+		exemplars, status, err := r.fetchExemplars(ctx, panel.ID, ref, pq)
+		return fetched{frames: frames, exemplars: exemplars, status: status}, err
+	})
 	if err != nil {
-		return nil, err
+		return fetched{}, err
 	}
 	if req.Admit != nil && !panel.Queries[j].Hide {
-		if err := req.Admit(j, QueryResult{Ref: panel.QueryRef(j), Kind: pq.kind, Step: pq.step, Frames: out}); err != nil {
-			return nil, err
+		if err := req.Admit(j, pq.result(ref, out)); err != nil {
+			return fetched{}, err
 		}
 	}
 	return out, nil
+}
+
+func (r *Runner) fetchExemplars(ctx context.Context, subject, ref string, pq *preparedQuery) ([]datasource.Frame, string, error) {
+	if !pq.asksExemplars {
+		return nil, "", nil
+	}
+	if pq.exemplars == nil {
+		return nil, ExemplarsUnsupported, nil
+	}
+	frames, err := pq.exemplars(ctx)
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, "", err
+		}
+		_, code, _ := Classify(err)
+		r.logger.WarnContext(ctx, "exemplar fetch failed", append([]any{
+			slog.String("subject", subject),
+			slog.String("datasource", pq.inst.UID),
+			slog.String("query_ref", ref),
+		}, logattrs.Failure(code, err)...)...)
+		return nil, ExemplarsUnavailable, nil
+	}
+	frames, truncated := capExemplars(thinExemplars(frames, pq.from, pq.step), maxExemplars)
+	if truncated {
+		return frames, ExemplarsTruncated, nil
+	}
+	return frames, ExemplarsOK, nil
+}
+
+func thinExemplars(frames []datasource.Frame, from time.Time, step time.Duration) []datasource.Frame {
+	var out []datasource.Frame
+	for _, f := range frames {
+		if thinned, ok := thinExemplarFrame(f, from, step); ok {
+			out = append(out, thinned)
+		}
+	}
+	return out
+}
+
+func thinExemplarFrame(f datasource.Frame, from time.Time, step time.Duration) (datasource.Frame, bool) {
+	if len(f.Fields) < 2 {
+		return datasource.Frame{}, false
+	}
+	best := map[int64]int{}
+	for i := range f.Fields[0].Values {
+		at, ok := f.Fields[0].Values[i].(time.Time)
+		if !ok {
+			continue
+		}
+		bucket := int64(at.Sub(from) / step)
+		if kept, seen := best[bucket]; !seen || higher(f.Fields[1].Values[i], f.Fields[1].Values[kept]) {
+			best[bucket] = i
+		}
+	}
+	rows := make([]int, 0, len(best))
+	for _, i := range best {
+		rows = append(rows, i)
+	}
+	slices.Sort(rows)
+	return selectRows(f, rows), len(rows) > 0
+}
+
+func higher(a, b any) bool {
+	x, aok := a.(float64)
+	y, bok := b.(float64)
+	return aok && (!bok || x > y)
+}
+
+func selectRows(f datasource.Frame, rows []int) datasource.Frame {
+	out := datasource.Frame{Name: f.Name, Labels: f.Labels, Fields: make([]datasource.Field, len(f.Fields))}
+	for k, field := range f.Fields {
+		values := make([]any, len(rows))
+		for n, i := range rows {
+			values[n] = field.Values[i]
+		}
+		out.Fields[k] = datasource.Field{Name: field.Name, Type: field.Type, Values: values}
+	}
+	return out
+}
+
+func capExemplars(frames []datasource.Frame, limit int) ([]datasource.Frame, bool) {
+	type row struct {
+		frame, index int
+		at           time.Time
+	}
+	var all []row
+	for fi, f := range frames {
+		for i, v := range f.Fields[0].Values {
+			all = append(all, row{fi, i, v.(time.Time)})
+		}
+	}
+	if len(all) <= limit {
+		return frames, false
+	}
+	slices.SortStableFunc(all, func(a, b row) int { return b.at.Compare(a.at) })
+	keep := make([][]int, len(frames))
+	for _, r := range all[:limit] {
+		keep[r.frame] = append(keep[r.frame], r.index)
+	}
+	var out []datasource.Frame
+	for fi, rows := range keep {
+		if len(rows) == 0 {
+			continue
+		}
+		slices.Sort(rows)
+		out = append(out, selectRows(frames[fi], rows))
+	}
+	return out, true
 }
 
 func checkRequest(req Request, requireAll bool) (*spec.Panel, error) {
@@ -357,7 +491,15 @@ type preparedQuery struct {
 	inst datasource.Instance
 	kind Kind
 	step time.Duration
+	from time.Time
 	call func(context.Context) ([]datasource.Frame, error)
+
+	asksExemplars bool
+	exemplars     func(context.Context) ([]datasource.Frame, error)
+}
+
+func (pq *preparedQuery) result(ref string, out fetched) QueryResult {
+	return QueryResult{Ref: ref, Kind: pq.kind, Step: pq.step, Frames: out.frames, Exemplars: out.exemplars, ExemplarStatus: out.status}
 }
 
 func skipped(req Request, j int, q spec.Query) bool {
@@ -384,15 +526,21 @@ func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *
 	if err != nil {
 		return nil, err
 	}
-	pq := &preparedQuery{inst: inst, kind: QueryKind(panel, q)}
+	pq := &preparedQuery{inst: inst, kind: QueryKind(panel, q), asksExemplars: req.Exemplars && q.Exemplar}
 	if pq.kind == KindRange {
 		pq.step = QueryStep(baseStep, minimum, q.IntervalFactor)
 		rng := req.Range
 		if pq.step > baseStep {
 			rng = alignToStep(rng, pq.step)
 		}
+		pq.from = rng.From
 		pq.call = func(ctx context.Context) ([]datasource.Frame, error) {
 			return inst.Datasource.QueryRange(ctx, dq, rng, pq.step)
+		}
+		if src, ok := inst.Datasource.(datasource.ExemplarSource); ok {
+			pq.exemplars = func(ctx context.Context) ([]datasource.Frame, error) {
+				return src.QueryExemplars(ctx, dq, rng, pq.step)
+			}
 		}
 	} else {
 		dq.MinInterval = minimum

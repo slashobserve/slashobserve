@@ -16,6 +16,10 @@ type Datasource interface {
 	Close() error
 }
 
+type ExemplarSource interface {
+	QueryExemplars(ctx context.Context, q Query, r TimeRange, step time.Duration) ([]Frame, error)
+}
+
 type TimeRange struct{ From, To time.Time }
 
 func (r TimeRange) Validate() error {

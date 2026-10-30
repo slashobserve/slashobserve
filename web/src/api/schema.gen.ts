@@ -1541,6 +1541,11 @@ export interface components {
             kind: "range" | "instant";
             /** @description The query's resolution; 0 for an instant query. */
             step_ms: number;
+            /**
+             * @description Present only when the query asked for exemplars (`exemplar: true` on a Prometheus range query, on the panel data and preview routes). `ok` has all of them, `truncated` has the 2,000 newest after thinning to one per step, `unavailable` means the exemplar call failed or timed out and the panel still succeeded, and `unsupported` means the datasource or the query kind has no exemplars.
+             * @enum {string}
+             */
+            exemplars?: "ok" | "truncated" | "unavailable" | "unsupported";
         };
         DataMeta: {
             /**
@@ -1578,6 +1583,8 @@ export interface components {
         };
         PanelData: {
             frames: components["schemas"]["Frame"][];
+            /** @description Present only when at least one query asked for exemplars, and then possibly empty. Each frame is one series' exemplars, its `ref` naming the query and its `labels` the series labels; the fields are `Time` (epoch milliseconds), `Value`, then one string field per exemplar label key. */
+            exemplars?: components["schemas"]["Frame"][];
             meta: components["schemas"]["DataMeta"];
         };
         VariableValues: {

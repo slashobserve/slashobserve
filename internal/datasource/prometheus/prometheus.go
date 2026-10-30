@@ -41,7 +41,10 @@ type Datasource struct {
 	ownsClient bool
 }
 
-var _ datasource.Datasource = (*Datasource)(nil)
+var (
+	_ datasource.Datasource     = (*Datasource)(nil)
+	_ datasource.ExemplarSource = (*Datasource)(nil)
+)
 
 func New(opts Options) (*Datasource, error) {
 	prefix, err := parseBaseURL(opts.URL)
