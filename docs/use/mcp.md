@@ -38,21 +38,25 @@ See [Import Grafana dashboards](import-grafana.md).
 
 Export the key in the shell that starts your client, so the key never lands in a config file:
 
-    export OBSERVE_TOKEN=<your service-account key>
+```sh
+export OBSERVE_TOKEN=<your service-account key>
+```
 
 ## Claude Code
 
 Add this to `.mcp.json` in your project, with your server's address:
 
-    {
-      "mcpServers": {
-        "slashobserve": {
-          "type": "http",
-          "url": "https://observe.example.com/mcp",
-          "headers": { "Authorization": "Bearer ${OBSERVE_TOKEN}" }
-        }
-      }
+```json
+{
+  "mcpServers": {
+    "slashobserve": {
+      "type": "http",
+      "url": "https://observe.example.com/mcp",
+      "headers": { "Authorization": "Bearer ${OBSERVE_TOKEN}" }
     }
+  }
+}
+```
 
 Claude Code expands `${OBSERVE_TOKEN}` from its environment when it starts.
 `.mcp.json` is the documented place for that expansion.
@@ -60,7 +64,9 @@ Claude Code expands `${OBSERVE_TOKEN}` from its environment when it starts.
 `claude mcp add` can create the same entry.
 Use single quotes so your shell does not expand the variable and write the key into the config:
 
-    claude mcp add --transport http --scope project slashobserve https://observe.example.com/mcp --header 'Authorization: Bearer ${OBSERVE_TOKEN}'
+```sh
+claude mcp add --transport http --scope project slashobserve https://observe.example.com/mcp --header 'Authorization: Bearer ${OBSERVE_TOKEN}'
+```
 
 Prefer `.mcp.json`.
 
@@ -70,18 +76,20 @@ The **API keys** page's Claude Code snippet also appends one line to your projec
 
 Add this to `opencode.json`:
 
-    {
-      "$schema": "https://opencode.ai/config.json",
-      "mcp": {
-        "slashobserve": {
-          "type": "remote",
-          "url": "https://observe.example.com/mcp",
-          "enabled": true,
-          "oauth": false,
-          "headers": { "Authorization": "Bearer {env:OBSERVE_TOKEN}" }
-        }
-      }
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "slashobserve": {
+      "type": "remote",
+      "url": "https://observe.example.com/mcp",
+      "enabled": true,
+      "oauth": false,
+      "headers": { "Authorization": "Bearer {env:OBSERVE_TOKEN}" }
     }
+  }
+}
+```
 
 `"oauth": false` stops OpenCode from trying an OAuth flow; SlashObserve takes only the bearer key.
 
@@ -92,13 +100,15 @@ The following is a generic example that this project has not tested with Cursor.
 The `url` and `headers` fields apply to any client that supports remote MCP servers with custom headers.
 How Cursor expands environment variables inside `headers` is defined by Cursor, so check its current MCP documentation before relying on the `${env:OBSERVE_TOKEN}` form below:
 
-    {
-      "mcpServers": {
-        "slashobserve": {
-          "url": "https://observe.example.com/mcp",
-          "headers": { "Authorization": "Bearer ${env:OBSERVE_TOKEN}" }
-        }
-      }
+```json
+{
+  "mcpServers": {
+    "slashobserve": {
+      "url": "https://observe.example.com/mcp",
+      "headers": { "Authorization": "Bearer ${env:OBSERVE_TOKEN}" }
     }
+  }
+}
+```
 
 If your Cursor version cannot expand variables there, put the key in the file only for a user-level `~/.cursor/mcp.json` that is never committed.

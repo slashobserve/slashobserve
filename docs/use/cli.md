@@ -5,21 +5,29 @@ description: Build and use the observe command line client.
 
 Build the `observe` command, which needs only Go:
 
-    make cli
+```sh
+make cli
+```
 
 It writes `bin/observe`.
 Sign in once; it prompts for the key without echoing it:
 
-    bin/observe login --server https://observe.example.com
+```sh
+bin/observe login --server https://observe.example.com
+```
 
 To pass the key on standard input instead, for scripts:
 
-    printf '%s' "$OBSERVE_TOKEN" | bin/observe login --server https://observe.example.com --with-token
+```sh
+printf '%s' "$OBSERVE_TOKEN" | bin/observe login --server https://observe.example.com --with-token
+```
 
 `login` checks the key with the server and then saves the server and key to `~/.config/slashobserve/cli.json` (under `$XDG_CONFIG_HOME` when that is an absolute path), readable by you only.
 Then give it a prompt:
 
-    bin/observe "checkout p99 latency, last 6h"
+```sh
+bin/observe "checkout p99 latency, last 6h"
+```
 
 It prints progress and then the dashboard address.
 `bin/observe dashboards list` lists dashboards, and `bin/observe --help` shows the rest.
@@ -27,7 +35,9 @@ It prints progress and then the dashboard address.
 The import report, the `Folder:` line and the folder note, if any, go to standard error, so standard output stays the address.
 To import a directory of exports into one folder:
 
-    for f in dashboards/*.json; do bin/observe import "$f" --folder Platform || echo "failed: $f" >&2; done
+```sh
+for f in dashboards/*.json; do bin/observe import "$f" --folder Platform || echo "failed: $f" >&2; done
+```
 
 `bin/observe run <name>` runs a saved prompt that someone shared with everyone on the server, waits like a prompt does and prints the dashboard address; the name ignores case and its words need no quotes, and `bin/observe run` alone lists the shared prompts.
 A key never sees private prompts, so share a prompt from the chat home before running it from the CLI.

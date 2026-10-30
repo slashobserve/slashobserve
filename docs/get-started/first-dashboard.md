@@ -13,7 +13,9 @@ The page asks "What do you want to see?" and has a box labelled "Message the age
 Type a prompt and press Enter, or choose **Send**.
 Shift+Enter starts a new line, and pressing `/` anywhere on the page moves focus to the box.
 
-    checkout health by pod, last 6h
+```text
+checkout health by pod, last 6h
+```
 
 Under the box, a chip lists each healthy datasource the agent may use.
 In the demo these are `prom` (Prometheus) and `ch` (ClickHouse).
@@ -55,7 +57,7 @@ Choose **Open dashboard** on the result card.
 The dashboard opens in the same tab with the version button reading "Live · v1".
 
 A new dashboard goes into the folder you last created a dashboard in, or General if you have not created one.
-The Dashboards page marks it as made by the agent, "Agent, for <your name>".
+The Dashboards page marks it as made by the agent, "Agent, for `<your name>`".
 See [Folders](../teams/folders.md).
 
 Choose **Activity** at the top right to open the activity card.
@@ -64,9 +66,11 @@ It lists the saved version, with the agent's one-sentence summary, next to any c
 ## Ask for a change
 
 Go back to the conversation, or use the activity card, and ask for another change.
-In the conversation the box now reads "Ask for another change to <title>", with the note "Each change is saved as a new version of the dashboard."
+In the conversation the box now reads "Ask for another change to `<title>`", with the note "Each change is saved as a new version of the dashboard."
 
-    add a panel with memory usage by pod, and show the last 12h
+```text
+add a panel with memory usage by pod, and show the last 12h
+```
 
 The agent revises the latest version of the same dashboard instead of starting a new one.
 It keeps every panel you did not ask it to change.

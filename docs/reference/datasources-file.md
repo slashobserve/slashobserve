@@ -10,24 +10,26 @@ The server reads it once at startup.
 The file never holds a secret.
 Passwords and tokens are referenced by environment variable name or by file path instead, so the file can live in version control.
 
-    datasources:
-      - uid: prom
-        type: prometheus
-        name: Prometheus
-        prometheus:
-          url: http://prometheus:9090
-          scrapeInterval: 15s
-        limits:
-          timeout: 30s
-          maxSeries: 1000
-      - uid: ch
-        type: clickhouse
-        name: ClickHouse
-        clickhouse:
-          addr: clickhouse:9000
-          database: otel
-          username: slashobserve_ro
-          passwordEnv: SLASHOBSERVE_CLICKHOUSE_PASSWORD
+```yaml
+datasources:
+  - uid: prom
+    type: prometheus
+    name: Prometheus
+    prometheus:
+      url: http://prometheus:9090
+      scrapeInterval: 15s
+    limits:
+      timeout: 30s
+      maxSeries: 1000
+  - uid: ch
+    type: clickhouse
+    name: ClickHouse
+    clickhouse:
+      addr: clickhouse:9000
+      database: otel
+      username: slashobserve_ro
+      passwordEnv: SLASHOBSERVE_CLICKHOUSE_PASSWORD
+```
 
 `deploy/compose/datasources.yaml` is the minimal exemplar used by the demo.
 

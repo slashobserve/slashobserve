@@ -7,9 +7,11 @@ A Prometheus entry takes the fields common to every datasource, described in the
 
 A Prometheus behind a bearer token references the token by variable name, and the variable goes in the same env file as the other settings:
 
-    prometheus:
-      url: https://prometheus.example.com
-      bearerTokenEnv: SLASHOBSERVE_PROMETHEUS_TOKEN
+```yaml
+prometheus:
+  url: https://prometheus.example.com
+  bearerTokenEnv: SLASHOBSERVE_PROMETHEUS_TOKEN
+```
 
 ## Fields
 

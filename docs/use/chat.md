@@ -71,7 +71,7 @@ It uses the time range you state ("last 6h" becomes `now-6h` to `now`), and othe
 
 When the run ends the progress list collapses into a line such as "Ran 14 steps, repaired 1 query".
 Open it to see every step.
-The result card shows the title, "N panels from <datasources>" and the footer "Saved as version 1".
+The result card shows the title, "N panels from `<datasources>`" and the footer "Saved as version 1".
 Choose **Open dashboard** to go to it.
 
 The dashboard lands in the folder you last created a dashboard in, or General when you have not created one; see [Folders](../teams/folders.md).
@@ -84,7 +84,7 @@ The run itself goes on server-side either way.
 
 ## Follow-ups
 
-Once the first dashboard exists, the box under the conversation reads "Ask for another change to <title>", with the note "Each change is saved as a new version of the dashboard."
+Once the first dashboard exists, the box under the conversation reads "Ask for another change to `<title>`", with the note "Each change is saved as a new version of the dashboard."
 Until then it is disabled with "Wait for the dashboard, then ask for changes."
 
 A follow-up is not a continuation of the chat.

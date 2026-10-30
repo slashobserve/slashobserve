@@ -31,30 +31,32 @@ The importer converts it into this format and keeps a `placeholder` panel for ea
 This is `spec/examples/checkout-service-health.json` from the repository.
 It has one variable, two Prometheus panels and a ClickHouse table:
 
-    {
-      "specVersion": "0",
-      "title": "Checkout service health",
-      "description": "RED metrics and error logs for checkout",
-      "tags": ["checkout", "red"],
-      "time": { "from": "now-6h", "to": "now" },
-      "refresh": "30s",
-      "variables": [
-        { "name": "pod", "type": "query", "datasource": "prom", "multi": true, "includeAll": true,
-          "query": "label_values(http_requests_total{service=\"checkout\"}, pod)" }
-      ],
-      "panels": [
-        { "id": "p_rps", "type": "timeseries", "title": "Requests per second by pod",
-          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }, "datasource": "prom", "unit": "reqps",
-          "queries": [{ "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\"}[$__rate_interval]))", "legend": "{{pod}}" }] },
-        { "id": "p_p99", "type": "timeseries", "title": "p99 latency",
-          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 }, "datasource": "prom", "unit": "s",
-          "queries": [{ "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"checkout\"}[$__rate_interval])))" }],
-          "thresholds": [{ "value": 0.25, "color": "warning" }, { "value": 0.5, "color": "critical" }] },
-        { "id": "p_errlogs", "type": "table", "title": "Error logs by message (ClickHouse)",
-          "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 }, "datasource": "ch",
-          "queries": [{ "query": "SELECT Body AS message, count() AS n FROM otel_logs WHERE ServiceName = 'checkout' AND SeverityText = 'ERROR' AND $__timeFilter(Timestamp) GROUP BY message ORDER BY n DESC LIMIT 20" }] }
-      ]
-    }
+```json
+{
+  "specVersion": "0",
+  "title": "Checkout service health",
+  "description": "RED metrics and error logs for checkout",
+  "tags": ["checkout", "red"],
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "30s",
+  "variables": [
+    { "name": "pod", "type": "query", "datasource": "prom", "multi": true, "includeAll": true,
+      "query": "label_values(http_requests_total{service=\"checkout\"}, pod)" }
+  ],
+  "panels": [
+    { "id": "p_rps", "type": "timeseries", "title": "Requests per second by pod",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }, "datasource": "prom", "unit": "reqps",
+      "queries": [{ "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\"}[$__rate_interval]))", "legend": "{{pod}}" }] },
+    { "id": "p_p99", "type": "timeseries", "title": "p99 latency",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 }, "datasource": "prom", "unit": "s",
+      "queries": [{ "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"checkout\"}[$__rate_interval])))" }],
+      "thresholds": [{ "value": 0.25, "color": "warning" }, { "value": 0.5, "color": "critical" }] },
+    { "id": "p_errlogs", "type": "table", "title": "Error logs by message (ClickHouse)",
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 }, "datasource": "ch",
+      "queries": [{ "query": "SELECT Body AS message, count() AS n FROM otel_logs WHERE ServiceName = 'checkout' AND SeverityText = 'ERROR' AND $__timeFilter(Timestamp) GROUP BY message ORDER BY n DESC LIMIT 20" }] }
+  ]
+}
+```
 
 ## The dashboard
 

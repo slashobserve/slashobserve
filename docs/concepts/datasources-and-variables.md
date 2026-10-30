@@ -95,39 +95,41 @@ A `${name}` that names no variable is rejected as `unknown_variable`, one that n
 
 This is `spec/examples/datasource-variable.json` without its title and time range:
 
-    "variables": [
+```json
+"variables": [
+  {
+    "name": "ds",
+    "type": "datasource",
+    "datasourceType": "prometheus",
+    "default": "prom"
+  },
+  {
+    "name": "job",
+    "type": "query",
+    "datasource": "${ds}",
+    "query": "label_values(up, job)"
+  }
+],
+"panels": [
+  {
+    "id": "p_up",
+    "type": "timeseries",
+    "title": "Up by job",
+    "gridPos": {
+      "x": 0,
+      "y": 0,
+      "w": 12,
+      "h": 8
+    },
+    "datasource": "${ds}",
+    "queries": [
       {
-        "name": "ds",
-        "type": "datasource",
-        "datasourceType": "prometheus",
-        "default": "prom"
-      },
-      {
-        "name": "job",
-        "type": "query",
-        "datasource": "${ds}",
-        "query": "label_values(up, job)"
-      }
-    ],
-    "panels": [
-      {
-        "id": "p_up",
-        "type": "timeseries",
-        "title": "Up by job",
-        "gridPos": {
-          "x": 0,
-          "y": 0,
-          "w": 12,
-          "h": 8
-        },
-        "datasource": "${ds}",
-        "queries": [
-          {
-            "query": "sum by (job) (up{job=~\"$job\"})"
-          }
-        ]
+        "query": "sum by (job) (up{job=~\"$job\"})"
       }
     ]
+  }
+]
+```
 
 The Datasources page and the datasource filter on the Dashboards page count a dashboard under a datasource variable's `default`.
 A datasource variable with no `default` adds nothing to those counts.

@@ -15,15 +15,15 @@ The card is headed "Activity" with the description "Comments, agent requests and
 Without a model on the server it reads "Comments and saved versions."
 Entries are sorted by time and come in four kinds:
 
-- **Comment threads** show "<name> commented" and, when the comment is about a panel, "on <panel>".
+- **Comment threads** show "`<name>` commented" and, when the comment is about a panel, "on `<panel>`".
   Choosing the panel name scrolls to the panel and highlights it.
   A comment on a panel that no longer exists reads "on a removed panel".
-- **Agent requests** show "<name> asked the agent" and one of "Sent to the agent", "Resolved by version N", "Finished, nothing changed" or "The agent could not finish: <reason>".
+- **Agent requests** show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
   While the agent works, the entry reads "Agent is working on it" with its latest step, or "Waiting to start".
   **Details** opens the full conversation at `/observe/<id>` in a new tab.
-- **Versions** show who saved: "Agent saved", "<name> saved" or "<client> saved over MCP", then "Version N" with its summary, or "No summary".
+- **Versions** show who saved: "Agent saved", "`<name>` saved" or "`<client>` saved over MCP", then "Version N" with its summary, or "No summary".
   **See changes** opens the comparison with the previous version.
-- **Imports** show "<name> imported this dashboard from Grafana" with the conversion counts, and list the panels that are still unverified in the latest version with the reason each failed, and an **Ask the agent to fix** button where you may send requests.
+- **Imports** show "`<name>` imported this dashboard from Grafana" with the conversion counts, and list the panels that are still unverified in the latest version with the reason each failed, and an **Ask the agent to fix** button where you may send requests.
   See [Import Grafana dashboards](import-grafana.md).
 
 Two menus filter the list.
@@ -37,9 +37,9 @@ At the bottom of the card, the form "Add to the activity" has an **On** menu wit
 Write the comment and choose **Add comment**, or press Cmd+Enter (Ctrl+Enter elsewhere).
 A comment is 1 to 4000 characters; a counter appears from 3500.
 
-To start from a panel, open its menu ("Panel menu: <title>") and choose **Comment**.
+To start from a panel, open its menu ("Panel menu: `<title>`") and choose **Comment**.
 The card opens scoped to that panel with the cursor in the box.
-A panel with open comments shows a badge, "N open comments on <title>".
+A panel with open comments shows a badge, "N open comments on `<title>`".
 
 A comment is attached to the latest version when you write it.
 **Add comment** never asks the agent to do anything.
@@ -74,11 +74,11 @@ It sees the Spec, your message and the panel you chose.
 ## Resolve and reopen
 
 A thread has **Resolve** and, once resolved, **Reopen**.
-A resolved thread reads "Resolved by version N" when the agent or an MCP client resolved it with the version that fixed it, and "Resolved by <name>" when a person did.
+A resolved thread reads "Resolved by version N" when the agent or an MCP client resolved it with the version that fixed it, and "Resolved by `<name>`" when a person did.
 The buttons are hidden while a request tied to the thread is waiting or running.
 
 Replies sit under the comment they answer.
-With no model on the server, an open thread reads "Open, waiting for <client>", so the person or tool that will act on it is clear.
+With no model on the server, an open thread reads "Open, waiting for `<client>`", so the person or tool that will act on it is clear.
 
 Resolving and replying need the same access as commenting.
 
@@ -92,7 +92,7 @@ While a version is pinned, the dashboard is read-only: you cannot edit the layou
 Open the latest version first.
 When someone saves a newer version, a toast reads "Version N is available" with **View latest**; on the latest version the page switches by itself and says "Updated to version N".
 
-**Compare versions** in the menu opens the history page, `/dashboards/<id>/versions`, headed "<title>: history".
+**Compare versions** in the menu opens the history page, `/dashboards/<id>/versions`, headed "`<title>`: history".
 It lists every version in a table with Version, Summary, Author, Saved and Actions, 50 at a time with **Load more**.
 Badges mark "Latest" and "Restored from v2" for a version created by a restore.
 **View** opens the dashboard at that version.

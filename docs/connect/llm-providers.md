@@ -19,8 +19,10 @@ Choose a provider whose data handling fits what your datasources contain.
 Anthropic is the default model family.
 Only the key is required:
 
-    SLASHOBSERVE_LLM_PROVIDER=anthropic
-    SLASHOBSERVE_LLM_API_KEY=<your Anthropic API key>
+```text
+SLASHOBSERVE_LLM_PROVIDER=anthropic
+SLASHOBSERVE_LLM_API_KEY=<your Anthropic API key>
+```
 
 The default model is `claude-sonnet-5-5`.
 Set `SLASHOBSERVE_LLM_MODEL` to use another, for example `claude-opus-5-5` for harder prompts or `claude-haiku-5-5` for lower cost.
@@ -33,17 +35,21 @@ To read the key from a file, such as a Docker or Kubernetes secret, use `SLASHOB
 `openai` talks to any server that implements the Chat Completions API with tool calling.
 The model is required, because there is no safe default:
 
-    SLASHOBSERVE_LLM_PROVIDER=openai
-    SLASHOBSERVE_LLM_MODEL=<model name>
-    SLASHOBSERVE_LLM_API_KEY=<API key>
+```text
+SLASHOBSERVE_LLM_PROVIDER=openai
+SLASHOBSERVE_LLM_MODEL=<model name>
+SLASHOBSERVE_LLM_API_KEY=<API key>
+```
 
 Leave `SLASHOBSERVE_LLM_BASE_URL` unset to use OpenAI.
 Point it at another server to use that instead.
 For a local Ollama:
 
-    SLASHOBSERVE_LLM_PROVIDER=openai
-    SLASHOBSERVE_LLM_MODEL=llama3.1
-    SLASHOBSERVE_LLM_BASE_URL=http://localhost:11434/v1
+```text
+SLASHOBSERVE_LLM_PROVIDER=openai
+SLASHOBSERVE_LLM_MODEL=llama3.1
+SLASHOBSERVE_LLM_BASE_URL=http://localhost:11434/v1
+```
 
 The key is optional for servers that need none, as Ollama does.
 The model must support tool calling.

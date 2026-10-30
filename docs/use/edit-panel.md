@@ -11,8 +11,8 @@ Nothing changes for anyone until you save.
 
 ## Open the editor
 
-Open the menu of a panel ("Panel menu: <title>") and choose **Edit**.
-The **Activity** card turns into the editor, headed "Edit <panel title>" with the line "A draft. Nothing changes until you save."
+Open the menu of a panel ("Panel menu: `<title>`") and choose **Edit**.
+The **Activity** card turns into the editor, headed "Edit `<panel title>`" with the line "A draft. Nothing changes until you save."
 The address gains `panel=<id>` and `edit=query`, so you can bookmark it, and **Close panel** or **Back to activity** returns to the timeline.
 
 **Edit** is missing from the menu, or the editor is read-only, when:
@@ -35,7 +35,7 @@ Each query row can use another datasource through its own menu.
 
 A row is "Query A", "Query B" and so on, up to 26.
 Type the query in the editor; a query is at most 20000 characters.
-The server lints the query, and the problems show under the line with "Error: <message> (line 2, column 14)", or "Warning: ..." for a lesser one.
+The server lints the query, and the problems show under the line with "Error: `<message>` (line 2, column 14)", or "Warning: ..." for a lesser one.
 A clean query shows "Query is valid.", and "Lint is unavailable right now." means the check did not run, not that the query is wrong.
 **Legend** sets the name of each series (up to 200 characters), and **Add query** adds a row.
 **Remove query A** appears when the panel has more than one query.
@@ -55,7 +55,7 @@ It draws the panel in the type you chose, and reports its state:
 - "The draft is not valid yet." while a query has an error;
 - "Waiting for variables." until the variables the queries use have values;
 - "Running the draft.";
-- "Draft ran <time>, 3 series" when it finished.
+- "Draft ran `<time>`, 3 series" when it finished.
 
 When the draft's queries or datasource differ from the saved panel, a dotted line labelled "Saved in v3" shows the saved panel's data next to yours.
 
@@ -98,7 +98,7 @@ Leaving the view with errors asks "Discard the JSON edits?" with **Keep editing*
 
 Some edits are refused whatever the JSON says:
 
-- The `id` must stay the same ("The panel id must stay "<id>"").
+- The `id` must stay the same ("The panel id must stay "`<id>`"").
 - A panel cannot become a row or a placeholder, or move between data, text, dashboard list and news kinds.
   Use the **Panel type** picker to change a data panel's type.
 

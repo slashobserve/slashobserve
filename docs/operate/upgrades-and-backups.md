@@ -10,12 +10,16 @@ The datasources file, the OIDC settings and the LLM key are configuration you ke
 
 Take a dump before every upgrade, and on a schedule:
 
-    pg_dump --format=custom --file slashobserve.dump --dbname "<the SLASHOBSERVE_DATABASE_URL value>"
+```sh
+pg_dump --format=custom --file slashobserve.dump --dbname "<the SLASHOBSERVE_DATABASE_URL value>"
+```
 
 Restore into an empty database with `pg_restore --dbname "<database URL>" slashobserve.dump`.
 For the demo stack, which runs Postgres in Compose:
 
-    docker compose -f deploy/compose/compose.yaml exec -T postgres pg_dump -U slashobserve slashobserve > slashobserve.sql
+```sh
+docker compose -f deploy/compose/compose.yaml exec -T postgres pg_dump -U slashobserve slashobserve > slashobserve.sql
+```
 
 If your connection string carries pgx-only parameters such as `pool_max_conns`, remove them first, because `pg_dump` does not understand them.
 

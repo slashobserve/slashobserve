@@ -7,9 +7,11 @@ Requirements: Docker with Compose v2.20 or newer, and `make`.
 
 Run the demo stack with an Anthropic key so the agent can answer prompts:
 
-    export SLASHOBSERVE_LLM_PROVIDER=anthropic
-    export SLASHOBSERVE_LLM_API_KEY=<your Anthropic API key>
-    make demo
+```sh
+export SLASHOBSERVE_LLM_PROVIDER=anthropic
+export SLASHOBSERVE_LLM_API_KEY=<your Anthropic API key>
+make demo
+```
 
 Open http://localhost:8080 and sign in as `admin@example.com` / `password`.
 The demo's Dex also has `editor@example.com`, `commenter@example.com` and `viewer@example.com` with the same password; they start as Editors, and an Admin sets their roles on the People page.
