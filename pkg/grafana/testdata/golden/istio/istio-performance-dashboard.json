@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 13,
-      "imported": 12,
-      "partial": 1,
+      "imported": 13,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "text",
         "source_type": "text",
         "row": "Performance Dashboard Notes",
-        "status": "partial",
-        "reasons": [
-          "Transparent panels are drawn with a border and background for now."
-        ],
-        "paths": [
-          "transparent"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": []
       },
       {

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 8,
-      "imported": 1,
-      "partial": 7,
+      "imported": 4,
+      "partial": 4,
       "placeholder": 0,
       "unverified": 0
     },
@@ -142,14 +142,10 @@
         "row": "$service",
         "status": "partial",
         "reasons": [
-          "Grafana shows this panel without a title.",
-          "This color scheme is not supported yet; series use the default palette.",
-          "Transparent panels are drawn with a border and background for now."
+          "This color scheme is not supported yet; series use the default palette."
         ],
         "paths": [
-          "title",
-          "fieldConfig.defaults.color",
-          "transparent"
+          "fieldConfig.defaults.color"
         ],
         "queries": [
           {
@@ -169,15 +165,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "$service",
-        "status": "partial",
-        "reasons": [
-          "Grafana shows this panel without a title.",
-          "Transparent panels are drawn with a border and background for now."
-        ],
-        "paths": [
-          "title",
-          "transparent"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -196,15 +186,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "$service",
-        "status": "partial",
-        "reasons": [
-          "Grafana shows this panel without a title.",
-          "Transparent panels are drawn with a border and background for now."
-        ],
-        "paths": [
-          "title",
-          "transparent"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -223,15 +207,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "$service",
-        "status": "partial",
-        "reasons": [
-          "Grafana shows this panel without a title.",
-          "Transparent panels are drawn with a border and background for now."
-        ],
-        "paths": [
-          "title",
-          "transparent"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -566,6 +544,7 @@
             ],
             "interval": "${interval}",
             "transparent": true,
+            "titleHidden": true,
             "display": {
               "reduce": "sum",
               "colorMode": "none",
@@ -594,6 +573,7 @@
             "color": "#F2495C",
             "interval": "${interval}",
             "transparent": true,
+            "titleHidden": true,
             "display": {
               "reduce": "sum",
               "colorMode": "none",
@@ -622,6 +602,7 @@
             "color": "#FF9830",
             "interval": "${interval}",
             "transparent": true,
+            "titleHidden": true,
             "display": {
               "colorMode": "none",
               "textMode": "valueAndName",
@@ -650,6 +631,7 @@
             "color": "#5794F2",
             "interval": "${interval}",
             "transparent": true,
+            "titleHidden": true,
             "display": {
               "colorMode": "none",
               "textMode": "valueAndName",

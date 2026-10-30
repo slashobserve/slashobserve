@@ -214,6 +214,7 @@ type Panel struct {
 	Interval        string      `json:"interval,omitempty"`
 	MaxDataPoints   int         `json:"maxDataPoints,omitempty"`
 	Transparent     bool        `json:"transparent,omitempty"`
+	TitleHidden     bool        `json:"titleHidden,omitempty"`
 	Display         *Display    `json:"display,omitempty"`
 	Content         *string     `json:"content,omitempty"`
 	Mode            string      `json:"mode,omitempty"`

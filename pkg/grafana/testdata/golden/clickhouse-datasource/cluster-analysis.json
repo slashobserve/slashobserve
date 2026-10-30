@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 13,
-      "imported": 3,
-      "partial": 10,
+      "imported": 9,
+      "partial": 4,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Grafana shows this panel without a title."
-        ],
-        "paths": [
-          "title"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -68,13 +64,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Grafana shows this panel without a title."
-        ],
-        "paths": [
-          "title"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -93,13 +85,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Grafana shows this panel without a title."
-        ],
-        "paths": [
-          "title"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -118,13 +106,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Grafana shows this panel without a title."
-        ],
-        "paths": [
-          "title"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -143,13 +127,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Grafana shows this panel without a title."
-        ],
-        "paths": [
-          "title"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -168,13 +148,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Grafana shows this panel without a title."
-        ],
-        "paths": [
-          "title"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -467,6 +443,7 @@
             }
           }
         ],
+        "titleHidden": true,
         "display": {
           "fields": "/.*/",
           "colorMode": "background",
@@ -512,6 +489,7 @@
             }
           }
         ],
+        "titleHidden": true,
         "display": {
           "colorMode": "background",
           "justify": "center"
@@ -539,6 +517,7 @@
             "color": "info"
           }
         ],
+        "titleHidden": true,
         "display": {
           "colorMode": "background",
           "justify": "center"
@@ -566,6 +545,7 @@
             "color": "info"
           }
         ],
+        "titleHidden": true,
         "display": {
           "colorMode": "background",
           "justify": "center"
@@ -593,6 +573,7 @@
             "color": "info"
           }
         ],
+        "titleHidden": true,
         "display": {
           "colorMode": "background",
           "justify": "center"
@@ -620,6 +601,7 @@
             "color": "info"
           }
         ],
+        "titleHidden": true,
         "display": {
           "colorMode": "background",
           "justify": "center"

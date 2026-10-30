@@ -18,7 +18,6 @@ const (
 	noQueriesReason        = "None of this panel's queries can be imported."
 	livePanelReason        = "Grafana's live panels have no SlashObserve equivalent."
 	debugPanelReason       = "Grafana's debug panel showed raw query results; it is shown as a table."
-	transparentReason      = "Transparent panels are drawn with a border and background for now."
 	hideTimeOverrideReason = "The time override label is always shown."
 	docsURL                = "https://github.com/slashobserve/slashobserve/blob/main/docs/"
 )
@@ -464,7 +463,7 @@ func (b *panelBuild) buildData() *builtPanel {
 	b.panel.Title = b.title()
 	if b.panel.Title == "" {
 		b.panel.Title = b.untitled()
-		b.partial("title", "Grafana shows this panel without a title.")
+		b.panel.TitleHidden = true
 	}
 	b.panel.Description = b.description()
 	b.convertPanelQueries()

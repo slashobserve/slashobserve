@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 16,
-      "imported": 3,
-      "partial": 13,
+      "imported": 7,
+      "partial": 9,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Grafana shows this panel without a title."
-        ],
-        "paths": [
-          "title"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -68,13 +64,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Grafana shows this panel without a title."
-        ],
-        "paths": [
-          "title"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -93,13 +85,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Grafana shows this panel without a title."
-        ],
-        "paths": [
-          "title"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -118,13 +106,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Grafana shows this panel without a title."
-        ],
-        "paths": [
-          "title"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -527,6 +511,7 @@
             }
           }
         ],
+        "titleHidden": true,
         "display": {
           "fields": "/.*/",
           "colorMode": "background",
@@ -573,6 +558,7 @@
             }
           }
         ],
+        "titleHidden": true,
         "display": {
           "colorMode": "background",
           "justify": "center",
@@ -601,6 +587,7 @@
             "color": "info"
           }
         ],
+        "titleHidden": true,
         "display": {
           "colorMode": "background",
           "textMode": "valueAndName",
@@ -630,6 +617,7 @@
             "color": "info"
           }
         ],
+        "titleHidden": true,
         "display": {
           "colorMode": "background",
           "textMode": "valueAndName",

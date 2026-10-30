@@ -862,6 +862,10 @@ export interface DataPanel1 {
   interval?: IntervalRef;
   maxDataPoints?: number;
   transparent?: boolean;
+  /**
+   * Keep the title as the panel's name for menus and screen readers but do not show it. Absent means shown.
+   */
+  titleHidden?: boolean;
   display?: {};
 }
 /**

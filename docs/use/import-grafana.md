@@ -40,6 +40,7 @@ A Prometheus query that Grafana runs as both an instant and a range query (`inst
 Both queries are hidden together, and a style override or a `filterByRefId` transformation that names the original ref covers the copy too.
 A query with `instant` on and `range` unset or off stays one instant query.
 A panel that already holds 26 queries keeps only the range query and reports the instant one.
+A panel with no title imports with an internal name (`Panel <id>`) that menus and screen readers use but that is not drawn, as in Grafana, and a transparent panel is drawn without a border or background.
 A dashboard's time settings carry over to the [dashboard fields](../concepts/observespec.md#the-dashboard) `timezone`, `weekStart`, `fiscalYearStartMonth` and `nowDelay` (from the time picker's now delay), and its time range may use `now/fy` and `now/fQ`.
 A unit imports as itself, and unit text Grafana does not know imports as the suffix Grafana shows, up to 20 characters.
 A stat, gauge, bar gauge or pie chart imports its value options: the first reducer, "Show" as every value (`allValues`, with `limit` when it is not 5000) and the `fields` name or pattern.

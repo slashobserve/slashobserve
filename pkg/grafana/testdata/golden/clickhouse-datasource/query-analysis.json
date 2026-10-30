@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 11,
-      "imported": 5,
-      "partial": 6,
+      "imported": 8,
+      "partial": 3,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Grafana shows this panel without a title."
-        ],
-        "paths": [
-          "title"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -68,13 +64,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Grafana shows this panel without a title."
-        ],
-        "paths": [
-          "title"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -141,13 +133,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Grafana shows this panel without a title."
-        ],
-        "paths": [
-          "title"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -373,6 +361,7 @@
             "color": "info"
           }
         ],
+        "titleHidden": true,
         "display": {
           "colorMode": "background"
         }
@@ -407,6 +396,7 @@
             "unit": "decbytes"
           }
         ],
+        "titleHidden": true,
         "display": {
           "colorMode": "background"
         }
@@ -495,6 +485,7 @@
             "unit": "dtdurationms"
           }
         ],
+        "titleHidden": true,
         "display": {
           "fields": "/^Avg query time$/",
           "colorMode": "background"

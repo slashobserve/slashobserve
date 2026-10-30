@@ -155,12 +155,10 @@
         "row": "Stats",
         "status": "partial",
         "reasons": [
-          "Grafana shows this panel without a title.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "title",
           "fieldConfig.overrides[0].properties[0]",
           "options.frameIndex",
           "options.sortBy[0].desc",
@@ -1162,7 +1160,8 @@
                 },
                 "displayName": "Count"
               }
-            ]
+            ],
+            "titleHidden": true
           },
           {
             "id": "p42",
