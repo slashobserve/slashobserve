@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 14,
-      "imported": 9,
-      "partial": 5,
+      "imported": 10,
+      "partial": 4,
       "placeholder": 0,
       "unverified": 0
     },
@@ -273,14 +273,7 @@
           "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[3]",
-          "fieldConfig.overrides[1].properties[2]",
-          "fieldConfig.overrides[2].properties[2]",
-          "fieldConfig.overrides[3].properties[2]",
-          "fieldConfig.overrides[4].properties[3]",
-          "fieldConfig.overrides[5].properties[2]",
-          "fieldConfig.overrides[5].properties[3]",
-          "fieldConfig.overrides[6].properties[3]"
+          "fieldConfig.overrides[5].properties[3]"
         ],
         "queries": [
           {
@@ -424,13 +417,9 @@
         "type": "table",
         "source_type": "table",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.footer.enablePagination"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",

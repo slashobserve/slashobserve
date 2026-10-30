@@ -510,7 +510,8 @@
                 "match": {
                   "field": "destination_service"
                 },
-                "displayName": "Service"
+                "displayName": "Service",
+                "minWidth": 400
               }
             ],
             "transform": [
@@ -575,7 +576,8 @@
                 "match": {
                   "field": "destination_service"
                 },
-                "displayName": "Service"
+                "displayName": "Service",
+                "minWidth": 400
               }
             ],
             "transform": [

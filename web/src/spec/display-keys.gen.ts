@@ -63,7 +63,15 @@ export const displayKeysByType: Record<string, readonly string[]> = {
   ],
   "table": [
     "header",
-    "footer"
+    "footer",
+    "footerFields",
+    "footerCountRows",
+    "cellHeight",
+    "pagination",
+    "frozenColumns",
+    "sortBy",
+    "sortDesc",
+    "typeIcons"
   ],
   "piechart": [
     "reduce",

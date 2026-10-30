@@ -50,8 +50,6 @@
         "paths": [
           "fontSize",
           "options.frameIndex",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName",
           "showHeader",
           "sort.col",
           "sort.desc",
@@ -96,8 +94,6 @@
         "paths": [
           "fontSize",
           "options.frameIndex",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName",
           "showHeader",
           "sort.col",
           "sort.desc",
@@ -168,7 +164,10 @@
             },
             "unit": "time: YYYY-MM-DD HH:mm:ss"
           }
-        ]
+        ],
+        "display": {
+          "sortBy": "t"
+        }
       },
       {
         "id": "p3",
@@ -200,7 +199,10 @@
             },
             "unit": "time: YYYY-MM-DD HH:mm:ss"
           }
-        ]
+        ],
+        "display": {
+          "sortBy": "t"
+        }
       }
     ]
   }

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 8,
-      "imported": 4,
-      "partial": 4,
+      "imported": 5,
+      "partial": 3,
       "placeholder": 0,
       "unverified": 0
     },
@@ -73,15 +73,10 @@
         "row": "Trace Search",
         "status": "partial",
         "reasons": [
-          "Mapped values must be between 1 and 200 characters.",
-          "Some Grafana options of this panel are not supported yet."
+          "Mapped values must be between 1 and 200 characters."
         ],
         "paths": [
-          "fieldConfig.overrides[2].properties[2]",
-          "fieldConfig.defaults.custom.inspect",
-          "options.footer.countRows",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
+          "fieldConfig.overrides[2].properties[2]"
         ],
         "queries": [
           {
@@ -226,15 +221,9 @@
         "type": "table",
         "source_type": "table",
         "row": "$service",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.inspect",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -450,12 +439,20 @@
                 "format": "table"
               }
             ],
+            "inspect": true,
             "overrides": [
               {
                 "match": {
                   "field": "Duration"
                 },
-                "unit": "ns"
+                "unit": "ns",
+                "width": 130
+              },
+              {
+                "match": {
+                  "field": "Spans"
+                },
+                "width": 70
               },
               {
                 "match": {
@@ -479,13 +476,29 @@
                 ],
                 "cell": {
                   "type": "text"
-                }
+                },
+                "width": 90
+              },
+              {
+                "match": {
+                  "field": "TraceId"
+                },
+                "width": 290
+              },
+              {
+                "match": {
+                  "field": "Service"
+                },
+                "width": 170
               }
             ],
             "display": {
               "footer": [
                 "count"
-              ]
+              ],
+              "footerCountRows": true,
+              "sortBy": "Time",
+              "sortDesc": true
             }
           }
         ]
@@ -658,7 +671,14 @@
                 "format": "table"
               }
             ],
+            "inspect": true,
             "overrides": [
+              {
+                "match": {
+                  "field": "Count"
+                },
+                "width": 90
+              },
               {
                 "match": {
                   "field": "Errors"
@@ -671,7 +691,8 @@
                 ],
                 "cell": {
                   "type": "background"
-                }
+                },
+                "width": 80
               },
               {
                 "match": {
@@ -690,19 +711,22 @@
                 ],
                 "cell": {
                   "type": "background"
-                }
+                },
+                "width": 80
               },
               {
                 "match": {
                   "field": "P50"
                 },
-                "unit": "ns"
+                "unit": "ns",
+                "width": 110
               },
               {
                 "match": {
                   "field": "P99"
                 },
-                "unit": "ns"
+                "unit": "ns",
+                "width": 110
               },
               {
                 "match": {
@@ -713,7 +737,11 @@
                   "type": "text"
                 }
               }
-            ]
+            ],
+            "display": {
+              "sortBy": "Count",
+              "sortDesc": true
+            }
           }
         ]
       }

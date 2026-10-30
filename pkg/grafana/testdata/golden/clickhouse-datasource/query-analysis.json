@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 11,
-      "imported": 8,
-      "partial": 3,
+      "imported": 9,
+      "partial": 2,
       "placeholder": 0,
       "unverified": 0
     },
@@ -263,14 +263,9 @@
         "type": "table",
         "source_type": "table",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -661,15 +656,143 @@
         "overrides": [
           {
             "match": {
+              "field": "written"
+            },
+            "width": 207
+          },
+          {
+            "match": {
+              "field": "type"
+            },
+            "width": 116
+          },
+          {
+            "match": {
               "field": "memory_usage"
             },
-            "unit": "bytes"
+            "unit": "bytes",
+            "width": 119
+          },
+          {
+            "match": {
+              "field": "result"
+            },
+            "width": 201
+          },
+          {
+            "match": {
+              "field": "read"
+            },
+            "width": 123
+          },
+          {
+            "match": {
+              "field": "query_kind"
+            },
+            "width": 90
+          },
+          {
+            "match": {
+              "field": "query_duration_ms"
+            },
+            "width": 145
+          },
+          {
+            "match": {
+              "field": "initial_user"
+            },
+            "width": 104
+          },
+          {
+            "match": {
+              "field": "client_hostname"
+            },
+            "width": 246
+          },
+          {
+            "match": {
+              "field": "databases"
+            },
+            "width": 114
+          },
+          {
+            "match": {
+              "field": "user"
+            },
+            "width": 119
+          },
+          {
+            "match": {
+              "field": "client"
+            },
+            "width": 270
+          },
+          {
+            "match": {
+              "field": "Client host"
+            },
+            "width": 110
+          },
+          {
+            "match": {
+              "field": "Query id"
+            },
+            "width": 104
+          },
+          {
+            "match": {
+              "field": "Start time"
+            },
+            "width": 162
           },
           {
             "match": {
               "field": "Duration"
             },
-            "unit": "ms"
+            "unit": "ms",
+            "width": 92
+          },
+          {
+            "match": {
+              "field": "Normalized query"
+            },
+            "width": 885
+          },
+          {
+            "match": {
+              "field": "Rows weitten"
+            },
+            "width": 150
+          },
+          {
+            "match": {
+              "field": "Rows read"
+            },
+            "width": 177
+          },
+          {
+            "match": {
+              "field": "Type"
+            },
+            "width": 84
+          },
+          {
+            "match": {
+              "field": "Result"
+            },
+            "width": 296
+          },
+          {
+            "match": {
+              "field": "User"
+            },
+            "width": 84
+          },
+          {
+            "match": {
+              "field": "Rows written"
+            },
+            "width": 197
           }
         ],
         "transform": [
@@ -709,7 +832,10 @@
               "result"
             ]
           }
-        ]
+        ],
+        "display": {
+          "sortBy": "Memory usage"
+        }
       }
     ]
   }

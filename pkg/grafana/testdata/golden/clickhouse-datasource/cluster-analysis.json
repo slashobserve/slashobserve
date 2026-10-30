@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 13,
-      "imported": 10,
-      "partial": 3,
+      "imported": 12,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -169,16 +169,9 @@
         "type": "table",
         "source_type": "table",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[3].properties[0]",
-          "fieldConfig.overrides[4].properties[0]",
-          "fieldConfig.defaults.custom.align"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -218,13 +211,9 @@
         "type": "table",
         "source_type": "table",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.align"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "Merges",
@@ -266,14 +255,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some transformations are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some transformations are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[3].properties[1]",
-          "transformations[1]",
-          "fieldConfig.defaults.custom.align"
+          "transformations[1]"
         ],
         "queries": [
           {
@@ -599,6 +584,7 @@
             "color": "critical"
           }
         ],
+        "align": "center",
         "overrides": [
           {
             "match": {
@@ -639,6 +625,18 @@
             "cell": {
               "type": "background"
             }
+          },
+          {
+            "match": {
+              "field": "Cluster"
+            },
+            "filterable": true
+          },
+          {
+            "match": {
+              "field": "Host name"
+            },
+            "filterable": true
           }
         ],
         "transform": [
@@ -724,12 +722,32 @@
             "color": "critical"
           }
         ],
+        "align": "center",
         "overrides": [
+          {
+            "match": {
+              "field": "Database"
+            },
+            "width": 78
+          },
+          {
+            "match": {
+              "field": "Table"
+            },
+            "width": 200
+          },
           {
             "match": {
               "field": "Elapsed"
             },
-            "unit": "s"
+            "unit": "s",
+            "width": 75
+          },
+          {
+            "match": {
+              "field": "Progress"
+            },
+            "width": 82
           },
           {
             "match": {
@@ -751,7 +769,50 @@
             ],
             "cell": {
               "type": "background"
-            }
+            },
+            "width": 100
+          },
+          {
+            "match": {
+              "field": "Partition id"
+            },
+            "width": 92
+          },
+          {
+            "match": {
+              "field": "Target path"
+            },
+            "width": 396
+          },
+          {
+            "match": {
+              "field": "Num parts"
+            },
+            "width": 90
+          },
+          {
+            "match": {
+              "field": "total_size_compressed"
+            },
+            "width": 185
+          },
+          {
+            "match": {
+              "field": "Columns written"
+            },
+            "width": 198
+          },
+          {
+            "match": {
+              "field": "Total compressed size"
+            },
+            "width": 166
+          },
+          {
+            "match": {
+              "field": "Compressed size"
+            },
+            "width": 138
           }
         ],
         "transform": [
@@ -845,6 +906,7 @@
             "color": "critical"
           }
         ],
+        "align": "center",
         "overrides": [
           {
             "match": {
@@ -866,7 +928,27 @@
             ],
             "cell": {
               "type": "background"
-            }
+            },
+            "width": 100
+          },
+          {
+            "match": {
+              "field": "Database"
+            },
+            "width": 86
+          },
+          {
+            "match": {
+              "field": "Table"
+            },
+            "width": 194
+          },
+          {
+            "match": {
+              "field": "Fail time"
+            },
+            "width": 201,
+            "align": "center"
           },
           {
             "match": {
@@ -886,7 +968,32 @@
             ],
             "cell": {
               "type": "background"
-            }
+            },
+            "width": 133
+          },
+          {
+            "match": {
+              "field": "Reason"
+            },
+            "width": 163
+          },
+          {
+            "match": {
+              "field": "Command"
+            },
+            "width": 300
+          },
+          {
+            "match": {
+              "field": "Mutation id"
+            },
+            "width": 157
+          },
+          {
+            "match": {
+              "field": "Create time"
+            },
+            "width": 194
           }
         ],
         "transform": [
@@ -995,6 +1102,38 @@
           {
             "query": "SELECT concatAssumeInjective(database, '.', table) as db_table, is_leader, is_readonly, absolute_delay, queue_size, inserts_in_queue, merges_in_queue FROM system.replicas WHERE database IN (${database:singlequote}) ORDER BY absolute_delay DESC LIMIT 10",
             "format": "table"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "field": "Table"
+            },
+            "width": 200
+          },
+          {
+            "match": {
+              "field": "Leader"
+            },
+            "width": 122
+          },
+          {
+            "match": {
+              "field": "Readonly"
+            },
+            "width": 138
+          },
+          {
+            "match": {
+              "field": "Delay"
+            },
+            "width": 108
+          },
+          {
+            "match": {
+              "field": "Queue size"
+            },
+            "width": 113
           }
         ],
         "transform": [

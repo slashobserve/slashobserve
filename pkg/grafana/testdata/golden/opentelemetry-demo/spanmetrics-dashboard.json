@@ -550,6 +550,18 @@
                   "type": "gauge",
                   "gaugeStyle": "lcd"
                 }
+              },
+              {
+                "match": {
+                  "field": "Error Rate"
+                },
+                "width": 663
+              },
+              {
+                "match": {
+                  "field": "Rate"
+                },
+                "width": 667
               }
             ],
             "transform": [

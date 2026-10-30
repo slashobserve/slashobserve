@@ -1139,6 +1139,38 @@
                 "newTab": true
               }
             ],
+            "overrides": [
+              {
+                "match": {
+                  "field": "pod"
+                },
+                "width": 416
+              },
+              {
+                "match": {
+                  "field": "priority_class"
+                },
+                "width": 176
+              },
+              {
+                "match": {
+                  "field": "pod_ip"
+                },
+                "width": 157
+              },
+              {
+                "match": {
+                  "field": "created_by_kind"
+                },
+                "width": 205
+              },
+              {
+                "match": {
+                  "field": "namespace"
+                },
+                "width": 263
+              }
+            ],
             "transform": [
               {
                 "type": "organize",
@@ -1999,6 +2031,20 @@
               }
             ],
             "unit": "bytes",
+            "overrides": [
+              {
+                "match": {
+                  "field": "Used"
+                },
+                "width": 146
+              },
+              {
+                "match": {
+                  "field": "Total"
+                },
+                "width": 167
+              }
+            ],
             "transform": [
               {
                 "type": "joinByField",

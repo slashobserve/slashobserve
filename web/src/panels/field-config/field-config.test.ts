@@ -58,6 +58,10 @@ describe("field config resolution", () => {
       axisColor: "text",
       hideInLegend: false,
       hideInTooltip: false,
+      align: "auto",
+      filterable: false,
+      inspect: false,
+      hideHeader: false,
       stackGroup: "A",
       nullAsZero: false,
       barAlignment: "center",
@@ -287,6 +291,10 @@ describe("field config resolution", () => {
     expect(plain).toMatchObject({
       hideInLegend: false,
       hideInTooltip: false,
+      align: "auto",
+      filterable: false,
+      inspect: false,
+      hideHeader: false,
       stackGroup: "A",
     })
     expect(plain.valueTransform).toBeUndefined()

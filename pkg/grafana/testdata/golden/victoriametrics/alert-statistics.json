@@ -153,9 +153,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.frameIndex",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
+          "options.frameIndex"
         ],
         "queries": [
           {
@@ -180,9 +178,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.frameIndex",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
+          "options.frameIndex"
         ],
         "queries": [
           {
@@ -460,6 +456,14 @@
             "format": "table"
           }
         ],
+        "overrides": [
+          {
+            "match": {
+              "field": "Count"
+            },
+            "width": 100
+          }
+        ],
         "transform": [
           {
             "type": "organize",
@@ -479,7 +483,11 @@
               "Value"
             ]
           }
-        ]
+        ],
+        "display": {
+          "sortBy": "Count",
+          "sortDesc": true
+        }
       },
       {
         "id": "p1",
@@ -501,6 +509,18 @@
           }
         ],
         "overrides": [
+          {
+            "match": {
+              "field": "Count"
+            },
+            "width": 100
+          },
+          {
+            "match": {
+              "field": "Group"
+            },
+            "width": 200
+          },
           {
             "match": {
               "field": "Alert"
@@ -532,7 +552,11 @@
               "Value"
             ]
           }
-        ]
+        ],
+        "display": {
+          "sortBy": "Count",
+          "sortDesc": true
+        }
       }
     ]
   }

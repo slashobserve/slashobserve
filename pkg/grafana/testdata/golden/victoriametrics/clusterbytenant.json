@@ -349,9 +349,7 @@
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "options.frameIndex",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
+          "options.frameIndex"
         ],
         "queries": [
           {
@@ -378,9 +376,7 @@
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "options.frameIndex",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
+          "options.frameIndex"
         ],
         "queries": [
           {
@@ -407,9 +403,7 @@
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "options.frameIndex",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
+          "options.frameIndex"
         ],
         "queries": [
           {
@@ -436,9 +430,7 @@
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "options.frameIndex",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
+          "options.frameIndex"
         ],
         "queries": [
           {
@@ -465,9 +457,7 @@
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "options.frameIndex",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
+          "options.frameIndex"
         ],
         "queries": [
           {
@@ -494,9 +484,7 @@
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "options.frameIndex",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
+          "options.frameIndex"
         ],
         "queries": [
           {
@@ -860,8 +848,18 @@
                   "field": "Value"
                 },
                 "unit": "short"
+              },
+              {
+                "match": {
+                  "field": "accountID"
+                },
+                "width": 71
               }
-            ]
+            ],
+            "display": {
+              "sortBy": "Value",
+              "sortDesc": true
+            }
           },
           {
             "id": "p26",
@@ -889,8 +887,18 @@
                   "field": "Value"
                 },
                 "unit": "short"
+              },
+              {
+                "match": {
+                  "field": "accountID"
+                },
+                "width": 106
               }
-            ]
+            ],
+            "display": {
+              "sortBy": "Value",
+              "sortDesc": true
+            }
           },
           {
             "id": "p33",
@@ -918,8 +926,18 @@
                   "field": "Value"
                 },
                 "unit": "short"
+              },
+              {
+                "match": {
+                  "field": "accountID"
+                },
+                "width": 106
               }
-            ]
+            ],
+            "display": {
+              "sortBy": "Value",
+              "sortDesc": true
+            }
           },
           {
             "id": "p27",
@@ -947,8 +965,18 @@
                   "field": "Value"
                 },
                 "unit": "short"
+              },
+              {
+                "match": {
+                  "field": "accountID"
+                },
+                "width": 96
               }
-            ]
+            ],
+            "display": {
+              "sortBy": "Value",
+              "sortDesc": true
+            }
           },
           {
             "id": "p28",
@@ -976,8 +1004,18 @@
                   "field": "Value"
                 },
                 "unit": "bytes"
+              },
+              {
+                "match": {
+                  "field": "accountID"
+                },
+                "width": 94
               }
-            ]
+            ],
+            "display": {
+              "sortBy": "Value",
+              "sortDesc": true
+            }
           },
           {
             "id": "p30",
@@ -1005,8 +1043,18 @@
                   "field": "Value"
                 },
                 "unit": "short"
+              },
+              {
+                "match": {
+                  "field": "accountID"
+                },
+                "width": 116
               }
-            ]
+            ],
+            "display": {
+              "sortBy": "Value",
+              "sortDesc": true
+            }
           }
         ]
       }

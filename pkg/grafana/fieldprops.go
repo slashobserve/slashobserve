@@ -65,6 +65,7 @@ var propOrder = []string{
 	"custom.axisLabel", "custom.axisSoftMin", "custom.axisSoftMax", "custom.scaleDistribution",
 	"custom.axisCenteredZero", "custom.axisWidth", "custom.axisGridShow", "custom.axisBorderShow", "custom.axisColorMode",
 	"custom.cellOptions", "custom.displayMode", "custom.wrapText",
+	"custom.width", "custom.minWidth", "custom.align", "custom.filterable", "custom.inspect", "custom.hideHeader",
 	"custom.transform", "custom.fillBelowTo",
 	"custom.insertNulls", "custom.barAlignment", "custom.barWidthFactor", "custom.barMaxWidth", "custom.thresholdsStyle",
 }
@@ -103,6 +104,12 @@ var propHandlers = map[string]propHandler{
 	"custom.cellOptions":       propCellOptions,
 	"custom.displayMode":       propDisplayMode,
 	"custom.wrapText":          propWrapText,
+	"custom.width":             propColumnWidth,
+	"custom.minWidth":          propColumnMinWidth,
+	"custom.align":             propColumnAlign,
+	"custom.filterable":        propColumnFilterable,
+	"custom.inspect":           propColumnInspect,
+	"custom.hideHeader":        propColumnHideHeader,
 	"custom.transform":         propValueTransform,
 	"custom.fillBelowTo":       propFillBelowTo,
 	"custom.insertNulls":       propInsertNulls,
@@ -158,7 +165,7 @@ func propLineStyleUnused(b *panelBuild, _ *spec.FieldProps, _ any, s propSite) {
 }
 
 func (b *panelBuild) propHandler(id string) (propHandler, bool) {
-	if tableCellProps[id] && b.typ != spec.Table {
+	if tableColumnProps[id] && b.typ != spec.Table {
 		return nil, false
 	}
 	if seriesDrawingPropIDs[id] && !seriesDrawingTypes[b.typ] {

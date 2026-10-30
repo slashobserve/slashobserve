@@ -12,10 +12,6 @@ const (
 	cellsPath        = "fieldConfig.defaults.custom.cellOptions."
 )
 
-var tableCellProps = map[string]bool{
-	"custom.cellOptions": true, "custom.displayMode": true, "custom.wrapText": true,
-}
-
 var cellTypes = map[string]string{
 	"color-text":       "text",
 	"color-background": "background",

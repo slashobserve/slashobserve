@@ -52,11 +52,10 @@ export type TableRow = {
   at: RowAt
   source: RowSource
 }
-type FooterRow = { label: string; cells: (string | null)[] }
+export type FooterRow = { label: string; cells: (string | null)[] }
 export type TableModel = {
   columns: TableColumn[]
   rows: TableRow[]
-  footer: FooterRow[]
 }
 
 export type Cell = { text: string } & (
@@ -311,6 +310,12 @@ function footerReducers(display: Record<string, unknown>): Reducer[] {
   )
 }
 
+function footerFieldNames(display: Record<string, unknown>): string[] {
+  const { footerFields } = display
+  if (!Array.isArray(footerFields)) return []
+  return footerFields.filter((name) => typeof name === "string")
+}
+
 function footerText(
   column: TableColumn,
   values: unknown[],
@@ -325,17 +330,49 @@ function footerText(
     .text
 }
 
+export function footerRows(
+  columns: TableColumn[],
+  rows: TableRow[],
+  display: Record<string, unknown>
+): FooterRow[] {
+  const named = footerFieldNames(display)
+  const covered = (column: TableColumn) =>
+    named.length === 0 ||
+    named.includes(column.label) ||
+    named.includes(column.source.field.name)
+  const values = columns.map((column) =>
+    rows.map((row) => row.values[column.key])
+  )
+  const out = footerReducers(display).map((reducer) => ({
+    label: reducerLabels[reducer],
+    cells: columns.map((column, index) =>
+      column.type === "number" &&
+      covered(column) &&
+      (column.decimals.size <= 1 || countReducers.has(reducer))
+        ? footerText(column, values[index], reducer)
+        : null
+    ),
+  }))
+  if (display.footerCountRows === true) {
+    out.push({
+      label: "Rows",
+      cells: columns.map((_, index) =>
+        index === 0 ? rows.length.toLocaleString("en") : null
+      ),
+    })
+  }
+  return out
+}
+
 export function tableModel(
   frames: PreparedFrame[],
-  fields: FieldResolver,
-  display: Record<string, unknown>
+  fields: FieldResolver
 ): TableModel {
   const { drafts, rows } =
     frames.length > 0 && !frames.some(hasLabels)
       ? unlabeledTable(frames)
       : labeledTable(frames)
   const columns: TableColumn[] = []
-  const columnValues: unknown[][] = []
   for (const draft of drafts) {
     const source = shownSource(draft, fields)
     if (!source) continue
@@ -355,18 +392,8 @@ export function tableModel(
       column.decimals = columnDecimals(fields, column, rows)
     }
     columns.push(column)
-    columnValues.push(values)
   }
-  const footer = footerReducers(display).map((reducer) => ({
-    label: reducerLabels[reducer],
-    cells: columns.map((column, index) =>
-      column.type === "number" &&
-      (column.decimals.size <= 1 || countReducers.has(reducer))
-        ? footerText(column, columnValues[index], reducer)
-        : null
-    ),
-  }))
-  return { columns, rows, footer }
+  return { columns, rows }
 }
 
 const plain: Cell = { text: "", color: null, level: null, word: "" }

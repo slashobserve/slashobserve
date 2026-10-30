@@ -26,7 +26,11 @@ export const specDefaults = {
     "barAlignment": "center",
     "barWidthFactor": 0.6,
     "barMaxWidth": 64,
-    "thresholdsStyle": "dashed"
+    "thresholdsStyle": "dashed",
+    "align": "auto",
+    "filterable": false,
+    "inspect": false,
+    "hideHeader": false
   },
   "query": {
     "instant": false,
@@ -104,7 +108,13 @@ export const specDefaults = {
     },
     "table": {
       "header": true,
-      "footer": []
+      "footer": [],
+      "footerCountRows": false,
+      "cellHeight": "sm",
+      "pagination": false,
+      "frozenColumns": 0,
+      "sortDesc": false,
+      "typeIcons": false
     },
     "piechart": {
       "reduce": "lastNotNull",

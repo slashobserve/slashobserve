@@ -160,9 +160,7 @@
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "options.frameIndex",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
+          "options.frameIndex"
         ],
         "queries": [
           {
@@ -643,11 +641,8 @@
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.overrides[1].properties[0]",
           "transformations[0]",
-          "fieldConfig.defaults.custom.filterable",
           "options.filterable",
-          "options.showSearch",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
+          "options.showSearch"
         ],
         "queries": [
           {
@@ -1154,6 +1149,7 @@
                 "format": "table"
               }
             ],
+            "minWidth": 50,
             "overrides": [
               {
                 "match": {
@@ -1162,7 +1158,10 @@
                 "displayName": "Count"
               }
             ],
-            "titleHidden": true
+            "titleHidden": true,
+            "display": {
+              "sortBy": "Count"
+            }
           },
           {
             "id": "p42",
@@ -1721,7 +1720,12 @@
                 "instant": true,
                 "format": "table"
               }
-            ]
+            ],
+            "filterable": true,
+            "display": {
+              "sortBy": "job",
+              "sortDesc": true
+            }
           },
           {
             "id": "p8",

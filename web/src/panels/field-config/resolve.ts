@@ -56,6 +56,12 @@ export type FieldConfig = {
   axisBorder: boolean
   axisColor: "text" | "series"
   cell?: FieldProps["cell"]
+  width?: number
+  minWidth?: number
+  align: "auto" | "left" | "center" | "right"
+  filterable: boolean
+  inspect: boolean
+  hideHeader: boolean
   valueTransform?: "negativeY" | "constant"
   hideInLegend: boolean
   hideInTooltip: boolean
@@ -118,6 +124,12 @@ const fieldPropKeyFlags: Record<keyof FieldProps, true> = {
   axisBorder: true,
   axisColor: true,
   cell: true,
+  width: true,
+  minWidth: true,
+  align: true,
+  filterable: true,
+  inspect: true,
+  hideHeader: true,
   valueTransform: true,
   hideInLegend: true,
   hideInTooltip: true,

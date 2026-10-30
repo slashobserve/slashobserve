@@ -71,14 +71,11 @@
         "status": "partial",
         "reasons": [
           "Exemplars are drawn on time series only.",
-          "Some transformations are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some transformations are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
-          "transformations[3]",
-          "options.sortBy[0].desc",
-          "options.sortBy[0].displayName"
+          "transformations[3]"
         ],
         "queries": [
           {
@@ -433,6 +430,14 @@
             "query": "apiserver_requested_deprecated_apis{cluster=~\"$cluster\"}"
           }
         ],
+        "overrides": [
+          {
+            "match": {
+              "field": "__name__"
+            },
+            "width": 188
+          }
+        ],
         "transform": [
           {
             "type": "labelsToFields",
@@ -466,7 +471,10 @@
               "Value"
             ]
           }
-        ]
+        ],
+        "display": {
+          "sortBy": "removed_release"
+        }
       },
       {
         "id": "p38",
