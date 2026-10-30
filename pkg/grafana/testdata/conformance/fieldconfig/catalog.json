@@ -434,6 +434,7 @@
     { "id": "fieldConfig.overrides[0].properties[0]=custom.hideFrom", "path": "fieldConfig.overrides[0].properties[0]", "value": {"id": "custom.hideFrom", "value": {"legend": false, "tooltip": false, "viz": true}}, "with": {"fieldConfig.overrides[0].matcher": {"id": "byName", "options": "up"}} },
     { "id": "fieldConfig.overrides[0].properties[0]=custom.thresholdsStyle", "path": "fieldConfig.overrides[0].properties[0]", "value": {"id": "custom.thresholdsStyle", "value": {"mode": "line"}}, "with": {"fieldConfig.overrides[0].matcher": {"id": "byName", "options": "up"}} },
     { "id": "fieldConfig.overrides[0].properties[0]=custom.transform", "path": "fieldConfig.overrides[0].properties[0]", "value": {"id": "custom.transform", "value": "negative-Y"}, "with": {"fieldConfig.overrides[0].matcher": {"id": "byName", "options": "up"}} },
-    { "id": "fieldConfig.overrides[0].properties[0]=custom.showValues", "path": "fieldConfig.overrides[0].properties[0]", "value": {"id": "custom.showValues", "value": true}, "with": {"fieldConfig.overrides[0].matcher": {"id": "byName", "options": "up"}} }
+    { "id": "fieldConfig.overrides[0].properties[0]=custom.showValues", "path": "fieldConfig.overrides[0].properties[0]", "value": {"id": "custom.showValues", "value": true}, "with": {"fieldConfig.overrides[0].matcher": {"id": "byName", "options": "up"}} },
+    { "id": "fieldConfig.overrides[0].__systemRef=hideSeriesFrom", "path": "fieldConfig.overrides[0].__systemRef", "value": "hideSeriesFrom", "expect": "cosmetic", "with": {"fieldConfig.overrides[0].matcher": {"id": "byName", "options": "up"}, "fieldConfig.overrides[0].properties": [{"id": "unit", "value": "bytes"}]} }
   ]
 }

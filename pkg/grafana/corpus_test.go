@@ -24,14 +24,15 @@ import (
 var update = flag.Bool("update", false, "rewrite goldens")
 
 const (
-	corpusDir     = "corpus"
-	goldenDir     = "golden"
-	minimumRatio  = 90
-	minimumFull   = 59.3
-	fullSlack     = 0.5
-	worklistSize  = 10
-	maxLinePaths  = 100
-	tooManyPanels = "too_many_panels"
+	corpusDir               = "corpus"
+	goldenDir               = "golden"
+	minimumRatio            = 90
+	minimumFull             = 59.3
+	fullSlack               = 0.5
+	maximumOpenPlaceholders = 44
+	worklistSize            = 10
+	maxLinePaths            = 100
+	tooManyPanels           = "too_many_panels"
 )
 
 var panelIndex = regexp.MustCompile(`\[\d+\]`)
@@ -597,6 +598,7 @@ func TestCorpusRatio(t *testing.T) {
 	var total, imported, partial, placeholder, failedPanels int
 	var failed []string
 	byType := map[string]int{}
+	openByType := map[string]int{}
 	soleBlocker := map[string]int{}
 	for _, f := range corpusFiles(t) {
 		o := convertFile(t, f)
@@ -615,27 +617,30 @@ func TestCorpusRatio(t *testing.T) {
 		imported += counts.Imported
 		partial += counts.Partial
 		placeholder += counts.Placeholder
+		sources := map[string]map[string]any{}
+		for _, source := range expectedPanels(t, f.raw) {
+			sources[source.path] = source.raw
+		}
 		for _, line := range o.res.Report.Panels {
 			if line.Status == "placeholder" {
 				byType[line.SourceType]++
+				if !excludedPlaceholder(line.SourceType, sources[line.GrafanaPath]) {
+					openByType[line.SourceType]++
+				}
 			}
 			if path, ok := soleOptionPath(line); ok {
 				soleBlocker[path]++
 			}
 		}
 	}
-	types := make([]string, 0, len(byType))
-	for typ := range byType {
-		types = append(types, typ)
-	}
-	sort.Strings(types)
-	var perType []string
-	for _, typ := range types {
-		perType = append(perType, typ+"="+strconv.Itoa(byType[typ]))
+	open := 0
+	for _, n := range openByType {
+		open += n
 	}
 	t.Logf("panels %d: imported %d, partial %d, placeholder %d, in failed files %d", total, imported, partial, placeholder, failedPanels)
 	t.Logf("fully imported %.1f%%, imported or partial %.1f%%", percent(imported, total), percent(imported+partial, total))
-	t.Logf("placeholders by source type: %s", strings.Join(perType, " "))
+	t.Logf("placeholders by source type: %s", countsByType(byType))
+	t.Logf("open placeholders by source type: %s", countsByType(openByType))
 	t.Logf("failed files: %s", strings.Join(failed, " "))
 	t.Logf("partial by one path only: %s", strings.Join(topCounts(soleBlocker, worklistSize), " "))
 	if (imported+partial)*100 < total*minimumRatio {
@@ -646,6 +651,73 @@ func TestCorpusRatio(t *testing.T) {
 	}
 	if full := percent(imported, total); full >= minimumFull+fullSlack {
 		t.Errorf("fully imported is %.1f%% of %d panels; raise minimumFull from %.1f to %.1f", full, total, minimumFull, math.Floor(full*10)/10)
+	}
+	if open > maximumOpenPlaceholders {
+		t.Errorf("%d placeholders are not alert, annotation, live or library panels; the ceiling is %d", open, maximumOpenPlaceholders)
+	}
+	if open < maximumOpenPlaceholders {
+		t.Errorf("%d placeholders are not alert, annotation, live or library panels; lower maximumOpenPlaceholders from %d to %d", open, maximumOpenPlaceholders, open)
+	}
+}
+
+var excludedPlaceholderTypes = map[string]bool{"annolist": true, "alertGroups": true, "live": true, "alertlist": true}
+
+func excludedPlaceholder(sourceType string, source map[string]any) bool {
+	if excludedPlaceholderTypes[sourceType] {
+		return true
+	}
+	_, library := source["libraryPanel"].(map[string]any)
+	if !library {
+		return false
+	}
+	for _, key := range []string{"targets", "options", "fieldConfig", "content"} {
+		if present(source[key]) {
+			return false
+		}
+	}
+	return true
+}
+
+func countsByType(counts map[string]int) string {
+	types := make([]string, 0, len(counts))
+	for typ := range counts {
+		types = append(types, typ)
+	}
+	sort.Strings(types)
+	entries := make([]string, len(types))
+	for i, typ := range types {
+		entries[i] = typ + "=" + strconv.Itoa(counts[typ])
+	}
+	return strings.Join(entries, " ")
+}
+
+func TestExcludedPlaceholders(t *testing.T) {
+	library := map[string]any{"uid": "u", "name": "n"}
+	query := []any{map[string]any{"refId": "A"}}
+	cases := []struct {
+		name       string
+		sourceType string
+		source     map[string]any
+		want       bool
+	}{
+		{"annotation list", "annolist", map[string]any{}, true},
+		{"alert group list", "alertGroups", map[string]any{}, true},
+		{"live panel", "live", map[string]any{}, true},
+		{"alert list", "alertlist", map[string]any{}, true},
+		{"welcome panel", "welcome", map[string]any{}, false},
+		{"query panel", "timeseries", map[string]any{"targets": query}, false},
+		{"library panel without a model", "", map[string]any{"libraryPanel": library}, true},
+		{"library panel with empty model keys", "", map[string]any{"libraryPanel": library, "targets": []any{}, "options": map[string]any{}}, true},
+		{"library panel with targets", "timeseries", map[string]any{"libraryPanel": library, "targets": query}, false},
+		{"library panel with options", "timeseries", map[string]any{"libraryPanel": library, "options": map[string]any{"legend": true}}, false},
+		{"no source panel", "timeseries", nil, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := excludedPlaceholder(c.sourceType, c.source); got != c.want {
+				t.Errorf("excludedPlaceholder(%q) = %v, want %v", c.sourceType, got, c.want)
+			}
+		})
 	}
 }
 
