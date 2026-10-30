@@ -1,4 +1,4 @@
-import { decimalsByUnit } from "@/lib/units"
+import { decimalsByUnit, formatValue, ownDecimals } from "@/lib/units"
 import {
   displayValue,
   fieldRange,
@@ -19,6 +19,12 @@ import type { PreparedField, PreparedFrame } from "../transforms"
 
 type GaugeMarker = { from: number; to: number; color: string }
 
+type ThresholdLabel = { fraction: number; text: string }
+
+export type GaugeLimits = { minWidth?: number; minHeight?: number }
+
+export type GaugeSizes = { titleSize?: number; valueSize?: number }
+
 export type Gauge = {
   key: string
   name: string
@@ -31,6 +37,7 @@ export type Gauge = {
   min: number
   max: number
   markers: GaugeMarker[]
+  labels: ThresholdLabel[]
   config: FieldConfig
   frame: PreparedFrame
   field: PreparedField
@@ -45,6 +52,7 @@ const sweepAngle = 240
 const valueCharWidth = 0.62
 const valueFit = 43
 const moreLinksWidth = 1.75
+const labelRadius = 29
 
 const unitRanges = new Map([
   ["percent", { min: 0, max: 100 }],
@@ -60,6 +68,15 @@ function point(angle: number, radius: number): string {
   const x = center + radius * Math.cos(radians)
   const y = center + radius * Math.sin(radians)
   return `${Number(x.toFixed(3))} ${Number(y.toFixed(3))}`
+}
+
+export function labelPosition(fraction: number): { x: number; y: number } {
+  const radians =
+    ((startAngle + clamp(fraction, 0, 1) * sweepAngle) * Math.PI) / 180
+  return {
+    x: Number((center + labelRadius * Math.cos(radians)).toFixed(3)),
+    y: Number((center + labelRadius * Math.sin(radians)).toFixed(3)),
+  }
 }
 
 export function arcPath(
@@ -123,6 +140,53 @@ function markersFor(
   })
 }
 
+function labelDecimals(
+  value: number,
+  unit: string | undefined,
+  decimals: number | undefined
+): number | undefined {
+  const own = ownDecimals(value, unit)
+  if (own === undefined) return decimals
+  if (decimals === undefined) return own
+  return Math.max(decimals, own)
+}
+
+function thresholdLabelsFor(
+  config: FieldConfig,
+  min: number,
+  max: number
+): ThresholdLabel[] {
+  const percentage = config.thresholdMode === "percentage"
+  return (config.thresholds ?? []).flatMap((step) => {
+    if (step.value === undefined) return []
+    const value = percentage
+      ? min + (step.value / 100) * (max - min)
+      : step.value
+    const fraction = (value - min) / (max - min)
+    if (fraction < 0 || fraction > 1) return []
+    const decimals = labelDecimals(value, config.unit, config.decimals)
+    return [{ fraction, text: formatValue(value, config.unit, decimals) }]
+  })
+}
+
+function positive(value: unknown): number | undefined {
+  return typeof value === "number" && value > 0 ? value : undefined
+}
+
+export function gaugeLimits(display: Record<string, unknown>): GaugeLimits {
+  return {
+    minWidth: positive(display.minWidth),
+    minHeight: positive(display.minHeight),
+  }
+}
+
+export function gaugeSizes(display: Record<string, unknown>): GaugeSizes {
+  return {
+    titleSize: positive(display.titleSize),
+    valueSize: positive(display.valueSize),
+  }
+}
+
 export function gaugeModel(
   frames: PreparedFrame[],
   fields: FieldResolver,
@@ -130,6 +194,7 @@ export function gaugeModel(
 ): Gauge[] {
   const sources = reduceItems(frames, fields, reduceOptionsOf("gauge", display))
   const withMarkers = display.thresholdMarkers === true
+  const withLabels = display.thresholdLabels === true
   const data = dataRange(sources)
   const decimals = decimalsByUnit(
     sources.map(({ config, value }) => ({
@@ -159,6 +224,7 @@ export function gaugeModel(
         min,
         max,
         markers: withMarkers ? markersFor(config, min, max) : [],
+        labels: withLabels ? thresholdLabelsFor(config, min, max) : [],
         config,
         frame,
         field,

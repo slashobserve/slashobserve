@@ -5,10 +5,18 @@ import type { PreparedFrame } from "@/panels/transforms"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
 import {
+  barLimits,
   barLinks,
+  barSizes,
+  barStyleOf,
   bargaugeModel,
+  lcdCellCount,
+  lcdLitCells,
+  namePlacementOf,
   orientationOf,
   reducerOf,
+  showUnfilledOf,
+  valueModeOf,
 } from "./bargauge-model"
 
 beforeEach(() => {
@@ -412,5 +420,79 @@ describe("bargaugeModel value options", () => {
     )
     const { model } = build([frame], {}, { fields: "/^m/" })
     expect(model.bars.map((bar) => bar.value)).toEqual([2])
+  })
+})
+
+describe("name placement", () => {
+  it.each([
+    [{}, "horizontal", "above"],
+    [{ namePlacement: "auto" }, "horizontal", "above"],
+    [{ namePlacement: "top" }, "horizontal", "above"],
+    [{ namePlacement: "left" }, "horizontal", "left"],
+    [{ namePlacement: "hidden" }, "horizontal", "hidden"],
+    [{}, "vertical", "below"],
+    [{ namePlacement: "auto" }, "vertical", "below"],
+    [{ namePlacement: "top" }, "vertical", "above"],
+    [{ namePlacement: "left" }, "vertical", "below"],
+    [{ namePlacement: "hidden" }, "vertical", "hidden"],
+  ] as const)(
+    "places the name for %j in a %s bar gauge: %s",
+    (display, orientation, expected) => {
+      expect(namePlacementOf(display, orientation)).toBe(expected)
+    }
+  )
+})
+
+describe("bar gauge style options", () => {
+  it("reads the bar style, value mode and unfilled area with the draw defaults", () => {
+    expect(barStyleOf({})).toBe("basic")
+    expect(barStyleOf({ barStyle: "lcd" })).toBe("lcd")
+    expect(valueModeOf({})).toBe("color")
+    expect(valueModeOf({ valueMode: "text" })).toBe("text")
+    expect(valueModeOf({ valueMode: "hidden" })).toBe("hidden")
+    expect(showUnfilledOf({})).toBe(true)
+    expect(showUnfilledOf({ showUnfilled: false })).toBe(false)
+  })
+
+  it("reads size limits and text sizes only when they are positive numbers", () => {
+    expect(barLimits({ minWidth: 8, minHeight: 16, maxHeight: 300 })).toEqual({
+      minWidth: 8,
+      minHeight: 16,
+      maxHeight: 300,
+    })
+    expect(barLimits({ minHeight: 0, maxHeight: "30" })).toEqual({
+      minWidth: undefined,
+      minHeight: undefined,
+      maxHeight: undefined,
+    })
+    expect(barSizes({ titleSize: 12, valueSize: 30 })).toEqual({
+      titleSize: 12,
+      valueSize: 30,
+    })
+  })
+})
+
+describe("lcd cells", () => {
+  it.each([
+    [0, 20, 0],
+    [-1, 20, 0],
+    [Number.NaN, 20, 0],
+    [0.01, 20, 1],
+    [0.5, 20, 10],
+    [0.74, 20, 15],
+    [1, 20, 20],
+    [2, 20, 20],
+  ])("lights %d of %d cells as %d", (fraction, cells, lit) => {
+    expect(lcdLitCells(fraction, cells)).toBe(lit)
+  })
+
+  it.each([
+    [0, 4],
+    [35, 4],
+    [100, 10],
+    [259, 25],
+    [10000, 40],
+  ])("draws a bar %dpx long with %d cells", (extent, cells) => {
+    expect(lcdCellCount(extent)).toBe(cells)
   })
 })

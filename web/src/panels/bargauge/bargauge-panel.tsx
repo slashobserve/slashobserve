@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react"
+import { memo, useMemo, type CSSProperties } from "react"
 
 import { anchorProps, NewTabMark } from "@/dashboards/dashboard-links"
 import { cn } from "@/lib/utils"
@@ -8,14 +8,31 @@ import type { FieldResolver, LinkScope } from "../field-config"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
 import {
+  barLimits,
   barLinks,
+  barSizes,
+  barStyleOf,
   bargaugeModel,
+  lcdCellCount,
+  lcdLitCells,
+  namePlacementOf,
   orientationOf,
   reducerOf,
+  showUnfilledOf,
+  valueModeOf,
   valueTextOf,
   type Bar,
+  type BarLimits,
+  type BarSizes,
+  type BarStyle,
+  type NamePlacement,
   type Orientation,
+  type ValueMode,
 } from "./bargauge-model"
+
+const bodyInsetX = 24
+const bodyInsetY = 90
+const leftNameShare = 0.5
 
 type BarProps = {
   bar: Bar
@@ -23,9 +40,54 @@ type BarProps = {
   fields: FieldResolver
   reducer: Reducer
   scope: LinkScope
+  placement: NamePlacement
+  barStyle: BarStyle
+  valueMode: ValueMode
+  unfilled: boolean
+  cells: number
+  limits: BarLimits
+  sizes: BarSizes
 }
 
-function Track({ bar, orientation }: Pick<BarProps, "bar" | "orientation">) {
+function textSize(size: number | undefined): CSSProperties | undefined {
+  return size ? { fontSize: `${size}px` } : undefined
+}
+
+function Cells({
+  bar,
+  vertical,
+  unfilled,
+  cells,
+}: Pick<BarProps, "bar" | "unfilled" | "cells"> & { vertical: boolean }) {
+  const lit = lcdLitCells(bar.fraction, cells)
+  return (
+    <span
+      className={cn("flex size-full gap-[2px]", vertical && "flex-col-reverse")}
+    >
+      {Array.from({ length: cells }, (_, index) => (
+        <span
+          key={index}
+          data-part="cell"
+          data-lit={index < lit}
+          className={cn("flex-1", index >= lit && unfilled && "bg-muted")}
+          style={
+            index < lit
+              ? { backgroundColor: bar.color ?? "var(--series-1)" }
+              : undefined
+          }
+        />
+      ))}
+    </span>
+  )
+}
+
+function Track({
+  bar,
+  orientation,
+  barStyle,
+  unfilled,
+  cells,
+}: Pick<BarProps, "bar" | "orientation" | "barStyle" | "unfilled" | "cells">) {
   const vertical = orientation === "vertical"
   const percent = `${bar.fraction * 100}%`
   const now = Math.min(bar.max, Math.max(bar.min, bar.value ?? bar.min))
@@ -39,23 +101,37 @@ function Track({ bar, orientation }: Pick<BarProps, "bar" | "orientation">) {
       aria-valuetext={valueTextOf(bar)}
       data-threshold={bar.threshold}
       className={cn(
-        "relative flex overflow-hidden rounded-[2px] bg-muted",
+        "relative flex overflow-hidden rounded-[2px]",
+        unfilled && barStyle === "basic" && "bg-muted",
         vertical
           ? "mx-auto min-h-4 w-full max-w-12 min-w-3 flex-1 flex-col justify-end"
-          : "h-2 w-full"
+          : "h-2 w-full min-w-0"
       )}
     >
-      <span
-        data-part="fill"
-        className="block"
-        style={{
-          [vertical ? "height" : "width"]: percent,
-          [vertical ? "width" : "height"]: "100%",
-          backgroundColor: bar.color ?? "var(--series-1)",
-        }}
-      />
+      {barStyle === "lcd" ? (
+        <Cells
+          bar={bar}
+          vertical={vertical}
+          unfilled={unfilled}
+          cells={cells}
+        />
+      ) : (
+        <span
+          data-part="fill"
+          className="block"
+          style={{
+            [vertical ? "height" : "width"]: percent,
+            [vertical ? "width" : "height"]: "100%",
+            backgroundColor: bar.color ?? "var(--series-1)",
+          }}
+        />
+      )}
     </span>
   )
+}
+
+function showsLevel(bar: Bar): boolean {
+  return bar.threshold !== "base" && bar.threshold !== "ok"
 }
 
 function Level({ bar, orientation }: Pick<BarProps, "bar" | "orientation">) {
@@ -76,7 +152,17 @@ function Level({ bar, orientation }: Pick<BarProps, "bar" | "orientation">) {
   )
 }
 
-function Value({ bar, orientation, fields, reducer, scope }: BarProps) {
+function Value({
+  bar,
+  orientation,
+  fields,
+  reducer,
+  scope,
+  valueMode,
+  sizes,
+}: BarProps) {
+  if (valueMode === "hidden")
+    return <Level bar={bar} orientation={orientation} />
   const [first] = barLinks(fields, bar, reducer, scope)
   const text = <span className="truncate">{bar.text}</span>
   const group = cn(
@@ -84,7 +170,7 @@ function Value({ bar, orientation, fields, reducer, scope }: BarProps) {
     orientation === "vertical" ? "justify-center gap-1" : "shrink-0 gap-1.5"
   )
   return (
-    <span className={group}>
+    <span className={group} style={textSize(sizes.valueSize)}>
       <Level bar={bar} orientation={orientation} />
       {first ? (
         <a
@@ -104,30 +190,84 @@ function Value({ bar, orientation, fields, reducer, scope }: BarProps) {
   )
 }
 
-const HorizontalRow = memo(function HorizontalRow(props: BarProps) {
-  const { bar } = props
+function Name({
+  bar,
+  sizes,
+  className,
+}: Pick<BarProps, "bar" | "sizes"> & { className?: string }) {
   return (
-    <div className="flex shrink-0 flex-col gap-[5px] text-[13px]">
-      <div className="flex items-center justify-between gap-2">
-        <span title={bar.name} className="min-w-0 truncate">
-          {bar.name}
-        </span>
+    <span
+      title={bar.name}
+      className={cn("truncate", className)}
+      style={textSize(sizes.titleSize)}
+    >
+      {bar.name}
+    </span>
+  )
+}
+
+const HorizontalRow = memo(function HorizontalRow(props: BarProps) {
+  const { bar, placement, limits, sizes, valueMode } = props
+  const grows = limits.minHeight !== undefined || limits.maxHeight !== undefined
+  const style = grows
+    ? { minHeight: limits.minHeight, maxHeight: limits.maxHeight }
+    : undefined
+  const rowClass = cn(
+    "flex text-[13px]",
+    grows ? "flex-1 basis-0 justify-center" : "shrink-0"
+  )
+  if (placement === "left") {
+    return (
+      <div
+        className={cn(rowClass, "flex-row items-center gap-2")}
+        style={style}
+      >
+        <Name bar={bar} sizes={sizes} className="w-[30%] max-w-48 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <Track {...props} />
+        </div>
         <Value {...props} />
       </div>
+    )
+  }
+  const showName = placement !== "hidden"
+  const showLine = showName || valueMode !== "hidden" || showsLevel(bar)
+  return (
+    <div className={cn(rowClass, "flex-col gap-[5px]")} style={style}>
+      {showLine ? (
+        <div
+          className={cn(
+            "flex items-center gap-2",
+            showName ? "justify-between" : "justify-end"
+          )}
+        >
+          {showName ? (
+            <Name bar={bar} sizes={sizes} className="min-w-0" />
+          ) : null}
+          <Value {...props} />
+        </div>
+      ) : null}
       <Track {...props} />
     </div>
   )
 })
 
 const VerticalColumn = memo(function VerticalColumn(props: BarProps) {
-  const { bar } = props
+  const { bar, placement, limits, sizes } = props
+  const name = <Name bar={bar} sizes={sizes} className="text-center" />
   return (
-    <div className="flex min-w-8 flex-1 basis-0 flex-col gap-1 text-[13px]">
+    <div
+      className="flex min-w-8 flex-1 basis-0 flex-col gap-1 text-[13px]"
+      style={{
+        minWidth: limits.minWidth,
+        minHeight: limits.minHeight,
+        maxHeight: limits.maxHeight,
+      }}
+    >
+      {placement === "above" ? name : null}
       <Value {...props} />
       <Track {...props} />
-      <span title={bar.name} className="truncate text-center">
-        {bar.name}
-      </span>
+      {placement === "below" ? name : null}
     </div>
   )
 })
@@ -149,6 +289,23 @@ const BargaugePanel: PanelRenderer = ({
   const orientation = orientationOf(display, { width, height })
   const vertical = orientation === "vertical"
   const Item = vertical ? VerticalColumn : HorizontalRow
+  const placement = namePlacementOf(display, orientation)
+  const extent = vertical
+    ? height - bodyInsetY
+    : (width - bodyInsetX) * (placement === "left" ? leftNameShare : 1)
+  const shared = {
+    orientation,
+    placement,
+    barStyle: barStyleOf(display),
+    valueMode: valueModeOf(display),
+    unfilled: showUnfilledOf(display),
+    cells: lcdCellCount(extent),
+    limits: barLimits(display),
+    sizes: barSizes(display),
+    fields,
+    reducer,
+    scope: links,
+  }
   return (
     <div
       role="region"
@@ -164,14 +321,7 @@ const BargaugePanel: PanelRenderer = ({
       style={{ width, height }}
     >
       {model.bars.map((bar) => (
-        <Item
-          key={bar.key}
-          bar={bar}
-          orientation={orientation}
-          fields={fields}
-          reducer={reducer}
-          scope={links}
-        />
+        <Item key={bar.key} bar={bar} {...shared} />
       ))}
     </div>
   )

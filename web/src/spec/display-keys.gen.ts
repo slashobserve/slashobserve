@@ -26,14 +26,28 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "allValues",
     "limit",
     "fields",
-    "thresholdMarkers"
+    "thresholdMarkers",
+    "thresholdLabels",
+    "minWidth",
+    "minHeight",
+    "titleSize",
+    "valueSize"
   ],
   "bargauge": [
     "reduce",
     "allValues",
     "limit",
     "fields",
-    "orientation"
+    "orientation",
+    "barStyle",
+    "valueMode",
+    "namePlacement",
+    "showUnfilled",
+    "minWidth",
+    "minHeight",
+    "maxHeight",
+    "titleSize",
+    "valueSize"
   ],
   "table": [
     "header",

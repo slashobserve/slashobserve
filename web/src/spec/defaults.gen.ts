@@ -54,13 +54,18 @@ export const specDefaults = {
       "reduce": "lastNotNull",
       "allValues": false,
       "limit": 5000,
-      "thresholdMarkers": true
+      "thresholdMarkers": true,
+      "thresholdLabels": false
     },
     "bargauge": {
       "reduce": "lastNotNull",
       "allValues": false,
       "limit": 5000,
-      "orientation": "auto"
+      "orientation": "auto",
+      "barStyle": "basic",
+      "valueMode": "color",
+      "namePlacement": "auto",
+      "showUnfilled": true
     },
     "table": {
       "header": true,

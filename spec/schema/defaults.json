@@ -8,8 +8,8 @@
   "display": {
     "timeseries": {"legend": "bottom", "legendValues": [], "legendSortDesc": false, "legendHideZero": false, "legendHideEmpty": false, "tooltip": "single"},
     "stat": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "colorMode": "value", "graph": true, "orientation": "auto"},
-    "gauge": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "thresholdMarkers": true},
-    "bargauge": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "orientation": "auto"},
+    "gauge": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "thresholdMarkers": true, "thresholdLabels": false},
+    "bargauge": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "orientation": "auto", "barStyle": "basic", "valueMode": "color", "namePlacement": "auto", "showUnfilled": true},
     "table": {"header": true, "footer": []},
     "piechart": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "pieType": "pie", "legend": "right"},
     "heatmap": {"calculate": false, "yScale": "linear"},

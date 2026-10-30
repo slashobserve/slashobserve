@@ -122,6 +122,12 @@ Three optional `display` keys change that.
 `fields` picks the fields to show: a field name, or a pattern written between slashes such as `/^cpu/`, and `/.*/` for every field, text fields included.
 When `fields` is absent the panel shows the number fields.
 Time fields are never shown as values.
+A `gauge` panel's `thresholdLabels: true` writes the value of each threshold, formatted with the field's unit, along the arc.
+A `bargauge` panel draws its bars as `barStyle` `basic` (a filled track) or `lcd` (equal cells lit up to the value).
+Its `valueMode` is `color` or `text`, which both draw the value in the foreground color with the threshold icon and word beside it, or `hidden`, which leaves the value out and keeps the threshold icon and word.
+Its `namePlacement` is `auto` (the name over a horizontal bar and under a vertical one), `top` (over both), `left` (in front of a horizontal bar) or `hidden`, and `showUnfilled: false` leaves out the unfilled part of the track.
+`minWidth` and `minHeight` keep each gauge or bar at least that many pixels (1 to 2000), the panel scrolls when they do not fit, and a bar gauge's `maxHeight` caps the height of a horizontal bar.
+`titleSize` and `valueSize` set the size in pixels (1 to 200) of the name and the value text of either panel.
 
 ## Maps, canvases and actions
 

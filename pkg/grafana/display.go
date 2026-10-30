@@ -19,6 +19,8 @@ const (
 	maxBucketCount        = 1000
 	maxReduceRows         = 5000
 	maxReduceFieldsLength = 200
+	maxVizLimit           = 2000
+	maxTextSize           = 200
 	legacyHeatmapV        = 37
 )
 
@@ -230,18 +232,84 @@ func (b *panelBuild) orientation() string {
 	return b.enumOption("options.orientation", "auto", "horizontal", "vertical")
 }
 
+type vizLimits struct{ minWidth, minHeight, maxHeight int }
+
+var (
+	gaugeSizingDefaults    = vizLimits{minWidth: 75, minHeight: 75}
+	barGaugeSizingDefaults = vizLimits{minWidth: 8, minHeight: 16, maxHeight: 300}
+)
+
 func displayGauge(b *panelBuild) {
 	d := b.disp()
 	b.reduceOption(d)
 	if flag, ok := b.boolOption("options.showThresholdMarkers"); ok {
 		d.ThresholdMarkers = flag
 	}
+	if flag, ok := b.boolOption("options.showThresholdLabels"); ok {
+		d.ThresholdLabels = flag
+	}
+	b.vizSizing(d, gaugeSizingDefaults)
+	b.vizTextSizes(d)
 }
 
 func displayBarGauge(b *panelBuild) {
 	d := b.disp()
 	b.reduceOption(d)
 	d.Orientation = b.orientation()
+	d.BarStyle = b.enumOption("options.displayMode", "lcd")
+	d.ValueMode = b.enumOption("options.valueMode", "color", "text", "hidden")
+	d.NamePlacement = b.enumOption("options.namePlacement", "auto", "top", "left", "hidden")
+	if flag, ok := b.boolOption("options.showUnfilled"); ok {
+		d.ShowUnfilled = flag
+	}
+	b.vizSizing(d, barGaugeSizingDefaults)
+	b.vizTextSizes(d)
+}
+
+func (b *panelBuild) vizSizing(d *spec.Display, grafanaDefaults vizLimits) {
+	manual := b.enumOption("options.sizing", "auto", "manual") == "manual"
+	d.MinWidth = b.vizLimit("options.minVizWidth", manual, grafanaDefaults.minWidth)
+	d.MinHeight = b.vizLimit("options.minVizHeight", manual, grafanaDefaults.minHeight)
+	if grafanaDefaults.maxHeight > 0 {
+		d.MaxHeight = b.vizLimit("options.maxVizHeight", manual, grafanaDefaults.maxHeight)
+	}
+}
+
+func (b *panelBuild) vizLimit(path string, manual bool, grafanaDefault int) int {
+	v, present := b.value(path)
+	if !manual {
+		b.consume(path)
+		return 0
+	}
+	if !present {
+		return grafanaDefault
+	}
+	n, isInt := asInt(v)
+	if !isInt || n < 0 || n > maxVizLimit {
+		b.partial(path, fmt.Sprintf("A size limit must be a whole number from 1 to %d.", maxVizLimit))
+		return 0
+	}
+	b.consume(path)
+	return n
+}
+
+func (b *panelBuild) vizTextSizes(d *spec.Display) {
+	d.TitleSize = b.textSize("options.text.titleSize")
+	d.ValueSize = b.textSize("options.text.valueSize")
+}
+
+func (b *panelBuild) textSize(path string) int {
+	v, ok := b.value(path)
+	if !ok {
+		return 0
+	}
+	n, isInt := asInt(v)
+	if !isInt || n < 1 || n > maxTextSize {
+		b.partial(path, fmt.Sprintf("A text size must be a whole number from 1 to %d.", maxTextSize))
+		return 0
+	}
+	b.consume(path)
+	return n
 }
 
 func displayTable(b *panelBuild) {

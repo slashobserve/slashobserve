@@ -345,6 +345,16 @@ type Display struct {
 	TextMode           string             `json:"textMode,omitempty"`
 	Orientation        string             `json:"orientation,omitempty"`
 	ThresholdMarkers   *bool              `json:"thresholdMarkers,omitempty"`
+	ThresholdLabels    *bool              `json:"thresholdLabels,omitempty"`
+	BarStyle           string             `json:"barStyle,omitempty"`
+	ValueMode          string             `json:"valueMode,omitempty"`
+	NamePlacement      string             `json:"namePlacement,omitempty"`
+	ShowUnfilled       *bool              `json:"showUnfilled,omitempty"`
+	MinWidth           int                `json:"minWidth,omitempty"`
+	MinHeight          int                `json:"minHeight,omitempty"`
+	MaxHeight          int                `json:"maxHeight,omitempty"`
+	TitleSize          int                `json:"titleSize,omitempty"`
+	ValueSize          int                `json:"valueSize,omitempty"`
 	Header             *bool              `json:"header,omitempty"`
 	Footer             []string           `json:"footer,omitempty"`
 	PieType            string             `json:"pieType,omitempty"`

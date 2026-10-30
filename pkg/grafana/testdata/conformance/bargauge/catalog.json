@@ -8,7 +8,7 @@
   ],
   "root": "panels[0]",
   "entries": [
-    { "id": "options.displayMode=lcd", "path": "options.displayMode", "value": "lcd", "expect": "cosmetic" },
+    { "id": "options.displayMode=lcd", "path": "options.displayMode", "value": "lcd" },
     { "id": "options.displayMode=basic", "path": "options.displayMode", "value": "basic", "expect": "cosmetic" },
     { "id": "options.valueMode=text", "path": "options.valueMode", "value": "text" },
     { "id": "options.valueMode=hidden", "path": "options.valueMode", "value": "hidden" },

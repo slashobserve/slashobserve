@@ -7,8 +7,11 @@ import { displayWithDefaults, type DataPanel } from "@/spec"
 
 import {
   arcPath,
+  gaugeLimits,
   gaugeLinks,
   gaugeModel,
+  gaugeSizes,
+  labelPosition,
   valueFontSize,
   type Gauge,
 } from "./gauge-model"
@@ -546,5 +549,107 @@ describe("gaugeModel value options", () => {
       { fields: "mem" }
     )
     expect(gauges.map((gauge) => gauge.value)).toEqual([2])
+  })
+})
+
+describe("gauge threshold labels", () => {
+  const labelled = { thresholdLabels: true }
+
+  it("labels every threshold with its value and leaves the base step out", () => {
+    const gauge = one(
+      [10],
+      { thresholds: [...steps], min: 0, max: 100, unit: "percent" },
+      labelled
+    )
+    expect(gauge.labels).toEqual([
+      { fraction: 0.5, text: "50%" },
+      { fraction: 0.8, text: "80%" },
+    ])
+  })
+
+  it("shows no labels unless thresholdLabels is on", () => {
+    expect(
+      one([10], { thresholds: [...steps], min: 0, max: 100 }).labels
+    ).toEqual([])
+  })
+
+  it("turns percentage thresholds into values of the range", () => {
+    const gauge = one(
+      [10],
+      {
+        thresholdMode: "percentage",
+        thresholds: [...steps],
+        min: 100,
+        max: 300,
+      },
+      labelled
+    )
+    expect(gauge.labels).toEqual([
+      { fraction: 0.5, text: "200" },
+      { fraction: 0.8, text: "260" },
+    ])
+  })
+
+  it("drops thresholds outside the range", () => {
+    const gauge = one(
+      [10],
+      {
+        thresholds: [
+          { color: "ok" },
+          { value: -5, color: "info" },
+          { value: 500, color: "critical" },
+        ],
+        min: 0,
+        max: 100,
+      },
+      labelled
+    )
+    expect(gauge.labels).toEqual([])
+  })
+
+  it("keeps the threshold's own decimals", () => {
+    const gauge = one(
+      [0.1],
+      {
+        thresholds: [{ color: "ok" }, { value: 0.25, color: "warning" }],
+        min: 0,
+        max: 1,
+        decimals: 0,
+      },
+      labelled
+    )
+    expect(gauge.labels[0].text).toBe("0.25")
+  })
+})
+
+describe("labelPosition", () => {
+  it("puts the first threshold at the lower left and the last at the lower right of the arc", () => {
+    expect(labelPosition(0)).toEqual({ x: 24.885, y: 64.5 })
+    expect(labelPosition(1)).toEqual({ x: 75.115, y: 64.5 })
+  })
+
+  it("puts the middle of the range at the top", () => {
+    expect(labelPosition(0.5)).toEqual({ x: 50, y: 21 })
+  })
+})
+
+describe("gauge layout options", () => {
+  it("reads size limits and text sizes only when they are positive numbers", () => {
+    expect(gaugeLimits({ minWidth: 120, minHeight: 90 })).toEqual({
+      minWidth: 120,
+      minHeight: 90,
+    })
+    expect(gaugeLimits({ minWidth: 0, minHeight: "90" })).toEqual({
+      minWidth: undefined,
+      minHeight: undefined,
+    })
+    expect(gaugeSizes({ titleSize: 18, valueSize: 40 })).toEqual({
+      titleSize: 18,
+      valueSize: 40,
+    })
+    expect(gaugeSizes({})).toEqual({
+      titleSize: undefined,
+      valueSize: undefined,
+    })
   })
 })

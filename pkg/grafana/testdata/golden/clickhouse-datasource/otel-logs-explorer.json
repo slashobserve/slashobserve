@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 6,
-      "imported": 2,
-      "partial": 4,
+      "imported": 3,
+      "partial": 3,
       "placeholder": 0,
       "unverified": 0
     },
@@ -64,13 +64,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Size limits are not kept."
-        ],
-        "paths": [
-          "options.minVizWidth"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",

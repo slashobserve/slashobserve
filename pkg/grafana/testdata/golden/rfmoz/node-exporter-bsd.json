@@ -1049,11 +1049,9 @@
         "row": "Node Exporter",
         "status": "partial",
         "reasons": [
-          "Bar styles are drawn in the SlashObserve style.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.displayMode",
           "options.legend.showLegend"
         ],
         "queries": [
