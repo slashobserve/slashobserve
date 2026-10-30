@@ -90,6 +90,7 @@ The other panel types are:
 
 - `text`, which holds Markdown in `content`, rendered sanitized.
   Its optional `mode` is `markdown` (the default), `html` (sanitized HTML) or `code` (the content shown as code, with `code.language` and `code.lineNumbers`).
+  People and Grafana imports can write `html`; the agent and MCP clients cannot (see [Maps, canvases and actions](#maps-canvases-and-actions)).
 - `dashlist` and `news`, which list other dashboards and the items of an RSS or Atom feed.
   They have no datasource and no queries.
 - `row`, described below.
@@ -131,6 +132,10 @@ An element's `actions` are HTTP requests that a person triggers from the panel:
 - The `url`, `body` and header and query values may reference declared variables, `__from`, `__to`, `__user.login`, `__user.email`, `__user.name`, `__user.id`, `__value.raw`, `__value.text`, `__value.numeric` and `__data.fields.<field>`.
   Any other name is refused with `unknown_variable`.
 - `oneClick` on an element (`action` or `link`) needs at least one action or link.
+
+People and imports write HTML text panels and canvas actions.
+The agent and MCP clients cannot add or change them, and cannot write HTML tags in any text panel: a save that does is refused with `html_not_allowed` or `action_not_allowed`.
+They may still move or delete such a panel or element.
 
 ## Queries and datasources
 

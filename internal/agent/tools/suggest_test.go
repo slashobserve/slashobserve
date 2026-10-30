@@ -161,6 +161,27 @@ func TestSuggestMode(t *testing.T) {
 			wantCode: codeInvalidSpec, wantIssue: codePlaceholderNotAllowed,
 		},
 		{
+			name:     "html in a suggested text panel is rejected",
+			panelID:  "t1",
+			input:    suggestUpdate(specOf(suggestStat("p1", "One", "count(up)", 0), suggestStat("p2", "Two", "sum(up)", 4), suggestText("t1", "<b>bold</b>", 0))),
+			wantCode: codeInvalidSpec, wantIssue: codeHTMLNotAllowed,
+		},
+		{
+			name:        "an autolink in a suggested text panel is accepted",
+			panelID:     "t1",
+			input:       suggestUpdate(specOf(suggestStat("p1", "One", "count(up)", 0), suggestStat("p2", "Two", "sum(up)", 4), suggestText("t1", "see <https://example.com>", 0))),
+			wantQueries: nil,
+			wantTitle:   "Notes",
+		},
+		{
+			name:    "a canvas action in a suggested panel is rejected",
+			panelID: "p1",
+			input: suggestUpdate(specOf(
+				strings.Replace(canvasPanelJSON("p1", "Deploy", deployActions), `"x":6,"y":0`, `"x":0,"y":0`, 1),
+				suggestStat("p2", "Two", "sum(up)", 4), suggestText("t1", "hello", 0))),
+			wantCode: codeInvalidSpec, wantIssue: codeActionNotAllowed,
+		},
+		{
 			name:     "a row is repairable",
 			panelID:  "p1",
 			input:    suggestUpdate(specOf(rowPanel("p1", 12), suggestStat("p2", "Two", "sum(up)", 4), suggestText("t1", "hello", 0))),

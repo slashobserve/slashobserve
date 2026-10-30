@@ -30,11 +30,7 @@ func (r *Registry) suggestPanel(ctx context.Context, principal auth.Principal, r
 	if !ok {
 		return invalid("keep panel %q in the Spec; this run changes only that panel", run.PanelID), nil
 	}
-	switch entry.Panel.Type {
-	case spec.Placeholder:
-		issue := spec.Issue{Path: entry.Pointer, Code: codePlaceholderNotAllowed, Message: "the agent cannot create placeholder panels"}
-		return suggestionRejected([]spec.Issue{issue}), nil
-	case spec.Row:
+	if entry.Panel.Type == spec.Row {
 		return invalid("panel %q must stay a panel, not a row", run.PanelID), nil
 	}
 	raw, err := json.Marshal(entry.Panel)
@@ -47,6 +43,9 @@ func (r *Registry) suggestPanel(ctx context.Context, principal auth.Principal, r
 	candidate, err := spec.WithPanel(run.Base, run.PanelID, raw)
 	if err != nil {
 		return suggestionFailure(err)
+	}
+	if issues := importOnlyIssues(candidate, run.Base); len(issues) > 0 {
+		return suggestionRejected(issues), nil
 	}
 	canonical, err := json.Marshal(candidate)
 	if err != nil {

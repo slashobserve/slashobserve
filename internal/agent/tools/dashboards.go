@@ -372,8 +372,8 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 		return Result{}, err
 	}
 	if parsed, err := spec.Parse(in.Spec); err == nil {
-		if issues := placeholderIssues(parsed, nil); len(issues) > 0 {
-			return placeholderFailure(issues), nil
+		if issues := importOnlyIssues(parsed, nil); len(issues) > 0 {
+			return importOnlyFailure(issues), nil
 		}
 	}
 	dash, ver, replayed, err := r.deps.Dashboards.CreateRequestDashboard(ctx, principal, folderID, in.Spec, summaryOr(in.Summary, defaultCreateSummary), requestID)
@@ -412,7 +412,7 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 	if err != nil {
 		return Result{}, err
 	}
-	if res, ok, err := r.guardPlaceholders(ctx, in.Spec, target); err != nil {
+	if res, ok, err := r.guardImportOnly(ctx, in.Spec, target); err != nil {
 		return Result{}, err
 	} else if !ok {
 		return res, nil
@@ -424,9 +424,9 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 	return success("Saved version "+strconv.Itoa(ver.Number), r.savedOut(dash, ver, &replayed)), nil
 }
 
-func (r *Registry) guardPlaceholders(ctx context.Context, raw json.RawMessage, target saveTarget) (Result, bool, error) {
+func (r *Registry) guardImportOnly(ctx context.Context, raw json.RawMessage, target saveTarget) (Result, bool, error) {
 	parsed, err := spec.Parse(raw)
-	if err != nil || !hasPlaceholder(parsed) {
+	if err != nil || !needsImportOnlyCheck(parsed) {
 		return Result{}, true, nil
 	}
 	_, parentVersion, err := r.deps.Dashboards.GetVersion(ctx, target.id, target.parent)
@@ -440,13 +440,13 @@ func (r *Registry) guardPlaceholders(ctx context.Context, raw json.RawMessage, t
 	if parent == nil {
 		parent = &spec.Dashboard{}
 	}
-	if issues := placeholderIssues(parsed, parent); len(issues) > 0 {
-		return placeholderFailure(issues), false, nil
+	if issues := importOnlyIssues(parsed, parent); len(issues) > 0 {
+		return importOnlyFailure(issues), false, nil
 	}
 	return Result{}, true, nil
 }
 
-func placeholderFailure(issues []spec.Issue) Result {
+func importOnlyFailure(issues []spec.Issue) Result {
 	step := "Save rejected: " + plural(len(issues), "issue", "issues") + issueCodes(issues)
 	kept, truncated := fit(slices.Clone(issues), listBudget)
 	return failure(step, invalidSpecOut{Code: codeInvalidSpec, Issues: kept, Truncated: truncated})
