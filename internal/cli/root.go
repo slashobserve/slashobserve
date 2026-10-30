@@ -32,6 +32,7 @@ type app struct {
 	list           pageOptions
 	versions       pageOptions
 	show           showOptions
+	remove         deleteOptions
 	commentList    commentListOptions
 	commentResolve commentResolveOptions
 	importing      importOptions

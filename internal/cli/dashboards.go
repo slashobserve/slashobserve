@@ -77,11 +77,11 @@ type versionList struct {
 func (a *app) dashboardsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dashboards",
-		Short: "List and inspect dashboards",
+		Short: "List, inspect and delete dashboards",
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.listCommand(), a.showCommand(), a.versionsCommand())
+	cmd.AddCommand(a.listCommand(), a.showCommand(), a.versionsCommand(), a.deleteCommand())
 	return cmd
 }
 
@@ -274,4 +274,38 @@ func datasourceUID(raw json.RawMessage) string {
 		return legacy.UID
 	}
 	return ""
+}
+
+type deleteOptions struct{ yes bool }
+
+func (a *app) deleteCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "delete <dashboard-id>",
+		Short: "Delete a dashboard with every version and comment",
+		Args:  exactArgs(1, "one dashboard id"),
+		RunE:  a.runDelete,
+	}
+	cmd.Flags().BoolVar(&a.remove.yes, "yes", false, "confirm that the dashboard, its versions, comments and agent history are deleted for everyone")
+	return cmd
+}
+
+func (a *app) runDelete(cmd *cobra.Command, args []string) error {
+	id, err := parseID(args[0])
+	if err != nil {
+		return err
+	}
+	if !a.remove.yes {
+		return usagef("deleting %s removes it with every version, comment and agent request for everyone and cannot be undone; rerun with --yes", id)
+	}
+	c, err := a.newClient()
+	if err != nil {
+		return err
+	}
+	if _, err := c.delete(cmd.Context(), "dashboards/"+id); err != nil {
+		return err
+	}
+	if !a.json {
+		a.output().confirm("Deleted dashboard %s", text(id))
+	}
+	return nil
 }

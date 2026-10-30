@@ -31,6 +31,7 @@ bin/observe "checkout p99 latency, last 6h"
 
 It prints progress and then the dashboard address.
 `bin/observe dashboards list` lists dashboards, and `bin/observe --help` shows the rest.
+`bin/observe dashboards delete <dashboard-id> --yes` deletes a dashboard with every version, comment and agent request, for everyone; it needs Edit on the dashboard, cannot be undone, and refuses to run without `--yes`.
 `bin/observe import dashboard.json` imports a Grafana dashboard and prints its address; `--map '<grafana>=<uid>'` picks our datasource for a Grafana one, `--folder <title>` chooses the folder (see [Import Grafana dashboards](import-grafana.md)) and `--preview` shows the report without saving.
 The import report, the `Folder:` line and the folder note, if any, go to standard error, so standard output stays the address.
 `-q` hides the report and the `Folder:` line, but the folder note always prints, because it says the folder you asked for was not used.
