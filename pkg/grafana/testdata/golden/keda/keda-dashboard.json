@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 7,
-      "imported": 0,
-      "partial": 7,
+      "imported": 1,
+      "partial": 6,
       "placeholder": 0,
       "unverified": 0
     },
@@ -213,13 +213,9 @@
         "type": "gauge",
         "source_type": "gauge",
         "row": "Scale Target",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.reduceOptions.fields"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -567,7 +563,10 @@
                 "color": "critical"
               }
             ],
-            "thresholdMode": "percentage"
+            "thresholdMode": "percentage",
+            "display": {
+              "fields": "/^current_replicas$/"
+            }
           }
         ]
       }

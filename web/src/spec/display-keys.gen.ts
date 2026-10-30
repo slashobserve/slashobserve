@@ -13,6 +13,9 @@ export const displayKeysByType: Record<string, readonly string[]> = {
   ],
   "stat": [
     "reduce",
+    "allValues",
+    "limit",
+    "fields",
     "colorMode",
     "graph",
     "textMode",
@@ -20,10 +23,16 @@ export const displayKeysByType: Record<string, readonly string[]> = {
   ],
   "gauge": [
     "reduce",
+    "allValues",
+    "limit",
+    "fields",
     "thresholdMarkers"
   ],
   "bargauge": [
     "reduce",
+    "allValues",
+    "limit",
+    "fields",
     "orientation"
   ],
   "table": [
@@ -32,6 +41,9 @@ export const displayKeysByType: Record<string, readonly string[]> = {
   ],
   "piechart": [
     "reduce",
+    "allValues",
+    "limit",
+    "fields",
     "pieType",
     "legend"
   ],

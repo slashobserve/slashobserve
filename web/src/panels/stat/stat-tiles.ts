@@ -6,7 +6,7 @@ import {
   type DisplayValue,
   type FieldResolver,
 } from "@/panels/field-config"
-import { reduce } from "@/panels/reducers"
+import { reduceItems, reduceOptionsOf } from "@/panels/reduce-items"
 import type { ThresholdState } from "@/panels/thresholds"
 import type { PreparedFrame } from "@/panels/transforms"
 import type { Link, Reducer } from "@/spec"
@@ -21,6 +21,9 @@ export type StatDisplay = {
   graph: boolean
   orientation: Orientation
   textMode?: TextMode
+  allValues?: boolean
+  limit?: number
+  fields?: string
 }
 
 export type StatTile = {
@@ -74,54 +77,37 @@ function sparkline(frame: PreparedFrame, field: WireField): [number, number][] {
 export function statTiles(
   frames: PreparedFrame[],
   fields: FieldResolver,
-  display: Pick<StatDisplay, "reduce">,
+  display: Partial<StatDisplay>,
   unit: string | undefined
 ): StatTile[] {
-  const entries = frames.flatMap((frame) =>
-    frame.fields
-      .filter((field) => field.type === "number")
-      .flatMap((field) => {
-        const config = fields.configFor(frame, field)
-        return config.hidden
-          ? []
-          : [
-              {
-                frame,
-                field,
-                config,
-                value: reduce(field.values, display.reduce),
-              },
-            ]
-      })
-  )
+  const entries = reduceItems(frames, fields, reduceOptionsOf("stat", display))
   const decimals = commonDecimals(
     entries.map((entry) => entry.value),
     unit
   )
-  const seen = new Map<string, number>()
-  return entries.map(({ frame, field, config, value }) => {
-    const seriesName = fields.seriesName(frame, field)
-    const range = fieldRange(field)
-    const shown = displayValue(value, config, {
-      decimals,
-      fieldMin: range.min,
-      fieldMax: range.max,
-    })
-    const occurrence = seen.get(seriesName) ?? 0
-    seen.set(seriesName, occurrence + 1)
-    return {
-      key: `${seriesName}#${occurrence}`,
-      name: fields.displayName(frame, field),
-      seriesName,
-      fieldName: field.name,
-      labels: frame.labels,
-      value,
-      text: shown.text,
-      ...amountAndUnit(shown, config.unit, config.decimals ?? decimals),
-      color: shown.color,
-      threshold: shown.threshold,
-      points: sparkline(frame, field),
-      links: config.links,
+  return entries.map(
+    ({ key, label, frame, field, config, value, raw, row }) => {
+      const seriesName = fields.seriesName(frame, field)
+      const range = fieldRange(field)
+      const shown = displayValue(raw, config, {
+        decimals,
+        fieldMin: range.min,
+        fieldMax: range.max,
+      })
+      return {
+        key,
+        name: label,
+        seriesName,
+        fieldName: field.name,
+        labels: frame.labels,
+        value,
+        text: shown.text,
+        ...amountAndUnit(shown, config.unit, config.decimals ?? decimals),
+        color: shown.color,
+        threshold: shown.threshold,
+        points: row === undefined ? sparkline(frame, field) : [],
+        links: config.links,
+      }
     }
-  })
+  )
 }

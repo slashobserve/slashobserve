@@ -39,16 +39,22 @@ export const specDefaults = {
     },
     "stat": {
       "reduce": "lastNotNull",
+      "allValues": false,
+      "limit": 5000,
       "colorMode": "value",
       "graph": true,
       "orientation": "auto"
     },
     "gauge": {
       "reduce": "lastNotNull",
+      "allValues": false,
+      "limit": 5000,
       "thresholdMarkers": true
     },
     "bargauge": {
       "reduce": "lastNotNull",
+      "allValues": false,
+      "limit": 5000,
       "orientation": "auto"
     },
     "table": {
@@ -57,6 +63,8 @@ export const specDefaults = {
     },
     "piechart": {
       "reduce": "lastNotNull",
+      "allValues": false,
+      "limit": 5000,
       "pieType": "pie",
       "legend": "right"
     },

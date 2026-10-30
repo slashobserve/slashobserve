@@ -175,12 +175,10 @@
         "row": "Information",
         "status": "partial",
         "reasons": [
-          "The threshold color \"text\" is not supported yet.",
-          "Showing every value instead of one reduced value is not supported yet."
+          "The threshold color \"text\" is not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.thresholds.steps[0]",
-          "options.reduceOptions.values"
+          "fieldConfig.defaults.thresholds.steps[0]"
         ],
         "queries": [
           {
@@ -1122,6 +1120,7 @@
               }
             ],
             "display": {
+              "allValues": true,
               "graph": false,
               "textMode": "value"
             }

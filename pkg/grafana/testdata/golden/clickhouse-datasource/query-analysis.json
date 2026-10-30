@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 11,
-      "imported": 0,
-      "partial": 11,
+      "imported": 1,
+      "partial": 10,
       "placeholder": 0,
       "unverified": 0
     },
@@ -120,13 +120,9 @@
         "type": "piechart",
         "source_type": "piechart",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Showing every value instead of one reduced value is not supported yet."
-        ],
-        "paths": [
-          "options.reduceOptions.values"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -147,12 +143,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Grafana shows this panel without a title.",
-          "Some Grafana options of this panel are not supported yet."
+          "Grafana shows this panel without a title."
         ],
         "paths": [
-          "title",
-          "options.reduceOptions.fields"
+          "title"
         ],
         "queries": [
           {
@@ -494,7 +488,8 @@
           }
         ],
         "display": {
-          "legend": "bottom"
+          "legend": "bottom",
+          "allValues": true
         }
       },
       {
@@ -528,6 +523,7 @@
           }
         ],
         "display": {
+          "fields": "/^Avg query time$/",
           "colorMode": "background"
         }
       },

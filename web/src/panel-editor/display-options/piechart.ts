@@ -1,8 +1,17 @@
 import type { DisplayOption } from "./types"
-import { calculation, legend } from "./shared"
+import {
+  calculation,
+  legend,
+  allValues,
+  reduceFields,
+  rowLimit,
+} from "./shared"
 
 export const piechart: readonly DisplayOption[] = [
   calculation,
+  allValues,
+  rowLimit,
+  reduceFields,
   {
     kind: "choice",
     key: "pieType",

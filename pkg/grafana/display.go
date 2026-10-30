@@ -6,17 +6,20 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
-	maxLegendValues = 8
-	maxFooterValues = 5
-	minDataPoints   = 10
-	maxDataPoints   = 11000
-	maxBucketCount  = 1000
-	legacyHeatmapV  = 37
+	maxLegendValues       = 8
+	maxFooterValues       = 5
+	minDataPoints         = 10
+	maxDataPoints         = 11000
+	maxBucketCount        = 1000
+	maxReduceRows         = 5000
+	maxReduceFieldsLength = 200
+	legacyHeatmapV        = 37
 )
 
 var (
@@ -85,9 +88,40 @@ func (b *panelBuild) reduceOption(d *spec.Display) {
 		b.consume("options.reduceOptions.calcs")
 		b.applyCalcs(d, calcs)
 	}
-	if truthy(lookupValue(b.raw, "options.reduceOptions.values")) {
-		b.partial("options.reduceOptions.values", "Showing every value instead of one reduced value is not supported yet.")
+	if every, ok := b.boolOption("options.reduceOptions.values"); ok && *every {
+		d.AllValues = every
 	}
+	b.reduceRowLimit(d)
+	b.reduceFields(d)
+}
+
+func (b *panelBuild) reduceRowLimit(d *spec.Display) {
+	v, ok := b.value("options.reduceOptions.limit")
+	if !ok {
+		return
+	}
+	limit, isInt := asInt(v)
+	if !isInt || limit < 1 || limit > maxReduceRows {
+		b.partial("options.reduceOptions.limit", fmt.Sprintf("The row limit must be a whole number from 1 to %d.", maxReduceRows))
+		return
+	}
+	b.consume("options.reduceOptions.limit")
+	if limit != maxReduceRows {
+		d.Limit = limit
+	}
+}
+
+func (b *panelBuild) reduceFields(d *spec.Display) {
+	v, ok := b.value("options.reduceOptions.fields")
+	if !ok {
+		return
+	}
+	fields, isString := v.(string)
+	if !isString || utf8.RuneCountInString(fields) > maxReduceFieldsLength {
+		return
+	}
+	b.consume("options.reduceOptions.fields")
+	d.Fields = fields
 }
 
 func (b *panelBuild) applyCalcs(d *spec.Display, calcs []string) {
@@ -98,10 +132,8 @@ func (b *panelBuild) applyCalcs(d *spec.Display, calcs []string) {
 		b.partial("options.reduceOptions.calcs", fmt.Sprintf("The reducer %s is not supported yet.", calcs[0]))
 		return
 	}
+	// Grafana itself uses only the first reducer here, so the rest change nothing.
 	d.Reduce = calcs[0]
-	if len(calcs) > 1 {
-		b.partial("options.reduceOptions.calcs", "Only the first reducer is used.")
-	}
 }
 
 func (b *panelBuild) legendPlacement(fallback string) string {

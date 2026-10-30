@@ -138,3 +138,42 @@ describe("statTiles", () => {
     expect(tile.name).toBe("pod web-0")
   })
 })
+
+describe("statTiles value options", () => {
+  it("makes one tile per row with allValues and draws no sparkline", () => {
+    const result = tiles(
+      [frame([1, 2, 3])],
+      {},
+      { reduce: "lastNotNull", allValues: true }
+    )
+    expect(result.map((tile) => tile.value)).toEqual([1, 2, 3])
+    expect(result.every((tile) => tile.points.length === 0)).toBe(true)
+    expect(new Set(result.map((tile) => tile.key)).size).toBe(3)
+  })
+
+  it("stops at the row limit", () => {
+    const result = tiles(
+      [frame([1, 2, 3])],
+      {},
+      { reduce: "lastNotNull", allValues: true, limit: 2 }
+    )
+    expect(result.map((tile) => tile.value)).toEqual([1, 2])
+  })
+
+  it("shows the last text of a text field picked by /.*/", () => {
+    const labelled: PreparedFrame = {
+      ref: "A",
+      fields: [
+        time,
+        { name: "state", type: "string", values: ["up", "down", "up"] },
+      ],
+    }
+    const [tile] = tiles(
+      [labelled],
+      {},
+      { reduce: "lastNotNull", fields: "/.*/" }
+    )
+    expect(tile.text).toBe("up")
+    expect(tile.value).toBeNull()
+  })
+})

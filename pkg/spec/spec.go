@@ -332,6 +332,8 @@ type Display struct {
 	LegendHideEmpty    *bool              `json:"legendHideEmpty,omitempty"`
 	Tooltip            string             `json:"tooltip,omitempty"`
 	Reduce             string             `json:"reduce,omitempty"`
+	AllValues          *bool              `json:"allValues,omitempty"`
+	Fields             string             `json:"fields,omitempty"`
 	ColorMode          string             `json:"colorMode,omitempty"`
 	Graph              *bool              `json:"graph,omitempty"`
 	TextMode           string             `json:"textMode,omitempty"`
