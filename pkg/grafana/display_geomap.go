@@ -3,6 +3,7 @@ package grafana
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -11,8 +12,7 @@ import (
 const (
 	geomapRegionReason  = "Named map regions are shown fitted to the data."
 	geomapLookupReason  = "Looking up locations by name is not supported yet."
-	geomapBasemapReason = "Map tiles are not loaded; the map shows country outlines."
-	geomapLayerReason   = "Only the first markers layer is drawn; other layers are left out."
+	geomapViewReason    = "This map view is not supported yet."
 	geomapMarkerReason  = "Only marker sizes from 1 to 100 are supported."
 	geomapQueryReason   = "This table query type is not supported yet."
 	worldmapValueReason = "Only the current value is shown."
@@ -25,7 +25,12 @@ const (
 	maxGeomapZoom       = 18
 	maxGeomapLat        = 85
 	maxGeomapLon        = 180
+	maxFitPadding       = 50
+	maxGeomapName       = 100
+	maxGeomapLayers     = 10
 )
+
+var geomapRegions = []string{"north-america", "south-america", "europe", "africa", "west-asia", "south-asia", "south-east-asia", "east-asia", "australia", "oceania"}
 
 func displayGeomap(b *panelBuild) {
 	d := b.disp()
@@ -33,30 +38,86 @@ func displayGeomap(b *panelBuild) {
 		b.worldmap(d)
 		return
 	}
+	b.geomapBasemap(d)
 	b.geomapView(d)
+	b.geomapControls(d)
+	b.geomapTooltip(d)
 	b.geomapLayers(d)
-	if present(lookupValue(b.raw, "options.basemap")) {
-		b.partial("options.basemap", geomapBasemapReason)
-	}
 }
 
 func (b *panelBuild) geomapView(d *spec.Display) {
-	switch id := asString(lookupValue(b.raw, "options.view.id")); id {
-	case "":
-		return
-	case "fit":
+	id := asString(lookupValue(b.raw, "options.view.id"))
+	switch {
+	case id == "":
+	case id == "fit":
 		d.View = "fit"
-	case "zero":
+	case id == "zero":
 		d.View = "world"
-	case "coords":
+	case id == "coords":
 		d.View = "coords"
 		d.Lat = b.boundedOption("options.view.lat", -maxGeomapLat, maxGeomapLat)
 		d.Lon = b.boundedOption("options.view.lon", -maxGeomapLon, maxGeomapLon)
 		d.Zoom = b.boundedOption("options.view.zoom", minGeomapZoom, maxGeomapZoom)
+	case slices.Contains(geomapRegions, id):
+		d.View = id
 	default:
-		b.partial("options.view.id", geomapRegionReason)
+		b.partial("options.view.id", geomapViewReason)
 	}
 	b.consume("options.view.id", "options.view.lat", "options.view.lon", "options.view.zoom")
+	d.MinZoom = b.boundedOption("options.view.minZoom", 0, maxGeomapZoom)
+	d.MaxZoom = b.boundedOption("options.view.maxZoom", 0, maxGeomapZoom)
+	if padding, ok := b.boundedWhole("options.view.padding", 0, maxFitPadding); ok {
+		d.FitPadding = &padding
+	}
+	if shared, ok := b.boolOption("options.view.shared"); ok && *shared {
+		d.SharedView = shared
+	}
+	b.geomapFitLayers(d)
+}
+
+func (b *panelBuild) geomapFitLayers(d *spec.Display) {
+	all, hasAll := b.boolOption("options.view.allLayers")
+	name := asString(lookupValue(b.raw, "options.view.layer"))
+	switch {
+	case hasAll && !*all && name != "" && validLength(name, maxGeomapName):
+		d.FitLayer = name
+		b.consume("options.view.layer")
+	case !hasAll || *all:
+		b.consume("options.view.layer")
+	}
+	if last, ok := b.boolOption("options.view.lastOnly"); ok && *last {
+		d.FitLastOnly = last
+	}
+}
+
+func (b *panelBuild) geomapControls(d *spec.Display) {
+	d.ShowZoom, _ = b.boolOption("options.controls.showZoom")
+	d.ShowAttribution, _ = b.boolOption("options.controls.showAttribution")
+	d.ShowScale, _ = b.boolOption("options.controls.showScale")
+	d.ShowMeasure, _ = b.boolOption("options.controls.showMeasure")
+	d.ShowDebug, _ = b.boolOption("options.controls.showDebug")
+	d.MouseWheelZoom = ptr(true)
+	if wheel, ok := b.boolOption("options.controls.mouseWheelZoom"); ok {
+		d.MouseWheelZoom = wheel
+	}
+}
+
+func (b *panelBuild) geomapTooltip(d *spec.Display) {
+	switch mode := asString(lookupValue(b.raw, "options.tooltip.mode")); mode {
+	case "none":
+		d.Tooltip = "none"
+		b.consume("options.tooltip.mode")
+	case "details":
+		b.consume("options.tooltip.mode")
+	}
+}
+
+func (b *panelBuild) boundedWhole(path string, low, high int) (int, bool) {
+	f := b.boundedOption(path, float64(low), float64(high))
+	if f == nil {
+		return 0, false
+	}
+	return int(math.Round(*f)), true
 }
 
 func (b *panelBuild) boundedOption(path string, low, high float64) *float64 {
@@ -70,69 +131,6 @@ func (b *panelBuild) boundedOption(path string, low, high float64) *float64 {
 		return nil
 	}
 	return &f
-}
-
-func (b *panelBuild) geomapLayers(d *spec.Display) {
-	layers, _ := asArray(lookupValue(b.raw, "options.layers"))
-	drawn := false
-	for i, item := range layers {
-		layer, _ := asObject(item)
-		path := fmt.Sprintf("options.layers[%d]", i)
-		if drawn || asString(layer["type"]) != "markers" {
-			b.partial(path, geomapLayerReason)
-			continue
-		}
-		drawn = true
-		b.consume(path + ".type")
-		b.geomapLocation(d, path+".location")
-		b.geomapStyle(d, path+".config.style")
-	}
-}
-
-func (b *panelBuild) geomapLocation(d *spec.Display, path string) {
-	switch mode := asString(lookupValue(b.raw, path+".mode")); mode {
-	case "auto":
-		d.Location = mode
-	case "coords":
-		d.Location = mode
-		d.LatField = b.fieldNameOption(path + ".latitude")
-		d.LonField = b.fieldNameOption(path + ".longitude")
-	case "geohash":
-		d.Location = mode
-		d.GeohashField = b.fieldNameOption(path + ".geohash")
-	case "lookup":
-		b.partial(path, geomapLookupReason)
-	}
-	b.consume(path+".mode", path+".latitude", path+".longitude", path+".geohash")
-	if asString(lookupValue(b.raw, path+".mode")) != "lookup" {
-		b.consume(path+".lookup", path+".gazetteer")
-	}
-}
-
-func (b *panelBuild) geomapStyle(d *spec.Display, style string) {
-	d.SizeField = b.fieldNameOption(style + ".size.field")
-	if d.SizeField != "" {
-		d.MarkerSize = b.markerSizeOption(style + ".size.min")
-		d.MarkerSizeMax = b.markerSizeOption(style + ".size.max")
-		b.consume(style + ".size.fixed")
-	} else {
-		d.MarkerSize = b.markerSizeOption(style + ".size.fixed")
-		b.consume(style+".size.min", style+".size.max")
-	}
-	d.ColorField = b.fieldNameOption(style + ".color.field")
-	if v, ok := b.take(style + ".color.fixed"); ok && d.ColorField == "" {
-		b.markerColor(style+".color.fixed", asString(v))
-	}
-}
-
-func (b *panelBuild) markerColor(path, name string) {
-	color, ok := seriesColor(name)
-	switch {
-	case !ok:
-		b.partial(path, fmt.Sprintf("The marker color %q is not supported yet.", name))
-	case b.panel.Color == "":
-		b.panel.Color = color
-	}
 }
 
 func (b *panelBuild) markerSizeOption(path string) int {

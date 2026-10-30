@@ -1410,7 +1410,9 @@
               "sizeField": "requests",
               "colorField": "error_ratio",
               "markerSize": 8,
-              "markerSizeMax": 30
+              "markerSizeMax": 30,
+              "basemap": "carto",
+              "mouseWheelZoom": true
             }
           },
           {

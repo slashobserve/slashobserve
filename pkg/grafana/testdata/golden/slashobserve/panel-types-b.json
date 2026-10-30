@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 11,
-      "imported": 3,
-      "partial": 6,
+      "imported": 4,
+      "partial": 5,
       "placeholder": 2,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "geomap",
         "source_type": "geomap",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Map tiles are not loaded; the map shows country outlines."
-        ],
-        "paths": [
-          "options.basemap"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -70,18 +66,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Named map regions are shown fitted to the data.",
-          "Looking up locations by name is not supported yet.",
-          "Only the first markers layer is drawn; other layers are left out.",
-          "Map tiles are not loaded; the map shows country outlines.",
-          "Map controls are not configurable."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.view.id",
-          "options.layers[0].location",
-          "options.layers[1]",
-          "options.basemap",
-          "options.controls.showScale"
+          "options.layers[1].config.opacity"
         ],
         "queries": [
           {
@@ -326,7 +314,9 @@
           "sizeField": "Value",
           "colorField": "Value",
           "markerSize": 3,
-          "markerSizeMax": 20
+          "markerSizeMax": 20,
+          "basemap": "carto",
+          "mouseWheelZoom": true
         }
       },
       {
@@ -356,7 +346,26 @@
             "color": "critical"
           }
         ],
-        "color": "#37872D"
+        "display": {
+          "view": "europe",
+          "basemap": "carto",
+          "mouseWheelZoom": true,
+          "showScale": true,
+          "layers": [
+            {
+              "type": "markers",
+              "name": "Markers",
+              "location": "lookup",
+              "lookupField": "country",
+              "gazetteer": "countries"
+            },
+            {
+              "type": "heatmap",
+              "name": "Heat",
+              "radius": 5
+            }
+          ]
+        }
       },
       {
         "id": "p3",

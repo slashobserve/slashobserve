@@ -966,64 +966,54 @@ func geomapOptions(view, layers string) string {
 	return fmt.Sprintf(`"options":{"view":%s,"layers":[%s],"controls":{"mouseWheelZoom":true,"showZoom":true,"showAttribution":true},"tooltip":{"mode":"details"}}`, view, layers)
 }
 
-func TestGeomapImportsItsFirstMarkersLayer(t *testing.T) {
+func TestGeomapImportsItsMarkersLayer(t *testing.T) {
 	const plainStyle = `{"color":{"fixed":"dark-green"},"opacity":0.4,"size":{"fixed":5,"min":2,"max":15}}`
+	const tiles = `"basemap":"carto","mouseWheelZoom":true`
 	cases := []struct {
 		name, options string
 		display       string
-		color         string
 		paths         []string
 	}{
 		{
 			name:    "coordinates with a sized and colored field",
 			options: geomapOptions(`{"id":"coords","lat":52,"lon":5,"zoom":4}`, geomapLayer(`{"mode":"coords","latitude":"lat","longitude":"lon"}`, `{"color":{"field":"Value","fixed":"red"},"size":{"field":"Value","min":3,"max":20}}`)),
-			display: `{"view":"coords","lat":52,"lon":5,"zoom":4,"location":"coords","latField":"lat","lonField":"lon","sizeField":"Value","colorField":"Value","markerSize":3,"markerSizeMax":20}`,
+			display: `{"view":"coords","lat":52,"lon":5,"zoom":4,"location":"coords","latField":"lat","lonField":"lon","sizeField":"Value","colorField":"Value","markerSize":3,"markerSizeMax":20,` + tiles + `}`,
 		},
 		{
-			name:    "geohash with a fixed size and color",
+			name:    "geohash with a fixed size and color keeps the color on its layer",
 			options: geomapOptions(`{"id":"fit"}`, geomapLayer(`{"mode":"geohash","geohash":"hash"}`, `{"color":{"fixed":"blue"},"size":{"fixed":9,"min":2,"max":15}}`)),
-			display: `{"location":"geohash","geohashField":"hash","markerSize":9}`,
-			color:   "#5794F2",
+			display: `{` + tiles + `,"layers":[{"type":"markers","name":"Markers","location":"geohash","geohashField":"hash","markerSize":9,"color":"#5794F2"}]}`,
 		},
 		{
 			name:    "world view and automatic location",
 			options: geomapOptions(`{"id":"zero","lat":0,"lon":0,"zoom":1}`, geomapLayer(`{"mode":"auto"}`, plainStyle)),
-			display: `{"view":"world"}`,
-			color:   "#37872D",
+			display: `{"view":"world",` + tiles + `}`,
 		},
 		{
-			name:    "a lookup layer is reported",
+			name:    "a lookup layer is written as a layer",
 			options: geomapOptions(`{"id":"fit"}`, geomapLayer(`{"mode":"lookup","lookup":"country","gazetteer":"public/gazetteer/countries.json"}`, plainStyle)),
-			display: "null",
-			color:   "#37872D",
-			paths:   []string{"options.layers[0].location"},
+			display: `{` + tiles + `,"layers":[{"type":"markers","name":"Markers","location":"lookup","lookupField":"country","gazetteer":"countries"}]}`,
 		},
 		{
-			name:    "a named region is reported",
+			name:    "a named region is imported",
 			options: geomapOptions(`{"id":"europe","lat":46,"lon":14,"zoom":4}`, geomapLayer(`{"mode":"auto"}`, plainStyle)),
-			display: "null",
-			color:   "#37872D",
-			paths:   []string{"options.view.id"},
+			display: `{"view":"europe",` + tiles + `}`,
 		},
 		{
 			name:    "coordinates outside the range are reported",
 			options: geomapOptions(`{"id":"coords","lat":120,"lon":5,"zoom":30}`, geomapLayer(`{"mode":"auto"}`, plainStyle)),
-			display: `{"view":"coords","lon":5}`,
-			color:   "#37872D",
+			display: `{"view":"coords","lon":5,` + tiles + `}`,
 			paths:   []string{"options.view.lat", "options.view.zoom"},
 		},
 		{
-			name:    "a second markers layer and a heatmap layer are reported",
+			name:    "several layers are all written",
 			options: geomapOptions(`{"id":"fit"}`, geomapLayer(`{"mode":"auto"}`, plainStyle)+","+geomapLayer(`{"mode":"auto"}`, plainStyle)+`,{"type":"heatmap","config":{}}`),
-			display: "null",
-			color:   "#37872D",
-			paths:   []string{"options.layers[1]", "options.layers[2]"},
+			display: `{` + tiles + `,"layers":[{"type":"markers","name":"Markers"},{"type":"markers","name":"Markers"},{"type":"heatmap"}]}`,
 		},
 		{
-			name:    "the base map and non-default controls are reported",
+			name:    "controls that differ from the defaults are imported",
 			options: `"options":{"basemap":{"type":"default"},"controls":{"mouseWheelZoom":false,"showScale":true},"layers":[],"view":{"id":"fit"}}`,
-			display: "null",
-			paths:   []string{"options.basemap", "options.controls.mouseWheelZoom", "options.controls.showScale"},
+			display: `{"basemap":"carto","showScale":true}`,
 		},
 	}
 	for _, tc := range cases {
@@ -1032,8 +1022,8 @@ func TestGeomapImportsItsFirstMarkersLayer(t *testing.T) {
 			if got := displayJSON(t, panel); got != tc.display {
 				t.Errorf("display = %s, want %s", got, tc.display)
 			}
-			if panel.Color != tc.color {
-				t.Errorf("color = %q, want %q", panel.Color, tc.color)
+			if panel.Color != "" {
+				t.Errorf("color = %q, want none", panel.Color)
 			}
 			if !slices.Equal(line.Paths, tc.paths) {
 				t.Errorf("paths = %v, want %v (reasons %v)", line.Paths, tc.paths, line.Reasons)
