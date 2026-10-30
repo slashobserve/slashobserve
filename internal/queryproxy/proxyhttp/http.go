@@ -91,13 +91,14 @@ func (h *Handler) Register(api auth.Routes) {
 }
 
 type dataMeta struct {
-	Kind       queryproxy.Kind `json:"kind"`
-	From       string          `json:"from"`
-	To         string          `json:"to"`
-	StepMS     int64           `json:"step_ms"`
-	Queries    []queryMeta     `json:"queries"`
-	Cached     bool            `json:"cached"`
-	ExecutedAt string          `json:"executed_at"`
+	Kind        queryproxy.Kind `json:"kind"`
+	From        string          `json:"from"`
+	To          string          `json:"to"`
+	StepMS      int64           `json:"step_ms"`
+	Queries     []queryMeta     `json:"queries"`
+	Cached      bool            `json:"cached"`
+	ExecutedAt  string          `json:"executed_at"`
+	SourcePanel string          `json:"source_panel,omitempty"`
 }
 
 type dataResponse struct {
@@ -158,6 +159,10 @@ func (h *Handler) data(c *gin.Context) {
 		h.fail(c, fmt.Errorf("%w: %q", queryproxy.ErrPanelNotFound, panelID))
 		return
 	}
+	sourcePanel := ""
+	if source, reuses := d.SourceOf(panelID); reuses {
+		found, panelID, sourcePanel = source, source.Panel.ID, source.Panel.ID
+	}
 	now := time.Now()
 	rng, opts, err := p.timeRange(d, now)
 	if err == nil {
@@ -181,7 +186,7 @@ func (h *Handler) data(c *gin.Context) {
 	}
 	key := dataKey(id, version, panelID, kind, al, selections, scope)
 	if entry, at, ok := h.caches.data.Get(key); ok {
-		writeData(c, entry, true, at)
+		writeData(c, entry, true, at, sourcePanel)
 		return
 	}
 	entry, err := h.caches.dataFlights.Do(ctx, string(key[:]), func(ctx context.Context) (dataEntry, error) {
@@ -191,7 +196,7 @@ func (h *Handler) data(c *gin.Context) {
 		h.fail(c, err)
 		return
 	}
-	writeData(c, entry, false, entry.executedAt)
+	writeData(c, entry, false, entry.executedAt, sourcePanel)
 }
 
 func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, panelID string, al alignment, selections map[string]queryproxy.Selection, user datasource.QueryUser) (result dataEntry, err error) {
@@ -291,18 +296,19 @@ func cacheScope(ctx context.Context, v loadedVersion) (user datasource.QueryUser
 	return user, scope
 }
 
-func writeData(c *gin.Context, e dataEntry, cached bool, executedAt time.Time) {
+func writeData(c *gin.Context, e dataEntry, cached bool, executedAt time.Time, sourcePanel string) {
 	c.JSON(http.StatusOK, dataResponse{
 		Frames:    e.frames,
 		Exemplars: e.exemplars,
 		Meta: dataMeta{
-			Kind:       e.kind,
-			From:       formatTime(e.from),
-			To:         formatTime(e.to),
-			StepMS:     e.step.Milliseconds(),
-			Queries:    e.queries,
-			Cached:     cached,
-			ExecutedAt: formatTime(executedAt),
+			Kind:        e.kind,
+			From:        formatTime(e.from),
+			To:          formatTime(e.to),
+			StepMS:      e.step.Milliseconds(),
+			Queries:     e.queries,
+			Cached:      cached,
+			ExecutedAt:  formatTime(executedAt),
+			SourcePanel: sourcePanel,
 		},
 	})
 }

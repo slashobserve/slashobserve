@@ -1648,6 +1648,8 @@ export interface components {
              * @description When the query ran upstream, which for a cached response is earlier than the request.
              */
             executed_at: string;
+            /** @description The id of the panel whose queries ran, present only when the requested panel reuses another panel's results; the frames, queries and range are that panel's, and its transforms apply first when the reusing query sets withTransforms. */
+            source_panel?: string;
         };
         PanelDataError: {
             error: string;

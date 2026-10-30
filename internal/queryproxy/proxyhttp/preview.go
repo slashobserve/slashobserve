@@ -121,7 +121,7 @@ func (h *Handler) preview(c *gin.Context) {
 		h.previewFail(c, uid, err)
 		return
 	}
-	writeData(c, entry, false, entry.executedAt)
+	writeData(c, entry, false, entry.executedAt, "")
 }
 
 func (h *Handler) previewTarget(c *gin.Context, principal auth.Principal, id pgtype.UUID) (string, bool) {
@@ -183,6 +183,8 @@ func (h *Handler) placeDraft(c *gin.Context, saved *spec.Dashboard, req previewR
 		return invalidRequest("only data panels can be previewed")
 	case draft.ID != req.PanelID:
 		return invalidRequest("the panel's id must be " + req.PanelID)
+	case slices.ContainsFunc(draft.Queries, spec.Query.IsDashboardSource):
+		return invalidRequest("a panel that reuses another panel's results has no preview")
 	case isOtherUID(draft.Datasource, uid):
 		return invalidRequest(panelDatasourceMessage(uid))
 	case slices.ContainsFunc(draft.Queries, func(q spec.Query) bool { return q.Datasource != "" && isOtherUID(q.Datasource, uid) }):

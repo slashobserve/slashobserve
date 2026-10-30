@@ -151,18 +151,30 @@ func panelUnchanged(prev, next *spec.Dashboard, id string) bool {
 		return false
 	}
 	now, ok := next.FindDataPanel(id)
-	if !ok || len(was.Panel.Queries) != len(now.Panel.Queries) {
+	if !ok || !queriesUnchanged(prev, was.Panel, next, now.Panel) {
 		return false
 	}
-	for j := range was.Panel.Queries {
-		a, okA := queryKey(was.Panel, j)
-		b, okB := queryKey(now.Panel, j)
+	wasSource, wasReuses := prev.SourceOf(id)
+	nowSource, nowReuses := next.SourceOf(id)
+	if wasReuses != nowReuses {
+		return false
+	}
+	return !wasReuses || queriesUnchanged(prev, wasSource.Panel, next, nowSource.Panel)
+}
+
+func queriesUnchanged(prev *spec.Dashboard, was *spec.Panel, next *spec.Dashboard, now *spec.Panel) bool {
+	if len(was.Queries) != len(now.Queries) {
+		return false
+	}
+	for j := range was.Queries {
+		a, okA := queryKey(was, j)
+		b, okB := queryKey(now, j)
 		if !okA || !okB || a != b {
 			return false
 		}
 	}
-	before, okBefore := reachedByPanel(prev, was.Panel)
-	after, okAfter := reachedByPanel(next, now.Panel)
+	before, okBefore := reachedByPanel(prev, was)
+	after, okAfter := reachedByPanel(next, now)
 	return okBefore && okAfter && maps.Equal(before, after)
 }
 
@@ -194,7 +206,7 @@ func reachedByPanel(d *spec.Dashboard, p *spec.Panel) (map[string]string, bool) 
 		names = append(names, name)
 	}
 	for j, q := range p.Queries {
-		if q.IsExpression() {
+		if q.IsExpression() || q.IsDashboardSource() {
 			continue
 		}
 		names = append(names, variableNames(q.Query)...)

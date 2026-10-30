@@ -480,6 +480,9 @@ func checkRequest(req Request, requireAll bool) (*spec.Panel, error) {
 	if !ok {
 		return nil, fmt.Errorf("%w: %q", ErrPanelNotFound, req.PanelID)
 	}
+	if _, reuses := panel.DashboardSource(); reuses {
+		return nil, fmt.Errorf("%w: panel %q reuses another panel's results; run that panel", ErrInvalidRequest, req.PanelID)
+	}
 	if err := req.Range.Validate(); err != nil {
 		return nil, invalidRangeError(err)
 	}
