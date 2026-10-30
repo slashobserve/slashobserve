@@ -56,6 +56,7 @@ import {
   type AxesInUse,
   type AxisKey,
   type AxisSettings,
+  type Interpolation,
 } from "./series-config"
 import { emptySeriesState, useSeriesStore, visibleSeries } from "./series-state"
 import "./timeseries.css"
@@ -65,8 +66,14 @@ const minSelectWidth = 5
 const axisFontSize = 12
 const noSelect = { left: 0, top: 0, width: 0, height: 0 }
 const barSize: [number, number] = [0.6, 64]
-const pointSize = 4
 const ghostDash = [2, 3]
+
+const pathBuilders: Record<Interpolation, uPlot.Series.PathBuilder> = {
+  linear: uPlot.paths.linear!(),
+  smooth: uPlot.paths.spline!(),
+  stepBefore: uPlot.paths.stepped!({ align: -1 }),
+  stepAfter: uPlot.paths.stepped!({ align: 1 }),
+}
 
 type Latest = {
   model: Model
@@ -113,6 +120,26 @@ const dropEdgeTicks: uPlot.Axis.Filter = (u, splits) =>
       : seconds
   })
 
+function linePoints(entry: ChartSeries, stroke: string): uPlot.Series.Points {
+  if (entry.points === "never") return { show: false }
+  if (entry.points === "always") {
+    return {
+      show: true,
+      size: entry.pointSize,
+      width: 0,
+      fill: stroke,
+      stroke,
+    }
+  }
+  return {
+    show: false,
+    filter: isolatedPoints,
+    size: 8,
+    fill: stroke,
+    stroke,
+  }
+}
+
 function seriesOptions(
   entry: ChartSeries,
   hidden: ReadonlySet<string>,
@@ -126,7 +153,7 @@ function seriesOptions(
     show: !hidden.has(entry.key),
     stroke,
     dash: entry.dash,
-    spanGaps: false,
+    spanGaps: entry.spanNulls === true,
   }
   if (customPainted) {
     return { ...base, width: 0, paths: () => null, points: { show: false } }
@@ -145,20 +172,21 @@ function seriesOptions(
       ...base,
       width: 2,
       paths: () => null,
-      points: { show: true, size: pointSize, width: 0, fill: stroke, stroke },
+      points: {
+        show: true,
+        size: entry.pointSize,
+        width: 0,
+        fill: stroke,
+        stroke,
+      },
     }
   }
   return {
     ...base,
-    width: 2,
+    width: entry.lineWidth,
+    paths: pathBuilders[entry.interpolation],
     ...(fill > 0 ? { fill: fillStyle(stroke, fill) } : {}),
-    points: {
-      show: false,
-      filter: isolatedPoints,
-      size: 8,
-      fill: stroke,
-      stroke,
-    },
+    points: linePoints(entry, stroke),
   }
 }
 

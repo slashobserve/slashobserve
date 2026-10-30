@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 77,
-      "imported": 38,
-      "partial": 39,
+      "imported": 39,
+      "partial": 38,
       "placeholder": 0,
       "unverified": 0
     },
@@ -69,9 +69,7 @@
           "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[1].properties[0]",
-          "fieldConfig.overrides[1].properties[1]",
-          "fieldConfig.overrides[2].properties[0]"
+          "fieldConfig.overrides[1].properties[0]"
         ],
         "queries": [
           {
@@ -110,9 +108,7 @@
           "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[4].properties[0]",
-          "fieldConfig.overrides[4].properties[1]",
-          "fieldConfig.overrides[5].properties[0]"
+          "fieldConfig.overrides[4].properties[0]"
         ],
         "queries": [
           {
@@ -826,9 +822,7 @@
           "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[17].properties[0]",
-          "fieldConfig.overrides[17].properties[1]",
-          "fieldConfig.overrides[18].properties[0]"
+          "fieldConfig.overrides[17].properties[0]"
         ],
         "queries": [
           {
@@ -881,9 +875,7 @@
           "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[17].properties[0]",
-          "fieldConfig.overrides[17].properties[1]",
-          "fieldConfig.overrides[18].properties[0]"
+          "fieldConfig.overrides[17].properties[0]"
         ],
         "queries": [
           {
@@ -936,9 +928,7 @@
           "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[17].properties[0]",
-          "fieldConfig.overrides[17].properties[1]",
-          "fieldConfig.overrides[18].properties[0]"
+          "fieldConfig.overrides[17].properties[0]"
         ],
         "queries": [
           {
@@ -991,9 +981,7 @@
           "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[17].properties[0]",
-          "fieldConfig.overrides[17].properties[1]",
-          "fieldConfig.overrides[18].properties[0]"
+          "fieldConfig.overrides[17].properties[0]"
         ],
         "queries": [
           {
@@ -1158,9 +1146,7 @@
           "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[2].properties[0]",
-          "fieldConfig.overrides[2].properties[1]",
-          "fieldConfig.overrides[3].properties[0]"
+          "fieldConfig.overrides[2].properties[0]"
         ],
         "queries": [
           {
@@ -1206,9 +1192,7 @@
           "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[2].properties[0]",
-          "fieldConfig.overrides[2].properties[1]",
-          "fieldConfig.overrides[3].properties[0]"
+          "fieldConfig.overrides[2].properties[0]"
         ],
         "queries": [
           {
@@ -1344,9 +1328,7 @@
           "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[4].properties[0]",
-          "fieldConfig.overrides[4].properties[1]",
-          "fieldConfig.overrides[5].properties[0]"
+          "fieldConfig.overrides[4].properties[0]"
         ],
         "queries": [
           {
@@ -1378,9 +1360,7 @@
           "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[6].properties[0]",
-          "fieldConfig.overrides[6].properties[1]",
-          "fieldConfig.overrides[7].properties[0]"
+          "fieldConfig.overrides[6].properties[0]"
         ],
         "queries": [
           {
@@ -1433,9 +1413,7 @@
           "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[3].properties[0]",
-          "fieldConfig.overrides[3].properties[1]",
-          "fieldConfig.overrides[4].properties[0]"
+          "fieldConfig.overrides[3].properties[0]"
         ],
         "queries": [
           {
@@ -1474,9 +1452,7 @@
           "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[3].properties[0]",
-          "fieldConfig.overrides[3].properties[1]",
-          "fieldConfig.overrides[4].properties[0]"
+          "fieldConfig.overrides[3].properties[0]"
         ],
         "queries": [
           {
@@ -1501,9 +1477,7 @@
           "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[3].properties[0]",
-          "fieldConfig.overrides[3].properties[1]",
-          "fieldConfig.overrides[4].properties[0]"
+          "fieldConfig.overrides[3].properties[0]"
         ],
         "queries": [
           {
@@ -1620,13 +1594,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2119,6 +2089,7 @@
         ],
         "unit": "opm",
         "fill": 10,
+        "points": "never",
         "overrides": [
           {
             "match": {
@@ -2164,12 +2135,25 @@
         ],
         "unit": "percent",
         "fill": 35,
+        "points": "never",
         "overrides": [
           {
             "match": {
               "series": "avg"
             },
             "color": "#cffaff"
+          },
+          {
+            "match": {
+              "series": "max"
+            },
+            "lineWidth": 0
+          },
+          {
+            "match": {
+              "series": "min"
+            },
+            "lineWidth": 0
           }
         ],
         "display": {
@@ -2214,6 +2198,7 @@
             ],
             "unit": "bytes",
             "fill": 35,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -2238,6 +2223,18 @@
                   "series": "Max Virtual Memory"
                 },
                 "color": "#584477"
+              },
+              {
+                "match": {
+                  "series": "Max Virtual Memory"
+                },
+                "lineWidth": 0
+              },
+              {
+                "match": {
+                  "series": "Min Virtual Memory"
+                },
+                "lineWidth": 0
               }
             ],
             "display": {
@@ -2274,6 +2271,7 @@
             ],
             "unit": "bytes",
             "fill": 10,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -2317,6 +2315,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -2360,6 +2359,7 @@
             ],
             "unit": "bytes",
             "fill": 10,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -2392,6 +2392,7 @@
             "unit": "percentunit",
             "max": 1,
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -2428,6 +2429,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2455,6 +2457,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2482,6 +2485,7 @@
             ],
             "unit": "ops",
             "fill": 10,
+            "points": "never",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2509,6 +2513,7 @@
             ],
             "unit": "ops",
             "fill": 10,
+            "points": "never",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2536,6 +2541,7 @@
             ],
             "unit": "ops",
             "fill": 10,
+            "points": "never",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2563,6 +2569,7 @@
             ],
             "unit": "ops",
             "fill": 10,
+            "points": "never",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2616,6 +2623,7 @@
             "unit": "ops",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legend": "right",
@@ -2647,6 +2655,7 @@
             "decimals": 0,
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legend": "right",
@@ -2676,6 +2685,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2704,6 +2714,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2732,6 +2743,7 @@
             ],
             "unit": "ops",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -2755,6 +2767,7 @@
             ],
             "unit": "ops",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -2778,6 +2791,7 @@
             ],
             "unit": "ops",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -2815,6 +2829,7 @@
             "decimals": 0,
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legend": "right",
@@ -2846,6 +2861,7 @@
             "decimals": 0,
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legend": "right",
@@ -2875,6 +2891,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2903,6 +2920,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2932,6 +2950,7 @@
             ],
             "unit": "ops",
             "fill": 10,
+            "points": "never",
             "stack": "normal",
             "display": {
               "tooltip": "all"
@@ -2968,6 +2987,7 @@
             ],
             "unit": "pps",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -2991,6 +3011,7 @@
             ],
             "unit": "bps",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -3030,6 +3051,7 @@
             ],
             "unit": "short",
             "fill": 35,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -3132,6 +3154,18 @@
                   "series": "min"
                 },
                 "color": "#629e51"
+              },
+              {
+                "match": {
+                  "series": "max"
+                },
+                "lineWidth": 0
+              },
+              {
+                "match": {
+                  "series": "min"
+                },
+                "lineWidth": 0
               }
             ],
             "display": {
@@ -3173,6 +3207,7 @@
             ],
             "unit": "short",
             "fill": 35,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -3275,6 +3310,18 @@
                   "series": "min"
                 },
                 "color": "#629e51"
+              },
+              {
+                "match": {
+                  "series": "max"
+                },
+                "lineWidth": 0
+              },
+              {
+                "match": {
+                  "series": "min"
+                },
+                "lineWidth": 0
               }
             ],
             "display": {
@@ -3316,6 +3363,7 @@
             ],
             "unit": "short",
             "fill": 35,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -3418,6 +3466,18 @@
                   "series": "min"
                 },
                 "color": "#629e51"
+              },
+              {
+                "match": {
+                  "series": "max"
+                },
+                "lineWidth": 0
+              },
+              {
+                "match": {
+                  "series": "min"
+                },
+                "lineWidth": 0
               }
             ],
             "display": {
@@ -3459,6 +3519,7 @@
             ],
             "unit": "short",
             "fill": 35,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -3561,6 +3622,18 @@
                   "series": "min"
                 },
                 "color": "#629e51"
+              },
+              {
+                "match": {
+                  "series": "max"
+                },
+                "lineWidth": 0
+              },
+              {
+                "match": {
+                  "series": "min"
+                },
+                "lineWidth": 0
               }
             ],
             "display": {
@@ -3585,6 +3658,7 @@
               }
             ],
             "unit": "short",
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -3629,6 +3703,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -3666,6 +3741,7 @@
             ],
             "unit": "ops",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -3693,6 +3769,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -3716,6 +3793,7 @@
             ],
             "unit": "ops",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -3740,6 +3818,7 @@
             ],
             "unit": "opm",
             "fill": 35,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -3752,6 +3831,18 @@
                   "series": "Max"
                 },
                 "color": "#a7966f"
+              },
+              {
+                "match": {
+                  "series": "Max"
+                },
+                "lineWidth": 0
+              },
+              {
+                "match": {
+                  "series": "Min"
+                },
+                "lineWidth": 0
               },
               {
                 "match": {
@@ -3801,6 +3892,7 @@
             ],
             "unit": "bps",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -3832,6 +3924,7 @@
             ],
             "unit": "short",
             "fill": 35,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -3844,6 +3937,18 @@
                   "series": "Max Nodes"
                 },
                 "color": "#c15c17"
+              },
+              {
+                "match": {
+                  "series": "Max Nodes"
+                },
+                "lineWidth": 0
+              },
+              {
+                "match": {
+                  "series": "Min Nodes"
+                },
+                "lineWidth": 0
               }
             ],
             "display": {
@@ -3881,6 +3986,7 @@
             ],
             "unit": "reqps",
             "fill": 10,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -3953,6 +4059,7 @@
             ],
             "unit": "pps",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -3976,6 +4083,7 @@
             ],
             "unit": "ops",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -4004,6 +4112,7 @@
             ],
             "unit": "s",
             "fill": 35,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -4028,6 +4137,18 @@
                   "series": "min"
                 },
                 "color": "#6ed0e0"
+              },
+              {
+                "match": {
+                  "series": "max"
+                },
+                "lineWidth": 0
+              },
+              {
+                "match": {
+                  "series": "min"
+                },
+                "lineWidth": 0
               },
               {
                 "match": {
@@ -4070,6 +4191,7 @@
             ],
             "unit": "s",
             "fill": 35,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -4109,6 +4231,18 @@
               },
               {
                 "match": {
+                  "series": "max"
+                },
+                "lineWidth": 0
+              },
+              {
+                "match": {
+                  "series": "min trigger"
+                },
+                "lineWidth": 0
+              },
+              {
+                "match": {
                   "series": "folds"
                 },
                 "unit": "short"
@@ -4141,6 +4275,7 @@
             "unit": "short",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -4202,6 +4337,7 @@
             ],
             "unit": "short",
             "fill": 35,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -4220,6 +4356,18 @@
                   "series": "min"
                 },
                 "color": "#2f575e"
+              },
+              {
+                "match": {
+                  "series": "max"
+                },
+                "lineWidth": 0
+              },
+              {
+                "match": {
+                  "series": "min"
+                },
+                "lineWidth": 0
               }
             ],
             "display": {
@@ -4246,6 +4394,7 @@
             ],
             "unit": "s",
             "fill": 35,
+            "points": "never",
             "stack": "normal",
             "overrides": [
               {
@@ -4265,6 +4414,18 @@
                   "series": "min"
                 },
                 "color": "#806eb7"
+              },
+              {
+                "match": {
+                  "series": "max"
+                },
+                "lineWidth": 0
+              },
+              {
+                "match": {
+                  "series": "min"
+                },
+                "lineWidth": 0
               }
             ],
             "display": {
@@ -4302,6 +4463,7 @@
             ],
             "unit": "short",
             "fill": 35,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -4320,6 +4482,18 @@
                   "series": "policy errors"
                 },
                 "color": "#bf1b00"
+              },
+              {
+                "match": {
+                  "series": "max"
+                },
+                "lineWidth": 0
+              },
+              {
+                "match": {
+                  "series": "min"
+                },
+                "lineWidth": 0
               }
             ],
             "display": {
@@ -4362,6 +4536,7 @@
             "unit": "s",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -4391,6 +4566,7 @@
             "unit": "s",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -4420,6 +4596,7 @@
             "unit": "opm",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -4474,6 +4651,8 @@
             "unit": "short",
             "style": "bars",
             "fill": 100,
+            "points": "never",
+            "spanNulls": true,
             "stack": "normal",
             "overrides": [
               {
@@ -4537,6 +4716,7 @@
             ],
             "unit": "opm",
             "fill": 30,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -4586,6 +4766,7 @@
             "unit": "s",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -4665,6 +4846,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legend": "right",
               "legendMode": "table",
@@ -4690,6 +4872,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legend": "right",
               "legendMode": "table",
@@ -4716,6 +4899,7 @@
             "unit": "ops",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -4745,6 +4929,7 @@
             "unit": "ops",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legend": "right",
@@ -4774,6 +4959,7 @@
             "unit": "ops",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -4803,6 +4989,7 @@
             "unit": "short",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -4832,6 +5019,7 @@
             "unit": "ops",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -4861,6 +5049,7 @@
             "unit": "ops",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -4891,6 +5080,7 @@
             "unit": "opm",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "tooltip": "all"
@@ -4917,6 +5107,7 @@
             "unit": "opm",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "overrides": [
               {
@@ -4963,6 +5154,7 @@
             "unit": "opm",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "overrides": [
               {
@@ -5009,6 +5201,7 @@
             "unit": "opm",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "overrides": [
               {
@@ -5055,6 +5248,7 @@
             "unit": "opm",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "tooltip": "all"
@@ -5081,6 +5275,7 @@
             "unit": "opm",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "tooltip": "all"
@@ -5107,6 +5302,7 @@
             "unit": "opm",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "tooltip": "all"

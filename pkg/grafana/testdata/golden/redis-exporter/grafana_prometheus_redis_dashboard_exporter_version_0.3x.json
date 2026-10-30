@@ -123,7 +123,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "tooltip.msResolution",
           "tooltip.value_type"
         ],
@@ -150,7 +149,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "percentage",
           "tooltip.msResolution"
         ],
@@ -181,6 +179,7 @@
         "row": null,
         "status": "partial",
         "reasons": [
+          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
@@ -218,7 +217,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "tooltip.msResolution",
           "tooltip.value_type"
         ],
@@ -252,7 +250,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "tooltip.msResolution"
         ],
         "queries": [
@@ -278,7 +275,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "tooltip.msResolution"
         ],
         "queries": [
@@ -311,7 +307,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "tooltip.msResolution",
           "tooltip.value_type"
         ],
@@ -345,7 +340,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "tooltip.msResolution",
           "tooltip.value_type"
         ],
@@ -532,6 +526,7 @@
         ],
         "unit": "short",
         "fill": 10,
+        "spanNulls": true,
         "display": {
           "legend": "hidden",
           "tooltip": "all"
@@ -566,6 +561,7 @@
         "decimals": 2,
         "min": 0,
         "fill": 10,
+        "spanNulls": true,
         "display": {
           "legend": "hidden",
           "tooltip": "all"
@@ -638,6 +634,7 @@
         ],
         "unit": "bytes",
         "fill": 10,
+        "spanNulls": true,
         "display": {
           "tooltip": "all"
         }
@@ -663,6 +660,7 @@
         ],
         "unit": "none",
         "fill": 70,
+        "spanNulls": true,
         "stack": "normal",
         "display": {
           "legend": "right",
@@ -699,6 +697,7 @@
         ],
         "unit": "short",
         "fill": 70,
+        "spanNulls": true,
         "stack": "normal",
         "display": {
           "tooltip": "all"
@@ -731,6 +730,7 @@
         ],
         "unit": "short",
         "fill": 10,
+        "spanNulls": true,
         "overrides": [
           {
             "match": {
@@ -783,6 +783,7 @@
         ],
         "unit": "short",
         "fill": 80,
+        "spanNulls": true,
         "stack": "normal",
         "display": {
           "tooltip": "all"

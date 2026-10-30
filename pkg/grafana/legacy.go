@@ -173,9 +173,40 @@ func (b *panelBuild) graphDrawing(p *spec.FieldProps) {
 	}
 	b.consume("dashes")
 	b.graphStack(p)
-	if !flagOr(b.raw, "points", false) {
-		b.consume("pointradius")
+	b.graphLine(p)
+	b.graphPoints(p, bars)
+}
+
+func (b *panelBuild) graphLine(p *spec.FieldProps) {
+	if f, ok := numberValue(b.raw["linewidth"]); ok {
+		setLineWidth(p, lineWidthFor(f), false)
 	}
+	if flagOr(b.raw, "steppedLine", false) {
+		p.LineInterpolation = "stepAfter"
+	}
+	switch mode := asString(b.raw["nullPointMode"]); mode {
+	case "connected":
+		p.SpanNulls = true
+	case "null as zero":
+		b.partial("nullPointMode", "Drawing missing values as zero is not supported yet.")
+	}
+	b.consume("linewidth", "steppedLine", "nullPointMode")
+}
+
+func (b *panelBuild) graphPoints(p *spec.FieldProps, bars bool) {
+	switch {
+	case p.Style == "points":
+	case !bars && flagOr(b.raw, "points", false):
+		p.Points = "always"
+		b.consume("points")
+	default:
+		b.consume("pointradius")
+		return
+	}
+	if f, ok := numberValue(b.raw["pointradius"]); ok {
+		setPointSize(p, pointSizeFor(2*f), false)
+	}
+	b.consume("pointradius")
 }
 
 func (b *panelBuild) graphFill(p *spec.FieldProps, bars bool) {
@@ -360,8 +391,6 @@ func (b *panelBuild) seriesOverrideKey(props *spec.FieldProps, key string, o map
 		return ok
 	case "bars", "lines", "dashLength", "spaceLength":
 		return true
-	case "points":
-		return o["lines"] == false
 	case "dashes":
 		props.LineStyle = lineStyleFor(truthy(v))
 		return true
@@ -378,6 +407,48 @@ func (b *panelBuild) seriesOverrideKey(props *spec.FieldProps, key string, o map
 		props.Hidden = &hidden
 		return true
 	}
+	return lineShapeOverrideKey(props, key, o)
+}
+
+func lineShapeOverrideKey(props *spec.FieldProps, key string, o map[string]any) bool {
+	v := o[key]
+	switch key {
+	case "points":
+		if o["lines"] != false {
+			props.Points = pointsFor(truthy(v))
+		}
+		return true
+	case "pointradius":
+		f, ok := numberValue(v)
+		if ok {
+			setPointSize(props, pointSizeFor(2*f), true)
+		}
+		return ok
+	case "linewidth":
+		f, ok := numberValue(v)
+		if ok {
+			setLineWidth(props, lineWidthFor(f), true)
+		}
+		return ok
+	case "steppedLine":
+		flag, isBool := v.(bool)
+		if isBool {
+			props.LineInterpolation = steppedFor(flag)
+		}
+		return isBool
+	case "nullPointMode":
+		switch asString(v) {
+		case "connected":
+			props.SpanNulls = true
+			return true
+		case "null":
+			props.SpanNulls = false
+			return true
+		}
+		return false
+	case "fillGradient":
+		return true
+	}
 	return false
 }
 
@@ -386,6 +457,20 @@ func lineStyleFor(dashed bool) string {
 		return "dashed"
 	}
 	return "solid"
+}
+
+func pointsFor(shown bool) string {
+	if shown {
+		return "always"
+	}
+	return "auto"
+}
+
+func steppedFor(stepped bool) string {
+	if stepped {
+		return "stepAfter"
+	}
+	return "linear"
 }
 
 func stackFor(stacked bool) string {

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 17,
-      "imported": 2,
-      "partial": 15,
+      "imported": 15,
+      "partial": 2,
       "placeholder": 0,
       "unverified": 0
     },
@@ -119,7 +119,6 @@
         "paths": [
           "targets[0].exemplar",
           "fieldConfig.defaults.color",
-          "fieldConfig.defaults.custom.lineWidth",
           "options.legend.placement"
         ],
         "queries": [
@@ -140,13 +139,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -172,13 +167,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -197,15 +188,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Smoothed or stepped lines are drawn straight.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.lineInterpolation",
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -224,13 +209,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -270,15 +251,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Smoothed or stepped lines are drawn straight.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.lineInterpolation",
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -297,13 +272,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Proxy Balancer",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -322,13 +293,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Proxy Balancer",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -347,13 +314,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Proxy Balancer",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -379,13 +342,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Proxy Balancer",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -404,13 +363,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Server Status",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -436,13 +391,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Server Status",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -475,13 +426,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Server Status",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -507,13 +454,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Server Status",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -751,6 +694,7 @@
           }
         ],
         "fill": 70,
+        "lineWidth": 0,
         "display": {
           "mergeValues": false,
           "showValues": "never"
@@ -781,6 +725,7 @@
         ],
         "unit": "reqps",
         "fill": 10,
+        "spanNulls": true,
         "overrides": [
           {
             "match": {
@@ -822,6 +767,7 @@
         ],
         "unit": "ms",
         "fill": 10,
+        "spanNulls": true,
         "display": {
           "legendValues": [
             "mean",
@@ -853,6 +799,8 @@
         ],
         "unit": "short",
         "fill": 10,
+        "lineInterpolation": "stepAfter",
+        "spanNulls": true,
         "stack": "normal",
         "display": {
           "legendValues": [
@@ -896,6 +844,7 @@
         ],
         "unit": "short",
         "fill": 10,
+        "spanNulls": true,
         "display": {
           "legendValues": [
             "mean",
@@ -927,6 +876,8 @@
         ],
         "unit": "short",
         "fill": 10,
+        "lineInterpolation": "stepAfter",
+        "spanNulls": true,
         "stack": "normal",
         "display": {
           "legendValues": [
@@ -970,6 +921,7 @@
             ],
             "unit": "reqps",
             "fill": 10,
+            "spanNulls": true,
             "display": {
               "legendValues": [
                 "mean",
@@ -1000,6 +952,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "spanNulls": true,
             "display": {
               "legendValues": [
                 "mean",
@@ -1034,6 +987,7 @@
             ],
             "unit": "Bps",
             "fill": 10,
+            "spanNulls": true,
             "display": {
               "legendValues": [
                 "mean",
@@ -1064,6 +1018,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "spanNulls": true,
             "display": {
               "legendValues": [
                 "mean",
@@ -1112,6 +1067,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "spanNulls": true,
             "display": {
               "legendValues": [
                 "mean",
@@ -1150,6 +1106,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "spanNulls": true,
             "display": {
               "legendValues": [
                 "mean",
@@ -1184,6 +1141,7 @@
             ],
             "unit": "ms",
             "fill": 10,
+            "spanNulls": true,
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -1219,6 +1177,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "spanNulls": true,
             "display": {
               "legendValues": [
                 "mean",

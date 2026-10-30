@@ -351,6 +351,7 @@
             "min": 0,
             "max": 1,
             "fill": 10,
+            "points": "never",
             "stack": "normal",
             "display": {
               "tooltip": "all"
@@ -387,6 +388,7 @@
             ],
             "unit": "short",
             "min": 0,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -436,6 +438,7 @@
             "unit": "bytes",
             "min": 0,
             "fill": 10,
+            "points": "never",
             "stack": "normal",
             "display": {
               "tooltip": "all"
@@ -513,6 +516,7 @@
               }
             ],
             "min": 0,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -616,6 +620,7 @@
             ],
             "unit": "bps",
             "min": 0,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }

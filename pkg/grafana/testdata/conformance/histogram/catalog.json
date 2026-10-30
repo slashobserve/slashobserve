@@ -175,7 +175,6 @@
     { "id": "fieldConfig.defaults.custom.stacking.mode=normal", "path": "fieldConfig.defaults.custom.stacking.mode", "value": "normal" },
     { "id": "fieldConfig.defaults.custom.stacking.mode=percent", "path": "fieldConfig.defaults.custom.stacking.mode", "value": "percent" },
     { "id": "fieldConfig.defaults.custom.stacking.group=B", "path": "fieldConfig.defaults.custom.stacking.group", "value": "B", "with": {"fieldConfig.defaults.custom.stacking.mode": "normal"} },
-    { "id": "fieldConfig.defaults.custom.lineWidth=2", "path": "fieldConfig.defaults.custom.lineWidth", "value": 2, "expect": "cosmetic" },
     { "id": "fieldConfig.defaults.custom.lineWidth=4", "path": "fieldConfig.defaults.custom.lineWidth", "value": 4 },
     { "id": "fieldConfig.defaults.custom.fillOpacity=30", "path": "fieldConfig.defaults.custom.fillOpacity", "value": 30 },
     { "id": "fieldConfig.defaults.custom.gradientMode=opacity", "path": "fieldConfig.defaults.custom.gradientMode", "value": "opacity", "expect": "cosmetic" },

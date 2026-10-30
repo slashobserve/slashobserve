@@ -174,12 +174,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some transformations are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some transformations are not supported yet."
         ],
         "paths": [
-          "transformations[0]",
-          "fieldConfig.defaults.custom.pointSize"
+          "transformations[0]"
         ],
         "queries": [
           {
@@ -226,12 +224,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some transformations are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look."
+          "Some transformations are not supported yet."
         ],
         "paths": [
-          "transformations[0]",
-          "fieldConfig.defaults.custom.gradientMode"
+          "transformations[0]"
         ],
         "queries": [
           {
@@ -253,16 +249,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "This color scheme is not supported yet; series use the default palette.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight.",
-          "Some Grafana options of this panel are not supported yet."
+          "This color scheme is not supported yet; series use the default palette."
         ],
         "paths": [
-          "fieldConfig.defaults.color",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation",
-          "fieldConfig.defaults.custom.lineWidth"
+          "fieldConfig.defaults.color"
         ],
         "queries": [
           {
@@ -285,13 +275,11 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Smoothed or stepped lines are drawn straight."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[1].properties[2]",
-          "fieldConfig.defaults.custom.axisLabel",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -607,6 +595,8 @@
           }
         ],
         "fill": 20,
+        "lineInterpolation": "smooth",
+        "lineWidth": 3,
         "overrides": [
           {
             "match": {
@@ -634,6 +624,7 @@
           }
         ],
         "fill": 26,
+        "lineInterpolation": "smooth",
         "overrides": [
           {
             "match": {

@@ -320,6 +320,7 @@
             ],
             "unit": "percentunit",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legend": "hidden",
@@ -345,6 +346,7 @@
             ],
             "unit": "percentunit",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legend": "hidden",
@@ -383,6 +385,7 @@
             ],
             "unit": "percentunit",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legend": "hidden",
@@ -408,6 +411,7 @@
             ],
             "unit": "suffix:rds",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legend": "hidden",
@@ -450,6 +454,7 @@
             ],
             "unit": "Bps",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legend": "hidden",
@@ -479,6 +484,7 @@
             ],
             "unit": "Bps",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legend": "hidden",
@@ -517,6 +523,7 @@
             ],
             "unit": "percentunit",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legend": "hidden",
@@ -542,6 +549,7 @@
             ],
             "unit": "percentunit",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legend": "hidden",
@@ -580,6 +588,7 @@
             ],
             "unit": "percentunit",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legend": "hidden",

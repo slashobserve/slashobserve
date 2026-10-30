@@ -1006,6 +1006,7 @@
             ],
             "unit": "suffix:items/sec",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull"
@@ -1033,6 +1034,7 @@
             ],
             "unit": "none",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull"
@@ -1062,6 +1064,7 @@
             "min": 0,
             "max": 1,
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1090,6 +1093,7 @@
             ],
             "unit": "suffix:items/sec",
             "fill": 10,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -1118,6 +1122,7 @@
             ],
             "unit": "suffix:items/sec",
             "fill": 10,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -1146,6 +1151,7 @@
             ],
             "unit": "none",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1174,6 +1180,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1215,6 +1222,7 @@
             ],
             "unit": "suffix:items/sec",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull"
@@ -1242,6 +1250,7 @@
             ],
             "unit": "suffix:items/sec",
             "fill": 10,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -1272,6 +1281,7 @@
             "min": 0,
             "max": 1,
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1300,6 +1310,7 @@
             ],
             "unit": "suffix:items/sec",
             "fill": 10,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -1328,6 +1339,7 @@
             ],
             "unit": "none",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1356,6 +1368,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1397,6 +1410,7 @@
             ],
             "unit": "suffix:items/sec",
             "fill": 10,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -1425,6 +1439,7 @@
             ],
             "unit": "none",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1453,6 +1468,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1481,6 +1497,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",

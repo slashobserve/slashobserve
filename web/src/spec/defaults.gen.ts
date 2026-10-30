@@ -5,6 +5,11 @@ export const specDefaults = {
     "style": "line",
     "fill": 0,
     "lineStyle": "solid",
+    "lineInterpolation": "linear",
+    "lineWidth": 2,
+    "points": "auto",
+    "pointSize": 4,
+    "spanNulls": false,
     "stack": "none",
     "axis": "left",
     "hidden": false

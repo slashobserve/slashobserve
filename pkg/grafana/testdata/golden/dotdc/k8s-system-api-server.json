@@ -101,14 +101,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -130,14 +126,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -159,14 +151,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -188,14 +176,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -217,14 +201,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -246,14 +226,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -275,14 +251,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -304,14 +276,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -333,14 +301,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -362,14 +326,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "targets[0].exemplar"
         ],
         "queries": [
           {
@@ -556,6 +516,8 @@
         ],
         "unit": "short",
         "fill": 25,
+        "lineInterpolation": "smooth",
+        "points": "never",
         "display": {
           "tooltip": "all"
         }
@@ -580,6 +542,8 @@
         ],
         "unit": "short",
         "fill": 25,
+        "lineInterpolation": "smooth",
+        "points": "never",
         "display": {
           "tooltip": "all"
         }
@@ -603,7 +567,9 @@
           }
         ],
         "unit": "ms",
-        "fill": 25
+        "fill": 25,
+        "lineInterpolation": "smooth",
+        "points": "never"
       },
       {
         "id": "p54",
@@ -625,6 +591,8 @@
         ],
         "unit": "ms",
         "fill": 25,
+        "lineInterpolation": "smooth",
+        "points": "never",
         "display": {
           "tooltip": "all"
         }
@@ -648,7 +616,9 @@
           }
         ],
         "unit": "short",
-        "fill": 25
+        "fill": 25,
+        "lineInterpolation": "smooth",
+        "points": "never"
       },
       {
         "id": "p51",
@@ -670,6 +640,8 @@
         ],
         "unit": "short",
         "fill": 25,
+        "lineInterpolation": "smooth",
+        "points": "never",
         "display": {
           "tooltip": "all"
         }
@@ -694,6 +666,8 @@
         ],
         "unit": "short",
         "fill": 25,
+        "lineInterpolation": "smooth",
+        "points": "never",
         "stack": "normal"
       },
       {
@@ -715,7 +689,9 @@
           }
         ],
         "unit": "short",
-        "fill": 25
+        "fill": 25,
+        "lineInterpolation": "smooth",
+        "points": "never"
       },
       {
         "id": "p47",
@@ -737,7 +713,9 @@
         ],
         "unit": "percent",
         "decimals": 2,
-        "fill": 25
+        "fill": 25,
+        "lineInterpolation": "smooth",
+        "points": "never"
       },
       {
         "id": "p48",
@@ -758,7 +736,9 @@
           }
         ],
         "unit": "bytes",
-        "fill": 25
+        "fill": 25,
+        "lineInterpolation": "smooth",
+        "points": "never"
       }
     ]
   }

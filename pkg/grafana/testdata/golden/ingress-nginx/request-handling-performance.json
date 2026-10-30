@@ -303,6 +303,7 @@
         ],
         "unit": "s",
         "fill": 10,
+        "points": "never",
         "display": {
           "tooltip": "all"
         }
@@ -337,6 +338,7 @@
         ],
         "unit": "s",
         "fill": 10,
+        "points": "never",
         "display": {
           "tooltip": "all"
         }
@@ -360,6 +362,7 @@
         ],
         "unit": "reqps",
         "fill": 10,
+        "points": "never",
         "display": {
           "legend": "right",
           "legendMode": "table",
@@ -386,6 +389,7 @@
         ],
         "unit": "s",
         "fill": 10,
+        "points": "never",
         "display": {
           "legend": "right",
           "legendMode": "table",
@@ -412,6 +416,7 @@
         ],
         "unit": "percentunit",
         "fill": 10,
+        "points": "never",
         "display": {
           "legend": "right",
           "legendMode": "table",
@@ -438,6 +443,7 @@
         ],
         "unit": "s",
         "fill": 10,
+        "points": "never",
         "display": {
           "legend": "right",
           "legendMode": "table",
@@ -463,6 +469,7 @@
         ],
         "unit": "reqps",
         "fill": 10,
+        "points": "never",
         "display": {
           "legend": "right",
           "legendMode": "table",
@@ -495,6 +502,7 @@
         ],
         "unit": "decbytes",
         "fill": 10,
+        "points": "never",
         "display": {
           "legend": "right",
           "legendMode": "table",

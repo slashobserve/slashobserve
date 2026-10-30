@@ -4,6 +4,7 @@ import { assignSlots, type SlotMap } from "../colors"
 import type { FieldConfig } from "../field-config"
 import { reduce } from "../reducers"
 import type { AlignedSeries } from "./align"
+import { spanShortGaps } from "./gaps"
 import {
   formatTogether,
   seriesStyles,
@@ -75,6 +76,15 @@ export function chartSeries(
   )
 }
 
+function joinedValues(
+  xs: readonly number[],
+  { values, spanNulls }: Pick<ChartSeries, "values" | "spanNulls">
+): Cell[] {
+  return typeof spanNulls === "number"
+    ? spanShortGaps(xs, values, spanNulls)
+    : values
+}
+
 export function plotStateFor(
   xs: number[],
   ghosts: readonly Cell[][],
@@ -85,7 +95,7 @@ export function plotStateFor(
     hidden.has(key) ? "none" : stack
   )
   const { drawn, below, directions } = stackSeries(
-    series.map(({ values }) => values),
+    series.map((entry) => joinedValues(xs, entry)),
     modes,
     series.map(({ axis }) => axis),
     series.map(({ style }) => style)

@@ -188,7 +188,6 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "nullPointMode",
           "paceLength",
           "tooltip.sort"
         ],
@@ -213,12 +212,13 @@
         "status": "partial",
         "reasons": [
           "Logarithmic axes are not supported yet.",
+          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].logBase",
-          "fieldConfig.defaults.unitScale",
           "nullPointMode",
+          "fieldConfig.defaults.unitScale",
           "paceLength",
           "tooltip.sort"
         ],
@@ -243,12 +243,13 @@
         "status": "partial",
         "reasons": [
           "Logarithmic axes are not supported yet.",
+          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "yaxes[0].logBase",
-          "fieldConfig.defaults.unitScale",
           "nullPointMode",
+          "fieldConfig.defaults.unitScale",
           "paceLength",
           "tooltip.sort"
         ],
@@ -392,6 +393,7 @@
         "row": "Controller Stats",
         "status": "partial",
         "reasons": [
+          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
@@ -473,7 +475,6 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "nullPointMode",
           "paceLength",
           "tooltip.sort"
         ],
@@ -501,7 +502,6 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "nullPointMode",
           "paceLength",
           "tooltip.sort"
         ],
@@ -556,7 +556,6 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "nullPointMode",
           "paceLength",
           "tooltip.sort"
         ],
@@ -584,7 +583,6 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "nullPointMode",
           "paceLength",
           "tooltip.sort"
         ],
@@ -886,7 +884,6 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "nullPointMode",
           "paceLength",
           "tooltip.sort"
         ],
@@ -940,7 +937,6 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "nullPointMode",
           "paceLength",
           "tooltip.sort"
         ],
@@ -995,7 +991,6 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "nullPointMode",
           "paceLength"
         ],
         "queries": [
@@ -1031,6 +1026,7 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
+          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
@@ -1058,6 +1054,7 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
+          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
@@ -1085,6 +1082,7 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
+          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
@@ -1111,12 +1109,13 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
+          "Drawing missing values as zero is not supported yet.",
           "Thresholds below a value are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "thresholds[0]",
           "nullPointMode",
+          "thresholds[0]",
           "paceLength"
         ],
         "queries": [
@@ -1139,6 +1138,7 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
+          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
@@ -1165,6 +1165,7 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
+          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
@@ -1191,6 +1192,7 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
+          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
@@ -1217,6 +1219,7 @@
         "row": "Server Stats",
         "status": "partial",
         "reasons": [
+          "Drawing missing values as zero is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
@@ -1580,6 +1583,7 @@
             "unit": "short",
             "decimals": 0,
             "fill": 10,
+            "spanNulls": true,
             "stack": "normal",
             "display": {
               "legend": "right",
@@ -2024,6 +2028,7 @@
             ],
             "unit": "bytes",
             "fill": 10,
+            "spanNulls": true,
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2055,6 +2060,7 @@
             "unit": "none",
             "decimals": 1,
             "fill": 10,
+            "spanNulls": true,
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2131,6 +2137,7 @@
             ],
             "unit": "bytes",
             "fill": 10,
+            "spanNulls": true,
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2162,6 +2169,7 @@
             "unit": "none",
             "decimals": 1,
             "fill": 10,
+            "spanNulls": true,
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2426,6 +2434,7 @@
             ],
             "unit": "bytes",
             "fill": 10,
+            "spanNulls": true,
             "display": {
               "legend": "hidden",
               "tooltip": "all"
@@ -2489,6 +2498,7 @@
             "unit": "bytes",
             "min": 0,
             "fill": 10,
+            "spanNulls": true,
             "display": {
               "legend": "hidden",
               "tooltip": "all"
@@ -2538,6 +2548,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "spanNulls": true,
             "display": {
               "tooltip": "all"
             }

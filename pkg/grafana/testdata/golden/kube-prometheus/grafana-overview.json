@@ -335,6 +335,7 @@
         ],
         "unit": "reqps",
         "fill": 10,
+        "points": "never",
         "stack": "normal",
         "display": {
           "tooltip": "all"
@@ -370,6 +371,7 @@
         ],
         "unit": "ms",
         "fill": 10,
+        "points": "never",
         "display": {
           "tooltip": "all"
         }

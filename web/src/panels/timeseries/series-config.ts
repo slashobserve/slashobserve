@@ -8,6 +8,7 @@ import type { AlignedSeries } from "./align"
 
 export type DrawStyle = FieldConfig["style"]
 export type AxisKey = FieldConfig["axis"]
+export type Interpolation = FieldConfig["lineInterpolation"]
 
 export type StyledSeries = {
   key: string
@@ -17,6 +18,11 @@ export type StyledSeries = {
   line: LineStyle
   style: DrawStyle
   fill: number
+  interpolation: Interpolation
+  lineWidth: number
+  points: FieldConfig["points"]
+  pointSize: number
+  spanNulls: FieldConfig["spanNulls"]
   axis: AxisKey
   stack: FieldConfig["stack"]
   hidden: boolean
@@ -25,6 +31,13 @@ export type StyledSeries = {
 const explicitDashes: Record<Exclude<LineStyle, "solid">, number[]> = {
   dashed: [6, 4],
   dotted: [2, 3],
+}
+
+function stackSafeInterpolation(
+  interpolation: Interpolation,
+  stack: FieldConfig["stack"]
+): Interpolation {
+  return stack === "none" ? interpolation : "linear"
 }
 
 export function seriesStyles(
@@ -47,6 +60,14 @@ export function seriesStyles(
       line: explicit?.line ?? slot.line,
       style: config.style,
       fill: config.fill,
+      interpolation: stackSafeInterpolation(
+        config.lineInterpolation,
+        config.stack
+      ),
+      lineWidth: config.lineWidth,
+      points: config.points,
+      pointSize: config.pointSize,
+      spanNulls: config.spanNulls,
       axis: config.axis,
       stack: config.stack,
       hidden: config.hidden,

@@ -695,6 +695,11 @@ export interface FieldProps {
   style?: "line" | "bars" | "points";
   fill?: number;
   lineStyle?: "solid" | "dashed" | "dotted";
+  lineInterpolation?: "linear" | "smooth" | "stepBefore" | "stepAfter";
+  lineWidth?: number;
+  points?: "auto" | "always" | "never";
+  pointSize?: number;
+  spanNulls?: boolean | number;
   stack?: "none" | "normal" | "percent";
   axis?: "left" | "right" | "hidden";
   hidden?: boolean;

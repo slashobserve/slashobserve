@@ -124,7 +124,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
           "fieldConfig.defaults.unitScale"
         ],
         "queries": [
@@ -150,7 +149,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
           "fieldConfig.defaults.unitScale"
         ],
         "queries": [
@@ -215,7 +213,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
           "fieldConfig.defaults.unitScale"
         ],
         "queries": [
@@ -250,7 +247,6 @@
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.defaults.custom.spanNulls",
           "fieldConfig.defaults.unitScale"
         ],
         "queries": [
@@ -276,7 +272,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
           "fieldConfig.defaults.unitScale"
         ],
         "queries": [
@@ -309,7 +304,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
           "fieldConfig.defaults.unitScale"
         ],
         "queries": [
@@ -376,7 +370,6 @@
         ],
         "paths": [
           "fieldConfig.overrides[0]",
-          "fieldConfig.defaults.custom.spanNulls",
           "fieldConfig.defaults.unitScale"
         ],
         "queries": [
@@ -402,7 +395,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.spanNulls",
           "fieldConfig.defaults.unitScale"
         ],
         "queries": [
@@ -608,6 +600,8 @@
         ],
         "unit": "short",
         "fill": 80,
+        "points": "never",
+        "spanNulls": true,
         "stack": "normal",
         "display": {
           "legend": "hidden",
@@ -642,6 +636,8 @@
         "unit": "short",
         "min": 0,
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "display": {
           "legend": "hidden",
           "tooltip": "all"
@@ -675,6 +671,7 @@
         "unit": "bytes",
         "min": 0,
         "fill": 10,
+        "points": "never",
         "overrides": [
           {
             "match": {
@@ -714,6 +711,8 @@
         ],
         "unit": "bytes",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "display": {
           "tooltip": "all"
         }
@@ -739,6 +738,8 @@
         ],
         "unit": "short",
         "fill": 70,
+        "points": "never",
+        "spanNulls": true,
         "stack": "normal",
         "display": {
           "legendValues": [
@@ -775,6 +776,8 @@
         ],
         "unit": "short",
         "fill": 70,
+        "points": "never",
+        "spanNulls": true,
         "stack": "normal",
         "display": {
           "tooltip": "all"
@@ -807,6 +810,8 @@
         ],
         "unit": "short",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "overrides": [
           {
             "match": {
@@ -854,6 +859,7 @@
         ],
         "unit": "short",
         "fill": 10,
+        "points": "never",
         "display": {
           "tooltip": "all"
         }
@@ -878,6 +884,8 @@
           }
         ],
         "unit": "s",
+        "points": "never",
+        "spanNulls": true,
         "display": {
           "tooltip": "all"
         }
@@ -903,6 +911,8 @@
         ],
         "unit": "s",
         "fill": 80,
+        "points": "never",
+        "spanNulls": true,
         "stack": "normal",
         "display": {
           "tooltip": "all"

@@ -45,13 +45,11 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Hiding a series from the tooltip is not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Hiding a series from the tooltip is not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[2]",
-          "fieldConfig.overrides[1].properties[2]",
-          "fieldConfig.defaults.custom.spanNulls"
+          "fieldConfig.overrides[1].properties[2]"
         ],
         "queries": [
           {
@@ -136,13 +134,11 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Hiding a series from the tooltip is not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Hiding a series from the tooltip is not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[2]",
-          "fieldConfig.overrides[1].properties[2]",
-          "fieldConfig.defaults.custom.spanNulls"
+          "fieldConfig.overrides[1].properties[2]"
         ],
         "queries": [
           {
@@ -178,13 +174,11 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Hiding a series from the tooltip is not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Hiding a series from the tooltip is not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[2]",
-          "fieldConfig.overrides[1].properties[2]",
-          "fieldConfig.defaults.custom.spanNulls"
+          "fieldConfig.overrides[1].properties[2]"
         ],
         "queries": [
           {
@@ -358,6 +352,8 @@
           }
         ],
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "stack": "normal",
         "overrides": [
           {
@@ -497,6 +493,8 @@
         ],
         "unit": "bytes",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "stack": "normal",
         "overrides": [
           {
@@ -552,6 +550,8 @@
         ],
         "unit": "bytes",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "stack": "normal",
         "overrides": [
           {

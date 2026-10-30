@@ -187,7 +187,6 @@
     { "id": "fieldConfig.defaults.custom.hideFrom.legend=true", "path": "fieldConfig.defaults.custom.hideFrom.legend", "value": true },
     { "id": "fieldConfig.defaults.custom.hideFrom.tooltip=true", "path": "fieldConfig.defaults.custom.hideFrom.tooltip", "value": true },
     { "id": "fieldConfig.defaults.custom.hideFrom.viz=true", "path": "fieldConfig.defaults.custom.hideFrom.viz", "value": true },
-    { "id": "fieldConfig.defaults.custom.lineWidth=2", "path": "fieldConfig.defaults.custom.lineWidth", "value": 2, "expect": "cosmetic" },
     { "id": "fieldConfig.defaults.custom.lineWidth=4", "path": "fieldConfig.defaults.custom.lineWidth", "value": 4 },
     { "id": "fieldConfig.defaults.custom.fillOpacity=30", "path": "fieldConfig.defaults.custom.fillOpacity", "value": 30 },
     { "id": "fieldConfig.defaults.custom.gradientMode=opacity", "path": "fieldConfig.defaults.custom.gradientMode", "value": "opacity", "expect": "cosmetic" },

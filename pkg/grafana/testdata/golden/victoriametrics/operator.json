@@ -922,6 +922,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -950,6 +951,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -995,6 +997,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1023,6 +1026,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1051,6 +1055,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "max",
@@ -1079,6 +1084,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1236,6 +1242,7 @@
             ],
             "unit": "bytes",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1264,6 +1271,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -1287,6 +1295,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -1310,6 +1319,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",

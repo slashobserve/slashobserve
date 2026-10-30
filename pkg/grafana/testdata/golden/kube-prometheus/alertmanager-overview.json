@@ -232,6 +232,7 @@
             ],
             "unit": "none",
             "fill": 10,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legend": "hidden",
@@ -264,6 +265,7 @@
             ],
             "unit": "ops",
             "fill": 10,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legend": "hidden",
@@ -309,6 +311,7 @@
             ],
             "unit": "ops",
             "fill": 10,
+            "points": "never",
             "stack": "normal",
             "repeat": "integration",
             "display": {
@@ -347,6 +350,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "stack": "normal",
             "repeat": "integration",
             "display": {

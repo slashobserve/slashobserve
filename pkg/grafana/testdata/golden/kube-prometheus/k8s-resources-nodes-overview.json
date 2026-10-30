@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 5,
-      "imported": 0,
-      "partial": 5,
+      "imported": 4,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -45,12 +45,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[1]",
-          "fieldConfig.defaults.custom.spanNulls"
+          "fieldConfig.overrides[0].properties[1]"
         ],
         "queries": [
           {
@@ -77,13 +75,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -116,13 +110,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -155,13 +145,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -180,13 +166,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -263,6 +245,8 @@
         ],
         "unit": "short",
         "decimals": 0,
+        "points": "never",
+        "spanNulls": true,
         "overrides": [
           {
             "match": {
@@ -306,6 +290,8 @@
         ],
         "unit": "short",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -341,6 +327,8 @@
         ],
         "unit": "bytes",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -368,6 +356,8 @@
         ],
         "unit": "percentunit",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -395,6 +385,8 @@
         ],
         "unit": "percentunit",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "interval": "1m",
         "display": {
           "legend": "right",

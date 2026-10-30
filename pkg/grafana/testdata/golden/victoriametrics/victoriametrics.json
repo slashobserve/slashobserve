@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 76,
-      "imported": 57,
-      "partial": 19,
+      "imported": 58,
+      "partial": 18,
       "placeholder": 0,
       "unverified": 0
     },
@@ -243,12 +243,10 @@
         "row": "Stats",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Smoothed or stepped lines are drawn straight."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisSoftMin",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "fieldConfig.defaults.custom.axisSoftMin"
         ],
         "queries": [
           {
@@ -1135,12 +1133,10 @@
         "row": "Troubleshooting",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Smoothed or stepped lines are drawn straight."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisSoftMin",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "fieldConfig.defaults.custom.axisSoftMin"
         ],
         "queries": [
           {
@@ -1874,13 +1870,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Drilldown",
-        "status": "partial",
-        "reasons": [
-          "Gradient fill is not part of the SlashObserve look."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.gradientMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2333,6 +2325,8 @@
             ],
             "unit": "none",
             "decimals": 0,
+            "lineInterpolation": "stepAfter",
+            "points": "never",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2377,6 +2371,7 @@
             "unit": "short",
             "min": 0,
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2407,6 +2402,7 @@
             ],
             "unit": "short",
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2446,6 +2442,7 @@
               }
             ],
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2476,6 +2473,7 @@
             "unit": "s",
             "min": 0,
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2508,6 +2506,7 @@
             "unit": "short",
             "min": 0,
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2600,6 +2599,7 @@
                 "newTab": true
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2637,6 +2637,7 @@
                 "newTab": true
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2675,6 +2676,7 @@
                 "newTab": true
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2718,6 +2720,7 @@
                 "color": "ok"
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2771,6 +2774,7 @@
                 "newTab": true
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2806,6 +2810,7 @@
             ],
             "unit": "short",
             "min": 0,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -2857,6 +2862,7 @@
                 "color": "ok"
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2892,6 +2898,7 @@
             ],
             "unit": "bytes",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2925,6 +2932,7 @@
             "unit": "percentunit",
             "decimals": 2,
             "min": 0,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -2968,6 +2976,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3001,6 +3010,7 @@
             "decimals": 0,
             "min": 0,
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3044,6 +3054,7 @@
                 "color": "ok"
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3076,6 +3087,7 @@
             "unit": "short",
             "decimals": 0,
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3107,6 +3119,7 @@
             "unit": "short",
             "min": 0,
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3139,6 +3152,7 @@
             ],
             "unit": "percentunit",
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3168,6 +3182,7 @@
             "unit": "short",
             "min": 0,
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3206,6 +3221,7 @@
                 "color": "ok"
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3246,6 +3262,7 @@
                 "color": "critical"
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3279,6 +3296,7 @@
             ],
             "unit": "decbits",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3328,6 +3346,7 @@
             ],
             "unit": "short",
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3367,6 +3386,7 @@
               }
             ],
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3401,6 +3421,7 @@
             "min": 0,
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3431,6 +3452,7 @@
             "unit": "short",
             "min": 0,
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3471,6 +3493,7 @@
             "unit": "percentunit",
             "min": 0,
             "max": 1,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -3515,6 +3538,7 @@
               }
             ],
             "unit": "percentunit",
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -3549,6 +3573,7 @@
               }
             ],
             "unit": "short",
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3588,6 +3613,7 @@
               }
             ],
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3638,6 +3664,8 @@
             ],
             "unit": "none",
             "decimals": 0,
+            "lineInterpolation": "stepAfter",
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull"
@@ -3700,6 +3728,7 @@
               }
             ],
             "unit": "s",
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -3745,6 +3774,7 @@
             "unit": "short",
             "min": 0,
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3783,6 +3813,7 @@
                 "newTab": true
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3824,6 +3855,7 @@
                 "newTab": true
               }
             ],
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -3868,6 +3900,7 @@
             "unit": "short",
             "min": 0,
             "fill": 10,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -3909,6 +3942,7 @@
             "unit": "short",
             "decimals": 0,
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3939,6 +3973,7 @@
             "unit": "short",
             "decimals": 0,
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -3994,6 +4029,7 @@
                 "newTab": true
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -4029,6 +4065,7 @@
             ],
             "unit": "short",
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -4077,6 +4114,7 @@
               }
             ],
             "fill": 10,
+            "points": "never",
             "stack": "percent",
             "display": {
               "legendValues": [
@@ -4117,6 +4155,7 @@
             ],
             "unit": "bytes",
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -4152,6 +4191,7 @@
             ],
             "unit": "short",
             "min": 0,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -4196,6 +4236,7 @@
             ],
             "unit": "short",
             "min": 0,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -4237,6 +4278,7 @@
             "unit": "short",
             "min": 0,
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -4267,6 +4309,7 @@
             "unit": "short",
             "decimals": 2,
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -4303,6 +4346,7 @@
             "unit": "short",
             "decimals": 0,
             "min": 0,
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -4340,6 +4384,7 @@
             "unit": "short",
             "decimals": 2,
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -4372,6 +4417,7 @@
             "unit": "short",
             "decimals": 2,
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -4404,6 +4450,7 @@
             "unit": "short",
             "decimals": 2,
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -4434,6 +4481,7 @@
               }
             ],
             "unit": "short",
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -4560,6 +4608,7 @@
             ],
             "unit": "decbytes",
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -4591,6 +4640,7 @@
             ],
             "unit": "decbytes",
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -4622,6 +4672,7 @@
             ],
             "unit": "s",
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -4652,6 +4703,7 @@
             ],
             "unit": "short",
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -4692,6 +4744,7 @@
               }
             ],
             "fill": 10,
+            "points": "never",
             "stack": "percent",
             "display": {
               "legendValues": [
@@ -4728,6 +4781,7 @@
                 "color": "ok"
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -4769,6 +4823,7 @@
             ],
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",

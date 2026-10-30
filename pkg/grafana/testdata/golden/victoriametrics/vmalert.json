@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 41,
-      "imported": 32,
-      "partial": 9,
+      "imported": 33,
+      "partial": 8,
       "placeholder": 0,
       "unverified": 0
     },
@@ -177,11 +177,9 @@
         "row": "Stats",
         "status": "partial",
         "reasons": [
-          "Smoothed or stepped lines are drawn straight.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.lineInterpolation",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -623,13 +621,11 @@
         "status": "partial",
         "reasons": [
           "Moved or resized to fit the grid.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Smoothed or stepped lines are drawn straight."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "gridPos",
-          "fieldConfig.defaults.custom.axisSoftMin",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "fieldConfig.defaults.custom.axisSoftMin"
         ],
         "queries": [
           {
@@ -800,13 +796,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Recording rules ($instance)",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1313,6 +1305,8 @@
             "unit": "short",
             "decimals": 0,
             "min": 0,
+            "lineInterpolation": "stepAfter",
+            "points": "never",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -1355,6 +1349,7 @@
               }
             ],
             "unit": "short",
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1385,6 +1380,7 @@
               }
             ],
             "unit": "s",
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1415,6 +1411,7 @@
               }
             ],
             "unit": "short",
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1444,6 +1441,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1494,6 +1492,7 @@
                 "newTab": true
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1532,6 +1531,7 @@
                 "newTab": true
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1563,6 +1563,7 @@
             ],
             "unit": "percentunit",
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1605,6 +1606,7 @@
                 "newTab": true
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1643,6 +1645,7 @@
                 "newTab": true
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1686,6 +1689,7 @@
                 "color": "ok"
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1729,6 +1733,7 @@
                 "color": "ok"
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1761,6 +1766,7 @@
             "unit": "short",
             "decimals": 0,
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1792,6 +1798,7 @@
             "unit": "percentunit",
             "decimals": 3,
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1832,6 +1839,7 @@
                 "color": "critical"
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1862,6 +1870,7 @@
             ],
             "unit": "percentunit",
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1898,6 +1907,7 @@
                 "color": "ok"
               }
             ],
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1963,6 +1973,7 @@
             "unit": "short",
             "style": "bars",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -1992,6 +2003,8 @@
             ],
             "unit": "none",
             "decimals": 0,
+            "lineInterpolation": "stepAfter",
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull"
@@ -2023,6 +2036,7 @@
             "unit": "short",
             "style": "bars",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2065,6 +2079,7 @@
               }
             ],
             "unit": "short",
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2095,6 +2110,7 @@
               }
             ],
             "unit": "short",
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2125,6 +2141,7 @@
               }
             ],
             "unit": "short",
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2156,6 +2173,7 @@
             ],
             "unit": "short",
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2185,6 +2203,7 @@
             ],
             "unit": "short",
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2227,6 +2246,7 @@
               }
             ],
             "unit": "short",
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2257,6 +2277,8 @@
               }
             ],
             "unit": "short",
+            "points": "never",
+            "spanNulls": true,
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -2286,6 +2308,7 @@
               }
             ],
             "unit": "short",
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2347,6 +2370,7 @@
             ],
             "unit": "decbytes",
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",
@@ -2449,6 +2473,7 @@
             ],
             "unit": "short",
             "min": 0,
+            "points": "never",
             "display": {
               "legendValues": [
                 "mean",

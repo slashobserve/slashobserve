@@ -51,9 +51,7 @@
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.overrides[7].properties[3]",
           "fieldConfig.overrides[7].properties[4]",
-          "fieldConfig.overrides[8].properties[2]",
           "fieldConfig.overrides[8].properties[4]",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.overrides[7].properties[0].value.group",
@@ -2988,6 +2986,7 @@
                 },
                 "fill": 0,
                 "lineStyle": "solid",
+                "lineWidth": 2,
                 "stack": "none"
               },
               {
@@ -2996,6 +2995,7 @@
                 },
                 "fill": 0,
                 "lineStyle": "solid",
+                "lineWidth": 2,
                 "stack": "none"
               }
             ],

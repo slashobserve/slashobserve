@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 10,
-      "imported": 1,
-      "partial": 9,
+      "imported": 10,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Process",
-        "status": "partial",
-        "reasons": [
-          "Gradient fill is not part of the SlashObserve look."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.gradientMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -68,13 +64,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Process",
-        "status": "partial",
-        "reasons": [
-          "Gradient fill is not part of the SlashObserve look."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.gradientMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -93,13 +85,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Process",
-        "status": "partial",
-        "reasons": [
-          "Gradient fill is not part of the SlashObserve look."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.gradientMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -118,13 +106,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network",
-        "status": "partial",
-        "reasons": [
-          "Gradient fill is not part of the SlashObserve look."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.gradientMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -150,13 +134,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network",
-        "status": "partial",
-        "reasons": [
-          "Gradient fill is not part of the SlashObserve look."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.gradientMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -182,13 +162,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network",
-        "status": "partial",
-        "reasons": [
-          "Gradient fill is not part of the SlashObserve look."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.gradientMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -207,13 +183,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Operations",
-        "status": "partial",
-        "reasons": [
-          "Gradient fill is not part of the SlashObserve look."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.gradientMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -253,13 +225,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Operations",
-        "status": "partial",
-        "reasons": [
-          "Gradient fill is not part of the SlashObserve look."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.gradientMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -285,13 +253,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network Resources",
-        "status": "partial",
-        "reasons": [
-          "Gradient fill is not part of the SlashObserve look."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.gradientMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -368,6 +332,7 @@
               }
             ],
             "fill": 10,
+            "points": "never",
             "interval": "5s",
             "display": {
               "legendValues": [
@@ -396,6 +361,7 @@
             ],
             "unit": "bytes",
             "fill": 10,
+            "points": "never",
             "interval": "5s",
             "display": {
               "legendValues": [
@@ -423,6 +389,7 @@
               }
             ],
             "fill": 10,
+            "points": "never",
             "interval": "5s",
             "display": {
               "legendValues": [
@@ -468,6 +435,7 @@
             ],
             "unit": "cps",
             "fill": 10,
+            "points": "never",
             "interval": "5s",
             "display": {
               "legendValues": [
@@ -500,6 +468,7 @@
             ],
             "unit": "Bps",
             "fill": 10,
+            "points": "never",
             "interval": "5s",
             "display": {
               "legendValues": [
@@ -528,6 +497,7 @@
             ],
             "unit": "suffix:qps",
             "fill": 10,
+            "points": "never",
             "interval": "5s",
             "display": {
               "legendValues": [
@@ -568,6 +538,7 @@
               }
             ],
             "fill": 10,
+            "points": "never",
             "interval": "5s",
             "display": {
               "legendValues": [
@@ -596,6 +567,7 @@
             "unit": "ops",
             "style": "bars",
             "fill": 100,
+            "points": "never",
             "stack": "normal",
             "overrides": [
               {
@@ -690,6 +662,7 @@
               }
             ],
             "fill": 10,
+            "points": "never",
             "interval": "5s",
             "display": {
               "legendValues": [
@@ -740,6 +713,7 @@
             "unit": "short",
             "decimals": 0,
             "fill": 10,
+            "points": "never",
             "interval": "5s",
             "display": {
               "legendValues": [

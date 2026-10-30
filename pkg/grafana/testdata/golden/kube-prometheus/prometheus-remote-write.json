@@ -428,6 +428,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -452,6 +453,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -489,6 +491,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -526,6 +529,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -550,6 +554,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -574,6 +579,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -598,6 +604,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -635,6 +642,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -659,6 +667,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -694,7 +703,8 @@
                 "intervalFactor": 2
               }
             ],
-            "unit": "none"
+            "unit": "none",
+            "points": "never"
           },
           {
             "id": "p16",
@@ -714,7 +724,8 @@
                 "intervalFactor": 2
               }
             ],
-            "unit": "none"
+            "unit": "none",
+            "points": "never"
           }
         ]
       },
@@ -746,7 +757,8 @@
                 "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}",
                 "intervalFactor": 2
               }
-            ]
+            ],
+            "points": "never"
           },
           {
             "id": "p19",
@@ -765,7 +777,8 @@
                 "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}",
                 "intervalFactor": 2
               }
-            ]
+            ],
+            "points": "never"
           },
           {
             "id": "p20",
@@ -784,7 +797,8 @@
                 "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}",
                 "intervalFactor": 2
               }
-            ]
+            ],
+            "points": "never"
           },
           {
             "id": "p21",
@@ -803,7 +817,8 @@
                 "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}",
                 "intervalFactor": 2
               }
-            ]
+            ],
+            "points": "never"
           }
         ]
       }

@@ -669,21 +669,21 @@ func TestOptionsTheRenderersAlreadyDrawTheSameWayAreNotReported(t *testing.T) {
 		silent    bool
 	}{
 		{"points never", series(`"showPoints":"never"`, ""), true},
-		{"points always", series(`"showPoints":"always"`, ""), false},
+		{"points always", series(`"showPoints":"always"`, ""), true},
 		{"line width 2", series(`"lineWidth":2`, ""), true},
-		{"line width 3", series(`"lineWidth":3`, ""), false},
+		{"line width 3", series(`"lineWidth":3`, ""), true},
 		{"tooltip sorted descending", series("", `"tooltip":{"mode":"single","sort":"desc"}`), true},
 		{"tooltip sorted ascending", series("", `"tooltip":{"mode":"single","sort":"asc"}`), false},
 		{"legend width", series("", `"legend":{"displayMode":"list","placement":"right","width":300}`), true},
 		{"override line width 2", override("timeseries", `{"id":"custom.lineWidth","value":2}`), true},
-		{"override line width 4", override("timeseries", `{"id":"custom.lineWidth","value":4}`), false},
+		{"override line width 4", override("timeseries", `{"id":"custom.lineWidth","value":4}`), true},
 		{"stat justified automatically", panelDoc("stat", upTarget+`,"options":{"justifyMode":"auto"}`), true},
 		{"stat centered", panelDoc("stat", upTarget+`,"options":{"justifyMode":"center"}`), false},
 		{"table column width", panelDoc("table", upTarget+`,"fieldConfig":{"defaults":{"custom":{"width":120}},"overrides":[]}`), true},
 		{"table override column width", override("table", `{"id":"custom.width","value":90}`), true},
 		{"legend click marker", panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":{},"overrides":[{"__systemRef":"hideSeriesFrom","matcher":{"id":"byName","options":"a"},"properties":[{"id":"custom.hideFrom","value":{"viz":true}}]}]}`), true},
 		{"legacy line width 2", panelDoc("graph", upTarget+`,"linewidth":2`), true},
-		{"legacy line width 3", panelDoc("graph", upTarget+`,"linewidth":3`), false},
+		{"legacy line width 3", panelDoc("graph", upTarget+`,"linewidth":3`), true},
 		{"table column min width", panelDoc("table", upTarget+`,"fieldConfig":{"defaults":{"custom":{"minWidth":50}},"overrides":[]}`), true},
 		{"table override column min width", override("table", `{"id":"custom.minWidth","value":200}`), true},
 		{"legacy legend width", panelDoc("graph", upTarget+`,"legend":{"show":true,"rightSide":true,"sideWidth":350}`), true},
@@ -700,7 +700,6 @@ func TestOptionsTheRenderersAlreadyDrawTheSameWayAreNotReported(t *testing.T) {
 
 func TestOptionsThatChangeMeaningAreAlwaysReported(t *testing.T) {
 	cases := []struct{ name, doc string }{
-		{"span nulls", panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":{"custom":{"spanNulls":true}},"overrides":[]}`)},
 		{"cumulative tooltip values", panelDoc("graph", upTarget+`,"tooltip":{"shared":true,"value_type":"cumulative"}`)},
 		{"negative-Y transform", panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":{},"overrides":[{"matcher":{"id":"byName","options":"a"},"properties":[{"id":"custom.transform","value":"negative-Y"}]}]}`)},
 		{"query interval", panelDoc("timeseries", `"targets":[{"refId":"A","expr":"up","interval":"$interval"}]`)},

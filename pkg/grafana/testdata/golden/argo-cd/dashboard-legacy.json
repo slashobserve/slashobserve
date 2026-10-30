@@ -113,7 +113,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "paceLength",
           "tooltip.sort"
         ],
@@ -514,7 +513,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "paceLength",
           "tooltip.sort"
         ],
@@ -567,7 +565,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "paceLength",
           "tooltip.sort"
         ],
@@ -620,7 +617,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "paceLength"
         ],
         "queries": [
@@ -656,12 +652,13 @@
         "row": "Server Stats:",
         "status": "partial",
         "reasons": [
+          "Drawing missing values as zero is not supported yet.",
           "Thresholds below a value are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "thresholds[0]",
           "nullPointMode",
+          "thresholds[0]",
           "paceLength",
           "tooltip.sort"
         ],
@@ -685,12 +682,13 @@
         "row": "Server Stats:",
         "status": "partial",
         "reasons": [
+          "Drawing missing values as zero is not supported yet.",
           "Thresholds below a value are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "thresholds[0]",
           "nullPointMode",
+          "thresholds[0]",
           "paceLength"
         ],
         "queries": [
@@ -713,12 +711,13 @@
         "row": "Server Stats:",
         "status": "partial",
         "reasons": [
+          "Drawing missing values as zero is not supported yet.",
           "Thresholds below a value are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "thresholds[0]",
           "nullPointMode",
+          "thresholds[0]",
           "paceLength"
         ],
         "queries": [
@@ -741,12 +740,13 @@
         "row": "Server Stats:",
         "status": "partial",
         "reasons": [
+          "Drawing missing values as zero is not supported yet.",
           "Thresholds below a value are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "thresholds[0]",
           "nullPointMode",
+          "thresholds[0]",
           "paceLength"
         ],
         "queries": [
@@ -769,12 +769,13 @@
         "row": "Server Stats:",
         "status": "partial",
         "reasons": [
+          "Drawing missing values as zero is not supported yet.",
           "Thresholds below a value are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "thresholds[0]",
           "nullPointMode",
+          "thresholds[0]",
           "paceLength"
         ],
         "queries": [
@@ -797,12 +798,13 @@
         "row": "Server Stats:",
         "status": "partial",
         "reasons": [
+          "Drawing missing values as zero is not supported yet.",
           "Thresholds below a value are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "thresholds[0]",
           "nullPointMode",
+          "thresholds[0]",
           "paceLength"
         ],
         "queries": [
@@ -825,12 +827,13 @@
         "row": "Server Stats:",
         "status": "partial",
         "reasons": [
+          "Drawing missing values as zero is not supported yet.",
           "Thresholds below a value are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "thresholds[0]",
           "nullPointMode",
+          "thresholds[0]",
           "paceLength"
         ],
         "queries": [
@@ -856,7 +859,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "nullPointMode",
           "paceLength",
           "tooltip.sort"
         ],
@@ -1074,6 +1076,7 @@
               }
             ],
             "unit": "short",
+            "spanNulls": true,
             "stack": "normal",
             "display": {
               "legend": "hidden",
@@ -1606,6 +1609,7 @@
             ],
             "unit": "bytes",
             "min": 0,
+            "spanNulls": true,
             "display": {
               "legend": "hidden",
               "tooltip": "all"
@@ -1667,6 +1671,7 @@
             ],
             "unit": "bytes",
             "min": 0,
+            "spanNulls": true,
             "display": {
               "legend": "hidden",
               "tooltip": "all"
@@ -1714,6 +1719,7 @@
               }
             ],
             "unit": "short",
+            "spanNulls": true,
             "display": {
               "tooltip": "all"
             }
@@ -1915,6 +1921,7 @@
             ],
             "unit": "bytes",
             "min": 0,
+            "spanNulls": true,
             "display": {
               "legend": "hidden",
               "tooltip": "all"
