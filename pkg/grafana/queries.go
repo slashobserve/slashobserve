@@ -15,14 +15,13 @@ import (
 )
 
 const (
-	maxPanelQueries   = 26
-	maxLegend         = 200
-	altinityPlugin    = "vertamedia-clickhouse-datasource"
-	genericQueryNote  = "Some Grafana options of this query are not supported yet."
-	sqlFormatTable    = 1
-	sqlFormatLogs     = 2
-	sqlFormatTraces   = 3
-	expressionDropped = "Server-side expressions are not supported yet."
+	maxPanelQueries  = 26
+	maxLegend        = 200
+	altinityPlugin   = "vertamedia-clickhouse-datasource"
+	genericQueryNote = "Some Grafana options of this query are not supported yet."
+	sqlFormatTable   = 1
+	sqlFormatLogs    = 2
+	sqlFormatTraces  = 3
 
 	exemplarsTimeSeriesOnly = "Exemplars are drawn on time series only."
 
@@ -39,6 +38,8 @@ type builtQuery struct {
 	src          *sourceDS
 	splitInstant bool
 	copyOf       *builtQuery
+	expr         *pendingExpression
+	late         *targetBuild
 }
 
 type targetBuild struct {
@@ -52,6 +53,7 @@ type targetBuild struct {
 	splitInstant bool
 	rateMacro    bool
 	expanded     bool
+	expr         *pendingExpression
 }
 
 var targetSilent = map[string]bool{
@@ -110,11 +112,17 @@ func (b *panelBuild) convertQueries() {
 			b.dropTarget(i, target, reason)
 			continue
 		}
-		tb.reportUnconsumed()
+		bq := &builtQuery{q: q, refID: asString(target["refId"]), index: i, src: tb.src, splitInstant: tb.splitInstant, expr: tb.expr}
+		if tb.expr != nil {
+			bq.late = tb
+		} else {
+			tb.reportUnconsumed()
+		}
 		line := b.lineFor(i)
 		line.Rewrites = append(line.Rewrites, tb.rewrites...)
-		b.built = append(b.built, &builtQuery{q: q, refID: asString(target["refId"]), index: i, src: tb.src, splitInstant: tb.splitInstant})
+		b.built = append(b.built, bq)
 	}
+	b.dropBrokenExpressions()
 	b.splitInstantQueries()
 	if overflow {
 		b.issues.limit++
@@ -214,7 +222,7 @@ func (tb *targetBuild) addRewrite(from, to string) {
 
 func (tb *targetBuild) convert(ref dsRef, declared map[string]bool) (spec.Query, string) {
 	if ref.kind == refSpecial && ref.special == "expression" {
-		return spec.Query{}, expressionDropped
+		return tb.expression()
 	}
 	if !ref.supported() {
 		return spec.Query{}, ref.label() + " is not supported yet."
@@ -552,15 +560,15 @@ func effectiveRefs(built []*builtQuery) []string {
 func (b *panelBuild) assignQueries() {
 	refs := effectiveRefs(b.built)
 	explicit := explicitRefIDs(b.built)
-	panelDS := b.built[0].src.ref()
+	panelDS := b.built[b.firstDataQuery()].src.ref()
 	b.panel.Datasource = panelDS
 	for k, bq := range b.built {
 		q := bq.q
-		if refs[k] != spec.DefaultQueryRef(k) {
+		if bq.expr != nil || refs[k] != spec.DefaultQueryRef(k) {
 			q.Ref = refs[k]
 		}
-		if ref := bq.src.ref(); ref != panelDS {
-			q.Datasource = ref
+		if bq.src != nil && bq.src.ref() != panelDS {
+			q.Datasource = bq.src.ref()
 		}
 		b.panel.Queries = append(b.panel.Queries, q)
 		line := b.lineFor(bq.index)
@@ -572,7 +580,9 @@ func (b *panelBuild) assignQueries() {
 			continue
 		}
 		line.Ref = ptr(refs[k])
-		line.Datasource = ptr(bq.src.ref())
+		if bq.src != nil {
+			line.Datasource = ptr(bq.src.ref())
+		}
 		if bq.refID == "" {
 			b.mapImpliedRef(bq.index, refs[k], explicit)
 			continue
@@ -584,6 +594,7 @@ func (b *panelBuild) assignQueries() {
 			line.Rewrites = append(line.Rewrites, fmt.Sprintf("refId %s -> %s", bq.refID, refs[k]))
 		}
 	}
+	b.finishExpressions()
 }
 
 const impliedRefLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -598,12 +609,16 @@ func explicitRefIDs(built []*builtQuery) map[string]bool {
 	return explicit
 }
 
-func (b *panelBuild) mapImpliedRef(position int, ref string, explicit map[string]bool) {
+func impliedRefID(position int, explicit map[string]bool) (string, bool) {
 	if position >= len(impliedRefLetters) {
-		return
+		return "", false
 	}
 	implied := impliedRefLetters[position : position+1]
-	if !explicit[implied] {
+	return implied, !explicit[implied]
+}
+
+func (b *panelBuild) mapImpliedRef(position int, ref string, explicit map[string]bool) {
+	if implied, ok := impliedRefID(position, explicit); ok {
 		b.refs[implied] = ref
 	}
 }
