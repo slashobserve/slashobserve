@@ -861,6 +861,7 @@ export interface DataPanel1 {
   timeShift?: string;
   interval?: IntervalRef;
   maxDataPoints?: number;
+  transparent?: boolean;
   display?: {};
 }
 /**
@@ -905,6 +906,7 @@ export interface TextPanel {
   description?: string;
   gridPos: GridPos;
   type: "text";
+  transparent?: boolean;
   /**
    * Markdown, rendered sanitized.
    */
