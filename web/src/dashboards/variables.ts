@@ -3,6 +3,7 @@ import type {
   AdhocVariable,
   CustomVariable,
   DatasourceVariable,
+  GroupByVariable,
   IntervalVariable,
   QueryVariable,
   Variable,
@@ -76,6 +77,7 @@ function localDisplay(variable: Variable): VariableDisplay | undefined {
     case "constant":
     case "textbox":
     case "adhoc":
+    case "groupby":
       return { status: "ready", shown: undefined, selectable: undefined }
     default:
       return undefined
@@ -171,6 +173,29 @@ function adhocSelection(
   return saved.length > 0 ? [""] : undefined
 }
 
+export const maxGroupByKeys = 20
+
+const groupByKeyPattern = /^[A-Za-z_][A-Za-z0-9_]{0,199}$/
+
+export function isGroupByKey(text: string): boolean {
+  return groupByKeyPattern.test(text)
+}
+
+function groupByKeys(urlValues: string[]): string[] {
+  return [...new Set(urlValues.filter(isGroupByKey))].slice(0, maxGroupByKeys)
+}
+
+function groupBySelection(
+  variable: GroupByVariable,
+  urlValues: string[]
+): string[] | undefined {
+  const saved = variable.default ?? []
+  if (urlValues.length === 0) return saved.length > 0 ? saved : undefined
+  const keys = groupByKeys(urlValues)
+  if (keys.length > 0) return keys
+  return saved.length > 0 ? [""] : undefined
+}
+
 function intervalSelection(
   variable: IntervalVariable,
   urlValue: string | undefined
@@ -216,6 +241,11 @@ export function resolveSelections(
         break
       case "adhoc": {
         const selection = adhocSelection(variable, urlValues)
+        if (selection) selections[variable.name] = selection
+        break
+      }
+      case "groupby": {
+        const selection = groupBySelection(variable, urlValues)
         if (selection) selections[variable.name] = selection
         break
       }
@@ -299,6 +329,11 @@ export function applyVariableChange(
   const variable = variables[index]
   if (values.length > 0) next[name] = values
   else if (variable?.type === "adhoc" && savedFilters(variable).length > 0) {
+    next[name] = [""]
+  } else if (
+    variable?.type === "groupby" &&
+    (variable.default ?? []).length > 0
+  ) {
     next[name] = [""]
   }
   return next

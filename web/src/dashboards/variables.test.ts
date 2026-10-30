@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { ALL } from "./search"
 import {
   applyVariableChange,
+  isGroupByKey,
   normalizeMultiSelection,
   resolveSelections,
   sortSelections,
@@ -635,5 +636,78 @@ describe("applyVariableChange with every type", () => {
     expect(applyVariableChange([filters], { af: ["a|=|b"] }, "af", [])).toEqual(
       {}
     )
+  })
+})
+
+describe("group by variables", () => {
+  const saved: Variable = {
+    name: "gb",
+    type: "groupby",
+    datasource: "prom",
+    default: ["job", "instance"],
+  }
+  const plain: Variable = { name: "gb", type: "groupby", datasource: "prom" }
+
+  it("selects the saved keys when the URL has none", () => {
+    expect(resolveSelections([saved], {}, {}).selections).toEqual({
+      gb: ["job", "instance"],
+    })
+  })
+
+  it("sends nothing when there is no URL value and no saved key", () => {
+    expect(resolveSelections([plain], {}, {}).selections).toEqual({})
+  })
+
+  it("lets URL keys replace the saved ones, keeping valid keys once each", () => {
+    expect(
+      resolveSelections(
+        [saved],
+        { gb: ["pod", "pod", "bad-key", "1x", "namespace"] },
+        {}
+      ).selections
+    ).toEqual({ gb: ["pod", "namespace"] })
+  })
+
+  it("keeps at most 20 keys", () => {
+    const many = Array.from({ length: 25 }, (_, i) => `k${i}`)
+    expect(
+      resolveSelections([plain], { gb: many }, {}).selections.gb
+    ).toHaveLength(20)
+  })
+
+  it("keeps an explicit empty value as an explicit empty selection when keys are saved", () => {
+    expect(resolveSelections([saved], { gb: [""] }, {}).selections).toEqual({
+      gb: [""],
+    })
+    expect(
+      resolveSelections([saved], { gb: ["bad-key"] }, {}).selections
+    ).toEqual({ gb: [""] })
+    expect(resolveSelections([plain], { gb: [""] }, {}).selections).toEqual({})
+  })
+
+  it("writes var-<name>= only when clearing keys that have a saved default", () => {
+    expect(applyVariableChange([saved], { gb: ["pod"] }, "gb", [])).toEqual({
+      gb: [""],
+    })
+    expect(applyVariableChange([plain], { gb: ["pod"] }, "gb", [])).toEqual({})
+    expect(applyVariableChange([saved], {}, "gb", ["pod", "job"])).toEqual({
+      gb: ["pod", "job"],
+    })
+  })
+
+  it("never waits for a values list", () => {
+    expect(resolveSelections([saved], {}, {})).toMatchObject({
+      pending: false,
+      waiting: [],
+    })
+  })
+
+  it("accepts the label name pattern the server uses", () => {
+    expect(isGroupByKey("_job9")).toBe(true)
+    expect(isGroupByKey("a".repeat(200))).toBe(true)
+    expect(isGroupByKey("a".repeat(201))).toBe(false)
+    expect(isGroupByKey("")).toBe(false)
+    expect(isGroupByKey("9job")).toBe(false)
+    expect(isGroupByKey("pod-name")).toBe(false)
   })
 })

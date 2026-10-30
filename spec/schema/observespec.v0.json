@@ -992,6 +992,57 @@
       ],
       "title": "AdhocVariable"
     },
+    "groupByVariable": {
+      "x-omitFromPrompt": false,
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/variableName"
+        },
+        "label": {
+          "x-omitFromPrompt": true,
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "description": {
+          "x-omitFromPrompt": true,
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "hide": {
+          "x-omitFromPrompt": true,
+          "enum": [
+            "label",
+            "variable"
+          ]
+        },
+        "type": {
+          "const": "groupby"
+        },
+        "datasource": {
+          "$ref": "#/$defs/datasourceRef"
+        },
+        "default": {
+          "x-omitFromPrompt": true,
+          "type": "array",
+          "maxItems": 20,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,199}$"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "datasource"
+      ],
+      "title": "GroupByVariable"
+    },
     "variable": {
       "title": "Variable",
       "type": "object",
@@ -1019,6 +1070,9 @@
         },
         {
           "$ref": "#/$defs/adhocVariable"
+        },
+        {
+          "$ref": "#/$defs/groupByVariable"
         }
       ]
     },

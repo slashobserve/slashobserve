@@ -386,6 +386,59 @@ func TestApplyToAllVariable(t *testing.T) {
 	}
 }
 
+func TestGroupByVariable(t *testing.T) {
+	minimal := string(readExample(t, "minimal.json"))
+	with := func(variables string) []byte {
+		return []byte(strings.Replace(minimal, `"panels"`, fmt.Sprintf(`"variables": [%s], "panels"`, variables), 1))
+	}
+	source := func(dsType string) string {
+		return fmt.Sprintf(`{"name":"source","type":"datasource","datasourceType":%q}`, dsType)
+	}
+	cases := []struct {
+		name      string
+		variables string
+		code      spec.IssueCode
+		path      string
+	}{
+		{"literal datasource", `{"name":"g","type":"groupby","datasource":"prom"}`, "", ""},
+		{"saved default keys", `{"name":"g","type":"groupby","datasource":"prom","default":["job","instance"]}`, "", ""},
+		{"empty default", `{"name":"g","type":"groupby","datasource":"prom","default":[]}`, "", ""},
+		{"prometheus datasource variable", source("prometheus") + `,{"name":"g","type":"groupby","datasource":"${source}"}`, "", ""},
+		{"clickhouse datasource variable", source("clickhouse") + `,{"name":"g","type":"groupby","datasource":"${source}"}`, spec.CodeInvalidReference, "/variables/1/datasource"},
+		{"datasource variable declared later", `{"name":"g","type":"groupby","datasource":"${source}"},` + source("prometheus"), spec.CodeVariableOrder, "/variables/0/datasource"},
+		{"datasource is required", `{"name":"g","type":"groupby"}`, "schema", "/variables/0"},
+		{"duplicate default keys", `{"name":"g","type":"groupby","datasource":"prom","default":["job","job"]}`, "schema", "/variables/0/default"},
+		{"default key with a dash", `{"name":"g","type":"groupby","datasource":"prom","default":["pod-name"]}`, "schema", "/variables/0/default/0"},
+		{"default key starting with a digit", `{"name":"g","type":"groupby","datasource":"prom","default":["1job"]}`, "schema", "/variables/0/default/0"},
+		{"default key of 201 characters", fmt.Sprintf(`{"name":"g","type":"groupby","datasource":"prom","default":[%q]}`, "a"+strings.Repeat("b", 200)), "schema", "/variables/0/default/0"},
+		{"default of 21 keys", fmt.Sprintf(`{"name":"g","type":"groupby","datasource":"prom","default":[%s]}`, quotedKeys(21)), "schema", "/variables/0/default"},
+		{"default of 20 keys", fmt.Sprintf(`{"name":"g","type":"groupby","datasource":"prom","default":[%s]}`, quotedKeys(20)), "", ""},
+		{"a single string default", `{"name":"g","type":"groupby","datasource":"prom","default":"job"}`, "schema", "/variables/0/default"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.code == "" {
+				if _, err := spec.Parse(with(tc.variables)); err != nil {
+					t.Fatalf("Parse: %v", err)
+				}
+				return
+			}
+			issues := parseIssues(t, with(tc.variables))
+			if !slices.ContainsFunc(issues, func(i spec.Issue) bool { return i.Path == tc.path && i.Code == tc.code }) {
+				t.Fatalf("issues = %+v, want %s at %q", issues, tc.code, tc.path)
+			}
+		})
+	}
+}
+
+func quotedKeys(n int) string {
+	keys := make([]string, n)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("%q", fmt.Sprintf("key_%d", i))
+	}
+	return strings.Join(keys, ",")
+}
+
 func TestVariableDefinitionIssues(t *testing.T) {
 	minimal := string(readExample(t, "minimal.json"))
 	with := func(variables string) []byte {

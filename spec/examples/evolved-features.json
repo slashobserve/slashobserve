@@ -31,7 +31,8 @@
     { "name": "filter", "type": "textbox", "default": "" },
     { "name": "source", "type": "datasource", "datasourceType": "prometheus", "regex": "prom.*", "default": "prom" },
     { "name": "adhoc", "type": "adhoc", "datasource": "prom" },
-    { "name": "chfilters", "type": "adhoc", "datasource": "ch", "applyToAll": true }
+    { "name": "chfilters", "type": "adhoc", "datasource": "ch", "applyToAll": true },
+    { "name": "groupby", "type": "groupby", "datasource": "prom", "default": ["pod"] }
   ],
   "panels": [
     { "id": "p_rps", "type": "timeseries", "title": "Requests and errors per second",
