@@ -2969,6 +2969,73 @@
                       "always",
                       "never"
                     ]
+                  },
+                  "rowHeight": {
+                    "x-omitFromPrompt": true,
+                    "type": "number",
+                    "minimum": 0.1,
+                    "maximum": 1
+                  },
+                  "alignValue": {
+                    "x-omitFromPrompt": true,
+                    "enum": [
+                      "left",
+                      "center",
+                      "right"
+                    ]
+                  },
+                  "legend": {
+                    "x-omitFromPrompt": false,
+                    "enum": [
+                      "bottom",
+                      "right",
+                      "hidden"
+                    ]
+                  },
+                  "legendMode": {
+                    "x-omitFromPrompt": true,
+                    "enum": [
+                      "list",
+                      "table"
+                    ]
+                  },
+                  "legendWidth": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 40,
+                    "maximum": 2000
+                  },
+                  "tooltip": {
+                    "x-omitFromPrompt": false,
+                    "enum": [
+                      "single",
+                      "all",
+                      "hidden"
+                    ]
+                  },
+                  "tooltipSort": {
+                    "x-omitFromPrompt": true,
+                    "enum": [
+                      "none",
+                      "asc",
+                      "desc"
+                    ]
+                  },
+                  "tooltipHideZeros": {
+                    "x-omitFromPrompt": true,
+                    "type": "boolean"
+                  },
+                  "tooltipMaxWidth": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 2000
+                  },
+                  "tooltipMaxHeight": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 2000
                   }
                 }
               }
@@ -3132,6 +3199,71 @@
                       "always",
                       "never"
                     ]
+                  },
+                  "rowHeight": {
+                    "x-omitFromPrompt": true,
+                    "type": "number",
+                    "minimum": 0.1,
+                    "maximum": 1
+                  },
+                  "columnWidth": {
+                    "x-omitFromPrompt": true,
+                    "type": "number",
+                    "minimum": 0.1,
+                    "maximum": 1
+                  },
+                  "legend": {
+                    "x-omitFromPrompt": false,
+                    "enum": [
+                      "bottom",
+                      "right",
+                      "hidden"
+                    ]
+                  },
+                  "legendMode": {
+                    "x-omitFromPrompt": true,
+                    "enum": [
+                      "list",
+                      "table"
+                    ]
+                  },
+                  "legendWidth": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 40,
+                    "maximum": 2000
+                  },
+                  "tooltip": {
+                    "x-omitFromPrompt": false,
+                    "enum": [
+                      "single",
+                      "all",
+                      "hidden"
+                    ]
+                  },
+                  "tooltipSort": {
+                    "x-omitFromPrompt": true,
+                    "enum": [
+                      "none",
+                      "asc",
+                      "desc"
+                    ]
+                  },
+                  "tooltipHideZeros": {
+                    "x-omitFromPrompt": true,
+                    "type": "boolean"
+                  },
+                  "tooltipMaxWidth": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 2000
+                  },
+                  "tooltipMaxHeight": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 2000
                   }
                 }
               }

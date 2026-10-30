@@ -450,6 +450,9 @@ type Display struct {
 	BucketCount        int                `json:"bucketCount,omitempty"`
 	MergeValues        *bool              `json:"mergeValues,omitempty"`
 	ShowValues         string             `json:"showValues,omitempty"`
+	RowHeight          *float64           `json:"rowHeight,omitempty"`
+	ColumnWidth        *float64           `json:"columnWidth,omitempty"`
+	AlignValue         string             `json:"alignValue,omitempty"`
 	Wrap               *bool              `json:"wrap,omitempty"`
 	ShowTime           *bool              `json:"showTime,omitempty"`
 	Order              string             `json:"order,omitempty"`

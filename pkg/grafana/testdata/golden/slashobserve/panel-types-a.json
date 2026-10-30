@@ -41,8 +41,8 @@
     "verified": false,
     "counts": {
       "total": 19,
-      "imported": 9,
-      "partial": 7,
+      "imported": 10,
+      "partial": 6,
       "placeholder": 3,
       "unverified": 0
     },
@@ -82,15 +82,9 @@
         "type": "status-history",
         "source_type": "status-history",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Row height and column width are fixed.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.rowHeight",
-          "options.legend.showLegend"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -537,8 +531,12 @@
           }
         ],
         "fill": 70,
+        "lineWidth": 1,
         "display": {
-          "showValues": "never"
+          "legend": "hidden",
+          "showValues": "never",
+          "rowHeight": 0.8,
+          "columnWidth": 0.9
         }
       },
       {

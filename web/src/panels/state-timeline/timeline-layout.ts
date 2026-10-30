@@ -1,21 +1,57 @@
-import type { TimelineState } from "./timeline-model"
+import type { Rgb } from "../contrast"
+import type { TooltipSort } from "../timeseries/tooltip-rows"
 
 export type ShowValues = "auto" | "always" | "never"
+export type AlignValue = "left" | "center" | "right"
 
 const maxRowHeight = 32
-export const rowGap = 2
-const maxLegendItems = 12
+const rowGap = 2
 const autoTextMinWidth = 40
 const alwaysTextMinWidth = 4
 const textMinHeight = 14
 const minLabelWidth = 80
 const maxLabelWidth = 200
 const labelShare = 0.2
-const characterWidth = 7
-const legendItemChrome = 30
-const legendLineHeight = 18
+const trailingGap = 1
 
-export function showValuesOf(display: Record<string, unknown>): ShowValues {
+export type TimelineDisplay = {
+  showValues: ShowValues
+  rowHeight?: number
+  columnWidth?: number
+  alignValue: AlignValue
+  legend: "bottom" | "right" | "hidden"
+  legendMode?: "list" | "table"
+  legendWidth?: number
+  tooltip: "single" | "all" | "hidden"
+  tooltipSort: TooltipSort
+  tooltipHideZeros: boolean
+  tooltipMaxWidth?: number
+  tooltipMaxHeight?: number
+}
+
+export function timelineDisplay(
+  display: Record<string, unknown>
+): TimelineDisplay {
+  return {
+    showValues: showValuesOf(display),
+    rowHeight: display.rowHeight as number | undefined,
+    columnWidth: display.columnWidth as number | undefined,
+    alignValue:
+      display.alignValue === "center" || display.alignValue === "right"
+        ? display.alignValue
+        : "left",
+    legend: display.legend as TimelineDisplay["legend"],
+    legendMode: display.legendMode as TimelineDisplay["legendMode"],
+    legendWidth: display.legendWidth as number | undefined,
+    tooltip: display.tooltip as TimelineDisplay["tooltip"],
+    tooltipSort: display.tooltipSort as TooltipSort,
+    tooltipHideZeros: display.tooltipHideZeros as boolean,
+    tooltipMaxWidth: display.tooltipMaxWidth as number | undefined,
+    tooltipMaxHeight: display.tooltipMaxHeight as number | undefined,
+  }
+}
+
+function showValuesOf(display: Record<string, unknown>): ShowValues {
   return display.showValues === "always" || display.showValues === "never"
     ? display.showValues
     : "auto"
@@ -43,6 +79,61 @@ export function rowHeight(available: number, rows: number): number {
   return Math.max(1, Math.min(maxRowHeight, available / rows))
 }
 
+export type Span = { offset: number; size: number }
+
+export function barSpan(band: number, fraction: number | undefined): Span {
+  if (fraction === undefined) {
+    return { offset: 0, size: Math.max(1, band - rowGap) }
+  }
+  const size = Math.max(1, band * fraction)
+  return { offset: (band - size) / 2, size }
+}
+
+export function segmentSpan(
+  start: number,
+  length: number,
+  fraction: number | undefined,
+  cells: boolean
+): Span {
+  if (fraction !== undefined) {
+    const size = Math.max(1, length * fraction)
+    return { offset: start + (length - size) / 2, size }
+  }
+  const inset = cells ? 1 : 0
+  return {
+    offset: start + inset,
+    size: Math.max(1, length - trailingGap - 2 * inset),
+  }
+}
+
+export function segmentOpacity(fill: number | undefined): number {
+  return fill === undefined || fill <= 0 ? 1 : Math.min(fill, 100) / 100
+}
+
+export function borderWidth(lineWidth: number | undefined): number {
+  return lineWidth === undefined ? 0 : lineWidth
+}
+
+export function blendOver(color: Rgb, backdrop: Rgb, opacity: number): Rgb {
+  const mixed = color.map((channel, index) =>
+    Math.round(channel * opacity + backdrop[index] * (1 - opacity))
+  )
+  return [mixed[0], mixed[1], mixed[2]]
+}
+
+export type TextPlacement = {
+  x: number
+  anchor: "start" | "middle" | "end"
+}
+
+const textInset = 6
+
+export function textPlacement(align: AlignValue, width: number): TextPlacement {
+  if (align === "center") return { x: width / 2, anchor: "middle" }
+  if (align === "right") return { x: width - textInset, anchor: "end" }
+  return { x: textInset, anchor: "start" }
+}
+
 export function showsText(
   mode: ShowValues,
   width: number,
@@ -50,42 +141,4 @@ export function showsText(
 ): boolean {
   if (mode === "never" || height < textMinHeight) return false
   return width >= (mode === "always" ? alwaysTextMinWidth : autoTextMinWidth)
-}
-
-export type LegendItems = {
-  shown: TimelineState[]
-  more: number
-  labels: string[]
-}
-
-export function legendItems(states: TimelineState[]): LegendItems {
-  const shown = states.slice(0, maxLegendItems)
-  const more = states.length - shown.length
-  return {
-    shown,
-    more,
-    labels: [
-      ...shown.map((state) => state.text),
-      ...(more > 0 ? [moreLabel(more)] : []),
-    ],
-  }
-}
-
-export function moreLabel(more: number): string {
-  return `and ${more} more`
-}
-
-export function legendHeight(labels: readonly string[], width: number): number {
-  if (labels.length === 0) return 0
-  let lines = 1
-  let used = 0
-  for (const label of labels) {
-    const item = legendItemChrome + label.length * characterWidth
-    if (used > 0 && used + item > width) {
-      lines++
-      used = 0
-    }
-    used += item
-  }
-  return lines * legendLineHeight + 8
 }

@@ -83,7 +83,17 @@ export const displayKeysByType: Record<string, readonly string[]> = {
   ],
   "state-timeline": [
     "mergeValues",
-    "showValues"
+    "showValues",
+    "rowHeight",
+    "alignValue",
+    "legend",
+    "legendMode",
+    "legendWidth",
+    "tooltip",
+    "tooltipSort",
+    "tooltipHideZeros",
+    "tooltipMaxWidth",
+    "tooltipMaxHeight"
   ],
   "logs": [
     "wrap",
@@ -109,7 +119,17 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "tooltip"
   ],
   "status-history": [
-    "showValues"
+    "showValues",
+    "rowHeight",
+    "columnWidth",
+    "legend",
+    "legendMode",
+    "legendWidth",
+    "tooltip",
+    "tooltipSort",
+    "tooltipHideZeros",
+    "tooltipMaxWidth",
+    "tooltipMaxHeight"
   ],
   "trend": [
     "xField",

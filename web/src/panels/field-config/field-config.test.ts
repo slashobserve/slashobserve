@@ -73,6 +73,21 @@ describe("field config resolution", () => {
     expect(config.style).toBe("line")
   })
 
+  it("tells a written prop from a default, wherever it was written", () => {
+    const a = frame([time, value()], { ref: "A" })
+    const b = frame([time, value()], { ref: "B" })
+    const resolver = createFieldResolver(
+      panel({
+        fill: 0,
+        overrides: [{ match: { query: "B" }, lineWidth: 2 }],
+      })
+    )
+    expect(resolver.isSet(a, a.fields[1], "fill")).toBe(true)
+    expect(resolver.isSet(a, a.fields[1], "lineWidth")).toBe(false)
+    expect(resolver.isSet(b, b.fields[1], "lineWidth")).toBe(true)
+    expect(resolver.isSet(b, b.fields[1], "spanNulls")).toBe(false)
+  })
+
   it("matches query by the frame ref", () => {
     const a = frame([time, value()], { ref: "A" })
     const b = frame([time, value()], { ref: "B" })

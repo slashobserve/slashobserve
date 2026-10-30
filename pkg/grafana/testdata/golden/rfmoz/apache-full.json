@@ -113,14 +113,11 @@
         "status": "partial",
         "reasons": [
           "Exemplars are drawn on time series only.",
-          "The color mode continuous-GrYlRd is not drawn on state-timeline panels.",
-          "Some Grafana options of this panel are not supported yet."
+          "The color mode continuous-GrYlRd is not drawn on state-timeline panels."
         ],
         "paths": [
           "targets[0].exemplar",
-          "fieldConfig.defaults.color",
-          "fieldConfig.defaults.custom.lineWidth",
-          "options.legend.placement"
+          "fieldConfig.defaults.color"
         ],
         "queries": [
           {
@@ -698,9 +695,12 @@
           }
         ],
         "fill": 70,
+        "lineWidth": 0,
         "display": {
+          "legend": "right",
           "mergeValues": false,
-          "showValues": "never"
+          "showValues": "never",
+          "rowHeight": 0.9
         }
       },
       {

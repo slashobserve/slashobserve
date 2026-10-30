@@ -758,11 +758,16 @@ func TestChartPanelTypesImportTheirOptions(t *testing.T) {
 		{
 			name: "status history", typ: "status-history",
 			members: `"options":{"showValue":"never","rowHeight":0.9,"colWidth":0.9}`,
-			display: `{"showValues":"never"}`,
+			display: `{"showValues":"never","rowHeight":0.9,"columnWidth":0.9}`,
 		},
 		{
 			name: "status history sizes", typ: "status-history",
 			members: `"options":{"rowHeight":0.5,"colWidth":0.7}`,
+			display: `{"rowHeight":0.5,"columnWidth":0.7}`,
+		},
+		{
+			name: "status history sizes outside the range", typ: "status-history",
+			members: `"options":{"rowHeight":0,"colWidth":1.5}`,
 			display: "null",
 			paths:   []string{"options.rowHeight", "options.colWidth"},
 		},
@@ -844,13 +849,6 @@ func TestChartPanelTypesImportTheirOptions(t *testing.T) {
 				t.Errorf("paths = %v, want %v (reasons %v)", line.Paths, tc.paths, line.Reasons)
 			}
 		})
-	}
-}
-
-func TestStatusHistorySizeIsReportedWithItsOwnReason(t *testing.T) {
-	_, line := convertedPanel(t, panelDoc("status-history", upTarget+`,"options":{"rowHeight":0.5}`))
-	if !slices.Contains(line.Reasons, rowHeightReason) {
-		t.Fatalf("reasons = %v, want %q", line.Reasons, rowHeightReason)
 	}
 }
 

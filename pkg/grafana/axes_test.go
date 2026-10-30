@@ -261,9 +261,14 @@ var plotOnlyOptions = []struct {
 	{"span nulls", `{"spanNulls":true}`, []string{"fieldConfig.defaults.custom.spanNulls"}},
 }
 
+var timelineDrawnOptions = map[string]bool{"line width": true, "span nulls": true}
+
 func TestAxisAndLineStyleOptionsAreReportedOnPanelsThatDrawNeither(t *testing.T) {
 	for _, typ := range []string{"barchart", "histogram", "state-timeline", "status-history", "xychart"} {
 		for _, tc := range plotOnlyOptions {
+			if timelineDrawnOptions[tc.name] && (typ == "state-timeline" || typ == "status-history") {
+				continue
+			}
 			t.Run(typ+" "+tc.name, func(t *testing.T) {
 				panel, line := customPanelOf(t, typ, tc.custom, "")
 				if line.Status != statusPartial || strings.Join(line.Paths, " ") != strings.Join(tc.paths, " ") {

@@ -26,6 +26,9 @@ func (b *panelBuild) convertDiscrete() {
 	}
 	b.legacyDecimals(p, b.raw["decimals"])
 	b.consume("decimals", "timeOptions")
+	if v, ok := b.boolOption("showLegend"); ok && !*v {
+		b.disp().Legend = "hidden"
+	}
 	mappings := append(b.discreteValueMaps(), b.discreteRangeMaps()...)
 	mappings = b.discreteColorMaps(mappings)
 	if len(mappings) > maxMappings {

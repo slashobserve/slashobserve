@@ -157,15 +157,10 @@
         "row": "Scale Target",
         "status": "partial",
         "reasons": [
-          "The color mode continuous-GrYlRd is not drawn on state-timeline panels.",
-          "Some Grafana options of this panel are not supported yet."
+          "The color mode continuous-GrYlRd is not drawn on state-timeline panels."
         ],
         "paths": [
-          "fieldConfig.defaults.color",
-          "fieldConfig.defaults.custom.lineWidth",
-          "options.legend.showLegend",
-          "options.legend.width",
-          "options.rowHeight"
+          "fieldConfig.defaults.color"
         ],
         "queries": [
           {
@@ -508,8 +503,11 @@
               }
             ],
             "fill": 70,
+            "lineWidth": 0,
             "display": {
-              "showValues": "never"
+              "legend": "hidden",
+              "showValues": "never",
+              "rowHeight": 1
             }
           },
           {

@@ -192,6 +192,14 @@ export const showValues: DisplayOption = {
   ],
 }
 
+export const rowHeight: DisplayOption = {
+  kind: "number",
+  key: "rowHeight",
+  label: "Row height",
+  hint: "Share of the row, from 0.1 to 1",
+  rule: { min: 0.1, max: 1 },
+}
+
 const maxFieldNameLength = 200
 
 export function fieldOption(
