@@ -1127,6 +1127,7 @@
           "maximum": 100
         },
         "lineStyle": {
+          "x-omitFromPrompt": true,
           "enum": [
             "solid",
             "dashed",
@@ -1134,6 +1135,7 @@
           ]
         },
         "lineInterpolation": {
+          "x-omitFromPrompt": false,
           "enum": [
             "linear",
             "smooth",
@@ -1142,11 +1144,13 @@
           ]
         },
         "lineWidth": {
+          "x-omitFromPrompt": true,
           "type": "integer",
           "minimum": 0,
           "maximum": 10
         },
         "points": {
+          "x-omitFromPrompt": false,
           "enum": [
             "auto",
             "always",
@@ -1154,6 +1158,7 @@
           ]
         },
         "pointSize": {
+          "x-omitFromPrompt": true,
           "type": "integer",
           "minimum": 1,
           "maximum": 40
@@ -2267,14 +2272,17 @@
                     "type": "boolean"
                   },
                   "legendWidth": {
+                    "x-omitFromPrompt": true,
                     "type": "integer",
                     "minimum": 40,
                     "maximum": 2000
                   },
                   "legendHideZero": {
+                    "x-omitFromPrompt": true,
                     "type": "boolean"
                   },
                   "legendHideEmpty": {
+                    "x-omitFromPrompt": true,
                     "type": "boolean"
                   },
                   "tooltip": {
@@ -2866,11 +2874,13 @@
                     ]
                   },
                   "barWidth": {
+                    "x-omitFromPrompt": true,
                     "type": "number",
                     "exclusiveMinimum": 0,
                     "maximum": 1
                   },
                   "groupWidth": {
+                    "x-omitFromPrompt": true,
                     "type": "number",
                     "exclusiveMinimum": 0,
                     "maximum": 1
@@ -2972,14 +2982,17 @@
                     "type": "boolean"
                   },
                   "legendWidth": {
+                    "x-omitFromPrompt": true,
                     "type": "integer",
                     "minimum": 40,
                     "maximum": 2000
                   },
                   "legendHideZero": {
+                    "x-omitFromPrompt": true,
                     "type": "boolean"
                   },
                   "legendHideEmpty": {
+                    "x-omitFromPrompt": true,
                     "type": "boolean"
                   },
                   "tooltip": {
@@ -3054,6 +3067,7 @@
                     ]
                   },
                   "pointSize": {
+                    "x-omitFromPrompt": true,
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 40
@@ -3099,21 +3113,25 @@
                     ]
                   },
                   "candleStyle": {
+                    "x-omitFromPrompt": true,
                     "enum": [
                       "candles",
                       "ohlcbars"
                     ]
                   },
                   "colorStrategy": {
+                    "x-omitFromPrompt": true,
                     "enum": [
                       "open-close",
                       "close-close"
                     ]
                   },
                   "upColor": {
+                    "x-omitFromPrompt": true,
                     "$ref": "#/$defs/color"
                   },
                   "downColor": {
+                    "x-omitFromPrompt": true,
                     "$ref": "#/$defs/color"
                   },
                   "open": {
@@ -3320,6 +3338,7 @@
                     "maximum": 100
                   },
                   "markerSizeMax": {
+                    "x-omitFromPrompt": true,
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 100
@@ -3335,6 +3354,7 @@
                     ]
                   },
                   "basemapTheme": {
+                    "x-omitFromPrompt": true,
                     "enum": [
                       "auto",
                       "light",
@@ -3342,9 +3362,11 @@
                     ]
                   },
                   "basemapLabels": {
+                    "x-omitFromPrompt": true,
                     "type": "boolean"
                   },
                   "esriServer": {
+                    "x-omitFromPrompt": true,
                     "enum": [
                       "streets",
                       "world-imagery",
@@ -3355,60 +3377,75 @@
                     ]
                   },
                   "basemapUrl": {
+                    "x-omitFromPrompt": true,
                     "$ref": "#/$defs/httpsUrl"
                   },
                   "basemapAttribution": {
+                    "x-omitFromPrompt": true,
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 200
                   },
                   "basemapOpacity": {
+                    "x-omitFromPrompt": true,
                     "type": "number",
                     "minimum": 0,
                     "maximum": 1
                   },
                   "minZoom": {
+                    "x-omitFromPrompt": true,
                     "type": "number",
                     "minimum": 0,
                     "maximum": 18
                   },
                   "maxZoom": {
+                    "x-omitFromPrompt": true,
                     "type": "number",
                     "minimum": 0,
                     "maximum": 18
                   },
                   "fitLayer": {
+                    "x-omitFromPrompt": true,
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 100
                   },
                   "fitLastOnly": {
+                    "x-omitFromPrompt": true,
                     "type": "boolean"
                   },
                   "fitPadding": {
+                    "x-omitFromPrompt": true,
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 50
                   },
                   "sharedView": {
+                    "x-omitFromPrompt": true,
                     "type": "boolean"
                   },
                   "showZoom": {
+                    "x-omitFromPrompt": true,
                     "type": "boolean"
                   },
                   "mouseWheelZoom": {
+                    "x-omitFromPrompt": true,
                     "type": "boolean"
                   },
                   "showAttribution": {
+                    "x-omitFromPrompt": true,
                     "type": "boolean"
                   },
                   "showScale": {
+                    "x-omitFromPrompt": true,
                     "type": "boolean"
                   },
                   "showMeasure": {
+                    "x-omitFromPrompt": true,
                     "type": "boolean"
                   },
                   "showDebug": {
+                    "x-omitFromPrompt": true,
                     "type": "boolean"
                   },
                   "tooltip": {
@@ -3418,6 +3455,7 @@
                     ]
                   },
                   "layers": {
+                    "x-omitFromPrompt": true,
                     "type": "array",
                     "maxItems": 10,
                     "items": {
@@ -3464,9 +3502,11 @@
                     "$ref": "#/$defs/color"
                   },
                   "backgroundImage": {
+                    "x-omitFromPrompt": true,
                     "$ref": "#/$defs/imageRef"
                   },
                   "backgroundSize": {
+                    "x-omitFromPrompt": true,
                     "enum": [
                       "original",
                       "contain",
@@ -3476,22 +3516,27 @@
                     ]
                   },
                   "borderColor": {
+                    "x-omitFromPrompt": true,
                     "$ref": "#/$defs/color"
                   },
                   "borderWidth": {
+                    "x-omitFromPrompt": true,
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 20
                   },
                   "borderRadius": {
+                    "x-omitFromPrompt": true,
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 100
                   },
                   "panZoom": {
+                    "x-omitFromPrompt": true,
                     "type": "boolean"
                   },
                   "infinitePan": {
+                    "x-omitFromPrompt": true,
                     "type": "boolean"
                   },
                   "tooltip": {
@@ -3951,6 +3996,7 @@
           ]
         },
         "placement": {
+          "x-omitFromPrompt": true,
           "type": "object",
           "additionalProperties": false,
           "required": [
@@ -3999,11 +4045,13 @@
           }
         },
         "rotation": {
+          "x-omitFromPrompt": true,
           "type": "number",
           "minimum": -360,
           "maximum": 360
         },
         "valign": {
+          "x-omitFromPrompt": true,
           "enum": [
             "top",
             "middle",
@@ -4011,19 +4059,23 @@
           ]
         },
         "borderWidth": {
+          "x-omitFromPrompt": true,
           "type": "integer",
           "minimum": 0,
           "maximum": 20
         },
         "radius": {
+          "x-omitFromPrompt": true,
           "type": "integer",
           "minimum": 0,
           "maximum": 100
         },
         "backgroundImage": {
+          "x-omitFromPrompt": true,
           "$ref": "#/$defs/imageRef"
         },
         "backgroundSize": {
+          "x-omitFromPrompt": true,
           "enum": [
             "original",
             "contain",
@@ -4040,9 +4092,11 @@
           "$ref": "#/$defs/imageRef"
         },
         "iconColor": {
+          "x-omitFromPrompt": true,
           "$ref": "#/$defs/canvasColor"
         },
         "server": {
+          "x-omitFromPrompt": true,
           "enum": [
             "single",
             "stack",
@@ -4051,6 +4105,7 @@
           ]
         },
         "buttonStyle": {
+          "x-omitFromPrompt": true,
           "enum": [
             "primary",
             "secondary",
@@ -4059,18 +4114,23 @@
           ]
         },
         "accentColor": {
+          "x-omitFromPrompt": true,
           "$ref": "#/$defs/canvasColor"
         },
         "rateField": {
+          "x-omitFromPrompt": true,
           "$ref": "#/$defs/fieldName"
         },
         "yawField": {
+          "x-omitFromPrompt": true,
           "$ref": "#/$defs/fieldName"
         },
         "pitchField": {
+          "x-omitFromPrompt": true,
           "$ref": "#/$defs/fieldName"
         },
         "rollField": {
+          "x-omitFromPrompt": true,
           "$ref": "#/$defs/fieldName"
         },
         "links": {
@@ -4081,6 +4141,7 @@
           }
         },
         "actions": {
+          "x-omitFromPrompt": true,
           "type": "array",
           "maxItems": 10,
           "items": {
@@ -4088,6 +4149,7 @@
           }
         },
         "oneClick": {
+          "x-omitFromPrompt": true,
           "enum": [
             "link",
             "action"
@@ -4124,12 +4186,14 @@
           "maximum": 10
         },
         "path": {
+          "x-omitFromPrompt": true,
           "enum": [
             "straight",
             "curved"
           ]
         },
         "vertices": {
+          "x-omitFromPrompt": true,
           "type": "array",
           "maxItems": 20,
           "items": {
@@ -4154,6 +4218,7 @@
           }
         },
         "lineStyle": {
+          "x-omitFromPrompt": true,
           "enum": [
             "solid",
             "dashed",
@@ -4169,14 +4234,17 @@
           ]
         },
         "widthField": {
+          "x-omitFromPrompt": true,
           "$ref": "#/$defs/fieldName"
         },
         "minWidth": {
+          "x-omitFromPrompt": true,
           "type": "integer",
           "minimum": 1,
           "maximum": 10
         },
         "maxWidth": {
+          "x-omitFromPrompt": true,
           "type": "integer",
           "minimum": 1,
           "maximum": 10
@@ -4219,6 +4287,7 @@
       ]
     },
     "actionParam": {
+      "x-omitFromPrompt": true,
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -4237,6 +4306,7 @@
       }
     },
     "action": {
+      "x-omitFromPrompt": true,
       "title": "Action",
       "type": "object",
       "additionalProperties": false,
@@ -4295,6 +4365,7 @@
       }
     },
     "geomapRule": {
+      "x-omitFromPrompt": true,
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -4339,6 +4410,7 @@
       }
     },
     "geomapLayer": {
+      "x-omitFromPrompt": true,
       "title": "GeomapLayer",
       "type": "object",
       "additionalProperties": false,
