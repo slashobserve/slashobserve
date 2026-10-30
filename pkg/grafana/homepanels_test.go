@@ -46,13 +46,13 @@ func TestDebugPanelWithoutTargetsImportsAsText(t *testing.T) {
 	}
 }
 
-func TestTransparentPanelsKeepTheFlagAndReportIt(t *testing.T) {
+func TestTransparentPanelsKeepTheFlagSilently(t *testing.T) {
 	cases := []struct {
 		name, typ, members string
 		want, reported     bool
 	}{
-		{"data", "stat", upTarget + `,"transparent":true`, true, true},
-		{"text", "text", `"options":{"content":"hi"},"transparent":true`, true, true},
+		{"data", "stat", upTarget + `,"transparent":true`, true, false},
+		{"text", "text", `"options":{"content":"hi"},"transparent":true`, true, false},
 		{"false", "stat", upTarget + `,"transparent":false`, false, false},
 		{"absent", "stat", upTarget, false, false},
 		{"dashlist", "dashlist", `"transparent":true`, false, true},

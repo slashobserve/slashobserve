@@ -3739,6 +3739,11 @@
           "x-omitFromPrompt": true,
           "type": "boolean"
         },
+        "titleHidden": {
+          "x-omitFromPrompt": true,
+          "description": "Keep the title as the panel's name for menus and screen readers but do not show it. Absent means shown.",
+          "type": "boolean"
+        },
         "display": {
           "type": "object"
         }

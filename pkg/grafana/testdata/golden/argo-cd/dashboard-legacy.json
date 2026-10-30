@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 35,
-      "imported": 2,
-      "partial": 33,
+      "imported": 4,
+      "partial": 31,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "text",
         "source_type": "text",
         "row": "Applications",
-        "status": "partial",
-        "reasons": [
-          "Transparent panels are drawn with a border and background for now."
-        ],
-        "paths": [
-          "transparent"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": []
       },
       {
@@ -632,13 +628,9 @@
         "type": "text",
         "source_type": "text",
         "row": "Server Stats:",
-        "status": "partial",
-        "reasons": [
-          "Transparent panels are drawn with a border and background for now."
-        ],
-        "paths": [
-          "transparent"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": []
       },
       {

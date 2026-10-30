@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 76,
-      "imported": 69,
-      "partial": 7,
+      "imported": 70,
+      "partial": 6,
       "placeholder": 0,
       "unverified": 0
     },
@@ -213,12 +213,10 @@
         "row": "Stats",
         "status": "partial",
         "reasons": [
-          "Grafana shows this panel without a title.",
           "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "title",
           "fieldConfig.overrides[0].properties[0]",
           "options.sortBy[0].desc",
           "options.sortBy[0].displayName"
@@ -1646,13 +1644,9 @@
         "type": "text",
         "source_type": "text",
         "row": "Drilldown",
-        "status": "partial",
-        "reasons": [
-          "Transparent panels are drawn with a border and background for now."
-        ],
-        "paths": [
-          "transparent"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": []
       },
       {
@@ -2265,7 +2259,8 @@
                 },
                 "displayName": "Count"
               }
-            ]
+            ],
+            "titleHidden": true
           },
           {
             "id": "p156",

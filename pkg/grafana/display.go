@@ -575,7 +575,7 @@ func (b *panelBuild) convertTransparent() {
 		return
 	}
 	b.panel.Transparent = true
-	b.partial("transparent", transparentReason)
+	b.consume("transparent")
 }
 
 func (b *panelBuild) convertHideTimeOverride() {

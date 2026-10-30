@@ -99,6 +99,8 @@ export function PanelChrome({
   const title = panelTitle(panel)
   const selected = editing || highlighted
   const timeOverride = isDataPanel(panel) ? timeOverrideLabel(panel) : null
+  const titleHidden = isDataPanel(panel) && panel.titleHidden === true
+  const transparent = "transparent" in panel && panel.transparent === true
   return (
     <article
       aria-labelledby={titleId}
@@ -108,7 +110,8 @@ export function PanelChrome({
       data-state={state}
       data-highlighted={selected ? "" : undefined}
       className={cn(
-        "relative flex size-full flex-col overflow-hidden rounded-card border bg-card text-card-foreground",
+        "relative flex size-full flex-col overflow-hidden rounded-card border text-card-foreground",
+        transparent ? "border-transparent bg-transparent" : "bg-card",
         selected &&
           "border-brand outline outline-1 -outline-offset-1 outline-brand"
       )}
@@ -126,7 +129,10 @@ export function PanelChrome({
         <h2
           id={titleId}
           title={title}
-          className="min-w-0 truncate text-[13px] font-semibold"
+          className={cn(
+            "min-w-0 truncate text-[13px] font-semibold",
+            titleHidden && "sr-only"
+          )}
         >
           {title}
         </h2>
