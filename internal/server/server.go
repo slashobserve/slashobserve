@@ -110,10 +110,12 @@ func logRequests(logger *slog.Logger) gin.HandlerFunc {
 	}
 }
 
+const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'self'; base-uri 'none'; frame-ancestors 'none'"
+
 func securityHeaders(c *gin.Context) {
 	c.Header("X-Content-Type-Options", "nosniff")
 	c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
-	c.Header("Content-Security-Policy", "frame-ancestors 'none'")
+	c.Header("Content-Security-Policy", contentSecurityPolicy)
 	c.Header("X-Frame-Options", "DENY")
 	c.Next()
 }

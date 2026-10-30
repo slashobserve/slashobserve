@@ -1,0 +1,122 @@
+image:
+  get:
+    operationId: getAssetImage
+    summary: Fetch a remote image through the server and return it.
+    description: The image's domain must be on the outbound allowlist, and the address must be https. The image is read up to 5 MiB, must be a PNG, JPEG, GIF, WebP, AVIF or SVG whose bytes match its declared type, and is cached for 1 hour. The response forbids scripts, so an SVG opened directly never runs script. Service accounts cannot call this endpoint.
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema:
+          type: string
+          maxLength: 2000
+    responses:
+      "200":
+        description: The image, with the content type the server verified.
+        headers:
+          Cache-Control:
+            required: true
+            schema:
+              type: string
+          Content-Security-Policy:
+            required: true
+            schema:
+              type: string
+          Cross-Origin-Resource-Policy:
+            required: true
+            schema:
+              type: string
+        content:
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/gif:
+            schema:
+              type: string
+              format: binary
+          image/webp:
+            schema:
+              type: string
+              format: binary
+          image/avif:
+            schema:
+              type: string
+              format: binary
+          image/svg+xml:
+            schema:
+              type: string
+              format: binary
+      "400":
+        description: The url is missing or longer than 2000 bytes (`invalid_request`), or is not an https address with a domain name (`invalid_asset_url`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is a service account (`forbidden`), or the image's domain is not on the outbound allowlist (`outbound_domain_not_allowed`, with the domain in the message).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "502":
+        description: The image could not be fetched, points to a private address, is larger than 5 MiB, has an unsupported content type or does not match its declared type (`asset_unavailable`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+geojson:
+  get:
+    operationId: getAssetGeojson
+    summary: Fetch a remote GeoJSON file through the server and return it as JSON.
+    description: The file's domain must be on the outbound allowlist, and the address must be https. The file is read up to 5 MiB, may be served as `application/geo+json`, `application/json` or `text/plain`, must be a JSON object whose `type` is a GeoJSON type, and is cached for 1 hour. Service accounts cannot call this endpoint.
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema:
+          type: string
+          maxLength: 2000
+    responses:
+      "200":
+        description: The GeoJSON object, re-encoded with its numbers unchanged.
+        headers:
+          Cache-Control:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      "400":
+        description: The url is missing or longer than 2000 bytes (`invalid_request`), or is not an https address with a domain name (`invalid_asset_url`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is a service account (`forbidden`), or the file's domain is not on the outbound allowlist (`outbound_domain_not_allowed`, with the domain in the message).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "502":
+        description: The file could not be fetched, points to a private address, is larger than 5 MiB, has an unsupported content type or is not a GeoJSON object (`asset_unavailable`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"

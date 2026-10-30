@@ -1008,6 +1008,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/assets/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch a remote image through the server and return it.
+         * @description The image's domain must be on the outbound allowlist, and the address must be https. The image is read up to 5 MiB, must be a PNG, JPEG, GIF, WebP, AVIF or SVG whose bytes match its declared type, and is cached for 1 hour. The response forbids scripts, so an SVG opened directly never runs script. Service accounts cannot call this endpoint.
+         */
+        get: operations["getAssetImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/assets/geojson": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch a remote GeoJSON file through the server and return it as JSON.
+         * @description The file's domain must be on the outbound allowlist, and the address must be https. The file is read up to 5 MiB, may be served as `application/geo+json`, `application/json` or `text/plain`, must be a JSON object whose `type` is a GeoJSON type, and is cached for 1 hour. Service accounts cannot call this endpoint.
+         */
+        get: operations["getAssetGeojson"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/imports/preview": {
         parameters: {
             query?: never;
@@ -4454,6 +4494,119 @@ export interface operations {
             };
             500: components["responses"]["Internal"];
             /** @description The feed could not be fetched (`feed_unavailable`) or was not a valid RSS or Atom feed (`feed_invalid`). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAssetImage: {
+        parameters: {
+            query: {
+                url: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image, with the content type the server verified. */
+            200: {
+                headers: {
+                    "Cache-Control": string;
+                    "Content-Security-Policy": string;
+                    "Cross-Origin-Resource-Policy": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                    "image/gif": string;
+                    "image/webp": string;
+                    "image/avif": string;
+                    "image/svg+xml": string;
+                };
+            };
+            /** @description The url is missing or longer than 2000 bytes (`invalid_request`), or is not an https address with a domain name (`invalid_asset_url`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is a service account (`forbidden`), or the image's domain is not on the outbound allowlist (`outbound_domain_not_allowed`, with the domain in the message). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description The image could not be fetched, points to a private address, is larger than 5 MiB, has an unsupported content type or does not match its declared type (`asset_unavailable`). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAssetGeojson: {
+        parameters: {
+            query: {
+                url: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The GeoJSON object, re-encoded with its numbers unchanged. */
+            200: {
+                headers: {
+                    "Cache-Control": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description The url is missing or longer than 2000 bytes (`invalid_request`), or is not an https address with a domain name (`invalid_asset_url`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is a service account (`forbidden`), or the file's domain is not on the outbound allowlist (`outbound_domain_not_allowed`, with the domain in the message). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description The file could not be fetched, points to a private address, is larger than 5 MiB, has an unsupported content type or is not a GeoJSON object (`asset_unavailable`). */
             502: {
                 headers: {
                     [name: string]: unknown;

@@ -16,6 +16,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/agent"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/assets"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -270,6 +271,7 @@ func run() error {
 
 	outbound := allowlist.New(database, allowlist.Lock{Locked: cfg.OutboundDomainsLocked, Domains: cfg.OutboundDomains}, logger)
 	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
+	assetsClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger, CacheTTL: time.Hour, CacheBytes: 64 << 20})
 
 	handler, err := server.New(server.Options{
 		Logger:          logger,
@@ -289,6 +291,7 @@ func run() error {
 			outbound,
 			prompts.NewHandler(database, logger),
 			news.NewHandler(egressClient, logger),
+			assets.NewHandler(assetsClient, logger),
 		},
 		Mounts: []server.Mount{{
 			Path:    "/mcp",

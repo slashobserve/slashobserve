@@ -102,6 +102,10 @@ paths:
     $ref: "./paths/observe.yaml#/observe-id"
   /news:
     $ref: "./paths/news.yaml#/news"
+  /assets/image:
+    $ref: "./paths/assets.yaml#/image"
+  /assets/geojson:
+    $ref: "./paths/assets.yaml#/geojson"
   /imports/preview:
     $ref: "./paths/imports.yaml#/imports-preview"
   /imports:

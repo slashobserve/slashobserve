@@ -32,7 +32,11 @@ description: What SlashObserve protects and what an operator should know.
   The server fetches content from other sites only for domains on the allowlist, which starts empty, and only over `https` to public addresses; private, loopback and metadata addresses are refused even when a name resolves to one.
   Redirects are checked hop by hop, and no cookies or credentials are sent.
   See [Outbound access](outbound-access.md).
+- **The browser loads nothing from other sites.**
+  Every response carries a strict `Content-Security-Policy`: scripts, stylesheets, images, fonts and connections come only from the server's own origin (images may also be `data:` or `blob:` URLs, and inline styles are allowed), and plugins, frames, media and `<base>` are refused.
+  So even if a sanitizer were ever bypassed, injected script could not run or send data to another site.
+  Images and GeoJSON from other sites reach the browser only through the server, which fetches them from allowlisted domains (see [Outbound access](outbound-access.md#images-and-geojson)).
 - **Framing is refused.**
-  Responses carry `X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'`.
+  Responses carry `X-Frame-Options: DENY` and `frame-ancestors 'none'` in the policy.
 - **Keep keys short-lived.**
   Prefer an expiry, one service account per tool or person, and revoke on the API keys page when a laptop or pipeline is retired.

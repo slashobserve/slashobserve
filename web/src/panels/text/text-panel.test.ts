@@ -118,9 +118,12 @@ describe("text panel links", () => {
 })
 
 describe("text panel images", () => {
-  it("renders an https image lazily and without a referrer", () => {
+  it("loads an https image through the server, lazily and without a referrer", () => {
     const html = render("![logo](https://cdn.example.com/a.png)")
-    expect(html).toContain('src="https://cdn.example.com/a.png"')
+    expect(html).toContain(
+      `src="/api/v1/assets/image?url=${encodeURIComponent("https://cdn.example.com/a.png")}"`
+    )
+    expect(html).not.toContain('src="https://')
     expect(html).toContain('loading="lazy"')
     expect(html).toContain('referrerPolicy="no-referrer"')
     expect(html).toContain('alt="logo"')
