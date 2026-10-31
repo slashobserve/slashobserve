@@ -7,9 +7,8 @@ import (
 )
 
 const (
-	maxCellText      = 200
-	cellActionReason = "Cell actions are not supported yet."
-	cellsPath        = "fieldConfig.defaults.custom.cellOptions."
+	maxCellText = 200
+	cellsPath   = "fieldConfig.defaults.custom.cellOptions."
 )
 
 var cellTypes = map[string]string{
@@ -22,6 +21,7 @@ var cellTypes = map[string]string{
 	"data-links":       "links",
 	"pill":             "pill",
 	"markdown":         "markdown",
+	"actions":          "actions",
 }
 
 var legacyCellModes = map[string]spec.Cell{
@@ -78,11 +78,7 @@ func propCellOptions(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	if kind != "" && kind != "auto" {
 		mapped, known := cellTypes[kind]
 		if !known {
-			reason := fmt.Sprintf("The cell type %s is not supported yet.", kind)
-			if kind == "actions" {
-				reason = cellActionReason
-			}
-			b.partial(s.at(""), reason)
+			b.partial(s.at(""), fmt.Sprintf("The cell type %s is not supported yet.", kind))
 			return
 		}
 		cell.Type = mapped

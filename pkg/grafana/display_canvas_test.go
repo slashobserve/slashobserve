@@ -260,19 +260,19 @@ func TestCanvasActionKeepsTheActionWithoutACredentialHeader(t *testing.T) {
 	if strings.Contains(string(data), "Bearer") || strings.Contains(string(data), "api_key") {
 		t.Errorf("a credential survived: %s", data)
 	}
-	if !slices.Contains(line.Reasons, canvasActionAuthDroppedReason) || line.Status != statusPartial {
+	if !slices.Contains(line.Reasons, actionAuthDroppedReason) || line.Status != statusPartial {
 		t.Errorf("reasons = %v", line.Reasons)
 	}
 }
 
 func TestCanvasActionsThatCannotBeKeptAreLeftOutAndReported(t *testing.T) {
 	cases := []struct{ name, fetch, reason string }{
-		{"http address", `{"method":"POST","url":"http://example.com/restart"}`, canvasActionURLReason},
-		{"variable host", `{"method":"POST","url":"https://${host}/restart"}`, canvasActionURLReason},
-		{"relative address", `{"method":"POST","url":"/api/restart"}`, canvasActionURLReason},
-		{"undeclared variable in the body", `{"method":"POST","url":"https://example.com/restart","body":"${nope}"}`, canvasActionReference},
-		{"unknown method", `{"method":"TRACE","url":"https://example.com/restart"}`, canvasActionMethodReason},
-		{"body over the limit", `{"method":"POST","url":"https://example.com/restart","body":"` + strings.Repeat("a", 10001) + `"}`, canvasActionBodyReason},
+		{"http address", `{"method":"POST","url":"http://example.com/restart"}`, actionURLReason},
+		{"variable host", `{"method":"POST","url":"https://${host}/restart"}`, actionURLReason},
+		{"relative address", `{"method":"POST","url":"/api/restart"}`, actionURLReason},
+		{"undeclared variable in the body", `{"method":"POST","url":"https://example.com/restart","body":"${nope}"}`, actionReference},
+		{"unknown method", `{"method":"TRACE","url":"https://example.com/restart"}`, actionMethodReason},
+		{"body over the limit", `{"method":"POST","url":"https://example.com/restart","body":"` + strings.Repeat("a", 10001) + `"}`, actionBodyReason},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -289,7 +289,7 @@ func TestCanvasActionsThatCannotBeKeptAreLeftOutAndReported(t *testing.T) {
 
 func TestCanvasInfinityActionsAreReported(t *testing.T) {
 	el, line := oneCanvasElement(t, actionElement(`{"type":"infinity","title":"Run","infinity":{"method":"GET","url":"/run","datasourceUid":"inf"}}`))
-	if len(el.Actions) != 0 || !slices.Contains(line.Reasons, canvasActionTypeReason) {
+	if len(el.Actions) != 0 || !slices.Contains(line.Reasons, actionTypeReason) {
 		t.Errorf("actions = %+v reasons = %v", el.Actions, line.Reasons)
 	}
 }

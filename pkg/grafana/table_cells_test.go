@@ -165,7 +165,6 @@ func TestTableCellOverrideLegacyModeAndWrap(t *testing.T) {
 
 func TestTableCellTypesTheRendererLacksAreReported(t *testing.T) {
 	cases := []struct{ name, custom, path, reason string }{
-		{"actions", `{"cellOptions":{"type":"actions"}}`, "fieldConfig.defaults.custom.cellOptions", "Cell actions are not supported yet."},
 		{"unknown legacy mode", `{"displayMode":"mystery"}`, "fieldConfig.defaults.custom.displayMode", "The cell type mystery is not supported yet."},
 		{"long image alt", `{"cellOptions":{"type":"image","alt":"` + strings.Repeat("a", 201) + `"}}`, "fieldConfig.defaults.custom.cellOptions", "The image alt was cut to 200 characters."},
 	}
@@ -179,14 +178,17 @@ func TestTableCellTypesTheRendererLacksAreReported(t *testing.T) {
 	}
 }
 
-func TestTableCellOverrideActionsAreReportedAtTheProperty(t *testing.T) {
+func TestTableActionsCellImportsInDefaultsAndOverrides(t *testing.T) {
 	override := `{"matcher":{"id":"byName","options":"Value"},"properties":[{"id":"custom.cellOptions","value":{"type":"actions"}}]}`
-	panel, line := tableCellPanel(t, `{}`, override)
-	if len(panel.Overrides) != 0 {
-		t.Fatalf("overrides = %+v", panel.Overrides)
+	panel, line := tableCellPanel(t, `{"cellOptions":{"type":"actions"}}`, override)
+	if got := cellJSON(t, panel.Cell); got != `{"type":"actions"}` {
+		t.Fatalf("cell = %s", got)
 	}
-	if !slices.Contains(line.Paths, "fieldConfig.overrides[0].properties[0]") || !slices.Contains(line.Reasons, "Cell actions are not supported yet.") {
-		t.Fatalf("paths %v, reasons %v", line.Paths, line.Reasons)
+	if got := cellJSON(t, panel.Overrides[0].Cell); got != `{"type":"actions"}` {
+		t.Fatalf("override cell = %s", got)
+	}
+	if line.Status != statusImported {
+		t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
 	}
 }
 
