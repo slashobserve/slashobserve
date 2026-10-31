@@ -1906,6 +1906,73 @@ components:
         unverified:
           type: integer
           minimum: 0
+    ImportOptionLine:
+      type: object
+      additionalProperties: false
+      required: [path, outcome, spec, reason]
+      properties:
+        path:
+          type: string
+          description: The Grafana option path relative to its block, in report syntax.
+        outcome:
+          type: string
+          enum: [mapped, excluded, reported, default, no_effect, bookkeeping]
+          description: "`default`, `no_effect` and `bookkeeping` are implicit options: a Grafana default value, an option with no visible effect, and editor bookkeeping; they need no Spec setting."
+        spec:
+          type: array
+          items:
+            type: string
+          description: The ObserveSpec fields the option became, relative to the block's Spec object, array indexes written `[]`; empty when the option was not imported, is implicit, or no catalog names its field.
+        reason:
+          type: string
+          nullable: true
+          description: Why the option was excluded or not imported; null for every other outcome.
+    ImportBlock:
+      type: object
+      additionalProperties: false
+      required: [kind, path, title, source_type, panel_id, outcome, reason, options, implicit, omitted, blocks]
+      properties:
+        kind:
+          type: string
+          enum: [dashboard, variable, row, panel, query, transformation, field_config, override]
+        path:
+          type: string
+          description: The Grafana path of the block from the dashboard root; empty for the dashboard.
+        title:
+          type: string
+          description: The panel or row title, variable name, query ref id, transformation id or override matcher id; empty for the dashboard and field config.
+        source_type:
+          type: string
+          description: The Grafana panel or variable type, or the query kind; empty otherwise.
+        panel_id:
+          type: string
+          nullable: true
+          description: The id of the Spec panel, for panel and row blocks; it matches `panels[].panel_id`.
+        outcome:
+          type: string
+          enum: [excluded, reported]
+          nullable: true
+          description: Set when the whole block was not imported.
+        reason:
+          type: string
+          nullable: true
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportOptionLine"
+        implicit:
+          type: integer
+          minimum: 0
+          description: How many implicit options the block carried (outcomes `default`, `no_effect` and `bookkeeping`), including any the size limits left out of `options`.
+        omitted:
+          type: integer
+          minimum: 0
+          description: Options of any outcome not listed because of the report's size limits.
+        blocks:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportBlock"
+          description: Child blocks.
     ImportReport:
       type: object
       additionalProperties: false
@@ -1927,6 +1994,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ImportNote"
+        blocks:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportBlock"
+          description: The report grouped by dashboard block. Absent in reports stored before importer version 2.
     ImportPreview:
       type: object
       additionalProperties: false

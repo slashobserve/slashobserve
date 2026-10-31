@@ -1975,6 +1975,44 @@ export interface components {
             placeholder: number;
             unverified: number;
         };
+        ImportOptionLine: {
+            /** @description The Grafana option path relative to its block, in report syntax. */
+            path: string;
+            /**
+             * @description `default`, `no_effect` and `bookkeeping` are implicit options: a Grafana default value, an option with no visible effect, and editor bookkeeping; they need no Spec setting.
+             * @enum {string}
+             */
+            outcome: "mapped" | "excluded" | "reported" | "default" | "no_effect" | "bookkeeping";
+            /** @description The ObserveSpec fields the option became, relative to the block's Spec object, array indexes written `[]`; empty when the option was not imported, is implicit, or no catalog names its field. */
+            spec: string[];
+            /** @description Why the option was excluded or not imported; null for every other outcome. */
+            reason: string | null;
+        };
+        ImportBlock: {
+            /** @enum {string} */
+            kind: "dashboard" | "variable" | "row" | "panel" | "query" | "transformation" | "field_config" | "override";
+            /** @description The Grafana path of the block from the dashboard root; empty for the dashboard. */
+            path: string;
+            /** @description The panel or row title, variable name, query ref id, transformation id or override matcher id; empty for the dashboard and field config. */
+            title: string;
+            /** @description The Grafana panel or variable type, or the query kind; empty otherwise. */
+            source_type: string;
+            /** @description The id of the Spec panel, for panel and row blocks; it matches `panels[].panel_id`. */
+            panel_id: string | null;
+            /**
+             * @description Set when the whole block was not imported.
+             * @enum {string|null}
+             */
+            outcome: "excluded" | "reported" | null;
+            reason: string | null;
+            options: components["schemas"]["ImportOptionLine"][];
+            /** @description How many implicit options the block carried (outcomes `default`, `no_effect` and `bookkeeping`), including any the size limits left out of `options`. */
+            implicit: number;
+            /** @description Options of any outcome not listed because of the report's size limits. */
+            omitted: number;
+            /** @description Child blocks. */
+            blocks: components["schemas"]["ImportBlock"][];
+        };
         ImportReport: {
             importer_version: number;
             /** @description True once every query ran at save time; always false in a preview. */
@@ -1982,6 +2020,8 @@ export interface components {
             counts: components["schemas"]["ImportCounts"];
             panels: components["schemas"]["ImportPanelLine"][];
             notes: components["schemas"]["ImportNote"][];
+            /** @description The report grouped by dashboard block. Absent in reports stored before importer version 2. */
+            blocks?: components["schemas"]["ImportBlock"][];
         };
         ImportPreview: {
             summary: components["schemas"]["ImportSummary"];
