@@ -7,6 +7,8 @@ export type NumberRule = {
   integer?: boolean
 }
 
+export type ReducerPool = "reducer" | "anyReducer"
+
 export type DisplayOption =
   | {
       kind: "choice"
@@ -15,6 +17,7 @@ export type DisplayOption =
       options: readonly Option[]
       absent?: string
       numeric?: boolean
+      more?: ReducerPool
     }
   | { kind: "toggle"; key: string; label: string }
   | { kind: "reducer"; key: string; label: string }
@@ -24,6 +27,7 @@ export type DisplayOption =
       label: string
       options: readonly Option[]
       max?: number
+      more?: ReducerPool
     }
   | {
       kind: "number"

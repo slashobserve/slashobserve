@@ -10,7 +10,11 @@ import {
 import { displayOptions } from "./display-options/index"
 import { parseNames, parseNumber, parseTags } from "./display-options/parse"
 import { reducerOptions } from "./display-options/shared"
-import type { DisplayOption, NumberRule } from "./display-options/types"
+import type {
+  DisplayOption,
+  NumberRule,
+  ReducerPool,
+} from "./display-options/types"
 import type { DraftAction } from "./draft"
 import {
   CheckboxField,
@@ -20,6 +24,8 @@ import {
   type Option,
 } from "./field-controls"
 import { toggleOrdered } from "./ordered-set"
+import { reducerChoices, reducerPools } from "./reducer-choices"
+import { ReducerSelect } from "./reducer-select"
 
 type Controls = {
   display: Record<string, unknown>
@@ -98,39 +104,95 @@ function Toggle({
   )
 }
 
+function ReducerChoice({
+  controls,
+  label,
+  name,
+  options,
+  absent,
+  more,
+}: {
+  controls: Controls
+  label: string
+  name: string
+  options: readonly Option[]
+  absent?: string
+  more: ReducerPool
+}) {
+  const { shown, offered } = reducerChoices(
+    options,
+    [text(controls.display, name)],
+    reducerPools[more]
+  )
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Choice
+        controls={controls}
+        label={label}
+        name={name}
+        options={shown}
+        absent={absent}
+      />
+      <ReducerSelect
+        label={`More ${label.toLowerCase()}`}
+        offered={offered}
+        disabled={controls.disabled}
+        onPick={(reducer) => controls.set(name, reducer)}
+      />
+    </div>
+  )
+}
+
 function Reducers({
   controls,
   label,
   name,
   options,
   max,
+  more,
 }: {
   controls: Controls
   label: string
   name: string
   options: readonly Option[]
   max?: number
+  more?: ReducerPool
 }) {
   const selected = list(controls.display, name)
+  const { shown, offered } =
+    more === undefined
+      ? { shown: options, offered: [] }
+      : reducerChoices(options, selected, reducerPools[more])
+  const full = max !== undefined && selected.length >= max
   return (
-    <CheckboxGroup
-      label={label}
-      options={options}
-      selected={selected}
-      max={max}
-      disabled={controls.disabled}
-      onToggle={(value, on) =>
-        controls.set(
-          name,
-          toggleOrdered(
-            options.map((option) => option.value),
-            selected,
-            value,
-            on
+    <div className="flex flex-col gap-1.5">
+      <CheckboxGroup
+        label={label}
+        options={shown}
+        selected={selected}
+        max={max}
+        disabled={controls.disabled}
+        onToggle={(value, on) =>
+          controls.set(
+            name,
+            toggleOrdered(
+              shown.map((option) => option.value),
+              selected,
+              value,
+              on
+            )
           )
-        )
-      }
-    />
+        }
+      />
+      {more === undefined ? null : (
+        <ReducerSelect
+          label={`More ${label.toLowerCase()}`}
+          offered={offered}
+          disabled={controls.disabled || full}
+          onPick={(reducer) => controls.set(name, [...selected, reducer])}
+        />
+      )}
+    </div>
   )
 }
 
@@ -430,7 +492,7 @@ function OptionControl({
 }) {
   switch (option.kind) {
     case "choice":
-      return (
+      return option.more === undefined ? (
         <Choice
           controls={controls}
           label={option.label}
@@ -439,6 +501,15 @@ function OptionControl({
           absent={option.absent}
           numeric={option.numeric}
         />
+      ) : (
+        <ReducerChoice
+          controls={controls}
+          label={option.label}
+          name={option.key}
+          options={option.options}
+          absent={option.absent}
+          more={option.more}
+        />
       )
     case "toggle":
       return (
@@ -446,11 +517,12 @@ function OptionControl({
       )
     case "reducer":
       return (
-        <Choice
+        <ReducerChoice
           controls={controls}
           label={option.label}
           name={option.key}
           options={reducerOptions}
+          more="reducer"
         />
       )
     case "reducers":
@@ -461,6 +533,7 @@ function OptionControl({
           name={option.key}
           options={option.options}
           max={option.max}
+          more={option.more}
         />
       )
     case "number":

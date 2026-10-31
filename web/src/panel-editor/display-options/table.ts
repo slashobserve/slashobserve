@@ -29,6 +29,7 @@ export const table: readonly DisplayOption[] = [
     key: "footer",
     label: "Footer",
     max: 5,
+    more: "reducer",
     options: [
       { value: "sum", label: "Total" },
       { value: "mean", label: "Mean" },
