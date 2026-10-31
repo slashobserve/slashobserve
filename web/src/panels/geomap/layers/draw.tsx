@@ -21,7 +21,6 @@ import type {
 } from "../geo-model"
 import type { Arrow } from "./route"
 import type { Bounds } from "./geojson"
-import { photoSize } from "./photos"
 
 export type Box = {
   left: number
@@ -376,7 +375,8 @@ export function PhotosLayer({
 }: { layer: PhotosLayerModel; box: Box } & Hovering) {
   const clip = useId()
   const interactive = hovering.hoverable && layer.tooltip
-  const half = photoSize / 2
+  const half = layer.radius
+  const photoSize = 2 * half
   const circle = layer.shape === "circle"
   const framed = half + layer.border
   return (
@@ -402,14 +402,17 @@ export function PhotosLayer({
             {...hoverProps(photo.tip, { ...hovering, hoverable: interactive })}
           >
             {layer.border === 0 ? null : circle ? (
-              <circle r={framed} style={{ fill: "var(--background)" }} />
+              <circle
+                r={framed}
+                style={{ fill: layer.borderColor ?? "var(--background)" }}
+              />
             ) : (
               <rect
                 x={-framed}
                 y={-framed}
                 width={2 * framed}
                 height={2 * framed}
-                style={{ fill: "var(--background)" }}
+                style={{ fill: layer.borderColor ?? "var(--background)" }}
               />
             )}
             <image

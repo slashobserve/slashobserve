@@ -82,7 +82,7 @@ A geomap imports its basemap (the CARTO map Grafana draws by default, OpenStreet
 A tile address over http is changed to https and reported, and an address with a variable in the host, a `maplibre` basemap and its access token are reported and never imported.
 The mouse wheel zoom is imported as on, because Grafana's default is on.
 The map draws tiles only when the server may fetch the basemap's host, so allow it under [Images and GeoJSON](../operate/outbound-access.md#images-and-geojson); until then the map shows country outlines.
-A geomap imports every layer: markers (size, color, symbol, text and rotation), heatmap, GeoJSON (the bundled country and state maps, an https address and its rules), day and night, route, photos, network and tile layers, each with its opacity, tooltip and the query that feeds it.
+A geomap imports every layer: markers (size, color, outline width, symbol, text and rotation), heatmap, GeoJSON (the bundled country and state maps, an https address and its rules), day and night, route, photos (border color and size), network and tile layers, each with its opacity, tooltip and the query that feeds it.
 Locating points by name uses the bundled country and state gazetteers; an airport lookup, other gazetteers, other GeoJSON files and the other layer types are reported.
 A canvas imports icons (a bundled icon, an https image or an image taken from a field), buttons, server, triangle, cloud, parallelogram, wind turbine and drone elements, the constraint and pixel placement, rotation, vertical alignment, border width and radius, background images and the background, border, pan and zoom and tooltip of the canvas.
 Pixel placement inside a group is still converted to percent of the panel and reported.

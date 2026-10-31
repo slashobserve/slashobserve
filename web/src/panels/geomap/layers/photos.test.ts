@@ -82,4 +82,22 @@ describe("photosModel", () => {
       photosModel([], { shape: "circle", border: 0 }, origin)
     ).toMatchObject({ shape: "circle", border: 0 })
   })
+
+  it("is 36 pixels across with the page background as its border", () => {
+    expect(photosModel([], {}, origin)).toMatchObject({
+      radius: 18,
+      borderColor: null,
+    })
+  })
+
+  it("sizes photos from the layer radius and colors the border", () => {
+    expect(
+      photosModel([], { radius: 25 }, origin, "var(--threshold-critical)")
+    ).toMatchObject({ radius: 25, borderColor: "var(--threshold-critical)" })
+  })
+
+  it("ignores a radius that is not positive", () => {
+    expect(photosModel([], { radius: 0 }, origin).radius).toBe(18)
+    expect(photosModel([], { radius: "big" }, origin).radius).toBe(18)
+  })
 })

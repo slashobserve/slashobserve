@@ -29,12 +29,13 @@ export type PhotosModel = {
   truncated: number
   shape: "square" | "circle"
   border: number
+  borderColor: string | null
+  radius: number
 }
 
 export const maxPhotos = 200
-export const photoSize = 36
-
 const defaultBorder = 2
+const defaultRadius = 18
 
 function hrefOf(url: unknown, origin: string | undefined): string | null {
   if (typeof url !== "string") return null
@@ -50,7 +51,8 @@ export function truncatedPhotosText(count: number): string {
 export function photosModel(
   rows: readonly PhotoRow[],
   layer: Record<string, unknown>,
-  origin?: string
+  origin?: string,
+  borderColor?: string
 ): PhotosModel {
   const photos: Photo[] = []
   let truncated = 0
@@ -80,5 +82,10 @@ export function photosModel(
       typeof layer.border === "number" && layer.border >= 0
         ? layer.border
         : defaultBorder,
+    borderColor: borderColor ?? null,
+    radius:
+      typeof layer.radius === "number" && layer.radius > 0
+        ? layer.radius
+        : defaultRadius,
   }
 }
