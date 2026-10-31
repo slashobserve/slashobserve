@@ -27,7 +27,7 @@
     { "id": "legendFormat=auto", "path": "legendFormat", "value": "__auto" },
     { "id": "hide=true", "path": "hide", "value": true },
     { "id": "refId=B", "path": "refId", "value": "B" },
-    { "id": "scopes=team-a", "path": "scopes", "value": [{"name": "team-a"}] },
+    { "id": "scopes=team-a", "path": "scopes", "value": [{"name": "team-a"}], "expect": "excluded" },
     { "id": "adhocFilters=job", "path": "adhocFilters", "value": [{"key": "job", "operator": "=", "value": "api"}] },
     { "id": "groupByKeys=job", "path": "groupByKeys", "value": ["job"] },
     { "id": "editorMode=builder", "path": "editorMode", "value": "builder", "expect": "bookkeeping" },
