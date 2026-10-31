@@ -73,6 +73,16 @@ export function isReducer(value: unknown): value is Reducer {
   )
 }
 
+export const reducerIds: readonly Reducer[] = [
+  ...Object.keys(namedLabels),
+  ...Array.from({ length: 99 }, (_, index) => `p${index + 1}`),
+].filter(isReducer)
+
+export const anyReducerIds: readonly AnyReducer[] = [
+  ...reducerIds,
+  ...Object.keys(nonNumberReducers).filter(isNonNumber),
+]
+
 function ordinal(rank: number): string {
   const lastTwo = rank % 100
   if (lastTwo >= 11 && lastTwo <= 13) return `${rank}th`
