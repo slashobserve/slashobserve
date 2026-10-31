@@ -26,10 +26,6 @@ var (
 
 type adhocProblem struct{ reason, path string }
 
-func (c *converter) adhocDefault(raw map[string]any, path, subject, kind string) []spec.AdhocFilter {
-	return c.adhocFilterList(raw, "filters", path, subject, kind)
-}
-
 func (c *converter) adhocFilterList(raw map[string]any, key, path, subject, kind string) []spec.AdhocFilter {
 	list, _ := asArray(raw[key])
 	var filters []spec.AdhocFilter

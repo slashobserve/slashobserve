@@ -136,3 +136,44 @@ func TestAdhocSavedFilterVariantsThatCannotBeKeptAreReported(t *testing.T) {
 		})
 	}
 }
+
+func TestAdhocBaseFiltersConvertLikeSavedFilters(t *testing.T) {
+	tests := []struct {
+		name     string
+		ref      string
+		base     string
+		want     []spec.AdhocFilter
+		reason   string
+		wantPath string
+	}{
+		{"equals", promRef, `{"key":"env","operator":"=","value":"prod"}`, []spec.AdhocFilter{{Key: "env", Operator: "=", Value: "prod"}}, "", ""},
+		{"labels and OR on ClickHouse", chRef, `{"key":"a","operator":"=","value":"1","keyLabel":"A"},{"key":"b","operator":">","value":"2","condition":"OR","valueLabels":["Two"]}`, []spec.AdhocFilter{
+			{Key: "a", Operator: "=", Value: "1", KeyLabel: "A"},
+			{Key: "b", Operator: ">", Value: "2", Condition: "or", ValueLabel: "Two"},
+		}, "", ""},
+		{"an operator Prometheus cannot keep", promRef, `{"key":"env","operator":"<","value":"5"}`, nil,
+			"SlashObserve supports the filter operators =, !=, =~ and !~; saved filters that use < are not kept.", "templating.list[0].baseFilters[0]"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := convertVariables(t, `{"name":"v","type":"adhoc","datasource":`+tt.ref+`,"baseFilters":[`+tt.base+`]}`)
+			v := variableNamed(t, res, "v")
+			if !slices.Equal(v.BaseFilters, tt.want) {
+				t.Fatalf("baseFilters = %+v, want %+v", v.BaseFilters, tt.want)
+			}
+			if v.Default != nil {
+				t.Fatalf("default = %+v, want none", v.Default)
+			}
+			notes := notesFor(res, "variable v")
+			if tt.reason == "" {
+				if len(notes) != 0 {
+					t.Fatalf("notes = %+v, want none", notes)
+				}
+				return
+			}
+			if len(notes) != 1 || notes[0].Reason != tt.reason || !slices.Equal(notes[0].Paths, []string{tt.wantPath}) {
+				t.Fatalf("notes = %+v, want one %q at %s", notes, tt.reason, tt.wantPath)
+			}
+		})
+	}
+}

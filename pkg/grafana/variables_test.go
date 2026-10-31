@@ -95,14 +95,13 @@ func TestAdhocSavedFiltersThatCannotBeKeptAreReported(t *testing.T) {
 		"Some options of the saved filters are not supported yet.":                                                           {"templating.list[0].filters[7].extra"},
 		"A saved filter without a key, an operator and a value is not kept.":                                                 {"templating.list[0].filters[8]", "templating.list[0].filters[9]"},
 		"A saved filter is not an object and is not kept.":                                                                   {"templating.list[0].filters[10]"},
-		"Base filters are not kept.": {"templating.list[0].baseFilters"},
 	} {
 		if got, ok := reasonsWithPaths[reason]; !ok || !slices.Equal(got, paths) {
 			t.Errorf("note %q has paths %v (present %v), want %v", reason, got, ok, paths)
 		}
 	}
-	if len(notes) != 11 {
-		t.Errorf("env has %d notes, want 11: %+v", len(notes), notes)
+	if len(notes) != 10 {
+		t.Errorf("env has %d notes, want 10: %+v", len(notes), notes)
 	}
 }
 
