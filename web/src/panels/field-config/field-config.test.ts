@@ -288,6 +288,57 @@ describe("field config resolution", () => {
     expect(matched("eq", 3, "count")).toEqual([low])
   })
 
+  it("matches a number field by a true or false reducer compared as 1 or 0", () => {
+    const zeros: WireField = { name: "zeros", type: "number", values: [0, 0] }
+    const mixed: WireField = { name: "mixed", type: "number", values: [0, 3] }
+    const nulls: WireField = {
+      name: "nulls",
+      type: "number",
+      values: [null, null],
+    }
+    const label: WireField = { name: "text", type: "string", values: [0] }
+    const f = frame([time, zeros, mixed, nulls, label])
+    const matched = (reducer: string, op: string, value: number) => {
+      const resolver = createFieldResolver(
+        panel({
+          overrides: [
+            { match: { value: { reducer, op, value } }, noValue: "x" },
+          ],
+        } as Partial<DataPanel>)
+      )
+      return [zeros, mixed, nulls, label].filter(
+        (field) => resolver.configFor(f, field).noValue === "x"
+      )
+    }
+    expect(matched("allIsZero", "eq", 1)).toEqual([zeros])
+    expect(matched("allIsZero", "eq", 0)).toEqual([mixed, nulls])
+    expect(matched("allIsZero", "gte", 0)).toEqual([zeros, mixed, nulls])
+    expect(matched("allIsNull", "eq", 1)).toEqual([nulls])
+    expect(matched("allIsNull", "neq", 1)).toEqual([zeros, mixed])
+  })
+
+  it("matches fields by position in each frame", () => {
+    const secondTime: WireField = { name: "Later", type: "time", values: [3] }
+    const a = frame([value("a1"), time, value("a2")], { ref: "A" })
+    const b = frame([value("b1"), secondTime, time], { ref: "B" })
+    const everyField = [...a.fields, ...b.fields]
+    const matchedBy = (fields: "first" | "firstTime" | "all") => {
+      const resolver = createFieldResolver(
+        panel({ overrides: [{ match: { fields }, noValue: "x" }] })
+      )
+      return [a, b].flatMap((f) =>
+        f.fields
+          .filter((field) => resolver.configFor(f, field).noValue === "x")
+          .map((field) => `${f.ref}:${field.name}`)
+      )
+    }
+    expect(matchedBy("first")).toEqual(["A:a1", "B:b1"])
+    expect(matchedBy("firstTime")).toEqual(["A:Time", "B:Later"])
+    expect(matchedBy("all")).toEqual(
+      everyField.map((field, index) => `${index < 3 ? "A" : "B"}:${field.name}`)
+    )
+  })
+
   it("resolves the series-drawing props with their defaults", () => {
     const f = frame([time, value()])
     const plain = createFieldResolver(panel()).configFor(f, f.fields[1])

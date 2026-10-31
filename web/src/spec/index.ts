@@ -166,9 +166,17 @@ function queryErrors(errors: AjvError[], site: PanelSite): AjvError[] {
 const exclusiveMembers = [
   {
     path: /\/overrides\/\d+\/match$/,
-    keys: ["query", "series", "seriesRegex", "field", "fieldType", "value"],
+    keys: [
+      "query",
+      "series",
+      "seriesRegex",
+      "field",
+      "fieldType",
+      "value",
+      "fields",
+    ],
     message:
-      "match must have exactly one of query, series, seriesRegex, field, fieldType, value",
+      "match must have exactly one of query, series, seriesRegex, field, fieldType, value, fields",
   },
   {
     path: /\/mappings\/\d+$/,

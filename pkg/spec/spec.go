@@ -465,6 +465,7 @@ type Match struct {
 	Field       string      `json:"field,omitempty"`
 	FieldType   string      `json:"fieldType,omitempty"`
 	Value       *ValueMatch `json:"value,omitempty"`
+	Fields      string      `json:"fields,omitempty"`
 }
 
 type ValueMatch struct {

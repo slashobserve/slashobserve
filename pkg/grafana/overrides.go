@@ -123,6 +123,9 @@ func (b *panelBuild) matchesFor(matcher map[string]any) ([]spec.Match, bool) {
 	if fieldType, ok := namedFieldTypes[id]; ok {
 		return []spec.Match{{FieldType: fieldType}}, true
 	}
+	if fields, ok := positionalFields[id]; ok {
+		return []spec.Match{{Fields: fields}}, true
+	}
 	switch id {
 	case "byTypes":
 		return typesMatches(matcher["options"])
@@ -135,6 +138,8 @@ func (b *panelBuild) matchesFor(matcher map[string]any) ([]spec.Match, bool) {
 }
 
 var namedFieldTypes = map[string]string{"numeric": "number", "time": "time"}
+
+var positionalFields = map[string]string{"first": "first", "firstTimeField": "firstTime", "alwaysMatch": "all"}
 
 func typesMatches(options any) ([]spec.Match, bool) {
 	items, _ := asArray(options)
@@ -182,6 +187,10 @@ func (b *panelBuild) matchFor(matcher map[string]any) (spec.Match, bool) {
 
 var valueMatchOps = []string{"eq", "neq", "lt", "lte", "gt", "gte"}
 
+func isValueMatchReducer(reducer string) bool {
+	return isReducer(reducer) || reducer == "allIsNull" || reducer == "allIsZero"
+}
+
 func valueMatch(options any) (spec.Match, bool) {
 	cfg, ok := asObject(options)
 	if !ok {
@@ -190,7 +199,7 @@ func valueMatch(options any) (spec.Match, bool) {
 	reducer := asString(cfg["reducer"])
 	op := asString(cfg["op"])
 	value, isNumber := numberValue(cfg["value"])
-	if !isReducer(reducer) || !slices.Contains(valueMatchOps, op) || !isNumber {
+	if !isValueMatchReducer(reducer) || !slices.Contains(valueMatchOps, op) || !isNumber {
 		return spec.Match{}, false
 	}
 	return spec.Match{Value: &spec.ValueMatch{Reducer: reducer, Op: op, Value: value}}, true

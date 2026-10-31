@@ -369,10 +369,13 @@ export type Match =
     }
   | {
       value: {
-        reducer: Reducer;
+        reducer: Reducer | ("allIsNull" | "allIsZero");
         op: "eq" | "neq" | "lt" | "lte" | "gt" | "gte";
         value: number;
       };
+    }
+  | {
+      fields: "first" | "firstTime" | "all";
     };
 export type Reducer =
   | (
