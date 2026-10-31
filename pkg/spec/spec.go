@@ -541,6 +541,8 @@ type Transform struct {
 	YBuckets         *Buckets          `json:"yBuckets,omitempty"`
 	YScale           string            `json:"yScale,omitempty"`
 	YLogBase         int               `json:"yLogBase,omitempty"`
+	XScale           string            `json:"xScale,omitempty"`
+	XLogBase         int               `json:"xLogBase,omitempty"`
 	KeepOriginalData bool              `json:"keepOriginalData,omitempty"`
 	Queries          []string          `json:"queries,omitempty"`
 	IncludeTime      bool              `json:"includeTime,omitempty"`
@@ -708,7 +710,10 @@ type Display struct {
 	YBuckets           *Buckets           `json:"yBuckets,omitempty"`
 	YBucketScale       string             `json:"yBucketScale,omitempty"`
 	YBucketLogBase     int                `json:"yBucketLogBase,omitempty"`
+	XBucketScale       string             `json:"xBucketScale,omitempty"`
+	XBucketLogBase     int                `json:"xBucketLogBase,omitempty"`
 	RowsLayout         string             `json:"rowsLayout,omitempty"`
+	RowsValue          string             `json:"rowsValue,omitempty"`
 	YUnit              string             `json:"yUnit,omitempty"`
 	YDecimals          *int               `json:"yDecimals,omitempty"`
 	YMin               *float64           `json:"yMin,omitempty"`

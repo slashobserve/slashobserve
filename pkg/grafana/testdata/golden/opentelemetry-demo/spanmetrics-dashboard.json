@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 8,
-      "imported": 4,
-      "partial": 4,
+      "imported": 5,
+      "partial": 3,
       "placeholder": 0,
       "unverified": 0
     },
@@ -148,14 +148,9 @@
         "type": "table",
         "source_type": "table",
         "row": "span_names Level - Throughput",
-        "status": "partial",
-        "reasons": [
-          "Some transformations are not supported yet."
-        ],
-        "paths": [
-          "transformations[2].options.reduce.include",
-          "transformations[3].options.reduce.include"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "Rate",
@@ -577,11 +572,17 @@
               },
               {
                 "type": "calculateField",
+                "include": [
+                  "Rate"
+                ],
                 "alias": "bRate",
                 "reduceRow": "sum"
               },
               {
                 "type": "calculateField",
+                "include": [
+                  "Error Rate"
+                ],
                 "alias": "eRate",
                 "reduceRow": "sum"
               },

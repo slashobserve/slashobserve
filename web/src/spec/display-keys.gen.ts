@@ -132,6 +132,7 @@ export type DisplayKey =
   | "reduce"
   | "rowHeight"
   | "rowsLayout"
+  | "rowsValue"
   | "series"
   | "serviceNames"
   | "sharedView"
@@ -180,6 +181,8 @@ export type DisplayKey =
   | "wideLayout"
   | "wrap"
   | "xAxis"
+  | "xBucketLogBase"
+  | "xBucketScale"
   | "xBuckets"
   | "xField"
   | "xTickMaxLength"
@@ -321,7 +324,10 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "yBuckets",
     "yBucketScale",
     "yBucketLogBase",
+    "xBucketScale",
+    "xBucketLogBase",
     "rowsLayout",
+    "rowsValue",
     "yUnit",
     "yDecimals",
     "yMin",

@@ -2696,6 +2696,16 @@
             "reduceRow": {
               "$ref": "#/$defs/reducer"
             },
+            "include": {
+              "x-omitFromPrompt": true,
+              "description": "With reduceRow, reduce only the number fields with these names; names the frame lacks are skipped.",
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 50,
+              "items": {
+                "$ref": "#/$defs/fieldName"
+              }
+            },
             "unary": {
               "x-omitFromPrompt": true,
               "description": "Apply fn to a number field; absent field means the first number field, absent fn means abs.",
@@ -3783,13 +3793,33 @@
               "$ref": "#/$defs/heatmapBuckets"
             },
             "yScale": {
+              "x-omitFromPrompt": true,
+              "description": "Spacing of the value rows; ordinal gives each distinct value its own row, in order of first appearance.",
+              "enum": [
+                "linear",
+                "log",
+                "symlog",
+                "ordinal"
+              ]
+            },
+            "yLogBase": {
+              "enum": [
+                2,
+                10
+              ]
+            },
+            "xScale": {
+              "x-omitFromPrompt": true,
+              "description": "Spacing of the time columns; log and symlog space them by the logarithm of the time, with 16 columns when xBuckets has no count, and a size is then a step in scaled units, not seconds. Absent is linear.",
               "enum": [
                 "linear",
                 "log",
                 "symlog"
               ]
             },
-            "yLogBase": {
+            "xLogBase": {
+              "x-omitFromPrompt": true,
+              "description": "Base of a logarithmic xScale; 2 when absent.",
               "enum": [
                 2,
                 10
@@ -4766,6 +4796,23 @@
                       10
                     ]
                   },
+                  "xBucketScale": {
+                    "x-omitFromPrompt": true,
+                    "description": "Spacing of calculated columns; log and symlog space them by the logarithm of the time, with 16 columns when xBuckets has no count, and a size is then a step in scaled units, not seconds. Absent is linear.",
+                    "enum": [
+                      "linear",
+                      "log",
+                      "symlog"
+                    ]
+                  },
+                  "xBucketLogBase": {
+                    "x-omitFromPrompt": true,
+                    "description": "Base of a logarithmic xBucketScale; 2 when absent.",
+                    "enum": [
+                      2,
+                      10
+                    ]
+                  },
                   "rowsLayout": {
                     "x-omitFromPrompt": true,
                     "description": "How pre-bucketed series are read: le takes each bound as the upper edge of its row, ge as the lower edge, unknown draws one ordinary row per series, and auto uses le for series with an le label.",
@@ -4775,6 +4822,11 @@
                       "ge",
                       "unknown"
                     ]
+                  },
+                  "rowsValue": {
+                    "x-omitFromPrompt": true,
+                    "description": "The field holding the cell value when the data is already bucketed in rows; a frame without a field of this name keeps all its number fields.",
+                    "$ref": "#/$defs/fieldName"
                   },
                   "yUnit": {
                     "x-omitFromPrompt": true,

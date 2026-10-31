@@ -571,7 +571,7 @@ func displayHeatmap(b *panelBuild) {
 	b.heatmapShowValues(d)
 	b.heatmapCalculation(d)
 	b.heatmapYAxis(d)
-	b.heatmapRowsLayout(d)
+	b.heatmapRowsFrame(d)
 	b.heatmapTooltip(d)
 	b.heatmapExemplarColor(d)
 }
@@ -592,7 +592,7 @@ func (b *panelBuild) isLegacyHeatmap() bool {
 func (b *panelBuild) heatmapCalculation(d *spec.Display) {
 	d.XBuckets = b.heatmapBuckets("options.calculation.xBuckets", xBucketSize)
 	d.YBuckets = b.heatmapBuckets("options.calculation.yBuckets", yBucketSize)
-	b.heatmapXBucketScale("options.calculation.xBuckets.scale")
+	b.heatmapXBucketScale(d)
 	b.heatmapYBucketScale(d)
 }
 
@@ -644,13 +644,15 @@ func xBucketSize(v any) (float64, bool) {
 	return n * bucketDurationSeconds[m[2]], true
 }
 
-func (b *panelBuild) heatmapXBucketScale(path string) {
-	scale := b.enumOption(path+".type", "linear", "log", "symlog")
-	if scale == "log" || scale == "symlog" {
-		b.partial(path+".type", "Logarithmic time buckets are not supported yet.")
-		return
+func (b *panelBuild) heatmapXBucketScale(d *spec.Display) {
+	const path = "options.calculation.xBuckets.scale"
+	scale, base, written := b.heatmapRowScale(path)
+	if scale != "linear" {
+		d.XBucketScale = scale
 	}
-	b.consume(path + ".log")
+	if written && !b.reportUncalculatedLogBase(d, base, path+".log") {
+		d.XBucketLogBase = base
+	}
 }
 
 func (b *panelBuild) heatmapYBucketScale(d *spec.Display) {
@@ -664,15 +666,21 @@ func (b *panelBuild) heatmapYBucketScale(d *spec.Display) {
 }
 
 func (b *panelBuild) setYBucketLogBase(d *spec.Display, base int, path string) {
-	if base != 0 && (d.Calculate == nil || !*d.Calculate) {
-		b.partial(path, uncalculatedLogBaseReason)
-		return
+	if !b.reportUncalculatedLogBase(d, base, path) {
+		d.YBucketLogBase = base
 	}
-	d.YBucketLogBase = base
 }
 
-func (b *panelBuild) heatmapRowScale(path string) (scale string, base int, written bool) {
-	scale = b.enumOption(path+".type", "linear", "log", "symlog")
+func (b *panelBuild) reportUncalculatedLogBase(d *spec.Display, base int, path string) bool {
+	if base != 0 && (d.Calculate == nil || !*d.Calculate) {
+		b.partial(path, uncalculatedLogBaseReason)
+		return true
+	}
+	return false
+}
+
+func (b *panelBuild) heatmapRowScale(path string, extra ...string) (scale string, base int, written bool) {
+	scale = b.enumOption(path+".type", append([]string{"linear", "log", "symlog"}, extra...)...)
 	if scale != "log" && scale != "symlog" {
 		b.consume(path + ".log")
 		return scale, 0, false
@@ -738,10 +746,11 @@ func (b *panelBuild) heatmapAxisLabel(d *spec.Display, path string) {
 	d.YAxisLabel = cut
 }
 
-func (b *panelBuild) heatmapRowsLayout(d *spec.Display) {
+func (b *panelBuild) heatmapRowsFrame(d *spec.Display) {
 	if layout := b.enumOption("options.rowsFrame.layout", "auto", "le", "ge", "unknown"); layout != "auto" {
 		d.RowsLayout = layout
 	}
+	d.RowsValue = b.fieldNameOption("options.rowsFrame.value")
 }
 
 func (b *panelBuild) heatmapTooltip(d *spec.Display) {

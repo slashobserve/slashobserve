@@ -156,6 +156,28 @@ export const heatmap: readonly DisplayOption[] = [
     countHint: "Number of columns. Empty is one per sample time.",
   },
   {
+    kind: "choice",
+    key: "xBucketScale",
+    label: "Time bucket scale",
+    absent: "Linear",
+    options: [
+      { value: "linear", label: "Linear" },
+      { value: "log", label: "Log" },
+      { value: "symlog", label: "Symmetric log" },
+    ],
+  },
+  {
+    kind: "choice",
+    key: "xBucketLogBase",
+    label: "Time bucket log base",
+    absent: "2",
+    numeric: true,
+    options: [
+      { value: "2", label: "2" },
+      { value: "10", label: "10" },
+    ],
+  },
+  {
     kind: "buckets",
     key: "yBuckets",
     label: "Value buckets",
@@ -195,6 +217,13 @@ export const heatmap: readonly DisplayOption[] = [
       { value: "ge", label: "Lower bounds" },
       { value: "unknown", label: "One row per series" },
     ],
+  },
+  {
+    kind: "text",
+    key: "rowsValue",
+    label: "Pre-bucketed value field",
+    placeholder: "Every number field",
+    maxLength: 200,
   },
   {
     kind: "choice",

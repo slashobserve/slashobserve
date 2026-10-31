@@ -22,6 +22,8 @@ export function heatmap(
     {
       x: bucketSpec(options.xBuckets),
       y: bucketSpec(options.yBuckets),
+      xScale: options.xScale ?? "linear",
+      xBase: logBaseOf(options.xLogBase),
       scale: options.yScale ?? "linear",
       base: logBaseOf(options.yLogBase),
     }
@@ -33,8 +35,8 @@ export function heatmap(
   const yMin: number[] = []
   const yMax: number[] = []
   const count: number[] = []
-  model.xs.forEach((x, column) => {
-    model.rows.forEach((row, at) => {
+  model.rows.forEach((row, at) => {
+    model.xs.forEach((x, column) => {
       const cells = model.cells[at][column]
       if (!cells || row.from === undefined || row.to === undefined) return
       xMin.push(x)

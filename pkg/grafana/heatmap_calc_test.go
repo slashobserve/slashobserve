@@ -64,7 +64,13 @@ func TestHeatmapBucketsAreImportedPerAxis(t *testing.T) {
 			return d.YBucketScale == "" && d.YBucketLogBase == 0
 		}},
 		{"a linear x scale is the default", `{"calculate":true,"calculation":{"xBuckets":{"scale":{"type":"linear","log":2}}}}`, func(d spec.Display) bool {
-			return d.XBuckets == nil
+			return d.XBuckets == nil && d.XBucketScale == "" && d.XBucketLogBase == 0
+		}},
+		{"a log x scale with its base", `{"calculate":true,"calculation":{"xBuckets":{"mode":"count","value":8,"scale":{"type":"log","log":10}}}}`, func(d spec.Display) bool {
+			return sameBuckets(d.XBuckets, "count", 8) && d.XBucketScale == "log" && d.XBucketLogBase == 10
+		}},
+		{"a symlog x scale of base 2", `{"calculate":true,"calculation":{"xBuckets":{"scale":{"type":"symlog","log":2}}}}`, func(d spec.Display) bool {
+			return d.XBucketScale == "symlog" && d.XBucketLogBase == 0 && d.YBucketScale == ""
 		}},
 	}
 	for _, tc := range cases {
@@ -103,8 +109,10 @@ func TestHeatmapBucketsGrafanaCannotMapAreReported(t *testing.T) {
 		name, options, path string
 		check               func(spec.Display) bool
 	}{
-		{"a log time scale", `{"calculate":true,"calculation":{"xBuckets":{"scale":{"type":"log"}}}}`, "options.calculation.xBuckets.scale.type", func(d spec.Display) bool { return d.XBuckets == nil }},
-		{"a symlog time scale", `{"calculate":true,"calculation":{"xBuckets":{"scale":{"type":"symlog"}}}}`, "options.calculation.xBuckets.scale.type", func(d spec.Display) bool { return d.XBuckets == nil }},
+		{"an ordinal time scale", `{"calculate":true,"calculation":{"xBuckets":{"scale":{"type":"ordinal"}}}}`, "options.calculation.xBuckets.scale.type", func(d spec.Display) bool { return d.XBuckets == nil }},
+		{"an x log base other than 2 and 10", `{"calculate":true,"calculation":{"xBuckets":{"scale":{"type":"log","log":5}}}}`, "options.calculation.xBuckets.scale.log", func(d spec.Display) bool {
+			return d.XBucketScale == "log" && d.XBucketLogBase == 0
+		}},
 		{"a size that is not a duration", `{"calculate":true,"calculation":{"xBuckets":{"mode":"size","value":"soon"}}}`, "options.calculation.xBuckets.value", func(d spec.Display) bool {
 			return d.XBuckets != nil && d.XBuckets.Value == nil
 		}},
@@ -146,6 +154,8 @@ func TestHeatmapYAxisOptions(t *testing.T) {
 		{"reverse false is the default", `{"yAxis":{"reverse":false}}`, func(d spec.Display) bool { return d.YReverse == nil }},
 		{"a rows layout", `{"rowsFrame":{"layout":"ge"}}`, func(d spec.Display) bool { return d.RowsLayout == "ge" }},
 		{"auto rows layout is the default", `{"rowsFrame":{"layout":"auto"}}`, func(d spec.Display) bool { return d.RowsLayout == "" }},
+		{"a rows value field", `{"rowsFrame":{"value":"Count"}}`, func(d spec.Display) bool { return d.RowsValue == "Count" }},
+		{"an empty rows value field is the default", `{"rowsFrame":{"value":""}}`, func(d spec.Display) bool { return d.RowsValue == "" }},
 		{"the default selection mode", `{"selectionMode":"x"}`, func(d spec.Display) bool { return true }},
 	}
 	for _, tc := range cases {
@@ -165,6 +175,13 @@ func TestHeatmapYAxisPlacementsTheRendererCannotDrawAreReported(t *testing.T) {
 		if line.Status != statusPartial || !slices.Contains(line.Paths, "options.yAxis.axisPlacement") || d.YAxis != "" {
 			t.Fatalf("%s: status %s, paths %v, display %+v", placement, line.Status, line.Paths, d)
 		}
+	}
+}
+
+func TestHeatmapRowsValueThatIsTooLongIsReported(t *testing.T) {
+	d, line := heatmapOptions(t, `{"rowsFrame":{"value":"`+strings.Repeat("x", 201)+`"}}`)
+	if line.Status != statusPartial || !slices.Contains(line.Paths, "options.rowsFrame.value") || d.RowsValue != "" {
+		t.Fatalf("status %s, paths %v, display %+v", line.Status, line.Paths, d)
 	}
 }
 
@@ -371,6 +388,7 @@ func TestHeatmapLogBaseOfBucketSeriesIsReported(t *testing.T) {
 		{"an axis base without calculate", scaleDistribution + `,"options":{}`, false, "fieldConfig.defaults.custom.scaleDistribution.log"},
 		{"an axis base with calculate off", scaleDistribution + `,"options":{"calculate":false}`, false, "fieldConfig.defaults.custom.scaleDistribution.log"},
 		{"a bucket base without calculate", `"options":{"calculation":{"yBuckets":{"scale":{"type":"log","log":10}}}}`, false, "options.calculation.yBuckets.scale.log"},
+		{"an x bucket base without calculate", `"options":{"calculation":{"xBuckets":{"scale":{"type":"log","log":10}}}}`, false, "options.calculation.xBuckets.scale.log"},
 		{"a legacy pre-bucketed axis", `"dataFormat":"tsbuckets","yAxis":{"logBase":10}`, true, "yAxis.logBase"},
 	}
 	for _, tc := range cases {

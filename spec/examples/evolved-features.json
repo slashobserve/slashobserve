@@ -67,6 +67,7 @@
       "gridPos": { "x": 12, "y": 4, "w": 12, "h": 4 }, "datasource": "ch",
       "queries": [{ "query": "SELECT SpanName AS span, quantile(0.99)(Duration) / 1e6 AS p99_ms, count() AS n FROM otel_traces WHERE $__timeFilter(Timestamp) GROUP BY span", "format": "table" }],
       "transform": [
+        { "type": "calculateField", "alias": "spans per millisecond", "reduceRow": "sum", "include": ["p99_ms", "n"] },
         { "type": "organize", "exclude": ["n"], "rename": { "p99_ms": "p99 (ms)" }, "order": ["span", "p99_ms"] },
         { "type": "sortBy", "field": "p99_ms", "desc": true },
         { "type": "reduce", "reducers": ["variance", "uniqueValues"] }
@@ -138,7 +139,11 @@
         { "id": "p_history", "type": "status-history", "title": "Pod status history",
           "gridPos": { "x": 12, "y": 41, "w": 12, "h": 8 }, "datasource": "prom",
           "queries": [{ "query": "up{service=\"checkout\"}" }],
-          "display": { "perPage": 5 } }
+          "display": { "perPage": 5 } },
+        { "id": "p_latency_heat", "type": "heatmap", "title": "Request latency over time",
+          "gridPos": { "x": 0, "y": 49, "w": 12, "h": 8 }, "datasource": "prom",
+          "queries": [{ "query": "http_request_duration_seconds{service=\"checkout\"}" }],
+          "display": { "calculate": true, "xBuckets": { "mode": "count", "value": 12 }, "xBucketScale": "log", "xBucketLogBase": 10 } }
       ] }
   ]
 }

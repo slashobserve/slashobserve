@@ -955,6 +955,26 @@ describe("calculateField", () => {
     expect(out.fields.at(-1)?.values).toEqual([13, 11, 12])
   })
 
+  it("reduces only the included fields and skips names the frame lacks", () => {
+    const [out] = run([input], {
+      type: "calculateField",
+      alias: "total",
+      reduceRow: "sum",
+      include: ["A", "B", "Missing"],
+    })
+    expect(out.fields.at(-1)?.values).toEqual([12, 9, 12])
+  })
+
+  it("adds no field when none of the included names exist", () => {
+    const [out] = run([input], {
+      type: "calculateField",
+      alias: "total",
+      reduceRow: "sum",
+      include: ["Missing"],
+    })
+    expect(out.fields.map((f) => f.name)).toEqual(["Time", "Value", "A", "B"])
+  })
+
   it("replaces a field with the alias's name", () => {
     const [out] = run([input], {
       type: "calculateField",
