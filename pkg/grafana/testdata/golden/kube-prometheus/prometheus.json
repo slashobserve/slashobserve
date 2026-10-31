@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 10,
-      "imported": 9,
-      "partial": 1,
+      "imported": 10,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,14 +43,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Prometheus Stats",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[2]",
-          "fieldConfig.overrides[5].properties[4]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -290,7 +285,7 @@
   },
   "blocks": [
     "dashboard mapped=5 bookkeeping=2",
-    "panel panels[1] mapped=43 reported=2 bookkeeping=4 field_config:1 override:7 query:2",
+    "panel panels[1] mapped=45 bookkeeping=4 field_config:1 override:7 query:2",
     "panel panels[3] mapped=12 bookkeeping=3 field_config:1 query:1",
     "panel panels[4] mapped=14 bookkeeping=3 field_config:1 query:1",
     "panel panels[6] mapped=12 bookkeeping=3 field_config:1 query:1",
@@ -407,7 +402,8 @@
                 "match": {
                   "field": "Time"
                 },
-                "displayName": "Time"
+                "displayName": "Time",
+                "hidden": true
               },
               {
                 "match": {
@@ -447,7 +443,8 @@
                 },
                 "unit": "short",
                 "decimals": 2,
-                "displayName": "Count"
+                "displayName": "Count",
+                "hidden": true
               },
               {
                 "match": {

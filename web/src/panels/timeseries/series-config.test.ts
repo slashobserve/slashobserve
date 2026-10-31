@@ -4,6 +4,7 @@ import { displayWithDefaults } from "@/spec"
 
 import type { FieldConfig } from "../field-config"
 import {
+  autoPointSize,
   axesInUse,
   axisRange,
   fillPercent,
@@ -683,5 +684,15 @@ describe("seriesStyles with fixed parts", () => {
       new Map()
     )
     expect([circle.pointShape, square.pointShape]).toEqual(["circle", "square"])
+  })
+})
+
+describe("autoPointSize", () => {
+  it.each([
+    [4, 8],
+    [1, 1],
+    [9, 9],
+  ])("draws isolated points of size %i at %i", (size, drawn) => {
+    expect(autoPointSize(size)).toBe(drawn)
   })
 })

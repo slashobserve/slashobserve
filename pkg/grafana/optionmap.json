@@ -7348,6 +7348,16 @@
     "display.footer[]"
    ]
   },
+  "fieldConfig.defaults.custom.hidden": {
+   "fields": [
+    "hidden"
+   ],
+   "values": {
+    "b:true": [
+     "hidden"
+    ]
+   }
+  },
   "fieldConfig.defaults.custom.hideFrom.viz": {
    "fields": [
     "hidden"
@@ -7465,6 +7475,22 @@
     "links[].title",
     "links[].url"
    ]
+  },
+  "fieldConfig.overrides[].properties[]": {
+   "fields": [
+    "overrides[].hidden",
+    "overrides[].match.field"
+   ],
+   "values": {
+    "id:custom.hidden": [
+     "overrides[].hidden",
+     "overrides[].match.field"
+    ],
+    "id:custom.hideFrom.viz": [
+     "overrides[].hidden",
+     "overrides[].match.field"
+    ]
+   }
   },
   "options.cellHeight": {
    "fields": [
@@ -8146,6 +8172,9 @@
     "pointSize"
    ],
    "values": {
+    "n:1": [
+     "pointSize"
+    ],
     "n:8": [
      "pointSize"
     ]
@@ -8235,6 +8264,9 @@
     "stackGroup"
    ],
    "values": {
+    "b:false": [
+     "stackGroup"
+    ],
     "s:B": [
      "stackGroup"
     ]

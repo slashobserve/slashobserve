@@ -216,6 +216,10 @@
     { "id": "options.timezone=named-zone", "path": "options.timezone", "value": ["America/New_York"] },
     { "id": "options.timeCompare.timeCompare=true", "path": "options.timeCompare.timeCompare", "value": true, "expect": "excluded" },
     { "id": "options.orientation=horizontal", "path": "options.orientation", "value": "horizontal", "expect": "excluded" },
-    { "id": "options.orientation=vertical", "path": "options.orientation", "value": "vertical", "expect": "excluded" }
+    { "id": "options.orientation=vertical", "path": "options.orientation", "value": "vertical", "expect": "excluded" },
+    { "id": "fieldConfig.defaults.custom.axisColorMode=thresholds", "path": "fieldConfig.defaults.custom.axisColorMode", "value": "thresholds", "expect": "bookkeeping" },
+    { "id": "fieldConfig.defaults.custom.pointSize=1-auto", "path": "fieldConfig.defaults.custom.pointSize", "value": 1 },
+    { "id": "fieldConfig.defaults.custom.stacking.group=false", "path": "fieldConfig.defaults.custom.stacking.group", "value": false, "with": {"fieldConfig.defaults.custom.stacking.mode": "normal"} },
+    { "id": "fieldConfig.defaults.custom.stacking.group=B-unstacked", "path": "fieldConfig.defaults.custom.stacking.group", "value": "B", "with": {"fieldConfig.defaults.custom.stacking.mode": "none"}, "expect": "bookkeeping" }
   ]
 }

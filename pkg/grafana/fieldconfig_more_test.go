@@ -208,6 +208,37 @@ func TestMappingWithoutIconStaysClean(t *testing.T) {
 	}
 }
 
+func TestMappingKeyedByTheEmptyStringIsTheEmptyValueMapping(t *testing.T) {
+	cases := []struct {
+		name, mappings, wantText, wantColor string
+	}{
+		{"text and color", `[{"type":"value","options":{"":{"text":"Unset","color":"red","index":0}}}]`, "Unset", "red"},
+		{"text only", `[{"type":"value","options":{"":{"text":"none","index":0}}}]`, "none", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := convertedPanel(t, defaultsPanel("table", `{"mappings":`+tc.mappings+`}`))
+			if !clean(line) {
+				t.Fatalf("line = %+v", line)
+			}
+			if len(panel.Mappings) != 1 || panel.Mappings[0].Special != "empty" || panel.Mappings[0].Value != "" || panel.Mappings[0].Text != tc.wantText {
+				t.Fatalf("mappings = %+v", panel.Mappings)
+			}
+			if tc.wantColor != "" && panel.Mappings[0].Color == "" {
+				t.Fatalf("mapping color lost: %+v", panel.Mappings[0])
+			}
+		})
+	}
+}
+
+func TestMappingKeyLongerThanTheLimitIsStillReported(t *testing.T) {
+	long := strings.Repeat("a", 201)
+	_, line := convertedPanel(t, defaultsPanel("table", `{"mappings":[{"type":"value","options":{"`+long+`":{"text":"x","index":0}}}]}`))
+	if line.Status != statusPartial || !strings.Contains(strings.Join(line.Reasons, " "), "Mapped values must be between 1 and 200 characters.") {
+		t.Fatalf("line = %+v", line)
+	}
+}
+
 func TestFilterableAndPathAreIgnoredWhereGrafanaDrawsNothingForThem(t *testing.T) {
 	override := `{"matcher":{"id":"byName","options":"up"},"properties":[{"id":"filterable","value":true}]}`
 	for _, typ := range []string{"timeseries", "stat", "barchart"} {

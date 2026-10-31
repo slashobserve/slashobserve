@@ -29,7 +29,7 @@ var tableColumnProps = map[string]bool{
 	"custom.cellOptions": true, "custom.displayMode": true, "custom.wrapText": true,
 	"custom.width": true, "custom.minWidth": true, "custom.align": true,
 	"custom.filterable": true, "custom.inspect": true, "custom.hideHeader": true,
-	"custom.footer": true, "custom.wrapHeaderText": true, "custom.tooltip": true, "description": true,
+	"custom.footer": true, "custom.hidden": true, "custom.wrapHeaderText": true, "custom.tooltip": true, "description": true,
 }
 
 func propColumnWidth(b *panelBuild, p *spec.FieldProps, v any, s propSite) {

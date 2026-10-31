@@ -1,5 +1,5 @@
 import { commonDecimals } from "@/lib/units"
-import type { FieldProps, Reducer } from "@/spec"
+import { fieldPropDefaults, type FieldProps, type Reducer } from "@/spec"
 
 import { hashSlot, styleForSlot, type LineStyle, type SlotMap } from "../colors"
 import { rangePosition, schemeColor } from "../color-scheme"
@@ -44,6 +44,14 @@ export type StyledSeries = {
   axis: AxisKey
   stack: FieldConfig["stack"]
   hidden: boolean
+}
+
+const isolatedPointSize = 8
+
+export function autoPointSize(pointSize: number): number {
+  return pointSize === fieldPropDefaults.pointSize
+    ? isolatedPointSize
+    : pointSize
 }
 
 export type LinePatterns = { dashed: number[]; dotted: number[] }

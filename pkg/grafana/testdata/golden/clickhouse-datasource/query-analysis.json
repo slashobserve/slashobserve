@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 11,
-      "imported": 9,
-      "partial": 2,
+      "imported": 10,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -152,13 +152,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "A point size applies only to points that are always shown or drawn as the series."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.pointSize"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -284,11 +280,11 @@
     "panel panels[2] mapped=19 reported=1 default=1 bookkeeping=5 field_config:1 override:1 query:1",
     "panel panels[3] mapped=18 bookkeeping=4 field_config:1 query:1",
     "panel panels[4] mapped=19 bookkeeping=5 field_config:1 override:1 query:1",
-    "panel panels[5] mapped=31 reported=1 default=1 bookkeeping=4 field_config:1 query:1 transformation:1",
-    "panel panels[6] mapped=32 default=1 bookkeeping=4 field_config:1 query:1 transformation:1",
+    "panel panels[5] mapped=32 default=1 bookkeeping=4 field_config:1 query:1 transformation:1",
+    "panel panels[6] mapped=31 default=1 no_effect=1 bookkeeping=4 field_config:1 query:1 transformation:1",
     "panel panels[7] mapped=32 no_effect=1 bookkeeping=4 field_config:1 query:1 transformation:1",
-    "panel panels[8] mapped=31 no_effect=1 bookkeeping=5 field_config:1 override:1 query:1",
-    "panel panels[9] mapped=36 default=1 bookkeeping=3 field_config:1 override:2 query:1",
+    "panel panels[8] mapped=30 no_effect=2 bookkeeping=5 field_config:1 override:1 query:1",
+    "panel panels[9] mapped=35 default=1 no_effect=1 bookkeeping=3 field_config:1 override:2 query:1",
     "panel panels[10] mapped=67 bookkeeping=5 field_config:1 override:23 query:1 transformation:1"
   ],
   "spec": {
@@ -523,6 +519,7 @@
           }
         ],
         "fill": 15,
+        "pointSize": 1,
         "stack": "normal",
         "thresholdsStyle": "off",
         "transform": [

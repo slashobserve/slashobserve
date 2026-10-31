@@ -73,7 +73,7 @@
         "row": "Trace Search",
         "status": "partial",
         "reasons": [
-          "Mapped values must be between 1 and 200 characters."
+          "The mapping color \"text\" is not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[2].properties[2]"
@@ -467,6 +467,11 @@
                   {
                     "value": "Unset",
                     "text": "-"
+                  },
+                  {
+                    "special": "empty",
+                    "text": "Ok",
+                    "color": "ok"
                   }
                 ],
                 "cell": {

@@ -175,6 +175,11 @@ A state timeline and a status history import their row height (and a status hist
 An override imports its matcher (by name, regular expression, type, numeric fields, time fields, a list of types, a regular expression or names, query ref, list of names, value, first field, first time field or every field) and its properties like the panel's own; a list of types becomes one override per type.
 A value matcher may reduce with `allIsNull` or `allIsZero`, which is how many dashboards hide series that are empty.
 On time series and trend panels, and on the extra series of a candlestick, the series properties import too: negative-Y and constant transforms, hiding from the legend or tooltip, stack group and fill below to, and a legacy graph's series overrides import the same way.
+A stack group written as `false`, `true` or a number becomes that text, so its series stack together and apart from the default group `A`, and a group on a series whose stacking is `none` has no effect.
+On a table, `custom.hidden` (written `true` or `"true"`) and `custom.hideFrom.viz` hide the column, in the panel's defaults or in an override.
+A point size on a time series with automatic points imports and sizes the isolated points that automatic points draw, except Grafana's own size 5, which draws them at the usual size, and a size of 4, which is reported because it cannot be told from no size.
+An axis color mode other than `series` is Grafana's default, `text`.
+A value mapping keyed by the empty string imports as the empty-value mapping.
 A field's color mode imports as the classic palette (the default), a palette by series name, a fixed color, shades or a named color scheme, and a series-colored mode imports on time series and trend panels, a scheme also on stat, gauge, bar gauge, bar chart and XY chart.
 A color mode a panel type does not draw is reported as "The color mode X is not drawn on Y panels."
 A value mapping's icon is reported, and its text and color are kept.

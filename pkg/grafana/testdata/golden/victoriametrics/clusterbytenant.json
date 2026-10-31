@@ -41,8 +41,8 @@
     "verified": false,
     "counts": {
       "total": 19,
-      "imported": 6,
-      "partial": 6,
+      "imported": 12,
+      "partial": 0,
       "placeholder": 7,
       "unverified": 0
     },
@@ -342,13 +342,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Billing",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -367,13 +363,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Billing",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -392,13 +384,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Billing",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -417,13 +405,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Billing",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -442,13 +426,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Billing",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -467,13 +447,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Billing",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -521,12 +497,12 @@
     "panel panels[12] mapped=24 bookkeeping=4 field_config:1 query:1",
     "panel panels[13] mapped=22 bookkeeping=4 field_config:1 query:1",
     "panel panels[14] mapped=22 bookkeeping=4 field_config:1 query:1",
-    "panel panels[15] mapped=27 reported=1 bookkeeping=4 field_config:1 override:3 query:1",
-    "panel panels[16] mapped=27 reported=1 bookkeeping=4 field_config:1 override:3 query:1",
-    "panel panels[17] mapped=27 reported=1 bookkeeping=4 field_config:1 override:3 query:1",
-    "panel panels[18] mapped=27 reported=1 bookkeeping=4 field_config:1 override:3 query:1",
-    "panel panels[19] mapped=27 reported=1 bookkeeping=4 field_config:1 override:3 query:1",
-    "panel panels[20] mapped=27 reported=1 bookkeeping=4 field_config:1 override:3 query:1"
+    "panel panels[15] mapped=28 bookkeeping=4 field_config:1 override:3 query:1",
+    "panel panels[16] mapped=28 bookkeeping=4 field_config:1 override:3 query:1",
+    "panel panels[17] mapped=28 bookkeeping=4 field_config:1 override:3 query:1",
+    "panel panels[18] mapped=28 bookkeeping=4 field_config:1 override:3 query:1",
+    "panel panels[19] mapped=28 bookkeeping=4 field_config:1 override:3 query:1",
+    "panel panels[20] mapped=28 bookkeeping=4 field_config:1 override:3 query:1"
   ],
   "spec": {
     "specVersion": "0",
@@ -865,6 +841,12 @@
             "overrides": [
               {
                 "match": {
+                  "field": "Time"
+                },
+                "hidden": true
+              },
+              {
+                "match": {
                   "field": "Value"
                 },
                 "unit": "short"
@@ -903,6 +885,12 @@
             ],
             "unit": "none",
             "overrides": [
+              {
+                "match": {
+                  "field": "Time"
+                },
+                "hidden": true
+              },
               {
                 "match": {
                   "field": "Value"
@@ -945,6 +933,12 @@
             "overrides": [
               {
                 "match": {
+                  "field": "Time"
+                },
+                "hidden": true
+              },
+              {
+                "match": {
                   "field": "Value"
                 },
                 "unit": "short"
@@ -983,6 +977,12 @@
             ],
             "unit": "none",
             "overrides": [
+              {
+                "match": {
+                  "field": "Time"
+                },
+                "hidden": true
+              },
               {
                 "match": {
                   "field": "Value"
@@ -1025,6 +1025,12 @@
             "overrides": [
               {
                 "match": {
+                  "field": "Time"
+                },
+                "hidden": true
+              },
+              {
+                "match": {
                   "field": "Value"
                 },
                 "unit": "bytes"
@@ -1063,6 +1069,12 @@
             ],
             "unit": "none",
             "overrides": [
+              {
+                "match": {
+                  "field": "Time"
+                },
+                "hidden": true
+              },
               {
                 "match": {
                   "field": "Value"
