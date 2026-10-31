@@ -246,7 +246,7 @@ func TestCanvasButtonApiBecomesAnAction(t *testing.T) {
 
 func TestCanvasConnectionOptions(t *testing.T) {
 	elements := `{"type":"rectangle","name":"A",` + canvasScaled + `,"connections":[` +
-		`{"targetName":"B","path":"curved","lineStyle":{"style":"dotted"},"direction":{"mode":"fixed","fixed":"both"},"size":{"field":"rate","min":2,"max":8},"vertices":[{"x":0.5,"y":0.5}]}]},` +
+		`{"targetName":"B","path":"curved","lineStyle":{"style":"dotted"},"direction":{"mode":"fixed","fixed":"both"},"size":{"field":"rate","min":2,"max":8}}]},` +
 		`{"type":"rectangle","name":"B",` + canvasScaled + `}`
 	panel, line := canvasPanel(t, 12, 10, elements)
 	got := displayOf(t, panel).Connections
@@ -254,9 +254,51 @@ func TestCanvasConnectionOptions(t *testing.T) {
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("connections = %+v, want %+v", got, want)
 	}
-	if !slices.Equal(line.Paths, []string{"options.root.elements[0].connections[0].vertices"}) {
+	if line.Status != statusImported {
 		t.Errorf("paths = %v", line.Paths)
 	}
+}
+
+func bentConnection(source, target, vertices string) string {
+	return `{"type":"rectangle","name":"A","constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":0,"top":0,"width":10,"height":10},"connections":[` +
+		`{"targetName":"B","path":"straight","source":` + source + `,"target":` + target + `,"vertices":` + vertices + `}]},` +
+		`{"type":"rectangle","name":"B","constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":50,"top":50,"width":10,"height":10}}`
+}
+
+func TestCanvasConnectionBends(t *testing.T) {
+	const centers, edges = `{"x":0,"y":0}`, `{"x":1,"y":0}`
+	many := strings.Repeat(`{"x":0.5,"y":0.5},`, 20)
+	cases := []struct {
+		name     string
+		source   string
+		target   string
+		vertices string
+		want     []spec.CanvasVertex
+		paths    []string
+	}{
+		{"one bend in the middle of a straight line is the middle point", centers, centers, `[{"x":0.5,"y":0.5}]`, []spec.CanvasVertex{{X: 30, Y: 30}}, nil},
+		{"bends are measured between the anchors, not the centers", edges, `{"x":-1,"y":0}`, `[{"x":0.25,"y":0.5},{"x":1,"y":1}]`, []spec.CanvasVertex{{X: 20, Y: 30}, {X: 50, Y: 55}}, nil},
+		{"twenty bends are kept", centers, centers, `[` + many[:len(many)-1] + `]`, slicesOf(20, spec.CanvasVertex{X: 30, Y: 30}), nil},
+		{"the twenty-first bend is reported", centers, centers, `[` + many + `{"x":0,"y":0}]`, slicesOf(20, spec.CanvasVertex{X: 30, Y: 30}), []string{"options.root.elements[0].connections[0].vertices[20]"}},
+		{"a bend past the panel edge is moved to it and reported", centers, centers, `[{"x":20,"y":-20}]`, []spec.CanvasVertex{{X: 100, Y: 0}}, []string{"options.root.elements[0].connections[0].vertices"}},
+		{"a bend without a number is left out and reported", centers, centers, `[{"x":"a","y":0.5},{"x":0,"y":0}]`, []spec.CanvasVertex{{X: 5, Y: 5}}, []string{"options.root.elements[0].connections[0].vertices[0]"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := canvasPanel(t, 12, 10, bentConnection(tc.source, tc.target, tc.vertices))
+			conns := displayOf(t, panel).Connections
+			if len(conns) != 1 || fmt.Sprint(conns[0].Vertices) != fmt.Sprint(tc.want) {
+				t.Errorf("connections = %+v, want vertices %+v", conns, tc.want)
+			}
+			if !slices.Equal(line.Paths, tc.paths) {
+				t.Errorf("paths = %v, want %v", line.Paths, tc.paths)
+			}
+		})
+	}
+}
+
+func slicesOf(n int, v spec.CanvasVertex) []spec.CanvasVertex {
+	return slices.Repeat([]spec.CanvasVertex{v}, n)
 }
 
 func TestCanvasElementKeepsOnlyTenLinksAndActions(t *testing.T) {
