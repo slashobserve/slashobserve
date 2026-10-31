@@ -38,6 +38,7 @@ import {
   fitPoints,
   geoModel,
   initialView,
+  labelPlacement,
   layerNeeds,
   skippedText,
   symbolPath,
@@ -232,7 +233,15 @@ function MarkersLayer({
       {layer.markers.flatMap((marker) => {
         const x = left + marker.x * size
         const y = top + marker.y * size
-        const reach = marker.radius + layer.textSize * 2
+        const { dx, dy, anchor, baseline } = labelPlacement(
+          layer.label,
+          marker.radius,
+          layer.textSize
+        )
+        const reach =
+          marker.radius +
+          layer.textSize * 2 +
+          Math.max(Math.abs(layer.label.offsetX), Math.abs(layer.label.offsetY))
         if (x < -reach || x > width + reach) return []
         if (y < -reach || y > height + reach) return []
         return [
@@ -253,9 +262,10 @@ function MarkersLayer({
             />
             {marker.text === null ? null : (
               <text
-                x={x}
-                y={y + marker.radius + layer.textSize}
-                textAnchor="middle"
+                x={x + dx}
+                y={y + dy}
+                textAnchor={anchor}
+                dominantBaseline={baseline}
                 fontSize={layer.textSize}
                 pointerEvents="none"
                 style={{

@@ -58,6 +58,7 @@ import {
   type ZoomLimits,
 } from "./projection"
 import { isRegion, regionCorners } from "./regions"
+import { parseWktPoint } from "./wkt"
 import type { AtlasName } from "./world"
 
 export type Detail = { name: string; text: string }
@@ -93,6 +94,56 @@ type Marker = {
 
 export type Tip = Pick<Marker, "label" | "details" | "state" | "color">
 
+const labelAligns = ["left", "center", "right"] as const
+const labelBaselines = ["top", "middle", "bottom"] as const
+
+export type LabelLook = {
+  align: (typeof labelAligns)[number]
+  baseline: (typeof labelBaselines)[number] | "below"
+  offsetX: number
+  offsetY: number
+}
+
+export type LabelPlacement = {
+  dx: number
+  dy: number
+  anchor: "start" | "middle" | "end"
+  baseline: "auto" | "hanging" | "central" | "text-after-edge"
+}
+
+const anchors = { left: "start", center: "middle", right: "end" } as const
+const baselines = {
+  below: "auto",
+  top: "hanging",
+  middle: "central",
+  bottom: "text-after-edge",
+} as const
+
+export function labelPlacement(
+  look: LabelLook,
+  radius: number,
+  textSize: number
+): LabelPlacement {
+  const below = look.baseline === "below" ? radius + textSize : 0
+  return {
+    dx: look.offsetX,
+    dy: below + look.offsetY,
+    anchor: anchors[look.align],
+    baseline: baselines[look.baseline],
+  }
+}
+
+function labelLook(layer: Layer): LabelLook {
+  return {
+    align: labelAligns.find((align) => align === layer.textAlign) ?? "center",
+    baseline:
+      labelBaselines.find((baseline) => baseline === layer.textBaseline) ??
+      "below",
+    offsetX: numberOf(layer.textOffsetX, 0),
+    offsetY: numberOf(layer.textOffsetY, 0),
+  }
+}
+
 type LayerBase = { name: string; opacity: number }
 type Hoverable = { tooltip: boolean }
 
@@ -100,6 +151,7 @@ export type MarkersLayerModel = LayerBase &
   Hoverable & {
     kind: "markers"
     textSize: number
+    label: LabelLook
     outlineWidth: number
     markers: Marker[]
   }
@@ -179,6 +231,7 @@ const defaultMarkerSizeMax = 15
 const defaultZoom = 2
 const defaultTextSize = 12
 const defaultOutlineWidth = 1
+const maxRotation = 360
 const markerKeys = [
   "location",
   "latField",
@@ -192,11 +245,13 @@ const markerKeys = [
 const latitudeNames = ["lat", "latitude"]
 const longitudeNames = ["lon", "lng", "longitude"]
 const geohashNames = ["geohash"]
+const wktNames = ["wkt", "geometry"]
 
 type Source =
   | { kind: "coords"; lat: PreparedField; lon: PreparedField }
   | { kind: "geohash"; geohash: PreparedField }
   | { kind: "lookup"; field: PreparedField; lookup: LookupState }
+  | { kind: "wkt"; field: PreparedField }
 
 type Located = {
   frame: PreparedFrame
@@ -210,6 +265,7 @@ type Located = {
   sizeField: PreparedField | undefined
   colorField: PreparedField | undefined
   textField: PreparedField | undefined
+  symbolField: PreparedField | undefined
   rotationField: PreparedField | undefined
 }
 
@@ -293,6 +349,11 @@ function geohashSource(frame: PreparedFrame, layer: Layer): Source | null {
   return geohash ? { kind: "geohash", geohash } : null
 }
 
+function wktSource(frame: PreparedFrame, layer: Layer): Source | null {
+  const field = explicit(frame, layer.wktField) ?? named(frame, wktNames)
+  return field ? { kind: "wkt", field } : null
+}
+
 function lookupSource(
   frame: PreparedFrame,
   layer: Layer,
@@ -317,6 +378,7 @@ function sourceOf(
   if (layer.location === "coords") return coordsSource(frame, layer)
   if (layer.location === "geohash") return geohashSource(frame, layer)
   if (layer.location === "lookup") return lookupSource(frame, layer, gazetteers)
+  if (layer.location === "wkt") return wktSource(frame, layer)
   const prefersGeohash =
     textOf(layer.geohashField) !== undefined &&
     textOf(layer.latField) === undefined &&
@@ -327,8 +389,16 @@ function sourceOf(
 }
 
 function locationFields(source: Source): PreparedField[] {
-  if (source.kind === "coords") return [source.lat, source.lon]
-  return source.kind === "geohash" ? [source.geohash] : []
+  switch (source.kind) {
+    case "coords":
+      return [source.lat, source.lon]
+    case "geohash":
+      return [source.geohash]
+    case "wkt":
+      return [source.field]
+    default:
+      return []
+  }
 }
 
 function firstNumber(
@@ -365,6 +435,7 @@ function pointOf(source: Source, row: number): LonLat | null {
     const value = source.geohash.values[row]
     return typeof value === "string" ? decodeGeohash(value) : null
   }
+  if (source.kind === "wkt") return parseWktPoint(source.field.values[row])
   if (source.lookup.state !== "ready") return null
   return source.lookup.gazetteer.find(source.field.values[row])
 }
@@ -405,6 +476,7 @@ function locate(
       explicit(frame, layer.colorField) ??
       (fixedColor === undefined ? firstNumber(frame, taken) : undefined)
     const textField = explicit(frame, layer.textField)
+    const symbolField = explicit(frame, layer.symbolField)
     const rotationField = explicit(frame, layer.rotationField)
     const rows = rowsOf(frame)
     for (let row = 0; row < rows; row++) {
@@ -428,6 +500,7 @@ function locate(
         sizeField,
         colorField,
         textField,
+        symbolField,
         rotationField,
       })
     }
@@ -523,6 +596,16 @@ function symbolOf(value: unknown): MarkerSymbol {
   return markerSymbols.find((symbol) => symbol === value) ?? "circle"
 }
 
+function rowSymbol(value: unknown): MarkerSymbol {
+  if (typeof value !== "string") return "circle"
+  return symbolOf(/\/([^/]+)\.svg$/.exec(value)?.[1] ?? value)
+}
+
+function turned(value: unknown, clamp: boolean): number {
+  if (!isNumber(value)) return 0
+  return clamp ? Math.max(-maxRotation, Math.min(maxRotation, value)) : value
+}
+
 function labelOf(item: Located): string {
   return item.place ?? `${item.lat.toFixed(3)}, ${item.lon.toFixed(3)}`
 }
@@ -576,9 +659,11 @@ function markersFrom(
   const radiusOf = sizeScale(gathered.all, layer)
   const fixed = fixedColorOf(layer.color)
   const symbol = symbolOf(layer.symbol)
+  const fixedText = textOf(layer.text) ?? null
+  const fixedRotation = numberOf(layer.rotation, 0)
+  const clamp = layer.rotationMode === "clamp"
   const markers = gathered.kept.map((item): Marker => {
     const { x, y } = project(item.lon, item.lat)
-    const rotation = item.rotationField?.values[item.row]
     return {
       key: `${item.frameIndex}:${item.row}`,
       frameIndex: item.frameIndex,
@@ -588,11 +673,15 @@ function markersFrom(
       x,
       y,
       radius: radiusOf(item.size),
-      symbol,
-      rotation: isNumber(rotation) ? rotation : 0,
+      symbol: item.symbolField
+        ? rowSymbol(item.symbolField.values[item.row])
+        : symbol,
+      rotation: item.rotationField
+        ? turned(item.rotationField.values[item.row], clamp)
+        : fixedRotation,
       text: item.textField
         ? fieldText(item.frame, item.textField, fields, item.row)
-        : null,
+        : fixedText,
       label: labelOf(item),
       details: detailsOf(
         item.frame,
@@ -715,6 +804,7 @@ function buildMarkers(config: Layer, name: string, env: Env): Built {
         kind: "markers",
         ...common(config, name),
         textSize: numberOf(config.textSize, defaultTextSize),
+        label: labelLook(config),
         outlineWidth: numberOf(config.lineWidth, defaultOutlineWidth),
         markers: markersFrom(gathered, config, env.fields),
       },
@@ -874,6 +964,7 @@ function buildNetwork(config: Layer, name: string, env: Env): Built {
         kind: "markers",
         ...common(config, name),
         textSize: numberOf(config.textSize, defaultTextSize),
+        label: labelLook(config),
         outlineWidth: defaultOutlineWidth,
         markers: markersFrom(gathered, config, env.fields),
       },

@@ -97,7 +97,14 @@
             { "ref": "low", "query": "min_over_time(process_open_fds[5m])" },
             { "ref": "close", "query": "process_open_fds" }
           ],
-          "display": { "legendMode": "table", "legendValues": ["mean", "p95"] } }
+          "display": { "legendMode": "table", "legendValues": ["mean", "p95"] } },
+        { "id": "p_sites", "type": "geomap", "title": "Sites",
+          "gridPos": { "x": 12, "y": 17, "w": 12, "h": 8 }, "datasource": "prom",
+          "queries": [{ "query": "sum by (lat, lon, icon) (up)" }],
+          "display": { "layers": [
+            { "type": "markers", "name": "Sites", "location": "coords", "latField": "lat", "lonField": "lon",
+              "symbolField": "icon", "text": "Site", "textAlign": "left", "textOffsetX": 6, "rotation": 45 }
+          ] } }
       ] }
   ]
 }

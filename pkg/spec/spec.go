@@ -927,6 +927,7 @@ type GeomapLayer struct {
 	LonField      string       `json:"lonField,omitempty"`
 	GeohashField  string       `json:"geohashField,omitempty"`
 	LookupField   string       `json:"lookupField,omitempty"`
+	WktField      string       `json:"wktField,omitempty"`
 	Gazetteer     string       `json:"gazetteer,omitempty"`
 	SizeField     string       `json:"sizeField,omitempty"`
 	ColorField    string       `json:"colorField,omitempty"`
@@ -934,9 +935,17 @@ type GeomapLayer struct {
 	MarkerSizeMax int          `json:"markerSizeMax,omitempty"`
 	Color         string       `json:"color,omitempty"`
 	Symbol        string       `json:"symbol,omitempty"`
+	SymbolField   string       `json:"symbolField,omitempty"`
+	Text          string       `json:"text,omitempty"`
 	TextField     string       `json:"textField,omitempty"`
 	TextSize      int          `json:"textSize,omitempty"`
+	TextOffsetX   int          `json:"textOffsetX,omitempty"`
+	TextOffsetY   int          `json:"textOffsetY,omitempty"`
+	TextAlign     string       `json:"textAlign,omitempty"`
+	TextBaseline  string       `json:"textBaseline,omitempty"`
+	Rotation      float64      `json:"rotation,omitempty"`
 	RotationField string       `json:"rotationField,omitempty"`
+	RotationMode  string       `json:"rotationMode,omitempty"`
 	WeightField   string       `json:"weightField,omitempty"`
 	Radius        int          `json:"radius,omitempty"`
 	Blur          *int         `json:"blur,omitempty"`

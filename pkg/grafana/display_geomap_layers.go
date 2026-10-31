@@ -33,6 +33,9 @@ const (
 	maxPhotoBorder          = 20
 	minTextSize             = 6
 	maxMarkerText           = 48
+	maxMarkerLabel          = 200
+	maxTextOffset           = 100
+	maxRotation             = 360
 	geomapDefaultRadius     = 15
 	geomapDefaultBlur       = 15
 	geomapDefaultBorder     = 2
@@ -232,7 +235,7 @@ func flatMarkers(layer spec.GeomapLayer) bool {
 	rest.Name = ""
 	rest.Location, rest.LatField, rest.LonField, rest.GeohashField = "", "", "", ""
 	rest.SizeField, rest.ColorField, rest.MarkerSize, rest.MarkerSizeMax = "", "", 0, 0
-	return layer.Type == "markers" && layer.Location != "lookup" && reflect.DeepEqual(rest, spec.GeomapLayer{Type: "markers"})
+	return layer.Type == "markers" && layer.Location != "lookup" && layer.Location != "wkt" && reflect.DeepEqual(rest, spec.GeomapLayer{Type: "markers"})
 }
 
 func (b *panelBuild) geomapLayer(at string) (spec.GeomapLayer, bool) {
@@ -327,6 +330,9 @@ func (b *panelBuild) layerLocation(layer *spec.GeomapLayer, at string) {
 		layer.Location = mode
 		layer.LookupField = b.fieldNameOption(at + ".lookup")
 		layer.Gazetteer = b.gazetteer(at + ".gazetteer")
+	case "wkt":
+		layer.Location = mode
+		layer.WktField = b.fieldNameOption(at + ".wkt")
 	case "auto", "":
 	default:
 		b.partial(at+".mode", geomapLocateReason)
@@ -383,42 +389,85 @@ func (b *panelBuild) markerStyle(layer *spec.GeomapLayer, style string) {
 	if fixed := b.layerColor(style + ".color.fixed"); layer.ColorField == "" {
 		layer.Color = fixed
 	}
-	layer.Symbol = b.markerSymbol(style + ".symbol")
+	layer.Symbol, layer.SymbolField = b.markerSymbol(style + ".symbol")
 	if width, ok := b.boundedWhole(style+".lineWidth", 1, maxLayerLineWidth); ok {
 		layer.LineWidth = width
 	}
-	layer.RotationField = b.fieldNameOption(style + ".rotation.field")
+	b.markerRotation(layer, style+".rotation")
 	b.markerText(layer, style)
 }
 
-func (b *panelBuild) markerSymbol(at string) string {
+func (b *panelBuild) markerSymbol(at string) (symbol, field string) {
 	if asString(lookupValue(b.raw, at+".mode")) == "field" {
-		return ""
+		field = b.fieldNameOption(at + ".field")
+		if field != "" {
+			b.consume(at + ".mode")
+		}
+		return "", field
 	}
 	v, has := b.value(at + ".fixed")
 	if !has {
-		return ""
+		return "", ""
 	}
 	icon := asString(v)
 	name := strings.TrimSuffix(strings.TrimPrefix(icon, markerPrefix), ".svg")
 	if strings.HasPrefix(icon, markerPrefix) && slices.Contains(geomapSymbols, name) {
 		b.consume(at + ".fixed")
-		return name
+		return name, ""
 	}
 	if icon != "" {
 		b.partial(at+".fixed", geomapSymbolReason)
 	}
-	return ""
+	return "", ""
+}
+
+func (b *panelBuild) markerRotation(layer *spec.GeomapLayer, at string) {
+	layer.RotationField = b.fieldNameOption(at + ".field")
+	if layer.RotationField != "" {
+		if asString(lookupValue(b.raw, at+".mode")) == "clamped" {
+			layer.RotationMode = "clamp"
+			b.consume(at + ".mode")
+		}
+		return
+	}
+	if degrees := b.boundedOption(at+".fixed", -maxRotation, maxRotation); degrees != nil {
+		layer.Rotation = *degrees
+	}
 }
 
 func (b *panelBuild) markerText(layer *spec.GeomapLayer, style string) {
-	if asString(lookupValue(b.raw, style+".text.mode")) == "field" {
+	switch asString(lookupValue(b.raw, style+".text.mode")) {
+	case "field":
 		layer.TextField = b.fieldNameOption(style + ".text.field")
 		b.consume(style + ".text.mode")
+	case "", "fixed":
+		layer.Text = b.markerLabel(style + ".text.fixed")
 	}
 	if size, ok := b.boundedWhole(style+".textConfig.fontSize", minTextSize, maxMarkerText); ok {
 		layer.TextSize = size
 	}
+	if offset, ok := b.boundedWhole(style+".textConfig.offsetX", -maxTextOffset, maxTextOffset); ok {
+		layer.TextOffsetX = offset
+	}
+	if offset, ok := b.boundedWhole(style+".textConfig.offsetY", -maxTextOffset, maxTextOffset); ok {
+		layer.TextOffsetY = offset
+	}
+	layer.TextAlign = b.enumOption(style+".textConfig.textAlign", "left", "center", "right")
+	layer.TextBaseline = b.enumOption(style+".textConfig.textBaseline", "top", "middle", "bottom")
+}
+
+func (b *panelBuild) markerLabel(at string) string {
+	v, has := b.value(at)
+	text := asString(v)
+	switch {
+	case !has || text == "":
+		return ""
+	case !validLength(text, maxMarkerLabel):
+		b.partial(at, "A marker label holds at most 200 characters.")
+		return ""
+	}
+	b.consume(at)
+	return text
 }
 
 var heatmapWeightDefaults = map[string]float64{"fixed": 1, "min": 0, "max": 1}
@@ -604,6 +653,9 @@ func trimLayerDefaults(layer *spec.GeomapLayer) {
 	clearDefault(&layer.Radius, geomapDefaultRadius)
 	clearDefault(&layer.TextSize, geomapDefaultTextSize)
 	clearDefault(&layer.Symbol, "circle")
+	clearDefault(&layer.TextAlign, "center")
+	clearDefault(&layer.TextBaseline, "middle")
+	clearDefault(&layer.RotationMode, "wrap")
 	clearDefault(&layer.MarkerSize, geomapDefaultMarkerSize)
 	clearDefault(&layer.MarkerSizeMax, geomapDefaultMarkerMax)
 	clearDefault(&layer.Arrow, "none")

@@ -122,6 +122,51 @@ func TestGeomapLayerTypes(t *testing.T) {
 		{"markers outline width past 20 is reported",
 			`{"type":"markers","name":"M","config":{"style":{"lineWidth":25}}}`,
 			`[{"type":"markers","name":"M"}]`, []string{"options.layers[0].config.style.lineWidth"}},
+		{"fixed label with offsets, alignment and baseline",
+			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"text":{"mode":"fixed","fixed":"Pod"},"textConfig":{"fontSize":14,"offsetX":-5,"offsetY":8,"textAlign":"left","textBaseline":"top"}}}}`,
+			`[{"type":"markers","name":"M","text":"Pod","textSize":14,"textOffsetX":-5,"textOffsetY":8,"textAlign":"left","textBaseline":"top"}]`, nil},
+		{"label placement of Grafana's defaults is silent",
+			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"text":{"mode":"fixed","fixed":""},"textConfig":{"offsetX":0,"offsetY":0,"textAlign":"center","textBaseline":"middle"}}}}`,
+			`[{"type":"markers","name":"M"}]`, nil},
+		{"label offset past 100 is reported",
+			`{"type":"markers","name":"M","config":{"style":{"textConfig":{"offsetX":150,"offsetY":-101}}}}`,
+			`[{"type":"markers","name":"M"}]`, []string{"options.layers[0].config.style.textConfig.offsetX", "options.layers[0].config.style.textConfig.offsetY"}},
+		{"label alignment Grafana has but the Spec lacks is reported",
+			`{"type":"markers","name":"M","config":{"style":{"textConfig":{"textAlign":"justify","textBaseline":"alphabetic"}}}}`,
+			`[{"type":"markers","name":"M"}]`, []string{"options.layers[0].config.style.textConfig.textAlign", "options.layers[0].config.style.textConfig.textBaseline"}},
+		{"fixed label past 200 characters is reported",
+			`{"type":"markers","name":"M","config":{"style":{"text":{"fixed":"` + strings.Repeat("a", 201) + `"}}}}`,
+			`[{"type":"markers","name":"M"}]`, []string{"options.layers[0].config.style.text.fixed"}},
+		{"symbol from a field",
+			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"symbol":{"mode":"field","field":"icon","fixed":"img/icons/marker/circle.svg"}}}}`,
+			`[{"type":"markers","name":"M","symbolField":"icon"}]`, nil},
+		{"a fixed symbol next to a symbol field is reported, never written with it",
+			`{"type":"markers","name":"M","config":{"style":{"symbol":{"mode":"field","field":"icon","fixed":"img/icons/marker/square.svg"}}}}`,
+			`[{"type":"markers","name":"M","symbolField":"icon"}]`, []string{"options.layers[0].config.style.symbol.fixed"}},
+		{"symbol field mode without a field is reported",
+			`{"type":"markers","name":"M","config":{"style":{"symbol":{"mode":"field"}}}}`,
+			`[{"type":"markers","name":"M"}]`, []string{"options.layers[0].config.style.symbol.mode"}},
+		{"fixed rotation",
+			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"rotation":{"fixed":45,"mode":"mod","min":-360,"max":360}}}}`,
+			`[{"type":"markers","name":"M","rotation":45}]`, nil},
+		{"fixed rotation past 360 is reported",
+			`{"type":"markers","name":"M","config":{"style":{"rotation":{"fixed":400}}}}`,
+			`[{"type":"markers","name":"M"}]`, []string{"options.layers[0].config.style.rotation.fixed"}},
+		{"clamped rotation field",
+			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"rotation":{"field":"angle","mode":"clamped"}}}}`,
+			`[{"type":"markers","name":"M","rotationField":"angle","rotationMode":"clamp"}]`, nil},
+		{"a fixed rotation next to a rotation field is reported, never written with it",
+			`{"type":"markers","name":"M","config":{"style":{"rotation":{"field":"angle","fixed":45}}}}`,
+			`[{"type":"markers","name":"M","rotationField":"angle"}]`, []string{"options.layers[0].config.style.rotation.fixed"}},
+		{"clamped rotation without a field is reported",
+			`{"type":"markers","name":"M","config":{"style":{"rotation":{"mode":"clamped"}}}}`,
+			`[{"type":"markers","name":"M"}]`, []string{"options.layers[0].config.style.rotation.mode"}},
+		{"WKT location",
+			`{"type":"markers","name":"M","location":{"mode":"wkt","wkt":"geometry"}}`,
+			`[{"type":"markers","name":"M","location":"wkt","wktField":"geometry"}]`, nil},
+		{"WKT location on a heatmap",
+			`{"type":"heatmap","name":"H","location":{"mode":"wkt","wkt":"geometry"}}`,
+			`[{"type":"heatmap","name":"H","location":"wkt","wktField":"geometry"}]`, nil},
 		{"lookup with a gazetteer",
 			`{"type":"markers","name":"M","location":{"mode":"lookup","lookup":"country","gazetteer":"public/gazetteer/usa-states.json"}}`,
 			`[{"type":"markers","name":"M","location":"lookup","lookupField":"country","gazetteer":"usa-states"}]`, nil},
@@ -199,6 +244,26 @@ func TestGeomapLayerTypes(t *testing.T) {
 				t.Errorf("paths = %v, want %v (reasons %v)", line.Paths, tc.paths, line.Reasons)
 			}
 		})
+	}
+}
+
+func TestGeomapMarkersLayerWithAWKTLocationKeepsItsLayer(t *testing.T) {
+	d, line := geomapPanelWith(t, `{"layers":[{"type":"markers","name":"M","location":{"mode":"wkt","wkt":"geometry"}}]}`)
+	if d.Location != "" || len(d.Layers) != 1 || d.Layers[0].Location != "wkt" || d.Layers[0].WktField != "geometry" || line.Status != statusImported {
+		t.Fatalf("display %+v paths %v", d, line.Paths)
+	}
+}
+
+func TestGeomapSymbolFieldAndFixedSymbolAreNeverBothWritten(t *testing.T) {
+	for _, style := range []string{
+		`{"symbol":{"mode":"field","field":"icon","fixed":"img/icons/marker/square.svg"}}`,
+		`{"symbol":{"mode":"fixed","field":"icon","fixed":"img/icons/marker/square.svg"}}`,
+		`{"symbol":{"mode":"field","field":"icon"}}`,
+	} {
+		d, _ := geomapPanelWith(t, `{"layers":[{"type":"markers","name":"M","config":{"style":`+style+`}},{"type":"markers","name":"N"}]}`)
+		if layer := d.Layers[0]; layer.Symbol != "" && layer.SymbolField != "" {
+			t.Errorf("%s wrote symbol %q and symbolField %q", style, layer.Symbol, layer.SymbolField)
+		}
 	}
 }
 
