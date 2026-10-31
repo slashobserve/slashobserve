@@ -2,6 +2,7 @@ package grafana
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -194,6 +195,73 @@ func TestHistogramHidesItsLegendAndTooltip(t *testing.T) {
 	}
 	if d := displayOf(t, panel); d.Legend != "hidden" || d.Tooltip != "hidden" {
 		t.Fatalf("display = %+v", d)
+	}
+}
+
+const barThresholds = `"thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"red","value":80}]}`
+
+func barThresholdsPanel(t *testing.T, typ, custom, overrides string) (spec.Panel, PanelLine) {
+	t.Helper()
+	return convertedPanel(t, panelDoc(typ, upTarget+`,"fieldConfig":{"defaults":{"custom":`+custom+`,`+barThresholds+`},"overrides":[`+overrides+`]}`))
+}
+
+func TestBarChartKeepsEveryThresholdStyleWithItsThresholds(t *testing.T) {
+	for _, mode := range []string{"line", "dashed", "area", "line+area", "dashed+area", "series"} {
+		t.Run(mode, func(t *testing.T) {
+			panel, line := barThresholdsPanel(t, "barchart", `{"thresholdsStyle":{"mode":"`+mode+`"}}`, "")
+			if !clean(line) || panel.ThresholdsStyle != mode {
+				t.Fatalf("status %s, paths %v, props %+v", line.Status, line.Paths, panel.FieldProps)
+			}
+			if got := thresholdText(panel.Thresholds); !slices.Equal(got, []string{"ok", "critical@80"}) {
+				t.Fatalf("thresholds = %v", got)
+			}
+		})
+	}
+}
+
+func TestBarChartThresholdStyleOffIsTheRendererDefaultUnlessAnOverrideResetsAStyle(t *testing.T) {
+	panel, line := barThresholdsPanel(t, "barchart", `{"thresholdsStyle":{"mode":"off"}}`, "")
+	if !clean(line) || panel.ThresholdsStyle != "" || len(panel.Thresholds) != 0 {
+		t.Fatalf("status %s, paths %v, props %+v", line.Status, line.Paths, panel.FieldProps)
+	}
+	reset := overrideOf(`{"id":"custom.thresholdsStyle","value":{"mode":"off"}}`)
+	panel, line = barThresholdsPanel(t, "barchart", `{"thresholdsStyle":{"mode":"line"}}`, reset)
+	if !clean(line) || firstOverrideProps(t, panel).ThresholdsStyle != "off" {
+		t.Fatalf("status %s, paths %v, overrides %+v", line.Status, line.Paths, panel.Overrides)
+	}
+	panel, line = barThresholdsPanel(t, "barchart", `{}`, reset)
+	if !clean(line) || len(panel.Overrides) != 0 {
+		t.Fatalf("status %s, paths %v, overrides %+v", line.Status, line.Paths, panel.Overrides)
+	}
+}
+
+func TestHistogramStillReportsTheThresholdStyle(t *testing.T) {
+	panel, line := barThresholdsPanel(t, "histogram", `{"thresholdsStyle":{"mode":"line"}}`, "")
+	if line.Status != statusPartial || !slices.Equal(line.Paths, []string{"fieldConfig.defaults.custom.thresholdsStyle.mode"}) || panel.ThresholdsStyle != "" {
+		t.Fatalf("status %s, paths %v, props %+v", line.Status, line.Paths, panel.FieldProps)
+	}
+}
+
+func TestHistogramKeepsItsStackGroup(t *testing.T) {
+	panel, line := customPanelOf(t, "histogram", `{"stacking":{"mode":"normal","group":"B"}}`, "")
+	if !clean(line) || panel.StackGroup != "B" {
+		t.Fatalf("status %s, paths %v, props %+v", line.Status, line.Paths, panel.FieldProps)
+	}
+	if d := displayOf(t, panel); d.Stack != "" {
+		t.Fatalf("stack = %q, want the Spec default for normal", d.Stack)
+	}
+	reset := overrideOf(`{"id":"custom.stacking","value":{"group":"A"}}`)
+	panel, line = customPanelOf(t, "histogram", `{"stacking":{"mode":"normal","group":"B"}}`, reset)
+	if !clean(line) || firstOverrideProps(t, panel).StackGroup != "A" {
+		t.Fatalf("status %s, paths %v, overrides %+v", line.Status, line.Paths, panel.Overrides)
+	}
+}
+
+func TestHistogramStackGroupNamesAreLimited(t *testing.T) {
+	long := strings.Repeat("g", 51)
+	panel, line := customPanelOf(t, "histogram", `{"stacking":{"mode":"normal","group":"`+long+`"}}`, "")
+	if line.Status != statusPartial || !slices.Equal(line.Paths, []string{"fieldConfig.defaults.custom.stacking.group"}) || panel.StackGroup != "" {
+		t.Fatalf("status %s, paths %v, props %+v", line.Status, line.Paths, panel.FieldProps)
 	}
 }
 

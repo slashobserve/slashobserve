@@ -15,6 +15,7 @@ import { resolveColor } from "../colors"
 import { cssColorToRgb, readableText } from "../contrast"
 import { useSeriesLegend } from "../legend/use-series-legend"
 import type { PanelRenderer } from "../types"
+import { areaOpacity } from "../timeseries/threshold-style"
 import { logTicks, scalePosition, symlogTicks } from "../value-axis"
 import {
   axisTicks,
@@ -34,6 +35,7 @@ import {
   shareOf,
   showValuesOf,
   textWidthFor,
+  thresholdMarks,
   tooltipIndexes,
   truncateLabel,
   type BarOptions,
@@ -42,6 +44,7 @@ import {
   type LabelSpot,
   type Layout,
   type Rect,
+  type ThresholdMarks,
 } from "./barchart-model"
 
 const padTop = 8
@@ -91,12 +94,14 @@ const Bars = memo(function Bars({
   model,
   layout,
   ticks,
+  marks,
   hovered,
   options,
 }: {
   model: BarchartModel
   layout: Layout
   ticks: number[]
+  marks: ThresholdMarks | null
   hovered: Hit | null
   options: Pick<BarOptions, "barRadius" | "fullHighlight">
 }) {
@@ -131,6 +136,17 @@ const Bars = memo(function Bars({
               />
             ))
         : null}
+      {marks?.bands.map(({ from, to, color }) => (
+        <rect
+          key={`${from}:${to}`}
+          data-part="threshold-band"
+          x={vertical ? 0 : position(from)}
+          y={vertical ? position(to) : 0}
+          width={vertical ? width : position(to) - position(from)}
+          height={vertical ? position(from) - position(to) : height}
+          style={{ fill: color, opacity: areaOpacity }}
+        />
+      ))}
       {band ? (
         <rect
           data-part="highlight"
@@ -182,6 +198,21 @@ const Bars = memo(function Bars({
           )
         })
       )}
+      {marks?.lines.map(({ at, color }) => (
+        <line
+          key={at}
+          data-part="threshold-line"
+          x1={vertical ? 0 : position(at)}
+          x2={vertical ? width : position(at)}
+          y1={vertical ? position(at) : 0}
+          y2={vertical ? position(at) : height}
+          style={{
+            stroke: color,
+            strokeWidth: 1,
+            strokeDasharray: marks.dashed ? "4 4" : undefined,
+          }}
+        />
+      ))}
       {layout.scale.kind === "log" ? null : (
         <line
           data-part="baseline"
@@ -594,6 +625,13 @@ function Plot({
       })),
     [scale.ticks, model.axis.unit, decimals]
   )
+  const marks = useMemo(
+    () =>
+      model.thresholds
+        ? thresholdMarks(model.thresholds, scale.min, scale.max)
+        : null,
+    [model.thresholds, scale.min, scale.max]
+  )
   const valueTextWidth =
     Math.max(0, ...labelTexts.map(({ text }) => textWidth(text))) + axisGap
   const naturalExtent = vertical ? valueTextWidth : axisThickness
@@ -674,6 +712,7 @@ function Plot({
           model={model}
           layout={layout}
           ticks={scale.ticks}
+          marks={marks}
           hovered={pointer}
           options={options}
         />

@@ -1,7 +1,7 @@
 import { formatDateTime } from "@/lib/time"
 import { timeLabel } from "@/lib/time-ticks"
 import { decimalsByUnit } from "@/lib/units"
-import { displayWithDefaults, type Reducer } from "@/spec"
+import { displayWithDefaults, type Reducer, type Threshold } from "@/spec"
 
 import { styleForSlot } from "../colors"
 import {
@@ -12,6 +12,12 @@ import {
   type FieldResolver,
 } from "../field-config"
 import { seriesKey, uniqueKey } from "../frames"
+import { thresholdValueAt } from "../timeseries/plot-model"
+import {
+  thresholdBands,
+  thresholdParts,
+  type ThresholdsStyle,
+} from "../timeseries/threshold-style"
 import { tooltipRows, type TooltipSort } from "../timeseries/tooltip-rows"
 import { thresholdColor } from "../thresholds"
 import {
@@ -64,6 +70,18 @@ type BarAxis = {
   color: string | null
 }
 
+export type BarThresholds = {
+  list: readonly Threshold[]
+  mode: FieldConfig["thresholdMode"]
+  style: ThresholdsStyle
+}
+
+export type ThresholdMarks = {
+  dashed: boolean
+  lines: { at: number; color: string }[]
+  bands: { from: number; to: number; color: string }[]
+}
+
 export type BarchartModel = {
   categories: Category[]
   series: BarSeries[]
@@ -73,6 +91,7 @@ export type BarchartModel = {
   max: number
   scale: ValueScale
   axis: BarAxis
+  thresholds: BarThresholds | null
   orientation: Orientation
   reason: string | null
   note: string | null
@@ -237,6 +256,7 @@ type Column = {
   byCategory: Map<number, number | null>
   colors: Map<number, string> | null
   hideInLegend: boolean
+  thresholdsStyleSet: boolean
 }
 
 export type BarSource = {
@@ -340,6 +360,7 @@ export function barSource(
         byCategory,
         colors,
         hideInLegend: config.hideInLegend,
+        thresholdsStyleSet: fields.isSet(frame, field, "thresholdsStyle"),
       })
     }
   }
@@ -476,6 +497,55 @@ function axisOf(columns: Column[]): BarAxis {
   }
 }
 
+function thresholdsOf(columns: Column[]): BarThresholds | null {
+  const [first] = columns
+  const list = first?.config.thresholds
+  if (!first || !list || !first.thresholdsStyleSet) return null
+  if (columns.every(({ series }) => series.stack === "percent")) return null
+  const { lines, area } = thresholdParts(first.config.thresholdsStyle)
+  if (!lines && !area) return null
+  return {
+    list,
+    mode: first.config.thresholdMode,
+    style: first.config.thresholdsStyle,
+  }
+}
+
+export function thresholdMarks(
+  { list, mode, style }: BarThresholds,
+  min: number,
+  max: number
+): ThresholdMarks {
+  const { lines, area } = thresholdParts(style)
+  const marks: ThresholdMarks = {
+    dashed: lines === "dashed",
+    lines: [],
+    bands: [],
+  }
+  if (lines) {
+    for (const threshold of list) {
+      if (threshold.value === undefined) continue
+      const at = thresholdValueAt(threshold.value, mode, min, max)
+      if (at < min || at > max) continue
+      marks.lines.push({ at, color: thresholdColor(threshold.color) })
+    }
+  }
+  if (area) {
+    for (const band of thresholdBands(list, mode, min, max)) {
+      const from = Math.max(band.from, min)
+      const to = Math.min(band.to, max)
+      if (to > from) {
+        marks.bands.push({
+          from,
+          to,
+          color: thresholdColor(band.threshold.color),
+        })
+      }
+    }
+  }
+  return marks
+}
+
 const noneHidden: ReadonlySet<string> = new Set()
 
 export function barchartModel(
@@ -495,6 +565,7 @@ export function barchartModel(
       max: 1,
       scale: linearScale,
       axis: axisOf([]),
+      thresholds: null,
       orientation,
       reason: source.reason,
       note: null,
@@ -553,6 +624,7 @@ export function barchartModel(
     max: high === min ? min + 1 : high,
     scale: scaleOf(axis.settings),
     axis,
+    thresholds: thresholdsOf(columns),
     orientation,
     reason: null,
     note: source.note,

@@ -30,7 +30,7 @@
     { "id": "fieldConfig.defaults.custom.fillBelowTo=down", "path": "fieldConfig.defaults.custom.fillBelowTo", "value": "down" },
     { "id": "fieldConfig.defaults.custom.showPoints=always", "path": "fieldConfig.defaults.custom.showPoints", "value": "always" },
     { "id": "fieldConfig.defaults.custom.showPoints=never", "path": "fieldConfig.defaults.custom.showPoints", "value": "never" },
-    { "id": "fieldConfig.defaults.custom.pointSize=8", "path": "fieldConfig.defaults.custom.pointSize", "value": 8 },
+    { "id": "fieldConfig.defaults.custom.pointSize=8", "path": "fieldConfig.defaults.custom.pointSize", "value": 8, "with": {"fieldConfig.defaults.custom.showPoints": "always"} },
     { "id": "fieldConfig.defaults.custom.pointColor=hex", "path": "fieldConfig.defaults.custom.pointColor", "value": "#0000ff" },
     { "id": "fieldConfig.defaults.custom.pointSymbol=circle", "path": "fieldConfig.defaults.custom.pointSymbol", "value": "circle" },
     { "id": "fieldConfig.defaults.custom.axisPlacement=bottom", "path": "fieldConfig.defaults.custom.axisPlacement", "value": "bottom" },

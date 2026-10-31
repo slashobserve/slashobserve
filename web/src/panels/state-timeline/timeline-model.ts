@@ -21,6 +21,7 @@ export type TimelineRow = {
   segments: Segment[]
   opacity: number
   border: number
+  hideInTooltip: boolean
 }
 
 type TimelineState = { text: string; color: string }
@@ -159,6 +160,7 @@ export function timelineModel(
         border: borderWidth(
           fields.isSet(frame, field, "lineWidth") ? config.lineWidth : undefined
         ),
+        hideInTooltip: config.hideInTooltip,
       })
     }
   }

@@ -64,7 +64,7 @@ func (s propSite) at(suffix string) string {
 type propHandler func(b *panelBuild, p *spec.FieldProps, v any, s propSite)
 
 var propOrder = []string{
-	"unit", "decimals", "min", "max", "fieldMinMax", "displayName", "noValue", "thresholds", "mappings", "links",
+	"unit", "decimals", "min", "max", "fieldMinMax", "displayName", "displayNameFromDS", "noValue", "thresholds", "mappings", "links",
 	"color", "custom.drawStyle", "custom.fillOpacity", "custom.lineStyle",
 	"custom.lineInterpolation", "custom.lineWidth", "custom.showPoints", "custom.pointSize", "custom.pointShape", "custom.pointStrokeWidth", "custom.spanNulls",
 	"custom.stacking", "custom.axisPlacement", "custom.hideFrom",
@@ -83,6 +83,7 @@ var propHandlers = map[string]propHandler{
 	"max":                      propMax,
 	"fieldMinMax":              propFieldMinMax,
 	"displayName":              propDisplayName,
+	"displayNameFromDS":        propDisplayNameFromDS,
 	"noValue":                  propNoValue,
 	"thresholds":               propThresholds,
 	"mappings":                 propMappings,
@@ -100,7 +101,7 @@ var propHandlers = map[string]propHandler{
 	"custom.spanNulls":         propSpanNulls,
 	"custom.stacking":          propStacking,
 	"custom.axisPlacement":     propAxisPlacement,
-	"custom.hideFrom":          propHideFrom,
+	"custom.hideFrom":          propHideFromUndrawn,
 	"custom.axisLabel":         propAxisLabel,
 	"custom.axisSoftMin":       propAxisSoftMin,
 	"custom.axisSoftMax":       propAxisSoftMax,
@@ -139,7 +140,6 @@ var axisPropIDs = map[string]bool{
 
 var plotDrawnPropIDs = map[string]bool{
 	"custom.insertNulls": true, "custom.barAlignment": true, "custom.barWidthFactor": true, "custom.barMaxWidth": true,
-	"custom.thresholdsStyle": true,
 }
 
 var seriesDrawingPropIDs = map[string]bool{"custom.transform": true, "custom.fillBelowTo": true}
@@ -156,6 +156,8 @@ var legendTooltipHidingTypes = map[spec.PanelType]bool{
 	spec.Timeseries: true, spec.Trend: true, spec.PieChart: true, spec.BarChart: true, spec.Histogram: true, spec.XYChart: true,
 }
 
+var thresholdsStyleTypes = union(plotPanelTypes, barChartPanelTypes)
+
 var lineStyleDrawnOnlyByGrafana = map[spec.PanelType]bool{
 	spec.StateTimeline: true, spec.StatusHistory: true, spec.XYChart: true,
 }
@@ -163,6 +165,8 @@ var lineStyleDrawnOnlyByGrafana = map[spec.PanelType]bool{
 var timelinePanelTypes = map[spec.PanelType]bool{spec.StateTimeline: true, spec.StatusHistory: true}
 
 var barPanelTypes = map[spec.PanelType]bool{spec.BarChart: true, spec.Histogram: true}
+
+var barChartPanelTypes = map[spec.PanelType]bool{spec.BarChart: true}
 
 var histogramPanelTypes = map[spec.PanelType]bool{spec.Histogram: true}
 
@@ -240,6 +244,9 @@ var propGates = []propGate{
 	{ids: propIDs("custom.spanNulls"), types: timelinePanelTypes},
 	{ids: lineStylePropIDs, types: barPanelTypes, skip: true},
 	{ids: propIDs("custom.stacking"), types: histogramPanelTypes, handler: propHistogramStacking},
+	{ids: propIDs("custom.hideFrom"), types: legendTooltipHidingTypes, handler: propHideFromLegendAndTooltip},
+	{ids: propIDs("custom.hideFrom"), types: timelinePanelTypes, handler: propHideFromTooltipOnly},
+	{ids: propIDs("custom.thresholdsStyle"), types: thresholdsStyleTypes, outside: true, skip: true},
 	{ids: plotDrawnPropIDs, types: plotPanelTypes, outside: true, skip: true},
 	{ids: axisPropIDs, types: axisDrawnPanelTypes, outside: true, skip: true},
 	{ids: lineStylePropIDs, types: lineStyleDrawnOnlyByGrafana, skip: true},
@@ -362,7 +369,7 @@ func (b *panelBuild) thresholdsApply() bool {
 	switch b.typ {
 	case spec.Stat, spec.Gauge, spec.BarGauge, spec.StateTimeline, spec.StatusHistory, spec.Canvas:
 		return true
-	case spec.Timeseries, spec.Trend, spec.Candlestick:
+	case spec.Timeseries, spec.Trend, spec.Candlestick, spec.BarChart:
 		v, _ := b.value("fieldConfig.defaults.custom.thresholdsStyle.mode")
 		mode := asString(v)
 		b.consume("fieldConfig.defaults.custom.thresholdsStyle.mode")
@@ -502,6 +509,14 @@ func propDisplayName(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 		b.partial(s.at(""), "The display name was cut to 200 characters.")
 	}
 	p.DisplayName = cut
+}
+
+func propDisplayNameFromDS(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	if p.DisplayName != "" {
+		b.consume(s.value)
+		return
+	}
+	propDisplayName(b, p, v, s)
 }
 
 func propNoValue(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
@@ -899,15 +914,13 @@ func propStacking(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	}
 }
 
-func propHistogramStacking(b *panelBuild, _ *spec.FieldProps, v any, s propSite) {
+func propHistogramStacking(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	b.consume(s.value + ".mode")
 	cfg, ok := asObject(v)
 	if !ok {
 		return
 	}
-	if asString(cfg["group"]) == defaultStackGroup {
-		b.consume(s.value + ".group")
-	}
+	b.stackGroup(p, cfg["group"], s)
 	mode := asString(cfg["mode"])
 	if mode != "normal" && mode != "percent" && mode != "none" {
 		return
@@ -1025,6 +1038,14 @@ func propBarMaxWidth(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	}
 }
 
+func (b *panelBuild) thresholdsStyleOffIsWritten(s propSite) bool {
+	if b.typ != spec.BarChart {
+		return true
+	}
+	panelStyle := b.panel.ThresholdsStyle
+	return s.whole && panelStyle != "" && panelStyle != "off"
+}
+
 func propThresholdsStyle(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	b.consume(s.value + ".mode")
 	cfg, ok := asObject(v)
@@ -1033,6 +1054,7 @@ func propThresholdsStyle(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	}
 	switch mode := asString(cfg["mode"]); {
 	case mode == "":
+	case mode == "off" && !b.thresholdsStyleOffIsWritten(s):
 	case slices.Contains(thresholdsStyleModes, mode):
 		p.ThresholdsStyle = mode
 	default:
@@ -1174,31 +1196,44 @@ func propAxisColorMode(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	}
 }
 
-func propHideFrom(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
-	cfg, ok := asObject(v)
-	if !ok {
-		return
-	}
-	b.consume(s.value + ".viz")
-	if truthy(cfg["viz"]) {
-		hidden := true
-		p.Hidden = &hidden
-	}
-	targets := map[string]**bool{"legend": &p.HideInLegend, "tooltip": &p.HideInTooltip}
-	panelLevel := map[string]*bool{"legend": b.panel.HideInLegend, "tooltip": b.panel.HideInTooltip}
-	for _, key := range []string{"legend", "tooltip"} {
-		hide, isBool := cfg[key].(bool)
-		switch {
-		case !legendTooltipHidingTypes[b.typ]:
-			if hide {
-				b.partial(s.at("."+key), fmt.Sprintf("Hiding series from the %s works on time series, trend, bar chart, histogram, pie chart and XY chart panels only.", key))
-			}
-		case hide || (isBool && s.whole && panelLevel[key] != nil && *panelLevel[key]):
-			*targets[key] = &hide
+func hideFromHandler(drawn ...string) propHandler {
+	return func(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+		cfg, ok := asObject(v)
+		if !ok {
+			return
 		}
-		b.consume(s.value + "." + key)
+		b.consume(s.value + ".viz")
+		if truthy(cfg["viz"]) {
+			hidden := true
+			p.Hidden = &hidden
+		}
+		targets := map[string]**bool{"legend": &p.HideInLegend, "tooltip": &p.HideInTooltip}
+		panelLevel := map[string]*bool{"legend": b.panel.HideInLegend, "tooltip": b.panel.HideInTooltip}
+		for _, key := range []string{"legend", "tooltip"} {
+			hide, isBool := cfg[key].(bool)
+			switch {
+			case !slices.Contains(drawn, key):
+				if hide {
+					b.partial(s.at("."+key), hideFromReasons[key])
+				}
+			case hide || (isBool && s.whole && panelLevel[key] != nil && *panelLevel[key]):
+				*targets[key] = &hide
+			}
+			b.consume(s.value + "." + key)
+		}
 	}
 }
+
+var hideFromReasons = map[string]string{
+	"legend":  "Hiding series from the legend works on time series, trend, bar chart, histogram, pie chart and XY chart panels only.",
+	"tooltip": "Hiding series from the tooltip works on time series, trend, bar chart, histogram, pie chart, XY chart, state timeline and status history panels only.",
+}
+
+var (
+	propHideFromLegendAndTooltip = hideFromHandler("legend", "tooltip")
+	propHideFromTooltipOnly      = hideFromHandler("tooltip")
+	propHideFromUndrawn          = hideFromHandler()
+)
 
 func propLinks(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	b.consume(s.value)

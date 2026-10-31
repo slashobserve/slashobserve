@@ -38,13 +38,16 @@ import {
   type ShowValues,
 } from "./timeline-layout"
 import {
-  segmentAt,
   withoutStates,
   type Segment,
   type TimelineModel,
   type TimelineRow,
 } from "./timeline-model"
-import { tooltipEntries, type TooltipEntry } from "./timeline-tooltip"
+import {
+  singleTooltipSegment,
+  tooltipEntries,
+  type TooltipEntry,
+} from "./timeline-tooltip"
 
 const padX = 12
 const padTop = 6
@@ -357,7 +360,7 @@ export function TimelineChart({
             sort: options.tooltipSort,
             hideZeros: options.tooltipHideZeros,
           }).entries.length > 0
-        : segmentAt(shown.rows[row].segments, at) !== null
+        : singleTooltipSegment(shown.rows[row], at) !== null
     setHover(listed ? { row, at, x, y } : null)
   }
 
@@ -486,7 +489,7 @@ export function TimelineChart({
                 {hover && hovered ? (
                   <Tooltip
                     name={hovered.name}
-                    segment={segmentAt(hovered.segments, hover.at)}
+                    segment={singleTooltipSegment(hovered, hover.at)}
                     entries={hoveredEntries}
                     at={hover.at}
                     hovered={hover.row}

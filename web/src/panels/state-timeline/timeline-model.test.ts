@@ -317,6 +317,20 @@ describe("null joining", () => {
   })
 })
 
+describe("hideInTooltip", () => {
+  it("marks the rows a field hides from the tooltip and keeps their segments", () => {
+    const hidden = build([series("a", [1, 2]), series("b", [1, 2])], {
+      overrides: [{ match: { series: "b" }, hideInTooltip: true }],
+    } as Partial<DataPanel>)
+    expect(hidden.rows.map((row) => row.hideInTooltip)).toEqual([false, true])
+    expect(hidden.rows[1].segments).toHaveLength(2)
+    const panelWide = build([series("a", [1])], {
+      hideInTooltip: true,
+    } as Partial<DataPanel>)
+    expect(panelWide.rows[0].hideInTooltip).toBe(true)
+  })
+})
+
 describe("fill and line width", () => {
   it("draws opaque segments without a border when neither is written", () => {
     const { rows } = build([series("a", [1])])

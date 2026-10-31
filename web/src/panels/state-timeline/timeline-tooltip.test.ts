@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest"
 
 import type { TimelineRow } from "./timeline-model"
-import { maxTooltipEntries, tooltipEntries } from "./timeline-tooltip"
+import {
+  maxTooltipEntries,
+  singleTooltipSegment,
+  tooltipEntries,
+} from "./timeline-tooltip"
 
 function row(name: string, value: number | null, text = String(value)) {
   return {
@@ -9,6 +13,7 @@ function row(name: string, value: number | null, text = String(value)) {
     name,
     opacity: 1,
     border: 0,
+    hideInTooltip: false,
     segments: [{ from: 0, to: 100, text, color: "red", value }],
   } satisfies TimelineRow
 }
@@ -62,5 +67,26 @@ describe("tooltipEntries", () => {
     })
     expect(entries).toHaveLength(maxTooltipEntries)
     expect(total).toBe(14)
+  })
+
+  it("leaves out rows hidden from the tooltip", () => {
+    const hidden = { ...row("c", 5), hideInTooltip: true }
+    const { entries, total } = tooltipEntries([rows[0], hidden, rows[3]], 50, {
+      sort: "none",
+      hideZeros: false,
+    })
+    expect(names(entries)).toEqual(["a", "d"])
+    expect(total).toBe(2)
+    expect(entries.map(({ row: index }) => index)).toEqual([0, 2])
+  })
+})
+
+describe("singleTooltipSegment", () => {
+  it("returns the state at the time, and nothing for a hidden row", () => {
+    expect(singleTooltipSegment(rows[0], 50)).toMatchObject({ text: "2" })
+    expect(singleTooltipSegment(rows[0], 150)).toBeNull()
+    expect(
+      singleTooltipSegment({ ...rows[0], hideInTooltip: true }, 50)
+    ).toBeNull()
   })
 })

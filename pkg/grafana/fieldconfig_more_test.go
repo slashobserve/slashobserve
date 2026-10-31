@@ -24,6 +24,35 @@ func TestFieldMinMaxImportsOnTheTypesThatShareARange(t *testing.T) {
 	}
 }
 
+func TestDisplayNameFromDataSourceBecomesTheDisplayNameWhenNoneIsSet(t *testing.T) {
+	cases := []struct {
+		name, defaults, want string
+	}{
+		{"alone", `{"displayNameFromDS":"From datasource"}`, "From datasource"},
+		{"displayName wins", `{"displayName":"Mine","displayNameFromDS":"From datasource"}`, "Mine"},
+		{"blank displayName leaves the datasource name", `{"displayName":" ","displayNameFromDS":"From datasource"}`, "From datasource"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := convertedPanel(t, defaultsPanel("timeseries", tc.defaults))
+			if !clean(line) || panel.DisplayName != tc.want {
+				t.Fatalf("displayName = %q, want %q (line %+v)", panel.DisplayName, tc.want, line)
+			}
+		})
+	}
+}
+
+func TestDisplayNameFromDataSourceInAnOverrideFollowsTheSameRule(t *testing.T) {
+	panel, line := convertedPanel(t, overridePanel("timeseries", byUp, property("displayNameFromDS", `"From datasource"`)))
+	if !clean(line) || onlyOverride(t, panel).DisplayName != "From datasource" {
+		t.Fatalf("line %+v, overrides %+v", line, panel.Overrides)
+	}
+	panel, line = convertedPanel(t, overridePanel("timeseries", byUp, property("displayName", `"Mine"`), property("displayNameFromDS", `"From datasource"`)))
+	if !clean(line) || onlyOverride(t, panel).DisplayName != "Mine" {
+		t.Fatalf("line %+v, overrides %+v", line, panel.Overrides)
+	}
+}
+
 func TestFieldMinMaxFalseIsTheDefault(t *testing.T) {
 	panel, line := convertedPanel(t, defaultsPanel("gauge", `{"fieldMinMax":false}`))
 	if panel.FieldMinMax != nil || !clean(line) {

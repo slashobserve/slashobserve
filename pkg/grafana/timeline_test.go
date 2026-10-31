@@ -1,6 +1,7 @@
 package grafana
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -154,6 +155,57 @@ func TestTimelineLineStyleAndAxisPropsAreStillReported(t *testing.T) {
 				t.Fatalf("%s %s: status = %s", typ, custom, line.Status)
 			}
 		}
+	}
+}
+
+func TestHideFromFollowsTheTypesThatDrawIt(t *testing.T) {
+	const both = `{"hideFrom":{"legend":true,"tooltip":true,"viz":false}}`
+	const legendPath = "fieldConfig.defaults.custom.hideFrom.legend"
+	const tooltipPath = "fieldConfig.defaults.custom.hideFrom.tooltip"
+	cases := []struct {
+		typ     string
+		legend  bool
+		tooltip bool
+		reports []string
+	}{
+		{"timeseries", true, true, nil},
+		{"trend", true, true, nil},
+		{"barchart", true, true, nil},
+		{"histogram", true, true, nil},
+		{"piechart", true, true, nil},
+		{"xychart", true, true, nil},
+		{"state-timeline", false, true, []string{legendPath}},
+		{"status-history", false, true, []string{legendPath}},
+		{"heatmap", false, false, []string{legendPath, tooltipPath}},
+		{"stat", false, false, []string{legendPath, tooltipPath}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.typ, func(t *testing.T) {
+			panel, line := customPanelOf(t, tc.typ, both, "")
+			gotLegend := panel.HideInLegend != nil && *panel.HideInLegend
+			gotTooltip := panel.HideInTooltip != nil && *panel.HideInTooltip
+			if gotLegend != tc.legend || gotTooltip != tc.tooltip {
+				t.Fatalf("hideInLegend %v, hideInTooltip %v, want %v and %v", gotLegend, gotTooltip, tc.legend, tc.tooltip)
+			}
+			if !slices.Equal(line.Paths, tc.reports) {
+				t.Fatalf("paths = %v, want %v", line.Paths, tc.reports)
+			}
+		})
+	}
+}
+
+func TestTimelineOverrideHidesASeriesFromTheTooltipOnly(t *testing.T) {
+	hide := overrideOf(`{"id":"custom.hideFrom","value":{"legend":false,"tooltip":true,"viz":false}}`)
+	for _, typ := range []string{"state-timeline", "status-history"} {
+		t.Run(typ, func(t *testing.T) {
+			panel, line := customPanelOf(t, typ, `{}`, hide)
+			if !clean(line) {
+				t.Fatalf("status %s, paths %v", line.Status, line.Paths)
+			}
+			if got := firstOverrideProps(t, panel); got.HideInTooltip == nil || !*got.HideInTooltip || got.HideInLegend != nil {
+				t.Fatalf("override props = %+v", got)
+			}
+		})
 	}
 }
 

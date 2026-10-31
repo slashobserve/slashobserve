@@ -9,13 +9,20 @@ export type TooltipView = { sort: TooltipSort; hideZeros: boolean }
 
 export type TooltipEntries = { entries: TooltipEntry[]; total: number }
 
+export function singleTooltipSegment(
+  row: TimelineRow,
+  at: number
+): Segment | null {
+  return row.hideInTooltip ? null : segmentAt(row.segments, at)
+}
+
 export function tooltipEntries(
   rows: readonly TimelineRow[],
   at: number,
   { sort, hideZeros }: TooltipView
 ): TooltipEntries {
   const found = rows.flatMap((row, index): TooltipEntry[] => {
-    const segment = segmentAt(row.segments, at)
+    const segment = singleTooltipSegment(row, at)
     return segment ? [{ row: index, name: row.name, segment }] : []
   })
   const numeric = found.flatMap((entry, index) =>
