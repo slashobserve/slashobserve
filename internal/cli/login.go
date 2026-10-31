@@ -13,7 +13,10 @@ import (
 	"golang.org/x/term"
 )
 
-const maxKeyBytes = 4096
+const (
+	maxKeyBytes  = 4096
+	keysPagePath = "keys"
+)
 
 type principal struct {
 	Name string `json:"name"`
@@ -23,7 +26,7 @@ func (a *app) loginCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Save a service-account key and the server it belongs to",
-		Long:  "login checks a service-account key against the server and saves both to the CLI config file.\nCreate a key on the server's API keys page (<server>/keys).",
+		Long:  "login checks a service-account key against the server and saves both to the CLI config file.\nCreate a key on the server's API keys page (<server>/" + keysPagePath + ").",
 		Args:  noArgs,
 		RunE:  a.runLogin,
 	}
@@ -91,7 +94,11 @@ func (a *app) hintKeysPage(base *url.URL) {
 	if _, interactive := a.interactiveInput(); !interactive || a.withToken || a.json {
 		return
 	}
-	_, _ = fmt.Fprintf(a.std.Err, "Create a key at %s\n", base.JoinPath("settings", "keys").String())
+	_, _ = fmt.Fprintf(a.std.Err, "Create a key at %s\n", keysPageURL(base))
+}
+
+func keysPageURL(base *url.URL) string {
+	return base.JoinPath(keysPagePath).String()
 }
 
 func (a *app) interactiveInput() (*os.File, bool) {
