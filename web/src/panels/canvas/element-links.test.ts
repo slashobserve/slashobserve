@@ -5,7 +5,7 @@ import type { ResolvedLink } from "@/panels/field-config"
 import type { PreparedFrame } from "@/panels/transforms"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
-import type { ElementAction } from "./actions"
+import type { RunnableAction } from "../actions/actions"
 import { canvasModel } from "./canvas-model"
 import {
   interactionOf,
@@ -17,14 +17,17 @@ import {
 const link = (title: string, href = `https://docs.example.com/${title}`) =>
   ({ title, href, newTab: false }) satisfies ResolvedLink
 
-const action = (index: number, title = `Action ${index}`): ElementAction => ({
+const action = (index: number, title = `Action ${index}`): RunnableAction => ({
   index,
   title,
   method: "POST",
   host: "ops.example.com",
   confirm: null,
   variables: [],
+  inputs: [],
   fields: {},
+  color: null,
+  oneClick: false,
 })
 
 const element = (extra: Partial<Interactive> = {}): Interactive => ({

@@ -19,9 +19,8 @@ import {
   type View,
 } from "../nodeGraph/zoom"
 import type { PanelRenderer } from "../types"
-import { ActionDialog, type PendingAction } from "./action-dialog"
-import { useCanvasActions } from "./action-context"
-import { actionRequest, disabledReason, type ElementAction } from "./actions"
+import { useActionRunner } from "../actions/action-runner"
+import { actionRequest, type RunnableAction } from "../actions/actions"
 import {
   canvasModel,
   type CanvasElement,
@@ -127,9 +126,7 @@ const CanvasPanel: PanelRenderer = ({
   const drag = useRef<Drag | null>(null)
   const [pan, setView] = useState<View>(initialView)
   const [hover, setHover] = useState<Hover | null>(null)
-  const [pending, setPending] = useState<PendingAction | null>(null)
-  const actions = useCanvasActions()
-  const reason = disabledReason(actions)
+  const runner = useActionRunner()
   const view = root.panZoom
     ? clampView(pan, body, root.infinitePan)
     : initialView
@@ -187,21 +184,21 @@ const CanvasPanel: PanelRenderer = ({
     [model.elements, links]
   )
 
-  function requestRun(element: CanvasElement, action: ElementAction) {
-    if (actions === null || reason !== null) return
-    setPending({
+  function requestRun(element: CanvasElement, action: RunnableAction) {
+    if (runner.context === null) return
+    runner.open(
       action,
-      request: actionRequest({
-        context: actions,
+      actionRequest({
+        context: runner.context,
         panelId: panel.id,
-        elementId: element.id,
+        target: { element: element.id },
         value: element.value,
         action,
         vars: links.vars,
         fromMs: Date.parse(meta.from),
         toMs: Date.parse(meta.to),
-      }),
-    })
+      })
+    )
   }
 
   const shaped = model.elements.filter(hasShape)
@@ -255,7 +252,7 @@ const CanvasPanel: PanelRenderer = ({
               key={element.key}
               element={element}
               interaction={interaction}
-              reason={reason}
+              reason={runner.reason}
               tooltipOn={root.tooltip}
               onShow={showHover}
               onHide={() => setHover(null)}
@@ -312,13 +309,7 @@ const CanvasPanel: PanelRenderer = ({
       {root.tooltip && hover ? (
         <Tooltip hover={hover} width={width} height={height} />
       ) : null}
-      {pending !== null && actions !== null ? (
-        <ActionDialog
-          dashboardId={actions.dashboardId}
-          pending={pending}
-          onClose={() => setPending(null)}
-        />
-      ) : null}
+      {runner.dialog}
     </div>
   )
 }

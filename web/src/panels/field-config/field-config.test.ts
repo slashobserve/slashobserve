@@ -75,6 +75,62 @@ describe("field config resolution", () => {
       thresholdsStyle: "dashed",
       mappings: [],
       links: [],
+      actions: [],
+      actionsOverride: null,
+    })
+  })
+
+  describe("field actions", () => {
+    const restart = { title: "Restart", url: "https://ops.example.com/r" }
+    const drain = { title: "Drain", url: "https://ops.example.com/d" }
+    const resolveFirst = (extra: Partial<DataPanel>) => {
+      const f = frame([time, value()])
+      return createFieldResolver(panel(extra)).configFor(f, f.fields[1])
+    }
+
+    it("has no actions and no source for a panel that sets none", () => {
+      const config = resolveFirst({})
+      expect(config.actions).toEqual([])
+      expect(config.actionsOverride).toBeNull()
+    })
+
+    it("names no override for the panel's own actions", () => {
+      const config = resolveFirst({ actions: [restart] })
+      expect(config.actions).toEqual([restart])
+      expect(config.actionsOverride).toBeNull()
+    })
+
+    it("names the override whose actions the field got, by its place in the list", () => {
+      const config = resolveFirst({
+        overrides: [
+          { match: { query: "B" }, unit: "ms" },
+          { match: { query: "A" }, actions: [drain] },
+        ],
+      })
+      expect(config.actions).toEqual([drain])
+      expect(config.actionsOverride).toBe(1)
+    })
+
+    it("lets the later override win and replaces the list wholesale", () => {
+      const config = resolveFirst({
+        actions: [restart],
+        overrides: [
+          { match: { query: "A" }, actions: [restart, drain] },
+          { match: { query: "A" }, unit: "ms" },
+          { match: { query: "A" }, actions: [drain] },
+        ],
+      })
+      expect(config.actions).toEqual([drain])
+      expect(config.actionsOverride).toBe(2)
+    })
+
+    it("keeps the panel's actions for a field no override with actions matches", () => {
+      const config = resolveFirst({
+        actions: [restart],
+        overrides: [{ match: { query: "B" }, actions: [drain] }],
+      })
+      expect(config.actions).toEqual([restart])
+      expect(config.actionsOverride).toBeNull()
     })
   })
 

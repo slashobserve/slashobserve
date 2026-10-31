@@ -46,7 +46,7 @@ export function anchorProps(link: ResolvedLink) {
 
 const interactiveTarget = "a, button, input, [role='menuitem']"
 
-function followOneClick(link: ResolvedLink, event: MouseEvent<HTMLElement>) {
+function onPlainClick(event: MouseEvent<HTMLElement>, follow: () => void) {
   const { target } = event
   if (
     event.defaultPrevented ||
@@ -56,16 +56,21 @@ function followOneClick(link: ResolvedLink, event: MouseEvent<HTMLElement>) {
   ) {
     return
   }
+  follow()
+}
+
+function openLink(link: ResolvedLink) {
   if (link.newTab) window.open(link.href, "_blank", "noopener,noreferrer")
   else window.location.assign(link.href)
 }
 
-export function oneClickProps(links: ResolvedLink[]) {
+export function oneClickProps(links: ResolvedLink[], action?: () => void) {
   const link = oneClickLink(links)
-  if (!link) return {}
+  const follow = action ?? (link ? () => openLink(link) : undefined)
+  if (!follow) return {}
   return {
     "data-one-click": "",
-    onClick: (event: MouseEvent<HTMLElement>) => followOneClick(link, event),
+    onClick: (event: MouseEvent<HTMLElement>) => onPlainClick(event, follow),
   }
 }
 

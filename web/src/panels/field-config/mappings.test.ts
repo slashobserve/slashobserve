@@ -40,6 +40,8 @@ const config = (extra: Partial<FieldConfig> = {}): FieldConfig => ({
   thresholdsStyle: "dashed",
   mappings: [],
   links: [],
+  actions: [],
+  actionsOverride: null,
   ...extra,
 })
 

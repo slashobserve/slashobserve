@@ -18,7 +18,11 @@ import {
 import { reduce } from "../reducers"
 import { thresholdColor, type ThresholdLevel } from "../thresholds"
 import type { PreparedField, PreparedFrame } from "../transforms"
-import { parseActions, type ActionValue, type ElementAction } from "./actions"
+import {
+  parseActions,
+  type ActionValue,
+  type RunnableAction,
+} from "../actions/actions"
 import {
   scaledWidth,
   type ArrowMode,
@@ -99,7 +103,7 @@ export type CanvasElement = {
   details: Detail[]
   state: MetricState | null
   links: Link[]
-  actions: ElementAction[]
+  actions: RunnableAction[]
   oneClick: OneClick | null
   value: ActionValue | null
 }

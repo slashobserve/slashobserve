@@ -149,8 +149,8 @@ export const assetKeys = {
   geojson: (url: string) => ["assets", "geojson", url] as const,
 }
 
-export const canvasActionKeys = {
-  run: (dashboardId: string) => ["canvas-actions", dashboardId] as const,
+export const actionKeys = {
+  run: (dashboardId: string) => ["actions", dashboardId] as const,
 }
 
 export const newsKeys = {

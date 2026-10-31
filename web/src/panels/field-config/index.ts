@@ -12,6 +12,7 @@ export {
   oneClickLink,
   panelLinks,
   resolveLink,
+  rowValue,
   type LinkScope,
   type ResolvedLink,
 } from "./links"

@@ -6,7 +6,7 @@ import { toast } from "sonner"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
-import { canvasActionKeys } from "@/api/keys"
+import { actionKeys } from "@/api/keys"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -18,25 +18,30 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 import {
   actionOutcome,
   actionProblem,
+  maxInputLength,
   requestLine,
   sentFromServerLine,
+  withInputs,
   type ActionProblem,
   type ActionRequestBody,
-  type ElementAction,
+  type PendingRequest,
+  type RunnableAction,
 } from "./actions"
 
 export type PendingAction = {
-  action: ElementAction
-  request: ActionRequestBody
+  action: RunnableAction
+  request: PendingRequest
 }
 
-function useRunCanvasAction(dashboardId: string) {
+function useRunAction(dashboardId: string) {
   return useMutation({
-    mutationKey: canvasActionKeys.run(dashboardId),
+    mutationKey: actionKeys.run(dashboardId),
     networkMode: "always",
     mutationFn: (body: ActionRequestBody) =>
       api
@@ -58,17 +63,21 @@ export function ActionDialog({
   onClose: () => void
 }) {
   const { action, request } = pending
-  const run = useRunCanvasAction(dashboardId)
+  const run = useRunAction(dashboardId)
   const [problem, setProblem] = useState<ActionProblem | null>(null)
+  const [values, setValues] = useState<Record<string, string>>({})
   const cancel = useRef<HTMLButtonElement>(null)
+  const firstInput = useRef<HTMLInputElement>(null)
+  const hasInputs = action.inputs.length > 0
 
   function changeOpen(open: boolean) {
     if (!open && !run.isPending) onClose()
   }
 
   function confirm() {
+    if (run.isPending) return
     setProblem(null)
-    run.mutate(request, {
+    run.mutate(withInputs(request, action, values), {
       onSuccess: (result) => {
         const outcome = actionOutcome(action.title, result)
         if (outcome.tone === "success") toast.success(outcome.text)
@@ -81,7 +90,7 @@ export function ActionDialog({
 
   return (
     <AlertDialog open onOpenChange={changeOpen}>
-      <AlertDialogContent initialFocus={cancel}>
+      <AlertDialogContent initialFocus={hasInputs ? firstInput : cancel}>
         <AlertDialogHeader>
           <AlertDialogTitle className="wrap-anywhere">
             {action.title}
@@ -98,6 +107,34 @@ export function ActionDialog({
             <span className="block">{sentFromServerLine}</span>
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {hasInputs ? (
+          <div className="grid gap-3">
+            {action.inputs.map((input, position) => (
+              <div key={input.key} className="grid gap-1.5">
+                <Label htmlFor={`action-input-${input.key}`}>
+                  {input.name}
+                </Label>
+                <Input
+                  id={`action-input-${input.key}`}
+                  ref={position === 0 ? firstInput : undefined}
+                  value={values[input.key] ?? ""}
+                  maxLength={maxInputLength}
+                  autoComplete="off"
+                  readOnly={run.isPending}
+                  onChange={(event) =>
+                    setValues({ ...values, [input.key]: event.target.value })
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" || event.nativeEvent.isComposing)
+                      return
+                    event.preventDefault()
+                    confirm()
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        ) : null}
         {problem === null ? null : (
           <Alert variant="destructive">
             <AlertDescription>

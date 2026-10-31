@@ -27,6 +27,8 @@ function config(props: Partial<FieldConfig> = {}): FieldConfig {
     colorBy: "last",
     mappings: [],
     links: [],
+    actions: [],
+    actionsOverride: null,
     style: "line",
     fill: 0,
     lineStyle: "solid",

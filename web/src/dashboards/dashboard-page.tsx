@@ -28,7 +28,7 @@ import { refreshToMs, timeOptionsFor } from "@/lib/time"
 import { madeByBreadcrumb } from "@/lib/origin"
 import { isRenderable, isStaticPanel, preloadRenderer } from "@/panels"
 import { createFieldResolver, panelLinks } from "@/panels/field-config"
-import { CanvasActionProvider } from "@/panels/canvas/action-context"
+import { ActionProvider } from "@/panels/actions/action-context"
 import { linkScopeFor, PanelBody, StaticPanelBody } from "@/panels/panel-body"
 import { panelHasData } from "@/panels/panel-has-data"
 import { reusedFilterOf, reusePanel } from "@/panels/transforms/reuse-panel"
@@ -438,7 +438,7 @@ function DashboardView({
       unverifiedReasons(envelope.version.unverified, envelopeVersion, version),
     [envelope.version.unverified, envelopeVersion, version]
   )
-  const canvasActions = useMemo(
+  const actionContext = useMemo(
     () => ({
       dashboardId,
       version,
@@ -722,7 +722,7 @@ function DashboardView({
           ref={gridBox}
           className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4"
         >
-          <CanvasActionProvider value={canvasActions}>
+          <ActionProvider value={actionContext}>
             <DashboardGrid
               dashboardId={dashboardId}
               spec={spec}
@@ -779,7 +779,7 @@ function DashboardView({
                 />
               )}
             />
-          </CanvasActionProvider>
+          </ActionProvider>
         </main>
       </div>
       {cardVisible ? (

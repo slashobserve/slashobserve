@@ -5,7 +5,7 @@ import { actionDefaults } from "@/spec"
 
 import { selectedValues } from "../field-config/variable-format"
 
-export type CanvasActionContext = {
+export type ActionContext = {
   dashboardId: string
   version: number
   latestVersion: number
@@ -18,18 +18,27 @@ export type ActionValue = {
   numeric: number | null
 }
 
-export type ElementAction = {
+type ActionInput = { key: string; name: string }
+
+export type RunnableAction = {
   index: number
   title: string
   method: string
   host: string
   confirm: string | null
   variables: string[]
+  inputs: ActionInput[]
   fields: Record<string, string>
+  color: string | null
+  oneClick: boolean
 }
+
+export type ActionTarget = { element: string } | { override: number | null }
 
 export type ActionRequestBody =
   paths["/dashboards/{id}/actions"]["post"]["requestBody"]["content"]["application/json"]
+
+export type PendingRequest = Omit<ActionRequestBody, "inputs">
 
 export type ActionProblem = { text: string; allowlist: boolean }
 
@@ -45,6 +54,7 @@ export const sentFromServerLine = "SlashObserve sends this from its server."
 const methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
 const hostOfUrl = /^https:\/\/([A-Za-z0-9.-]+)(?::443)?(?:\/|$)/
 const identifier = /^[A-Za-z_][A-Za-z0-9_]*/
+const inputKey = /^[A-Za-z][A-Za-z0-9_]{0,63}$/
 const builtinNames = new Set([
   "__from",
   "__to",
@@ -59,14 +69,14 @@ const builtinNames = new Set([
 const dataFieldsPrefix = "__data.fields."
 const maxFields = 50
 const maxValueBytes = 1000
+const maxInputs = 10
+export const maxInputLength = 1000
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-export function disabledReason(
-  context: CanvasActionContext | null
-): string | null {
+export function disabledReason(context: ActionContext | null): string | null {
   if (context === null) return outsideDashboardReason
   if (!context.canRun) return needsEditReason
   if (context.version !== context.latestVersion) return latestOnlyReason
@@ -118,6 +128,26 @@ function templatesOf(raw: Record<string, unknown>): string[] {
   ]
 }
 
+function inputsOf(raw: unknown): ActionInput[] {
+  if (!Array.isArray(raw)) return []
+  const seen = new Set<string>()
+  return raw.flatMap((entry): ActionInput[] => {
+    if (
+      !isRecord(entry) ||
+      typeof entry.key !== "string" ||
+      !inputKey.test(entry.key) ||
+      typeof entry.name !== "string" ||
+      entry.name === "" ||
+      seen.has(entry.key) ||
+      seen.size >= maxInputs
+    ) {
+      return []
+    }
+    seen.add(entry.key)
+    return [{ key: entry.key, name: entry.name }]
+  })
+}
+
 function byteLength(text: string): number {
   return new TextEncoder().encode(text).length
 }
@@ -125,9 +155,9 @@ function byteLength(text: string): number {
 export function parseActions(
   raw: unknown,
   fieldValue: (name: string) => string | null
-): ElementAction[] {
+): RunnableAction[] {
   if (!Array.isArray(raw)) return []
-  return raw.flatMap((entry, index): ElementAction[] => {
+  return raw.flatMap((entry, index): RunnableAction[] => {
     if (!isRecord(entry)) return []
     const host = actionHost(entry.url)
     if (
@@ -137,11 +167,13 @@ export function parseActions(
     ) {
       return []
     }
+    const inputs = inputsOf(entry.variables)
+    const inputKeys = new Set(inputs.map((input) => input.key))
     const names = [...new Set(templatesOf(entry).flatMap(referenceNames))]
     const fields: Record<string, string> = {}
     const variables: string[] = []
     for (const name of names) {
-      if (builtinNames.has(name)) continue
+      if (builtinNames.has(name) || inputKeys.has(name)) continue
       if (!name.startsWith(dataFieldsPrefix)) {
         variables.push(name)
         continue
@@ -170,7 +202,13 @@ export function parseActions(
             ? entry.confirm
             : null,
         variables,
+        inputs,
         fields,
+        color:
+          typeof entry.color === "string" && entry.color !== ""
+            ? entry.color
+            : null,
+        oneClick: entry.oneClick === true,
       },
     ]
   })
@@ -179,22 +217,22 @@ export function parseActions(
 export function actionRequest({
   context,
   panelId,
-  elementId,
+  target,
   value,
   action,
   vars,
   fromMs,
   toMs,
 }: {
-  context: CanvasActionContext
+  context: ActionContext
   panelId: string
-  elementId: string
+  target: ActionTarget
   value: ActionValue | null
-  action: ElementAction
+  action: RunnableAction
   vars: Selections
   fromMs: number
   toMs: number
-}): ActionRequestBody {
+}): PendingRequest {
   const variables: Record<string, string[]> = {}
   for (const name of action.variables) {
     const selected = selectedValues(vars, name)
@@ -203,7 +241,11 @@ export function actionRequest({
   return {
     version: context.latestVersion,
     panel: panelId,
-    element: elementId,
+    ...("element" in target
+      ? { element: target.element }
+      : target.override === null
+        ? {}
+        : { override: target.override }),
     action: action.index,
     variables,
     from: new Date(fromMs).toISOString(),
@@ -213,7 +255,21 @@ export function actionRequest({
   }
 }
 
-export function requestLine(action: ElementAction): string {
+export function withInputs(
+  request: PendingRequest,
+  action: RunnableAction,
+  values: Record<string, string>
+): ActionRequestBody {
+  if (action.inputs.length === 0) return request
+  return {
+    ...request,
+    inputs: Object.fromEntries(
+      action.inputs.map(({ key }) => [key, values[key] ?? ""])
+    ),
+  }
+}
+
+export function requestLine(action: RunnableAction): string {
   return `${action.method} to ${action.host}`
 }
 

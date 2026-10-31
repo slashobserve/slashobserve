@@ -33,7 +33,7 @@ import {
   type ImageSize,
   type MetricState,
 } from "./canvas-model"
-import { noActionTitle, type ElementAction } from "./actions"
+import { noActionTitle, type RunnableAction } from "../actions/actions"
 import type { Interaction, Target } from "./element-links"
 import { hasIcon, iconsByName, unknownIcon } from "./icons"
 import { ElementShape, shapeKinds } from "./shapes"
@@ -334,7 +334,7 @@ function MenuItem({
 }: {
   target: Target
   reason: string | null
-  onRun: (action: ElementAction) => void
+  onRun: (action: RunnableAction) => void
 }) {
   if (target.kind === "link") {
     return (
@@ -367,7 +367,7 @@ function ElementControl({
   element: CanvasElement
   interaction: Interaction
   reason: string | null
-  onRun: (action: ElementAction) => void
+  onRun: (action: RunnableAction) => void
 }) {
   if (interaction.mode === "none") return null
   if (interaction.mode === "direct") {
@@ -478,7 +478,7 @@ export function ContentItem({
   tooltipOn: boolean
   onShow: ShowHover
   onHide: () => void
-  onRun: (action: ElementAction) => void
+  onRun: (action: RunnableAction) => void
 }) {
   const controlled = interaction.mode !== "none"
   const boxed = element.kind === "text" || element.kind === "metric"

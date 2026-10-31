@@ -1,13 +1,13 @@
 import type { Link } from "@/spec"
 
 import { resolveLink, type LinkScope, type ResolvedLink } from "../field-config"
-import type { ActionValue, ElementAction } from "./actions"
+import type { ActionValue, RunnableAction } from "../actions/actions"
 
 export type OneClick = "link" | "action"
 
 export type Target =
   | { kind: "link"; link: ResolvedLink }
-  | { kind: "action"; action: ElementAction }
+  | { kind: "action"; action: RunnableAction }
 
 export type Interaction =
   | { mode: "none" }
@@ -17,7 +17,7 @@ export type Interaction =
 export type Interactive = {
   kind: string
   oneClick: OneClick | null
-  actions: ElementAction[]
+  actions: RunnableAction[]
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
