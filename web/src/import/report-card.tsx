@@ -3,6 +3,7 @@ import { useId, useRef, useState, type KeyboardEvent } from "react"
 import { StatusLabel } from "@/components/status-label"
 import { cn } from "@/lib/utils"
 
+import { BlockList } from "./block-list"
 import {
   filterCounts,
   filterLines,
@@ -29,6 +30,8 @@ export function ReportCard({ report, imported, busy }: Props) {
     initialFilter(report)
   )
   const id = useId()
+  const [showBlocks, setShowBlocks] = useState(false)
+  const hasBlocks = (report.blocks ?? []).length > 0
   const tabs = useRef<Record<string, HTMLButtonElement | null>>({})
   const counts = filterCounts(report)
   const lines = filterLines(report, filter)
@@ -148,6 +151,26 @@ export function ReportCard({ report, imported, busy }: Props) {
           </ul>
         )}
       </div>
+      {hasBlocks ? (
+        <div className="border-b px-3.5 py-3">
+          <button
+            type="button"
+            aria-expanded={showBlocks}
+            aria-controls={`${id}-blocks`}
+            className="rounded-sm text-xs text-muted-foreground underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={() => setShowBlocks((open) => !open)}
+          >
+            {showBlocks
+              ? "Hide every option"
+              : "Show every option, block by block"}
+          </button>
+          {showBlocks ? (
+            <div id={`${id}-blocks`} className="mt-2">
+              <BlockList report={report} />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       <p className="px-3.5 py-3 text-xs text-muted-foreground">{closingHint}</p>
     </section>
   )
