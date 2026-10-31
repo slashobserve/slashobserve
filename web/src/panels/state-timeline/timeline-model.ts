@@ -2,6 +2,11 @@ import { styleForSlot } from "../colors"
 import { displayValue, type FieldResolver } from "../field-config"
 import { seriesKey, uniqueKey } from "../frames"
 import { isNumber } from "../reducers"
+import {
+  insertNullsThresholdMs,
+  queryIntervalMs,
+  type QueryIntervals,
+} from "../timeseries/gaps"
 import type { PreparedField, PreparedFrame } from "../transforms"
 import { borderWidth, segmentOpacity } from "./timeline-layout"
 
@@ -76,6 +81,23 @@ function samplesOf(
   return samples.sort((a, b) => a.at - b.at)
 }
 
+export function breakLongGaps(
+  samples: Sample[],
+  thresholdMs: number | undefined
+): Sample[] {
+  if (thresholdMs === undefined) return samples
+  return samples.flatMap((sample, index) => {
+    const next = samples[index + 1]
+    if (sample.text === null || !next || next.at - sample.at <= thresholdMs) {
+      return [sample]
+    }
+    return [
+      sample,
+      { at: sample.at + thresholdMs, text: null, color: null, value: null },
+    ]
+  })
+}
+
 export function joinNulls(
   samples: Sample[],
   spanNulls: boolean | number
@@ -135,6 +157,7 @@ export function timelineModel(
   fields: FieldResolver,
   display: Record<string, unknown>,
   range: TimeRange,
+  intervals: QueryIntervals,
   cells = false
 ): TimelineModel {
   const merge = !cells && mergeValuesOf(display)
@@ -150,7 +173,16 @@ export function timelineModel(
         key: uniqueKey(seen, seriesKey(frame, field.name)),
         name: fields.displayName(frame, field),
         segments: segmentsOf(
-          joinNulls(samples, config.spanNulls),
+          joinNulls(
+            breakLongGaps(
+              samples,
+              insertNullsThresholdMs(
+                config.insertNulls,
+                queryIntervalMs(intervals, frame.ref)
+              )
+            ),
+            config.spanNulls
+          ),
           range,
           merge
         ),

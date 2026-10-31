@@ -51,6 +51,7 @@ import {
   type TooltipView,
 } from "./plugins"
 import { scaleDistribution } from "./axis-scale"
+import { shapeNulls } from "./gaps"
 import { isolatedPoints, squarePoints } from "./points"
 import { thresholdParts } from "./threshold-style"
 import {
@@ -940,15 +941,19 @@ export function TimeseriesChart({
 }
 
 const TimeseriesPanel: PanelRenderer = (props) => {
-  const { frames, ghostFrames, fields } = props
-  const aligned = useMemo(
+  const { frames, ghostFrames, fields, meta } = props
+  const placed = useMemo(
     () => alignFrames(frames, fields.displayName, ghostFrames),
     [frames, fields, ghostFrames]
   )
   const configs = useMemo(
     () =>
-      aligned.series.map(({ frame, field }) => fields.configFor(frame, field)),
-    [aligned.series, fields]
+      placed.series.map(({ frame, field }) => fields.configFor(frame, field)),
+    [placed.series, fields]
+  )
+  const aligned = useMemo(
+    () => shapeNulls(placed, configs, meta),
+    [placed, configs, meta]
   )
   if (aligned.series.length === 0 || aligned.xs.length === 0) {
     const Table = dataRenderers.table

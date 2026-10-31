@@ -1958,9 +1958,22 @@
         },
         "insertNulls": {
           "x-omitFromPrompt": true,
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 31536000000
+          "description": "Break the series where two points are further apart than this many milliseconds, or, as true, further apart than the query interval.",
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 31536000000
+            },
+            {
+              "const": true
+            }
+          ]
+        },
+        "neutral": {
+          "x-omitFromPrompt": true,
+          "description": "The value a gauge or bar gauge bar grows from instead of the minimum.",
+          "type": "number"
         },
         "nullAsZero": {
           "x-omitFromPrompt": true,

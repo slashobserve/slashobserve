@@ -127,3 +127,44 @@ func TestLegacySinglestatGaugeImportsThresholdLabels(t *testing.T) {
 		t.Fatalf("status = %s, paths %v, reasons %v", line.Status, line.Paths, line.Reasons)
 	}
 }
+
+func TestNeutralConvertsOnGauge(t *testing.T) {
+	for _, tc := range []struct {
+		name, custom string
+		want         *float64
+	}{
+		{"a value", `{"neutral":50}`, new(50.0)},
+		{"zero", `{"neutral":0}`, new(0.0)},
+		{"a negative value", `{"neutral":-5.5}`, new(-5.5)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := customPanelOf(t, "gauge", tc.custom, "")
+			requireImported(t, line)
+			if panel.Neutral == nil || *panel.Neutral != *tc.want {
+				t.Fatalf("neutral = %v, want %v", panel.Neutral, *tc.want)
+			}
+		})
+	}
+}
+
+func TestNeutralInAnOverrideConverts(t *testing.T) {
+	panel, line := customPanelOf(t, "gauge", `{}`, overrideOf(`{"id":"custom.neutral","value":10}`))
+	requireImported(t, line)
+	if got := firstOverrideProps(t, panel); got.Neutral == nil || *got.Neutral != 10 {
+		t.Fatalf("override props = %+v", got)
+	}
+}
+
+func TestNeutralIsReportedWhereNoRendererDrawsIt(t *testing.T) {
+	for _, typ := range []string{"timeseries", "stat", "barchart", "bargauge"} {
+		t.Run(typ, func(t *testing.T) {
+			panel, line := customPanelOf(t, typ, `{"neutral":50}`, "")
+			if line.Status != statusPartial || len(line.Paths) != 1 || line.Paths[0] != "fieldConfig.defaults.custom.neutral" {
+				t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
+			}
+			if panel.Neutral != nil {
+				t.Fatalf("neutral = %v, want unset", *panel.Neutral)
+			}
+		})
+	}
+}

@@ -183,7 +183,7 @@ function selectCandlesFor(
 }
 
 const CandlestickPanel: PanelRenderer = (props) => {
-  const { frames, fields, display, width, height } = props
+  const { frames, fields, display, meta, width, height } = props
   const options = useMemo(() => candleOptions(display), [display])
   const legend = candlestickLegend(display)
   const optionsKey = useMemo(() => stableJson(options), [options])
@@ -220,8 +220,8 @@ const CandlestickPanel: PanelRenderer = (props) => {
     [placed, columns, fields, legend]
   )
   const aligned = useMemo(
-    () => (placed ? shapeNulls(placed, configs) : null),
-    [placed, configs]
+    () => (placed ? shapeNulls(placed, configs, meta) : null),
+    [placed, configs, meta]
   )
   const rowColor = useMemo(() => {
     if (!aligned) return undefined

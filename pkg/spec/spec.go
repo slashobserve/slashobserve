@@ -419,7 +419,8 @@ type FieldProps struct {
 	HideInTooltip     *bool       `json:"hideInTooltip,omitempty"`
 	StackGroup        string      `json:"stackGroup,omitempty"`
 	FillBelowTo       string      `json:"fillBelowTo,omitempty"`
-	InsertNulls       int64       `json:"insertNulls,omitempty"`
+	InsertNulls       any         `json:"insertNulls,omitempty"`
+	Neutral           *float64    `json:"neutral,omitempty"`
 	NullAsZero        *bool       `json:"nullAsZero,omitempty"`
 	BarAlignment      string      `json:"barAlignment,omitempty"`
 	BarWidthFactor    *float64    `json:"barWidthFactor,omitempty"`

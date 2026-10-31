@@ -1,3 +1,5 @@
+import type { PanelDataMeta } from "@/dashboards/queries"
+
 import type { FieldConfig } from "../field-config"
 import type { AlignedFrames } from "./align"
 import type { Cell } from "./stack"
@@ -28,6 +30,22 @@ export function spanShortGaps(
     }
   }
   return out ?? (values as Cell[])
+}
+
+export type QueryIntervals = Pick<PanelDataMeta, "step_ms" | "queries">
+
+export function queryIntervalMs(meta: QueryIntervals, ref: string): number {
+  return (
+    meta.queries.find((query) => query.ref === ref)?.step_ms || meta.step_ms
+  )
+}
+
+export function insertNullsThresholdMs(
+  insertNulls: FieldConfig["insertNulls"],
+  intervalMs: number
+): number | undefined {
+  if (insertNulls !== true) return insertNulls
+  return intervalMs > 0 ? intervalMs : undefined
 }
 
 export type Grid = { xs: number[]; columns: Cell[][] }
@@ -76,7 +94,8 @@ export function nullsAsZero(values: readonly Cell[]): Cell[] {
 
 export function shapeNulls(
   aligned: AlignedFrames,
-  configs: readonly Pick<FieldConfig, "insertNulls" | "nullAsZero">[]
+  configs: readonly Pick<FieldConfig, "insertNulls" | "nullAsZero">[],
+  meta: QueryIntervals
 ): AlignedFrames {
   const shaped = configs.some(
     ({ insertNulls, nullAsZero }) => insertNulls !== undefined || nullAsZero
@@ -87,7 +106,11 @@ export function shapeNulls(
     columns: [...aligned.series.map(({ values }) => values), ...aligned.ghosts],
   }
   configs.forEach(({ insertNulls }, index) => {
-    if (insertNulls !== undefined) grid = insertGaps(grid, index, insertNulls)
+    const threshold = insertNullsThresholdMs(
+      insertNulls,
+      queryIntervalMs(meta, aligned.series[index].frame.ref)
+    )
+    if (threshold !== undefined) grid = insertGaps(grid, index, threshold)
   })
   const columns = grid.columns.map((column, index) =>
     configs[index]?.nullAsZero ? nullsAsZero(column) : column

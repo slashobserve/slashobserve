@@ -18,8 +18,8 @@ const StateTimelinePanel: PanelRenderer = ({
   const from = Date.parse(meta.from)
   const to = Date.parse(meta.to)
   const model = useMemo(
-    () => timelineModel(frames, fields, display, { from, to }),
-    [frames, fields, display, from, to]
+    () => timelineModel(frames, fields, display, { from, to }, meta),
+    [frames, fields, display, from, to, meta]
   )
   return (
     <TimelineChart
