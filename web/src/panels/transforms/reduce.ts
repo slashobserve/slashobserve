@@ -1,6 +1,11 @@
-import type { Reducer } from "@/spec"
+import type { AnyReducer } from "@/spec"
 
-import { reduceField, reducerLabels } from "../reducers"
+import {
+  reduceAny,
+  reducerKind,
+  reducerLabel,
+  type ReducedKind,
+} from "../reducers"
 import { nameMatcher } from "./filter"
 import {
   copyFrame,
@@ -12,7 +17,7 @@ import {
 } from "./names"
 
 export type ReduceOptions = {
-  reducers: Reducer[]
+  reducers: AnyReducer[]
   mode?: "seriesToRows" | "reduceFields"
   includeTime?: boolean
   labelsToFields?: boolean
@@ -20,7 +25,7 @@ export type ReduceOptions = {
   fieldsRegex?: string
 }
 
-const timeReducers: ReadonlySet<Reducer> = new Set([
+const timeReducers: ReadonlySet<AnyReducer> = new Set([
   "last",
   "lastNotNull",
   "first",
@@ -30,6 +35,16 @@ const timeReducers: ReadonlySet<Reducer> = new Set([
   "mean",
   "median",
 ])
+
+const fieldTypes: Record<ReducedKind, PreparedField["type"]> = {
+  number: "number",
+  bool: "bool",
+  text: "string",
+}
+
+export function reducedFieldType(reducer: AnyReducer): PreparedField["type"] {
+  return fieldTypes[reducerKind(reducer)]
+}
 
 function reducibleFields(
   frame: PreparedFrame,
@@ -82,9 +97,9 @@ function reduceToRows(
         },
         ...(options.labelsToFields ? labelColumns(rows) : []),
         ...reducers.map((reducer): PreparedField => ({
-          name: reducerLabels[reducer],
-          type: "number",
-          values: rows.map(({ field }) => reduceField(field, reducer)),
+          name: reducerLabel(reducer),
+          type: reducedFieldType(reducer),
+          values: rows.map(({ field }) => reduceAny(field.values, reducer)),
         })),
       ],
     },
@@ -102,14 +117,14 @@ function reduceEachFrame(
     for (const field of frame.fields) {
       if (reducible.has(field)) {
         for (const reducer of reducers) {
-          const label = reducerLabels[reducer]
+          const label = reducerLabel(reducer)
           const reduced: PreparedField = {
             name: reducers.length === 1 ? field.name : `${field.name} ${label}`,
             type:
               field.type === "time" && timeReducers.has(reducer)
                 ? "time"
-                : "number",
-            values: [reduceField(field, reducer)],
+                : reducedFieldType(reducer),
+            values: [reduceAny(field.values, reducer)],
           }
           if (field.seriesName) {
             reduced.seriesName =

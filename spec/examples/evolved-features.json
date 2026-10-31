@@ -42,7 +42,7 @@
         { "ref": "B", "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\",status=~\"5..\"}[$__rate_interval]))", "legend": "errors {{pod}}", "interval": "${window}", "intervalFactor": 2 }
       ],
       "overrides": [{ "match": { "query": "B" }, "color": "critical", "lineStyle": "dashed" }],
-      "display": { "legend": "right", "tooltip": "all" } },
+      "display": { "legend": "right", "legendValues": ["p95", "allIsNull"], "tooltip": "all" } },
     { "id": "p_status", "type": "stat", "title": "Checkout up",
       "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 }, "datasource": "prom",
       "queries": [{ "query": "min(up{service=\"checkout\"})", "instant": true }],
@@ -62,7 +62,8 @@
       "queries": [{ "query": "SELECT SpanName AS span, quantile(0.99)(Duration) / 1e6 AS p99_ms, count() AS n FROM otel_traces WHERE $__timeFilter(Timestamp) GROUP BY span", "format": "table" }],
       "transform": [
         { "type": "organize", "exclude": ["n"], "rename": { "p99_ms": "p99 (ms)" }, "order": ["span", "p99_ms"] },
-        { "type": "sortBy", "field": "p99_ms", "desc": true }
+        { "type": "sortBy", "field": "p99_ms", "desc": true },
+        { "type": "reduce", "reducers": ["variance", "uniqueValues"] }
       ],
       "display": { "header": true } },
     { "id": "p_world", "type": "placeholder", "title": "Traffic map",

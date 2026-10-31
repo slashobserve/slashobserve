@@ -375,22 +375,126 @@ export type Match =
       };
     };
 export type Reducer =
-  | "last"
-  | "lastNotNull"
-  | "first"
-  | "firstNotNull"
-  | "min"
-  | "max"
-  | "mean"
-  | "median"
-  | "sum"
-  | "count"
-  | "range"
-  | "delta"
-  | "diff"
-  | "stdDev"
-  | "distinctCount"
-  | "changeCount";
+  | (
+      | "last"
+      | "lastNotNull"
+      | "first"
+      | "firstNotNull"
+      | "min"
+      | "max"
+      | "mean"
+      | "median"
+      | "sum"
+      | "count"
+      | "range"
+      | "delta"
+      | "diff"
+      | "stdDev"
+      | "distinctCount"
+      | "changeCount"
+    )
+  | ("variance" | "step" | "diffperc" | "logmin" | "countAll")
+  | (
+      | "p1"
+      | "p2"
+      | "p3"
+      | "p4"
+      | "p5"
+      | "p6"
+      | "p7"
+      | "p8"
+      | "p9"
+      | "p10"
+      | "p11"
+      | "p12"
+      | "p13"
+      | "p14"
+      | "p15"
+      | "p16"
+      | "p17"
+      | "p18"
+      | "p19"
+      | "p20"
+      | "p21"
+      | "p22"
+      | "p23"
+      | "p24"
+      | "p25"
+      | "p26"
+      | "p27"
+      | "p28"
+      | "p29"
+      | "p30"
+      | "p31"
+      | "p32"
+      | "p33"
+      | "p34"
+      | "p35"
+      | "p36"
+      | "p37"
+      | "p38"
+      | "p39"
+      | "p40"
+      | "p41"
+      | "p42"
+      | "p43"
+      | "p44"
+      | "p45"
+      | "p46"
+      | "p47"
+      | "p48"
+      | "p49"
+      | "p50"
+      | "p51"
+      | "p52"
+      | "p53"
+      | "p54"
+      | "p55"
+      | "p56"
+      | "p57"
+      | "p58"
+      | "p59"
+      | "p60"
+      | "p61"
+      | "p62"
+      | "p63"
+      | "p64"
+      | "p65"
+      | "p66"
+      | "p67"
+      | "p68"
+      | "p69"
+      | "p70"
+      | "p71"
+      | "p72"
+      | "p73"
+      | "p74"
+      | "p75"
+      | "p76"
+      | "p77"
+      | "p78"
+      | "p79"
+      | "p80"
+      | "p81"
+      | "p82"
+      | "p83"
+      | "p84"
+      | "p85"
+      | "p86"
+      | "p87"
+      | "p88"
+      | "p89"
+      | "p90"
+      | "p91"
+      | "p92"
+      | "p93"
+      | "p94"
+      | "p95"
+      | "p96"
+      | "p97"
+      | "p98"
+      | "p99"
+    );
 export type Transform =
   | {
       type: "merge";
@@ -430,7 +534,7 @@ export type Transform =
        * @minItems 1
        * @maxItems 10
        */
-      reducers: Reducer[];
+      reducers: AnyReducer[];
       mode?: "seriesToRows" | "reduceFields";
       /**
        * Reduce the time field too.
@@ -720,7 +824,7 @@ export type Transform =
          * @minItems 1
          * @maxItems 10
          */
-        reducers: AggregateReducer[];
+        reducers: AnyReducer[];
       }[];
       queries?: TransformQueries24;
     }
@@ -749,7 +853,7 @@ export type Transform =
          * @minItems 1
          * @maxItems 10
          */
-        reducers: AggregateReducer[];
+        reducers: AnyReducer[];
       }[];
       hideHeaders?: boolean;
       queries?: TransformQueries26;
@@ -836,6 +940,10 @@ export type TransformQueries1 = QueryRef[];
  * @maxItems 26
  */
 export type TransformQueries2 = QueryRef[];
+/**
+ * A reducer, or one whose result is not a number: allIsNull and allIsZero answer true or false, allValues and uniqueValues list the values as one text.
+ */
+export type AnyReducer = Reducer | ("allIsNull" | "allIsZero" | "allValues" | "uniqueValues");
 /**
  * A field name or series name in the panel's frames.
  */
@@ -987,10 +1095,6 @@ export type TransformQueries22 = QueryRef[];
  * @maxItems 26
  */
 export type TransformQueries23 = QueryRef[];
-/**
- * A reducer for a grouping step: every reducer, and uniqueValues, which lists the distinct values as text.
- */
-export type AggregateReducer = Reducer | "uniqueValues";
 /**
  * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
  *

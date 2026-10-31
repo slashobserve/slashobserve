@@ -271,6 +271,19 @@ describe("table footer", () => {
     expect(footer).toEqual([{ label: "Count", cells: [null, "3"] }])
   })
 
+  it("counts every row for countAll and labels a percentile footer", () => {
+    const { footer } = build(
+      [
+        frame([number([1])], { labels: { pod: "a" } }),
+        frame([number([3])], { labels: { pod: "b" } }),
+      ],
+      { unit: "bytes" },
+      { footer: ["countAll", "p50", "p100"] }
+    )
+    expect(footer.map(({ label }) => label)).toEqual(["Count all", "50th %"])
+    expect(footer[0].cells).toEqual([null, "2"])
+  })
+
   const two = () => [
     frame([
       text(["a", "b"], "route"),

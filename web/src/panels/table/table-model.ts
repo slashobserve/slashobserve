@@ -15,7 +15,7 @@ import {
   type ResolvedLink,
 } from "../field-config"
 import type { ColumnType } from "../frames"
-import { reduce, reducerLabels } from "../reducers"
+import { isCountReducer, isReducer, reduce, reducerLabel } from "../reducers"
 import type { ThresholdLevel } from "../thresholds"
 import type { PreparedField, PreparedFrame } from "../transforms"
 import {
@@ -82,11 +82,6 @@ type Draft = {
 type Built = { drafts: Draft[]; rows: TableRow[] }
 
 const refKey = "query:ref"
-const countReducers: ReadonlySet<Reducer> = new Set([
-  "count",
-  "distinctCount",
-  "changeCount",
-])
 
 function stringField(name: string, values: unknown[] = []): PreparedField {
   return { name, type: "string", values }
@@ -325,10 +320,7 @@ function optionsAt(column: TableColumn, config: FieldConfig): DisplayOptions {
 function footerReducers(display: Record<string, unknown>): Reducer[] {
   const { footer } = display
   if (!Array.isArray(footer)) return []
-  return footer.filter(
-    (reducer): reducer is Reducer =>
-      typeof reducer === "string" && Object.hasOwn(reducerLabels, reducer)
-  )
+  return footer.filter(isReducer)
 }
 
 function footerFieldNames(display: Record<string, unknown>): string[] {
@@ -343,7 +335,7 @@ function footerText(
   reducer: Reducer
 ): string {
   const reduced = reduce(values, reducer)
-  if (countReducers.has(reducer)) {
+  if (isCountReducer(reducer)) {
     const counted = { ...column.config, unit: undefined, mappings: [] }
     return displayValue(reduced, { ...counted, decimals: 0 }).text
   }
@@ -365,11 +357,11 @@ export function footerRows(
     rows.map((row) => row.values[column.key])
   )
   const out = footerReducers(display).map((reducer) => ({
-    label: reducerLabels[reducer],
+    label: reducerLabel(reducer),
     cells: columns.map((column, index) =>
       column.type === "number" &&
       covered(column) &&
-      (column.decimals.size <= 1 || countReducers.has(reducer))
+      (column.decimals.size <= 1 || isCountReducer(reducer))
         ? footerText(column, values[index], reducer)
         : null
     ),

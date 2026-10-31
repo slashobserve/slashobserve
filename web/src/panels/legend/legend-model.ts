@@ -1,12 +1,12 @@
-import type { Reducer } from "@/spec"
+import type { AnyReducer, Reducer } from "@/spec"
 
-import { isNumber, reduce, reducerLabels } from "../reducers"
+import { isNumber, reduce, reducerLabel } from "../reducers"
 
 export type LegendMode = "list" | "table"
 
 export type LegendOptions = {
   mode: LegendMode
-  values: Reducer[]
+  values: AnyReducer[]
   sortBy?: "name" | Reducer
   sortDesc: boolean
   hideZero: boolean
@@ -22,7 +22,7 @@ export type LegendSource = {
 
 export function effectiveLegendMode(
   legendMode: LegendMode | undefined,
-  legendValues: readonly Reducer[]
+  legendValues: readonly AnyReducer[]
 ): LegendMode {
   if (legendMode) return legendMode
   return legendValues.length > 0 ? "table" : "list"
@@ -84,7 +84,7 @@ export function legendHeaders(
   columns: readonly string[],
   headers?: readonly string[]
 ): readonly string[] {
-  return headers ?? columns.map((column) => reducerLabels[column as Reducer])
+  return headers ?? columns.map((column) => reducerLabel(column as AnyReducer))
 }
 
 export function inlineValues(

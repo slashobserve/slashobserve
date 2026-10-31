@@ -1,9 +1,9 @@
 import { useCallback, useLayoutEffect, useMemo, type ReactNode } from "react"
 
-import type { Reducer } from "@/spec"
+import type { AnyReducer, Reducer } from "@/spec"
 
 import type { FieldConfig } from "../field-config"
-import { reducerLabels } from "../reducers"
+import { reducerLabel } from "../reducers"
 import { legendCells } from "../timeseries/plot-model"
 import {
   emptySeriesState,
@@ -33,7 +33,7 @@ export type SeriesLegendEntry = {
 export type SeriesLegendOptions = {
   legend: "bottom" | "right" | "hidden"
   legendMode?: "list" | "table"
-  legendValues: Reducer[]
+  legendValues: AnyReducer[]
   legendSortBy?: "name" | Reducer
   legendSortDesc: boolean
   legendWidth?: number
@@ -130,7 +130,7 @@ export function useSeriesLegend({
     const rem = rootFontSize()
     return legendTableWidth(
       listed.map(({ label }) => label),
-      reducers.map((reducer) => reducerLabels[reducer]),
+      reducers.map(reducerLabel),
       cells,
       textMeasure(rem),
       rem
