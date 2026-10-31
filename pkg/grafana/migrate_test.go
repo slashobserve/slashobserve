@@ -1,6 +1,7 @@
 package grafana
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"testing"
@@ -103,6 +104,32 @@ func TestRenamedAndRetiredPanelTypesImportAsTheirModernType(t *testing.T) {
 			panel, line := convertedPanel(t, panelDoc(tc.typ, members))
 			if string(panel.Type) != tc.want || line.Type != tc.want || line.SourceType != tc.typ {
 				t.Fatalf("type = %s, line type = %s, source type = %s, want %s from %s", panel.Type, line.Type, line.SourceType, tc.want, tc.typ)
+			}
+		})
+	}
+}
+
+func TestPanelTypeOfTakesATableWithStylesAndNoFieldConfigAsAnAngularTable(t *testing.T) {
+	cases := []struct {
+		name, panel, wantSource string
+	}{
+		{"styles without field config", `{"type":"table","styles":[{"pattern":"/.*/"}]}`, "table-old"},
+		{"empty styles without field config", `{"type":"table","styles":[]}`, "table-old"},
+		{"styles with an empty field config", `{"type":"table","styles":[{"pattern":"/.*/"}],"fieldConfig":{}}`, "table-old"},
+		{"styles with field config", `{"type":"table","styles":[{"pattern":"/.*/"}],"fieldConfig":{"defaults":{},"overrides":[]}}`, "table"},
+		{"no styles", `{"type":"table"}`, "table"},
+		{"null styles", `{"type":"table","styles":null}`, "table"},
+		{"a table-old panel", `{"type":"table-old","fieldConfig":{"defaults":{}}}`, "table-old"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var raw map[string]any
+			if err := json.Unmarshal([]byte(tc.panel), &raw); err != nil {
+				t.Fatal(err)
+			}
+			typ, source := panelTypeOf(raw)
+			if typ != "table" || source != tc.wantSource {
+				t.Fatalf("panelTypeOf = %s, %s, want table, %s", typ, source, tc.wantSource)
 			}
 		})
 	}

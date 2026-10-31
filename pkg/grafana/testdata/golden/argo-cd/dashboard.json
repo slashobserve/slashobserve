@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 44,
-      "imported": 41,
-      "partial": 3,
+      "imported": 44,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -291,29 +291,9 @@
         "type": "heatmap",
         "source_type": "heatmap",
         "row": "Controller Stats",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "color.cardColor",
-          "color.colorScale",
-          "color.colorScheme",
-          "color.exponent",
-          "color.mode",
-          "dataFormat",
-          "hideZeroBuckets",
-          "legend.show",
-          "reverseYBuckets",
-          "tooltip.show",
-          "tooltip.showHistogram",
-          "tooltipDecimals",
-          "xAxis.show",
-          "yAxis.format",
-          "yAxis.logBase",
-          "yAxis.show",
-          "yBucketBound"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -626,28 +606,9 @@
         "type": "heatmap",
         "source_type": "heatmap",
         "row": "Repo Server Stats",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "color.cardColor",
-          "color.colorScale",
-          "color.colorScheme",
-          "color.exponent",
-          "color.mode",
-          "dataFormat",
-          "hideZeroBuckets",
-          "legend.show",
-          "reverseYBuckets",
-          "tooltip.show",
-          "tooltip.showHistogram",
-          "xAxis.show",
-          "yAxis.format",
-          "yAxis.logBase",
-          "yAxis.show",
-          "yBucketBound"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -666,28 +627,9 @@
         "type": "heatmap",
         "source_type": "heatmap",
         "row": "Repo Server Stats",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "color.cardColor",
-          "color.colorScale",
-          "color.colorScheme",
-          "color.exponent",
-          "color.mode",
-          "dataFormat",
-          "hideZeroBuckets",
-          "legend.show",
-          "reverseYBuckets",
-          "tooltip.show",
-          "tooltip.showHistogram",
-          "xAxis.show",
-          "yAxis.format",
-          "yAxis.logBase",
-          "yAxis.show",
-          "yBucketBound"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1022,7 +964,7 @@
     "panel panels[9].panels[0] mapped=45 default=7 no_effect=1 bookkeeping=2 query:1",
     "panel panels[9].panels[1] mapped=44 default=7 no_effect=1 bookkeeping=2 query:1",
     "panel panels[10].panels[0] mapped=39 default=8 no_effect=1 bookkeeping=2 query:1",
-    "panel panels[10].panels[1] mapped=8 reported=17 no_effect=1 bookkeeping=2 query:1",
+    "panel panels[10].panels[1] mapped=25 no_effect=1 bookkeeping=2 query:1",
     "panel panels[10].panels[2] mapped=41 default=8 no_effect=1 bookkeeping=2 query:1",
     "panel panels[10].panels[3] mapped=40 default=8 bookkeeping=2 query:1",
     "panel panels[10].panels[4] mapped=41 default=8 bookkeeping=2 query:1",
@@ -1037,8 +979,8 @@
     "panel panels[13].panels[2] mapped=39 default=8 bookkeeping=2 query:1",
     "panel panels[14].panels[0] mapped=35 default=9 no_effect=1 bookkeeping=3 field_config:1 query:1",
     "panel panels[14].panels[1] mapped=35 default=9 no_effect=1 bookkeeping=3 field_config:1 query:1",
-    "panel panels[14].panels[2] mapped=31 reported=16 default=1 no_effect=2 bookkeeping=3 field_config:1 query:1",
-    "panel panels[14].panels[3] mapped=31 reported=16 default=1 no_effect=2 bookkeeping=3 field_config:1 query:1",
+    "panel panels[14].panels[2] mapped=31 default=1 no_effect=18 bookkeeping=3 field_config:1 query:1",
+    "panel panels[14].panels[3] mapped=31 default=1 no_effect=18 bookkeeping=3 field_config:1 query:1",
     "panel panels[14].panels[4] mapped=36 default=8 no_effect=2 bookkeeping=2 field_config:1 query:1",
     "panel panels[14].panels[5] mapped=35 default=8 no_effect=1 bookkeeping=2 query:1",
     "panel panels[15].panels[0] mapped=37 default=9 no_effect=2 bookkeeping=3 field_config:1 query:1",
@@ -1711,10 +1653,13 @@
             ],
             "display": {
               "colorMode": "scheme",
-              "colorScheme": "oranges",
+              "colorScheme": "redYellowGreen",
               "colorSteps": 64,
               "cellGap": 1,
-              "showValues": "auto"
+              "cellDecimals": 0,
+              "hideBelow": -1,
+              "yUnit": "short",
+              "tooltipHistogram": true
             }
           },
           {

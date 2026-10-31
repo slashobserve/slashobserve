@@ -955,9 +955,23 @@ func anySlice(v any) []any {
 	return items
 }
 
+func styleKeyNotDrawn(style map[string]any, key string) bool {
+	switch key {
+	case "dateFormat":
+		return asString(style["type"]) != "date"
+	case "linkUrl", "linkTooltip", "linkTargetBlank":
+		return !truthy(style["link"])
+	}
+	return false
+}
+
 func (b *panelBuild) styleExtras(style map[string]any, path string) {
 	for _, key := range sortedKeys(style) {
 		if slices.Contains(tableStyleHandled, key) || !present(style[key]) {
+			continue
+		}
+		if styleKeyNotDrawn(style, key) {
+			b.recordImplicit(path+"."+key, outcomeNoEffect)
 			continue
 		}
 		b.partial(path+"."+key, "")
@@ -1059,9 +1073,7 @@ func (b *panelBuild) legacyHeatmapTooltip(d *spec.Display) {
 	if flag, ok := b.boolOption("tooltip.showHistogram"); ok && *flag {
 		d.TooltipHistogram = flag
 	}
-	if v, ok := b.take("tooltipDecimals"); ok && v != nil {
-		b.partial("tooltipDecimals", "The tooltip decimals are not supported yet.")
-	}
+	d.CellDecimals = b.heatmapDecimals("tooltipDecimals")
 	if shown, ok := b.boolOption("xAxis.show"); ok && !*shown {
 		b.partial("xAxis.show", "The time axis of a heatmap cannot be hidden yet.")
 	}

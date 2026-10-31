@@ -4453,6 +4453,112 @@
   }
  },
  "panel:heatmap": {
+  "cards.cardPadding": {
+   "fields": [
+    "display.cellGap"
+   ],
+   "values": {
+    "n:4": [
+     "display.cellGap"
+    ]
+   }
+  },
+  "cards.cardRound": {
+   "fields": [
+    "display.cellRadius"
+   ],
+   "values": {
+    "n:3": [
+     "display.cellRadius"
+    ]
+   }
+  },
+  "color.cardColor": {
+   "fields": [
+    "display.colorFill"
+   ],
+   "values": {
+    "s:#112233": [
+     "display.colorFill"
+    ]
+   }
+  },
+  "color.colorScale": {
+   "fields": [
+    "display.colorScale"
+   ],
+   "values": {
+    "s:linear": [
+     "display.colorScale"
+    ]
+   }
+  },
+  "color.colorScheme": {
+   "fields": [
+    "display.colorScheme"
+   ],
+   "values": {
+    "s:interpolateWarm": [
+     "display.colorScheme"
+    ]
+   }
+  },
+  "color.exponent": {
+   "fields": [
+    "display.colorExponent"
+   ],
+   "values": {
+    "n:0.8": [
+     "display.colorExponent"
+    ]
+   }
+  },
+  "color.max": {
+   "fields": [
+    "display.colorMax"
+   ],
+   "values": {
+    "n:9": [
+     "display.colorMax"
+    ]
+   }
+  },
+  "color.min": {
+   "fields": [
+    "display.colorMin"
+   ],
+   "values": {
+    "n:1": [
+     "display.colorMin"
+    ]
+   }
+  },
+  "color.mode": {
+   "fields": [
+    "display.colorFill",
+    "display.colorMode",
+    "display.colorScale",
+    "display.colorScheme"
+   ],
+   "values": {
+    "s:opacity": [
+     "display.colorFill",
+     "display.colorMode",
+     "display.colorScale",
+     "display.colorScheme"
+    ]
+   }
+  },
+  "dataFormat": {
+   "fields": [
+    "display.calculate"
+   ],
+   "values": {
+    "s:tsbuckets": [
+     "display.calculate"
+    ]
+   }
+  },
   "fieldConfig.defaults.custom.hideFrom.viz": {
    "fields": [
     "hidden"
@@ -4483,6 +4589,26 @@
     ],
     "s:symlog": [
      "display.yScale"
+    ]
+   }
+  },
+  "hideZeroBuckets": {
+   "fields": [
+    "display.hideBelow"
+   ],
+   "values": {
+    "b:true": [
+     "display.hideBelow"
+    ]
+   }
+  },
+  "legend.show": {
+   "fields": [
+    "display.legend"
+   ],
+   "values": {
+    "b:false": [
+     "display.legend"
     ]
    }
   },
@@ -4820,6 +4946,16 @@
     ]
    }
   },
+  "options.tooltip.show": {
+   "fields": [
+    "display.tooltip"
+   ],
+   "values": {
+    "b:false": [
+     "display.tooltip"
+    ]
+   }
+  },
   "options.tooltip.showColorScale": {
    "fields": [
     "display.tooltipColorScale"
@@ -4920,6 +5056,169 @@
    "values": {
     "s:s": [
      "display.yUnit"
+    ]
+   }
+  },
+  "reverseYBuckets": {
+   "fields": [
+    "display.yReverse"
+   ],
+   "values": {
+    "b:true": [
+     "display.yReverse"
+    ]
+   }
+  },
+  "tooltip.show": {
+   "fields": [
+    "display.tooltip"
+   ],
+   "values": {
+    "b:false": [
+     "display.tooltip"
+    ]
+   }
+  },
+  "tooltip.showHistogram": {
+   "fields": [
+    "display.tooltipHistogram"
+   ],
+   "values": {
+    "b:true": [
+     "display.tooltipHistogram"
+    ]
+   }
+  },
+  "tooltipDecimals": {
+   "fields": [
+    "display.cellDecimals"
+   ],
+   "values": {
+    "n:2": [
+     "display.cellDecimals"
+    ]
+   }
+  },
+  "xBucketNumber": {
+   "fields": [
+    "display.xBuckets.mode",
+    "display.xBuckets.value"
+   ],
+   "values": {
+    "n:60": [
+     "display.xBuckets.mode",
+     "display.xBuckets.value"
+    ]
+   }
+  },
+  "xBucketSize": {
+   "fields": [
+    "display.xBuckets.mode",
+    "display.xBuckets.value"
+   ],
+   "values": {
+    "s:5m": [
+     "display.xBuckets.mode",
+     "display.xBuckets.value"
+    ]
+   }
+  },
+  "yAxis.decimals": {
+   "fields": [
+    "display.yDecimals"
+   ],
+   "values": {
+    "n:2": [
+     "display.yDecimals"
+    ]
+   }
+  },
+  "yAxis.format": {
+   "fields": [
+    "display.yUnit"
+   ],
+   "values": {
+    "s:s": [
+     "display.yUnit"
+    ]
+   }
+  },
+  "yAxis.logBase": {
+   "fields": [
+    "display.yBucketLogBase",
+    "display.yScale"
+   ],
+   "values": {
+    "n:10": [
+     "display.yBucketLogBase",
+     "display.yScale"
+    ],
+    "n:2": [
+     "display.yScale"
+    ]
+   }
+  },
+  "yAxis.max": {
+   "fields": [
+    "display.yMax"
+   ],
+   "values": {
+    "n:100": [
+     "display.yMax"
+    ]
+   }
+  },
+  "yAxis.min": {
+   "fields": [
+    "display.yMin"
+   ],
+   "values": {
+    "n:0": [
+     "display.yMin"
+    ]
+   }
+  },
+  "yAxis.show": {
+   "fields": [
+    "display.yAxis"
+   ],
+   "values": {
+    "b:false": [
+     "display.yAxis"
+    ]
+   }
+  },
+  "yBucketBound": {
+   "fields": [
+    "display.rowsLayout"
+   ],
+   "values": {
+    "s:upper": [
+     "display.rowsLayout"
+    ]
+   }
+  },
+  "yBucketNumber": {
+   "fields": [
+    "display.yBuckets.mode",
+    "display.yBuckets.value"
+   ],
+   "values": {
+    "n:10": [
+     "display.yBuckets.mode",
+     "display.yBuckets.value"
+    ]
+   }
+  },
+  "yBucketSize": {
+   "fields": [
+    "display.yBuckets.mode",
+    "display.yBuckets.value"
+   ],
+   "values": {
+    "n:2": [
+     "display.yBuckets.mode",
+     "display.yBuckets.value"
     ]
    }
   }
@@ -7283,6 +7582,113 @@
     "display.sortBy",
     "display.sortDesc"
    ]
+  }
+ },
+ "panel:table-old": {
+  "showHeader": {
+   "fields": [
+    "display.header"
+   ],
+   "values": {
+    "b:false": [
+     "display.header"
+    ]
+   }
+  },
+  "styles[].alias": {
+   "fields": [
+    "overrides[].displayName",
+    "overrides[].match.field"
+   ],
+   "values": {
+    "s:Latency": [
+     "overrides[].displayName",
+     "overrides[].match.field"
+    ]
+   }
+  },
+  "styles[].align": {
+   "fields": [
+    "overrides[].align",
+    "overrides[].match.field"
+   ],
+   "values": {
+    "s:right": [
+     "overrides[].align",
+     "overrides[].match.field"
+    ]
+   }
+  },
+  "styles[].colors": {
+   "fields": [
+    "overrides[].match.field",
+    "overrides[].thresholds[].color",
+    "overrides[].thresholds[].value"
+   ]
+  },
+  "styles[].decimals": {
+   "fields": [
+    "overrides[].decimals",
+    "overrides[].match.field"
+   ],
+   "values": {
+    "n:3": [
+     "overrides[].decimals",
+     "overrides[].match.field"
+    ]
+   }
+  },
+  "styles[].pattern": {
+   "fields": [
+    "overrides[].match.field",
+    "overrides[].match.seriesRegex",
+    "overrides[].unit",
+    "unit"
+   ],
+   "values": {
+    "s:/.*/": [
+     "overrides[].match.field",
+     "overrides[].unit",
+     "unit"
+    ],
+    "s:/^col.*/": [
+     "overrides[].match.field",
+     "overrides[].match.seriesRegex"
+    ],
+    "s:Time": [
+     "overrides[].match.field"
+    ]
+   }
+  },
+  "styles[].thresholds": {
+   "fields": [
+    "overrides[].thresholds[].color",
+    "overrides[].thresholds[].value"
+   ]
+  },
+  "styles[].type": {
+   "fields": [
+    "overrides[].hidden",
+    "overrides[].match.field"
+   ],
+   "values": {
+    "s:hidden": [
+     "overrides[].hidden",
+     "overrides[].match.field"
+    ]
+   }
+  },
+  "styles[].unit": {
+   "fields": [
+    "overrides[].match.field",
+    "overrides[].unit"
+   ],
+   "values": {
+    "s:bytes": [
+     "overrides[].match.field",
+     "overrides[].unit"
+    ]
+   }
   }
  },
  "panel:text": {

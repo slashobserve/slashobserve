@@ -272,6 +272,7 @@ var propGates = []propGate{
 	{ids: propIDs("custom.hideFrom"), types: legendTooltipHidingTypes, handler: propHideFromLegendAndTooltip},
 	{ids: propIDs("custom.hideFrom"), types: timelinePanelTypes, handler: propHideFromTooltipOnly},
 	{ids: propIDs("custom.hideFrom"), types: heatmapPanelTypes, handler: propHideFromOneField},
+	{ids: propIDs("color"), types: heatmapPanelTypes, handler: propNotDrawn},
 	{ids: propIDs("custom.thresholdsStyle"), types: thresholdsStyleTypes, outside: true, skip: true},
 	{ids: propIDs("custom.insertNulls"), types: insertNullsTypes, outside: true, skip: true},
 	{ids: plotDrawnPropIDs, types: plotPanelTypes, outside: true, skip: true},

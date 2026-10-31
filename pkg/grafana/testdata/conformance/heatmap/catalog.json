@@ -68,6 +68,24 @@
     { "id": "fieldConfig.defaults.custom.scaleDistribution.log=2", "path": "fieldConfig.defaults.custom.scaleDistribution.log", "value": 2, "with": {"fieldConfig.defaults.custom.scaleDistribution.type": "log"}, "expect": "bookkeeping" },
     { "id": "fieldConfig.defaults.custom.hideFrom.legend=true", "path": "fieldConfig.defaults.custom.hideFrom.legend", "value": true, "expect": "bookkeeping" },
     { "id": "fieldConfig.defaults.custom.hideFrom.tooltip=true", "path": "fieldConfig.defaults.custom.hideFrom.tooltip", "value": true, "expect": "bookkeeping" },
-    { "id": "fieldConfig.defaults.custom.hideFrom.viz=true", "path": "fieldConfig.defaults.custom.hideFrom.viz", "value": true }
+    { "id": "fieldConfig.defaults.custom.hideFrom.viz=true", "path": "fieldConfig.defaults.custom.hideFrom.viz", "value": true },
+    {"id": "dataFormat=tsbuckets", "path": "dataFormat", "value": "tsbuckets", "expect": "bookkeeping", "with": {"options.calculate": false}},
+    {"id": "yBucketBound=upper", "path": "yBucketBound", "value": "upper", "expect": "bookkeeping", "with": {"options.calculate": false}},
+    {"id": "yAxis=object", "path": "yAxis", "value": {"decimals": 2, "format": "s", "logBase": 2, "max": "9", "min": "1", "show": false, "splitFactor": 3}, "expect": "bookkeeping", "with": {"options.calculate": false}},
+    {"id": "xAxis=object", "path": "xAxis", "value": {"show": false}, "expect": "bookkeeping", "with": {"options.calculate": false}},
+    {"id": "tooltip=object", "path": "tooltip", "value": {"show": false, "showHistogram": true}, "expect": "bookkeeping", "with": {"options.calculate": false}},
+    {"id": "tooltipDecimals=2", "path": "tooltipDecimals", "value": 2, "expect": "bookkeeping", "with": {"options.calculate": false}},
+    {"id": "reverseYBuckets=true", "path": "reverseYBuckets", "value": true, "expect": "bookkeeping", "with": {"options.calculate": false}},
+    {"id": "legend=object", "path": "legend", "value": {"show": false}, "expect": "bookkeeping", "with": {"options.calculate": false}},
+    {"id": "hideZeroBuckets=true", "path": "hideZeroBuckets", "value": true, "expect": "bookkeeping", "with": {"options.calculate": false}},
+    {"id": "highlightCards=false", "path": "highlightCards", "value": false, "expect": "bookkeeping", "with": {"options.calculate": false}},
+    {"id": "color=object", "path": "color", "value": {"cardColor": "#112233", "colorScale": "linear", "colorScheme": "interpolateWarm", "exponent": 0.8, "max": 9, "min": 1, "mode": "opacity"}, "expect": "bookkeeping", "with": {"options.calculate": false}},
+    {"id": "cards=object", "path": "cards", "value": {"cardPadding": 4, "cardRound": 3}, "expect": "bookkeeping", "with": {"options.calculate": false}},
+    {"id": "xBucketNumber=10", "path": "xBucketNumber", "value": 10, "expect": "bookkeeping", "with": {"options.calculate": false}},
+    {"id": "xBucketSize=5m", "path": "xBucketSize", "value": "5m", "expect": "bookkeeping", "with": {"options.calculate": false}},
+    {"id": "yBucketNumber=10", "path": "yBucketNumber", "value": 10, "expect": "bookkeeping", "with": {"options.calculate": false}},
+    {"id": "yBucketSize=2", "path": "yBucketSize", "value": 2, "expect": "bookkeeping", "with": {"options.calculate": false}},
+    {"id": "options.tooltip.show=false", "path": "options.tooltip.show", "value": false},
+    {"id": "fieldConfig.defaults.color=fixed-red", "path": "fieldConfig.defaults.color", "value": {"mode": "fixed", "fixedColor": "red"}, "expect": "bookkeeping"}
   ]
 }

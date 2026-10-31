@@ -244,6 +244,55 @@ var legacySinglestatIgnored = map[string]string{
 
 var anyPanelScope = optionScope("panel:*")
 
+func underKeys(prefix string, keys ...string) []string {
+	paths := make([]string, len(keys))
+	for i, key := range keys {
+		paths[i] = prefix + key
+	}
+	return paths
+}
+
+func ignoredBecause(why string, groups ...[]string) map[string]string {
+	rows := map[string]string{}
+	for _, group := range groups {
+		for _, path := range group {
+			rows[path] = why
+		}
+	}
+	return rows
+}
+
+var graphKeysOnTables = slices.Concat(
+	[]string{
+		"bars", "dashLength", "dashes", "fill", "fillGradient", "lines", "linewidth", "nullPointMode", "percentage",
+		"pointradius", "points", "renderer", "spaceLength", "stack", "steppedLine",
+	},
+	underKeys("legend.", "avg", "current", "max", "min", "show", "total", "values"),
+	underKeys("tooltip.", "shared", "sort", "value_type"),
+	underKeys("xaxis.", "buckets", "mode", "name", "show", "values"),
+	underKeys("yaxes[].", "decimals", "format", "label", "logBase", "max", "min", "show"),
+)
+
+var angularTableKeys = slices.Concat(
+	[]string{"columns", "fontSize", "pageSize", "showHeader", "transform"},
+	underKeys("columns[].", "text", "value"),
+	underKeys("sort.", "col", "desc"),
+	underKeys("styles[].", append([]string{"dateFormat", "link", "linkTargetBlank", "linkTooltip", "linkUrl"}, tableStyleHandled...)...),
+)
+
+var angularHeatmapKeys = slices.Concat(
+	[]string{
+		"dataFormat", "hideZeroBuckets", "highlightCards", "reverseYBuckets", "tooltipDecimals",
+		"xBucketNumber", "xBucketSize", "yBucketBound", "yBucketNumber", "yBucketSize",
+	},
+	underKeys("cards.", "cardPadding", "cardRound"),
+	underKeys("color.", "cardColor", "colorScale", "colorScheme", "exponent", "max", "min", "mode"),
+	underKeys("legend.", "show"),
+	underKeys("tooltip.", "show", "showHistogram"),
+	underKeys("xAxis.", "show"),
+	underKeys("yAxis.", "decimals", "format", "logBase", "max", "min", "show", "splitFactor"),
+)
+
 var ignoredOptions = map[optionScope]map[string]string{
 	anyPanelScope: {
 		"fieldConfig.defaults.unitScale": "Grafana 12 defines no unit scale and never reads one",
@@ -266,6 +315,9 @@ var ignoredOptions = map[optionScope]map[string]string{
 	},
 	panelScope("singlestat"):               legacySinglestatIgnored,
 	panelScope("grafana-singlestat-panel"): legacySinglestatIgnored,
+	panelScope(spec.Table):                 ignoredBecause("a migrated table never reads Angular options", angularTableKeys, graphKeysOnTables),
+	panelScope("table-old"):                ignoredBecause("an Angular table never reads graph options", graphKeysOnTables),
+	panelScope(spec.Heatmap):               ignoredBecause("a migrated heatmap reads `options` only", angularHeatmapKeys),
 	panelScope(spec.StateTimeline):         stateLegendIgnored,
 	panelScope(spec.StatusHistory):         stateLegendIgnored,
 	panelScope(spec.BarChart): {
