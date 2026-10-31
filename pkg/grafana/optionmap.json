@@ -12132,7 +12132,14 @@
     "alias",
     "expr",
     "type"
-   ]
+   ],
+   "values": {
+    "s:Value #A (lastNotNull)": [
+     "alias",
+     "expr",
+     "type"
+    ]
+   }
   },
   "options.binary.operator": {
    "fields": [

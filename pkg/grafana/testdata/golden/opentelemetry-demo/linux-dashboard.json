@@ -53,8 +53,8 @@
     "verified": false,
     "counts": {
       "total": 19,
-      "imported": 18,
-      "partial": 1,
+      "imported": 19,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -609,14 +609,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Details",
-        "status": "partial",
-        "reasons": [
-          "Some transformations are not supported yet."
-        ],
-        "paths": [
-          "transformations[2].options.binary",
-          "transformations[3].options.binary"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "free",
@@ -674,7 +669,7 @@
     "panel panels[17] mapped=49 default=2 no_effect=1 bookkeeping=6 field_config:1 override:1 query:2",
     "panel panels[18] mapped=49 default=2 no_effect=6 bookkeeping=6 field_config:1 override:1 query:3",
     "panel panels[19] mapped=66 bookkeeping=15 field_config:1 override:6 query:6 transformation:3",
-    "panel panels[20] mapped=54 reported=2 bookkeeping=6 field_config:1 override:5 query:2 transformation:6"
+    "panel panels[20] mapped=60 bookkeeping=6 field_config:1 override:5 query:2 transformation:6"
   ],
   "spec": {
     "specVersion": "0",
@@ -1937,6 +1932,16 @@
               },
               {
                 "type": "merge"
+              },
+              {
+                "type": "calculateField",
+                "alias": "used",
+                "expr": "Value #total (lastNotNull) - Value #free (lastNotNull)"
+              },
+              {
+                "type": "calculateField",
+                "alias": "Used %",
+                "expr": "used / Value #total (lastNotNull)"
               },
               {
                 "type": "organize",

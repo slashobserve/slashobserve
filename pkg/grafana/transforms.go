@@ -26,7 +26,9 @@ const (
 	defaultWindowShare = 0.1
 )
 
-var exprPattern = regexp.MustCompile(`^\s*\S+\s*[-+*/%^]\s*\S+\s*$`)
+var exprPattern = regexp.MustCompile(`^\s*(?:\S+\s*[-+*/%^]\s*\S+|\S.*\s[-+*/%^]\s.*\S)\s*$`)
+
+var spacedOperator = regexp.MustCompile(`(?:^|\s)[-+*/%^](?:\s|$)`)
 
 var (
 	unaryFunctions   = []string{"abs", "exp", "ln", "floor", "ceil", "round"}
@@ -448,6 +450,9 @@ func operandText(v any) string {
 		return x
 	case map[string]any:
 		if matcher, ok := asObject(x["matcher"]); ok {
+			if asString(matcher["id"]) != "byName" {
+				return ""
+			}
 			return operandText(matcher["options"])
 		}
 		return operandText(x["fixed"])
@@ -669,9 +674,14 @@ func binaryExpression(opts map[string]any) (string, bool) {
 	if !slices.Contains(binaryOperators, operator) {
 		return "", false
 	}
-	expr := operandText(binary["left"]) + " " + operator + " " + operandText(binary["right"])
-	return expr, len(expr) <= maxExprLength && exprPattern.MatchString(expr) &&
-		len(strings.Fields(expr)) == 3
+	left, right := operandText(binary["left"]), operandText(binary["right"])
+	expr := left + " " + operator + " " + right
+	return expr, plainOperand(left) && plainOperand(right) && len(expr) <= maxExprLength && exprPattern.MatchString(expr)
+}
+
+func plainOperand(operand string) bool {
+	return operand != "" && operand == strings.TrimSpace(operand) &&
+		!strings.ContainsAny(operand, "\n\r\u2028\u2029") && !spacedOperator.MatchString(operand)
 }
 
 func sortTransform(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool) {

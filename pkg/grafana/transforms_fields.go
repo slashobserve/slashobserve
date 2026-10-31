@@ -101,6 +101,10 @@ func convertFieldTypeTransform(b *panelBuild, opts map[string]any, path string) 
 		b.partial(path+".options.fields", "")
 	}
 	items, _ := asArray(opts["conversions"])
+	if len(items) == 0 {
+		b.recordImplicit(path+".options.conversions", outcomeNoEffect)
+		return spec.Transform{}, false
+	}
 	t := spec.Transform{Type: "convertFieldType"}
 	for i, item := range items {
 		itemPath := fmt.Sprintf("%s.options.conversions[%d]", path, i)

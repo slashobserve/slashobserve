@@ -946,6 +946,25 @@ describe("calculateField", () => {
     expect(calc("A * -1")).toEqual([-10, -9, -8])
   })
 
+  it("computes between fields whose names contain spaces", () => {
+    const spaced = frame([
+      time([1, 2]),
+      num("Value #A (lastNotNull)", [10, 8]),
+      num("Value #B (lastNotNull)", [4, 8]),
+    ])
+    const calc = (expr: string) =>
+      run([spaced], { type: "calculateField", alias: "r", expr })[0].fields.at(
+        -1
+      )?.values
+    expect(calc("Value #A (lastNotNull) - Value #B (lastNotNull)")).toEqual([
+      6, 0,
+    ])
+    expect(calc("Value #A (lastNotNull) / Value #B (lastNotNull)")).toEqual([
+      2.5, 1,
+    ])
+    expect(calc("Value #A (lastNotNull) * 2")).toEqual([20, 16])
+  })
+
   it("reduces the number fields of each row with reduceRow", () => {
     const [out] = run([input], {
       type: "calculateField",

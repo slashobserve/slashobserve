@@ -2814,9 +2814,9 @@
               "maxLength": 200
             },
             "expr": {
-              "description": "field_or_number op field_or_number, op one of + - * / % ^.",
+              "description": "field_or_number op field_or_number, op one of + - * / % ^; put spaces around op when a field name contains spaces.",
               "type": "string",
-              "pattern": "^\\s*\\S+\\s*[-+*/%^]\\s*\\S+\\s*$",
+              "pattern": "^\\s*(?:\\S+\\s*[-+*/%^]\\s*\\S+|\\S.*\\s[-+*/%^]\\s.*\\S)\\s*$",
               "maxLength": 400
             },
             "reduceRow": {
