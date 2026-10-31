@@ -199,16 +199,43 @@ func (b *panelBuild) dropTarget(i int, target map[string]any, reason string) {
 	}
 }
 
-func (tb *targetBuild) altinityFlavor() bool {
-	hasSQL := asString(tb.t["rawSql"]) != ""
-	hasQuery := asString(tb.t["query"]) != ""
+type queryKind string
+
+const (
+	queryExpression  queryKind = "expression"
+	queryDashboard   queryKind = "dashboard"
+	queryUnsupported queryKind = "unsupported"
+	queryPrometheus  queryKind = "prometheus"
+	queryAltinity    queryKind = "altinity"
+	queryClickHouse  queryKind = "clickhouse"
+)
+
+func altinityFlavor(target map[string]any, src *sourceDS) bool {
+	hasSQL := asString(target["rawSql"]) != ""
+	hasQuery := asString(target["query"]) != ""
 	switch {
 	case hasSQL && !hasQuery:
 		return false
 	case hasQuery && !hasSQL:
 		return true
 	}
-	return tb.src.typ == altinityPlugin
+	return src.typ == altinityPlugin
+}
+
+func queryKindOf(ref dsRef, target map[string]any) queryKind {
+	switch {
+	case ref.kind == refSpecial && ref.special == "expression":
+		return queryExpression
+	case ref.isDashboard():
+		return queryDashboard
+	case !ref.supported():
+		return queryUnsupported
+	case ref.src.kind == kindPrometheus:
+		return queryPrometheus
+	case altinityFlavor(target, ref.src):
+		return queryAltinity
+	}
+	return queryClickHouse
 }
 
 func (tb *targetBuild) use(keys ...string) {
@@ -230,24 +257,23 @@ func (tb *targetBuild) addRewrite(from, to string) {
 }
 
 func (tb *targetBuild) convert(ref dsRef, declared map[string]bool) (spec.Query, string) {
-	if ref.kind == refSpecial && ref.special == "expression" {
-		return tb.expression()
-	}
-	if ref.isDashboard() {
-		return tb.dashboardSource()
-	}
-	if !ref.supported() {
-		return spec.Query{}, ref.label() + " is not supported yet."
-	}
-	tb.src = ref.src
 	var q spec.Query
 	var reason string
-	switch {
-	case ref.src.kind == kindPrometheus:
+	switch queryKindOf(ref, tb.t) {
+	case queryExpression:
+		return tb.expression()
+	case queryDashboard:
+		return tb.dashboardSource()
+	case queryUnsupported:
+		return spec.Query{}, ref.label() + " is not supported yet."
+	case queryPrometheus:
+		tb.src = ref.src
 		q, reason = tb.prometheus()
-	case tb.altinityFlavor():
+	case queryAltinity:
+		tb.src = ref.src
 		q, reason = tb.altinity(declared)
 	default:
+		tb.src = ref.src
 		q, reason = tb.officialClickHouse()
 	}
 	if reason != "" {
@@ -457,7 +483,7 @@ func (tb *targetBuild) finishQuery(q spec.Query, declared map[string]bool) (spec
 		from, to, _ := strings.Cut(rewrite, " -> ")
 		tb.addRewrite(from, to)
 	}
-	if tb.src.kind == kindClickHouse && !tb.altinityFlavor() {
+	if tb.src.kind == kindClickHouse && !altinityFlavor(tb.t, tb.src) {
 		text = tb.rewriteOfficialMacros(text)
 	}
 	if len(text) > maxQueryLength {
