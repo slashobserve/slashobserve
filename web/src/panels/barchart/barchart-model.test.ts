@@ -20,6 +20,7 @@ import {
   orientationOf,
   rotatedExtent,
   roundedBarPath,
+  thresholdMarks,
   tooltipIndexes,
   truncateLabel,
   truncatedNote,
@@ -563,6 +564,108 @@ describe("categoryBand", () => {
       width: 25,
       height: 50,
     })
+  })
+})
+
+const steps = [
+  { color: "green" },
+  { value: 50, color: "orange" },
+  { value: 80, color: "red" },
+]
+
+describe("barchartModel threshold style", () => {
+  const frames = [frame([text("r", ["/a", "/b"]), numbers("one", [10, 90])])]
+  const styled = (thresholdsStyle?: string, extra: Partial<DataPanel> = {}) =>
+    build(frames, {
+      thresholds: steps,
+      ...(thresholdsStyle ? { thresholdsStyle } : {}),
+      ...extra,
+    } as Partial<DataPanel>).thresholds
+
+  it("draws lines and bands only for a style that was written", () => {
+    expect(styled()).toBeNull()
+    expect(styled("off")).toBeNull()
+    expect(styled("series")).toBeNull()
+    for (const style of [
+      "line",
+      "dashed",
+      "area",
+      "line+area",
+      "dashed+area",
+    ]) {
+      expect(styled(style)).toMatchObject({ list: steps, style })
+    }
+  })
+
+  it("draws nothing without thresholds", () => {
+    const model = build(frames, {
+      thresholdsStyle: "line",
+    } as Partial<DataPanel>)
+    expect(model.thresholds).toBeNull()
+  })
+
+  it("draws nothing on a percent stack, whose axis is not in value units", () => {
+    expect(
+      styled("line", { stack: "percent" } as Partial<DataPanel>)
+    ).toBeNull()
+  })
+
+  it("keeps coloring bars by their threshold in the series style", () => {
+    const model = build(frames, {
+      thresholds: steps,
+      thresholdsStyle: "series",
+    } as Partial<DataPanel>)
+    expect(model.bars[0][0].color).not.toBe(model.bars[1][0].color)
+  })
+
+  it("reads the style of an override on the first series", () => {
+    const model = build(frames, {
+      thresholds: steps,
+      overrides: [{ match: { series: "one" }, thresholdsStyle: "area" }],
+    } as Partial<DataPanel>)
+    expect(model.thresholds).toMatchObject({ style: "area" })
+  })
+})
+
+describe("thresholdMarks", () => {
+  const marks = (style: string, mode = "absolute", min = 0, max = 100) =>
+    thresholdMarks(
+      { list: steps, mode, style } as Parameters<typeof thresholdMarks>[0],
+      min,
+      max
+    )
+
+  it("draws a solid or dashed line at every step that has a value", () => {
+    const solid = marks("line")
+    expect(solid.lines.map(({ at }) => at)).toEqual([50, 80])
+    expect(solid.dashed).toBe(false)
+    expect(solid.bands).toEqual([])
+    expect(marks("dashed").dashed).toBe(true)
+  })
+
+  it("fills a band per step between its value and the next, clipped to the axis", () => {
+    const area = marks("area", "absolute", 20, 70)
+    expect(area.lines).toEqual([])
+    expect(area.bands.map(({ from, to }) => [from, to])).toEqual([
+      [20, 50],
+      [50, 70],
+    ])
+  })
+
+  it("draws lines and bands together in the combined styles", () => {
+    const both = marks("dashed+area")
+    expect(both.lines).toHaveLength(2)
+    expect(both.bands).toHaveLength(3)
+    expect(both.dashed).toBe(true)
+  })
+
+  it("leaves out lines beyond the axis and places percentages in the range", () => {
+    expect(marks("line", "absolute", 0, 60).lines.map(({ at }) => at)).toEqual([
+      50,
+    ])
+    expect(
+      marks("line", "percentage", 0, 200).lines.map(({ at }) => at)
+    ).toEqual([100, 160])
   })
 })
 

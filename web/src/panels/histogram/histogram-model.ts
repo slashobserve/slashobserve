@@ -263,22 +263,32 @@ export function bucketIndex(
 function barsOf(
   counts: readonly number[][],
   stack: HistogramStack,
-  buckets: number
+  buckets: number,
+  groups: readonly string[]
 ): HistogramBar[][] {
   const bars = counts.map(() => new Array<HistogramBar>(buckets))
   for (let bucket = 0; bucket < buckets; bucket++) {
-    const total = counts.reduce((sum, row) => sum + row[bucket], 0)
-    let running = 0
+    const totals = new Map<string, number>()
+    for (const [series, row] of counts.entries()) {
+      totals.set(
+        groups[series],
+        (totals.get(groups[series]) ?? 0) + row[bucket]
+      )
+    }
+    const running = new Map<string, number>()
     counts.forEach((row, series) => {
       const count = row[bucket]
       if (stack === "none") {
         bars[series][bucket] = { start: 0, end: count }
         return
       }
+      const group = groups[series]
+      const total = totals.get(group) ?? 0
       const scaled =
         stack === "percent" ? (total === 0 ? 0 : (count / total) * 100) : count
-      bars[series][bucket] = { start: running, end: running + scaled }
-      running += scaled
+      const start = running.get(group) ?? 0
+      bars[series][bucket] = { start, end: start + scaled }
+      running.set(group, start + scaled)
     })
   }
   return bars
@@ -363,7 +373,12 @@ export function histogramModel(
     total += values.length
     return row
   })
-  const bars = barsOf(counts, stack, buckets.count)
+  const bars = barsOf(
+    counts,
+    stack,
+    buckets.count,
+    entries.map(({ config }) => config.stackGroup)
+  )
   let top = 0
   for (const row of bars) {
     for (const { end } of row) top = Math.max(top, end)

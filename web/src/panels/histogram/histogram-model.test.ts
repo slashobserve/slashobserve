@@ -308,6 +308,52 @@ describe("stacking", () => {
   })
 })
 
+describe("stack groups", () => {
+  const frames = [
+    series("a", [0, 10]),
+    series("b", [10, 10], { ref: "B" }),
+    series("c", [10, 10, 10], { ref: "C" }),
+  ]
+  const display = { bucketCount: 2 }
+  const grouped = {
+    overrides: [{ match: { series: "c" }, stackGroup: "B" }],
+  } as Partial<DataPanel>
+
+  it("stacks series of different groups separately", () => {
+    const model = build(frames, display, grouped)
+    expect(model.bars[0][1]).toEqual({ start: 0, end: 1 })
+    expect(model.bars[1][1]).toEqual({ start: 1, end: 3 })
+    expect(model.bars[2][1]).toEqual({ start: 0, end: 3 })
+  })
+
+  it("stacks every series together while they share the default group", () => {
+    const model = build(frames, display)
+    expect(model.bars[2][1]).toEqual({ start: 3, end: 6 })
+  })
+
+  it("scales each group to 100 percent on its own", () => {
+    const model = build(frames, { ...display, stack: "percent" }, grouped)
+    expect(model.bars[1][1].end).toBeCloseTo(100)
+    expect(model.bars[2][1]).toEqual({ start: 0, end: 100 })
+  })
+
+  it("overlays every series from zero when not stacked", () => {
+    const model = build(frames, { ...display, stack: "none" }, grouped)
+    expect(model.bars.map((row) => row[1].start)).toEqual([0, 0, 0])
+  })
+
+  it("restacks the rest of a group when a series is hidden", () => {
+    const all = build(frames, display, grouped)
+    const model = buildHidden(
+      frames,
+      display,
+      grouped,
+      new Set([all.series[0].key])
+    )
+    expect(model.bars[0][1]).toEqual({ start: 0, end: 2 })
+  })
+})
+
 describe("hidden series", () => {
   it("keeps the buckets and drops the series from the stack", () => {
     const frames = [series("a", [0, 10]), series("b", [10, 10], { ref: "B" })]
