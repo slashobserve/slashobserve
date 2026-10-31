@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -35,19 +36,18 @@ func importOnlyIssues(next, parent *spec.Dashboard) []spec.Issue {
 
 func panelImportOnlyIssues(e spec.PanelEntry, before map[string]*spec.Panel, hasParent bool) []spec.Issue {
 	previous, existed := before[e.Panel.ID]
-	switch {
-	case e.Panel.Type == spec.Placeholder:
+	if e.Panel.Type == spec.Placeholder {
 		return placeholderViolations(e, previous, existed && previous.Type == spec.Placeholder, hasParent)
-	case hasHTML(e.Panel) && (!existed || !sameText(previous, e.Panel)):
-		return []spec.Issue{{
+	}
+	var issues []spec.Issue
+	if hasHTML(e.Panel) && (!existed || !sameText(previous, e.Panel)) {
+		issues = append(issues, spec.Issue{
 			Path:    e.Pointer,
 			Code:    codeHTMLNotAllowed,
 			Message: "the agent cannot write HTML; write Markdown without tags, or leave this imported panel unchanged",
-		}}
-	case e.Panel.Type == spec.Canvas:
-		return actionViolations(e, previous, existed)
+		})
 	}
-	return nil
+	return append(issues, actionViolations(e, previous, existed)...)
 }
 
 func placeholderViolations(e spec.PanelEntry, previous *spec.Panel, keptPlaceholder, hasParent bool) []spec.Issue {
@@ -69,7 +69,11 @@ func placeholderViolations(e spec.PanelEntry, previous *spec.Panel, keptPlacehol
 }
 
 func actionViolations(e spec.PanelEntry, previous *spec.Panel, existed bool) []spec.Issue {
-	if e.Panel.Display == nil {
+	return append(canvasActionViolations(e, previous, existed), fieldActionViolations(e, previous, existed)...)
+}
+
+func canvasActionViolations(e spec.PanelEntry, previous *spec.Panel, existed bool) []spec.Issue {
+	if e.Panel.Type != spec.Canvas || e.Panel.Display == nil {
 		return nil
 	}
 	var issues []spec.Issue
@@ -84,6 +88,27 @@ func actionViolations(e spec.PanelEntry, previous *spec.Panel, existed bool) []s
 		})
 	}
 	return issues
+}
+
+func fieldActionViolations(e spec.PanelEntry, previous *spec.Panel, existed bool) []spec.Issue {
+	var issues []spec.Issue
+	if len(e.Panel.Actions) > 0 && (!existed || !reflect.DeepEqual(previous.Actions, e.Panel.Actions)) {
+		issues = append(issues, fieldActionIssue(e.Pointer+"/actions"))
+	}
+	for i, o := range e.Panel.Overrides {
+		if len(o.Actions) > 0 && (!existed || !sameOverrideActions(previous, o)) {
+			issues = append(issues, fieldActionIssue(e.Pointer+"/overrides/"+strconv.Itoa(i)+"/actions"))
+		}
+	}
+	return issues
+}
+
+func fieldActionIssue(path string) spec.Issue {
+	return spec.Issue{
+		Path:    path,
+		Code:    codeActionNotAllowed,
+		Message: "the agent cannot add or change field actions; keep them as they are or remove them",
+	}
 }
 
 func needsImportOnlyCheck(d *spec.Dashboard) bool {
@@ -103,15 +128,13 @@ func hasHTML(p *spec.Panel) bool {
 }
 
 func hasActions(p *spec.Panel) bool {
+	if len(p.Actions) > 0 || slices.ContainsFunc(p.Overrides, func(o spec.Override) bool { return len(o.Actions) > 0 }) {
+		return true
+	}
 	if p.Type != spec.Canvas || p.Display == nil {
 		return false
 	}
-	for _, el := range p.Display.Elements {
-		if len(el.Actions) > 0 {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(p.Display.Elements, func(el spec.CanvasElement) bool { return len(el.Actions) > 0 })
 }
 
 func panelsByID(d *spec.Dashboard) map[string]*spec.Panel {
@@ -143,4 +166,10 @@ func sameActions(previous *spec.Panel, el spec.CanvasElement) bool {
 		}
 	}
 	return false
+}
+
+func sameOverrideActions(previous *spec.Panel, o spec.Override) bool {
+	return slices.ContainsFunc(previous.Overrides, func(old spec.Override) bool {
+		return reflect.DeepEqual(old.Match, o.Match) && reflect.DeepEqual(old.Actions, o.Actions)
+	})
 }

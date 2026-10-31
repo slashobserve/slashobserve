@@ -346,6 +346,10 @@ export type Mapping =
       color?: Color;
     };
 /**
+ * An https address whose host is written out; ${var} references may appear only after the host.
+ */
+export type HttpsUrl = string;
+/**
  * A semantic color (ok, info, warning, critical) or a #rrggbb hex color.
  */
 export type Color1 = string;
@@ -357,6 +361,10 @@ export type Color2 = string;
  * A semantic color (ok, info, warning, critical) or a #rrggbb hex color.
  */
 export type Color3 = string;
+/**
+ * A semantic color (ok, info, warning, critical) or a #rrggbb hex color.
+ */
+export type Color4 = string;
 /**
  * The name of a field whose value in the same row is shown as a tooltip on this column's cells. Only table panels draw it.
  */
@@ -1538,6 +1546,13 @@ export interface FieldProps {
    * @maxItems 20
    */
   links?: Link[];
+  /**
+   * HTTP actions a person with Edit runs from table cells, stat tiles, gauges and bars; only people and imports write them.
+   *
+   * @minItems 1
+   * @maxItems 10
+   */
+  actions?: Action[];
   style?: "line" | "bars" | "points";
   fill?: number;
   /**
@@ -1551,9 +1566,9 @@ export interface FieldProps {
    * @maxItems 2
    */
   lineDash?: number[];
-  lineColor?: Color1;
-  fillColor?: Color2;
-  pointColor?: Color3;
+  lineColor?: Color2;
+  fillColor?: Color3;
+  pointColor?: Color4;
   /**
    * Print each point's formatted value above it.
    */
@@ -1623,7 +1638,18 @@ export interface FieldProps {
    * How a table column draws its cells; absent means the plain cell with colors from thresholds and colored mappings. Only table panels draw it.
    */
   cell?: {
-    type: "auto" | "text" | "background" | "gauge" | "sparkline" | "json" | "image" | "links" | "pill" | "markdown";
+    type:
+      | "auto"
+      | "text"
+      | "background"
+      | "gauge"
+      | "sparkline"
+      | "json"
+      | "image"
+      | "links"
+      | "pill"
+      | "markdown"
+      | "actions";
     gaugeStyle?: "basic" | "lcd";
     valueMode?: "color" | "text" | "hidden";
     wholeRow?: boolean;
@@ -1672,6 +1698,41 @@ export interface Link {
    * A data link on a stat, gauge, bar gauge or table cell that makes the whole tile, bar, gauge or cell the link when it is the only data link there.
    */
   oneClick?: boolean;
+}
+export interface Action {
+  title: string;
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  url: HttpsUrl;
+  contentType?: "application/json" | "text/plain" | "application/x-www-form-urlencoded";
+  body?: string;
+  /**
+   * @maxItems 10
+   */
+  headers?: ActionParam[];
+  /**
+   * @maxItems 20
+   */
+  query?: ActionParam[];
+  confirm?: string;
+  /**
+   * Values the person types when running the action; ${key} in url, body, header values and query values refers to the typed value. Keys are unique.
+   *
+   * @minItems 1
+   * @maxItems 10
+   */
+  variables?: {
+    key: string;
+    name: string;
+  }[];
+  color?: Color1;
+  /**
+   * Field actions only: a click on the cell, tile, gauge or bar runs this action when it is the field's only link or action.
+   */
+  oneClick?: boolean;
+}
+export interface ActionParam {
+  name: string;
+  value: string;
 }
 export interface DataPanel1 {
   /**

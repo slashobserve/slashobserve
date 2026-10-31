@@ -256,6 +256,7 @@ const fieldLabels: { [K in FieldKey]: string } = {
   noValue: "no value text",
   mappings: "value mappings",
   links: "links",
+  actions: "actions",
   style: "draw style",
   fill: "fill",
   lineStyle: "line style",

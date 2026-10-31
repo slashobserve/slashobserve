@@ -2,6 +2,7 @@ package spec
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -88,6 +89,10 @@ func checkActions(d *Dashboard, entries []PanelEntry) []Issue {
 	}
 	var issues []Issue
 	for _, e := range entries {
+		issues = append(issues, checkFieldActions(declared, e.Panel.Actions, e.Pointer+"/actions")...)
+		for i, o := range e.Panel.Overrides {
+			issues = append(issues, checkFieldActions(declared, o.Actions, e.Pointer+pointer("overrides", strconv.Itoa(i), "actions"))...)
+		}
 		if e.Panel.Type != Canvas || e.Panel.Display == nil {
 			continue
 		}
@@ -95,16 +100,45 @@ func checkActions(d *Dashboard, entries []PanelEntry) []Issue {
 			for j, a := range el.Actions {
 				base := e.Pointer + pointer("display", "elements", strconv.Itoa(i), "actions", strconv.Itoa(j))
 				issues = append(issues, checkAction(declared, a, base)...)
+				if a.OneClick {
+					issues = append(issues, Issue{
+						Path:    base + "/oneClick",
+						Code:    CodeInvalidReference,
+						Message: "set oneClick on the canvas element, not on its action",
+					})
+				}
 			}
 		}
 	}
 	return issues
 }
 
+func checkFieldActions(declared map[string]bool, actions []Action, base string) []Issue {
+	var issues []Issue
+	for j, a := range actions {
+		issues = append(issues, checkAction(declared, a, base+"/"+strconv.Itoa(j))...)
+	}
+	return issues
+}
+
 func checkAction(declared map[string]bool, a Action, base string) []Issue {
 	var issues []Issue
-	issues = append(issues, checkActionTemplate(declared, a.URL, base+"/url")...)
-	issues = append(issues, checkActionTemplate(declared, a.Body, base+"/body")...)
+	scope := declared
+	if len(a.Variables) > 0 {
+		scope = maps.Clone(declared)
+		for k, v := range a.Variables {
+			if slices.ContainsFunc(a.Variables[:k], func(o ActionVariable) bool { return o.Key == v.Key }) {
+				issues = append(issues, Issue{
+					Path:    base + pointer("variables", strconv.Itoa(k), "key"),
+					Code:    CodeInvalidReference,
+					Message: fmt.Sprintf("action variable %q is declared twice", v.Key),
+				})
+			}
+			scope[v.Key] = true
+		}
+	}
+	issues = append(issues, checkActionTemplate(scope, a.URL, base+"/url")...)
+	issues = append(issues, checkActionTemplate(scope, a.Body, base+"/body")...)
 	for _, group := range []struct {
 		name   string
 		params []ActionParam
@@ -118,7 +152,7 @@ func checkAction(declared map[string]bool, a Action, base string) []Issue {
 					Message: actionParamMessage,
 				})
 			}
-			issues = append(issues, checkActionTemplate(declared, p.Value, at+"/value")...)
+			issues = append(issues, checkActionTemplate(scope, p.Value, at+"/value")...)
 		}
 	}
 	return issues

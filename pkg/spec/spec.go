@@ -383,6 +383,7 @@ type FieldProps struct {
 	NoValue           string      `json:"noValue,omitempty"`
 	Mappings          []Mapping   `json:"mappings,omitempty"`
 	Links             []Link      `json:"links,omitempty"`
+	Actions           []Action    `json:"actions,omitempty"`
 	Style             string      `json:"style,omitempty"`
 	Fill              *int        `json:"fill,omitempty"`
 	LineStyle         string      `json:"lineStyle,omitempty"`
@@ -943,14 +944,22 @@ type ImageRef struct {
 }
 
 type Action struct {
-	Title       string        `json:"title"`
-	Method      string        `json:"method,omitempty"`
-	URL         string        `json:"url"`
-	ContentType string        `json:"contentType,omitempty"`
-	Body        string        `json:"body,omitempty"`
-	Headers     []ActionParam `json:"headers,omitempty"`
-	Query       []ActionParam `json:"query,omitempty"`
-	Confirm     string        `json:"confirm,omitempty"`
+	Title       string           `json:"title"`
+	Method      string           `json:"method,omitempty"`
+	URL         string           `json:"url"`
+	ContentType string           `json:"contentType,omitempty"`
+	Body        string           `json:"body,omitempty"`
+	Headers     []ActionParam    `json:"headers,omitempty"`
+	Query       []ActionParam    `json:"query,omitempty"`
+	Confirm     string           `json:"confirm,omitempty"`
+	Variables   []ActionVariable `json:"variables,omitempty"`
+	Color       string           `json:"color,omitempty"`
+	OneClick    bool             `json:"oneClick,omitempty"`
+}
+
+type ActionVariable struct {
+	Key  string `json:"key"`
+	Name string `json:"name"`
 }
 
 type ActionParam struct {

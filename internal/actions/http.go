@@ -28,9 +28,10 @@ const (
 	maxVariableValues   = 100
 	maxValueBytes       = 1000
 	maxFields           = 50
+	maxInputs           = 10
 	maxInFlightPerUser  = 2
 	sendTimeout         = 15 * time.Second
-	auditMessage        = "canvas action run"
+	auditMessage        = "action run"
 	staleVersionMessage = "The dashboard changed; reload it before running this action."
 	invalidMessage      = "The action could not be built from the current values."
 )
@@ -93,12 +94,14 @@ type runRequest struct {
 	Version   int                 `json:"version"`
 	Panel     string              `json:"panel"`
 	Element   string              `json:"element"`
+	Override  *int                `json:"override"`
 	Action    *int                `json:"action"`
 	Variables map[string][]string `json:"variables"`
 	From      *time.Time          `json:"from"`
 	To        *time.Time          `json:"to"`
 	Value     *valueRequest       `json:"value"`
 	Fields    map[string]string   `json:"fields"`
+	Inputs    map[string]string   `json:"inputs"`
 }
 
 type runResponse struct {
@@ -110,8 +113,12 @@ func (r runRequest) shapeProblem() string {
 	switch {
 	case r.Version < 1 || r.Version > math.MaxInt32:
 		return "version must be a saved version number"
-	case r.Panel == "" || len(r.Panel) > maxIDBytes || r.Element == "" || len(r.Element) > maxIDBytes:
+	case r.Panel == "" || len(r.Panel) > maxIDBytes || len(r.Element) > maxIDBytes:
 		return "panel and element must be ids of at most 64 bytes"
+	case r.Element != "" && r.Override != nil:
+		return "element and override cannot be used together"
+	case r.Override != nil && *r.Override < 0:
+		return "override must be the index of an override, starting at 0"
 	case r.Action == nil || *r.Action < 0:
 		return "action must be the index of an action, starting at 0"
 	case r.From == nil || r.To == nil:
@@ -134,6 +141,14 @@ func (r runRequest) valueProblem() string {
 			return "field names and values are at most 1000 bytes"
 		}
 	}
+	if len(r.Inputs) > maxInputs {
+		return "inputs holds at most 10 entries"
+	}
+	for key, value := range r.Inputs {
+		if len(key) > maxIDBytes || tooLong(value) {
+			return "input keys are at most 64 bytes and values at most 1000 bytes"
+		}
+	}
 	if v := r.Value; v != nil && (tooLong(v.Raw) || tooLong(v.Text)) {
 		return "value.raw and value.text are at most 1000 bytes"
 	}
@@ -142,17 +157,47 @@ func (r runRequest) valueProblem() string {
 
 func tooLong(s string) bool { return len(s) > maxValueBytes }
 
-func findAction(d *spec.Dashboard, panelID, elementID string, index int) (spec.Action, bool) {
-	entry, ok := d.FindPanel(panelID)
-	if !ok || entry.Panel.Type != spec.Canvas || entry.Panel.Display == nil {
+func findAction(d *spec.Dashboard, req runRequest) (spec.Action, bool) {
+	entry, ok := d.FindPanel(req.Panel)
+	if !ok {
 		return spec.Action{}, false
 	}
-	for _, el := range entry.Panel.Display.Elements {
-		if el.ID == elementID && index < len(el.Actions) {
-			return el.Actions[index], true
+	var actions []spec.Action
+	switch {
+	case req.Element != "":
+		actions = canvasActions(entry.Panel, req.Element)
+	case req.Override != nil:
+		if *req.Override < len(entry.Panel.Overrides) {
+			actions = entry.Panel.Overrides[*req.Override].Actions
+		}
+	default:
+		actions = entry.Panel.Actions
+	}
+	if *req.Action >= len(actions) {
+		return spec.Action{}, false
+	}
+	return actions[*req.Action], true
+}
+
+func canvasActions(p *spec.Panel, elementID string) []spec.Action {
+	if p.Type != spec.Canvas || p.Display == nil {
+		return nil
+	}
+	for _, el := range p.Display.Elements {
+		if el.ID == elementID {
+			return el.Actions
 		}
 	}
-	return spec.Action{}, false
+	return nil
+}
+
+func unknownInput(a spec.Action, inputs map[string]string) bool {
+	for key := range inputs {
+		if !slices.ContainsFunc(a.Variables, func(v spec.ActionVariable) bool { return v.Key == key }) {
+			return true
+		}
+	}
+	return false
 }
 
 func undeclared(d *spec.Dashboard, variables map[string][]string) bool {
@@ -186,12 +231,16 @@ func (h *Handler) run(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusConflict, "stale_version", staleVersionMessage)
 		return
 	case err != nil:
-		h.fail(c, "load canvas action", err)
+		h.fail(c, "load action", err)
 		return
 	}
-	action, found := findAction(dash, req.Panel, req.Element, *req.Action)
+	action, found := findAction(dash, req)
 	if !found {
 		httpapi.AbortError(c, http.StatusNotFound, "action_not_found", "The action no longer exists in this dashboard.")
+		return
+	}
+	if unknownInput(action, req.Inputs) {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "inputs may only name the action's variables")
 		return
 	}
 	if undeclared(dash, req.Variables) {
@@ -244,6 +293,7 @@ func environment(req runRequest, caller auth.Principal) spec.ActionEnv {
 		To:        *req.To,
 		User:      spec.ActionUser{ID: caller.ID, Email: caller.Email, Name: caller.Name},
 		Fields:    req.Fields,
+		Inputs:    req.Inputs,
 	}
 	if v := req.Value; v != nil {
 		env.Value = spec.ActionValue{Raw: v.Raw, Text: v.Text, Numeric: v.Numeric}
@@ -284,13 +334,20 @@ type auditFields struct {
 }
 
 func (h *Handler) audit(ctx context.Context, f auditFields) {
-	h.logger.InfoContext(ctx, auditMessage,
+	attrs := []any{
 		slog.String("actor_id", f.caller.ID),
 		slog.String("actor_role", string(f.caller.Role)),
 		slog.String("dashboard_id", f.dashboardID),
 		slog.Int("version", f.req.Version),
 		slog.String("panel", f.req.Panel),
-		slog.String("element", f.req.Element),
+	}
+	if f.req.Element != "" {
+		attrs = append(attrs, slog.String("element", f.req.Element))
+	}
+	if f.req.Override != nil {
+		attrs = append(attrs, slog.Int("override", *f.req.Override))
+	}
+	attrs = append(attrs,
 		slog.Int("action", *f.req.Action),
 		slog.String("method", f.method),
 		slog.String("host", f.host),
@@ -298,13 +355,14 @@ func (h *Handler) audit(ctx context.Context, f auditFields) {
 		slog.String("outcome", f.outcome),
 		slog.Int64("duration_ms", f.elapsed.Milliseconds()),
 	)
+	h.logger.InfoContext(ctx, auditMessage, attrs...)
 }
 
 func (h *Handler) respond(c *gin.Context, result egress.SendResult, err error, host string) {
 	switch {
 	case err == nil:
 		c.JSON(http.StatusOK, runResponse{Status: result.Status, OK: result.Status >= 200 && result.Status < 300})
-	case clientgone.Handle(c, h.logger, "run canvas action", err):
+	case clientgone.Handle(c, h.logger, "run action", err):
 	case errors.Is(err, egress.ErrNotAllowed):
 		abortWithHost(c, http.StatusForbidden, "outbound_domain_not_allowed", host+" is not on the outbound allowlist.", host)
 	case errors.Is(err, egress.ErrInvalidURL):
@@ -316,7 +374,7 @@ func (h *Handler) respond(c *gin.Context, result egress.SendResult, err error, h
 	case errors.Is(err, egress.ErrUnavailable), errors.Is(err, context.DeadlineExceeded):
 		abortWithHost(c, http.StatusBadGateway, "action_failed", "The request to "+host+" failed.", host)
 	default:
-		h.fail(c, "run canvas action", err)
+		h.fail(c, "run action", err)
 	}
 }
 

@@ -1696,6 +1696,16 @@
             "$ref": "#/$defs/link"
           }
         },
+        "actions": {
+          "x-omitFromPrompt": true,
+          "description": "HTTP actions a person with Edit runs from table cells, stat tiles, gauges and bars; only people and imports write them.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        },
         "style": {
           "enum": [
             "line",
@@ -1960,7 +1970,8 @@
                 "image",
                 "links",
                 "pill",
-                "markdown"
+                "markdown",
+                "actions"
               ]
             },
             "gaugeStyle": {
@@ -7339,6 +7350,39 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 500
+        },
+        "variables": {
+          "description": "Values the person types when running the action; ${key} in url, body, header values and query values refers to the typed value. Keys are unique.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "name"
+            ],
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              }
+            }
+          }
+        },
+        "color": {
+          "description": "The color of the action's button.",
+          "$ref": "#/$defs/color"
+        },
+        "oneClick": {
+          "description": "Field actions only: a click on the cell, tile, gauge or bar runs this action when it is the field's only link or action.",
+          "type": "boolean"
         }
       }
     },

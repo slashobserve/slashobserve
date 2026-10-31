@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -31,6 +32,7 @@ type ActionEnv struct {
 	User      ActionUser
 	Value     ActionValue
 	Fields    map[string]string
+	Inputs    map[string]string
 }
 
 type ExpandedAction struct {
@@ -80,6 +82,10 @@ func regexAlternatives(values []string) string {
 }
 
 func ExpandAction(a Action, env ActionEnv) (ExpandedAction, error) {
+	env, err := withInputs(a, env)
+	if err != nil {
+		return ExpandedAction{}, err
+	}
 	defaults := Defaults().Action
 	method := orDefault(a.Method, defaults.Method)
 	contentType := orDefault(a.ContentType, defaults.ContentType)
@@ -100,6 +106,25 @@ func ExpandAction(a Action, env ActionEnv) (ExpandedAction, error) {
 		header.Set("Content-Type", contentType)
 	}
 	return ExpandedAction{Method: method, URL: target, Host: host, Header: header, Body: body}, nil
+}
+
+func withInputs(a Action, env ActionEnv) (ActionEnv, error) {
+	if len(a.Variables) == 0 {
+		return env, nil
+	}
+	scoped := maps.Clone(env.Variables)
+	if scoped == nil {
+		scoped = make(map[string][]string, len(a.Variables))
+	}
+	for _, v := range a.Variables {
+		value, ok := env.Inputs[v.Key]
+		if !ok {
+			return ActionEnv{}, fmt.Errorf("action variable %q has no value", v.Key)
+		}
+		scoped[v.Key] = []string{value}
+	}
+	env.Variables = scoped
+	return env, nil
 }
 
 func orDefault(value, fallback string) string {
