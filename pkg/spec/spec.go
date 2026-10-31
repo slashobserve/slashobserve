@@ -306,25 +306,26 @@ type Panel struct {
 	Datasource  string    `json:"datasource,omitempty"`
 	Queries     []Query   `json:"queries,omitempty"`
 	FieldProps
-	Overrides       []Override  `json:"overrides,omitempty"`
-	Transform       []Transform `json:"transform,omitempty"`
-	Repeat          string      `json:"repeat,omitempty"`
-	RepeatDirection string      `json:"repeatDirection,omitempty"`
-	MaxPerRow       int         `json:"maxPerRow,omitempty"`
-	TimeFrom        string      `json:"timeFrom,omitempty"`
-	TimeShift       string      `json:"timeShift,omitempty"`
-	Interval        string      `json:"interval,omitempty"`
-	MaxDataPoints   int         `json:"maxDataPoints,omitempty"`
-	Transparent     bool        `json:"transparent,omitempty"`
-	TitleHidden     bool        `json:"titleHidden,omitempty"`
-	Display         *Display    `json:"display,omitempty"`
-	Content         *string     `json:"content,omitempty"`
-	Mode            string      `json:"mode,omitempty"`
-	Code            *TextCode   `json:"code,omitempty"`
-	Reason          string      `json:"reason,omitempty"`
-	SourceType      string      `json:"sourceType,omitempty"`
-	Collapsed       bool        `json:"collapsed,omitempty"`
-	Panels          []Panel     `json:"panels,omitempty"`
+	Overrides        []Override  `json:"overrides,omitempty"`
+	Transform        []Transform `json:"transform,omitempty"`
+	Repeat           string      `json:"repeat,omitempty"`
+	RepeatDirection  string      `json:"repeatDirection,omitempty"`
+	MaxPerRow        int         `json:"maxPerRow,omitempty"`
+	TimeFrom         string      `json:"timeFrom,omitempty"`
+	TimeShift        string      `json:"timeShift,omitempty"`
+	HideTimeOverride bool        `json:"hideTimeOverride,omitempty"`
+	Interval         string      `json:"interval,omitempty"`
+	MaxDataPoints    int         `json:"maxDataPoints,omitempty"`
+	Transparent      bool        `json:"transparent,omitempty"`
+	TitleHidden      bool        `json:"titleHidden,omitempty"`
+	Display          *Display    `json:"display,omitempty"`
+	Content          *string     `json:"content,omitempty"`
+	Mode             string      `json:"mode,omitempty"`
+	Code             *TextCode   `json:"code,omitempty"`
+	Reason           string      `json:"reason,omitempty"`
+	SourceType       string      `json:"sourceType,omitempty"`
+	Collapsed        bool        `json:"collapsed,omitempty"`
+	Panels           []Panel     `json:"panels,omitempty"`
 }
 
 type Query struct {

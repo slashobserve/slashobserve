@@ -6470,6 +6470,11 @@
           "type": "string",
           "pattern": "^[1-9][0-9]*[smhdwMy]$"
         },
+        "hideTimeOverride": {
+          "x-omitFromPrompt": true,
+          "description": "Do not show the time override note (from timeFrom and timeShift) in the panel header. The override still applies to the queries. Absent means shown.",
+          "type": "boolean"
+        },
         "interval": {
           "$ref": "#/$defs/intervalRef"
         },

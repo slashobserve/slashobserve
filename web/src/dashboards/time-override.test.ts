@@ -46,4 +46,17 @@ describe("timeOverrideLabel", () => {
     )
     expect(timeOverrideLabel({ timeFrom: "now-1y" })?.text).toBe("Last 1 year")
   })
+
+  it("draws no label when the panel hides it", () => {
+    expect(
+      timeOverrideLabel({
+        timeFrom: "now-1h",
+        timeShift: "1d",
+        hideTimeOverride: true,
+      })
+    ).toBeNull()
+    expect(
+      timeOverrideLabel({ timeFrom: "now-1h", hideTimeOverride: false })?.text
+    ).toBe("Last 1 hour")
+  })
 })

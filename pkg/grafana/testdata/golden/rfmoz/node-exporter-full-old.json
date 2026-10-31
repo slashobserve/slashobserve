@@ -6266,6 +6266,7 @@
                 "text": "N/A"
               }
             ],
+            "hideTimeOverride": true,
             "maxDataPoints": 100,
             "display": {
               "colorMode": "none",

@@ -275,6 +275,7 @@ const fieldLabels: { [K in FieldKey]: string } = {
   maxPerRow: "repeat width",
   timeFrom: "relative time",
   timeShift: "time shift",
+  hideTimeOverride: "time override note",
   interval: "minimum interval",
   maxDataPoints: "max data points",
   gridPos: "position",

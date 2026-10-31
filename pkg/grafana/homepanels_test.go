@@ -69,24 +69,3 @@ func TestTransparentPanelsKeepTheFlagSilently(t *testing.T) {
 		})
 	}
 }
-
-func TestHideTimeOverrideIsReportedOnlyWhereAnOverrideIsShown(t *testing.T) {
-	cases := []struct {
-		name, members string
-		reported      bool
-	}{
-		{"time from", `"timeFrom":"1h","hideTimeOverride":true`, true},
-		{"time shift", `"timeShift":"1d","hideTimeOverride":true`, true},
-		{"no override", `"hideTimeOverride":true`, false},
-		{"not hidden", `"timeFrom":"1h","hideTimeOverride":false`, false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, line := convertedPanel(t, panelDoc("stat", upTarget+","+tc.members))
-			got := slices.Contains(line.Paths, "hideTimeOverride")
-			if got != tc.reported || got && !slices.Contains(line.Reasons, hideTimeOverrideReason) {
-				t.Fatalf("paths = %v, reasons = %v, want reported = %v", line.Paths, line.Reasons, tc.reported)
-			}
-		})
-	}
-}

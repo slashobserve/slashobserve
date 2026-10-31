@@ -1653,6 +1653,10 @@ export interface DataPanel1 {
   maxPerRow?: number;
   timeFrom?: string;
   timeShift?: string;
+  /**
+   * Do not show the time override note (from timeFrom and timeShift) in the panel header. The override still applies to the queries. Absent means shown.
+   */
+  hideTimeOverride?: boolean;
   interval?: IntervalRef;
   maxDataPoints?: number;
   transparent?: boolean;

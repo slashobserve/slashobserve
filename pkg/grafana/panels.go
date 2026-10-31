@@ -11,15 +11,14 @@ import (
 )
 
 const (
-	maxPanelTitle          = 200
-	maxPanelDescription    = 2000
-	maxTextContent         = 20000
-	maxPanelPaths          = 100
-	noQueriesReason        = "None of this panel's queries can be imported."
-	livePanelReason        = "Grafana's live panels have no SlashObserve equivalent."
-	debugPanelReason       = "Grafana's debug panel showed raw query results; it is shown as a table."
-	hideTimeOverrideReason = "The time override label is always shown."
-	docsURL                = "https://github.com/slashobserve/slashobserve/blob/main/docs/"
+	maxPanelTitle       = 200
+	maxPanelDescription = 2000
+	maxTextContent      = 20000
+	maxPanelPaths       = 100
+	noQueriesReason     = "None of this panel's queries can be imported."
+	livePanelReason     = "Grafana's live panels have no SlashObserve equivalent."
+	debugPanelReason    = "Grafana's debug panel showed raw query results; it is shown as a table."
+	docsURL             = "https://github.com/slashobserve/slashobserve/blob/main/docs/"
 )
 
 var homePanelContent = map[string]string{
@@ -481,6 +480,13 @@ func (b *panelBuild) buildData() *builtPanel {
 	b.convertLinks()
 	b.reportUnconsumed()
 	return b.finish()
+}
+
+func (b *panelBuild) convertHideTimeOverride() {
+	if truthy(b.raw["hideTimeOverride"]) && b.typ.IsData() {
+		b.panel.HideTimeOverride = true
+	}
+	b.consume("hideTimeOverride")
 }
 
 func (b *panelBuild) convertPanelQueries() {
