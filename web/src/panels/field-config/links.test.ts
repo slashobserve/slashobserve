@@ -64,6 +64,39 @@ describe("link interpolation", () => {
     expect(href("/d?${__url_time_range}")).toBe("/d?${__url_time_range}")
   })
 
+  it("writes every variable selection as query parameters", () => {
+    expect(
+      href("/d?${__all_variables}", {
+        vars: { pod: ["a", "b c"], env: ["prod"] },
+      })
+    ).toBe("/d?var-pod=a&var-pod=b%20c&var-env=prod")
+  })
+
+  it("keeps the All selection as its variable value in all variables", () => {
+    expect(
+      href("/d?${__all_variables}", { vars: { pod: ["$__all"], env: ["x"] } })
+    ).toBe("/d?var-pod=%24__all&var-env=x")
+  })
+
+  it("writes nothing for all variables on a dashboard without variables", () => {
+    expect(href("/d?a=1&${__all_variables}")).toBe("/d?a=1&")
+  })
+
+  it("carries the time range and the variables to a dashboard by title", () => {
+    expect(
+      href(
+        "/dashboards/by-title?title=Thanos+%2F+Query&${__url_time_range}&${__all_variables}",
+        {
+          from: "now-6h",
+          to: "now",
+          vars: { datasource: ["default"] },
+        }
+      )
+    ).toBe(
+      "/dashboards/by-title?title=Thanos+%2F+Query&from=now-6h&to=now&var-datasource=default"
+    )
+  })
+
   it("reads a field of the row by name or in brackets", () => {
     const frame: WireFrame = {
       ref: "A",
