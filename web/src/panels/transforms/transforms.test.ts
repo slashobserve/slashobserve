@@ -615,6 +615,74 @@ describe("reduce", () => {
   })
 })
 
+describe("reduce with any reducer", () => {
+  const a = frame([time([1, 2, 3]), num("Value", [1, 2, 3])], {
+    labels: { pod: "a" },
+  })
+  const b = frame([time([1, 2, 3]), num("Value", [10, null, 20])], {
+    labels: { pod: "b" },
+  })
+  const reducers = ["variance", "allIsZero", "allValues"] as const
+
+  it("names a column per reducer and types it by the result kind with seriesToRows", () => {
+    const [out] = run([a, b], { type: "reduce", reducers: [...reducers] })
+    expect(columns(out)).toEqual({
+      Field: ['{pod="a"}', '{pod="b"}'],
+      Variance: [2 / 3, 25],
+      "All zeros": [false, false],
+      "All values": ["1, 2, 3", "10, 20"],
+    })
+    expect(out.fields.map((field) => field.type)).toEqual([
+      "string",
+      "number",
+      "bool",
+      "string",
+    ])
+  })
+
+  it("names a field per reducer and types it by the result kind with reduceFields", () => {
+    const [out] = run([a], {
+      type: "reduce",
+      mode: "reduceFields",
+      reducers: [...reducers],
+    })
+    expect(columns(out)).toEqual({
+      "Value Variance": [2 / 3],
+      "Value All zeros": [false],
+      "Value All values": ["1, 2, 3"],
+    })
+    expect(out.fields.map((field) => field.type)).toEqual([
+      "number",
+      "bool",
+      "string",
+    ])
+  })
+})
+
+describe("groupBy with any reducer", () => {
+  it("lists every value of a group as text for allValues", () => {
+    const rows = frame([
+      str("host", ["a", "b", "a"]),
+      str("env", ["p", "q", "p"]),
+    ])
+    const [out] = run([rows], {
+      type: "groupBy",
+      by: ["host"],
+      aggregate: [{ field: "env", reducers: ["allValues", "allIsNull"] }],
+    })
+    expect(columns(out)).toEqual({
+      host: ["a", "b"],
+      "env (allValues)": ["p, p", "q"],
+      "env (allIsNull)": [false, false],
+    })
+    expect(out.fields.map((field) => field.type)).toEqual([
+      "string",
+      "string",
+      "bool",
+    ])
+  })
+})
+
 describe("joinByField", () => {
   const cpu = frame([time([3, 1, 2]), num("Value", [30, 10, 20])], {
     name: "cpu",

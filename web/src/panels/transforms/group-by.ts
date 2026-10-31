@@ -1,6 +1,6 @@
 import type { Transform } from "@/spec"
 
-import { reduce, uniqueValues } from "../reducers"
+import { reduceAny } from "../reducers"
 import {
   cell,
   copyFrame,
@@ -10,6 +10,7 @@ import {
   type PreparedFrame,
 } from "./names"
 import { groupRows, type Group } from "./partition-by-values"
+import { reducedFieldType } from "./reduce"
 
 type GroupByOptions = Extract<Transform, { type: "groupBy" }>
 export type Grouping = Pick<GroupByOptions, "by" | "aggregate">
@@ -48,19 +49,11 @@ export function groupFrame(
       const name = `${source.name} (${reducer})`
       const column = (group: Group) =>
         group.rows.map((row) => cell(source, row))
-      fields.push(
-        reducer === "uniqueValues"
-          ? {
-              name,
-              type: "string",
-              values: groups.map((group) => uniqueValues(column(group))),
-            }
-          : {
-              name,
-              type: "number",
-              values: groups.map((group) => reduce(column(group), reducer)),
-            }
-      )
+      fields.push({
+        name,
+        type: reducedFieldType(reducer),
+        values: groups.map((group) => reduceAny(column(group), reducer)),
+      })
     }
   }
   return { keys, groups, fields }

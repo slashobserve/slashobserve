@@ -344,6 +344,34 @@ describe("legendCells", () => {
     expect(legendCells(rows, ["max"])).toEqual([["2.40"], ["2.45"]])
   })
 
+  it("formats a percentile like any number reducer", () => {
+    const ramp = Array.from({ length: 101 }, (_, index) => index)
+    const rows = [
+      series("a", [1], { fieldValues: ramp }),
+      series("b", [1], { fieldValues: [10, 20] }),
+    ]
+    expect(legendCells(rows, ["p95"])).toEqual([["95.0"], ["19.5"]])
+  })
+
+  it("writes true or false for a reducer that answers yes or no", () => {
+    const rows = [
+      series("a", [0], { fieldValues: [null, null] }),
+      series("b", [0], { fieldValues: [0, 1] }),
+    ]
+    expect(legendCells(rows, ["allIsNull", "allIsZero"])).toEqual([
+      ["true", "false"],
+      ["false", "false"],
+    ])
+  })
+
+  it("writes the values of allValues as text and nothing for no values", () => {
+    const rows = [
+      series("a", [1], { fieldValues: [3, null, 1] }),
+      series("b", [1], { fieldValues: [null] }),
+    ]
+    expect(legendCells(rows, ["allValues"])).toEqual([["3, 1"], [""]])
+  })
+
   it("has no columns without reducers", () => {
     expect(legendCells([series("a", [1])], [])).toEqual([[]])
   })

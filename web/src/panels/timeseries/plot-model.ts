@@ -1,8 +1,8 @@
-import type { DataPanel, Reducer, Threshold } from "@/spec"
+import type { AnyReducer, DataPanel, Threshold } from "@/spec"
 
 import { assignSlots, type SlotMap } from "../colors"
 import type { FieldConfig } from "../field-config"
-import { reduce } from "../reducers"
+import { reduceAny, reducerKind } from "../reducers"
 import type { AlignedSeries } from "./align"
 import { spanShortGaps } from "./gaps"
 import {
@@ -160,18 +160,30 @@ export function plotStateFor(
   }
 }
 
+function legendColumn(
+  series: readonly Pick<ChartSeries, "fieldValues" | "config">[],
+  reducer: AnyReducer
+): string[] {
+  const reduced = series.map(({ fieldValues, config }) => ({
+    value: reduceAny(fieldValues, reducer),
+    config,
+  }))
+  if (reducerKind(reducer) !== "number") {
+    return reduced.map(({ value }) => (value === null ? "" : String(value)))
+  }
+  return formatTogether(
+    reduced.map(({ value, config }) => ({
+      value: typeof value === "number" ? value : null,
+      config,
+    }))
+  )
+}
+
 export function legendCells(
   series: readonly Pick<ChartSeries, "fieldValues" | "config">[],
-  reducers: readonly Reducer[]
+  reducers: readonly AnyReducer[]
 ): string[][] {
-  const columns = reducers.map((reducer) =>
-    formatTogether(
-      series.map(({ fieldValues, config }) => ({
-        value: reduce(fieldValues, reducer),
-        config,
-      }))
-    )
-  )
+  const columns = reducers.map((reducer) => legendColumn(series, reducer))
   return series.map((_entry, row) => columns.map((column) => column[row]))
 }
 

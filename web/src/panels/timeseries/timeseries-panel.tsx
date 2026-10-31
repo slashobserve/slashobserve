@@ -14,7 +14,7 @@ import type { DataPanel } from "@/spec"
 import { readChartColors, resolveColor } from "../colors"
 import type { FieldConfig } from "../field-config"
 import { dataRenderers } from "../index"
-import { reducerLabels } from "../reducers"
+import { reducerLabel } from "../reducers"
 import { thresholdColor } from "../thresholds"
 import type { CursorMember } from "../shared-cursor"
 import type { PanelRenderer, PanelRendererProps } from "../types"
@@ -640,7 +640,7 @@ export function TimeseriesChart({
     const rem = rootFontSize()
     return legendTableWidth(
       listed.map(({ label }) => label),
-      reducers.map((reducer) => reducerLabels[reducer]),
+      reducers.map(reducerLabel),
       cells,
       textMeasure(rem),
       rem
