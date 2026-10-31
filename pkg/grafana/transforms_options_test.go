@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"slices"
 	"testing"
+
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 func TestTransformOptionsConvert(t *testing.T) {
@@ -219,6 +221,8 @@ func TestTransformsScopedToQueries(t *testing.T) {
 		{"regular expression", `{"id":"byRefId","options":"/^(A|B)$/"}`, `["A","B"]`},
 		{"regular expression with a flag", `{"id":"byRefId","options":"/b/i"}`, `["B"]`},
 		{"array", `{"id":"byRefId","options":["C","A"]}`, `["C","A"]`},
+		{"frame filter", `{"id":"byFrameRefID","options":"B"}`, `["B"]`},
+		{"frame filter with a pipe list", `{"id":"byFrameRefID","options":"A|C"}`, `["A","C"]`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -235,7 +239,8 @@ func TestTransformsScopedToQueries(t *testing.T) {
 
 func TestTransformScopeIsReportedWhenItCannotBeKept(t *testing.T) {
 	cases := []struct{ name, filter, want string }{
-		{"frame filter", `{"id":"byFrameRefID","options":"A"}`, `null`},
+		{"frame filter matching nothing", `{"id":"byFrameRefID","options":"Z"}`, `null`},
+		{"unknown filter matcher", `{"id":"byFrameName","options":"A"}`, `null`},
 		{"unknown id", `{"id":"byRefId","options":"Z"}`, `null`},
 		{"partly unknown", `{"id":"byRefId","options":"A|Z"}`, `["A"]`},
 		{"regular expression matching nothing", `{"id":"byRefId","options":"/^Z/"}`, `null`},
@@ -249,6 +254,52 @@ func TestTransformScopeIsReportedWhenItCannotBeKept(t *testing.T) {
 			}
 			if queries != tc.want {
 				t.Fatalf("queries %s, want %s", queries, tc.want)
+			}
+		})
+	}
+}
+
+func refPanel(t *testing.T, transformation string) (spec.Panel, PanelLine) {
+	t.Helper()
+	doc := `{"title":"T","schemaVersion":39,"panels":[{` + panelFrame + `,"type":"table",` +
+		`"targets":[{"refId":"A","expr":"up"},{"refId":"B","expr":"down"},{"refId":"C","expr":"sideways"}],` +
+		`"transformations":[` + transformation + `]}]}`
+	return convertedPanel(t, doc)
+}
+
+func TestFilterByRefIDExcludeKeepsTheOtherQueries(t *testing.T) {
+	cases := []struct{ name, options, want string }{
+		{"one id", `{"exclude":"B"}`, `["A","C"]`},
+		{"pipe list", `{"exclude":"A|C"}`, `["B"]`},
+		{"regular expression", `{"exclude":"/^(A|B)$/"}`, `["C"]`},
+		{"regular expression with a flag", `{"exclude":"/b/i"}`, `["A","C"]`},
+		{"id the panel does not have", `{"exclude":"Z"}`, `["A","B","C"]`},
+		{"taken from the included queries", `{"include":"A|B","exclude":"B"}`, `["A"]`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := refPanel(t, `{"id":"filterByRefId","options":`+tc.options+`}`)
+			if line.Status != statusImported {
+				t.Fatalf("status %s, paths %v", line.Status, line.Paths)
+			}
+			wantJSON(t, panel.Transform, `[{"type":"filterByRefId","include":`+tc.want+`}]`)
+		})
+	}
+}
+
+func TestFilterByRefIDExcludeIsReportedWhenNothingIsLeft(t *testing.T) {
+	cases := []struct{ name, options, path string }{
+		{"every query excluded", `{"exclude":"/./"}`, "transformations[0]"},
+		{"invalid regular expression", `{"exclude":"/(/"}`, "transformations[0].options.exclude"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := refPanel(t, `{"id":"filterByRefId","options":`+tc.options+`}`)
+			if line.Status != statusPartial || !slices.Contains(line.Paths, tc.path) {
+				t.Fatalf("status %s, paths %v, want %s reported", line.Status, line.Paths, tc.path)
+			}
+			if len(panel.Transform) != 0 {
+				t.Fatalf("kept %+v", panel.Transform)
 			}
 		})
 	}

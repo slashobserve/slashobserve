@@ -125,7 +125,9 @@ Any other transformation, one past the 20th, and an option the Spec cannot hold 
 The grouping steps keep only their `by` and `aggregate` fields, as Grafana's output does, and take every reducer, including the true or false and list reducers (`allIsNull`, `allIsZero`, `allValues` and `uniqueValues`); a reducer name Grafana does not have is reported.
 `calculateField` imports its binary, row reduce, unary, index, cumulative and window modes, and the unary `percent` is reported.
 A transformation that Grafana limits to some queries (a `filter` of `byRefId`) imports as `queries`, matched against the refs the panel imported: one ref, refs joined with `|`, a list or a `/regex/` pattern.
-A ref that did not import, a pattern that matches none and any other filter, such as `byFrameRefID`, are reported at `filter`, and the transformation then applies to every query.
+A frame filter (`byFrameRefID`) imports the same way.
+A ref that did not import, a pattern that matches none and any other filter are reported at `filter`, and the transformation then applies to every query.
+`filterByRefId` imports `include` and `exclude`, `filterByValue` imports `between`, `substring` and, as a transformation's only filter, `notSubstring`, and `formatTime` imports the `utc` time zone; any other time zone is reported.
 The `heatmap` transformation imports its x and y buckets, the log or symlog row scale and `keepOriginalData`, and a heatmap panel draws its cells directly; a logarithmic time scale, the ordinal row scale, a log base other than 2 and 10, and `rowsFrame` are reported.
 `spatial` imports its action (prepare, calculate or modify), its source and target locations (automatic, coordinates, geohash or lookup) and the line builder.
 A lookup in `spatial` or `fieldLookup` uses the built-in countries or US states gazetteer; an airports gazetteer or one from a URL drops the transformation and is reported ("Airport lookup is not available." or "Only the built-in countries and US states gazetteers are supported.").
