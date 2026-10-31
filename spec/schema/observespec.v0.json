@@ -4024,6 +4024,13 @@
                   "graph": {
                     "type": "boolean"
                   },
+                  "graphStyle": {
+                    "enum": [
+                      "area",
+                      "line"
+                    ],
+                    "x-omitFromPrompt": true
+                  },
                   "textMode": {
                     "enum": [
                       "value",
@@ -4053,6 +4060,12 @@
                     "x-omitFromPrompt": true
                   },
                   "valueSize": {
+                    "type": "integer",
+                    "minimum": 6,
+                    "maximum": 200,
+                    "x-omitFromPrompt": true
+                  },
+                  "percentSize": {
                     "type": "integer",
                     "minimum": 6,
                     "maximum": 200,
@@ -4367,6 +4380,14 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 200,
+                    "x-omitFromPrompt": true
+                  },
+                  "sort": {
+                    "enum": [
+                      "desc",
+                      "asc",
+                      "none"
+                    ],
                     "x-omitFromPrompt": true
                   },
                   "pieType": {
@@ -4937,6 +4958,12 @@
                     "minimum": 0.1,
                     "maximum": 1
                   },
+                  "perPage": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
                   "alignValue": {
                     "x-omitFromPrompt": true,
                     "enum": [
@@ -5064,6 +5091,26 @@
                   },
                   "highlight": {
                     "type": "boolean",
+                    "x-omitFromPrompt": true
+                  },
+                  "lineFields": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 20,
+                    "items": {
+                      "$ref": "#/$defs/fieldName"
+                    },
+                    "x-omitFromPrompt": true
+                  },
+                  "showAttributes": {
+                    "type": "boolean",
+                    "x-omitFromPrompt": true
+                  },
+                  "timePrecision": {
+                    "enum": [
+                      "ms",
+                      "ns"
+                    ],
                     "x-omitFromPrompt": true
                   },
                   "detailsMode": {
@@ -5265,6 +5312,12 @@
                     "type": "number",
                     "minimum": 0.1,
                     "maximum": 1
+                  },
+                  "perPage": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
                   },
                   "columnWidth": {
                     "x-omitFromPrompt": true,
@@ -5637,6 +5690,10 @@
                       "open-close",
                       "close-close"
                     ]
+                  },
+                  "flatColor": {
+                    "x-omitFromPrompt": true,
+                    "$ref": "#/$defs/color"
                   },
                   "upColor": {
                     "x-omitFromPrompt": true,

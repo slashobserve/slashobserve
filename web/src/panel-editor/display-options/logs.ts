@@ -13,6 +13,7 @@ export const logs: readonly DisplayOption[] = [
     ],
   },
   { kind: "toggle", key: "showLabels", label: "Show unique labels" },
+  { kind: "toggle", key: "showAttributes", label: "Show line attributes" },
   { kind: "toggle", key: "showCommonLabels", label: "Show common labels" },
   { kind: "toggle", key: "details", label: "Log details" },
   {
@@ -45,4 +46,20 @@ export const logs: readonly DisplayOption[] = [
     ],
   },
   { kind: "toggle", key: "highlight", label: "Highlight key=value and levels" },
+  {
+    kind: "names",
+    key: "lineFields",
+    label: "Line fields",
+    max: 20,
+    placeholder: "The message",
+  },
+  {
+    kind: "choice",
+    key: "timePrecision",
+    label: "Time precision",
+    options: [
+      { value: "ms", label: "Milliseconds" },
+      { value: "ns", label: "Nanoseconds" },
+    ],
+  },
 ]

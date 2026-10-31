@@ -2,6 +2,8 @@ package grafana
 
 import (
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -114,9 +116,6 @@ func TestLogsOptionsWithoutASpecKeyAreStillReported(t *testing.T) {
 		{"enableInfiniteScrolling", `true`},
 		{"showFieldSelector", `true`},
 		{"showLogContextToggle", `true`},
-		{"timestampResolution", `"ns"`},
-		{"showLogAttributes", `false`},
-		{"displayedFields", `["level"]`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.option, func(t *testing.T) {
@@ -139,6 +138,69 @@ func TestLogsInfiniteScrollingIsReportedWithItsOwnReason(t *testing.T) {
 func TestLogsInfiniteScrollingAtGrafanasDefaultStaysSilent(t *testing.T) {
 	_, line := logsPanel(t, `{"enableInfiniteScrolling":false}`)
 	if line.Status != statusImported || len(line.Paths) != 0 {
+		t.Fatalf("status %s, paths %v", line.Status, line.Paths)
+	}
+}
+
+func TestLogsDisplayedFieldsImportAsTheLineFields(t *testing.T) {
+	d, line := logsPanel(t, `{"displayedFields":["level","msg"]}`)
+	if !slices.Equal(d.LineFields, []string{"level", "msg"}) || line.Status != statusImported {
+		t.Fatalf("display = %+v, status %s, paths %v", d, line.Status, line.Paths)
+	}
+	d, line = logsPanel(t, `{"displayedFields":[]}`)
+	if d.LineFields != nil || line.Status != statusImported {
+		t.Fatalf("empty list: display = %+v, status %s, paths %v", d, line.Status, line.Paths)
+	}
+}
+
+func TestLogsDisplayedFieldsOutsideTheLimitsAreReported(t *testing.T) {
+	names := make([]string, 21)
+	for i := range names {
+		names[i] = `"f` + strconv.Itoa(i) + `"`
+	}
+	cases := []struct{ name, value string }{
+		{"more than 20", `[` + strings.Join(names, ",") + `]`},
+		{"empty name", `["level",""]`},
+		{"name over 200 characters", `["` + strings.Repeat("a", 201) + `"]`},
+		{"not a name", `["level",3]`},
+		{"not a list", `"level"`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d, line := logsPanel(t, `{"displayedFields":`+tc.value+`}`)
+			if d.LineFields != nil || line.Status != statusPartial || !slices.Equal(line.Paths, []string{"options.displayedFields"}) {
+				t.Fatalf("display = %+v, status %s, paths %v", d, line.Status, line.Paths)
+			}
+		})
+	}
+	d, line := logsPanel(t, `{"displayedFields":[`+strings.Join(names[:20], ",")+`]}`)
+	if len(d.LineFields) != 20 || line.Status != statusImported {
+		t.Fatalf("20 names: display = %+v, status %s, paths %v", d, line.Status, line.Paths)
+	}
+}
+
+func TestLogsAttributesAndTimestampResolution(t *testing.T) {
+	cases := []struct {
+		name, options, precision, attributes string
+	}{
+		{"attributes hidden", `{"showLogAttributes":false}`, "", "false"},
+		{"attributes shown is the default", `{"showLogAttributes":true}`, "", "absent"},
+		{"nanoseconds", `{"timestampResolution":"ns"}`, "ns", "absent"},
+		{"milliseconds is the default", `{"timestampResolution":"ms"}`, "", "absent"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d, line := logsPanel(t, tc.options)
+			if d.TimePrecision != tc.precision || flagState(d.ShowAttributes) != tc.attributes || line.Status != statusImported {
+				t.Fatalf("display = %+v, status %s, paths %v", d, line.Status, line.Paths)
+			}
+		})
+	}
+}
+
+func TestLogsResolutionOfAnUnknownUnitIsReported(t *testing.T) {
+	_, line := logsPanel(t, `{"timestampResolution":"us"}`)
+	if line.Status != statusPartial || !slices.Equal(line.Paths, []string{"options.timestampResolution"}) {
 		t.Fatalf("status %s, paths %v", line.Status, line.Paths)
 	}
 }

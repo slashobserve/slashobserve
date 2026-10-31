@@ -678,7 +678,6 @@ func TestOptionsTheRenderersAlreadyDrawTheSameWayAreNotReported(t *testing.T) {
 		{"override line width 2", override("timeseries", `{"id":"custom.lineWidth","value":2}`), true},
 		{"override line width 4", override("timeseries", `{"id":"custom.lineWidth","value":4}`), true},
 		{"stat justified automatically", panelDoc("stat", upTarget+`,"options":{"justifyMode":"auto"}`), true},
-		{"stat percent text size", panelDoc("stat", upTarget+`,"options":{"text":{"percentSize":14}}`), false},
 		{"table column width", panelDoc("table", upTarget+`,"fieldConfig":{"defaults":{"custom":{"width":120}},"overrides":[]}`), true},
 		{"table override column width", override("table", `{"id":"custom.width","value":90}`), true},
 		{"legend click marker", panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":{},"overrides":[{"__systemRef":"hideSeriesFrom","matcher":{"id":"byName","options":"a"},"properties":[{"id":"custom.hideFrom","value":{"viz":true}}]}]}`), true},
@@ -804,8 +803,14 @@ func TestChartPanelTypesImportTheirOptions(t *testing.T) {
 		{
 			name: "candlestick options with no Spec field", typ: "candlestick",
 			members: `"options":{"colors":{"up":"nonsense","down":"orange","flat":"purple"}}`,
-			display: `{"tooltipSort":"none","downColor":"warning"}`,
-			paths:   []string{"options.colors.up", "options.colors.flat"},
+			display: `{"tooltipSort":"none","downColor":"warning","flatColor":"#B877D9"}`,
+			paths:   []string{"options.colors.up"},
+		},
+		{
+			name: "candlestick flat color that has no color", typ: "candlestick",
+			members: `"options":{"colors":{"flat":"nonsense"}}`,
+			display: `{"tooltipSort":"none"}`,
+			paths:   []string{"options.colors.flat"},
 		},
 		{
 			name: "traces", typ: "traces",

@@ -98,3 +98,42 @@ func TestStatWithoutLayoutOptionsWritesNoneOfThem(t *testing.T) {
 		t.Fatalf("graph mode none: display = %+v, status %s", d, line.Status)
 	}
 }
+
+func TestStatPercentSizeImportsAndOutOfRangeSizesAreReported(t *testing.T) {
+	d, line := statPanel(t, `{"text":{"percentSize":14}}`)
+	if d.PercentSize != 14 || line.Status != statusImported {
+		t.Fatalf("display = %+v, status %s, paths %v", d, line.Status, line.Paths)
+	}
+	cases := []struct{ name, options string }{
+		{"below 6", `{"text":{"percentSize":5}}`},
+		{"above 200", `{"text":{"percentSize":201}}`},
+		{"fractional", `{"text":{"percentSize":12.5}}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d, line := statPanel(t, tc.options)
+			if d.PercentSize != 0 || line.Status != statusPartial || !slices.Equal(line.Paths, []string{"options.text.percentSize"}) {
+				t.Fatalf("display = %+v, status %s, paths %v", d, line.Status, line.Paths)
+			}
+		})
+	}
+}
+
+func TestStatGraphModeLineImportsAsTheLineStyle(t *testing.T) {
+	cases := []struct {
+		mode, style string
+		graph       string
+	}{
+		{"line", "line", "absent"},
+		{"area", "", "absent"},
+		{"none", "", "false"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.mode, func(t *testing.T) {
+			d, line := statPanel(t, `{"graphMode":"`+tc.mode+`"}`)
+			if d.GraphStyle != tc.style || flagState(d.Graph) != tc.graph || line.Status != statusImported {
+				t.Fatalf("display = %+v, status %s, paths %v", d, line.Status, line.Paths)
+			}
+		})
+	}
+}

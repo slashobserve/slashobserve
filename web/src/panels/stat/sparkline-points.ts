@@ -1,3 +1,10 @@
+export function sparklineHasArea(
+  filledTile: boolean,
+  graphStyle: string | undefined
+): boolean {
+  return !filledTile && graphStyle !== "line"
+}
+
 export const sparklineWidth = 600
 export const sparklineHeight = 40
 const inset = 2

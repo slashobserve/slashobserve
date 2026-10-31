@@ -2,7 +2,6 @@ import { memo, useCallback, useId, useMemo, useState } from "react"
 
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { formatDateTimeMs } from "@/lib/time"
 import { cn } from "@/lib/utils"
 
 import type { FieldResolver } from "../field-config"
@@ -10,15 +9,18 @@ import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
 import {
   detailText,
+  formatLogTime,
   logsModel,
   maxEntries,
   messageTokens,
+  showsAttributes,
   type DedupStrategy,
   type Labels,
   type LogEntry,
   type LogLevelKind,
   type LogsDisplay,
   type MessageToken,
+  type TimePrecision,
 } from "./logs-model"
 
 const levelIcons = {
@@ -104,6 +106,7 @@ type RowProps = {
   wrap: boolean
   showTime: boolean
   showLabels: boolean
+  timePrecision: TimePrecision | undefined
   highlight: boolean
   levelColumn: boolean
   detailsMode: DetailsMode
@@ -121,6 +124,7 @@ const LogRow = memo(function LogRow({
   wrap,
   showTime,
   showLabels,
+  timePrecision,
   highlight,
   levelColumn,
   detailsMode,
@@ -142,7 +146,7 @@ const LogRow = memo(function LogRow({
             "-"
           ) : (
             <time dateTime={new Date(entry.time).toISOString()}>
-              {formatDateTimeMs(entry.time)}
+              {formatLogTime(entry.time, timePrecision)}
             </time>
           )}
         </span>
@@ -336,8 +340,16 @@ function LogsView({
         order: view.order,
         dedup: view.dedup,
         prettify: display.prettify,
+        lineFields: display.lineFields,
       }),
-    [frames, fields, view.order, view.dedup, display.prettify]
+    [
+      frames,
+      fields,
+      view.order,
+      view.dedup,
+      display.prettify,
+      display.lineFields,
+    ]
   )
   const levelColumn = useMemo(
     () => entries.some((entry) => entry.level !== null),
@@ -392,7 +404,8 @@ function LogsView({
                 fields={fields}
                 wrap={view.wrap}
                 showTime={view.showTime}
-                showLabels={display.showLabels}
+                showLabels={showsAttributes(display)}
+                timePrecision={display.timePrecision}
                 highlight={display.highlight}
                 levelColumn={levelColumn}
                 detailsMode={detailsMode}

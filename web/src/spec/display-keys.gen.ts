@@ -60,6 +60,7 @@ export type DisplayKey =
   | "fitLastOnly"
   | "fitLayer"
   | "fitPadding"
+  | "flatColor"
   | "fontSize"
   | "footer"
   | "footerCountRows"
@@ -68,6 +69,7 @@ export type DisplayKey =
   | "fullHighlight"
   | "geohashField"
   | "graph"
+  | "graphStyle"
   | "groupWidth"
   | "header"
   | "hideAbove"
@@ -93,6 +95,7 @@ export type DisplayKey =
   | "legendValues"
   | "legendWidth"
   | "limit"
+  | "lineFields"
   | "location"
   | "lon"
   | "lonField"
@@ -116,8 +119,10 @@ export type DisplayKey =
   | "orientation"
   | "pagination"
   | "panZoom"
+  | "perPage"
   | "percentChange"
   | "percentChangeColor"
+  | "percentSize"
   | "pieType"
   | "pointSize"
   | "pointSizeMax"
@@ -131,6 +136,7 @@ export type DisplayKey =
   | "serviceNames"
   | "sharedView"
   | "show"
+  | "showAttributes"
   | "showAttribution"
   | "showCommonLabels"
   | "showDebug"
@@ -153,6 +159,7 @@ export type DisplayKey =
   | "textMode"
   | "thresholdLabels"
   | "thresholdMarkers"
+  | "timePrecision"
   | "titleSize"
   | "tooltip"
   | "tooltipColorScale"
@@ -217,11 +224,13 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "fields",
     "colorMode",
     "graph",
+    "graphStyle",
     "textMode",
     "orientation",
     "justify",
     "titleSize",
     "valueSize",
+    "percentSize",
     "percentChange",
     "percentChangeColor",
     "wideLayout"
@@ -271,6 +280,7 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "allValues",
     "limit",
     "fields",
+    "sort",
     "pieType",
     "legend",
     "sliceLabels",
@@ -350,6 +360,7 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "mergeValues",
     "showValues",
     "rowHeight",
+    "perPage",
     "alignValue",
     "legend",
     "legendMode",
@@ -372,6 +383,9 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "controls",
     "fontSize",
     "highlight",
+    "lineFields",
+    "showAttributes",
+    "timePrecision",
     "detailsMode"
   ],
   "barchart": [
@@ -402,6 +416,7 @@ export const displayKeysByType: Record<string, readonly string[]> = {
   "status-history": [
     "showValues",
     "rowHeight",
+    "perPage",
     "columnWidth",
     "legend",
     "legendMode",
@@ -453,6 +468,7 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "mode",
     "candleStyle",
     "colorStrategy",
+    "flatColor",
     "upColor",
     "downColor",
     "open",

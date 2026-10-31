@@ -31,9 +31,16 @@ import {
   type CandleSelection,
   type CandleRole,
   type CandleStyle,
+  type Direction,
   type ColorStrategy,
 } from "./candles"
 import { candlestickLegend } from "./candlestick-legend"
+
+const directionLabels: Record<Direction, string> = {
+  up: "Up",
+  down: "Down",
+  flat: "Flat",
+}
 
 const legendBottomHeight = 28
 const legendRightWidth = 96
@@ -44,6 +51,7 @@ type Paint = {
   colorStrategy: ColorStrategy
   upColor: string
   downColor: string
+  flatColor?: string
   columns: Partial<Record<CandleRole, number>>
 }
 
@@ -156,6 +164,7 @@ function paintKeyOf(options: CandleOptions, columns: CandleColumn[]): string {
     colorStrategy: options.colorStrategy,
     upColor: options.upColor,
     downColor: options.downColor,
+    flatColor: options.flatColor,
     columns: Object.fromEntries(
       columns.map(({ role }, index) => [role, index + 1])
     ),
@@ -247,6 +256,9 @@ const CandlestickPanel: PanelRenderer = (props) => {
   }
 
   const shades = directionColors(options)
+  const legendDirections = options.flatColor
+    ? (["up", "down", "flat"] as const)
+    : (["up", "down"] as const)
   const legendShown = legend === "upDown"
   const right = options.legend === "right"
   const chartWidth = width - (legendShown && right ? legendRightWidth : 0)
@@ -294,14 +306,14 @@ const CandlestickPanel: PanelRenderer = (props) => {
             right ? { width: legendRightWidth } : { height: legendBottomHeight }
           }
         >
-          {(["up", "down"] as const).map((direction) => (
+          {legendDirections.map((direction) => (
             <li key={direction} className="flex items-center gap-1.5">
               <LegendSwatch
                 color={shades[direction]}
                 line="solid"
                 style="bars"
               />
-              {direction === "up" ? "Up" : "Down"}
+              {directionLabels[direction]}
             </li>
           ))}
         </ul>

@@ -1,4 +1,4 @@
-import { formatDateTime } from "@/lib/time"
+import { formatDateTime, formatDateTimeMs } from "@/lib/time"
 
 import { displayValue, type FieldResolver } from "../field-config"
 import { uniqueKey } from "../frames"
@@ -12,6 +12,7 @@ import { rowCount } from "../transforms/names"
 export const maxEntries = 1000
 
 export type DedupStrategy = "none" | "exact" | "numbers" | "signature"
+export type TimePrecision = "ms" | "ns"
 
 export type LogsDisplay = {
   wrap: boolean
@@ -26,6 +27,9 @@ export type LogsDisplay = {
   fontSize: "default" | "small"
   highlight: boolean
   detailsMode?: "inline" | "sidebar"
+  lineFields?: string[]
+  showAttributes?: boolean
+  timePrecision?: TimePrecision
 }
 
 export type Labels = Record<string, string>
@@ -167,6 +171,47 @@ function messageOf(
   return series === field.name ? text : `${series} ${text}`
 }
 
+function lineText(
+  frame: PreparedFrame,
+  row: number,
+  names: readonly string[],
+  fields: FieldResolver
+): string {
+  const parts: string[] = []
+  for (const name of names) {
+    const field = frame.fields.find((candidate) => candidate.name === name)
+    const value = field?.values[row]
+    const text = field
+      ? value === null || value === undefined
+        ? ""
+        : detailText(fields, { name, field, frame, index: row })
+      : (frame.labels?.[name] ?? "")
+    if (text !== "") parts.push(text)
+  }
+  return parts.join(" ")
+}
+
+export function showsAttributes(
+  display: Pick<LogsDisplay, "showLabels" | "showAttributes">
+): boolean {
+  return display.showLabels && display.showAttributes !== false
+}
+
+const nanosPerMs = 1e6
+
+export function formatLogTime(
+  time: number,
+  precision: TimePrecision | undefined
+): string {
+  if (precision !== "ns") return formatDateTimeMs(time)
+  const whole = Math.floor(time)
+  const nanos = Math.min(
+    nanosPerMs - 1,
+    Math.round((time - whole) * nanosPerMs)
+  )
+  return `${formatDateTimeMs(whole)}${String(nanos).padStart(6, "0")}`
+}
+
 function seriesDetails(frame: PreparedFrame): LogDetail[] {
   const labels = frame.labels ?? {}
   const details: LogDetail[] = Object.keys(labels)
@@ -279,7 +324,7 @@ function withoutLabels(labels: Labels, common: Labels): Labels {
 export function logsModel(
   frames: PreparedFrame[],
   fields: FieldResolver,
-  display: Pick<LogsDisplay, "order" | "dedup" | "prettify">
+  display: Pick<LogsDisplay, "order" | "dedup" | "prettify" | "lineFields">
 ): LogsModel {
   const located: Located[] = []
   for (const frame of frames) {
@@ -300,10 +345,12 @@ export function logsModel(
   const deduplicating = display.dedup !== "none"
   const drafted = deduplicating
     ? deduplicate(
-        located.map((item) => entryOf(item, fields)),
+        located.map((item) => entryOf(item, fields, display.lineFields)),
         display.dedup
       )
-    : located.slice(0, maxEntries).map((item) => entryOf(item, fields))
+    : located
+        .slice(0, maxEntries)
+        .map((item) => entryOf(item, fields, display.lineFields))
   const total = deduplicating ? drafted.length : located.length
   const shown = drafted.slice(0, maxEntries)
 
@@ -351,10 +398,16 @@ type Drafted = {
   repeats: number
 }
 
-function entryOf(item: Located, fields: FieldResolver): Drafted {
+function entryOf(
+  item: Located,
+  fields: FieldResolver,
+  lineFields: readonly string[] | undefined
+): Drafted {
   return {
     item,
-    message: messageOf(item.frame, item.columns.message, item.row, fields),
+    message: lineFields?.length
+      ? lineText(item.frame, item.row, lineFields, fields)
+      : messageOf(item.frame, item.columns.message, item.row, fields),
     labels: item.frame.labels ?? {},
     repeats: 1,
   }

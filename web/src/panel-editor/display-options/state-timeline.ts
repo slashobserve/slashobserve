@@ -17,6 +17,13 @@ export const stateTimeline: readonly DisplayOption[] = [
   showValues,
   rowHeight,
   {
+    kind: "number",
+    key: "perPage",
+    label: "Rows per page",
+    hint: "A whole number from 1 to 100. Empty shows every row.",
+    rule: { min: 1, max: 100, integer: true },
+  },
+  {
     kind: "choice",
     key: "alignValue",
     label: "Align values",

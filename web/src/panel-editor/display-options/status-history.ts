@@ -22,6 +22,13 @@ export const statusHistory: readonly DisplayOption[] = [
     hint: "Share of the cell, from 0.1 to 1",
     rule: { min: 0.1, max: 1 },
   },
+  {
+    kind: "number",
+    key: "perPage",
+    label: "Rows per page",
+    hint: "A whole number from 1 to 100. Empty shows every row.",
+    rule: { min: 1, max: 100, integer: true },
+  },
   legend,
   legendMode,
   legendWidth,

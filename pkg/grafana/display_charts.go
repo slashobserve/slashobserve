@@ -148,6 +148,7 @@ func displayStatusHistory(b *panelBuild) {
 	d.ShowValues = b.enumOption("options.showValue", "auto", "always", "never")
 	d.RowHeight = b.shareOption("options.rowHeight")
 	d.ColumnWidth = b.shareOption("options.colWidth")
+	d.PerPage = b.boundedIntOption("options.perPage", 1, maxPerPage)
 	b.timelineLegendAndTooltip(d)
 }
 
@@ -397,6 +398,7 @@ func displayCandlestick(b *panelBuild) {
 	d.ColorStrategy = b.enumOption("options.colorStrategy", "open-close", "close-close")
 	d.UpColor = b.candleColor("options.colors.up")
 	d.DownColor = b.candleColor("options.colors.down")
+	d.FlatColor = b.candleColor("options.colors.flat")
 	d.Open = b.fieldNameOption("options.fields.open")
 	d.High = b.fieldNameOption("options.fields.high")
 	d.Low = b.fieldNameOption("options.fields.low")
@@ -409,7 +411,11 @@ func displayCandlestick(b *panelBuild) {
 }
 
 func (b *panelBuild) candleColor(path string) string {
-	v, ok := b.take(path)
+	v, ok := b.value(path)
+	if ok && isGrafanaDefault(b.typ, path, v) {
+		return ""
+	}
+	b.consume(path)
 	name := strings.TrimSpace(asString(v))
 	if !ok || name == "" {
 		return ""

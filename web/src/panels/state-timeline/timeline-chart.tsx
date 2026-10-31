@@ -7,6 +7,9 @@ import {
   type PointerEvent,
 } from "react"
 
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
 import { formatDateTime } from "@/lib/time"
 import { timeTicks } from "@/lib/time-ticks"
 import { useTheme } from "@/lib/theme"
@@ -43,6 +46,7 @@ import {
   type TimelineModel,
   type TimelineRow,
 } from "./timeline-model"
+import { pageOf } from "./timeline-paging"
 import {
   singleTooltipSegment,
   tooltipEntries,
@@ -52,6 +56,7 @@ import {
 const padX = 12
 const padTop = 6
 const xAxisHeight = 20
+const pagerHeight = 32
 const tickSpacing = 72
 const tickEdgeGap = 20
 const tooltipOffset = 12
@@ -149,6 +154,47 @@ function TimeLabels({
           {tick.label}
         </span>
       ))}
+    </div>
+  )
+}
+
+function Pager({
+  page,
+  count,
+  height,
+  onChange,
+}: {
+  page: number
+  count: number
+  height: number
+  onChange: (page: number) => void
+}) {
+  return (
+    <div
+      className="flex items-center justify-end gap-1 text-xs text-muted-foreground"
+      style={{ height }}
+    >
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        aria-label="Previous page"
+        disabled={page === 0}
+        onClick={() => onChange(page - 1)}
+      >
+        <ChevronLeftIcon aria-hidden="true" />
+      </Button>
+      <span aria-live="polite" className="tabular-nums">
+        Page {page + 1} of {count}
+      </span>
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        aria-label="Next page"
+        disabled={page === count - 1}
+        onClick={() => onChange(page + 1)}
+      >
+        <ChevronRightIcon aria-hidden="true" />
+      </Button>
     </div>
   )
 }
@@ -269,6 +315,7 @@ export function TimelineChart({
   const { resolved: theme } = useTheme()
   const [hover, setHover] = useState<Hover | null>(null)
   const [legendHeight, setLegendHeight] = useState(0)
+  const [requestedPage, setRequestedPage] = useState(0)
   const legendRef = useRef<HTMLDivElement>(null)
   const options = useMemo(() => timelineDisplay(display), [display])
   const mode = options.showValues
@@ -327,14 +374,24 @@ export function TimelineChart({
     return () => observer.disconnect()
   }, [bottomLegend, legendMode])
 
-  const rows = shown.rows.length
-  const segments = shown.rows.reduce((sum, row) => sum + row.segments.length, 0)
+  const paged = useMemo(
+    () => pageOf(shown.rows, options.perPage, requestedPage),
+    [shown.rows, options.perPage, requestedPage]
+  )
+  const pageRows = paged.items
+  const pager = paged.count > 1
+  const rows = pageRows.length
+  const segments = pageRows.reduce((sum, row) => sum + row.segments.length, 0)
   const chartWidth = width - legendWidth
   const innerWidth = chartWidth - 2 * padX
   const labels = labelWidth(innerWidth)
   const plotWidth = innerWidth - labels
   const available =
-    height - padTop - xAxisHeight - (bottomLegend ? legendHeight : 0)
+    height -
+    padTop -
+    xAxisHeight -
+    (bottomLegend ? legendHeight : 0) -
+    (pager ? pagerHeight : 0)
   const rowSize = rowHeight(available, rows)
   const plotHeight = rowSize * rows
   const span = Math.max(1, to - from)
@@ -347,10 +404,11 @@ export function TimelineChart({
     const box = event.currentTarget.getBoundingClientRect()
     const x = event.clientX - box.left
     const y = event.clientY - box.top
-    const row = Math.floor(y / rowSize)
+    const onPage = Math.floor(y / rowSize)
+    const row = paged.start + onPage
     const at = from + (x / plotWidth) * span
     moveCursor(at)
-    if (options.tooltip === "hidden" || row < 0 || row >= rows) {
+    if (options.tooltip === "hidden" || onPage < 0 || onPage >= rows) {
       setHover(null)
       return
     }
@@ -410,7 +468,7 @@ export function TimelineChart({
         {ready ? (
           <>
             <div className="flex">
-              <RowLabels rows={shown.rows} width={labels} rowSize={rowSize} />
+              <RowLabels rows={pageRows} width={labels} rowSize={rowSize} />
               <div className="relative" style={{ width: plotWidth }}>
                 <svg
                   role="img"
@@ -424,7 +482,7 @@ export function TimelineChart({
                     moveCursor(null)
                   }}
                 >
-                  {shown.rows.map((row, index) =>
+                  {pageRows.map((row, index) =>
                     row.segments.map((segment) => {
                       const left = ((segment.from - from) / span) * plotWidth
                       const length =
@@ -506,6 +564,17 @@ export function TimelineChart({
             <div style={{ marginLeft: labels }}>
               <TimeLabels from={from} to={to} width={plotWidth} />
             </div>
+            {pager ? (
+              <Pager
+                page={paged.page}
+                count={paged.count}
+                height={pagerHeight}
+                onChange={(next) => {
+                  setHover(null)
+                  setRequestedPage(next)
+                }}
+              />
+            ) : null}
           </>
         ) : null}
       </div>

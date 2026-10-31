@@ -164,6 +164,7 @@ A data panel can also set `timeFrom` and `timeShift` to override the dashboard's
 The legend of a `timeseries` or `trend` panel is a `list` or a `table` (`legendMode`), may show `legendValues`, each any reducer (the percentiles `p1` to `p99` and `variance`, `step`, `diffperc`, `logmin` and `countAll` among the numbers, and the four that are not numbers: `allIsNull` and `allIsZero` answer true or false, `allValues` and `uniqueValues` list the values as text), sorts by a number reducer or by name (`legendSortBy`, `legendSortDesc`), takes a width when it sits on the right (`legendWidth`), and hides all-zero or empty series (`legendHideZero`, `legendHideEmpty`).
 A `timeseries`, `trend` or `candlestick` tooltip that lists all series is sorted by `tooltipSort` (`none` for series order, `asc` or `desc`, which is the default), can drop zero values with `tooltipHideZeros`, can show the running total of a stacked series with `tooltipCumulative`, and is clipped to `tooltipMaxWidth` and `tooltipMaxHeight` pixels (100 to 2000).
 A `candlestick` panel draws only its open, high, low, close and volume fields unless `includeAllFields` is `true`, which draws its other number fields as lines.
+`flatColor` paints a candle whose open equals its close, a color token or a hex color, and adds a Flat swatch to the Up and Down legend; without it a flat candle takes the up color.
 A `candlestick` legend takes the same `legendValues`, `legendMode`, `legendSortBy`, `legendSortDesc` and `legendWidth` as a `timeseries` one; with legend values or table mode it lists every drawn series (open, high, low, close, volume and any extra) through the shared legend instead of the Up and Down swatches.
 A `timeseries`, `trend` or `candlestick` panel can hide its x axis with `xAxis: "hidden"` (`shown` by default).
 When `legendMode` is absent the legend is a table if `legendValues` is not empty and a list otherwise.
@@ -193,6 +194,7 @@ The agent prompt does not list these options.
 A `state-timeline` or `status-history` panel sizes its bars with `rowHeight`, the share of each row the bar fills (0.1 to 1), and a `status-history` panel sizes its cells with `columnWidth`, the share of each cell's width (0.1 to 1).
 When either is absent the bar leaves a 2 pixel gap under it and a cell a 1 pixel inset on each side.
 `alignValue` (`left`, `center` or `right`) places a `state-timeline` segment's text.
+`perPage` (1 to 100) shows that many rows at a time, with previous and next buttons and a page indicator, and the row height follows the rows on the page.
 These two types take the same `legend`, `legendMode` and `legendWidth` as a time series, where the legend lists the states and clicking one hides its segments, and `tooltip` (`single`, `all` or `hidden`), `tooltipSort`, `tooltipHideZeros`, `tooltipMaxWidth` and `tooltipMaxHeight`.
 `legendValues`, legend sorting and legend calculations do not apply to them.
 Their `fill` field prop (0 to 100) sets how opaque the bars are, and `lineWidth` (0 to 10) draws a border around them.
@@ -210,10 +212,12 @@ A `stat` panel has more optional `display` keys.
 `percentChange: true` shows the change between the first and last value of the range next to the value, with an arrow and, for screen readers, the words "up" or "down".
 `percentChangeColor` colors only the arrow: `standard` (up is green, down is red), `inverted` (the reverse) or `value` (the color of the value).
 `wideLayout: true` puts the name and the value on one row when a tile is at least 200px wide and twice as wide as it is tall; when it is absent or `false` the name sits above the value.
+`percentSize` sets the font size of the percent change in pixels (6 to 200), and `graphStyle: line` draws the sparkline as a line without the area under it (`area` by default).
 A `piechart` panel has more optional `display` keys.
 `sliceLabels` is a list of `name`, `value` and `percent` written on the slices that are big enough, with `titleSize` for the name and `valueSize` for the rest (1 to 200 pixels, 12 by default).
 Its legend takes `legend` (`bottom`, `right` or `hidden`), `legendMode` (`list` or `table`), `legendShow` (a list of `value` and `percent`, both by default), `legendSortBy` (`name` or `value`), `legendSortDesc` and `legendWidth`, and clicking an entry hides its slice.
 Its tooltip takes `tooltip` (`single`, `all` or `hidden`), `tooltipSort` (`none`, `asc` or `desc`), `tooltipHideZeros`, `tooltipMaxWidth` and `tooltipMaxHeight`.
+`sort` orders the slices by value: `desc` (largest first, the default), `asc` or `none` (the order of the data); the legend keeps the order of the data.
 A `gauge` panel's `thresholdLabels: true` writes the value of each threshold, formatted with the field's unit, along the arc.
 A `bargauge` panel draws its bars as `barStyle` `basic` (a filled track) or `lcd` (equal cells lit up to the value).
 Its `valueMode` is `color` or `text`, which both draw the value in the foreground color with the threshold icon and word beside it, or `hidden`, which leaves the value out and keeps the threshold icon and word.
@@ -227,6 +231,9 @@ A `logs` panel shows its lines newest first (`order`), with `wrap` and `showTime
 `dedup` shows one line for messages the strategy counts as equal and writes "Repeated N times" beside it: `exact`, `numbers` (numbers are ignored) or `signature` (letters and numbers are ignored), `none` by default.
 `controls: true` adds a bar above the list to change the order, wrapping, time and deduplication while looking at the panel; the choices are not saved.
 `fontSize: small` draws the lines at 11px, and `highlight: true` colors `key=value` pairs and upper case level words in a message.
+`lineFields` (1 to 20 names) builds each line from those fields, or labels, joined by a space instead of the message, and skips a name the data lacks.
+`showAttributes: false` hides the labels that `showLabels` writes on each line.
+`timePrecision: ns` writes the time with nine digits after the second, using the digits the time carries and zeros after the millisecond otherwise (`ms` by default).
 
 ## Maps, canvases and actions
 

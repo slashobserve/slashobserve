@@ -18,6 +18,7 @@ export type TimelineDisplay = {
   showValues: ShowValues
   rowHeight?: number
   columnWidth?: number
+  perPage?: number
   alignValue: AlignValue
   legend: "bottom" | "right" | "hidden"
   legendMode?: "list" | "table"
@@ -36,6 +37,7 @@ export function timelineDisplay(
     showValues: showValuesOf(display),
     rowHeight: display.rowHeight as number | undefined,
     columnWidth: display.columnWidth as number | undefined,
+    perPage: display.perPage as number | undefined,
     alignValue:
       display.alignValue === "center" || display.alignValue === "right"
         ? display.alignValue
