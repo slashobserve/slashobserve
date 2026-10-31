@@ -43,6 +43,9 @@ func scopeTestSource(t *testing.T) *source {
 	for i := 3; i < 11; i++ {
 		panels = append(panels, map[string]any{"id": 10 + i, "type": "text", "title": "Note", "gridPos": pos(13 + 4*i), "options": map[string]any{"content": "x"}})
 	}
+	for i, typ := range []string{"graph", "table-old", "natel-discrete-panel"} {
+		panels = append(panels, map[string]any{"id": 40 + i, "type": typ, "title": "Legacy", "gridPos": pos(60 + 4*i), "legend": map[string]any{"show": true}})
+	}
 	doc := map[string]any{
 		"title": "Scopes", "uid": "scopes", "schemaVersion": 39,
 		"time":        map[string]any{"from": "now-6h", "to": "now"},
@@ -97,6 +100,9 @@ func TestScopeOf(t *testing.T) {
 		{"unsupported target", "panels[2].targets[4].expr", scopedPath{"query:unsupported", "panels[2].targets[4]", "expr"}},
 		{"target past the list", "panels[0].targets[7].expr", scopedPath{"query:unsupported", "panels[0].targets[7]", "expr"}},
 		{"panels[1] does not capture panels[10]", "panels[10].options.content", scopedPath{"panel:text", "panels[10]", "options.content"}},
+		{"graph panel is scoped by its source type", "panels[11].legend.show", scopedPath{"panel:graph", "panels[11]", "legend.show"}},
+		{"table-old panel is scoped by its source type", "panels[12].legend.show", scopedPath{"panel:table-old", "panels[12]", "legend.show"}},
+		{"discrete panel is scoped by its source type", "panels[13].legend.show", scopedPath{"panel:natel-discrete-panel", "panels[13]", "legend.show"}},
 		{"panels[10] is its own node", "panels[10]", scopedPath{"panel:text", "panels[10]", ""}},
 	}
 	for _, tc := range cases {

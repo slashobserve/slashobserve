@@ -1712,7 +1712,7 @@ func TestIgnoredOptionsListOnlyTheirOwnTypesAndPaths(t *testing.T) {
 		{spec.Heatmap, "options.legend.sortDesc", false},
 	}
 	for _, tc := range cases {
-		if got := isIgnoredOption(tc.typ, tc.path); got != tc.want {
+		if got := isIgnoredOption(panelScope(tc.typ), tc.path); got != tc.want {
 			t.Errorf("isIgnoredOption(%s, %s) = %v, want %v", tc.typ, tc.path, got, tc.want)
 		}
 	}

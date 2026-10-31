@@ -485,7 +485,7 @@ func (b *panelBuild) leaf(path string, v any) {
 		}
 	case isGrafanaDefault(b.typ, path, v):
 		b.recordImplicit(path, outcomeDefault)
-	case isIgnoredOption(b.typ, path), isCosmeticOn(b.typ, path, v):
+	case isIgnoredOption(b.n.scope(), path), isCosmeticOn(b.typ, path, v):
 		b.recordImplicit(path, outcomeNoEffect)
 	default:
 		b.partial(path, "")
