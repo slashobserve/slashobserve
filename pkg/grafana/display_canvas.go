@@ -44,7 +44,10 @@ const (
 	canvasConnLimitReason  = "A canvas holds at most 100 connections."
 	canvasConnSizeReason   = "Only connection widths from 1 to 10 are supported."
 	canvasConnModeReason   = "Connection widths and directions that follow a rule are not supported."
-	canvasVerticesReason   = "Bends in a connection are not supported yet."
+	canvasVertexReason     = "A bend in a connection needs a number for x and y; it was left out."
+	canvasVertexAreaReason = "A bend outside the panel was moved to its edge."
+	canvasVertexMax        = 20
+	canvasVertexMaxReason  = "A connection holds at most 20 bends."
 	canvasMaxBorderWidth   = 20
 	canvasMaxRadius        = 100
 	canvasMaxRotation      = 360
@@ -622,11 +625,54 @@ func (c *canvasBuild) connection(conn map[string]any, path, from, to string, def
 		out.LineStyle = style
 	}
 	c.connectionArrow(&out, conn, path)
-	if present(conn["vertices"]) {
-		c.b.partial(path+".vertices", canvasVerticesReason)
-	}
-	c.b.consume(path+".lineStyle", path+".source", path+".target", path+".sourceOriginal", path+".targetOriginal", path+".targetName")
+	out.Vertices = c.vertices(conn, path, from, to)
+	c.b.consume(path+".vertices", path+".lineStyle", path+".source", path+".target", path+".sourceOriginal", path+".targetOriginal", path+".targetName")
 	return out
+}
+
+func (c *canvasBuild) vertices(conn map[string]any, path, from, to string) []spec.CanvasVertex {
+	items, _ := asArray(conn["vertices"])
+	if len(items) == 0 {
+		return nil
+	}
+	sx, sy := c.anchorPoint(from, conn["source"])
+	tx, ty := c.anchorPoint(to, conn["target"])
+	var out []spec.CanvasVertex
+	moved := false
+	for i, item := range items {
+		at := fmt.Sprintf("%s.vertices[%d]", path, i)
+		raw, _ := asObject(item)
+		x, y := optionalNumber(raw["x"]), optionalNumber(raw["y"])
+		switch {
+		case x == nil || y == nil:
+			c.b.partial(at, canvasVertexReason)
+		case len(out) >= canvasVertexMax:
+			c.b.partial(at, canvasVertexMaxReason)
+		default:
+			px, py := sx+*x*(tx-sx), sy+*y*(ty-sy)
+			cx, cy := min(max(px, 0), 100), min(max(py, 0), 100)
+			moved = moved || cx != px || cy != py
+			out = append(out, spec.CanvasVertex{X: roundPercent(cx), Y: roundPercent(cy)})
+		}
+	}
+	if moved {
+		c.b.partial(path+".vertices", canvasVertexAreaReason)
+	}
+	return out
+}
+
+func (c *canvasBuild) anchorPoint(id string, anchor any) (x, y float64) {
+	i := slices.IndexFunc(c.d.Elements, func(el spec.CanvasElement) bool { return el.ID == id })
+	el := c.d.Elements[i]
+	at, _ := asObject(anchor)
+	dx, dy := 0.0, 0.0
+	if v := optionalNumber(at["x"]); v != nil {
+		dx = *v
+	}
+	if v := optionalNumber(at["y"]); v != nil {
+		dy = *v
+	}
+	return el.Left + el.Width*(1+dx)/2, el.Top + el.Height*(1+dy)/2
 }
 
 func (c *canvasBuild) connectionWidth(out *spec.CanvasConnection, conn map[string]any, path string, defaultWidth int) {
