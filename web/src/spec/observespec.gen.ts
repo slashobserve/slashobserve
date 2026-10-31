@@ -1578,7 +1578,14 @@ export interface FieldProps {
   hideInTooltip?: boolean;
   stackGroup?: string;
   fillBelowTo?: string;
-  insertNulls?: number;
+  /**
+   * Break the series where two points are further apart than this many milliseconds, or, as true, further apart than the query interval.
+   */
+  insertNulls?: number | true;
+  /**
+   * The value a gauge or bar gauge bar grows from instead of the minimum.
+   */
+  neutral?: number;
   nullAsZero?: boolean;
   barAlignment?: "before" | "center" | "after";
   barWidthFactor?: number;

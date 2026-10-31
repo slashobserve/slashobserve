@@ -74,7 +74,7 @@ var propOrder = []string{
 	"custom.cellOptions", "custom.displayMode", "custom.wrapText",
 	"custom.width", "custom.minWidth", "custom.align", "custom.filterable", "custom.inspect", "custom.hideHeader",
 	"custom.transform", "custom.fillBelowTo",
-	"custom.insertNulls", "custom.barAlignment", "custom.barWidthFactor", "custom.barMaxWidth", "custom.thresholdsStyle",
+	"custom.insertNulls", "custom.barAlignment", "custom.barWidthFactor", "custom.barMaxWidth", "custom.thresholdsStyle", "custom.neutral",
 }
 
 var propHandlers = map[string]propHandler{
@@ -133,6 +133,7 @@ var propHandlers = map[string]propHandler{
 	"custom.barWidthFactor":    propBarWidthFactor,
 	"custom.barMaxWidth":       propBarMaxWidth,
 	"custom.thresholdsStyle":   propThresholdsStyle,
+	"custom.neutral":           propNeutral,
 }
 
 var lineStylePropIDs = map[string]bool{
@@ -145,14 +146,18 @@ var axisPropIDs = map[string]bool{
 }
 
 var plotDrawnPropIDs = map[string]bool{
-	"custom.insertNulls": true, "custom.barAlignment": true, "custom.barWidthFactor": true, "custom.barMaxWidth": true,
+	"custom.barAlignment": true, "custom.barWidthFactor": true, "custom.barMaxWidth": true,
 }
+
+var insertNullsTypes = union(plotPanelTypes, timelinePanelTypes)
 
 var seriesStylePropIDs = propIDs("custom.lineColor", "custom.fillColor", "custom.pointColor", "custom.pointSymbol", "custom.showValues")
 
 var seriesDrawingPropIDs = map[string]bool{"custom.transform": true, "custom.fillBelowTo": true}
 
 var rangeSharingTypes = map[spec.PanelType]bool{spec.Gauge: true, spec.BarGauge: true}
+
+var gaugePanelTypes = map[spec.PanelType]bool{spec.Gauge: true}
 
 var dataLinkTypes = map[spec.PanelType]bool{spec.Stat: true, spec.Gauge: true, spec.BarGauge: true, spec.Table: true}
 
@@ -256,7 +261,9 @@ var propGates = []propGate{
 	{ids: propIDs("custom.hideFrom"), types: legendTooltipHidingTypes, handler: propHideFromLegendAndTooltip},
 	{ids: propIDs("custom.hideFrom"), types: timelinePanelTypes, handler: propHideFromTooltipOnly},
 	{ids: propIDs("custom.thresholdsStyle"), types: thresholdsStyleTypes, outside: true, skip: true},
+	{ids: propIDs("custom.insertNulls"), types: insertNullsTypes, outside: true, skip: true},
 	{ids: plotDrawnPropIDs, types: plotPanelTypes, outside: true, skip: true},
+	{ids: propIDs("custom.neutral"), types: gaugePanelTypes, outside: true, skip: true},
 	{ids: axisPropIDs, types: axisDrawnPanelTypes, outside: true, skip: true},
 	{ids: lineStylePropIDs, types: lineStyleDrawnOnlyByGrafana, skip: true},
 	{ids: lineStylePropIDs, types: plotOrBarPanelTypes, outside: true, handler: propLineStyleUnused},
@@ -1062,8 +1069,6 @@ func propFillBelowTo(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	p.FillBelowTo = name
 }
 
-const insertNullsReason = "Inserting nulls at the query interval is not supported; give the gap in milliseconds."
-
 var thresholdsStyleModes = []string{"off", "line", "dashed", "area", "line+area", "dashed+area", "series"}
 
 func propInsertNulls(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
@@ -1071,11 +1076,18 @@ func propInsertNulls(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	f, isNumber := numberValue(v)
 	switch on, isBool := v.(bool); {
 	case isBool && on:
-		b.partial(s.at(""), insertNullsReason)
+		p.InsertNulls = true
 	case isNumber && f >= 1:
 		p.InsertNulls = int64(math.Round(min(f, maxSpanNullsMs)))
-	case (isBool || isNumber) && s.whole && b.panel.InsertNulls > 0:
+	case (isBool || isNumber) && s.whole && b.panel.InsertNulls != nil:
 		b.partial(s.at(""), "An override cannot turn off the nulls a panel inserts.")
+	}
+}
+
+func propNeutral(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	if f, ok := numberValue(v); ok {
+		p.Neutral = &f
 	}
 }
 

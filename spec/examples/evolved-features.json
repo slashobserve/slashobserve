@@ -38,7 +38,7 @@
   ],
   "panels": [
     { "id": "p_rps", "type": "timeseries", "title": "Requests and errors per second",
-      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }, "datasource": "prom", "unit": "reqps",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }, "datasource": "prom", "unit": "reqps", "insertNulls": true,
       "hideTimeOverride": true,
       "queries": [
         { "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\"}[$__rate_interval]))", "legend": "{{pod}}", "exemplar": true },
@@ -139,7 +139,11 @@
         { "id": "p_history", "type": "status-history", "title": "Pod status history",
           "gridPos": { "x": 12, "y": 41, "w": 12, "h": 8 }, "datasource": "prom",
           "queries": [{ "query": "up{service=\"checkout\"}" }],
-          "display": { "perPage": 5 } }
+          "display": { "perPage": 5 } },
+        { "id": "p_drift", "type": "gauge", "title": "Clock drift",
+          "gridPos": { "x": 0, "y": 49, "w": 6, "h": 6 }, "datasource": "prom", "unit": "s",
+          "min": -50, "max": 50, "neutral": 0,
+          "queries": [{ "query": "node_timex_offset_seconds{service=\"checkout\"}", "instant": true }] }
       ] }
   ]
 }

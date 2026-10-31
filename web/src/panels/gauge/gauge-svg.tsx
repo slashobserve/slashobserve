@@ -30,7 +30,7 @@ export function GaugeSvg({ gauge }: { gauge: Gauge }) {
       ))}
       <path
         data-gauge-arc=""
-        d={arcPath(0, gauge.fraction, trackRadius)}
+        d={arcPath(gauge.arc.from, gauge.arc.to, trackRadius)}
         fill="none"
         strokeWidth={trackWidth}
         style={{ stroke: gauge.color ?? "var(--series-1)" }}

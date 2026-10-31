@@ -17,7 +17,7 @@ import {
 } from "./trend-model"
 
 const TrendPanel: PanelRenderer = (props) => {
-  const { frames, fields, display } = props
+  const { frames, fields, display, meta } = props
   const xField = xFieldName(display)
   const source = useMemo(() => trendSource(xField), [xField])
   const usable = useMemo(() => framesWithX(frames, source), [frames, source])
@@ -30,7 +30,10 @@ const TrendPanel: PanelRenderer = (props) => {
       placed.series.map(({ frame, field }) => fields.configFor(frame, field)),
     [placed.series, fields]
   )
-  const aligned = useMemo(() => shapeNulls(placed, configs), [placed, configs])
+  const aligned = useMemo(
+    () => shapeNulls(placed, configs, meta),
+    [placed, configs, meta]
+  )
   const xConfigJson = useMemo(() => {
     const frame = usable[0]
     const field = frame && source.fieldOf(frame)

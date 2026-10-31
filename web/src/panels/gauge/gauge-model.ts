@@ -25,6 +25,8 @@ export type GaugeLimits = { minWidth?: number; minHeight?: number }
 
 export type GaugeSizes = { titleSize?: number; valueSize?: number }
 
+type GaugeArc = { from: number; to: number }
+
 export type Gauge = {
   key: string
   name: string
@@ -34,6 +36,7 @@ export type Gauge = {
   color: string | null
   threshold: ThresholdState
   fraction: number
+  arc: GaugeArc
   min: number
   max: number
   markers: GaugeMarker[]
@@ -119,6 +122,21 @@ function rangeFor(
   const min = config.min ?? unitRange?.min ?? Math.min(0, data.min ?? 0)
   const max = config.max ?? unitRange?.max ?? data.max ?? min
   return { min, max: max <= min ? min + 1 : max }
+}
+
+function arcFor(
+  config: FieldConfig,
+  value: number | null,
+  fraction: number,
+  min: number,
+  max: number
+): GaugeArc {
+  if (value === null) return { from: 0, to: 0 }
+  const origin =
+    config.neutral === undefined
+      ? 0
+      : clamp((config.neutral - min) / (max - min), 0, 1)
+  return { from: Math.min(origin, fraction), to: Math.max(origin, fraction) }
 }
 
 function markersFor(
@@ -215,6 +233,8 @@ export function gaugeModel(
         fieldMax: max,
       })
       const thresholdColored = shown.threshold.color === shown.color
+      const fraction =
+        value === null ? 0 : clamp((value - min) / (max - min), 0, 1)
       return {
         key,
         name: label,
@@ -223,7 +243,8 @@ export function gaugeModel(
         text: shown.text,
         color: shown.color,
         threshold: thresholdColored ? shown.threshold : thresholdFor(null),
-        fraction: value === null ? 0 : clamp((value - min) / (max - min), 0, 1),
+        fraction,
+        arc: arcFor(config, value, fraction, min, max),
         min,
         max,
         markers: withMarkers ? markersFor(config, min, max) : [],

@@ -76,7 +76,8 @@ export type FieldConfig = {
   hideInTooltip: boolean
   stackGroup: string
   fillBelowTo?: string
-  insertNulls?: number
+  insertNulls?: number | true
+  neutral?: number
   nullAsZero: boolean
   barAlignment: "before" | "center" | "after"
   barWidthFactor: number
@@ -153,6 +154,7 @@ const fieldPropKeyFlags: Record<keyof FieldProps, true> = {
   stackGroup: true,
   fillBelowTo: true,
   insertNulls: true,
+  neutral: true,
   nullAsZero: true,
   barAlignment: true,
   barWidthFactor: true,

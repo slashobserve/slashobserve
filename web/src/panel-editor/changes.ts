@@ -308,6 +308,7 @@ const fieldLabels: { [K in FieldKey]: string } = {
   stackGroup: "stack group",
   fillBelowTo: "fill below to",
   insertNulls: "insert nulls",
+  neutral: "neutral value",
   nullAsZero: "null as zero",
   barAlignment: "bar alignment",
   barWidthFactor: "bar width",

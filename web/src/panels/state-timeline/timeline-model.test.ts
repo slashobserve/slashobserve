@@ -5,6 +5,7 @@ import type { PreparedFrame } from "@/panels/transforms"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
 import {
+  breakLongGaps,
   joinNulls,
   mergeValuesOf,
   segmentAt,
@@ -13,6 +14,7 @@ import {
 } from "./timeline-model"
 
 const range = { from: 0, to: 100 }
+const intervals = { step_ms: 10, queries: [] }
 
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
   return {
@@ -55,6 +57,7 @@ function build(
     createFieldResolver(panel(extra)),
     displayWithDefaults("state-timeline", display),
     window,
+    intervals,
     cells
   )
 }
@@ -373,5 +376,73 @@ describe("withoutStates", () => {
     expect(shown.rows[0].segments.map(({ text }) => text)).toEqual(["1", "1"])
     expect(shown.states).toBe(model.states)
     expect(withoutStates(model, new Set())).toBe(model)
+  })
+})
+
+describe("inserted nulls", () => {
+  const sample = (at: number, text: string | null) => ({
+    at,
+    text,
+    color: null,
+    value: null,
+  })
+
+  it("adds a null one threshold after a sample whose next sample is further away", () => {
+    const samples = [sample(0, "a"), sample(10, "a"), sample(50, "b")]
+    expect(
+      breakLongGaps(samples, 10).map(({ at, text }) => [at, text])
+    ).toEqual([
+      [0, "a"],
+      [10, "a"],
+      [20, null],
+      [50, "b"],
+    ])
+  })
+
+  it("leaves samples alone when no threshold applies or the spacing fits", () => {
+    const samples = [sample(0, "a"), sample(10, "a"), sample(50, "b")]
+    expect(breakLongGaps(samples, undefined)).toBe(samples)
+    expect(breakLongGaps(samples, 40)).toEqual(samples)
+  })
+
+  it("adds nothing after a null sample", () => {
+    const samples = [sample(0, null), sample(100, "a")]
+    expect(breakLongGaps(samples, 10)).toEqual(samples)
+  })
+
+  it("ends a state where the query interval is missed", () => {
+    const { rows } = build([series("a", [1, 1, 2], "number", [0, 10, 50])], {
+      insertNulls: true,
+    } as Partial<DataPanel>)
+    expect(
+      rows[0].segments.map(({ from, to, text }) => [from, to, text])
+    ).toEqual([
+      [0, 20, "1"],
+      [50, 100, "2"],
+    ])
+  })
+
+  it("uses a written number of milliseconds instead of the interval", () => {
+    const { rows } = build([series("a", [1, 1, 2], "number", [0, 10, 50])], {
+      insertNulls: 5,
+    } as Partial<DataPanel>)
+    expect(
+      rows[0].segments.map(({ from, to, text }) => [from, to, text])
+    ).toEqual([
+      [0, 5, "1"],
+      [10, 15, "1"],
+      [50, 100, "2"],
+    ])
+  })
+
+  it("keeps the state across the gap when spanNulls joins it", () => {
+    const { rows } = build([series("a", [1, 1, 2], "number", [0, 10, 50])], {
+      insertNulls: true,
+      spanNulls: true,
+    } as Partial<DataPanel>)
+    expect(rows[0].segments.map(({ from, to }) => [from, to])).toEqual([
+      [0, 50],
+      [50, 100],
+    ])
   })
 })

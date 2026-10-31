@@ -257,6 +257,43 @@ describe("gauge range", () => {
     expect(one([150], { min: 0, max: 100 }).value).toBe(150)
   })
 
+  it("draws the arc from the minimum without a neutral value", () => {
+    expect(one([25], { min: 0, max: 100 }).arc).toEqual({ from: 0, to: 0.25 })
+  })
+
+  it("grows the arc up from a neutral value for a value above it", () => {
+    const gauge = one([75], { min: 0, max: 100, neutral: 50 })
+    expect(gauge.arc).toEqual({ from: 0.5, to: 0.75 })
+  })
+
+  it("grows the arc down from a neutral value for a value below it", () => {
+    const gauge = one([20], { min: 0, max: 100, neutral: 50 })
+    expect(gauge.arc).toEqual({ from: 0.2, to: 0.5 })
+  })
+
+  it("draws no arc for a value equal to the neutral value or for no value", () => {
+    const at = one([50], { min: 0, max: 100, neutral: 50 })
+    expect(at.arc.from).toBe(at.arc.to)
+    const none = one([null], { min: 0, max: 100, neutral: 50 })
+    expect(none.arc).toEqual({ from: 0, to: 0 })
+  })
+
+  it("clamps a neutral value outside the range to the nearest end", () => {
+    expect(one([40], { min: 0, max: 100, neutral: -20 }).arc).toEqual({
+      from: 0,
+      to: 0.4,
+    })
+    expect(one([40], { min: 0, max: 100, neutral: 500 }).arc).toEqual({
+      from: 0.4,
+      to: 1,
+    })
+  })
+
+  it("measures the neutral value on a range from a negative minimum", () => {
+    const gauge = one([-25], { min: -50, max: 50, neutral: 0 })
+    expect(gauge.arc).toEqual({ from: 0.25, to: 0.5 })
+  })
+
   it("clamps the meter value into the range and keeps the raw value", () => {
     const high = one([150], { min: 0, max: 100 })
     expect([high.meterValue, high.value]).toEqual([100, 150])

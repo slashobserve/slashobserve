@@ -19,42 +19,54 @@ func firstOverrideProps(t *testing.T, panel spec.Panel) spec.FieldProps {
 	return panel.Overrides[0].FieldProps
 }
 
-func TestInsertNullsNumberConverts(t *testing.T) {
-	panel, line := customPanel(t, `{"insertNulls":60000}`, "")
-	requireImported(t, line)
-	if panel.InsertNulls != 60000 {
-		t.Fatalf("field props = %+v", panel.FieldProps)
+func TestInsertNullsConvertsOnEveryDrawingType(t *testing.T) {
+	cases := []struct {
+		name, custom string
+		want         any
+	}{
+		{"true is the query interval", `{"insertNulls":true}`, true},
+		{"a number is milliseconds", `{"insertNulls":60000}`, float64(60000)},
+		{"false is Grafana's default", `{"insertNulls":false}`, nil},
+		{"zero is Grafana's default", `{"insertNulls":0}`, nil},
+	}
+	for _, typ := range []string{"timeseries", "trend", "candlestick", "state-timeline", "status-history"} {
+		for _, tc := range cases {
+			t.Run(typ+" "+tc.name, func(t *testing.T) {
+				panel, line := customPanelOf(t, typ, tc.custom, "")
+				requireImported(t, line)
+				if panel.InsertNulls != tc.want {
+					t.Fatalf("insertNulls = %v, want %v", panel.InsertNulls, tc.want)
+				}
+			})
+		}
 	}
 }
 
-func TestInsertNullsFalseIsSilent(t *testing.T) {
-	panel, line := customPanel(t, `{"insertNulls":false}`, "")
+func TestInsertNullsTrueInAnOverrideConverts(t *testing.T) {
+	panel, line := customPanel(t, `{}`, overrideOf(`{"id":"custom.insertNulls","value":true}`))
 	requireImported(t, line)
-	if panel.InsertNulls != 0 {
-		t.Fatalf("field props = %+v", panel.FieldProps)
-	}
-}
-
-func TestInsertNullsTrueIsReported(t *testing.T) {
-	_, line := customPanel(t, `{"insertNulls":true}`, "")
-	if line.Status != statusPartial || len(line.Paths) != 1 || line.Paths[0] != "fieldConfig.defaults.custom.insertNulls" {
-		t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
-	}
-	if !strings.Contains(strings.Join(line.Reasons, " "), insertNullsReason) {
-		t.Fatalf("reasons = %v", line.Reasons)
+	if got := firstOverrideProps(t, panel); got.InsertNulls != true {
+		t.Fatalf("override props = %+v", got)
 	}
 }
 
 func TestInsertNullsOverrideSetsTheGap(t *testing.T) {
 	panel, line := customPanel(t, `{}`, overrideOf(`{"id":"custom.insertNulls","value":30000}`))
 	requireImported(t, line)
-	if got := firstOverrideProps(t, panel); got.InsertNulls != 30000 {
+	if got := firstOverrideProps(t, panel); got.InsertNulls != float64(30000) {
 		t.Fatalf("override props = %+v", got)
 	}
 }
 
 func TestInsertNullsOverrideCannotTurnOffThePanelsNulls(t *testing.T) {
 	_, line := customPanel(t, `{"insertNulls":60000}`, overrideOf(`{"id":"custom.insertNulls","value":false}`))
+	if line.Status != statusPartial {
+		t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
+	}
+}
+
+func TestInsertNullsOverrideCannotTurnOffTheQueryIntervalNulls(t *testing.T) {
+	_, line := customPanel(t, `{"insertNulls":true}`, overrideOf(`{"id":"custom.insertNulls","value":false}`))
 	if line.Status != statusPartial {
 		t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
 	}
@@ -253,7 +265,6 @@ func TestCandlestickExtraSeriesTakeTheTimeSeriesProps(t *testing.T) {
 
 func TestPlotDrawnPropsAreReportedOnTimelinesAndPieCharts(t *testing.T) {
 	cases := []struct{ name, custom, path string }{
-		{"insert nulls", `{"insertNulls":60000}`, "fieldConfig.defaults.custom.insertNulls"},
 		{"threshold style", `{"thresholdsStyle":{"mode":"line"}}`, "fieldConfig.defaults.custom.thresholdsStyle.mode"},
 		{"bar alignment", `{"barAlignment":1}`, "fieldConfig.defaults.custom.barAlignment"},
 		{"bar width factor", `{"barWidthFactor":0.8}`, "fieldConfig.defaults.custom.barWidthFactor"},
@@ -274,10 +285,22 @@ func TestPlotDrawnPropsAreReportedOnTimelinesAndPieCharts(t *testing.T) {
 	}
 }
 
-func TestPlotDrawnPropsInAnOverrideAreReportedOnTimelines(t *testing.T) {
-	_, line := customPanelOf(t, "state-timeline", `{}`, overrideOf(`{"id":"custom.insertNulls","value":60000}`))
-	if line.Status != statusPartial || strings.Join(line.Paths, " ") != "fieldConfig.overrides[0].properties[0]" {
-		t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
+func TestInsertNullsIsReportedOnPieChartsAndInAnOverrideOnOtherTypes(t *testing.T) {
+	cases := []struct{ name, typ, custom, overrides, path string }{
+		{"pie chart", "piechart", `{"insertNulls":true}`, "", "fieldConfig.defaults.custom.insertNulls"},
+		{"pie chart override", "piechart", `{}`, overrideOf(`{"id":"custom.insertNulls","value":60000}`), "fieldConfig.overrides[0].properties[0]"},
+		{"table override", "table", `{}`, overrideOf(`{"id":"custom.insertNulls","value":true}`), "fieldConfig.overrides[0].properties[0]"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := customPanelOf(t, tc.typ, tc.custom, tc.overrides)
+			if line.Status != statusPartial || strings.Join(line.Paths, " ") != tc.path {
+				t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
+			}
+			if !fieldPropsEmpty(panel.FieldProps) {
+				t.Fatalf("field props = %+v", panel.FieldProps)
+			}
+		})
 	}
 }
 
