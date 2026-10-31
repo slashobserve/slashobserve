@@ -1404,15 +1404,22 @@
               }
             ],
             "display": {
-              "location": "coords",
-              "latField": "lat",
-              "lonField": "lon",
-              "sizeField": "requests",
-              "colorField": "error_ratio",
-              "markerSize": 8,
-              "markerSizeMax": 30,
               "basemap": "carto",
-              "mouseWheelZoom": true
+              "mouseWheelZoom": true,
+              "layers": [
+                {
+                  "type": "markers",
+                  "name": "Services",
+                  "location": "coords",
+                  "latField": "lat",
+                  "lonField": "lon",
+                  "sizeField": "requests",
+                  "colorField": "error_ratio",
+                  "markerSize": 8,
+                  "markerSizeMax": 30,
+                  "fillOpacity": 0.4
+                }
+              ]
             }
           },
           {

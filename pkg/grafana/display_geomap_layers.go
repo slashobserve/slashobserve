@@ -2,6 +2,7 @@ package grafana
 
 import (
 	"fmt"
+	"math"
 	"path"
 	"reflect"
 	"regexp"
@@ -12,40 +13,42 @@ import (
 )
 
 const (
-	geomapLocateReason      = "This way of locating points is not supported yet."
-	geomapLayerReason       = "This layer type is not supported yet."
-	geomapAirportReason     = "Airport lookup is not available."
-	geomapGazetteerReason   = "Only the bundled country and state gazetteers are available."
-	geomapGeojsonReason     = "Only the bundled country and state maps and https addresses are available."
-	geomapSymbolReason      = "This marker symbol is not supported yet."
-	geomapPhotoKindReason   = "Photos are drawn as plain squares."
-	geomapQueryRefReason    = "A layer can only be fed by one of the panel queries."
-	geomapRuleReason        = "This GeoJSON rule is not supported yet."
-	geomapTileURLReason     = "A tile address must be an https address written out in full with {z}, {x} and {y}."
-	geomapTileHTTPReason    = "Tiles are loaded over https, so the http address was changed."
-	geomapBasemapReason     = "This basemap is not supported yet, so the CARTO map is used."
-	geomapServerReason      = "This Esri server is not supported yet."
-	maxGeomapRules          = 20
-	maxGeomapAddress        = 2000
-	maxLayerLineWidth       = 20
-	maxHeatmapRadius        = 100
-	maxPhotoRadius          = 100
-	maxPhotoBorder          = 20
-	minTextSize             = 6
-	maxMarkerText           = 48
-	maxMarkerLabel          = 200
-	maxTextOffset           = 100
-	maxRotation             = 360
-	geomapDefaultRadius     = 15
-	geomapDefaultBlur       = 15
-	geomapDefaultBorder     = 2
-	geomapDefaultTextSize   = 12
-	geomapDefaultMarkerSize = 5
-	geomapDefaultMarkerMax  = 15
-	markerDefaultWidth      = 1
-	routeDefaultWidth       = 2
-	networkDefaultWidth     = 1
-	markerPrefix            = "img/icons/marker/"
+	geomapLocateReason       = "This way of locating points is not supported yet."
+	geomapLayerReason        = "This layer type is not supported yet."
+	geomapAirportReason      = "Airport lookup is not available."
+	geomapGazetteerReason    = "Only the bundled country and state gazetteers are available."
+	geomapGeojsonReason      = "Only the bundled country and state maps and https addresses are available."
+	geomapSymbolReason       = "This marker symbol is not supported yet."
+	geomapPhotoKindReason    = "Photos are drawn as plain squares."
+	geomapQueryRefReason     = "A layer can only be fed by one of the panel queries."
+	geomapRuleReason         = "This GeoJSON rule is not supported yet."
+	geomapTileURLReason      = "A tile address must be an https address written out in full with {z}, {x} and {y}."
+	geomapTileHTTPReason     = "Tiles are loaded over https, so the http address was changed."
+	geomapBasemapReason      = "This basemap is not supported yet, so the CARTO map is used."
+	geomapServerReason       = "This Esri server is not supported yet."
+	maxGeomapRules           = 20
+	maxGeomapAddress         = 2000
+	maxLayerLineWidth        = 20
+	maxHeatmapRadius         = 100
+	maxHeatmapWeight         = 100
+	grafanaMarkerFillOpacity = 0.4
+	maxPhotoRadius           = 100
+	maxPhotoBorder           = 20
+	minTextSize              = 6
+	maxMarkerText            = 48
+	maxMarkerLabel           = 200
+	maxTextOffset            = 100
+	maxRotation              = 360
+	geomapDefaultRadius      = 15
+	geomapDefaultBlur        = 15
+	geomapDefaultBorder      = 2
+	geomapDefaultTextSize    = 12
+	geomapDefaultMarkerSize  = 5
+	geomapDefaultMarkerMax   = 15
+	markerDefaultWidth       = 1
+	routeDefaultWidth        = 2
+	networkDefaultWidth      = 1
+	markerPrefix             = "img/icons/marker/"
 )
 
 var httpsAddress = regexp.MustCompile(`^https://[A-Za-z0-9.-]+(:443)?(/[^\s]*)?$`)
@@ -389,12 +392,24 @@ func (b *panelBuild) markerStyle(layer *spec.GeomapLayer, style string) {
 	if fixed := b.layerColor(style + ".color.fixed"); layer.ColorField == "" {
 		layer.Color = fixed
 	}
+	b.markerFill(layer, style+".opacity")
 	layer.Symbol, layer.SymbolField = b.markerSymbol(style + ".symbol")
+	layer.SymbolAlign = b.enumOption(style+".symbolAlign.horizontal", "left", "center", "right")
+	layer.SymbolVerticalAlign = b.enumOption(style+".symbolAlign.vertical", "top", "center", "bottom")
 	if width, ok := b.boundedWhole(style+".lineWidth", 1, maxLayerLineWidth); ok {
 		layer.LineWidth = width
 	}
 	b.markerRotation(layer, style+".rotation")
 	b.markerText(layer, style)
+}
+
+func (b *panelBuild) markerFill(layer *spec.GeomapLayer, at string) {
+	if _, has := b.value(at); has {
+		layer.FillOpacity = b.boundedOption(at, 0, 1)
+		return
+	}
+	fill := grafanaMarkerFillOpacity
+	layer.FillOpacity = &fill
 }
 
 func (b *panelBuild) markerSymbol(at string) (symbol, field string) {
@@ -470,21 +485,36 @@ func (b *panelBuild) markerLabel(at string) string {
 	return text
 }
 
-var heatmapWeightDefaults = map[string]float64{"fixed": 1, "min": 0, "max": 1}
-
 func (b *panelBuild) heatmapConfig(layer *spec.GeomapLayer, config string) {
 	layer.WeightField = b.fieldNameOption(config + ".weight.field")
-	for key, standard := range heatmapWeightDefaults {
-		if v, has := b.value(config + ".weight." + key); has && sameJSON(v, standard) {
-			b.consume(config + ".weight." + key)
-		}
-	}
+	b.heatmapWeights(layer, config+".weight")
 	if radius, ok := b.boundedWhole(config+".radius", 1, maxHeatmapRadius); ok {
 		layer.Radius = radius
 	}
 	if blur, ok := b.boundedWhole(config+".blur", 0, maxHeatmapRadius); ok {
 		layer.Blur = &blur
 	}
+}
+
+func (b *panelBuild) heatmapWeights(layer *spec.GeomapLayer, at string) {
+	if layer.WeightField != "" {
+		b.consume(at + ".fixed")
+		layer.WeightMin = b.boundedOption(at+".min", 0, maxHeatmapWeight)
+		layer.WeightMax = b.boundedOption(at+".max", 0, maxHeatmapWeight)
+		return
+	}
+	b.consume(at+".min", at+".max")
+	v, has := b.take(at + ".fixed")
+	if !has {
+		return
+	}
+	weight, isNumber := numberValue(v)
+	if !isNumber || weight < 0 {
+		b.partial(at+".fixed", "Only values from 0 to 1 are supported.")
+		return
+	}
+	weight = math.Min(weight, 1)
+	layer.Weight = &weight
 }
 
 func (b *panelBuild) arrow(at string) string {
@@ -516,9 +546,7 @@ func (b *panelBuild) networkConfig(layer *spec.GeomapLayer, config string) {
 		layer.LineWidth = width
 	}
 	layer.Color = b.layerColor(config + ".style.color.fixed")
-	if edge := b.layerColor(config + ".edgeStyle.color.fixed"); edge != "" && edge != layer.Color {
-		b.issues.add(config+".edgeStyle.color.fixed", "Edges are drawn in the color of the nodes.")
-	}
+	layer.EdgeColor = b.layerColor(config + ".edgeStyle.color.fixed")
 }
 
 func (b *panelBuild) photosConfig(layer *spec.GeomapLayer, config string) {
@@ -538,6 +566,12 @@ func (b *panelBuild) photosConfig(layer *spec.GeomapLayer, config string) {
 	layer.Color = b.layerColor(config + ".color")
 	if radius, ok := b.boundedWhole(config+".radius", 1, maxPhotoRadius); ok {
 		layer.Radius = radius
+	}
+	if crop, ok := b.boolOption(config + ".crop"); ok && *crop {
+		layer.Crop = crop
+	}
+	if shadow, ok := b.boolOption(config + ".shadow"); ok && *shadow {
+		layer.Shadow = shadow
 	}
 }
 
@@ -615,6 +649,7 @@ func (b *panelBuild) dayNightConfig(layer *spec.GeomapLayer, config string) {
 		layer.ShowSun = sun
 	}
 	layer.NightColor = b.layerColor(config + ".nightColor")
+	layer.NightAt = b.enumOption(config+".show", "from", "to")
 }
 
 func (b *panelBuild) tileLayer(layer *spec.GeomapLayer, typ, config string) bool {
@@ -660,6 +695,12 @@ func trimLayerDefaults(layer *spec.GeomapLayer) {
 	clearDefault(&layer.MarkerSizeMax, geomapDefaultMarkerMax)
 	clearDefault(&layer.Arrow, "none")
 	clearDefault(&layer.Shape, "square")
+	clearDefault(&layer.SymbolAlign, "center")
+	clearDefault(&layer.SymbolVerticalAlign, "center")
+	clearDefault(&layer.NightAt, "to")
+	clearDefaultPointer(&layer.Weight, 1)
+	clearDefaultPointer(&layer.WeightMin, 0)
+	clearDefaultPointer(&layer.WeightMax, 1)
 	clearDefault(&layer.Theme, "auto")
 	switch layer.Type {
 	case "markers":

@@ -39,6 +39,7 @@ import {
   geoModel,
   initialView,
   labelPlacement,
+  symbolOffset,
   layerNeeds,
   skippedText,
   symbolPath,
@@ -233,13 +234,14 @@ function MarkersLayer({
       {layer.markers.flatMap((marker) => {
         const x = left + marker.x * size
         const y = top + marker.y * size
+        const symbol = symbolOffset(layer.symbolAlign, marker.radius)
         const { dx, dy, anchor, baseline } = labelPlacement(
           layer.label,
           marker.radius,
           layer.textSize
         )
         const reach =
-          marker.radius +
+          2 * marker.radius +
           layer.textSize * 2 +
           Math.max(Math.abs(layer.label.offsetX), Math.abs(layer.label.offsetY))
         if (x < -reach || x > width + reach) return []
@@ -248,13 +250,13 @@ function MarkersLayer({
           <g key={marker.key}>
             <path
               d={symbolPath(marker.symbol, marker.radius)}
-              transform={`translate(${x} ${y}) rotate(${marker.rotation})`}
+              transform={`translate(${x + symbol.dx} ${y + symbol.dy}) rotate(${marker.rotation})`}
               onPointerEnter={hoverable ? (e) => onHover(marker, e) : undefined}
               onPointerMove={hoverable ? (e) => onHover(marker, e) : undefined}
               onPointerLeave={hoverable ? onLeave : undefined}
               style={{
                 fill: marker.color,
-                fillOpacity: 0.8 * layer.opacity,
+                fillOpacity: layer.fillOpacity * layer.opacity,
                 stroke: "var(--background)",
                 strokeWidth: layer.outlineWidth,
                 strokeOpacity: layer.opacity,
@@ -359,6 +361,7 @@ const GeomapPanel: PanelRenderer = ({
     }
     return books
   }, [needs, atlases])
+  const rangeStart = Date.parse(meta.from)
   const rangeEnd = Date.parse(meta.to)
   const model = useMemo(
     () =>
@@ -367,8 +370,19 @@ const GeomapPanel: PanelRenderer = ({
         atlases,
         remote,
         time: Number.isNaN(rangeEnd) ? undefined : rangeEnd,
+        from: Number.isNaN(rangeStart) ? undefined : rangeStart,
       }),
-    [frames, fields, display, theme, gazetteers, atlases, remote, rangeEnd]
+    [
+      frames,
+      fields,
+      display,
+      theme,
+      gazetteers,
+      atlases,
+      remote,
+      rangeStart,
+      rangeEnd,
+    ]
   )
   const basemap = useMemo(() => basemapOf(display, theme), [display, theme])
   const options = useMemo(() => viewOptions(display), [display])

@@ -266,9 +266,6 @@ var cosmeticOptions = map[string]cosmeticOption{
 		values: []any{"gradient", "basic"},
 		why:    "bar gauges are drawn flat by the no-gradients rule (decision 8)",
 	},
-	"options.layers[].name": {
-		why: "a layer name is used only to pick the layer the map fits to, and a single markers layer is imported as flat keys without it",
-	},
 	"options.basemap.name": {
 		why: "the name only labels the basemap in Grafana's layer list",
 	},

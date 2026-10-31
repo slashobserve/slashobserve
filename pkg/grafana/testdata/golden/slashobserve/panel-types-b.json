@@ -299,15 +299,22 @@
           "lat": 52,
           "lon": 5,
           "zoom": 4,
-          "location": "coords",
-          "latField": "lat",
-          "lonField": "lon",
-          "sizeField": "Value",
-          "colorField": "Value",
-          "markerSize": 3,
-          "markerSizeMax": 20,
           "basemap": "carto",
-          "mouseWheelZoom": true
+          "mouseWheelZoom": true,
+          "layers": [
+            {
+              "type": "markers",
+              "name": "Markers",
+              "location": "coords",
+              "latField": "lat",
+              "lonField": "lon",
+              "sizeField": "Value",
+              "colorField": "Value",
+              "markerSize": 3,
+              "markerSizeMax": 20,
+              "fillOpacity": 0.4
+            }
+          ]
         }
       },
       {
@@ -348,7 +355,8 @@
               "name": "Markers",
               "location": "lookup",
               "lookupField": "country",
-              "gazetteer": "countries"
+              "gazetteer": "countries",
+              "fillOpacity": 0.4
             },
             {
               "type": "heatmap",
