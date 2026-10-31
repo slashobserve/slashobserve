@@ -59,6 +59,13 @@ export const candlestick: readonly DisplayOption[] = [
     label: "Down color",
     options: colorOptions,
   },
+  {
+    kind: "choice",
+    key: "flatColor",
+    label: "Flat color",
+    absent: "Same as up color",
+    options: colorOptions,
+  },
   fieldOption("open", "Open field", "Field named open"),
   fieldOption("high", "High field", "Field named high"),
   fieldOption("low", "Low field", "Field named low"),

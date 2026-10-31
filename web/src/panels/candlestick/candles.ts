@@ -11,7 +11,7 @@ import {
 export type CandleMode = "candles+volume" | "candles" | "volume"
 export type CandleStyle = "candles" | "ohlcbars"
 export type ColorStrategy = "open-close" | "close-close"
-export type Direction = "up" | "down"
+export type Direction = "up" | "down" | "flat"
 export type CandleRole = "open" | "high" | "low" | "close" | "volume"
 
 export type CandleOptions = {
@@ -20,6 +20,7 @@ export type CandleOptions = {
   colorStrategy: ColorStrategy
   upColor: string
   downColor: string
+  flatColor?: string
   legend: "bottom" | "right" | "hidden"
   tooltip: "single" | "all" | "hidden"
   includeAllFields: boolean
@@ -69,6 +70,7 @@ export function candleOptions(display: Record<string, unknown>): CandleOptions {
       display.colorStrategy === "close-close" ? "close-close" : "open-close",
     upColor: textOf(display.upColor, "ok"),
     downColor: textOf(display.downColor, "critical"),
+    flatColor: textOf(display.flatColor, "") || undefined,
     legend:
       display.legend === "right" || display.legend === "hidden"
         ? display.legend
@@ -161,16 +163,19 @@ export function directions(
     const reference = strategy === "open-close" ? own : (previousClose ?? own)
     previousClose = value
     if (!isNumber(reference)) return null
-    return value >= reference ? "up" : "down"
+    if (value === reference) return "flat"
+    return value > reference ? "up" : "down"
   })
 }
 
 export function directionColors(
-  options: Pick<CandleOptions, "upColor" | "downColor">
+  options: Pick<CandleOptions, "upColor" | "downColor" | "flatColor">
 ): Record<Direction, string> {
+  const up = thresholdColor(options.upColor)
   return {
-    up: thresholdColor(options.upColor),
+    up,
     down: thresholdColor(options.downColor),
+    flat: options.flatColor ? thresholdColor(options.flatColor) : up,
   }
 }
 
@@ -178,7 +183,10 @@ export function rowColors(
   open: readonly Cell[],
   close: readonly Cell[],
   rows: number,
-  options: Pick<CandleOptions, "colorStrategy" | "upColor" | "downColor">
+  options: Pick<
+    CandleOptions,
+    "colorStrategy" | "upColor" | "downColor" | "flatColor"
+  >
 ): string[] {
   const colors = directionColors(options)
   const moves = directions(open, close, options.colorStrategy)

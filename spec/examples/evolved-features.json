@@ -91,7 +91,8 @@
       "panels": [
         { "id": "p_errors", "type": "stat", "title": "Error logs",
           "gridPos": { "x": 0, "y": 13, "w": 6, "h": 4 }, "datasource": "ch",
-          "queries": [{ "query": "SELECT count() FROM otel_logs WHERE SeverityText = 'ERROR' AND $__timeFilter(Timestamp)" }] },
+          "queries": [{ "query": "SELECT count() FROM otel_logs WHERE SeverityText = 'ERROR' AND $__timeFilter(Timestamp)" }],
+          "display": { "graphStyle": "line", "percentChange": true, "percentSize": 14 } },
         { "id": "p_reuse", "type": "table", "title": "Requests and errors as a table",
           "gridPos": { "x": 6, "y": 13, "w": 12, "h": 4 },
           "queries": [{ "ref": "A", "source": { "panel": "p_rps", "withTransforms": true } }] },
@@ -103,7 +104,7 @@
             { "ref": "low", "query": "min_over_time(process_open_fds[5m])" },
             { "ref": "close", "query": "process_open_fds" }
           ],
-          "display": { "legendMode": "table", "legendValues": ["mean", "p95"] } },
+          "display": { "legendMode": "table", "legendValues": ["mean", "p95"], "flatColor": "info" } },
         { "id": "p_canvas", "type": "canvas", "title": "Descriptor limit",
           "gridPos": { "x": 12, "y": 17, "w": 12, "h": 8 }, "datasource": "prom",
           "queries": [{ "ref": "A", "query": "process_max_fds" }],
@@ -121,7 +122,23 @@
           "display": { "layers": [
             { "type": "markers", "name": "Sites", "location": "coords", "latField": "lat", "lonField": "lon",
               "symbolField": "icon", "text": "Site", "textAlign": "left", "textOffsetX": 6, "rotation": 45 }
-          ] } }
+          ] } },
+        { "id": "p_share", "type": "piechart", "title": "Requests by pod",
+          "gridPos": { "x": 0, "y": 33, "w": 8, "h": 8 }, "datasource": "prom",
+          "queries": [{ "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\"}[5m]))", "instant": true }],
+          "display": { "sort": "asc" } },
+        { "id": "p_lines", "type": "logs", "title": "Error lines",
+          "gridPos": { "x": 8, "y": 33, "w": 16, "h": 8 }, "datasource": "ch",
+          "queries": [{ "query": "SELECT Timestamp, SeverityText, Body FROM otel_logs WHERE $__timeFilter(Timestamp) ORDER BY Timestamp DESC LIMIT 100", "format": "logs" }],
+          "display": { "showTime": true, "showLabels": true, "lineFields": ["SeverityText", "Body"], "showAttributes": false, "timePrecision": "ns" } },
+        { "id": "p_states", "type": "state-timeline", "title": "Pod states",
+          "gridPos": { "x": 0, "y": 41, "w": 12, "h": 8 }, "datasource": "prom",
+          "queries": [{ "query": "up{service=\"checkout\"}" }],
+          "display": { "perPage": 5 } },
+        { "id": "p_history", "type": "status-history", "title": "Pod status history",
+          "gridPos": { "x": 12, "y": 41, "w": 12, "h": 8 }, "datasource": "prom",
+          "queries": [{ "query": "up{service=\"checkout\"}" }],
+          "display": { "perPage": 5 } }
       ] }
   ]
 }

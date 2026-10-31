@@ -27,6 +27,7 @@ import {
   labelPlacement,
   lineOffsets,
   legendCells,
+  orderSlices,
   pieEntries,
   pieModel,
   pieOptions,
@@ -314,7 +315,10 @@ const PiechartPanel: PanelRenderer = ({
     () => visibleSeries(storedHidden, keys, legendShown),
     [storedHidden, keys, legendShown]
   )
-  const model = useMemo(() => pieModel(entries, hidden), [entries, hidden])
+  const model = useMemo(
+    () => pieModel(orderSlices(entries, options.sliceOrder), hidden),
+    [entries, options.sliceOrder, hidden]
+  )
 
   useLayoutEffect(() => {
     commitKeys(stateKey, keys)

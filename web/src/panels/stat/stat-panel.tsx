@@ -28,7 +28,7 @@ import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
 import { cssColorToRgb, readableText } from "../contrast"
 import { Sparkline } from "./sparkline"
-import { sparklinePoints } from "./sparkline-points"
+import { sparklineHasArea, sparklinePoints } from "./sparkline-points"
 import { isWideTile, tileGap, tilesAcross, tileSize } from "./stat-grid"
 import {
   changeTone,
@@ -280,6 +280,11 @@ const StatPanel: PanelRenderer = ({
                     <span
                       data-stat-change=""
                       data-direction={change.direction}
+                      style={
+                        display.percentSize
+                          ? { fontSize: display.percentSize }
+                          : undefined
+                      }
                       className={cn(
                         "flex shrink-0 items-center gap-0.5 text-[13px]",
                         !filled && "text-muted-foreground"
@@ -325,7 +330,7 @@ const StatPanel: PanelRenderer = ({
                   line={line}
                   stroke={sparkStroke}
                   strokeOpacity={filled ? 0.5 : 1}
-                  area={!filled}
+                  area={sparklineHasArea(filled, display.graphStyle)}
                 />
               </div>
             ) : null}

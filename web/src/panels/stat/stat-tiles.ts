@@ -20,6 +20,7 @@ export type StatDisplay = {
   reduce: Reducer
   colorMode: ColorMode
   graph: boolean
+  graphStyle?: "area" | "line"
   orientation: Orientation
   textMode?: TextMode
   allValues?: boolean
@@ -28,6 +29,7 @@ export type StatDisplay = {
   justify?: "auto" | "center"
   titleSize?: number
   valueSize?: number
+  percentSize?: number
   percentChange?: boolean
   percentChangeColor?: PercentChangeColor
   wideLayout?: boolean

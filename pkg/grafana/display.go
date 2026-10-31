@@ -26,6 +26,8 @@ const (
 	minTooltipSize        = 100
 	maxTooltipSize        = 2000
 	legacyHeatmapV        = 37
+	maxLogFields          = 20
+	maxPerPage            = 100
 
 	grafanaHeatmapSteps     = 64
 	grafanaHeatmapScheme    = "Oranges"
@@ -294,6 +296,7 @@ func (b *panelBuild) statLayout(d *spec.Display) {
 	d.WideLayout, _ = b.boolOption("options.wideLayout")
 	d.TitleSize = b.statSizeOption("options.text.titleSize")
 	d.ValueSize = b.statSizeOption("options.text.valueSize")
+	d.PercentSize = b.statSizeOption("options.text.percentSize")
 }
 
 func (b *panelBuild) statSizeOption(path string) int {
@@ -328,6 +331,9 @@ func (b *panelBuild) statGraphAndText(d *spec.Display) {
 		b.consume("options.graphMode")
 		graph := false
 		d.Graph = &graph
+	case "line":
+		b.consume("options.graphMode")
+		d.GraphStyle = "line"
 	case "area":
 		b.consume("options.graphMode")
 	}
@@ -465,6 +471,9 @@ func displayPie(b *panelBuild) {
 	d := b.disp()
 	b.reduceOption(d)
 	d.PieType = b.enumOption("options.pieType", "pie", "donut")
+	if order := b.enumOption("options.sort", "desc", "asc", "none"); order != "desc" {
+		d.Sort = order
+	}
 	d.Legend = b.legendPlacement("bottom")
 	d.SliceLabels = b.pieChoices("options.displayLabels", pieSliceLabelOrder, "Some slice labels are not supported yet.")
 	b.pieLegend(d)
@@ -996,6 +1005,7 @@ func displayStateTimeline(b *panelBuild) {
 	d.ShowValues = b.enumOption("options.showValue", "auto", "always", "never")
 	d.RowHeight = b.shareOption("options.rowHeight")
 	d.AlignValue = b.enumOption("options.alignValue", "left", "center", "right")
+	d.PerPage = b.boundedIntOption("options.perPage", 1, maxPerPage)
 	b.timelineLegendAndTooltip(d)
 }
 
@@ -1015,6 +1025,8 @@ func (b *panelBuild) timelineLegendAndTooltip(d *spec.Display) {
 	b.legendWidth(d, "options.legend.width")
 }
 
+const logsFieldsReason = "Displayed fields must be a list of up to 20 field names of 1 to 200 characters."
+
 func displayLogs(b *panelBuild) {
 	d := b.disp()
 	if flag, ok := b.boolOption("options.wrapLogMessage"); ok {
@@ -1030,6 +1042,40 @@ func displayLogs(b *panelBuild) {
 		d.Order = "newest"
 	}
 	b.logsLines(d)
+	b.logsFieldsAndTime(d)
+}
+
+func (b *panelBuild) logsFieldsAndTime(d *spec.Display) {
+	if flag, ok := b.boolOption("options.showLogAttributes"); ok && !*flag {
+		d.ShowAttributes = flag
+	}
+	if b.enumOption("options.timestampResolution", "ms", "ns") == "ns" {
+		d.TimePrecision = "ns"
+	}
+	d.LineFields = b.logsDisplayedFields("options.displayedFields")
+}
+
+func (b *panelBuild) logsDisplayedFields(path string) []string {
+	v, present := b.value(path)
+	if !present {
+		return nil
+	}
+	items, isList := asArray(v)
+	names := make([]string, 0, len(items))
+	for _, item := range items {
+		name, isText := item.(string)
+		if !isText || name == "" || !validLength(name, maxFieldName) {
+			b.partial(path, logsFieldsReason)
+			return nil
+		}
+		names = append(names, name)
+	}
+	if !isList || len(names) > maxLogFields {
+		b.partial(path, logsFieldsReason)
+		return nil
+	}
+	b.consume(path)
+	return names
 }
 
 func (b *panelBuild) logsLines(d *spec.Display) {

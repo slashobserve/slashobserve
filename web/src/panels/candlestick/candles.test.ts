@@ -182,6 +182,12 @@ describe("candleOptions", () => {
     })
   })
 
+  it("has a flat color only when one is written", () => {
+    expect(candleOptions({}).flatColor).toBeUndefined()
+    expect(candleOptions({ flatColor: "" }).flatColor).toBeUndefined()
+    expect(candleOptions({ flatColor: "#b877d9" }).flatColor).toBe("#b877d9")
+  })
+
   it("keeps explicit field names", () => {
     expect(candleOptions({ open: "o", volume: "v" }).names).toEqual({
       open: "o",
@@ -200,6 +206,20 @@ describe("rowColors", () => {
         colorStrategy: "open-close",
       })
     ).toEqual(["var(--threshold-ok)", "#112233", "var(--threshold-ok)"])
+  })
+
+  it("paints a flat candle in the flat color, else in the up color", () => {
+    const open = [10, 10, 12]
+    const close = [11, 9, 12]
+    const strategy = { ...colors, colorStrategy: "open-close" } as const
+    expect(
+      rowColors(open, close, 3, { ...strategy, flatColor: "info" })
+    ).toEqual(["var(--threshold-ok)", "#112233", "var(--threshold-info)"])
+    expect(rowColors(open, close, 3, strategy)).toEqual([
+      "var(--threshold-ok)",
+      "#112233",
+      "var(--threshold-ok)",
+    ])
   })
 
   it("follows the color strategy", () => {
@@ -229,11 +249,11 @@ describe("directions", () => {
   const open = [10, 10, 12, 11]
   const close = [11, 9, 12, 13]
 
-  it("compares close with open", () => {
+  it("compares close with open, a close equal to its reference is flat", () => {
     expect(directions(open, close, "open-close")).toEqual([
       "up",
       "down",
-      "up",
+      "flat",
       "up",
     ])
   })

@@ -29,6 +29,16 @@ export const piechart: readonly DisplayOption[] = [
     ],
   },
   {
+    kind: "choice",
+    key: "sort",
+    label: "Slice order",
+    options: [
+      { value: "desc", label: "Largest first" },
+      { value: "asc", label: "Smallest first" },
+      { value: "none", label: "Data order" },
+    ],
+  },
+  {
     kind: "reducers",
     key: "sliceLabels",
     label: "Slice labels",

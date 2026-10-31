@@ -8,11 +8,13 @@ import { displayWithDefaults, type DataPanel } from "@/spec"
 import {
   dedupKey,
   detailText,
+  formatLogTime,
   logLevel,
   logsModel,
   maxEntries,
   messageTokens,
   prettifyMessage,
+  showsAttributes,
   type LogsDisplay,
 } from "./logs-model"
 
@@ -726,5 +728,90 @@ describe("messageTokens", () => {
       { kind: "key", text: "a" },
       { kind: "text", text: "=" },
     ])
+  })
+})
+
+describe("logsModel line fields", () => {
+  const rows = frame(
+    [
+      field("Timestamp", "time", [1000]),
+      field("Body", "string", ["hello"]),
+      field("level", "string", ["warn"]),
+      field("status", "number", [503]),
+    ],
+    { labels: { pod: "checkout-0" } }
+  )
+
+  it("builds the line from the named fields joined by a space, in that order", () => {
+    const { entries } = model([rows], { lineFields: ["status", "level"] })
+    expect(entries[0].message).toBe("503 warn")
+  })
+
+  it("skips a field the frame does not have and reads a label of that name", () => {
+    const { entries } = model([rows], {
+      lineFields: ["missing", "pod", "Body"],
+    })
+    expect(entries[0].message).toBe("checkout-0 hello")
+  })
+
+  it("skips a null value", () => {
+    const withNull = frame([
+      field("Timestamp", "time", [1000]),
+      field("a", "string", [null]),
+      field("b", "string", ["kept"]),
+    ])
+    const { entries } = model([withNull], { lineFields: ["a", "b"] })
+    expect(entries[0].message).toBe("kept")
+  })
+
+  it("keeps the message column when no fields are named", () => {
+    expect(model([rows], { lineFields: [] }).entries[0].message).toBe("hello")
+    expect(model([rows]).entries[0].message).toBe("hello")
+  })
+
+  it("deduplicates on the built line", () => {
+    const two = frame([
+      field("Timestamp", "time", [1000, 2000]),
+      field("Body", "string", ["x", "y"]),
+      field("level", "string", ["warn", "warn"]),
+    ])
+    const { entries } = model([two], {
+      lineFields: ["level"],
+      dedup: "exact",
+    })
+    expect(entries).toHaveLength(1)
+    expect(entries[0].repeats).toBe(2)
+  })
+})
+
+describe("formatLogTime", () => {
+  const stamp = 1_700_000_000_123
+  const seconds = formatDateTime(stamp)
+
+  it("prints milliseconds by default", () => {
+    expect(formatLogTime(stamp, undefined)).toBe(`${seconds}.123`)
+    expect(formatLogTime(stamp, "ms")).toBe(`${seconds}.123`)
+  })
+
+  it("pads whole milliseconds with zeros for nanoseconds", () => {
+    expect(formatLogTime(stamp, "ns")).toBe(`${seconds}.123000000`)
+  })
+
+  it("prints the sub-millisecond part the time carries", () => {
+    expect(formatLogTime(stamp + 0.5, "ns")).toBe(`${seconds}.123500000`)
+    expect(formatLogTime(stamp + 0.25, "ns")).toBe(`${seconds}.123250000`)
+  })
+})
+
+describe("showsAttributes", () => {
+  it("shows the per-line labels only when labels are on and attributes are not turned off", () => {
+    expect(showsAttributes({ showLabels: true })).toBe(true)
+    expect(showsAttributes({ showLabels: true, showAttributes: true })).toBe(
+      true
+    )
+    expect(showsAttributes({ showLabels: true, showAttributes: false })).toBe(
+      false
+    )
+    expect(showsAttributes({ showLabels: false })).toBe(false)
   })
 })

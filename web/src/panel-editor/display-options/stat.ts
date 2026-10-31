@@ -25,6 +25,15 @@ export const stat: readonly DisplayOption[] = [
   { kind: "toggle", key: "graph", label: "Show graph" },
   {
     kind: "choice",
+    key: "graphStyle",
+    label: "Graph style",
+    options: [
+      { value: "area", label: "Area" },
+      { value: "line", label: "Line" },
+    ],
+  },
+  {
+    kind: "choice",
     key: "textMode",
     label: "Text",
     absent: "Auto",
@@ -57,6 +66,13 @@ export const stat: readonly DisplayOption[] = [
     key: "valueSize",
     label: "Value size",
     hint: "A whole number of pixels from 6 to 200. Empty is 28.",
+    rule: { min: 6, max: 200, integer: true },
+  },
+  {
+    kind: "number",
+    key: "percentSize",
+    label: "Percent change size",
+    hint: "A whole number of pixels from 6 to 200. Empty is 13.",
     rule: { min: 6, max: 200, integer: true },
   },
   { kind: "toggle", key: "percentChange", label: "Show percent change" },

@@ -13,9 +13,11 @@ export type LegendColumn = "value" | "percent"
 type LegendSort = "name" | "value"
 type TooltipMode = "single" | "all" | "hidden"
 type TooltipSort = "none" | "asc" | "desc"
+export type SliceOrder = "desc" | "asc" | "none"
 
 export type PieOptions = {
   pieType: PieType
+  sliceOrder: SliceOrder
   legend: PieLegend
   sliceLabels: SliceLabel[]
   titleSize: number
@@ -77,6 +79,8 @@ export function pieOptions(display: Record<string, unknown>): PieOptions {
   const sortBy = merged.legendSortBy
   return {
     pieType: merged.pieType === "donut" ? "donut" : "pie",
+    sliceOrder:
+      merged.sort === "asc" || merged.sort === "none" ? merged.sort : "desc",
     legend:
       merged.legend === "bottom" || merged.legend === "hidden"
         ? merged.legend
@@ -137,6 +141,20 @@ export function pieEntries(
       hideInLegend: config.hideInLegend === true,
       hideInTooltip: config.hideInTooltip === true,
     }
+  })
+}
+
+export function orderSlices(
+  entries: readonly PieEntry[],
+  order: SliceOrder
+): readonly PieEntry[] {
+  if (order === "none") return entries
+  const direction = order === "asc" ? 1 : -1
+  return entries.toSorted((a, b) => {
+    if (a.value === null || b.value === null) {
+      return a.value === b.value ? 0 : a.value === null ? 1 : -1
+    }
+    return direction * (a.value - b.value)
   })
 }
 

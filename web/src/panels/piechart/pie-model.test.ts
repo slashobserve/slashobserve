@@ -9,6 +9,7 @@ import {
   legendCells,
   lineOffsets,
   percentText,
+  orderSlices,
   pieEntries,
   pieModel,
   pieOptions,
@@ -181,6 +182,7 @@ describe("pieOptions", () => {
   it("falls back to what the pie always drew", () => {
     expect(pieOptions({})).toEqual({
       pieType: "pie",
+      sliceOrder: "desc",
       legend: "right",
       sliceLabels: [],
       titleSize: 12,
@@ -218,6 +220,7 @@ describe("pieOptions", () => {
     })
     expect(options).toEqual({
       pieType: "donut",
+      sliceOrder: "desc",
       legend: "bottom",
       sliceLabels: ["name", "percent"],
       titleSize: 14,
@@ -493,5 +496,43 @@ describe("pieModel value options", () => {
     })
     const { slices } = build([frame], {}, { fields: "mem" })
     expect(slices.map((slice) => slice.value)).toEqual([2])
+  })
+})
+
+describe("orderSlices", () => {
+  const entries = entriesOf(
+    [series("a", [2]), series("b", [5]), series("c", [null]), series("d", [3])],
+    {}
+  )
+  const names = (order: "desc" | "asc" | "none") =>
+    orderSlices(entries, order).map((entry) => entry.name)
+
+  it("puts the largest slice first by default", () => {
+    expect(names("desc")).toEqual(["b", "d", "a", "c"])
+  })
+
+  it("puts the smallest slice first when ascending", () => {
+    expect(names("asc")).toEqual(["a", "d", "b", "c"])
+  })
+
+  it("keeps the data order for none", () => {
+    expect(names("none")).toEqual(["a", "b", "c", "d"])
+  })
+
+  it("does not reorder the entries it is given", () => {
+    orderSlices(entries, "desc")
+    expect(entries.map((entry) => entry.name)).toEqual(["a", "b", "c", "d"])
+  })
+
+  it("lays the angles out in the chosen order", () => {
+    const { slices } = pieModel(orderSlices(entries, "asc"))
+    expect(slices.map((slice) => slice.name)).toEqual(["a", "d", "b"])
+    expect(slices[0].startAngle).toBe(0)
+  })
+
+  it("reads the order from the display, descending when absent", () => {
+    expect(pieOptions({}).sliceOrder).toBe("desc")
+    expect(pieOptions({ sort: "asc" }).sliceOrder).toBe("asc")
+    expect(pieOptions({ sort: "none" }).sliceOrder).toBe("none")
   })
 })

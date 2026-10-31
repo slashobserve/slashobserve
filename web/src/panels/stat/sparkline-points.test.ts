@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { sparklineHeight, sparklinePoints } from "./sparkline-points"
+import {
+  sparklineHasArea,
+  sparklineHeight,
+  sparklinePoints,
+} from "./sparkline-points"
 
 describe("sparklinePoints", () => {
   it("scales a short series to the 600 by 40 viewBox with a 2px inset", () => {
@@ -42,5 +46,18 @@ describe("sparklinePoints", () => {
     expect(Math.max(...ys)).toBeLessThanOrEqual(sparklineHeight - 2)
     expect(line[0].startsWith("0.0,")).toBe(true)
     expect(line.at(-1)?.startsWith("600.0,")).toBe(true)
+  })
+})
+
+describe("sparklineHasArea", () => {
+  it("fills under the line unless the graph style is line", () => {
+    expect(sparklineHasArea(false, undefined)).toBe(true)
+    expect(sparklineHasArea(false, "area")).toBe(true)
+    expect(sparklineHasArea(false, "line")).toBe(false)
+  })
+
+  it("never fills on a tile with a colored background", () => {
+    expect(sparklineHasArea(true, undefined)).toBe(false)
+    expect(sparklineHasArea(true, "area")).toBe(false)
   })
 })

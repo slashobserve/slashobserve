@@ -664,6 +664,8 @@ type Display struct {
 	PercentChange      *bool              `json:"percentChange,omitempty"`
 	PercentChangeColor string             `json:"percentChangeColor,omitempty"`
 	WideLayout         *bool              `json:"wideLayout,omitempty"`
+	GraphStyle         string             `json:"graphStyle,omitempty"`
+	PercentSize        int                `json:"percentSize,omitempty"`
 	ThresholdMarkers   *bool              `json:"thresholdMarkers,omitempty"`
 	ThresholdLabels    *bool              `json:"thresholdLabels,omitempty"`
 	BarStyle           string             `json:"barStyle,omitempty"`
@@ -734,6 +736,7 @@ type Display struct {
 	ShowValues         string             `json:"showValues,omitempty"`
 	RowHeight          *float64           `json:"rowHeight,omitempty"`
 	ColumnWidth        *float64           `json:"columnWidth,omitempty"`
+	PerPage            int                `json:"perPage,omitempty"`
 	AlignValue         string             `json:"alignValue,omitempty"`
 	Wrap               *bool              `json:"wrap,omitempty"`
 	ShowTime           *bool              `json:"showTime,omitempty"`
@@ -747,6 +750,9 @@ type Display struct {
 	FontSize           string             `json:"fontSize,omitempty"`
 	Highlight          *bool              `json:"highlight,omitempty"`
 	DetailsMode        string             `json:"detailsMode,omitempty"`
+	LineFields         []string           `json:"lineFields,omitempty"`
+	ShowAttributes     *bool              `json:"showAttributes,omitempty"`
+	TimePrecision      string             `json:"timePrecision,omitempty"`
 	XField             string             `json:"xField,omitempty"`
 	BarWidth           *float64           `json:"barWidth,omitempty"`
 	GroupWidth         *float64           `json:"groupWidth,omitempty"`
@@ -760,6 +766,7 @@ type Display struct {
 	ColorStrategy      string             `json:"colorStrategy,omitempty"`
 	UpColor            string             `json:"upColor,omitempty"`
 	DownColor          string             `json:"downColor,omitempty"`
+	FlatColor          string             `json:"flatColor,omitempty"`
 	Open               string             `json:"open,omitempty"`
 	High               string             `json:"high,omitempty"`
 	Low                string             `json:"low,omitempty"`

@@ -215,3 +215,33 @@ func TestDiscreteLegendCanBeHidden(t *testing.T) {
 		t.Fatalf("legend = %q", got)
 	}
 }
+
+func TestTimelinePerPageImportsWholeNumbersFromOneToAHundred(t *testing.T) {
+	for _, typ := range []string{"state-timeline", "status-history"} {
+		for _, perPage := range []int{1, 5, 100} {
+			t.Run(typ+" "+strconv.Itoa(perPage), func(t *testing.T) {
+				panel, line := timelinePanel(t, typ, `{"perPage":`+strconv.Itoa(perPage)+`}`, "")
+				requireImported(t, line)
+				if got := displayOf(t, panel).PerPage; got != perPage {
+					t.Fatalf("perPage = %d, want %d", got, perPage)
+				}
+			})
+		}
+	}
+}
+
+func TestTimelinePerPageOutsideTheRangeIsReported(t *testing.T) {
+	for _, typ := range []string{"state-timeline", "status-history"} {
+		for _, value := range []string{"0", "101", "2.5", `"5"`} {
+			t.Run(typ+" "+value, func(t *testing.T) {
+				panel, line := timelinePanel(t, typ, `{"perPage":`+value+`}`, "")
+				if line.Status != statusPartial || strings.Join(line.Paths, " ") != "options.perPage" {
+					t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
+				}
+				if panel.Display != nil && panel.Display.PerPage != 0 {
+					t.Fatalf("perPage = %d", panel.Display.PerPage)
+				}
+			})
+		}
+	}
+}

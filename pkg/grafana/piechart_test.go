@@ -211,3 +211,31 @@ func TestLegacyPieChartKeepsItsLegendValuesAndReportsThem(t *testing.T) {
 		t.Fatalf("status = %s", line.Status)
 	}
 }
+
+func TestPieSliceOrder(t *testing.T) {
+	cases := []struct{ options, want string }{
+		{`{"sort":"asc"}`, "asc"},
+		{`{"sort":"none"}`, "none"},
+		{`{"sort":"desc"}`, ""},
+		{`{}`, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.options, func(t *testing.T) {
+			panel, line := pieOptions(t, tc.options)
+			requireImported(t, line)
+			if got := displayOf(t, panel).Sort; got != tc.want {
+				t.Fatalf("sort = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestPieSliceOrderOfAnUnknownKindIsReported(t *testing.T) {
+	panel, line := pieOptions(t, `{"sort":"random"}`)
+	if line.Status != statusPartial || !slices.Equal(line.Paths, []string{"options.sort"}) {
+		t.Fatalf("status %s, paths %v", line.Status, line.Paths)
+	}
+	if panel.Display != nil && panel.Display.Sort != "" {
+		t.Fatalf("sort = %q", panel.Display.Sort)
+	}
+}

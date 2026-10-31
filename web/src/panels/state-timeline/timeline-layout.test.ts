@@ -149,6 +149,7 @@ describe("timelineDisplay", () => {
     const written = timelineDisplay(
       displayWithDefaults("state-timeline", {
         rowHeight: 0.5,
+        perPage: 5,
         alignValue: "right",
         legend: "right",
         legendMode: "table",
@@ -158,6 +159,7 @@ describe("timelineDisplay", () => {
     )
     expect(written).toMatchObject({
       rowHeight: 0.5,
+      perPage: 5,
       alignValue: "right",
       legend: "right",
       legendMode: "table",
