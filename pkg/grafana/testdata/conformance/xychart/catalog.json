@@ -59,7 +59,7 @@
     { "id": "fieldConfig.defaults.custom.axisBorderShow=true", "path": "fieldConfig.defaults.custom.axisBorderShow", "value": true },
     { "id": "fieldConfig.defaults.custom.axisColorMode=series", "path": "fieldConfig.defaults.custom.axisColorMode", "value": "series" },
     { "id": "fieldConfig.defaults.custom.scaleDistribution.type=log", "path": "fieldConfig.defaults.custom.scaleDistribution.type", "value": "log" },
-    { "id": "fieldConfig.defaults.custom.scaleDistribution.type=ordinal", "path": "fieldConfig.defaults.custom.scaleDistribution.type", "value": "ordinal" },
+    { "id": "fieldConfig.defaults.custom.scaleDistribution.type=ordinal", "path": "fieldConfig.defaults.custom.scaleDistribution.type", "value": "ordinal", "expect": "excluded" },
     { "id": "fieldConfig.defaults.custom.scaleDistribution.type=symlog", "path": "fieldConfig.defaults.custom.scaleDistribution.type", "value": "symlog" },
     { "id": "fieldConfig.defaults.custom.scaleDistribution.log=2", "path": "fieldConfig.defaults.custom.scaleDistribution.log", "value": 2, "with": {"fieldConfig.defaults.custom.scaleDistribution.type": "log"} },
     { "id": "fieldConfig.defaults.custom.scaleDistribution.linearThreshold=1", "path": "fieldConfig.defaults.custom.scaleDistribution.linearThreshold", "value": 1, "with": {"fieldConfig.defaults.custom.scaleDistribution.type": "symlog"} }

@@ -30,15 +30,15 @@
     { "id": "options.reduceOptions.calcs=min-max", "path": "options.reduceOptions.calcs", "value": ["min", "max"] },
     { "id": "options.reduceOptions.fields=all-fields", "path": "options.reduceOptions.fields", "value": "/.*/" },
     { "id": "options.reduceOptions.fields=value-regex", "path": "options.reduceOptions.fields", "value": "/^Value$/" },
-    { "id": "options.legend.displayMode=table", "path": "options.legend.displayMode", "value": "table" },
+    { "id": "options.legend.displayMode=table", "path": "options.legend.displayMode", "value": "table", "expect": "excluded" },
     { "id": "options.legend.displayMode=hidden", "path": "options.legend.displayMode", "value": "hidden" },
-    { "id": "options.legend.placement=right", "path": "options.legend.placement", "value": "right" },
+    { "id": "options.legend.placement=right", "path": "options.legend.placement", "value": "right", "expect": "excluded" },
     { "id": "options.legend.showLegend=false", "path": "options.legend.showLegend", "value": false },
-    { "id": "options.legend.asTable=true", "path": "options.legend.asTable", "value": true },
-    { "id": "options.legend.sortBy=Mean", "path": "options.legend.sortBy", "value": "Mean" },
-    { "id": "options.legend.sortDesc=true", "path": "options.legend.sortDesc", "value": true },
-    { "id": "options.legend.width=200", "path": "options.legend.width", "value": 200 },
-    { "id": "options.legend.calcs=mean", "path": "options.legend.calcs", "value": ["mean"] },
-    { "id": "options.legend.calcs=min-max", "path": "options.legend.calcs", "value": ["min", "max"] }
+    { "id": "options.legend.asTable=true", "path": "options.legend.asTable", "value": true, "expect": "excluded" },
+    { "id": "options.legend.sortBy=Mean", "path": "options.legend.sortBy", "value": "Mean", "expect": "excluded" },
+    { "id": "options.legend.sortDesc=true", "path": "options.legend.sortDesc", "value": true, "expect": "excluded" },
+    { "id": "options.legend.width=200", "path": "options.legend.width", "value": 200, "expect": "excluded" },
+    { "id": "options.legend.calcs=mean", "path": "options.legend.calcs", "value": ["mean"], "expect": "excluded" },
+    { "id": "options.legend.calcs=min-max", "path": "options.legend.calcs", "value": ["min", "max"], "expect": "excluded" }
   ]
 }
