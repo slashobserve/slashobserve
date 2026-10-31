@@ -23,6 +23,7 @@ function folder(id: string, title: string, extra: Partial<Folder> = {}) {
     grantee_count: 0,
     created_by: null,
     permissions,
+    level: "admin",
     ...extra,
   } satisfies Folder
 }

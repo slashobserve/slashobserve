@@ -482,14 +482,14 @@ components:
           description: Rename, change the permissions of and delete a folder.
         create:
           type: boolean
-          description: Create dashboards in the folder (needs the Editor role as well as Edit on the folder).
+          description: Create, duplicate or import dashboards into the folder, or move dashboards into it (the Edit level).
     FolderLevel:
       type: string
       enum: [view, comment, edit, admin]
     Folder:
       type: object
       additionalProperties: false
-      required: [id, title, general, restricted, dashboard_count, grantees, grantee_count, created_by, permissions]
+      required: [id, title, general, restricted, dashboard_count, grantees, grantee_count, created_by, permissions, level]
       properties:
         id:
           type: string
@@ -523,6 +523,10 @@ components:
             - $ref: "#/components/schemas/Author"
         permissions:
           $ref: "#/components/schemas/Permissions"
+        level:
+          description: The caller's level on this folder and on every dashboard in it, the higher of what their role gives and their highest matching entry. Admins always have `admin`.
+          allOf:
+            - $ref: "#/components/schemas/FolderLevel"
     FolderPermissionEntry:
       type: object
       additionalProperties: false

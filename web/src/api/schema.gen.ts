@@ -429,7 +429,7 @@ export interface paths {
         get: operations["getFolderPermissions"];
         /**
          * Replace the people and groups a folder is restricted to.
-         * @description Needs the Manage permission on the folder. The entries replace every existing row in one transaction. An empty `entries` list makes the folder open to everyone by instance role again. Each entry names exactly one of `user_id`, `email` (matched without regard to case against people who have signed in) and `group` (an OIDC group name, matched exactly), at most 50 entries and no repeated person or group. A level never lifts a person above their instance role: a Viewer only views and a Commenter only comments, whatever the level. The General folder is never restricted.
+         * @description Needs the Manage permission on the folder. The entries replace every existing row in one transaction. An empty `entries` list makes the folder open to everyone by instance role again. Each entry names exactly one of `user_id`, `email` (matched without regard to case against people who have signed in) and `group` (an OIDC group name, matched exactly), at most 50 entries and no repeated person or group. A person whose entries match the folder gets the higher of their instance role's level and the highest of those entries on the folder and its dashboards: an entry can lift a Viewer or Commenter (Edit lets them change and create dashboards there, Admin lets them manage the folder) and never lowers anyone. The General folder is never restricted.
          */
         put: operations["setFolderPermissions"];
         post?: never;
@@ -1107,7 +1107,7 @@ export interface paths {
         put?: never;
         /**
          * Convert a Grafana dashboard without saving it or running any query.
-         * @description Accepts the classic dashboard model, the export wrapper (with `__inputs`) and the API response `{"dashboard": ..., "meta": ...}` as the text in `json`. `ready` is false while a source datasource has no match; `spec` is then null. `report.verified` is always false because no query runs. A body above 8 MiB answers 413 `too_large`. A caller has at most 2 previews in flight and the instance at most 4; more answers 429 `too_many_imports`. A 422 carries the importer's code: `invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels` or `invalid_mapping`.
+         * @description Accepts the classic dashboard model, the export wrapper (with `__inputs`) and the API response `{"dashboard": ..., "meta": ...}` as the text in `json`. `ready` is false while a source datasource has no match; `spec` is then null. `report.verified` is always false because no query runs. A body above 8 MiB answers 413 `too_large`. A caller has at most 2 previews in flight and the instance at most 4; more answers 429 `too_many_imports`. A 422 carries the importer's code: `invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels` or `invalid_mapping`. Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder.
          */
         post: operations["previewImport"];
         delete?: never;
@@ -1305,7 +1305,7 @@ export interface components {
             edit: boolean;
             /** @description Rename, change the permissions of and delete a folder. */
             manage: boolean;
-            /** @description Create dashboards in the folder (needs the Editor role as well as Edit on the folder). */
+            /** @description Create, duplicate or import dashboards into the folder, or move dashboards into it (the Edit level). */
             create: boolean;
         };
         /** @enum {string} */
@@ -1327,6 +1327,8 @@ export interface components {
             /** @description Null for General and for folders made before creators were recorded. */
             created_by: components["schemas"]["Author"] | null;
             permissions: components["schemas"]["Permissions"];
+            /** @description The caller's level on this folder and on every dashboard in it, the higher of what their role gives and their highest matching entry. Admins always have `admin`. */
+            level: components["schemas"]["FolderLevel"];
         };
         FolderPermissionEntry: {
             /** @enum {string} */

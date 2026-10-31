@@ -9,6 +9,7 @@ imports-preview:
       A body above 8 MiB answers 413 `too_large`.
       A caller has at most 2 previews in flight and the instance at most 4; more answers 429 `too_many_imports`.
       A 422 carries the importer's code: `invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels` or `invalid_mapping`.
+      Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder.
     requestBody:
       required: true
       content:

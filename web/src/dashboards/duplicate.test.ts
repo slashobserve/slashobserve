@@ -24,6 +24,7 @@ function folder(
     grantee_count: 0,
     created_by: null,
     permissions: { comment: true, edit: create, manage: create, create },
+    level: create ? "admin" : "comment",
   }
 }
 
