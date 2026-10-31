@@ -224,6 +224,24 @@ var stateLegendIgnored = map[string]string{
 
 const graphMigrationIgnores = "Grafana's time series migration does not read it"
 
+const singlestatMigrationSkips = "Grafana's stat migration does not read it"
+
+var legacySinglestatIgnored = map[string]string{
+	"colorPrefix":          singlestatMigrationSkips,
+	"colorPostfix":         singlestatMigrationSkips,
+	"prefix":               "Grafana's stat migration keeps the unit and drops the prefix",
+	"postfix":              "Grafana's stat migration keeps the unit and drops the postfix",
+	"prefixFontSize":       singlestatMigrationSkips,
+	"postfixFontSize":      singlestatMigrationSkips,
+	"valueFontSize":        singlestatMigrationSkips,
+	"mappingTypes[].name":  singlestatMigrationSkips,
+	"mappingTypes[].value": singlestatMigrationSkips,
+	"sparkline.fillColor":  singlestatMigrationSkips,
+	"sparkline.full":       singlestatMigrationSkips,
+	"minSpan":              singlestatMigrationSkips,
+	"nullPointMode":        "the stat reducers skip nulls in both modes, and a connected first value is imported as firstNotNull",
+}
+
 var ignoredOptions = map[optionScope]map[string]string{
 	optionScope("panel:graph"): {
 		"paceLength":             graphMigrationIgnores,
@@ -235,8 +253,10 @@ var ignoredOptions = map[optionScope]map[string]string{
 		"yaxis.alignLevel":       graphMigrationIgnores,
 		"percentage":             "Grafana's time series migration reads it only with stacking",
 	},
-	panelScope(spec.StateTimeline): stateLegendIgnored,
-	panelScope(spec.StatusHistory): stateLegendIgnored,
+	panelScope("singlestat"):               legacySinglestatIgnored,
+	panelScope("grafana-singlestat-panel"): legacySinglestatIgnored,
+	panelScope(spec.StateTimeline):         stateLegendIgnored,
+	panelScope(spec.StatusHistory):         stateLegendIgnored,
 	panelScope(spec.BarChart): {
 		"options.text.titleSize":   "bar charts draw no title text",
 		"options.text.percentSize": "bar charts draw no percent text",
@@ -298,6 +318,10 @@ var cosmeticOptions = map[string]cosmeticOption{
 	"options.displayMode": {
 		values: []any{"gradient", "basic"},
 		why:    "bar gauges are drawn flat by the no-gradients rule (decision 8)",
+	},
+	"sparkline.lineColor": {
+		types: []spec.PanelType{spec.Stat, spec.Gauge},
+		why:   "the renderer draws a stat sparkline in the series color",
 	},
 	"options.basemap.name": {
 		why: "the name only labels the basemap in Grafana's layer list",

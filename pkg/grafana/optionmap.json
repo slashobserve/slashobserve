@@ -3443,6 +3443,244 @@
    }
   }
  },
+ "panel:grafana-singlestat-panel": {
+  "colorBackground": {
+   "fields": [
+    "display.colorMode",
+    "thresholds[].color",
+    "thresholds[].value"
+   ],
+   "values": {
+    "b:true": [
+     "display.colorMode",
+     "thresholds[].color",
+     "thresholds[].value"
+    ]
+   }
+  },
+  "colorValue": {
+   "fields": [
+    "display.colorMode",
+    "thresholds[].color",
+    "thresholds[].value"
+   ],
+   "values": {
+    "b:true": [
+     "display.colorMode",
+     "thresholds[].color",
+     "thresholds[].value"
+    ]
+   }
+  },
+  "colors": {
+   "fields": [
+    "thresholds[].color",
+    "thresholds[].value"
+   ]
+  },
+  "decimals": {
+   "fields": [
+    "decimals"
+   ],
+   "values": {
+    "n:2": [
+     "decimals"
+    ]
+   }
+  },
+  "format": {
+   "fields": [
+    "unit"
+   ],
+   "values": {
+    "s:bytes": [
+     "unit"
+    ]
+   }
+  },
+  "gauge.maxValue": {
+   "fields": [
+    "max"
+   ],
+   "values": {
+    "n:500": [
+     "max"
+    ]
+   }
+  },
+  "gauge.minValue": {
+   "fields": [
+    "min"
+   ],
+   "values": {
+    "n:10": [
+     "min"
+    ]
+   }
+  },
+  "gauge.show": {
+   "fields": [
+    "display.colorMode",
+    "display.graph",
+    "thresholds[].color",
+    "thresholds[].value"
+   ],
+   "values": {
+    "b:true": [
+     "display.colorMode",
+     "display.graph",
+     "thresholds[].color",
+     "thresholds[].value"
+    ]
+   }
+  },
+  "gauge.thresholdLabels": {
+   "fields": [
+    "display.thresholdLabels"
+   ],
+   "values": {
+    "b:true": [
+     "display.thresholdLabels"
+    ]
+   }
+  },
+  "gauge.thresholdMarkers": {
+   "fields": [
+    "display.thresholdMarkers"
+   ],
+   "values": {
+    "b:false": [
+     "display.thresholdMarkers"
+    ]
+   }
+  },
+  "hideTimeOverride": {
+   "fields": [
+    "hideTimeOverride"
+   ],
+   "values": {
+    "b:true": [
+     "hideTimeOverride"
+    ]
+   }
+  },
+  "id": {
+   "fields": [
+    "id"
+   ],
+   "values": {
+    "n:7": [
+     "id"
+    ]
+   }
+  },
+  "mappingType": {
+   "fields": [
+    "mappings[].range[]",
+    "mappings[].text"
+   ],
+   "values": {
+    "n:1": [
+     "mappings[].range[]",
+     "mappings[].text"
+    ]
+   }
+  },
+  "nullPointMode": {
+   "fields": [
+    "display.reduce"
+   ],
+   "values": {
+    "s:connected": [
+     "display.reduce"
+    ]
+   }
+  },
+  "nullText": {
+   "fields": [
+    "noValue"
+   ],
+   "values": {
+    "s:n/a": [
+     "noValue"
+    ]
+   }
+  },
+  "postfix": {
+   "fields": [
+    "unit"
+   ],
+   "values": {
+    "s:req": [
+     "unit"
+    ]
+   }
+  },
+  "prefix": {
+   "fields": [
+    "unit"
+   ],
+   "values": {
+    "s:$": [
+     "unit"
+    ]
+   }
+  },
+  "rangeMaps": {
+   "fields": [
+    "mappings[].range[]",
+    "mappings[].text"
+   ]
+  },
+  "sparkline.show": {
+   "fields": [
+    "display.graph"
+   ],
+   "values": {
+    "b:true": [
+     "display.graph"
+    ]
+   }
+  },
+  "thresholds": {
+   "fields": [
+    "thresholds[].color",
+    "thresholds[].value"
+   ],
+   "values": {
+    "s:10,20": [
+     "thresholds[].color",
+     "thresholds[].value"
+    ]
+   }
+  },
+  "transparent": {
+   "fields": [
+    "transparent"
+   ],
+   "values": {
+    "b:true": [
+     "transparent"
+    ]
+   }
+  },
+  "valueMaps": {
+   "fields": [
+    "mappings[].text",
+    "mappings[].value"
+   ]
+  },
+  "valueName": {
+   "fields": [
+    "display.reduce"
+   ],
+   "values": {
+    "s:max": [
+     "display.reduce"
+    ]
+   }
+  }
+ },
  "panel:graph": {
   "aliasColors.errors": {
    "fields": [
@@ -5537,6 +5775,244 @@
     ],
     "s:desc": [
      "display.tooltipSort"
+    ]
+   }
+  }
+ },
+ "panel:singlestat": {
+  "colorBackground": {
+   "fields": [
+    "display.colorMode",
+    "thresholds[].color",
+    "thresholds[].value"
+   ],
+   "values": {
+    "b:true": [
+     "display.colorMode",
+     "thresholds[].color",
+     "thresholds[].value"
+    ]
+   }
+  },
+  "colorValue": {
+   "fields": [
+    "display.colorMode",
+    "thresholds[].color",
+    "thresholds[].value"
+   ],
+   "values": {
+    "b:true": [
+     "display.colorMode",
+     "thresholds[].color",
+     "thresholds[].value"
+    ]
+   }
+  },
+  "colors": {
+   "fields": [
+    "thresholds[].color",
+    "thresholds[].value"
+   ]
+  },
+  "decimals": {
+   "fields": [
+    "decimals"
+   ],
+   "values": {
+    "n:2": [
+     "decimals"
+    ]
+   }
+  },
+  "format": {
+   "fields": [
+    "unit"
+   ],
+   "values": {
+    "s:bytes": [
+     "unit"
+    ]
+   }
+  },
+  "gauge.maxValue": {
+   "fields": [
+    "max"
+   ],
+   "values": {
+    "n:500": [
+     "max"
+    ]
+   }
+  },
+  "gauge.minValue": {
+   "fields": [
+    "min"
+   ],
+   "values": {
+    "n:10": [
+     "min"
+    ]
+   }
+  },
+  "gauge.show": {
+   "fields": [
+    "display.colorMode",
+    "display.graph",
+    "thresholds[].color",
+    "thresholds[].value"
+   ],
+   "values": {
+    "b:true": [
+     "display.colorMode",
+     "display.graph",
+     "thresholds[].color",
+     "thresholds[].value"
+    ]
+   }
+  },
+  "gauge.thresholdLabels": {
+   "fields": [
+    "display.thresholdLabels"
+   ],
+   "values": {
+    "b:true": [
+     "display.thresholdLabels"
+    ]
+   }
+  },
+  "gauge.thresholdMarkers": {
+   "fields": [
+    "display.thresholdMarkers"
+   ],
+   "values": {
+    "b:false": [
+     "display.thresholdMarkers"
+    ]
+   }
+  },
+  "hideTimeOverride": {
+   "fields": [
+    "hideTimeOverride"
+   ],
+   "values": {
+    "b:true": [
+     "hideTimeOverride"
+    ]
+   }
+  },
+  "id": {
+   "fields": [
+    "id"
+   ],
+   "values": {
+    "n:7": [
+     "id"
+    ]
+   }
+  },
+  "mappingType": {
+   "fields": [
+    "mappings[].range[]",
+    "mappings[].text"
+   ],
+   "values": {
+    "n:1": [
+     "mappings[].range[]",
+     "mappings[].text"
+    ]
+   }
+  },
+  "nullPointMode": {
+   "fields": [
+    "display.reduce"
+   ],
+   "values": {
+    "s:connected": [
+     "display.reduce"
+    ]
+   }
+  },
+  "nullText": {
+   "fields": [
+    "noValue"
+   ],
+   "values": {
+    "s:n/a": [
+     "noValue"
+    ]
+   }
+  },
+  "postfix": {
+   "fields": [
+    "unit"
+   ],
+   "values": {
+    "s:req": [
+     "unit"
+    ]
+   }
+  },
+  "prefix": {
+   "fields": [
+    "unit"
+   ],
+   "values": {
+    "s:$": [
+     "unit"
+    ]
+   }
+  },
+  "rangeMaps": {
+   "fields": [
+    "mappings[].range[]",
+    "mappings[].text"
+   ]
+  },
+  "sparkline.show": {
+   "fields": [
+    "display.graph"
+   ],
+   "values": {
+    "b:true": [
+     "display.graph"
+    ]
+   }
+  },
+  "thresholds": {
+   "fields": [
+    "thresholds[].color",
+    "thresholds[].value"
+   ],
+   "values": {
+    "s:10,20": [
+     "thresholds[].color",
+     "thresholds[].value"
+    ]
+   }
+  },
+  "transparent": {
+   "fields": [
+    "transparent"
+   ],
+   "values": {
+    "b:true": [
+     "transparent"
+    ]
+   }
+  },
+  "valueMaps": {
+   "fields": [
+    "mappings[].text",
+    "mappings[].value"
+   ]
+  },
+  "valueName": {
+   "fields": [
+    "display.reduce"
+   ],
+   "values": {
+    "s:max": [
+     "display.reduce"
     ]
    }
   }

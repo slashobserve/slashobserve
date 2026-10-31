@@ -41,8 +41,8 @@
     "verified": false,
     "counts": {
       "total": 19,
-      "imported": 13,
-      "partial": 3,
+      "imported": 14,
+      "partial": 2,
       "placeholder": 3,
       "unverified": 0
     },
@@ -318,13 +318,9 @@
         "type": "stat",
         "source_type": "grafana-singlestat-panel",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -454,7 +450,7 @@
     "panel panels[8] mapped=8 reported=1 bookkeeping=3 query:1",
     "panel panels[9] mapped=11 bookkeeping=4 query:1",
     "panel panels[10] mapped=9 bookkeeping=4 query:1",
-    "panel panels[11] mapped=25 reported=1 bookkeeping=3 query:1",
+    "panel panels[11] mapped=19 no_effect=5 bookkeeping=3 query:1",
     "panel panels[12] outcome=excluded",
     "panel panels[13] mapped=4 default=1",
     "panel panels[14] mapped=3",

@@ -177,6 +177,8 @@ A value mapping's icon is reported, and its text and color are kept.
 Grafana's renamed and retired panel types import as their modern type, such as `graph`, `table-old` and `singlestat`, and `grafana-worldmap-panel` imports as a geomap.
 Graph options that Grafana's own time series migration drops, such as `paceLength` and the tooltip's millisecond resolution, thresholds without a value and `percentage` without stacking import without a note, and a legacy graph alert is excluded with alert rules.
 A legacy graph's threshold fill and line choose the threshold style the way Grafana's migration does (lines, areas, or both), and `dashLength` and `spaceLength` set the pattern of a dashed line.
+A legacy singlestat imports without a note for the keys Grafana's own singlestat-to-stat migration drops: the prefix and postfix colors, the font sizes, the sparkline fill and full width, the mapping editor choices, a prefix or postfix beside a unit (the unit is kept, as in Grafana) and a null mode, except that a connected null mode turns the first value into the first value that is not null.
+The sparkline line color imports without a note too, because the sparkline is drawn in the series color.
 An annotation list, a live panel and an Alertmanager panel become placeholders that give the reason.
 A `welcome` panel imports as a text panel with a one-line note, `gettingstarted` as a text checklist that links these docs, and `debug` as a table over its own targets.
 An alert list imports as one Prometheus `ALERTS` query, and a Grafana-managed or legacy alert list becomes a placeholder.
