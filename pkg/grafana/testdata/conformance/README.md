@@ -18,8 +18,7 @@ An area name is lowercase `[a-z0-9-]+`, such as `dashboard`, `timeseries`, `fiel
 | --- | --- |
 | `base.json` | A minimal Grafana dashboard that imports fully. |
 | `catalog.json` | The area's options with non-default values. |
-| `seed.txt` | The ids that failed when the area was first catalogued, sorted, one per line. Never edited by later changes. |
-| `gaps/<id>` | One empty file per known gap. |
+| `seed.txt` | Frozen history: the ids that failed when the area was first catalogued, sorted, one per line. No test reads it and it is never edited. |
 
 ## Catalog
 
@@ -58,34 +57,27 @@ Importing cleanly means `Convert` returns no error, the result is ready (every s
 
 For an area whose root is a panel, a `convert` or `convert_noted` entry whose value is the importer's own Grafana default is a catalog error.
 
-## Known gaps
+## No known gaps
 
-An entry that does not pass yet has an empty file `gaps/<id>`.
-An entry that fails without a gap file fails the test with the outcome.
-An entry that passes while its gap file exists fails with the path to delete.
-
-Gaps only shrink.
-Every gap file must be listed in the area's `seed.txt`, and `seed.txt` is written once, by the seeding flag.
-A new gap therefore cannot appear without an edit to `seed.txt` that a reviewer sees.
-A change that converts an option deletes its gap file.
-A change that adds entries to an area that already has a seed must make them pass.
+Every entry has an outcome.
+An entry that does not pass fails `TestOptionConformance` with the outcome.
+A file in an area's `gaps/` directory fails `TestOptionConformance` and `TestConformanceCatalogs`: every option needs a conformance outcome now that M2 is closed.
+To keep an option out of the conversion, give its entry `bookkeeping`, `cosmetic`, `convert_noted` or `excluded` with the decision that explains it.
 
 ## Adding an area
 
 1. Write `base.json` and `catalog.json`.
 2. Run `go test ./pkg/grafana -run TestConformanceCatalogs -count=1` until the catalog is well formed and the base imports cleanly.
-3. Run `go test ./pkg/grafana -run TestOptionConformance -count=1 -conformance.seed` once.
-   It writes `seed.txt` and the `gaps/` files for areas without a seed, logs `seed exists for <area>, nothing written` for the others, and never deletes a file.
+3. Run `go test ./pkg/grafana -run TestOptionConformance -count=1` until every entry passes.
 4. Commit the area.
 
-`go test ./pkg/grafana -run 'TestOptionConformance|TestConformanceCatalogs' -count=1 -v` logs one line per area, `<area>: <n> entries, <p> pass, <g> known gaps`, and a total.
+`go test ./pkg/grafana -run 'TestOptionConformance|TestConformanceCatalogs' -count=1 -v` logs one line per area, `<area>: <n> entries, <p> pass`, and a total.
 
 ## Option map
 
 `TestOptionMapIsCurrent` records, for every passing `convert` and `convert_noted` entry, the Spec fields that differ between the baseline's Spec and the variant's, keyed by option scope and option path, in `pkg/grafana/optionmap.json`.
 The importer reads that file to name the Spec field an option became.
 The file is generated and never edited by hand: the test fails when it differs from a fresh run, and `make golden` rewrites it.
-Entries with a gap file are left out until they convert.
 
 ## Corpus guard
 

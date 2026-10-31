@@ -179,7 +179,7 @@ func generateOptionMap(t *testing.T, areas []*conformanceArea) optionMap {
 	b := optionMapBuilder(m)
 	for _, a := range areas {
 		for _, e := range a.catalog.Entries {
-			if !e.converts() || a.hasGap(e.ID) {
+			if !e.converts() {
 				continue
 			}
 			baselineDoc, variantDoc, err := a.documents(e)

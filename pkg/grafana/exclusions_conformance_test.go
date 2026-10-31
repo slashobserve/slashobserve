@@ -122,19 +122,3 @@ func TestEveryDecisionIsCatalogued(t *testing.T) {
 		}
 	}
 }
-
-func TestGapsAreNotDecisions(t *testing.T) {
-	for _, a := range loadConformanceAreas(t, conformanceRoot(t)) {
-		for _, e := range a.catalog.Entries {
-			if !a.hasGap(e.ID) {
-				continue
-			}
-			t.Run(a.name+"/"+e.ID, func(t *testing.T) {
-				res := variantResult(t, a, e)
-				if reasons := decisionReasonsIn(res); len(reasons) > 0 {
-					t.Errorf("path %s is a known gap but the report carries the decisions %q", e.Path, reasons)
-				}
-			})
-		}
-	}
-}
