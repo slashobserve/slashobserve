@@ -64,7 +64,7 @@ func (s propSite) at(suffix string) string {
 type propHandler func(b *panelBuild, p *spec.FieldProps, v any, s propSite)
 
 var propOrder = []string{
-	"unit", "decimals", "min", "max", "fieldMinMax", "displayName", "displayNameFromDS", "noValue", "description", "thresholds", "mappings", "links",
+	"unit", "decimals", "min", "max", "fieldMinMax", "displayName", "displayNameFromDS", "noValue", "description", "thresholds", "mappings", "links", "actions",
 	"color", "custom.drawStyle", "custom.fillOpacity", "custom.lineStyle",
 	"custom.lineInterpolation", "custom.lineWidth", "custom.showPoints", "custom.pointSize", "custom.pointShape", "custom.pointStrokeWidth", "custom.spanNulls",
 	"custom.lineColor", "custom.fillColor", "custom.pointColor", "custom.pointSymbol", "custom.showValues",
@@ -91,6 +91,7 @@ var propHandlers = map[string]propHandler{
 	"thresholds":               propThresholds,
 	"mappings":                 propMappings,
 	"links":                    propLinks,
+	"actions":                  propActions,
 	"color":                    propColor,
 	"custom.drawStyle":         propDrawStyle,
 	"custom.fillOpacity":       propFillOpacity,
@@ -253,6 +254,7 @@ func propLineStyleUnused(b *panelBuild, _ *spec.FieldProps, _ any, s propSite) {
 
 var propGates = []propGate{
 	{ids: propIDs("fieldMinMax"), types: rangeSharingTypes, outside: true, skip: true},
+	{ids: propIDs("actions"), types: dataLinkTypes, outside: true, skip: true},
 	{ids: tableColumnProps, types: tablePanelTypes, outside: true, skip: true},
 	{ids: seriesDrawingPropIDs, types: seriesDrawingTypes, outside: true, skip: true},
 	{ids: seriesStylePropIDs, types: plotPanelTypes, outside: true, skip: true},
@@ -1348,6 +1350,7 @@ func propLinks(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	if len(links) > 0 {
 		p.Links = links
 	}
+	b.settleOneClick(p, s.at(""))
 }
 
 var staticPanelNames = map[spec.PanelType]string{spec.Text: "text panels", spec.DashList: "dashboard lists", spec.News: "news panels"}
