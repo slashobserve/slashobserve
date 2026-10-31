@@ -1,0 +1,7 @@
+datasource.type
+datasource.uid
+fieldConfig.defaults.thresholds.steps[].index
+fieldConfig.defaults.unitScale
+hideTimeOverride
+id
+pluginVersion

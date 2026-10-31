@@ -1,0 +1,67 @@
+bars
+dashLength
+dashes
+datasource
+datasource.type
+datasource.uid
+fill
+fontSize
+hideTimeOverride
+id
+legend.avg
+legend.current
+legend.max
+legend.min
+legend.show
+legend.total
+legend.values
+lines
+linewidth
+nullPointMode
+options.filterable
+options.footer.enablePagination
+options.showSearch
+percentage
+pluginVersion
+pointradius
+points
+renderer
+showHeader
+sort.col
+sort.desc
+spaceLength
+span
+stack
+steppedLine
+styles[].alias type:date
+styles[].alias type:hidden
+styles[].alias type:number
+styles[].align type:date
+styles[].align type:number
+styles[].colors type:number
+styles[].dateFormat type:date
+styles[].dateFormat type:hidden
+styles[].dateFormat type:number
+styles[].dateFormat type:string
+styles[].decimals type:number
+styles[].decimals type:string
+styles[].link type:number
+styles[].linkTargetBlank type:number
+styles[].linkTooltip type:number
+styles[].pattern type:date
+styles[].pattern type:hidden
+styles[].pattern type:number
+styles[].pattern type:string
+styles[].type
+styles[].unit type:number
+styles[].unit type:string
+tooltip.shared
+tooltip.sort
+tooltip.value_type
+transform
+xaxis.mode
+xaxis.show
+yaxes[].format
+yaxes[].logBase
+yaxes[].min
+yaxes[].show

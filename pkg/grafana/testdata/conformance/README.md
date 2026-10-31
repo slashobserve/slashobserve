@@ -86,3 +86,19 @@ A change that adds entries to an area that already has a seed must make them pas
 The importer reads that file to name the Spec field an option became.
 The file is generated and never edited by hand: the test fails when it differs from a fresh run, and `make golden` rewrites it.
 Entries with a gap file are left out until they convert.
+
+## Corpus guard
+
+`TestCorpusOptionsAreCatalogued` requires every option of every corpus dashboard to resolve to a catalog entry of its scope.
+An option is covered when a catalog entry sits at its path (indexes as `[]`, and keys that name user data, such as a series name in `aliasColors` or a renamed field, as `*`).
+It is also covered when an entry above it holds the rest of the path in its value, and every object on the way down that the dashboard discriminates by `id` or `type` has the same discriminator in the entry's value, or when an entry above it is `excluded` or `bookkeeping`, which covers its whole subtree.
+A panel's own `type`, a variable's `type`, a transformation's `id`, the dashboard's export keys (`__inputs`, `__requires`, `__elements`) and the copies Grafana saved of repeated panels are not options.
+The entries of the `panel` and `fieldconfig` areas are generic to every panel type, and a datasource reference's `type` never counts as a discriminator.
+
+The options that are not covered yet are listed in `testdata/uncatalogued/<scope>.txt`, one sorted line per option, with the discriminating `id:` or `type:` after the path where there is one.
+The lists only shrink: a line there that is covered now fails the test, and `-uncatalogued.prune` deletes such lines.
+A plan that catalogues an option deletes its line in the same commit.
+`-uncatalogued.seed` writes the directory only when it does not exist.
+
+Legacy and plugin panels are scoped by the Grafana type they are written with (`panel:graph`, `panel:singlestat`, `panel:natel-discrete-panel`), so their vocabulary never mixes with the modern panel's.
+An area for one of them uses a base panel of that type.

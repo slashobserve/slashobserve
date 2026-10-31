@@ -88,11 +88,17 @@ func (s *source) scopeOf(path string) scopedPath {
 		root := deepest.path + "." + local
 		return scopedPath{transformScope(transformationID(deepest, k)), root, relativeTo(path, root)}
 	}
-	scope := panelScope(spec.PanelType(deepest.typ))
-	if deepest.row {
-		scope = panelScope(spec.Row)
+	return scopedPath{deepest.scope(), deepest.path, rest}
+}
+
+func (n *panelNode) scope() optionScope {
+	switch {
+	case n.row:
+		return panelScope(spec.Row)
+	case n.sourceType != "":
+		return panelScope(spec.PanelType(n.sourceType))
 	}
-	return scopedPath{scope, deepest.path, rest}
+	return panelScope(spec.PanelType(n.typ))
 }
 
 func targetScope(n *panelNode, k int, path, root string) scopedPath {

@@ -222,14 +222,14 @@ var stateLegendIgnored = map[string]string{
 	"options.legend.calcs":    "the state legend lists states and has no calculations",
 }
 
-var ignoredOptions = map[spec.PanelType]map[string]string{
-	spec.StateTimeline: stateLegendIgnored,
-	spec.StatusHistory: stateLegendIgnored,
-	spec.BarChart: {
+var ignoredOptions = map[optionScope]map[string]string{
+	panelScope(spec.StateTimeline): stateLegendIgnored,
+	panelScope(spec.StatusHistory): stateLegendIgnored,
+	panelScope(spec.BarChart): {
 		"options.text.titleSize":   "bar charts draw no title text",
 		"options.text.percentSize": "bar charts draw no percent text",
 	},
-	spec.PieChart: {
+	panelScope(spec.PieChart): {
 		"options.legend.sortBy": "the pie legend shows slice values, not calculations, so there is no calculation to sort by",
 		"options.legend.calcs":  "the pie legend shows slice values, not calculations",
 		"options.orientation":   "a pie has no orientation",
@@ -422,8 +422,8 @@ func isGrafanaDefault(typ spec.PanelType, path string, value any) bool {
 	return ok && sameJSON(value, def)
 }
 
-func isIgnoredOption(typ spec.PanelType, path string) bool {
-	_, ok := ignoredOptions[typ][normalizePath(path)]
+func isIgnoredOption(scope optionScope, path string) bool {
+	_, ok := ignoredOptions[scope][normalizePath(path)]
 	return ok
 }
 
