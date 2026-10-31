@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 11,
-      "imported": 7,
-      "partial": 4,
+      "imported": 10,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -215,13 +215,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -242,13 +238,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -269,13 +261,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",

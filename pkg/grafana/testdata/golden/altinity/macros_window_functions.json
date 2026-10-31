@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 24,
-      "imported": 0,
-      "partial": 24,
+      "imported": 24,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -70,13 +66,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -97,13 +89,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -124,13 +112,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -151,13 +135,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -178,13 +158,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -205,13 +181,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -232,13 +204,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -259,13 +227,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -286,13 +250,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -313,13 +273,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -340,13 +296,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -367,13 +319,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -394,13 +342,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -421,13 +365,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -448,13 +388,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -475,13 +411,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -502,13 +434,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -529,13 +457,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -556,13 +480,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -583,13 +503,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -610,13 +526,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -637,13 +549,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -664,13 +572,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Edge extrapolation of rate macros is not kept."
-        ],
-        "paths": [
-          "targets[0].extrapolate"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
