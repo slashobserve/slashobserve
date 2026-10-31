@@ -11761,6 +11761,9 @@
     "s:SELECT count() FROM $table WHERE $conditionalTest(window IN ($res), $res)": [
      "query"
     ],
+    "s:SELECT count() FROM $table WHERE $conditionalTest(window IN ($res), window IN ('none'), $res)": [
+     "query"
+    ],
     "s:SELECT count() FROM $table WHERE $timeFilter": [
      "query"
     ],

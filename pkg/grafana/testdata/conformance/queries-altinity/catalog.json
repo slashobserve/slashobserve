@@ -39,6 +39,7 @@
     { "id": "query=macro-adhoc", "path": "query", "value": "SELECT count() FROM $table WHERE $adhoc" },
     { "id": "query=macro-unescape", "path": "query", "value": "SELECT count() FROM $table WHERE window = $unescape($res)" },
     { "id": "query=macro-conditionalTest", "path": "query", "value": "SELECT count() FROM $table WHERE $conditionalTest(window IN ($res), $res)" },
+    { "id": "query=macro-conditionalTest-else", "path": "query", "value": "SELECT count() FROM $table WHERE $conditionalTest(window IN ($res), window IN ('none'), $res)" },
     { "id": "database=default", "path": "database", "value": "default" },
     { "id": "table=requests", "path": "table", "value": "requests" },
     { "id": "dateColDataType=event_date", "path": "dateColDataType", "value": "event_date" },

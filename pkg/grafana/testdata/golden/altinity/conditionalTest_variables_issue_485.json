@@ -29,9 +29,9 @@
     "verified": false,
     "counts": {
       "total": 2,
-      "imported": 1,
+      "imported": 2,
       "partial": 0,
-      "placeholder": 1,
+      "placeholder": 0,
       "unverified": 0
     },
     "panels": [
@@ -66,22 +66,24 @@
         "grafana_id": 2,
         "grafana_path": "panels[1]",
         "title": "3 parameters $conditionalTest with ELSE statement + template variables",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "placeholder",
-        "reasons": [
-          "None of this panel's queries can be imported.",
-          "It uses $__conditionalAll(AND service_name IN ($service_name), AND s..., which SlashObserve does not support."
-        ],
+        "status": "imported",
+        "reasons": [],
         "paths": [],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
-            "rewrites": [],
-            "dropped": "It uses $__conditionalAll(AND service_name IN ($service_name), AND s..., which SlashObserve does not support."
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$timeSeries -> $__timeInterval(event_time)",
+              "$table -> default.test_grafana",
+              "$timeFilter -> $__timeFilter(event_time)",
+              "$conditionalTest( -> $__conditionalAll("
+            ],
+            "dropped": null
           }
         ]
       }
@@ -91,7 +93,7 @@
   "blocks": [
     "dashboard mapped=4 bookkeeping=6",
     "panel panels[0] mapped=41 default=3 no_effect=1 bookkeeping=9 field_config:1 query:1",
-    "panel panels[1] outcome=reported"
+    "panel panels[1] mapped=41 default=3 no_effect=1 bookkeeping=10 field_config:1 query:1"
   ],
   "spec": {
     "specVersion": "0",
@@ -134,7 +136,7 @@
       },
       {
         "id": "p2",
-        "type": "placeholder",
+        "type": "timeseries",
         "title": "3 parameters $conditionalTest with ELSE statement + template variables",
         "description": "fix https://github.com/Altinity/clickhouse-grafana/issues/661",
         "gridPos": {
@@ -143,8 +145,13 @@
           "w": 12,
           "h": 8
         },
-        "reason": "None of this panel's queries can be imported. It uses $__conditionalAll(AND service_name IN ($service_name), AND s..., which SlashObserve does not support.",
-        "sourceType": "timeseries"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n    $__timeInterval(event_time) as t,\n    sum(too_big_value) as v,\n    service_name\nFROM default.test_grafana\n\nWHERE $__timeFilter(event_time)\n$__conditionalAll(AND service_name IN ($service_name), AND service_name IN ('mysql'), $service_name)\nGROUP BY t, service_name\nORDER BY t\n"
+          }
+        ],
+        "thresholdsStyle": "off"
       }
     ]
   }

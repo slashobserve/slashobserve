@@ -487,6 +487,27 @@ func TestAltinityAdhocInsideAQueryNeedsExactlyOneAdhocVariable(t *testing.T) {
 	}
 }
 
+func TestAltinityConditionalTestImportsWithAndWithoutAnElseCondition(t *testing.T) {
+	const service = `{"name":"service_name","type":"custom","query":"mysql,redis","multi":true,"includeAll":true}`
+	cases := []struct{ name, call string }{
+		{"condition and variable", "$conditionalTest(service_name IN ($service_name), $service_name)"},
+		{"condition, else condition and variable", "$conditionalTest(service_name IN ($service_name), service_name IN ('mysql'), $service_name)"},
+		{"else condition holding a comma in a string", "$conditionalTest(service_name IN ($service_name), service_name != 'a, b', $service_name)"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := altinityPanel(t, "SELECT 1 FROM t WHERE "+tc.call, "", service)
+			want := "SELECT 1 FROM t WHERE " + strings.Replace(tc.call, "$conditionalTest(", "$__conditionalAll(", 1)
+			if got := panel.Queries[0].Query; got != want {
+				t.Fatalf("query = %q, want %q", got, want)
+			}
+			if line.Status != statusImported || len(line.Paths) != 0 {
+				t.Fatalf("line = %+v, want an imported panel without reported paths", line)
+			}
+		})
+	}
+}
+
 func TestAltinityTimeFilterByColumnBecomesTheTimeFilterMacro(t *testing.T) {
 	got := altinityQuery(t, "SELECT 1 FROM t WHERE $timeFilterByColumn(created_at) AND x = 1", "")
 	if want := "SELECT 1 FROM t WHERE $__timeFilter(created_at) AND x = 1"; got != want {

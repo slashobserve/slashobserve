@@ -153,6 +153,9 @@ func FuzzConditionalAllMatchesParenthesisedCondition(f *testing.F) {
 	const head = "SELECT 1 WHERE "
 	f.Fuzz(func(t *testing.T, condition, hostile string) {
 		macro := "$__conditionalAll(" + condition + ", $v)"
+		if len(spec.SplitMacroArgs(condition+", $v")) != 2 {
+			t.Skip("the condition holds a top-level comma, which makes it the form with an otherwise condition")
+		}
 		conditional := head + macro + " AND z = 1"
 		refs, err := spec.ScanQuery(conditional)
 		if err != nil || len(refs) == 0 || refs[0].Start != len(head) || refs[0].End != len(head)+len(macro) {
@@ -174,6 +177,66 @@ func FuzzConditionalAllMatchesParenthesisedCondition(f *testing.F) {
 		}
 		checkNoDesync(t, ClickHouse, parenthesised, []string{hostile})
 	})
+}
+
+func FuzzConditionalAllOtherwiseMatchesParenthesisedBranch(f *testing.F) {
+	for _, seed := range conditionalAllFuzzSeeds {
+		for _, hostile := range []string{"a", "1", "' OR 1=1 --", "$t$", "a\\", "*/"} {
+			f.Add(seed, hostile)
+		}
+	}
+	const head = "SELECT 1 WHERE "
+	const condition = "x = '$g'"
+	f.Fuzz(func(t *testing.T, otherwise, hostile string) {
+		macro := "$__conditionalAll(" + condition + ", " + otherwise + ", $g)"
+		conditional := head + macro + " AND z = 1"
+		refs, err := spec.ScanQuery(conditional)
+		if err != nil || len(refs) == 0 || refs[0].Start != len(head) || refs[0].End != len(head)+len(macro) || len(spec.SplitMacroArgs(refs[0].Args)) != 3 {
+			t.Skip("the otherwise condition closes the macro itself or holds a top-level comma")
+		}
+		for _, values := range append([][]string{{hostile}}, hostileValues...) {
+			guard := datasource.Variable{Name: "g", Values: values}
+			selected := fuzzEnv(values...)
+			selected.Variables = append(selected.Variables, guard)
+			guard.All = true
+			everything := fuzzEnv(values...)
+			everything.Variables = append(everything.Variables, guard)
+			for _, tc := range []struct {
+				env    Env
+				branch string
+			}{{selected, condition}, {everything, otherwise}} {
+				got, err := Expand(ClickHouse, conditional, tc.env)
+				if err != nil {
+					continue
+				}
+				parenthesised := head + "(" + strings.TrimSpace(tc.branch) + ") AND z = 1"
+				want, err := Expand(ClickHouse, parenthesised, tc.env)
+				if err != nil {
+					t.Fatalf("conditional all expands but its parenthesised branch does not\notherwise: %q\nvalues:    %q\nerror:     %v\nexpansion: %q", otherwise, values, err, got.Text)
+				}
+				if got.Text != want.Text {
+					t.Fatalf("conditional all differs from the parenthesised branch\notherwise:     %q\nvalues:        %q\nconditional:   %q\nparenthesised: %q", otherwise, values, got.Text, want.Text)
+				}
+			}
+		}
+	})
+}
+
+func withGuard(env Env) Env {
+	env.Variables = append(env.Variables, datasource.Variable{Name: "g", Values: []string{"a"}})
+	return env
+}
+
+func TestConditionalAllOtherwiseFuzzSeedsExpandToSomething(t *testing.T) {
+	expanded := 0
+	for _, seed := range conditionalAllFuzzSeeds {
+		if _, err := Expand(ClickHouse, "$__conditionalAll(x = 1, "+seed+", $g)", withGuard(fuzzEnv("a"))); err == nil {
+			expanded++
+		}
+	}
+	if expanded < 15 {
+		t.Fatalf("only %d otherwise fuzz seeds expand with a benign value; the oracle would be vacuous", expanded)
+	}
 }
 
 func FuzzExpandClickHouse(f *testing.F) {

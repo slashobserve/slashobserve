@@ -254,6 +254,8 @@ func scanConditionNested(ref *Reference, macro Macro, open int, budget *int, inA
 type MacroArguments struct {
 	Values         []string
 	ConditionStart int
+	Otherwise      string
+	OtherwiseStart int
 }
 
 func (m Macro) ParseArguments(ref Reference) (MacroArguments, error) {
@@ -284,13 +286,14 @@ func (m Macro) ParseArguments(ref Reference) (MacroArguments, error) {
 
 func parseConditionAndVariable(m Macro, ref Reference) (MacroArguments, error) {
 	parts := SplitMacroArgs(ref.Args)
-	if len(parts) != 2 || parts[0] == "" {
-		return MacroArguments{}, fmt.Errorf("macro $%s needs a condition and a variable, for example $%s(pod IN (${pod:singlequote}), $pod)", m.Name, m.Name)
+	if len(parts) < 2 || len(parts) > 3 || slices.Contains(parts[:len(parts)-1], "") {
+		return MacroArguments{}, fmt.Errorf("macro $%s needs a condition and a variable, for example $%s(pod IN (${pod:singlequote}), $pod), or a condition, an otherwise condition and a variable", m.Name, m.Name)
 	}
 	budget := maxScanWork
-	variable, err := scanQuery(parts[1], &budget, true)
-	if err != nil || len(variable) != 1 || variable[0].Kind != VariableRef || variable[0].Format != "" || variable[0].Start != 0 || variable[0].End != len(parts[1]) {
-		return MacroArguments{}, fmt.Errorf("the second argument of $%s must be one variable reference such as $pod", m.Name)
+	last := parts[len(parts)-1]
+	variable, err := scanQuery(last, &budget, true)
+	if err != nil || len(variable) != 1 || variable[0].Kind != VariableRef || variable[0].Format != "" || variable[0].Start != 0 || variable[0].End != len(last) {
+		return MacroArguments{}, fmt.Errorf("the last argument of $%s must be one variable reference such as $pod", m.Name)
 	}
 	argsStart := ref.Start + 1 + len(ref.Name) + 1
 	conditionAt := len(ref.Args) - len(strings.TrimLeftFunc(ref.Args, unicode.IsSpace))
@@ -298,7 +301,31 @@ func parseConditionAndVariable(m Macro, ref Reference) (MacroArguments, error) {
 	if err := checkConditionNesting(m, ref, argsStart, conditionAt, conditionEnd, &budget); err != nil {
 		return MacroArguments{}, err
 	}
-	return MacroArguments{Values: []string{parts[0], variable[0].Name}, ConditionStart: argsStart + conditionAt}, nil
+	parsed := MacroArguments{Values: []string{parts[0], variable[0].Name}, ConditionStart: argsStart + conditionAt}
+	if len(parts) == 3 {
+		otherwiseAt, err := otherwiseOffset(m, ref, parts[1], variable[0].Name, conditionEnd, argsStart, &budget)
+		if err != nil {
+			return MacroArguments{}, err
+		}
+		parsed.Otherwise, parsed.OtherwiseStart = parts[1], argsStart+otherwiseAt
+	}
+	return parsed, nil
+}
+
+func otherwiseOffset(m Macro, ref Reference, otherwise, guard string, conditionEnd, argsStart int, budget *int) (int, error) {
+	afterComma := strings.TrimLeftFunc(ref.Args[conditionEnd:], unicode.IsSpace)[1:]
+	at := len(ref.Args) - len(strings.TrimLeftFunc(afterComma, unicode.IsSpace))
+	if err := checkConditionNesting(m, ref, argsStart, at, at+len(otherwise), budget); err != nil {
+		return 0, err
+	}
+	used, err := scanQuery(otherwise, budget, true)
+	if err != nil {
+		return 0, fmt.Errorf("the otherwise condition of $%s: %s", m.Name, err.Error())
+	}
+	if slices.ContainsFunc(FlattenReferences(used), func(r Reference) bool { return r.Kind == VariableRef && r.Name == guard }) {
+		return 0, fmt.Errorf("the otherwise condition of $%s must not use its own variable $%s, which is the one that selected All or nothing", m.Name, guard)
+	}
+	return at, nil
 }
 
 func checkConditionNesting(m Macro, ref Reference, argsStart, conditionAt, conditionEnd int, budget *int) error {
