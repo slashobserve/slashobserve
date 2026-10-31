@@ -409,6 +409,52 @@ export function tableModel(
   return { columns, rows }
 }
 
+export function selectFrames(
+  frames: PreparedFrame[],
+  frameIndex: unknown
+): PreparedFrame[] {
+  if (typeof frameIndex !== "number" || frames.length < 2) return frames
+  const last = frames.length - 1
+  return [frames[Math.min(Math.max(0, Math.floor(frameIndex)), last)]]
+}
+
+function tooltipTextAt(
+  fields: FieldResolver,
+  row: TableRow,
+  name: string
+): string | null {
+  const { frame, index } = row.at
+  const candidates = frame.fields.filter((field) => !field.nested)
+  const field =
+    candidates.find((candidate) => candidate.name === name) ??
+    candidates.find(
+      (candidate) => fields.displayName(frame, candidate) === name
+    )
+  const value = field?.values[index]
+  if (!field || value === null || value === undefined) return null
+  if (field.type === "time" && typeof value === "number") {
+    return formatTimeValue(String(value))
+  }
+  if (typeof value === "object") return JSON.stringify(value)
+  return displayValue(value, fields.configFor(frame, field)).text
+}
+
+export type CellTooltip = {
+  text: string
+  placement: FieldConfig["tooltipPlacement"]
+}
+
+export function cellTooltipAt(
+  fields: FieldResolver,
+  column: TableColumn,
+  row: TableRow
+): CellTooltip | null {
+  const { tooltipField, tooltipPlacement } = configAt(fields, column, row)
+  if (tooltipField === undefined) return null
+  const text = tooltipTextAt(fields, row, tooltipField)
+  return text === null ? null : { text, placement: tooltipPlacement }
+}
+
 const plain: Cell = { text: "", color: null, level: null, word: "" }
 
 export function cellSpecAt(

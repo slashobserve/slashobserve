@@ -7,7 +7,9 @@ import {
   pageRows,
   pageSizeFor,
   rowHeightOf,
+  rowSizing,
   stickyOffsets,
+  tooltipSideOf,
   typeWord,
 } from "./table-layout"
 
@@ -95,6 +97,67 @@ describe("rowHeightOf", () => {
     [{}, "sm"],
   ])("reads %j as %s", (display, want) => {
     expect(rowHeightOf(display)).toBe(want)
+  })
+})
+
+describe("rowSizing", () => {
+  it.each([
+    [
+      "a fixed row",
+      {},
+      false,
+      { padding: "sm", grows: false, maxHeight: null },
+    ],
+    [
+      "a fixed row ignores the cap",
+      { cellHeight: "md", maxRowHeight: 100 },
+      false,
+      { padding: "md", grows: false, maxHeight: null },
+    ],
+    [
+      "an automatic row without a cap",
+      { cellHeight: "auto" },
+      false,
+      { padding: "sm", grows: true, maxHeight: null },
+    ],
+    [
+      "an automatic row with a cap",
+      { cellHeight: "auto", maxRowHeight: 100 },
+      false,
+      { padding: "sm", grows: true, maxHeight: 100 },
+    ],
+    [
+      "a dynamic cell in a fixed row",
+      { cellHeight: "lg" },
+      true,
+      { padding: "lg", grows: true, maxHeight: null },
+    ],
+    [
+      "a dynamic cell within the cap",
+      { cellHeight: "lg", maxRowHeight: 60 },
+      true,
+      { padding: "lg", grows: true, maxHeight: 60 },
+    ],
+    [
+      "a cap that is not a positive number",
+      { cellHeight: "auto", maxRowHeight: 0 },
+      false,
+      { padding: "sm", grows: true, maxHeight: null },
+    ],
+  ] as const)("%s", (_name, display, dynamicHeight, want) => {
+    expect(rowSizing({ ...display }, dynamicHeight)).toEqual(want)
+  })
+})
+
+describe("tooltipSideOf", () => {
+  it.each([
+    ["auto", "top"],
+    ["top", "top"],
+    ["bottom", "bottom"],
+    ["left", "left"],
+    ["right", "right"],
+  ] as const)("opens a %s tooltip on the %s side", (placement, want) => {
+    expect(tooltipSideOf(placement)).toBe(want)
   })
 })
 

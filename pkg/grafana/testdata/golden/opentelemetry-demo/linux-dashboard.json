@@ -628,13 +628,11 @@
         "row": "Details",
         "status": "partial",
         "reasons": [
-          "Some transformations are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some transformations are not supported yet."
         ],
         "paths": [
           "transformations[2].options.binary",
-          "transformations[3].options.binary",
-          "options.frameIndex"
+          "transformations[3].options.binary"
         ],
         "queries": [
           {
@@ -1947,7 +1945,10 @@
                 "type": "sortBy",
                 "field": "Mount"
               }
-            ]
+            ],
+            "display": {
+              "frameIndex": 0
+            }
           }
         ]
       }

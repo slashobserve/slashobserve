@@ -5,6 +5,7 @@ import {
   useMemo,
   useState,
   type CSSProperties,
+  type ReactElement,
 } from "react"
 import {
   ArrowDownIcon,
@@ -28,6 +29,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
@@ -41,6 +47,7 @@ import { GaugeCell } from "./cells/gauge"
 import { ImageCell } from "./cells/image"
 import { JsonCell } from "./cells/json"
 import { LinksCell } from "./cells/links"
+import { MarkdownCell } from "./cells/markdown"
 import { PillCell } from "./cells/pill"
 import { SparklineCell } from "./cells/sparkline"
 import { TextCell } from "./cells/text"
@@ -50,6 +57,7 @@ import {
   toggleValue,
   type ColumnFilters,
 } from "./column-filter"
+import { CellTooltip } from "./cell-tooltip"
 import { ColumnFilterMenu } from "./column-filter-menu"
 import { InspectCell } from "./inspect-cell"
 import {
@@ -60,7 +68,9 @@ import {
   pageRows,
   pageSizeFor,
   rowHeightOf,
+  rowSizing,
   stickyOffsets,
+  tooltipSideOf,
   typeWord,
   type Align,
   type RowHeight,
@@ -70,9 +80,11 @@ import {
   cellLinks,
   cellOf,
   cellSpecAt,
+  cellTooltipAt,
   footerRows,
   gaugeFractionAt,
   rowFill,
+  selectFrames,
   sparklineAt,
   tableModel,
   type Cell,
@@ -116,6 +128,8 @@ type ColumnView = {
   inspect: boolean
   filterable: boolean
   hideHeader: boolean
+  wrapHeader: boolean
+  description: string | undefined
   left: number | null
 }
 
@@ -138,7 +152,7 @@ type CellProps = {
 }
 
 type RowShared = CellProps & {
-  padding: RowHeight
+  display: Record<string, unknown>
   fixed: boolean
 }
 
@@ -160,12 +174,14 @@ function CellContent({
   spec,
   cell,
   filled,
+  grows,
 }: Pick<CellProps, "row" | "fields"> & {
   column: TableColumn
   links: ResolvedLink[]
   spec: CellSpec
   cell: Cell
   filled: boolean
+  grows: boolean
 }) {
   const value = row.values[column.key]
   switch (spec.type) {
@@ -198,6 +214,8 @@ function CellContent({
       return <LinksCell cell={cell} links={links} />
     case "pill":
       return <PillCell value={value} />
+    case "markdown":
+      return <MarkdownCell value={value} grows={grows} />
   }
   return (
     <TextCell
@@ -214,7 +232,7 @@ function BodyCell({
   fields,
   scope,
   rowColor,
-  padding,
+  display,
   fixed,
 }: RowShared & {
   view: ColumnView
@@ -224,6 +242,8 @@ function BodyCell({
   const value = row.values[column.key]
   const cell = cellOf(fields, column, row)
   const spec = cellSpecAt(fields, column, row)
+  const sizing = rowSizing(display, spec.dynamicHeight)
+  const tooltip = cellTooltipAt(fields, column, row)
   const ownFill = spec.type === "background" ? cell.color : null
   const frame = useFrame(rowColor ?? ownFill)
   const filled = frame.fill !== null
@@ -237,7 +257,16 @@ function BodyCell({
       spec={spec}
       cell={cell}
       filled={filled}
+      grows={sizing.grows}
     />
+  )
+  const inner = view.inspect ? (
+    <span className={cn("flex items-center gap-1", justifyClasses[view.align])}>
+      {content}
+      <InspectCell label={column.label} value={value} text={cell.text} />
+    </span>
+  ) : (
+    content
   )
   return (
     <TableCell
@@ -254,25 +283,30 @@ function BodyCell({
       }}
       className={cn(
         "px-2 data-one-click:cursor-pointer",
-        bodyPadding[padding],
+        bodyPadding[sizing.padding],
         alignClasses[view.align],
         column.type === "number" && "tabular-nums",
-        spec.wrap && "break-words whitespace-normal",
-        fixed && !spec.wrap && "overflow-hidden text-ellipsis",
+        (spec.wrap || sizing.grows) && "break-words whitespace-normal",
+        fixed && !spec.wrap && !sizing.grows && "overflow-hidden text-ellipsis",
         view.left !== null && !filled && "bg-card",
         value === null && !filled && "text-muted-foreground"
       )}
     >
-      {view.inspect ? (
-        <span
-          className={cn("flex items-center gap-1", justifyClasses[view.align])}
-        >
-          {content}
-          <InspectCell label={column.label} value={value} text={cell.text} />
-        </span>
-      ) : (
-        content
-      )}
+      <CellTooltip
+        text={tooltip?.text ?? null}
+        side={tooltipSideOf(tooltip?.placement ?? "auto")}
+      >
+        {sizing.maxHeight === null ? (
+          inner
+        ) : (
+          <div
+            className="overflow-hidden"
+            style={{ maxHeight: sizing.maxHeight }}
+          >
+            {inner}
+          </div>
+        )}
+      </CellTooltip>
     </TableCell>
   )
 }
@@ -416,6 +450,24 @@ const BodyRow = memo(function BodyRow({
   )
 })
 
+function HeaderTooltip({
+  text,
+  children,
+}: {
+  text: string | undefined
+  children: ReactElement
+}) {
+  if (text === undefined) return children
+  return (
+    <Tooltip>
+      <TooltipTrigger render={children} />
+      <TooltipContent side="top" role="tooltip">
+        {text}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 function HeaderCell({
   view,
   sort,
@@ -452,6 +504,7 @@ function HeaderCell({
       style={stickyStyle(view.left)}
       className={cn(
         "h-8 px-2",
+        view.wrapHeader && "h-auto min-h-8 py-1 whitespace-normal",
         alignClasses[view.align],
         view.left !== null && "z-[1] bg-card"
       )}
@@ -464,33 +517,36 @@ function HeaderCell({
         )}
       >
         {showHeader ? (
-          <button
-            type="button"
-            onClick={() => onSort(column.key)}
-            className={cn(
-              "inline-flex items-center gap-1 rounded-sm font-medium outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
-              view.align === "right" && "flex-row-reverse"
-            )}
-          >
-            {showTypeIcons ? (
-              <TypeMark
-                className="size-3 text-muted-foreground"
-                aria-hidden="true"
-              />
-            ) : null}
-            <span className={view.hideHeader ? "sr-only" : undefined}>
-              {column.label}
-            </span>
-            {showTypeIcons ? (
-              <span className="sr-only">, {typeWord(column.type)}</span>
-            ) : null}
-            {active?.direction === "ascending" ? (
-              <ArrowUpIcon className="size-3" aria-hidden="true" />
-            ) : null}
-            {active?.direction === "descending" ? (
-              <ArrowDownIcon className="size-3" aria-hidden="true" />
-            ) : null}
-          </button>
+          <HeaderTooltip text={view.description}>
+            <button
+              type="button"
+              onClick={() => onSort(column.key)}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-sm font-medium outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+                view.align === "right" && "flex-row-reverse",
+                view.wrapHeader && "text-left break-words whitespace-normal"
+              )}
+            >
+              {showTypeIcons ? (
+                <TypeMark
+                  className="size-3 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+              ) : null}
+              <span className={view.hideHeader ? "sr-only" : undefined}>
+                {column.label}
+              </span>
+              {showTypeIcons ? (
+                <span className="sr-only">, {typeWord(column.type)}</span>
+              ) : null}
+              {active?.direction === "ascending" ? (
+                <ArrowUpIcon className="size-3 shrink-0" aria-hidden="true" />
+              ) : null}
+              {active?.direction === "descending" ? (
+                <ArrowDownIcon className="size-3 shrink-0" aria-hidden="true" />
+              ) : null}
+            </button>
+          </HeaderTooltip>
         ) : (
           column.label
         )}
@@ -520,7 +576,14 @@ const TablePanel: PanelRenderer = ({
   width,
   height,
 }) => {
-  const model = useMemo(() => tableModel(frames, fields), [frames, fields])
+  const shownFrames = useMemo(
+    () => selectFrames(frames, display.frameIndex),
+    [frames, display.frameIndex]
+  )
+  const model = useMemo(
+    () => tableModel(shownFrames, fields),
+    [shownFrames, fields]
+  )
   const [pick, setPick] = useState<{ from: string; sort: Sort | null } | null>(
     null
   )
@@ -567,6 +630,8 @@ const TablePanel: PanelRenderer = ({
       inspect: column.config.inspect,
       filterable: column.config.filterable,
       hideHeader: column.config.hideHeader,
+      wrapHeader: column.config.wrapHeader,
+      description: column.config.fieldDescription,
       left: offsets[index] === undefined ? null : offsets[index] + shift,
     }))
   }, [model.columns, layout, frozen, expandable])
@@ -702,7 +767,7 @@ const TablePanel: PanelRenderer = ({
                 row={row}
                 fields={fields}
                 scope={links}
-                padding={rowHeight}
+                display={display}
                 fixed={fixed}
                 expandable={expandable}
                 expanded={open.has(row.key)}

@@ -20,6 +20,7 @@ describe("cellSpecOf", () => {
       valueMode: "text",
       wholeRow: false,
       wrap: false,
+      dynamicHeight: false,
       imageAlt: undefined,
       imageTitle: undefined,
     })
@@ -29,6 +30,12 @@ describe("cellSpecOf", () => {
     expect(
       cellSpecOf({ type: "gauge", gaugeStyle: "lcd", valueMode: "hidden" })
     ).toMatchObject({ type: "gauge", gaugeStyle: "lcd", valueMode: "hidden" })
+  })
+
+  it("reads a markdown cell that grows", () => {
+    expect(cellSpecOf({ type: "markdown", dynamicHeight: true })).toMatchObject(
+      { type: "markdown", dynamicHeight: true }
+    )
   })
 })
 

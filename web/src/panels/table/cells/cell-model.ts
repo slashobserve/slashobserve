@@ -9,6 +9,7 @@ export type CellSpec = {
   valueMode: "color" | "text" | "hidden"
   wholeRow: boolean
   wrap: boolean
+  dynamicHeight: boolean
   imageAlt?: string
   imageTitle?: string
 }
@@ -31,6 +32,7 @@ export function cellSpecOf(cell: FieldConfig["cell"]): CellSpec {
     valueMode: cell?.valueMode ?? "text",
     wholeRow: cell?.wholeRow ?? false,
     wrap: cell?.wrap ?? false,
+    dynamicHeight: cell?.dynamicHeight ?? false,
     imageAlt: cell?.imageAlt,
     imageTitle: cell?.imageTitle,
   }

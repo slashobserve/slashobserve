@@ -419,6 +419,10 @@ type FieldProps struct {
 	Filterable        *bool       `json:"filterable,omitempty"`
 	Inspect           *bool       `json:"inspect,omitempty"`
 	HideHeader        *bool       `json:"hideHeader,omitempty"`
+	WrapHeader        *bool       `json:"wrapHeader,omitempty"`
+	FieldDescription  string      `json:"fieldDescription,omitempty"`
+	TooltipField      string      `json:"tooltipField,omitempty"`
+	TooltipPlacement  string      `json:"tooltipPlacement,omitempty"`
 	ValueTransform    string      `json:"valueTransform,omitempty"`
 	HideInLegend      *bool       `json:"hideInLegend,omitempty"`
 	HideInTooltip     *bool       `json:"hideInTooltip,omitempty"`
@@ -434,13 +438,14 @@ type FieldProps struct {
 }
 
 type Cell struct {
-	Type       string `json:"type"`
-	GaugeStyle string `json:"gaugeStyle,omitempty"`
-	ValueMode  string `json:"valueMode,omitempty"`
-	WholeRow   *bool  `json:"wholeRow,omitempty"`
-	Wrap       *bool  `json:"wrap,omitempty"`
-	ImageAlt   string `json:"imageAlt,omitempty"`
-	ImageTitle string `json:"imageTitle,omitempty"`
+	Type          string `json:"type"`
+	GaugeStyle    string `json:"gaugeStyle,omitempty"`
+	ValueMode     string `json:"valueMode,omitempty"`
+	WholeRow      *bool  `json:"wholeRow,omitempty"`
+	Wrap          *bool  `json:"wrap,omitempty"`
+	DynamicHeight *bool  `json:"dynamicHeight,omitempty"`
+	ImageAlt      string `json:"imageAlt,omitempty"`
+	ImageTitle    string `json:"imageTitle,omitempty"`
 }
 
 type Threshold struct {
@@ -688,6 +693,8 @@ type Display struct {
 	FooterFields       []string           `json:"footerFields,omitempty"`
 	FooterCountRows    *bool              `json:"footerCountRows,omitempty"`
 	CellHeight         string             `json:"cellHeight,omitempty"`
+	MaxRowHeight       int                `json:"maxRowHeight,omitempty"`
+	FrameIndex         *int               `json:"frameIndex,omitempty"`
 	Pagination         *bool              `json:"pagination,omitempty"`
 	FrozenColumns      int                `json:"frozenColumns,omitempty"`
 	SortBy             string             `json:"sortBy,omitempty"`

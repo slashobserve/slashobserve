@@ -49,7 +49,6 @@
         ],
         "paths": [
           "fontSize",
-          "options.frameIndex",
           "showHeader",
           "sort.col",
           "sort.desc",
@@ -93,7 +92,6 @@
         ],
         "paths": [
           "fontSize",
-          "options.frameIndex",
           "showHeader",
           "sort.col",
           "sort.desc",
@@ -166,6 +164,7 @@
           }
         ],
         "display": {
+          "frameIndex": 1,
           "sortBy": "t"
         }
       },
@@ -201,6 +200,7 @@
           }
         ],
         "display": {
+          "frameIndex": 1,
           "sortBy": "t"
         }
       }

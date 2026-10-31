@@ -65,6 +65,7 @@ export type DisplayKey =
   | "footer"
   | "footerCountRows"
   | "footerFields"
+  | "frameIndex"
   | "frozenColumns"
   | "fullHighlight"
   | "geohashField"
@@ -104,6 +105,7 @@ export type DisplayKey =
   | "markerSizeMax"
   | "matchesOnly"
   | "maxHeight"
+  | "maxRowHeight"
   | "maxSpanDuration"
   | "maxZoom"
   | "mergeValues"
@@ -272,6 +274,8 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "footerFields",
     "footerCountRows",
     "cellHeight",
+    "maxRowHeight",
+    "frameIndex",
     "pagination",
     "frozenColumns",
     "sortBy",

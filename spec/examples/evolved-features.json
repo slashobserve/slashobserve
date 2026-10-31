@@ -79,7 +79,10 @@
         { "type": "sortBy", "field": "p99_ms", "desc": true },
         { "type": "reduce", "reducers": ["variance", "uniqueValues"] }
       ],
-      "display": { "header": true } },
+      "overrides": [{ "match": { "field": "span" }, "fieldDescription": "The operation the span measures.",
+        "tooltipField": "p99_ms", "tooltipPlacement": "right", "wrapHeader": true,
+        "cell": { "type": "markdown", "dynamicHeight": true } }],
+      "display": { "header": true, "cellHeight": "auto", "maxRowHeight": 120, "frameIndex": 0 } },
     { "id": "p_world", "type": "placeholder", "title": "Traffic map",
       "gridPos": { "x": 0, "y": 8, "w": 12, "h": 4 },
       "reason": "Grafana panel type worldmap is not supported yet", "sourceType": "worldmap" },

@@ -357,6 +357,10 @@ export type Color2 = string;
  * A semantic color (ok, info, warning, critical) or a #rrggbb hex color.
  */
 export type Color3 = string;
+/**
+ * The name of a field whose value in the same row is shown as a tooltip on this column's cells. Only table panels draw it.
+ */
+export type FieldName = string;
 export type QueryRef = string;
 /**
  * A minimum step such as 30s, or ${name} naming an interval variable; queries then use the step selected in that variable.
@@ -565,7 +569,7 @@ export type Transform =
        * @minItems 1
        * @maxItems 100
        */
-      fields?: FieldName[];
+      fields?: FieldName1[];
       /**
        * Reduce only the number fields whose name matches this pattern, anchored unless written /re/flags.
        */
@@ -614,13 +618,13 @@ export type Transform =
        * @minItems 1
        * @maxItems 50
        */
-      include?: FieldName[];
+      include?: FieldName1[];
       /**
        * Apply fn to a number field; absent field means the first number field, absent fn means abs.
        */
       unary?: {
         fn?: "abs" | "exp" | "ln" | "floor" | "ceil" | "round";
-        field?: FieldName;
+        field?: FieldName1;
       };
       /**
        * The row number from 0, or with percentile its place from 0 to 1.
@@ -633,14 +637,14 @@ export type Transform =
        */
       cumulative?: {
         fn?: "sum" | "mean";
-        field?: FieldName;
+        field?: FieldName1;
       };
       /**
        * A moving mean, standard deviation or variance of a number field over size rows or a share of the rows (0.1 when neither is written); trailing windows end at the row, centered ones surround it, and windows at the edges shrink.
        */
       window?: {
         fn?: "mean" | "stdDev" | "variance";
-        field?: FieldName;
+        field?: FieldName1;
         size?: number;
         share?: number;
         align?: "trailing" | "centered";
@@ -662,7 +666,7 @@ export type Transform =
        * @maxItems 10
        */
       then?: {
-        field: FieldName;
+        field: FieldName1;
         desc?: boolean;
       }[];
       queries?: TransformQueries7;
@@ -679,7 +683,7 @@ export type Transform =
        * @maxItems 50
        */
       conversions: {
-        field: FieldName;
+        field: FieldName1;
         to: ("number" | "string" | "time" | "boolean") | ("enum" | "other");
         dateFormat?: string;
         joinWith?: string;
@@ -688,7 +692,7 @@ export type Transform =
     }
   | {
       type: "formatString";
-      field: FieldName;
+      field: FieldName1;
       format:
         ("upper" | "lower" | "title" | "trim" | "substring") | ("sentence" | "pascal" | "camel" | "snake" | "kebab");
       start?: number;
@@ -697,7 +701,7 @@ export type Transform =
     }
   | {
       type: "formatTime";
-      field: FieldName;
+      field: FieldName1;
       format: string;
       utc?: boolean;
       queries?: TransformQueries11;
@@ -717,7 +721,7 @@ export type Transform =
        * @maxItems 20
        */
       filters: {
-        field: FieldName;
+        field: FieldName1;
         op: "gt" | "gte" | "lt" | "lte" | "eq" | "neq" | "null" | "notNull" | "regex" | "range";
         value?: number | string;
         from?: number;
@@ -736,7 +740,7 @@ export type Transform =
     }
   | {
       type: "extractFields";
-      field: FieldName;
+      field: FieldName1;
       format?: ("auto" | "json" | "kvp") | ("delimiter" | "regexp");
       replace?: boolean;
       keepTime?: boolean;
@@ -759,18 +763,18 @@ export type Transform =
        * @minItems 1
        * @maxItems 100
        */
-      include?: FieldName[];
+      include?: FieldName1[];
       valueLabel?: string;
       queries?: TransformQueries16;
     }
   | {
       type: "joinByLabels";
-      value: FieldName;
+      value: FieldName1;
       /**
        * @minItems 1
        * @maxItems 20
        */
-      on?: FieldName[];
+      on?: FieldName1[];
       queries?: TransformQueries17;
     }
   | {
@@ -779,7 +783,7 @@ export type Transform =
        * @minItems 1
        * @maxItems 10
        */
-      fields: FieldName[];
+      fields: FieldName1[];
       keepFields?: boolean;
       naming?: "labels" | ("name" | "append");
       queries?: TransformQueries18;
@@ -803,7 +807,7 @@ export type Transform =
        * @maxItems 20
        */
       mappings?: {
-        field: FieldName;
+        field: FieldName1;
         to: "name" | "value" | "unit" | "min" | "max" | "decimals" | "displayName" | "noValue" | "color";
       }[];
       queries?: TransformQueries21;
@@ -816,7 +820,7 @@ export type Transform =
        * @maxItems 20
        */
       mappings: {
-        field: FieldName;
+        field: FieldName1;
         to: "unit" | "min" | "max" | "decimals" | "displayName" | "noValue" | "color";
         reducer?: Reducer;
       }[];
@@ -835,13 +839,13 @@ export type Transform =
        * @minItems 1
        * @maxItems 20
        */
-      by?: FieldName[];
+      by?: FieldName1[];
       /**
        * @minItems 1
        * @maxItems 20
        */
       aggregate?: {
-        field: FieldName;
+        field: FieldName1;
         /**
          * @minItems 1
          * @maxItems 10
@@ -852,9 +856,9 @@ export type Transform =
     }
   | {
       type: "groupingToMatrix";
-      column?: FieldName;
-      row?: FieldName;
-      value?: FieldName;
+      column?: FieldName1;
+      row?: FieldName1;
+      value?: FieldName1;
       empty?: "empty" | "zero" | "true" | "false";
       queries?: TransformQueries25;
     }
@@ -864,13 +868,13 @@ export type Transform =
        * @minItems 1
        * @maxItems 20
        */
-      by?: FieldName[];
+      by?: FieldName1[];
       /**
        * @minItems 1
        * @maxItems 20
        */
       aggregate?: {
-        field: FieldName;
+        field: FieldName1;
         /**
          * @minItems 1
          * @maxItems 10
@@ -892,15 +896,15 @@ export type Transform =
       type: "regression";
       model?: "linear" | "polynomial";
       degree?: number;
-      x?: FieldName;
-      y?: FieldName;
+      x?: FieldName1;
+      y?: FieldName1;
       predictions?: number;
       queries?: TransformQueries28;
     }
   | {
       type: "transpose";
-      firstName?: FieldName;
-      restName?: FieldName;
+      firstName?: FieldName1;
+      restName?: FieldName1;
       empty?: "empty" | "zero" | "true" | "false";
       queries?: TransformQueries29;
     }
@@ -935,7 +939,7 @@ export type Transform =
        * For calculate: heading in degrees and distance in meters from the previous located row, or area in square meters of the polygon whose corners are the located rows in order. Absent means heading.
        */
       calc?: "heading" | "distance" | "area";
-      field?: FieldName1;
+      field?: FieldName2;
       /**
        * For modify: lineBuilder draws one line per row from the source to the target location; asLine keeps the located rows, in order, as the points of one line. Absent means lineBuilder.
        */
@@ -945,7 +949,7 @@ export type Transform =
     }
   | {
       type: "fieldLookup";
-      lookupField?: FieldName2;
+      lookupField?: FieldName3;
       /**
        * The built-in list the names are looked up in. Absent means countries.
        */
@@ -980,7 +984,7 @@ export type AnyReducer = Reducer | ("allIsNull" | "allIsZero" | "allValues" | "u
 /**
  * A field name or series name in the panel's frames.
  */
-export type FieldName = string;
+export type FieldName1 = string;
 /**
  * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
  *
@@ -1180,7 +1184,7 @@ export type TransformQueries30 = QueryRef[];
 /**
  * A field name or series name in the panel's frames.
  */
-export type FieldName1 = string;
+export type FieldName2 = string;
 /**
  * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
  *
@@ -1191,7 +1195,7 @@ export type TransformQueries31 = QueryRef[];
 /**
  * A field name or series name in the panel's frames.
  */
-export type FieldName2 = string;
+export type FieldName3 = string;
 /**
  * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
  *
@@ -1603,14 +1607,31 @@ export interface FieldProps {
    */
   hideHeader?: boolean;
   /**
+   * Wraps the text of the table column's header onto several lines. Only table panels draw it.
+   */
+  wrapHeader?: boolean;
+  /**
+   * Describes the field; a table shows it as a tooltip on the column header. Named apart from the panel's own description because field props sit beside it on the panel. Only table panels draw it.
+   */
+  fieldDescription?: string;
+  tooltipField?: FieldName;
+  /**
+   * Where the cell tooltip of tooltipField opens; auto lets the browser choose. Only table panels draw it.
+   */
+  tooltipPlacement?: "auto" | "top" | "bottom" | "left" | "right";
+  /**
    * How a table column draws its cells; absent means the plain cell with colors from thresholds and colored mappings. Only table panels draw it.
    */
   cell?: {
-    type: "auto" | "text" | "background" | "gauge" | "sparkline" | "json" | "image" | "links" | "pill";
+    type: "auto" | "text" | "background" | "gauge" | "sparkline" | "json" | "image" | "links" | "pill" | "markdown";
     gaugeStyle?: "basic" | "lcd";
     valueMode?: "color" | "text" | "hidden";
     wholeRow?: boolean;
     wrap?: boolean;
+    /**
+     * Lets the cell grow to its content up to the table's maxRowHeight.
+     */
+    dynamicHeight?: boolean;
     imageAlt?: string;
     imageTitle?: string;
   };
@@ -1824,10 +1845,10 @@ export interface HeatmapBuckets {
  */
 export interface SpatialLocation {
   mode?: "auto" | "coords" | "geohash" | "lookup";
-  latitude?: FieldName;
-  longitude?: FieldName;
-  geohash?: FieldName;
-  lookup?: FieldName;
+  latitude?: FieldName1;
+  longitude?: FieldName1;
+  geohash?: FieldName1;
+  lookup?: FieldName1;
   gazetteer?: "countries" | "usa-states";
 }
 export interface TextPanel {
