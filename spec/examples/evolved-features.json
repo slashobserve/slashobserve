@@ -88,7 +88,16 @@
           "queries": [{ "query": "SELECT count() FROM otel_logs WHERE SeverityText = 'ERROR' AND $__timeFilter(Timestamp)" }] },
         { "id": "p_reuse", "type": "table", "title": "Requests and errors as a table",
           "gridPos": { "x": 6, "y": 13, "w": 12, "h": 4 },
-          "queries": [{ "ref": "A", "source": { "panel": "p_rps", "withTransforms": true } }] }
+          "queries": [{ "ref": "A", "source": { "panel": "p_rps", "withTransforms": true } }] },
+        { "id": "p_candles", "type": "candlestick", "title": "Open file descriptors",
+          "gridPos": { "x": 0, "y": 17, "w": 12, "h": 8 }, "datasource": "prom",
+          "queries": [
+            { "ref": "open", "query": "min_over_time(process_open_fds[5m])" },
+            { "ref": "high", "query": "max_over_time(process_open_fds[5m])" },
+            { "ref": "low", "query": "min_over_time(process_open_fds[5m])" },
+            { "ref": "close", "query": "process_open_fds" }
+          ],
+          "display": { "legendMode": "table", "legendValues": ["mean", "p95"] } }
       ] }
   ]
 }
