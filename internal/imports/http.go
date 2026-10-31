@@ -33,8 +33,8 @@ func NewHandler(svc *Service, access *folders.Access) *Handler {
 }
 
 func (h *Handler) Register(api auth.Routes) {
-	api.POST("/imports/preview", auth.RoleEditor, h.preview)
-	api.POST("/imports", auth.RoleEditor, h.create)
+	api.POST("/imports/preview", auth.RoleViewer, h.access.RequireCreate(), h.preview)
+	api.POST("/imports", auth.RoleViewer, h.access.RequireCreate(), h.create)
 	api.GET("/imports", auth.RoleViewer, h.list)
 	api.GET("/dashboards/:id/import", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.forDashboard)
 }

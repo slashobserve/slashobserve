@@ -149,7 +149,7 @@ func newRigWith(t *testing.T, ds datasource.Datasource) *rig {
 		dashboard: dash,
 		access:    access,
 		imports:   imports.New(database.DB, dash, access, registry, logger),
-		queue:     revisions.NewService(database.DB, noopReviser{}, logger),
+		queue:     revisions.NewService(database.DB, noopReviser{}, logger, revisions.WithAccess(access)),
 	}
 }
 

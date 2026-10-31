@@ -89,6 +89,25 @@ func (a *Access) RequireFolder(n Need) gin.HandlerFunc {
 	}
 }
 
+func (a *Access) RequireCreate() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		levels, err := a.Levels(c.Request.Context(), httpapi.Caller(c))
+		switch {
+		case errors.Is(err, ErrForbidden):
+			httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
+			return
+		case err != nil:
+			a.fail(c, "check create access", err)
+			return
+		}
+		if !levels.CanCreate() {
+			httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
+			return
+		}
+		c.Next()
+	}
+}
+
 func (a *Access) fail(c *gin.Context, action string, err error) {
 	if clientgone.Handle(c, a.logger, action, err) {
 		return

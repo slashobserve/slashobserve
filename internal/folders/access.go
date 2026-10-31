@@ -49,6 +49,15 @@ func (l Levels) Of(folderID pgtype.UUID) Abilities {
 	return e.Abilities
 }
 
+func (l Levels) CanCreate() bool {
+	for _, e := range l.entries {
+		if e.Abilities.Create {
+			return true
+		}
+	}
+	return false
+}
+
 func (l Levels) Visible() []pgtype.UUID {
 	ids := make([]pgtype.UUID, 0, len(l.entries))
 	for _, e := range l.entries {
