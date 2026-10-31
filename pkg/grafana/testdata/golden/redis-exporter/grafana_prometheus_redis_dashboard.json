@@ -70,11 +70,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "The time override label is always shown.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "hideTimeOverride",
           "fieldConfig.defaults.unitScale"
         ],
         "queries": [
@@ -97,11 +95,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "The time override label is always shown.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "hideTimeOverride",
           "fieldConfig.defaults.unitScale",
           "options.orientation"
         ],
@@ -532,6 +528,7 @@
           }
         ],
         "timeFrom": "now-1m",
+        "hideTimeOverride": true,
         "maxDataPoints": 100,
         "display": {
           "colorMode": "none",
@@ -581,6 +578,7 @@
           }
         ],
         "timeFrom": "now-1m",
+        "hideTimeOverride": true,
         "maxDataPoints": 100
       },
       {

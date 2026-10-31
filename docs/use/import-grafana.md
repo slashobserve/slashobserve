@@ -65,6 +65,7 @@ Its `withTransforms` setting is kept, and `adHocFiltersEnabled` imports as `adHo
 A source panel that is missing, is not a data panel, repeats or itself reuses another panel drops the query with "The panel this one reuses could not be imported.", and a panel left with no query becomes a placeholder.
 A reusing panel takes its time range and step from its source, so its own `interval`, `maxDataPoints`, `timeFrom` and `timeShift` are reported, and a reusing query that sits beside other queries is dropped and reported.
 A panel with no title imports with an internal name (`Panel <id>`) that menus and screen readers use but that is not drawn, as in Grafana, and a transparent panel is drawn without a border or background.
+A panel that hides its time override (`hideTimeOverride`) imports as `hideTimeOverride`, which leaves the override note out of the panel header while the override still applies to the queries.
 A dashboard's time settings carry over to the [dashboard fields](../concepts/observespec.md#the-dashboard) `timezone`, `weekStart`, `fiscalYearStartMonth` and `nowDelay` (from the time picker's now delay), and its time range may use `now/fy` and `now/fQ`.
 The time picker's hidden flag, refresh intervals and quick ranges, the live now switch, refresh intervals in days, and a time range written in epoch milliseconds carry over too (a refresh interval of `500ms` is left out and reported).
 Links to other dashboards by tag import as links that list the matching dashboards, and links to an address keep their keep-time and include-variables options.

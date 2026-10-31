@@ -39,6 +39,7 @@
   "panels": [
     { "id": "p_rps", "type": "timeseries", "title": "Requests and errors per second",
       "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }, "datasource": "prom", "unit": "reqps",
+      "hideTimeOverride": true,
       "queries": [
         { "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\"}[$__rate_interval]))", "legend": "{{pod}}", "exemplar": true },
         { "ref": "B", "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\",status=~\"5..\"}[$__rate_interval]))", "legend": "errors {{pod}}", "interval": "${window}", "intervalFactor": 2 }
