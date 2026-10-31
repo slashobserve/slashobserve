@@ -6,6 +6,7 @@ import {
 } from "@/panels/transforms"
 import {
   fieldPropDefaults,
+  type Action,
   type DataPanel,
   type FieldProps,
   type Link,
@@ -35,6 +36,7 @@ export type FieldConfig = {
   noValue?: string
   mappings: Mapping[]
   links: Link[]
+  actions?: Action[]
   style: "line" | "bars" | "points"
   fill: number
   lineStyle: "solid" | "dashed" | "dotted" | "square"
@@ -112,6 +114,7 @@ const fieldPropKeyFlags: Record<keyof FieldProps, true> = {
   noValue: true,
   mappings: true,
   links: true,
+  actions: true,
   style: true,
   fill: true,
   lineStyle: true,
