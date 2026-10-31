@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io/fs"
 	"os"
@@ -18,8 +17,6 @@ import (
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
-
-var conformanceSeed = flag.Bool("conformance.seed", false, "write seed.txt and gaps for conformance areas that have no seed yet")
 
 const (
 	conformanceDir     = "conformance"
@@ -74,13 +71,7 @@ type conformanceArea struct {
 	name    string
 	base    []byte
 	catalog conformanceCatalog
-	hasSeed bool
-	seed    []string
 	gaps    []string
-}
-
-func (a *conformanceArea) hasGap(id string) bool {
-	return slices.Contains(a.gaps, id)
 }
 
 type pathStep struct {
@@ -412,7 +403,7 @@ func (a *conformanceArea) problems() []string {
 		out = append(out, a.entryProblems(e, ids)...)
 		ids[e.ID] = e
 	}
-	out = append(out, a.gapProblems(ids)...)
+	out = append(out, a.gapProblems()...)
 	return out
 }
 
@@ -445,27 +436,10 @@ func (a *conformanceArea) entryProblems(e conformanceEntry, seen map[string]conf
 	return out
 }
 
-func (a *conformanceArea) gapProblems(entries map[string]conformanceEntry) []string {
+func (a *conformanceArea) gapProblems() []string {
 	var out []string
 	for _, id := range a.gaps {
-		e, ok := entries[id]
-		switch {
-		case !ok:
-			out = append(out, fmt.Sprintf("gaps/%s is not a catalog id", id))
-		case e.expectation() == expectExcluded:
-			out = append(out, fmt.Sprintf("gaps/%s is an excluded entry, which is never a gap", id))
-		}
-		if !slices.Contains(a.seed, id) {
-			out = append(out, fmt.Sprintf("gaps/%s is not in seed.txt, so a new gap cannot be added", id))
-		}
-	}
-	for i, id := range a.seed {
-		if _, ok := entries[id]; !ok {
-			out = append(out, fmt.Sprintf("seed.txt line %d: %s is not a catalog id", i+1, id))
-		}
-		if i > 0 && a.seed[i-1] >= id {
-			out = append(out, fmt.Sprintf("seed.txt line %d: %s is not sorted after %s or is repeated", i+1, id, a.seed[i-1]))
-		}
+		out = append(out, fmt.Sprintf("gaps/%s: every option needs a conformance outcome now that M2 is closed; give the entry convert, convert_noted, cosmetic, bookkeeping or excluded and delete testdata/conformance/%s/gaps/%s", id, a.name, id))
 	}
 	return out
 }
@@ -505,14 +479,6 @@ func loadConformanceArea(t *testing.T, root *os.Root, name string) *conformanceA
 	if err := dec.Decode(&a.catalog); err != nil {
 		t.Fatalf("%s/catalog.json: %v", name, err)
 	}
-	seed, err := root.ReadFile(path.Join(dir, "seed.txt"))
-	switch {
-	case err == nil:
-		a.hasSeed = true
-		a.seed = strings.Fields(string(seed))
-	case !errors.Is(err, fs.ErrNotExist):
-		t.Fatal(err)
-	}
 	gaps, err := fs.ReadDir(root.FS(), path.Join(dir, "gaps"))
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		t.Fatal(err)
@@ -523,69 +489,30 @@ func loadConformanceArea(t *testing.T, root *os.Root, name string) *conformanceA
 	return a
 }
 
-func (a *conformanceArea) writeSeed(t *testing.T, root *os.Root, failing []string) {
-	t.Helper()
-	dir := path.Join(conformanceDir, a.name)
-	sort.Strings(failing)
-	var seed strings.Builder
-	for _, id := range failing {
-		seed.WriteString(id + "\n")
-	}
-	if err := root.WriteFile(path.Join(dir, "seed.txt"), []byte(seed.String()), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if len(failing) == 0 {
-		return
-	}
-	if err := root.MkdirAll(path.Join(dir, "gaps"), 0o750); err != nil {
-		t.Fatal(err)
-	}
-	for _, id := range failing {
-		if err := root.WriteFile(path.Join(dir, "gaps", id), nil, 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
-}
-
 func TestOptionConformance(t *testing.T) {
 	root := conformanceRoot(t)
-	totalEntries, totalPass, totalGaps := 0, 0, 0
+	totalEntries, totalPass := 0, 0
 	for _, a := range loadConformanceAreas(t, root) {
-		seeding := *conformanceSeed && !a.hasSeed
-		if *conformanceSeed && a.hasSeed {
-			t.Logf("seed exists for %s, nothing written", a.name)
+		for _, problem := range a.gapProblems() {
+			t.Error(problem)
 		}
-		pass, gaps := 0, 0
-		var failing []string
+		pass := 0
 		t.Run(a.name, func(t *testing.T) {
 			for _, e := range a.catalog.Entries {
 				t.Run(e.ID, func(t *testing.T) {
-					outcome := a.run(e)
-					switch {
-					case outcome == "" && a.hasGap(e.ID):
-						t.Errorf("converts now: delete testdata/conformance/%s/gaps/%s", a.name, e.ID)
-					case outcome == "":
-						pass++
-					case seeding:
-						failing = append(failing, e.ID)
-						gaps++
-					case a.hasGap(e.ID):
-						gaps++
-					default:
+					if outcome := a.run(e); outcome != "" {
 						t.Error(outcome)
+						return
 					}
+					pass++
 				})
 			}
 		})
-		if seeding {
-			a.writeSeed(t, root, failing)
-		}
-		t.Logf("%s: %d entries, %d pass, %d known gaps", a.name, len(a.catalog.Entries), pass, gaps)
+		t.Logf("%s: %d entries, %d pass", a.name, len(a.catalog.Entries), pass)
 		totalEntries += len(a.catalog.Entries)
 		totalPass += pass
-		totalGaps += gaps
 	}
-	t.Logf("total: %d entries, %d pass, %d known gaps", totalEntries, totalPass, totalGaps)
+	t.Logf("total: %d entries, %d pass", totalEntries, totalPass)
 }
 
 func TestConformanceCatalogs(t *testing.T) {
@@ -819,13 +746,8 @@ func TestConformanceCatalogProblems(t *testing.T) {
 		{"convert_noted is a known expect", conformanceArea{name: "ok", base: base, catalog: good}, func(a *conformanceArea) { a.catalog.Entries[0].Expect = expectConvertNoted }, ""},
 		{"cosmetic outside a panel root", conformanceArea{name: "ok", base: base, catalog: good}, func(a *conformanceArea) { a.catalog.Entries[0].Expect = expectCosmetic }, "only for areas whose root is a panel"},
 		{"missing root", conformanceArea{name: "ok", base: base, catalog: good}, func(a *conformanceArea) { a.catalog.Root = "panels[3]" }, "does not exist in base.json"},
-		{"gap that is not an id", conformanceArea{name: "ok", base: base, catalog: good, hasSeed: true, seed: []string{"a=1"}, gaps: []string{"zzz"}}, nil, "gaps/zzz is not a catalog id"},
-		{"gap missing from the seed", conformanceArea{name: "ok", base: base, catalog: good, hasSeed: true, gaps: []string{"a=1"}}, nil, "is not in seed.txt"},
-		{"gap on an excluded entry", conformanceArea{name: "ok", base: base, catalog: good, hasSeed: true, seed: []string{"a=1"}, gaps: []string{"a=1"}}, func(a *conformanceArea) { a.catalog.Entries[0].Expect = expectExcluded }, "never a gap"},
-		{"unsorted seed", conformanceArea{name: "ok", base: base, catalog: good, hasSeed: true, seed: []string{"b=1", "a=1"}}, func(a *conformanceArea) {
-			a.catalog.Entries = append(a.catalog.Entries, conformanceEntry{ID: "b=1", Path: "b", Value: 1})
-		}, "not sorted"},
-		{"seed id not in the catalog", conformanceArea{name: "ok", base: base, catalog: good, hasSeed: true, seed: []string{"q=1"}}, nil, "q=1 is not a catalog id"},
+		{"a gap file is refused", conformanceArea{name: "ok", base: base, catalog: good, gaps: []string{"a=1"}}, nil, "every option needs a conformance outcome now that M2 is closed"},
+		{"a gap file is refused whatever its name", conformanceArea{name: "ok", base: base, catalog: good, gaps: []string{"zzz"}}, nil, "gaps/zzz: every option needs a conformance outcome"},
 		{"default value in a panel area", conformanceArea{name: "ok", base: base, catalog: good}, func(a *conformanceArea) {
 			a.catalog.Root = "panels[0]"
 			a.catalog.Entries = []conformanceEntry{{ID: "options.legend.showLegend=true", Path: "options.legend.showLegend", Value: true}}
@@ -891,5 +813,39 @@ func TestUncataloguedCosmeticOptions(t *testing.T) {
 				t.Fatalf("uncatalogued = %v, want %v", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestConformanceRefusesGapFilesOnDisk(t *testing.T) {
+	dir := t.TempDir()
+	areaDir := path.Join(dir, conformanceDir, "ok")
+	if err := os.MkdirAll(path.Join(areaDir, "gaps"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"base.json":    `{"title":"T","panels":[{"id":1,"type":"timeseries"}]}`,
+		"catalog.json": `{"grafana":"v12.3.0","sources":["s"],"root":"","entries":[{"id":"a=1","path":"a","value":1}]}`,
+		"gaps/a=1":     "",
+	}
+	for name, content := range files {
+		if err := os.WriteFile(path.Join(areaDir, name), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = root.Close() })
+
+	area := loadConformanceArea(t, root, "ok")
+	problems := strings.Join(area.problems(), "\n")
+	for _, want := range []string{"gaps/a=1", "every option needs a conformance outcome now that M2 is closed"} {
+		if !strings.Contains(problems, want) {
+			t.Errorf("problems = %q, want one containing %q", problems, want)
+		}
+	}
+	if got := area.gapProblems(); len(got) != 1 {
+		t.Errorf("gapProblems = %v, want one problem", got)
 	}
 }
