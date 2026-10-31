@@ -1,0 +1,41 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/geomap/migrations.ts"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    {"id": "circleMinSize=3", "path": "circleMinSize", "value": 3},
+    {"id": "circleMaxSize=20", "path": "circleMaxSize", "value": 20},
+    {"id": "thresholds=10-100", "path": "thresholds", "value": "10,100", "with": {"colors": ["rgba(245, 54, 54, 0.9)", "rgba(237, 129, 40, 0.89)", "rgba(50, 172, 45, 0.97)"]}},
+    {"id": "colors=three", "path": "colors", "value": ["rgba(245, 54, 54, 0.9)", "rgba(237, 129, 40, 0.89)", "rgba(50, 172, 45, 0.97)"], "with": {"thresholds": "10,100"}},
+    {"id": "decimals=2", "path": "decimals", "value": 2},
+    {"id": "initialZoom=3", "path": "initialZoom", "value": "3", "with": {"mapCenter": "custom", "mapCenterLatitude": 20, "mapCenterLongitude": 10}},
+    {"id": "mapCenter=custom", "path": "mapCenter", "value": "custom", "with": {"mapCenterLatitude": 20, "mapCenterLongitude": 10}},
+    {"id": "mapCenterLatitude=20", "path": "mapCenterLatitude", "value": 20, "with": {"mapCenter": "custom"}},
+    {"id": "mapCenterLongitude=10", "path": "mapCenterLongitude", "value": 10, "with": {"mapCenter": "custom"}},
+    {"id": "mouseWheelZoom=true", "path": "mouseWheelZoom", "value": true},
+    {"id": "locationData=countries", "path": "locationData", "value": "countries"},
+    {"id": "locationData=countries_3letter", "path": "locationData", "value": "countries_3letter"},
+    {"id": "locationData=states", "path": "locationData", "value": "states"},
+    {"id": "locationData=table", "path": "locationData", "value": "table", "with": {"tableQueryOptions": {"queryType": "coordinates", "latitudeField": "lat", "longitudeField": "lon", "metricField": "hits", "geohashField": "geohash"}}},
+    {"id": "locationData=geohash", "path": "locationData", "value": "geohash"},
+    {"id": "tableQueryOptions.queryType=coordinates", "path": "tableQueryOptions.queryType", "value": "coordinates", "with": {"locationData": "table", "tableQueryOptions.latitudeField": "lat", "tableQueryOptions.longitudeField": "lon"}},
+    {"id": "tableQueryOptions.latitudeField=lat", "path": "tableQueryOptions.latitudeField", "value": "lat", "with": {"locationData": "table", "tableQueryOptions.queryType": "coordinates", "tableQueryOptions.longitudeField": "lon"}},
+    {"id": "tableQueryOptions.longitudeField=lon", "path": "tableQueryOptions.longitudeField", "value": "lon", "with": {"locationData": "table", "tableQueryOptions.queryType": "coordinates", "tableQueryOptions.latitudeField": "lat"}},
+    {"id": "tableQueryOptions.metricField=hits", "path": "tableQueryOptions.metricField", "value": "hits", "with": {"locationData": "table", "tableQueryOptions.queryType": "coordinates", "tableQueryOptions.latitudeField": "lat", "tableQueryOptions.longitudeField": "lon"}},
+    {"id": "tableQueryOptions.geohashField=hash", "path": "tableQueryOptions.geohashField", "value": "hash", "with": {"locationData": "table", "tableQueryOptions.queryType": "geohash"}},
+    {"id": "valueName=total", "path": "valueName", "value": "total", "with": {"locationData": "countries"}},
+    {"id": "valueName=avg", "path": "valueName", "value": "avg", "with": {"locationData": "countries"}},
+    {"id": "valueName=max", "path": "valueName", "value": "max", "with": {"locationData": "countries"}},
+    {"id": "valueName=min", "path": "valueName", "value": "min", "with": {"locationData": "countries"}},
+    {"id": "tableQueryOptions.labelField=name", "path": "tableQueryOptions.labelField", "value": "name", "expect": "bookkeeping"},
+    {"id": "esMetric=Average", "path": "esMetric", "value": "Average", "expect": "bookkeeping"},
+    {"id": "hideEmpty=true", "path": "hideEmpty", "value": true, "expect": "bookkeeping"},
+    {"id": "hideZero=true", "path": "hideZero", "value": true, "expect": "bookkeeping"},
+    {"id": "showLegend=false", "path": "showLegend", "value": false, "expect": "bookkeeping"},
+    {"id": "stickyLabels=true", "path": "stickyLabels", "value": true, "expect": "bookkeeping"},
+    {"id": "unitPlural=hits", "path": "unitPlural", "value": "hits", "expect": "bookkeeping"},
+    {"id": "unitSingle=hit", "path": "unitSingle", "value": "hit", "expect": "bookkeeping"}
+  ]
+}

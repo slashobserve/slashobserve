@@ -12,7 +12,6 @@ import (
 )
 
 const (
-	datagridReason      = "Editing cells is not supported; the grid is shown as a table."
 	shareReason         = "Only row heights and column widths from 0.1 to 1 are supported."
 	xyMatcherReason     = "Only fields chosen by name, and Y fields chosen by name, names or a regular expression, are supported."
 	xyExcludeReason     = "The excluded fields must be a list of names."
@@ -111,14 +110,12 @@ func (b *panelBuild) shareOption(path string) *float64 {
 	return &f
 }
 
-func (b *panelBuild) datagridOptions() {
-	options, _ := asObject(lookupValue(b.raw, "options"))
-	for _, key := range sortedKeys(options) {
-		path := "options." + key
-		if key == "selectedSeries" || (present(options[key]) && !isGrafanaDefault(b.typ, path, options[key])) {
-			b.partial(path, datagridReason)
-		}
+func (b *panelBuild) datagridOptions(d *spec.Display) {
+	frame := 0
+	if n, ok := b.wholeInRange("options.selectedSeries", 0, maxFrameIndex); ok {
+		frame = n
 	}
+	d.FrameIndex = &frame
 }
 
 func displayBarChart(b *panelBuild) {

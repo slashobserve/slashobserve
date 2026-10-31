@@ -1,2 +1,0 @@
-options.alertmanager
-options.expandAll

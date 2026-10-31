@@ -1,0 +1,13 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/alertGroups/panelcfg.cue",
+    "public/app/plugins/panel/alertGroups/module.tsx"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    {"id": "options.alertmanager=alertmanager", "path": "options.alertmanager", "value": "alertmanager", "with": {"type": "alertGroups"}, "expect": "excluded"},
+    {"id": "options.expandAll=true", "path": "options.expandAll", "value": true, "with": {"type": "alertGroups"}, "expect": "excluded"},
+    {"id": "options.labels=severity", "path": "options.labels", "value": "severity=critical", "with": {"type": "alertGroups"}, "expect": "excluded"}
+  ]
+}

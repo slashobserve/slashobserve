@@ -1,4 +1,2 @@
 links[].targetBlank
 options.alertThreshold
-options.annotations.clustering
-options.annotations.multiLane

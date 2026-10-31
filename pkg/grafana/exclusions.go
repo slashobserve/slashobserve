@@ -61,6 +61,7 @@ var (
 	decisionLastPointTracker         = decision{"last-point-tracker", "The last-point tracker layer is not part of SlashObserve."}
 	decisionPhotoFrames              = decision{"photo-frames", "Photo frames are not part of SlashObserve."}
 	decisionTransformationOptions    = decision{"transformation-options", "This transformation option is not part of SlashObserve."}
+	decisionDebugPanel               = decision{"debug-panel", "Grafana's debug panel modes are not part of SlashObserve; the panel shows its queries as a table, or as text when it has none."}
 )
 
 var decisions = []decision{
@@ -73,7 +74,7 @@ var decisions = []decision{
 	decisionGroupByClickHouse, decisionAltinityAdHocValues, decisionSQLExpressions, decisionSnapshots,
 	decisionReadOnlyDashboards, decisionLinkPlacement, decisionControlsMenu, decisionMultiDatasourceVariables,
 	decisionMappingIcons, decisionMapLibre, decisionDynamicGeoJSON, decisionLastPointTracker,
-	decisionPhotoFrames, decisionTransformationOptions,
+	decisionPhotoFrames, decisionTransformationOptions, decisionDebugPanel,
 }
 
 var valueAxisPanels = []spec.PanelType{spec.Timeseries, spec.Trend, spec.Candlestick, spec.Histogram, spec.BarChart, spec.XYChart}
@@ -149,6 +150,9 @@ var excludedOptions = slices.Concat(
 		{scope: panelScope(spec.Logs), path: "options.showLogContextToggle", values: []any{true}, decision: decisionLogContext},
 		{scope: panelScope(spec.Table), path: "fieldConfig.defaults.custom.styleField", decision: decisionFieldCSS},
 		{scope: panelScope(spec.Table), path: "fieldConfig.defaults.custom.cellOptions", key: "type", values: []any{"geo"}, decision: decisionTableMapCells},
+
+		{scope: panelScope(debugSource), path: "type", decision: decisionDebugPanel},
+		{scope: panelScope(debugSource), path: "options", decision: decisionDebugPanel},
 
 		{scope: panelScope(spec.Canvas), path: "options.zoomToContent", values: []any{true}, decision: decisionCanvasZoomToContent},
 		{scope: panelScope(spec.Canvas), path: "options.tooltip.disableForOneClick", values: []any{true}, decision: decisionCanvasOneClickTooltip},

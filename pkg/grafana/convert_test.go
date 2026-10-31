@@ -1168,6 +1168,7 @@ func TestWorldmapImportsAsAGeomap(t *testing.T) {
 		name, members, display string
 		thresholds             []string
 		paths                  []string
+		reducer                string
 	}{
 		{
 			name: "table with coordinates",
@@ -1184,27 +1185,45 @@ func TestWorldmapImportsAsAGeomap(t *testing.T) {
 		{
 			name:    "countries are looked up by name",
 			members: `"mapCenter":"(0°, 0°)","locationData":"countries","tableQueryOptions":{"queryType":"geohash","geohashField":"geohash"}`,
-			display: `{"view":"world"}`,
-			paths:   []string{"locationData"},
+			display: `{"view":"world","layers":[{"type":"markers","location":"lookup","gazetteer":"countries","fillOpacity":0.4,"showLegend":true}]}`,
 		},
 		{
-			name: "a total value is reported for table coordinates",
+			name:    "three letter countries use the countries gazetteer",
+			members: `"mapCenter":"(0°, 0°)","locationData":"countries_3letter"`,
+			display: `{"view":"world","layers":[{"type":"markers","location":"lookup","gazetteer":"countries","fillOpacity":0.4,"showLegend":true}]}`,
+		},
+		{
+			name:    "states use the usa states gazetteer",
+			members: `"mapCenter":"(0°, 0°)","locationData":"states","circleMinSize":3,"circleMaxSize":20`,
+			display: `{"view":"world","layers":[{"type":"markers","location":"lookup","gazetteer":"usa-states","markerSize":3,"markerSizeMax":20,"fillOpacity":0.4,"showLegend":true}]}`,
+		},
+		{
+			name:    "the wheel zoom is kept when on",
+			members: `"mapCenter":"(0°, 0°)","locationData":"table","tableQueryOptions":{"queryType":"geohash","geohashField":"hash","metricField":"hits"},"mouseWheelZoom":true`,
+			display: `{"view":"world","location":"geohash","geohashField":"hash","sizeField":"hits","colorField":"hits","mouseWheelZoom":true}`,
+		},
+		{
+			name: "a total value has no effect on table coordinates",
 			members: centered + `,"locationData":"table","tableQueryOptions":{"queryType":"coordinates","latitudeField":"lat","longitudeField":"lon","metricField":"hits","geohashField":"geohash","labelField":""},` +
 				`"valueName":"total"`,
 			display: `{"view":"coords","lat":20,"lon":10,"zoom":3,"location":"coords","latField":"lat","lonField":"lon","sizeField":"hits","colorField":"hits"}`,
-			paths:   []string{"valueName"},
 		},
 		{
-			name:    "a total value is reported for table geohash",
+			name:    "a total value has no effect on table geohash",
 			members: `"mapCenter":"(0°, 0°)","locationData":"table","tableQueryOptions":{"queryType":"geohash","geohashField":"hash","metricField":"hits"},"valueName":"total"`,
 			display: `{"view":"world","location":"geohash","geohashField":"hash","sizeField":"hits","colorField":"hits"}`,
-			paths:   []string{"valueName"},
 		},
 		{
-			name:    "a total value is reported for countries",
+			name:    "a total value on countries reduces the series",
 			members: `"mapCenter":"(0°, 0°)","locationData":"countries","tableQueryOptions":{"queryType":"geohash","geohashField":"geohash"},"valueName":"total"`,
-			display: `{"view":"world"}`,
-			paths:   []string{"locationData", "valueName"},
+			display: `{"view":"world","layers":[{"type":"markers","location":"lookup","gazetteer":"countries","fillOpacity":0.4,"showLegend":true}]}`,
+			reducer: "sum",
+		},
+		{
+			name:    "a total value is reported for geohash locations",
+			members: `"mapCenter":"(0°, 0°)","locationData":"geohash","valueName":"total"`,
+			display: `{"view":"world","location":"geohash"}`,
+			paths:   []string{"valueName"},
 		},
 		{
 			name:    "other locations and centers are reported",
@@ -1233,6 +1252,17 @@ func TestWorldmapImportsAsAGeomap(t *testing.T) {
 			}
 			if !slices.Equal(line.Paths, tc.paths) {
 				t.Errorf("paths = %v, want %v (reasons %v)", line.Paths, tc.paths, line.Reasons)
+			}
+			var reducers []string
+			for _, tr := range panel.Transform {
+				if tr.Type == "reduce" {
+					for _, r := range tr.Reducers {
+						reducers = append(reducers, string(r))
+					}
+				}
+			}
+			if tc.reducer == "" && len(reducers) > 0 || tc.reducer != "" && !slices.Equal(reducers, []string{tc.reducer}) {
+				t.Errorf("reduce transforms = %v, want %q", reducers, tc.reducer)
 			}
 		})
 	}
@@ -1768,11 +1798,32 @@ func TestDiscretePanelImportsAsAStateTimeline(t *testing.T) {
 	}
 }
 
-func TestDiscreteLayoutOptionsAreReportedUnlessTheyAreDefaults(t *testing.T) {
+func TestDiscreteLayoutOptionsTheMigrationSkipsAreIgnored(t *testing.T) {
 	_, line := convertedPanel(t, panelDoc("natel-discrete-panel", upTarget+`,"rowHeight":80,"writeAllValues":true,"extendLastValue":true,"showTimeAxis":false`))
-	want := []string{"rowHeight", "showTimeAxis", "writeAllValues"}
-	if !slices.Equal(line.Paths, want) {
-		t.Fatalf("paths = %v, want %v", line.Paths, want)
+	if len(line.Paths) != 0 {
+		t.Fatalf("paths = %v, want none", line.Paths)
+	}
+}
+
+func TestAnnotationLanesOnTimeSeriesAreIgnoredWithoutANote(t *testing.T) {
+	cases := map[string]string{
+		"corpus values": `"options":{"annotations":{"clustering":-1,"multiLane":false}}`,
+		"set values":    `"options":{"annotations":{"clustering":10,"multiLane":true}}`,
+	}
+	for name, options := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, line := convertedPanel(t, panelDoc("timeseries", upTarget+","+options))
+			if line.Status != statusImported || len(line.Paths) != 0 {
+				t.Fatalf("line = %+v, want imported with no paths", line)
+			}
+		})
+	}
+}
+
+func TestAnnotationLanesAreReportedOnOtherPanelTypes(t *testing.T) {
+	_, line := convertedPanel(t, panelDoc("stat", upTarget+`,"options":{"annotations":{"multiLane":true}}`))
+	if !slices.Contains(line.Paths, "options.annotations.multiLane") {
+		t.Fatalf("paths = %v, want the lane option reported", line.Paths)
 	}
 }
 

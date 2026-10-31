@@ -16,7 +16,7 @@ const (
 	maxTextContent      = 20000
 	maxPanelPaths       = 100
 	noQueriesReason     = "None of this panel's queries can be imported."
-	debugPanelReason    = "Grafana's debug panel showed raw query results; it is shown as a table."
+	debugSource         = "debug"
 	docsURL             = "https://github.com/slashobserve/slashobserve/blob/main/docs/"
 )
 
@@ -41,7 +41,7 @@ var convertiblePanelTypes = map[spec.PanelType]bool{
 var placeholderReasons = map[string]string{
 	"annolist":    decisionAnnotations.reason,
 	"live":        decisionLive.reason,
-	"alertGroups": "Alertmanager is not supported yet.",
+	"alertGroups": decisionAlertRules.reason,
 }
 
 var silentPanelKeys = map[string]bool{
@@ -210,7 +210,7 @@ func (c *converter) convertPanel(n *panelNode) *builtPanel {
 	switch n.sourceType {
 	case "welcome", "gettingstarted":
 		return c.newPanelBuild(n, spec.Text).buildTextPanel(func() string { return homePanelContent[n.sourceType] })
-	case "debug":
+	case debugSource:
 		return c.debugPanel(n)
 	}
 	if !convertiblePanelTypes[typ] {
@@ -256,14 +256,14 @@ func (c *converter) debugPanel(n *panelNode) *builtPanel {
 	targets, _ := asArray(n.raw["targets"])
 	if len(targets) == 0 {
 		b := c.newPanelBuild(n, spec.Text)
-		b.partial("type", debugPanelReason)
-		return b.buildTextPanel(func() string { return debugPanelReason })
+		b.partial("type", "")
+		return b.buildTextPanel(func() string { return decisionDebugPanel.reason })
 	}
 	if reason := c.datasourceReason(n); reason != "" {
 		return placeholderPanel(n, reason)
 	}
 	b := c.newPanelBuild(n, spec.Table)
-	b.partial("type", debugPanelReason)
+	b.partial("type", "")
 	return b.buildData()
 }
 

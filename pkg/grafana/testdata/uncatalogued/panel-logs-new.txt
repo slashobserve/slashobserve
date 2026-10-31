@@ -1,4 +1,0 @@
-options.enableLogDetails
-options.showTime
-options.sortOrder
-options.wrapLogMessage

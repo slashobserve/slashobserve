@@ -31,18 +31,18 @@ func TestDebugPanelWithTargetsImportsAsTable(t *testing.T) {
 	if panel.Type != spec.Table || len(panel.Queries) != 1 || panel.Queries[0].Query != "up" {
 		t.Fatalf("panel = %+v, want a table over the target", panel)
 	}
-	if line.Status != statusPartial || !slices.Contains(line.Reasons, debugPanelReason) || line.SourceType != "debug" {
-		t.Fatalf("line = %+v, want partial with the debug reason", line)
+	if line.Status != statusImported || !slices.Contains(line.Reasons, decisionDebugPanel.reason) || line.SourceType != "debug" {
+		t.Fatalf("line = %+v, want imported with the debug decision", line)
 	}
 }
 
 func TestDebugPanelWithoutTargetsImportsAsText(t *testing.T) {
 	panel, line := convertedPanel(t, panelDoc("debug", `"title":"D"`))
-	if panel.Type != spec.Text || panel.Content == nil || *panel.Content != debugPanelReason {
-		t.Fatalf("panel = %+v, want a text panel saying %q", panel, debugPanelReason)
+	if panel.Type != spec.Text || panel.Content == nil || *panel.Content != decisionDebugPanel.reason {
+		t.Fatalf("panel = %+v, want a text panel saying %q", panel, decisionDebugPanel.reason)
 	}
-	if line.Status != statusPartial || !slices.Contains(line.Reasons, debugPanelReason) {
-		t.Fatalf("line = %+v, want partial with the debug reason", line)
+	if line.Status != statusImported || !slices.Contains(line.Reasons, decisionDebugPanel.reason) {
+		t.Fatalf("line = %+v, want imported with the debug decision", line)
 	}
 }
 

@@ -11,11 +11,11 @@ import (
 
 const (
 	geomapRegionReason  = "Named map regions are shown fitted to the data."
-	geomapLookupReason  = "Looking up locations by name is not supported yet."
 	geomapViewReason    = "This map view is not supported yet."
 	geomapMarkerReason  = "Only marker sizes from 1 to 100 are supported."
 	geomapQueryReason   = "This table query type is not supported yet."
 	worldmapValueReason = "Only the current value is shown."
+	worldmapPlaceReason = "This way of locating data is not supported yet."
 	worldmapSource      = "grafana-worldmap-panel"
 	worldmapGeohashData = "geohash"
 	worldmapTableData   = "table"
@@ -150,34 +150,89 @@ func (b *panelBuild) markerSizeOption(path string) int {
 	return n
 }
 
+var worldmapGazetteers = map[string]string{
+	"countries":         "countries",
+	"countries_3letter": "countries",
+	"states":            "usa-states",
+}
+
 func (b *panelBuild) worldmap(d *spec.Display) {
-	b.worldmapLocation(d)
+	source := b.worldmapLocation(d)
 	b.worldmapView(d)
 	d.MarkerSize = b.markerSizeOption("circleMinSize")
 	d.MarkerSizeMax = b.markerSizeOption("circleMaxSize")
+	if on, ok := b.boolOption("mouseWheelZoom"); ok && *on {
+		d.MouseWheelZoom = on
+	}
 	b.worldmapThresholds()
 	b.legacyDecimals(&b.panel.FieldProps, b.raw["decimals"])
 	b.consume("decimals")
-	if name := asString(b.raw["valueName"]); name != "" && name != "current" {
-		b.partial("valueName", worldmapValueReason)
-	}
-	b.consume("valueName")
+	b.worldmapValueName(source)
+	b.worldmapLookupLayer(d, source)
 }
 
-func (b *panelBuild) worldmapLocation(d *spec.Display) {
+func (b *panelBuild) worldmapLocation(d *spec.Display) string {
 	source := asString(b.raw["locationData"])
 	b.consume("locationData")
-	switch source {
-	case worldmapTableData:
+	_, lookup := worldmapGazetteers[source]
+	switch {
+	case source == worldmapTableData:
 		b.worldmapTable(d)
-		return
-	case worldmapGeohashData:
+		return source
+	case source == worldmapGeohashData:
 		d.Location = "geohash"
-	case "":
+	case source == "" || lookup:
 	default:
-		b.partial("locationData", geomapLookupReason)
+		b.partial("locationData", worldmapPlaceReason)
 	}
 	b.consume("tableQueryOptions")
+	return source
+}
+
+func (b *panelBuild) worldmapLookupLayer(d *spec.Display, source string) {
+	gazetteer, ok := worldmapGazetteers[source]
+	if !ok {
+		return
+	}
+	fill := grafanaMarkerFillOpacity
+	d.Layers = []spec.GeomapLayer{{
+		Type: "markers", Location: "lookup", Gazetteer: gazetteer,
+		MarkerSize: d.MarkerSize, MarkerSizeMax: d.MarkerSizeMax,
+		FillOpacity: &fill, ShowLegend: ptr(true),
+	}}
+	d.MarkerSize, d.MarkerSizeMax = 0, 0
+}
+
+func (b *panelBuild) worldmapValueName(source string) {
+	name := asString(b.raw["valueName"])
+	b.consume("valueName")
+	_, lookup := worldmapGazetteers[source]
+	tableRows := b.hasTableQuery()
+	switch {
+	case name == "":
+	case lookup && !tableRows:
+		b.worldmapReduce(name)
+	case source == worldmapTableData || lookup:
+		b.recordImplicit("valueName", outcomeNoEffect)
+	case name != "current":
+		b.partial("valueName", worldmapValueReason)
+	}
+}
+
+func (b *panelBuild) worldmapReduce(name string) {
+	reducer, ok := singlestatReducers[name]
+	switch {
+	case !ok:
+		b.partial("valueName", fmt.Sprintf("The value %s is not supported yet.", name))
+	case len(b.panel.Transform) >= maxTransforms:
+		b.partial("valueName", "A panel holds at most 20 transformations.")
+	default:
+		b.panel.Transform = append(b.panel.Transform, spec.Transform{Type: "reduce", Reducers: []string{reducer}})
+	}
+}
+
+func (b *panelBuild) hasTableQuery() bool {
+	return slices.ContainsFunc(b.built, func(q *builtQuery) bool { return q.q.Format == "table" })
 }
 
 func (b *panelBuild) worldmapTable(d *spec.Display) {

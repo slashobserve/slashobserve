@@ -145,16 +145,18 @@ func TestPluginSinglestatTakesTheLegacyOptions(t *testing.T) {
 	}
 }
 
-func TestDatagridOptionsAreReportedBecauseCellsCannotBeEdited(t *testing.T) {
-	const reason = "Editing cells is not supported; the grid is shown as a table."
+func TestDatagridSelectedSeriesBecomesTheTableFrame(t *testing.T) {
 	cases := []struct {
 		name, options string
+		frame         int
 		paths         []string
 	}{
-		{"no options", ``, nil},
-		{"selected series", `"options":{"selectedSeries":0}`, []string{"options.selectedSeries"}},
-		{"other options", `"options":{"selectedSeries":1,"cellHeight":"lg"}`, []string{"options.cellHeight", "options.selectedSeries"}},
-		{"defaults only", `"options":{"cellHeight":"sm","showHeader":true}`, nil},
+		{"no options", ``, 0, nil},
+		{"first series", `"options":{"selectedSeries":0}`, 0, nil},
+		{"second series", `"options":{"selectedSeries":1}`, 1, nil},
+		{"with a cell height", `"options":{"selectedSeries":2,"cellHeight":"lg"}`, 2, nil},
+		{"out of range", `"options":{"selectedSeries":100}`, 0, []string{"options.selectedSeries"}},
+		{"defaults only", `"options":{"cellHeight":"sm","showHeader":true}`, 0, nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -162,12 +164,12 @@ func TestDatagridOptionsAreReportedBecauseCellsCannotBeEdited(t *testing.T) {
 			if tc.options != "" {
 				members += "," + tc.options
 			}
-			_, line := convertedPanel(t, panelDoc("datagrid", members))
-			if !slices.Equal(line.Paths, tc.paths) {
-				t.Fatalf("paths = %v, want %v", line.Paths, tc.paths)
+			panel, line := convertedPanel(t, panelDoc("datagrid", members))
+			if panel.Type != spec.Table || panel.Display == nil || panel.Display.FrameIndex == nil || *panel.Display.FrameIndex != tc.frame {
+				t.Fatalf("panel = %+v, want a table showing frame %d", panel, tc.frame)
 			}
-			if len(tc.paths) > 0 && !slices.Contains(line.Reasons, reason) {
-				t.Fatalf("reasons = %v, want %q", line.Reasons, reason)
+			if !slices.Equal(line.Paths, tc.paths) {
+				t.Fatalf("paths = %v, want %v (reasons %v)", line.Paths, tc.paths, line.Reasons)
 			}
 		})
 	}
@@ -177,7 +179,7 @@ func TestPanelTypesWithoutAnEquivalentSayWhy(t *testing.T) {
 	cases := []struct{ typ, reason string }{
 		{"annolist", decisionAnnotations.reason},
 		{"live", decisionLive.reason},
-		{"alertGroups", "Alertmanager is not supported yet."},
+		{"alertGroups", decisionAlertRules.reason},
 		{"vendor-chart-panel", "Grafana panel type vendor-chart-panel is not supported yet."},
 	}
 	for _, tc := range cases {
