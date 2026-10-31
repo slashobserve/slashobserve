@@ -428,6 +428,20 @@ describe("dashboardLinks", () => {
     ])
   })
 
+  it("carries the tooltip of a dashboard link and none when it has no tooltip", () => {
+    const [withTip, plain] = dashboardLinks(
+      [
+        { title: "Runbook", url: "/runbook", tooltip: "Open the runbook" },
+        { title: "Plain", url: "/plain" },
+      ],
+      scope({ from: "now-6h", to: "now" }),
+      now,
+      {}
+    )
+    expect(withTip.tooltip).toBe("Open the runbook")
+    expect(plain).not.toHaveProperty("tooltip")
+  })
+
   it("rounds the end of the range up and the start down", () => {
     const [link] = dashboardLinks(
       [window],

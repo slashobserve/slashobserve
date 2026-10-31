@@ -19,12 +19,14 @@
   },
   "liveNow": true,
   "links": [
-    { "title": "Runbook", "url": "https://example.com/runbook", "newTab": true, "keepTime": true, "includeVars": true },
+    { "title": "Runbook", "url": "https://example.com/runbook", "newTab": true, "keepTime": true, "includeVars": true, "tooltip": "Steps for the checkout on-call" },
     { "type": "dashboards", "title": "Production", "tags": ["prod", "checkout"], "asDropdown": true, "keepTime": true }
   ],
   "variables": [
     { "name": "pod", "type": "query", "datasource": "prom", "multi": true, "includeAll": true,
       "query": "label_values(http_requests_total{service=\"checkout\"}, pod)", "default": "$__all" },
+    { "name": "version", "type": "query", "datasource": "prom", "query": "label_values(http_requests_total{service=\"checkout\"}, version)",
+      "staticOptions": [{ "text": "None", "value": "" }], "staticOrder": "after", "skipUrlSync": true },
     { "name": "env", "type": "custom", "options": ["prod", "staging"], "multi": true, "default": ["prod"] },
     { "name": "team", "type": "constant", "value": "payments" },
     { "name": "window", "type": "interval", "options": ["1m", "5m", "1h"], "auto": true, "autoSteps": 30, "autoMin": "10s", "default": "5m" },

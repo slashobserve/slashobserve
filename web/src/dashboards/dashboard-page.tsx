@@ -449,7 +449,7 @@ function DashboardView({
   const variables = useMemo(() => spec.variables ?? [], [spec])
   const timeOptions = useMemo(() => timeOptionsFor(spec), [spec])
 
-  const { states, selections, values, ready, blocking } = useVariables({
+  const { states, selections, values, ready, blocking, select } = useVariables({
     dashboardId,
     version,
     variables,
@@ -705,7 +705,11 @@ function DashboardView({
             latestVersion={latestVersion}
           />
         ) : null}
-        <VariablesBar states={states} unverified={unverified.variables} />
+        <VariablesBar
+          states={states}
+          unverified={unverified.variables}
+          onSelect={select}
+        />
         <DashboardLinks
           links={spec.links}
           dashboardId={dashboardId}

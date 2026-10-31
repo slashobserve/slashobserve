@@ -57,5 +57,6 @@ export function taggedLinks(
     title: dashboard.title,
     href: dashboardHref(dashboard.id, search),
     newTab: link.newTab === true,
+    ...(link.tooltip ? { tooltip: link.tooltip } : {}),
   }))
 }

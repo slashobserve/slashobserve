@@ -39,6 +39,7 @@ export type ResolvedLink = {
   href: string
   newTab: boolean
   oneClick?: true
+  tooltip?: string
 }
 
 const dataTokens = ["${__data.", "${__value", "${__series", "${__field"]
@@ -236,6 +237,12 @@ export function dashboardLinks(
       full
     )
     if (!resolved || unresolvedRange.test(resolved.href)) return []
-    return [{ ...resolved, href: appendLinkParams(resolved.href, link, scope) }]
+    return [
+      {
+        ...resolved,
+        href: appendLinkParams(resolved.href, link, scope),
+        ...(link.tooltip ? { tooltip: link.tooltip } : {}),
+      },
+    ]
   })
 }

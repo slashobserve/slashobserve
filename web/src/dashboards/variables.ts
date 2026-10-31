@@ -134,12 +134,22 @@ export function variableDisplay(
   return { status: "loading", shown: undefined, selectable: undefined }
 }
 
+function offersEmptyValue(variable: QueryVariable | CustomVariable): boolean {
+  return (
+    variable.type === "query" &&
+    (variable.staticOptions ?? []).some((option) => option.value === "")
+  )
+}
+
 function fromUrl(
   variable: QueryVariable | CustomVariable,
   values: string[]
 ): string[] {
   if (variable.includeAll && values.includes(ALL)) return [ALL]
-  const concrete = values.filter((value) => value !== ALL && value !== "")
+  const keepsEmpty = offersEmptyValue(variable)
+  const concrete = values.filter(
+    (value) => value !== ALL && (value !== "" || keepsEmpty)
+  )
   if (concrete.length === 0) return []
   return variable.multi ? concrete : [concrete[0]]
 }
@@ -337,6 +347,46 @@ export function applyVariableChange(
     next[name] = [""]
   }
   return next
+}
+
+export type VariableValues = Record<string, string[]>
+
+export type SplitVars = { url: VariableValues; session: VariableValues }
+
+export function splitVars(
+  variables: Variable[],
+  vars: VariableValues
+): SplitVars {
+  const skipped = new Set(
+    variables.filter((variable) => variable.skipUrlSync).map((v) => v.name)
+  )
+  const split: SplitVars = { url: {}, session: {} }
+  for (const [name, values] of Object.entries(vars)) {
+    split[skipped.has(name) ? "session" : "url"][name] = values
+  }
+  return split
+}
+
+export function mergeVars(
+  variables: Variable[],
+  current: SplitVars
+): VariableValues {
+  return {
+    ...splitVars(variables, current.url).url,
+    ...splitVars(variables, current.session).session,
+  }
+}
+
+export function changeVars(
+  variables: Variable[],
+  current: SplitVars,
+  name: string,
+  values: string[]
+): SplitVars {
+  return splitVars(
+    variables,
+    applyVariableChange(variables, mergeVars(variables, current), name, values)
+  )
 }
 
 export function normalizeMultiSelection(

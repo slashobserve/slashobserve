@@ -706,6 +706,11 @@
             "variable"
           ]
         },
+        "skipUrlSync": {
+          "x-omitFromPrompt": true,
+          "type": "boolean",
+          "description": "The variable's value is not read from or written to the URL."
+        },
         "type": {
           "const": "query"
         },
@@ -733,10 +738,54 @@
           ]
         },
         "refresh": {
-          "enum": [
-            "load",
-            "timeRange"
+          "anyOf": [
+            {
+              "enum": [
+                "load",
+                "timeRange"
+              ]
+            },
+            {
+              "x-omitFromPrompt": true,
+              "const": "never",
+              "description": "The query is not run; only staticOptions are offered."
+            }
           ]
+        },
+        "staticOptions": {
+          "x-omitFromPrompt": true,
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "value": {
+                "type": "string",
+                "maxLength": 500
+              }
+            },
+            "required": [
+              "text",
+              "value"
+            ]
+          },
+          "description": "Options offered next to the query results."
+        },
+        "staticOrder": {
+          "x-omitFromPrompt": true,
+          "enum": [
+            "before",
+            "after",
+            "sorted"
+          ],
+          "description": "Where staticOptions go: before the query results (the default), after them, or merged and sorted with the variable's sort."
         },
         "allowCustomValue": {
           "x-omitFromPrompt": true,
@@ -787,6 +836,11 @@
             "label",
             "variable"
           ]
+        },
+        "skipUrlSync": {
+          "x-omitFromPrompt": true,
+          "type": "boolean",
+          "description": "The variable's value is not read from or written to the URL."
         },
         "type": {
           "const": "custom"
@@ -875,6 +929,11 @@
             "variable"
           ]
         },
+        "skipUrlSync": {
+          "x-omitFromPrompt": true,
+          "type": "boolean",
+          "description": "The variable's value is not read from or written to the URL."
+        },
         "type": {
           "const": "constant"
         },
@@ -913,6 +972,11 @@
             "label",
             "variable"
           ]
+        },
+        "skipUrlSync": {
+          "x-omitFromPrompt": true,
+          "type": "boolean",
+          "description": "The variable's value is not read from or written to the URL."
         },
         "type": {
           "const": "interval"
@@ -974,6 +1038,11 @@
             "variable"
           ]
         },
+        "skipUrlSync": {
+          "x-omitFromPrompt": true,
+          "type": "boolean",
+          "description": "The variable's value is not read from or written to the URL."
+        },
         "type": {
           "const": "textbox"
         },
@@ -1011,6 +1080,11 @@
             "label",
             "variable"
           ]
+        },
+        "skipUrlSync": {
+          "x-omitFromPrompt": true,
+          "type": "boolean",
+          "description": "The variable's value is not read from or written to the URL."
         },
         "type": {
           "const": "datasource"
@@ -1059,6 +1133,11 @@
             "label",
             "variable"
           ]
+        },
+        "skipUrlSync": {
+          "x-omitFromPrompt": true,
+          "type": "boolean",
+          "description": "The variable's value is not read from or written to the URL."
         },
         "type": {
           "const": "adhoc"
@@ -1139,6 +1218,11 @@
             "label",
             "variable"
           ]
+        },
+        "skipUrlSync": {
+          "x-omitFromPrompt": true,
+          "type": "boolean",
+          "description": "The variable's value is not read from or written to the URL."
         },
         "type": {
           "const": "groupby"
@@ -1444,6 +1528,12 @@
         "includeVars": {
           "x-omitFromPrompt": true,
           "type": "boolean"
+        },
+        "tooltip": {
+          "x-omitFromPrompt": true,
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
         }
       },
       "if": {

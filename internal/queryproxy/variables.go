@@ -304,6 +304,9 @@ func (c *parseCache) regex(name, pattern string) (*spec.VariableRegex, error) {
 
 func (r *Runner) queryOptions(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, st *varState) ([]spec.VariableOption, error) {
 	v := d.Variables[idx]
+	if v.Refresh == spec.RefreshNever {
+		return spec.WithStaticOptions(v, nil), nil
+	}
 	if v.Datasource == "" {
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "variable %q has no datasource", v.Name)
 	}
@@ -347,7 +350,7 @@ func (r *Runner) queryOptions(ctx context.Context, d *spec.Dashboard, idx int, r
 	if v.Sort != "" {
 		options = spec.SortVariableOptions(options, v.Sort)
 	}
-	return options, nil
+	return spec.WithStaticOptions(v, options), nil
 }
 
 func adhocReference(d *spec.Dashboard, upto int, text string) string {
@@ -368,6 +371,7 @@ func (r *Runner) allValues(ctx context.Context, d *spec.Dashboard, idx int, rng 
 	if err != nil {
 		return allList{}, err
 	}
+	values = slices.DeleteFunc(values, func(value string) bool { return value == "" })
 	if len(values) == 0 {
 		return allList{}, fmt.Errorf("%w: %q", ErrVariableEmpty, name)
 	}

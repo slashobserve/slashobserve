@@ -8,14 +8,17 @@ import { requestZone } from "@/lib/time"
 import type { Variable } from "@/spec"
 
 import { panelRequestLimiter } from "./limiter"
-import { withVariables } from "./search"
+import { useSetDashboardSearch, withVariables } from "./search"
 import {
+  changeVars,
+  mergeVars,
   parentKeyOf,
   resolveSelections,
   valuesRequests,
   variableDisplay,
   type LoadedValues,
   type VariableOptions,
+  type VariableValues,
 } from "./variables"
 
 export type VariableState = {
@@ -47,8 +50,16 @@ export function useVariables({
   timezone,
   urlVars,
 }: Args) {
+  const setSearch = useSetDashboardSearch()
+  const [sessionState, setSessionState] = useState<{
+    dashboardId: string
+    vars: VariableValues
+  }>({ dashboardId, vars: {} })
+  const sessionVars =
+    sessionState.dashboardId === dashboardId ? sessionState.vars : {}
+  const vars = mergeVars(variables, { url: urlVars, session: sessionVars })
   const [knownOptions, setKnownOptions] = useState<VariableOptions>({})
-  const requests = valuesRequests(variables, urlVars, knownOptions)
+  const requests = valuesRequests(variables, vars, knownOptions)
   const results = useQueries({
     queries: variables.map((variable, index) => {
       const { parents: earlier, parentsReady } = requests[index]
@@ -132,7 +143,7 @@ export function useVariables({
   if (selectableKey !== JSON.stringify(knownOptions)) {
     setKnownOptions(selectable)
   }
-  const resolved = resolveSelections(variables, urlVars, selectable)
+  const resolved = resolveSelections(variables, vars, selectable)
   const selectionKey = JSON.stringify(resolved.selections)
   const [stable, setStable] = useState({
     key: selectionKey,
@@ -145,7 +156,9 @@ export function useVariables({
 
   const valueLists: Record<string, string[] | undefined> = {}
   variables.forEach((variable, index) => {
-    valueLists[variable.name] = displays[index].selectable
+    valueLists[variable.name] = displays[index].selectable?.filter(
+      (value) => value !== ""
+    )
   })
   const valuesKey = JSON.stringify(valueLists)
   const [stableValues, setStableValues] = useState({
@@ -166,6 +179,26 @@ export function useVariables({
     retry: () => void results[index].refetch(),
   }))
 
+  const select = (name: string, values: string[]) => {
+    const next = changeVars(
+      variables,
+      { url: urlVars, session: sessionVars },
+      name,
+      values
+    )
+    setSessionState({ dashboardId, vars: next.session })
+    if (JSON.stringify(next.url) === JSON.stringify(urlVars)) return
+    setSearch((current) => ({
+      ...current,
+      vars: changeVars(
+        variables,
+        { url: current.vars, session: sessionVars },
+        name,
+        values
+      ).url,
+    }))
+  }
+
   const blocking = states.find(
     (state) =>
       state.status === "error" && resolved.waiting.includes(state.variable.name)
@@ -177,5 +210,6 @@ export function useVariables({
     values: stableValues.lists,
     ready: !resolved.pending,
     blocking,
+    select,
   }
 }

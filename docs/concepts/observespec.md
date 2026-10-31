@@ -118,7 +118,7 @@ The rest is optional, and an absent field means its default.
 | `nowDelay`             | How far behind the real time `now` is for every relative time, such as `30s` or `1m`.                                                                                                                               |
 | `cursorSync`           | How hovering one time chart shows on the others: `off`, `crosshair` or `tooltip`.                                                                                                                                   |
 | `variables`            | Up to 20 [variables](datasources-and-variables.md#variables).                                                                                                                                                       |
-| `links`                | Up to 20 links: a `title` with a `url` (and optionally `newTab`, `oneClick`, `keepTime`, `includeVars`), or `"type": "dashboards"` with `tags` to list the other dashboards that carry every tag (`asDropdown` shows one menu). |
+| `links`                | Up to 20 links: a `title` with a `url` (and optionally `newTab`, `oneClick`, `keepTime`, `includeVars`, `tooltip`), or `"type": "dashboards"` with `tags` to list the other dashboards that carry every tag (`asDropdown` shows one menu). |
 | `panels`               | 1 to 200 panels, counting the children of rows.                                                                                                                                                                     |
 
 ### Relative times
@@ -294,6 +294,9 @@ The query language follows the datasource: PromQL for Prometheus and a single SQ
 Macros such as `$__rate_interval` for Prometheus and `$__timeFilter(Timestamp)` for ClickHouse expand when the query runs, from the time range and step of the request.
 A datasource is a uid from the datasources file or `${name}`, naming a datasource variable.
 An `adhoc` variable filters Prometheus queries automatically, and filters ClickHouse queries that leave out `$name` only when it sets `applyToAll`.
+Any variable can set `skipUrlSync: true` to stay out of the URL: its selection is not read from `var-<name>` and not written to it, and it starts from its default on every load.
+A `query` variable can set `staticOptions` (up to 50 `text` and `value` pairs, where a `value` may be empty) that are offered next to the query results, before them by default and after them or merged and sorted with `sort` through `staticOrder` (`before`, `after` or `sorted`); an option with an empty `value` is never part of All.
+`refresh: "never"` runs no query and offers only the `staticOptions`.
 See [Datasources and variables](datasources-and-variables.md).
 
 ## Expressions

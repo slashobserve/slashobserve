@@ -1252,6 +1252,10 @@ export interface QueryVariable {
   label?: string;
   description?: string;
   hide?: "label" | "variable";
+  /**
+   * The variable's value is not read from or written to the URL.
+   */
+  skipUrlSync?: boolean;
   type: "query";
   datasource: DatasourceRef;
   query: Query;
@@ -1265,7 +1269,21 @@ export interface QueryVariable {
     | "alphaCaseInsensitiveDesc"
     | "natural"
     | "naturalDesc";
-  refresh?: "load" | "timeRange";
+  refresh?: ("load" | "timeRange") | "never";
+  /**
+   * Options offered next to the query results.
+   *
+   * @minItems 1
+   * @maxItems 50
+   */
+  staticOptions?: {
+    text: string;
+    value: string;
+  }[];
+  /**
+   * Where staticOptions go: before the query results (the default), after them, or merged and sorted with the variable's sort.
+   */
+  staticOrder?: "before" | "after" | "sorted";
   allowCustomValue?: boolean;
   multi?: boolean;
   includeAll?: boolean;
@@ -1277,6 +1295,10 @@ export interface CustomVariable {
   label?: string;
   description?: string;
   hide?: "label" | "variable";
+  /**
+   * The variable's value is not read from or written to the URL.
+   */
+  skipUrlSync?: boolean;
   type: "custom";
   /**
    * @minItems 1
@@ -1300,6 +1322,10 @@ export interface ConstantVariable {
   label?: string;
   description?: string;
   hide?: "label" | "variable";
+  /**
+   * The variable's value is not read from or written to the URL.
+   */
+  skipUrlSync?: boolean;
   type: "constant";
   value: string;
 }
@@ -1308,6 +1334,10 @@ export interface IntervalVariable {
   label?: string;
   description?: string;
   hide?: "label" | "variable";
+  /**
+   * The variable's value is not read from or written to the URL.
+   */
+  skipUrlSync?: boolean;
   type: "interval";
   /**
    * @minItems 1
@@ -1324,6 +1354,10 @@ export interface TextboxVariable {
   label?: string;
   description?: string;
   hide?: "label" | "variable";
+  /**
+   * The variable's value is not read from or written to the URL.
+   */
+  skipUrlSync?: boolean;
   type: "textbox";
   default?: string;
 }
@@ -1332,6 +1366,10 @@ export interface DatasourceVariable {
   label?: string;
   description?: string;
   hide?: "label" | "variable";
+  /**
+   * The variable's value is not read from or written to the URL.
+   */
+  skipUrlSync?: boolean;
   type: "datasource";
   datasourceType: "prometheus" | "clickhouse";
   regex?: string;
@@ -1342,6 +1380,10 @@ export interface AdhocVariable {
   label?: string;
   description?: string;
   hide?: "label" | "variable";
+  /**
+   * The variable's value is not read from or written to the URL.
+   */
+  skipUrlSync?: boolean;
   type: "adhoc";
   datasource: DatasourceRef;
   /**
@@ -1363,6 +1405,10 @@ export interface GroupByVariable {
   label?: string;
   description?: string;
   hide?: "label" | "variable";
+  /**
+   * The variable's value is not read from or written to the URL.
+   */
+  skipUrlSync?: boolean;
   type: "groupby";
   datasource: DatasourceRef;
   /**
@@ -1385,6 +1431,7 @@ export interface DashboardLink {
   newTab?: boolean;
   keepTime?: boolean;
   includeVars?: boolean;
+  tooltip?: string;
 }
 /**
  * Display properties shared by a panel and its overrides.

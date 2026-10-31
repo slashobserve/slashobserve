@@ -120,6 +120,35 @@ func namedGroups(re *VariableRegex, value string, matches [][]int) (VariableOpti
 	return VariableOption{}, false
 }
 
+const RefreshNever = "never"
+
+func WithStaticOptions(v Variable, queried []VariableOption) []VariableOption {
+	if len(v.StaticOptions) == 0 {
+		return queried
+	}
+	static := make([]VariableOption, len(v.StaticOptions))
+	for i, option := range v.StaticOptions {
+		static[i] = VariableOption(option)
+	}
+	var merged []VariableOption
+	switch v.StaticOrder {
+	case "after":
+		merged = slices.Concat(queried, static)
+	default:
+		merged = slices.Concat(static, queried)
+	}
+	seen := make(map[string]bool, len(merged))
+	merged = slices.DeleteFunc(merged, func(option VariableOption) bool {
+		duplicate := seen[option.Value]
+		seen[option.Value] = true
+		return duplicate
+	})
+	if v.StaticOrder == "sorted" {
+		return SortVariableOptions(merged, v.Sort)
+	}
+	return merged
+}
+
 func SortVariableOptions(options []VariableOption, order string) []VariableOption {
 	out := slices.Clone(options)
 	by := func(compare func(a, b string) int) {

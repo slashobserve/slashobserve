@@ -150,6 +150,7 @@ type DashboardLink struct {
 	NewTab      bool     `json:"newTab,omitempty"`
 	KeepTime    bool     `json:"keepTime,omitempty"`
 	IncludeVars bool     `json:"includeVars,omitempty"`
+	Tooltip     string   `json:"tooltip,omitempty"`
 }
 
 type TimeRange struct {
@@ -162,6 +163,7 @@ type Variable struct {
 	Label            string           `json:"label,omitempty"`
 	Description      string           `json:"description,omitempty"`
 	Hide             string           `json:"hide,omitempty"`
+	SkipURLSync      bool             `json:"skipUrlSync,omitempty"`
 	Type             VariableType     `json:"type"`
 	Datasource       string           `json:"datasource,omitempty"`
 	DatasourceType   DatasourceType   `json:"datasourceType,omitempty"`
@@ -169,6 +171,8 @@ type Variable struct {
 	Regex            string           `json:"regex,omitempty"`
 	Sort             string           `json:"sort,omitempty"`
 	Refresh          string           `json:"refresh,omitempty"`
+	StaticOptions    []StaticOption   `json:"staticOptions,omitempty"`
+	StaticOrder      string           `json:"staticOrder,omitempty"`
 	Options          []VariableOption `json:"options,omitempty"`
 	Multi            bool             `json:"multi,omitempty"`
 	IncludeAll       bool             `json:"includeAll,omitempty"`
@@ -185,6 +189,11 @@ type Variable struct {
 type VariableOption struct {
 	Text  string
 	Value string
+}
+
+type StaticOption struct {
+	Text  string `json:"text"`
+	Value string `json:"value"`
 }
 
 func PlainOption(value string) VariableOption { return VariableOption{Text: value, Value: value} }
