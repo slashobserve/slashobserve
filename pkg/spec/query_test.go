@@ -359,7 +359,13 @@ func TestParseConditionalAllArguments(t *testing.T) {
 	for _, c := range []struct{ name, args, message string }{
 		{"empty", "", "needs a condition and a variable"},
 		{"one argument", "pod = 1", "needs a condition and a variable"},
-		{"three arguments", "a, $b, $c", "needs a condition and a variable"},
+		{"four arguments", "a, b, c, $d", "needs a condition and a variable"},
+		{"empty otherwise", "a = 1, , $pod", "needs a condition and a variable"},
+		{"empty condition beside an otherwise", ", b = 1, $pod", "needs a condition and a variable"},
+		{"literal variable beside an otherwise", "a = 1, b = 1, 'x'", "must be one variable reference"},
+		{"otherwise using its own variable", "a = 1, b IN (${pod:singlequote}), $pod", "must not use its own variable $pod"},
+		{"otherwise using its own variable in a macro argument", "a = 1, f($pod), ${pod}", "must not use its own variable $pod"},
+		{"nested in the otherwise", "a = 1, $__conditionalAll(b, $x), $y", "cannot be nested"},
 		{"empty condition", ", $pod", "needs a condition and a variable"},
 		{"literal variable", "a = 1, 'x'", "must be one variable reference"},
 		{"formatted variable", "a = 1, ${pod:csv}", "must be one variable reference"},
@@ -374,6 +380,37 @@ func TestParseConditionalAllArguments(t *testing.T) {
 				t.Fatalf("got error %v, want it to contain %q", err, c.message)
 			}
 		})
+	}
+}
+
+func TestParseConditionalAllOtherwise(t *testing.T) {
+	const args = " pod IN (${pod:singlequote}) ,\n  pod IN ('mysql', 'a,b') , $pod "
+	macro, ref := conditionalAllRef(t, args)
+	got, err := macro.ParseArguments(ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query := "$__conditionalAll(" + args + ")"
+	if want := []string{"pod IN (${pod:singlequote})", "pod"}; !slices.Equal(got.Values, want) {
+		t.Fatalf("values %q, want %q", got.Values, want)
+	}
+	if got.Otherwise != "pod IN ('mysql', 'a,b')" || query[got.OtherwiseStart:got.OtherwiseStart+len(got.Otherwise)] != got.Otherwise {
+		t.Fatalf("otherwise %q at %d in %q", got.Otherwise, got.OtherwiseStart, query)
+	}
+	if query[got.ConditionStart:got.ConditionStart+len(got.Values[0])] != got.Values[0] {
+		t.Fatalf("condition at %d in %q", got.ConditionStart, query)
+	}
+
+	two := func() spec.MacroArguments {
+		macro, ref := conditionalAllRef(t, "a = 1, $pod")
+		parsed, err := macro.ParseArguments(ref)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return parsed
+	}()
+	if two.Otherwise != "" {
+		t.Fatalf("two arguments carry the otherwise condition %q", two.Otherwise)
 	}
 }
 

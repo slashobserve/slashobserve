@@ -325,16 +325,34 @@ func expandConditionalAll(d Dialect, dsType spec.DatasourceType, ref spec.Refere
 		probe.Variables = slices.Clone(env.Variables)
 		probe.Variables[idx] = datasource.Variable{Name: name, Values: []string{allPlaceholder}}
 	}
-	exp, err := expandText(d, dsType, condition, probe)
+	out, err := expandBranch(d, dsType, ref, condition, args.ConditionStart, probe)
 	if err != nil {
-		return "", shiftOffset(err, args.ConditionStart)
+		return "", err
+	}
+	if args.Otherwise == "" {
+		if v.All {
+			return "1=1", nil
+		}
+		return out, nil
+	}
+	otherwise, err := expandBranch(d, dsType, ref, args.Otherwise, args.OtherwiseStart, probe)
+	if err != nil {
+		return "", err
+	}
+	if v.All {
+		return otherwise, nil
+	}
+	return out, nil
+}
+
+func expandBranch(d Dialect, dsType spec.DatasourceType, ref spec.Reference, text string, start int, env Env) (string, error) {
+	exp, err := expandText(d, dsType, text, env)
+	if err != nil {
+		return "", shiftOffset(err, start)
 	}
 	out := "(" + exp.Text + ")"
 	if !wrapsExactly(out) {
 		return "", refErrorf(ref, "the condition of %s must have balanced parentheses and no comment that reaches the end of it", refLabel(ref))
-	}
-	if v.All {
-		return "1=1", nil
 	}
 	return out, nil
 }

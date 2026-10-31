@@ -210,5 +210,6 @@ The first point of a counter series has nothing to subtract from: a rate treats 
 A macro that is not at the start of the query, or whose arguments cannot be read, is still left out and listed in the import report.
 `$adhoc` becomes the dashboard's ad hoc variable when exactly one ad hoc variable uses the query's datasource, and `1` (with a note in the report) otherwise.
 `$timeFilterByColumn(column)` becomes `$__timeFilter(column)`.
+`$conditionalTest(condition, $variable)` and its three-argument form `$conditionalTest(condition, otherwise, $variable)` become `$__conditionalAll`, which writes the otherwise condition when the variable selects All, as the plugin does.
 The plugin's `extrapolate` option, which the plugin applies in the browser to the edges of a rate series, is reported on the rate family; `round` is dropped silently only when it is `$step`, `0s` or divides the query's explicit minimum step, and reported otherwise.
 A ClickHouse query that keeps its generated SQL drops the query builder's settings without a note.
