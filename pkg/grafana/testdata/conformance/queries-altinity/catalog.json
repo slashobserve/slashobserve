@@ -67,7 +67,7 @@
     { "id": "interval=var:braces", "path": "interval", "value": "${res}" },
     { "id": "adHocFilters=status", "path": "adHocFilters", "value": [{"key": "status", "operator": "=", "value": "200"}] },
     { "id": "adHocValuesQuery=values-query", "path": "adHocValuesQuery", "value": "SELECT DISTINCT status FROM default.requests" },
-    { "id": "extrapolate=false", "path": "extrapolate", "value": false },
+    { "id": "extrapolate=false", "path": "extrapolate", "value": false, "with": {"query": "$rate(count() c) FROM $table"} },
     { "id": "skip_comments=false", "path": "skip_comments", "value": false },
     { "id": "add_metadata=false", "path": "add_metadata", "value": false },
     { "id": "useWindowFuncForMacros=false", "path": "useWindowFuncForMacros", "value": false },

@@ -3,6 +3,7 @@ package grafana
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -214,6 +215,21 @@ func dangling(expr string) bool {
 	return danglingWords[words[len(words)-1]]
 }
 
+func parseAltinityValue(arg string, key altinityColumn) (altinityColumn, bool) {
+	if column, ok := parseAltinityColumn(arg); ok {
+		return column, true
+	}
+	expr := strings.TrimSpace(arg)
+	if expr == "" || dangling(expr) {
+		return altinityColumn{}, false
+	}
+	alias := "value"
+	if key.alias == alias {
+		alias = "value_1"
+	}
+	return altinityColumn{expr, alias, expr + " AS " + alias}, true
+}
+
 func parseAltinityColumns(args []string) ([]altinityColumn, bool) {
 	columns := make([]altinityColumn, len(args))
 	for i, arg := range args {
@@ -395,8 +411,8 @@ func (tb *targetBuild) expandAltinity(name string, args []string, rest string) (
 	switch name {
 	case "columns", "columnsMs":
 		return tb.expandColumns(name == "columnsMs", args, rest)
-	case "lttb":
-		return tb.expandLTTB(args, rest)
+	case "lttb", "lttbMs":
+		return tb.expandLTTB(name == "lttbMs", args, rest)
 	}
 	base, form := counterFamily(name)
 	switch form {
@@ -420,13 +436,15 @@ func counterFamily(name string) (string, string) {
 	return name, ""
 }
 
-func isCounterMacro(name string) bool {
-	base, _ := counterFamily(name)
-	_, derived := counterDerivations[base]
-	return base == "rate" || derived
+func (tb *targetBuild) derivedValue(base, column string) (string, string) {
+	value, suffix := counterValue(base, column)
+	if !tb.extrapolate {
+		value = "if((row_number() OVER w) = 1, nan, " + value + ")"
+	}
+	return value, suffix
 }
 
-func derivedValue(base, column string) (string, string) {
+func counterValue(base, column string) (string, string) {
 	if base == "rate" {
 		return rateOf(column), "Rate"
 	}
@@ -446,14 +464,14 @@ func (tb *targetBuild) expandCounter(base string, args []string, rest string) (s
 			return "", false
 		}
 		for _, column := range columns {
-			value, suffix := derivedValue(base, column.alias)
+			value, suffix := tb.derivedValue(base, column.alias)
 			inner = append(inner, column.text)
 			derived = append(derived, value+" AS "+column.alias+suffix)
 		}
 	} else {
 		for i, arg := range args {
 			alias := fmt.Sprintf("max_%d", i)
-			value, suffix := derivedValue(base, alias)
+			value, suffix := tb.derivedValue(base, alias)
 			inner = append(inner, "toFloat64(max("+arg+")) AS "+alias)
 			derived = append(derived, value+" AS "+alias+"_"+suffix)
 		}
@@ -505,11 +523,11 @@ func (tb *targetBuild) expandCounterColumns(base string, args []string, rest str
 	}
 	partitioned := " WINDOW w AS (PARTITION BY " + key.alias + " ORDER BY t) ORDER BY t, " + key.alias
 	if base == "rate" {
-		value, ok := parseAltinityColumn(args[1])
+		value, ok := parseAltinityValue(args[1], key)
 		if !ok {
 			return "", false
 		}
-		derived, _ := derivedValue(base, value.alias)
+		derived, _ := tb.derivedValue(base, value.alias)
 		return "SELECT t, toString(" + key.alias + ") AS " + key.alias + ", " + derived + " AS Value" +
 			" FROM (" + keyedSelect(source, key, value.text) + ")" + partitioned, true
 	}
@@ -520,7 +538,7 @@ func (tb *targetBuild) expandCounterColumns(base string, args []string, rest str
 	if source.tail.having != "" {
 		having = "\n" + source.tail.having
 	}
-	derived, _ := derivedValue(base, "max_0")
+	derived, _ := tb.derivedValue(base, "max_0")
 	return "SELECT t, toString(" + key.alias + ") AS " + key.alias + ", " + derived + " AS Value" +
 		" FROM (SELECT " + source.series + " AS t, " + key.text + ", toFloat64(max(" + strings.TrimSpace(args[1]) + ")) AS max_0" +
 		"\n" + source.from + "\nGROUP BY t, " + key.alias + having + "\nORDER BY " + key.alias + ", t)" + partitioned, true
@@ -550,7 +568,7 @@ func (tb *targetBuild) expandCounterAggregated(base string, args []string, rest 
 		if base != "rate" {
 			expr = "toFloat64(" + expr + ")"
 		}
-		derivedValue, suffix := derivedValue(base, value.alias)
+		derivedValue, suffix := tb.derivedValue(base, value.alias)
 		values = append(values, expr+" AS "+value.alias)
 		derived = append(derived, derivedValue+" AS "+value.alias+suffix)
 		aggregated = append(aggregated, function+"("+value.alias+suffix+") AS "+value.alias+suffix+"Agg")
@@ -568,8 +586,8 @@ func (tb *targetBuild) expandCounterAggregated(base string, args []string, rest 
 		" FROM (" + middle + ") GROUP BY " + key.alias + ", t ORDER BY t, " + key.alias, true
 }
 
-func (tb *targetBuild) expandLTTB(args []string, rest string) (string, bool) {
-	source, ok := tb.altinitySource(rest, false)
+func (tb *targetBuild) expandLTTB(ms bool, args []string, rest string) (string, bool) {
+	source, ok := tb.altinitySource(rest, ms)
 	if !ok || len(args) < 3 {
 		return "", false
 	}
@@ -617,4 +635,140 @@ func blankOrComments(s string) bool {
 		}
 	}
 	return true
+}
+
+type timeColumnType struct {
+	subSecond     bool
+	unixPerSecond int64
+	dateTime      string
+	dateTime64    string
+}
+
+var timeColumnTypes = map[string]timeColumnType{
+	"DATETIME":      {},
+	"DATETIME64":    {subSecond: true},
+	"TIMESTAMP":     {unixPerSecond: 1, dateTime: "toDateTime(%s)", dateTime64: "toDateTime64(%s, 3)"},
+	"FLOAT":         {unixPerSecond: 1, dateTime: "toDateTime(%s)", dateTime64: "toDateTime64(%s, 3)"},
+	"TIMESTAMP64_3": {unixPerSecond: 1_000, dateTime: "toDateTime(fromUnixTimestamp64Milli(toInt64(%s)))", dateTime64: "fromUnixTimestamp64Milli(toInt64(%s))"},
+	"TIMESTAMP64_6": {unixPerSecond: 1_000_000, dateTime: "toDateTime(fromUnixTimestamp64Micro(toInt64(%s)))", dateTime64: "fromUnixTimestamp64Micro(toInt64(%s))"},
+	"TIMESTAMP64_9": {unixPerSecond: 1_000_000_000, dateTime: "toDateTime(fromUnixTimestamp64Nano(toInt64(%s)))", dateTime64: "fromUnixTimestamp64Nano(toInt64(%s))"},
+}
+
+const (
+	yearRangeSeconds  = 94_608_000
+	monthRangeSeconds = 15_552_000
+	weekRangeSeconds  = 2_592_000
+	dayRangeSeconds   = 604_800
+)
+
+func (t timeColumnType) unix() bool {
+	return t.unixPerSecond > 0
+}
+
+func (t timeColumnType) seconds(column string) string {
+	if !t.unix() {
+		return column
+	}
+	return fmt.Sprintf(t.dateTime, column)
+}
+
+func (t timeColumnType) milliseconds(column string) string {
+	return fmt.Sprintf(t.dateTime64, column)
+}
+
+func (tb *targetBuild) boundSeconds(upper bool) string {
+	name := "from"
+	if upper {
+		name = "to"
+	}
+	seconds := "${__" + name + ":date:seconds}"
+	round := tb.roundSeconds
+	switch {
+	case round == "":
+		return seconds
+	case upper:
+		return "intDiv(" + seconds + " + " + round + " - 1, " + round + ") * " + round
+	}
+	return "intDiv(" + seconds + ", " + round + ") * " + round
+}
+
+func (tb *targetBuild) boundValue(upper bool) string {
+	if tb.roundSeconds == "" {
+		return tb.boundSeconds(upper)
+	}
+	return "(" + tb.boundSeconds(upper) + ")"
+}
+
+func (tb *targetBuild) unixBound(upper bool) string {
+	scale := tb.timeType.unixPerSecond
+	if tb.roundSeconds != "" {
+		seconds := tb.boundSeconds(upper)
+		if scale == 1 {
+			return seconds
+		}
+		return "(" + seconds + ") * " + strconv.FormatInt(scale, 10)
+	}
+	milliseconds := "$__from"
+	if upper {
+		milliseconds = "$__to"
+	}
+	switch scale {
+	case 1:
+		return milliseconds + " / 1000"
+	case 1_000:
+		return milliseconds
+	}
+	return milliseconds + " * " + strconv.FormatInt(scale/1_000, 10)
+}
+
+func (tb *targetBuild) timeFilterOn(column string, subSecond bool) string {
+	switch {
+	case tb.timeType.unix():
+		return "(" + column + " >= " + tb.unixBound(false) + " AND " + column + " <= " + tb.unixBound(true) + ")"
+	case tb.roundSeconds != "":
+		return "(" + column + " >= toDateTime(" + tb.boundSeconds(false) + ") AND " + column + " <= toDateTime(" + tb.boundSeconds(true) + "))"
+	case subSecond || tb.timeType.subSecond:
+		return "$__timeFilter_ms(" + column + ")"
+	}
+	return "$__timeFilter(" + column + ")"
+}
+
+func (tb *targetBuild) dateFilterOn(column string) string {
+	if tb.roundSeconds == "" {
+		return "$__dateFilter(" + column + ")"
+	}
+	return "(" + column + " >= toDate(toDateTime(" + tb.boundSeconds(false) + ")) AND " + column + " <= toDate(toDateTime(" + tb.boundSeconds(true) + ")))"
+}
+
+func (tb *targetBuild) timeFilterWithDate(date, column string) string {
+	switch {
+	case date == "":
+		return tb.timeFilterOn(column, false)
+	case tb.timeType.unix() || tb.roundSeconds != "":
+		return "(" + tb.dateFilterOn(date) + " AND " + tb.timeFilterOn(column, false) + ")"
+	}
+	return "$__dateTimeFilter(" + date + ", " + column + ")"
+}
+
+func (tb *targetBuild) timeSeriesOn(column string, ms bool) string {
+	t := tb.timeType
+	switch {
+	case t.unix() && ms:
+		return "toStartOfInterval(" + t.milliseconds(column) + ", INTERVAL $__interval_ms millisecond)"
+	case t.unix():
+		return "toStartOfInterval(" + t.seconds(column) + ", INTERVAL $__interval_s second)"
+	case ms || t.subSecond:
+		return "$__timeInterval_ms(" + column + ")"
+	}
+	return "$__timeInterval(" + column + ")"
+}
+
+func (tb *targetBuild) naturalTimeSeriesOn(column string) string {
+	moment := tb.timeType.seconds(column)
+	return "multiIf(" +
+		"$__range_s >= " + strconv.Itoa(yearRangeSeconds) + ", toDateTime(toStartOfYear(" + moment + ")), " +
+		"$__range_s >= " + strconv.Itoa(monthRangeSeconds) + ", toDateTime(toStartOfMonth(" + moment + ")), " +
+		"$__range_s >= " + strconv.Itoa(weekRangeSeconds) + ", toDateTime(toStartOfWeek(" + moment + ", 1)), " +
+		"$__range_s >= " + strconv.Itoa(dayRangeSeconds) + ", toStartOfDay(" + moment + "), " +
+		tb.timeSeriesOn(column, false) + ")"
 }

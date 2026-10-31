@@ -256,45 +256,186 @@ func hasPathSuffix(paths []string, suffix string) bool {
 	return false
 }
 
-func TestAltinityRoundIsSilentOnlyWhenItDividesTheStep(t *testing.T) {
-	cases := []struct {
-		name, members string
-		silent        bool
-	}{
-		{"no rounding", `,"round":"0s"`, true},
-		{"rounded to the step", `,"round":"$step"`, true},
-		{"divides the interval", `,"round":"1m","interval":"5m"`, true},
-		{"does not divide the interval", `,"round":"2m","interval":"5m"`, false},
-		{"no interval", `,"round":"1m"`, false},
-		{"unparseable", `,"round":"soon","interval":"5m"`, false},
+const (
+	fromRounded = "intDiv(${__from:date:seconds}, 60) * 60"
+	toRounded   = "intDiv(${__to:date:seconds} + 60 - 1, 60) * 60"
+)
+
+func TestAltinityRoundWritesTheRoundedRangeIntoTheTimeFilter(t *testing.T) {
+	const query = "SELECT $timeSeries AS t, count() FROM $table WHERE $timeFilter GROUP BY t"
+	rangeFilter := "(ts >= toDateTime(" + fromRounded + ") AND ts <= toDateTime(" + toRounded + "))"
+	dateRange := "(d >= toDate(toDateTime(" + fromRounded + ")) AND d <= toDate(toDateTime(" + toRounded + ")))"
+	cases := []struct{ name, members, want string }{
+		{"no rounding", `,"round":"0s"`, "SELECT $__timeInterval(ts) AS t, count() FROM db.t WHERE $__dateTimeFilter(d, ts) GROUP BY t"},
+		{"one minute", `,"round":"1m"`, "SELECT $__timeInterval(ts) AS t, count() FROM db.t WHERE (" + dateRange + " AND " + rangeFilter + ") GROUP BY t"},
+		{
+			"five minutes",
+			`,"round":"5m"`,
+			"SELECT $__timeInterval(ts) AS t, count() FROM db.t WHERE ((d >= toDate(toDateTime(intDiv(${__from:date:seconds}, 300) * 300)) AND d <= toDate(toDateTime(intDiv(${__to:date:seconds} + 300 - 1, 300) * 300))) AND " +
+				"(ts >= toDateTime(intDiv(${__from:date:seconds}, 300) * 300) AND ts <= toDateTime(intDiv(${__to:date:seconds} + 300 - 1, 300) * 300))) GROUP BY t",
+		},
+		{
+			"the step",
+			`,"round":"$step"`,
+			"SELECT $__timeInterval(ts) AS t, count() FROM db.t WHERE ((d >= toDate(toDateTime(intDiv(${__from:date:seconds}, $__interval_s) * $__interval_s)) AND d <= toDate(toDateTime(intDiv(${__to:date:seconds} + $__interval_s - 1, $__interval_s) * $__interval_s))) AND " +
+				"(ts >= toDateTime(intDiv(${__from:date:seconds}, $__interval_s) * $__interval_s) AND ts <= toDateTime(intDiv(${__to:date:seconds} + $__interval_s - 1, $__interval_s) * $__interval_s))) GROUP BY t",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, line := altinityPanel(t, "SELECT $timeSeries AS t, count() FROM $table GROUP BY t", tc.members)
-			if reported := hasPathSuffix(line.Paths, ".round"); reported == tc.silent {
-				t.Fatalf("paths = %v, status %s, want silent = %v", line.Paths, line.Status, tc.silent)
+			panel, line := altinityPanel(t, query, tc.members)
+			if got := panel.Queries[0].Query; got != tc.want {
+				t.Fatalf("query = %q\nwant    %q", got, tc.want)
+			}
+			if hasPathSuffix(line.Paths, ".round") {
+				t.Fatalf("paths = %v, want round consumed", line.Paths)
 			}
 		})
 	}
 }
 
-func TestAltinityExtrapolateIsReportedOnlyForRateFamilyMacros(t *testing.T) {
-	cases := []struct {
-		name, query, members string
-		reported             bool
-	}{
-		{"rate with the default", "$rate(count() c) FROM db.t", "", true},
-		{"rate switched on", "$rate(count() c) FROM db.t", `,"extrapolate":true`, true},
-		{"rate switched off", "$rate(count() c) FROM db.t", `,"extrapolate":false`, false},
-		{"delta switched on", "$delta(x) FROM db.t", `,"extrapolate":true`, true},
-		{"columns switched on", "$columns(k, count() c) FROM db.t", `,"extrapolate":true`, false},
-		{"plain query switched on", "SELECT 1", `,"extrapolate":true`, false},
+func TestAltinityRoundRewritesFromAndToAndTheFilterByColumn(t *testing.T) {
+	got := altinityQuery(t, "SELECT $from, $to FROM t WHERE $timeFilterByColumn(created_at)", `,"round":"1m"`)
+	want := "SELECT (" + fromRounded + "), (" + toRounded + ") FROM t WHERE (created_at >= toDateTime(" + fromRounded + ") AND created_at <= toDateTime(" + toRounded + "))"
+	if got != want {
+		t.Fatalf("query = %q\nwant    %q", got, want)
+	}
+}
+
+func TestAltinityRoundThatIsNotAWholeNumberOfSecondsIsReported(t *testing.T) {
+	for _, round := range []string{"soon", "1500ms", "-1m"} {
+		t.Run(round, func(t *testing.T) {
+			panel, line := altinityPanel(t, "SELECT 1 FROM t WHERE $timeFilter", `,"round":"`+round+`"`)
+			if !hasPathSuffix(line.Paths, ".round") {
+				t.Fatalf("paths = %v, want round reported", line.Paths)
+			}
+			if got := panel.Queries[0].Query; got != "SELECT 1 FROM t WHERE $__dateTimeFilter(d, ts)" {
+				t.Fatalf("query = %q, want the unrounded filter", got)
+			}
+		})
+	}
+}
+
+func TestAltinityDateTimeTypeWrapsTheTimeColumn(t *testing.T) {
+	const query = "SELECT $timeSeries AS t, count() FROM $table WHERE $timeFilter GROUP BY t"
+	unixFilter := func(low, high string) string {
+		return "WHERE ($__dateFilter(d) AND (ts >= " + low + " AND ts <= " + high + ")) GROUP BY t"
+	}
+	cases := []struct{ kind, series, filter string }{
+		{"DATETIME", "$__timeInterval(ts)", "WHERE $__dateTimeFilter(d, ts) GROUP BY t"},
+		{"DATETIME64", "$__timeInterval_ms(ts)", "WHERE $__dateTimeFilter(d, ts) GROUP BY t"},
+		{"TIMESTAMP", "toStartOfInterval(toDateTime(ts), INTERVAL $__interval_s second)", unixFilter("$__from / 1000", "$__to / 1000")},
+		{"FLOAT", "toStartOfInterval(toDateTime(ts), INTERVAL $__interval_s second)", unixFilter("$__from / 1000", "$__to / 1000")},
+		{"TIMESTAMP64_3", "toStartOfInterval(toDateTime(fromUnixTimestamp64Milli(toInt64(ts))), INTERVAL $__interval_s second)", unixFilter("$__from", "$__to")},
+		{"TIMESTAMP64_6", "toStartOfInterval(toDateTime(fromUnixTimestamp64Micro(toInt64(ts))), INTERVAL $__interval_s second)", unixFilter("$__from * 1000", "$__to * 1000")},
+		{"TIMESTAMP64_9", "toStartOfInterval(toDateTime(fromUnixTimestamp64Nano(toInt64(ts))), INTERVAL $__interval_s second)", unixFilter("$__from * 1000000", "$__to * 1000000")},
+	}
+	for _, tc := range cases {
+		t.Run(tc.kind, func(t *testing.T) {
+			panel, line := altinityPanel(t, query, `,"dateTimeType":"`+tc.kind+`"`)
+			want := "SELECT " + tc.series + " AS t, count() FROM db.t " + tc.filter
+			if got := panel.Queries[0].Query; got != want {
+				t.Fatalf("query = %q\nwant    %q", got, want)
+			}
+			if line.Status != statusImported {
+				t.Fatalf("line = %+v, want imported", line)
+			}
+		})
+	}
+}
+
+func TestAltinityMillisecondMacrosFollowTheTimeColumnType(t *testing.T) {
+	cases := []struct{ kind, want string }{
+		{"DATETIME", "SELECT $__timeInterval_ms(ts) AS t FROM t WHERE $__timeFilter_ms(ts)"},
+		{"TIMESTAMP", "SELECT toStartOfInterval(toDateTime64(ts, 3), INTERVAL $__interval_ms millisecond) AS t FROM t WHERE (ts >= $__from / 1000 AND ts <= $__to / 1000)"},
+		{"TIMESTAMP64_6", "SELECT toStartOfInterval(fromUnixTimestamp64Micro(toInt64(ts)), INTERVAL $__interval_ms millisecond) AS t FROM t WHERE (ts >= $__from * 1000 AND ts <= $__to * 1000)"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.kind, func(t *testing.T) {
+			got := altinityQuery(t, "SELECT $timeSeriesMs AS t FROM t WHERE $timeFilterMs", `,"dateTimeType":"`+tc.kind+`"`)
+			if got != tc.want {
+				t.Fatalf("query = %q\nwant    %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestAltinityUnknownDateTimeTypeIsReportedAndReadAsDateTime(t *testing.T) {
+	panel, line := altinityPanel(t, "SELECT $timeSeries AS t FROM t", `,"dateTimeType":"DATE"`)
+	if !hasPathSuffix(line.Paths, ".dateTimeType") {
+		t.Fatalf("paths = %v, want dateTimeType reported", line.Paths)
+	}
+	if got := panel.Queries[0].Query; got != "SELECT $__timeInterval(ts) AS t FROM t" {
+		t.Fatalf("query = %q", got)
+	}
+}
+
+func TestAltinityTimeFilter64ByColumnUsesTheMillisecondFilter(t *testing.T) {
+	got := altinityQuery(t, "SELECT 1 FROM t WHERE $timeFilter64ByColumn(created_at) AND x = 1", "")
+	if want := "SELECT 1 FROM t WHERE $__timeFilter_ms(created_at) AND x = 1"; got != want {
+		t.Fatalf("query = %q, want %q", got, want)
+	}
+}
+
+func TestAltinityNaturalTimeSeriesBucketsByCalendarUnitsForLongRanges(t *testing.T) {
+	got := altinityQuery(t, "SELECT $naturalTimeSeries AS t, count() FROM t GROUP BY t", "")
+	want := "SELECT multiIf($__range_s >= 94608000, toDateTime(toStartOfYear(ts)), $__range_s >= 15552000, toDateTime(toStartOfMonth(ts)), " +
+		"$__range_s >= 2592000, toDateTime(toStartOfWeek(ts, 1)), $__range_s >= 604800, toStartOfDay(ts), $__timeInterval(ts)) AS t, count() FROM t GROUP BY t"
+	if got != want {
+		t.Fatalf("query = %q\nwant    %q", got, want)
+	}
+}
+
+func TestAltinityLTTBMsReadsTheMillisecondSeries(t *testing.T) {
+	got := altinityQuery(t, "$lttbMs(100, t, c) FROM (SELECT $timeSeriesMs AS t, count() AS c FROM $table GROUP BY t)", "")
+	want := "SELECT point.1 AS t, point.2 AS c FROM (SELECT arrayJoin(largestTriangleThreeBuckets(100)(t, c)) AS point\nFROM (SELECT $__timeInterval_ms(ts) AS t, count() AS c FROM db.t GROUP BY t)\nWHERE $__timeFilter_ms(ts)\n) ORDER BY t"
+	if got != want {
+		t.Fatalf("query = %q\nwant    %q", got, want)
+	}
+}
+
+func TestAltinityRateColumnsAcceptsAValueWithoutAnAlias(t *testing.T) {
+	got := altinityQuery(t, "$rateColumns(k, count()) FROM db.t", "")
+	want := "SELECT t, toString(k) AS k, value / (" + sinceTick + ") AS Value FROM (SELECT $__timeInterval(ts) AS t, k, count() AS value\nFROM db.t\n" + dateFilter + "\nGROUP BY t, k\nORDER BY t, k)" + counterWindow("PARTITION BY k ") + " ORDER BY t, k"
+	if got != want {
+		t.Fatalf("query = %q\nwant    %q", got, want)
+	}
+}
+
+func TestAltinityRateFamilyExtrapolatesByDefaultAndDropsTheFirstBucketWhenOff(t *testing.T) {
+	first := "(row_number() OVER w) = 1"
+	cases := []struct{ name, query, want string }{
+		{
+			"rate",
+			"$rate(count() c) FROM db.t",
+			"SELECT t, if(" + first + ", nan, c / (" + sinceTick + ")) AS cRate FROM (SELECT $__timeInterval(ts) AS t, count() c\nFROM db.t\n" + dateFilter + "\nGROUP BY t ORDER BY t)" + tickWindow,
+		},
+		{
+			"delta",
+			"$delta(x) FROM db.t",
+			"SELECT t, if(" + first + ", nan, max_0 - lagInFrame(max_0, 1, max_0) OVER w) AS max_0_Delta " +
+				"FROM (SELECT $__timeInterval(ts) AS t, toFloat64(max(x)) AS max_0\nFROM db.t\n" + dateFilter + "\nGROUP BY t ORDER BY t)" + tickWindow,
+		},
+		{
+			"rateColumns",
+			"$rateColumns(k, count() c) FROM db.t",
+			"SELECT t, toString(k) AS k, if(" + first + ", nan, c / (" + sinceTick + ")) AS Value FROM (SELECT $__timeInterval(ts) AS t, k, count() c\nFROM db.t\n" + dateFilter + "\nGROUP BY t, k\nORDER BY t, k)" + counterWindow("PARTITION BY k ") + " ORDER BY t, k",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, line := altinityPanel(t, tc.query, tc.members)
-			if reported := hasPathSuffix(line.Paths, ".extrapolate"); reported != tc.reported {
-				t.Fatalf("paths = %v, want reported = %v", line.Paths, tc.reported)
+			off, line := altinityPanel(t, tc.query, `,"extrapolate":false`)
+			if got := off.Queries[0].Query; got != tc.want {
+				t.Fatalf("query = %q\nwant    %q", got, tc.want)
+			}
+			if hasPathSuffix(line.Paths, ".extrapolate") {
+				t.Fatalf("paths = %v, want extrapolate consumed", line.Paths)
+			}
+			for _, members := range []string{"", `,"extrapolate":true`} {
+				on, line := altinityPanel(t, tc.query, members)
+				if strings.Contains(on.Queries[0].Query, "row_number") || hasPathSuffix(line.Paths, ".extrapolate") {
+					t.Fatalf("members %q: query = %q, paths = %v, want the extrapolated form with nothing reported", members, on.Queries[0].Query, line.Paths)
+				}
 			}
 		})
 	}
@@ -310,7 +451,7 @@ func TestAltinityAdhocInsideAQueryNeedsExactlyOneAdhocVariable(t *testing.T) {
 		reported  bool
 	}{
 		{"one variable", []string{adhoc}, "SELECT 1 WHERE $filters", false},
-		{"no variable", nil, "SELECT 1 WHERE 1", true},
+		{"no variable", nil, "SELECT 1 WHERE 1", false},
 		{"two variables", []string{adhoc, second}, "SELECT 1 WHERE 1", true},
 	}
 	for _, tc := range cases {
@@ -348,5 +489,33 @@ func TestClickHouseBuilderOptionsDropSilentlyWhenRawSQLIsKept(t *testing.T) {
 	}
 	if len(panel.Queries) != 1 || strings.Contains(panel.Queries[0].Query, "max_threads") {
 		t.Fatalf("queries = %+v", panel.Queries)
+	}
+}
+
+func TestClickHouseMinIntervalBecomesTheQueryInterval(t *testing.T) {
+	const chRef = `{"type":"grafana-clickhouse-datasource","uid":"ch"}`
+	const interval = `{"name":"res","type":"interval","query":"1m,10m","current":{"text":"1m","value":"1m"},"options":[]}`
+	cases := []struct {
+		name, members, want string
+		reported            bool
+	}{
+		{"a duration", `,"minInterval":"1m"`, "1m", false},
+		{"a built-in interval", `,"minInterval":"$__interval"`, "", false},
+		{"an interval variable", `,"minInterval":"$res"`, "${res}", false},
+		{"empty", `,"minInterval":""`, "", false},
+		{"unreadable", `,"minInterval":"soon"`, "", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			doc := fmt.Sprintf(`{"title":"T","schemaVersion":41,%s,"panels":[{"id":1,"type":"timeseries","title":"T","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":%s,"targets":[{"refId":"A","datasource":%s,"rawSql":"SELECT timestamp, value FROM metrics WHERE $__timeFilter(timestamp)"%s}]}]}`,
+				templating(interval), chRef, chRef, tc.members)
+			panel, line := convertedPanel(t, doc)
+			if got := panel.Queries[0].Interval; got != tc.want {
+				t.Fatalf("interval = %q, want %q", got, tc.want)
+			}
+			if reported := hasPathSuffix(line.Paths, ".minInterval"); reported != tc.reported {
+				t.Fatalf("paths = %v, want reported = %v", line.Paths, tc.reported)
+			}
+		})
 	}
 }

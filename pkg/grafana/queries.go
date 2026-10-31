@@ -54,10 +54,13 @@ type targetBuild struct {
 	rewrites []string
 
 	splitInstant bool
-	rateMacro    bool
 	expanded     bool
 	expr         *pendingExpression
 	reuses       *builtPanel
+
+	timeType     timeColumnType
+	roundSeconds string
+	extrapolate  bool
 }
 
 var targetSilent = map[string]bool{
@@ -277,16 +280,24 @@ func (tb *targetBuild) legend() string {
 }
 
 func (tb *targetBuild) minInterval() string {
-	tb.use("interval", "step")
-	interval := strings.TrimSpace(asString(tb.t["interval"]))
-	if interval == "" {
-		return tb.legacyStep()
-	}
-	if value, ok := tb.b.c.minStep(interval); ok {
+	tb.use("step")
+	if value, written := tb.minStepOf("interval"); written {
 		return value
 	}
-	tb.partial("interval", fmt.Sprintf("The min step %s cannot be kept; SlashObserve picks the step.", interval))
-	return ""
+	return tb.legacyStep()
+}
+
+func (tb *targetBuild) minStepOf(key string) (string, bool) {
+	tb.use(key)
+	text := strings.TrimSpace(asString(tb.t[key]))
+	if text == "" {
+		return "", false
+	}
+	if value, ok := tb.b.c.minStep(text); ok {
+		return value, true
+	}
+	tb.partial(key, fmt.Sprintf("The min step %s cannot be kept; SlashObserve picks the step.", text))
+	return "", true
 }
 
 func (tb *targetBuild) resolutionFactor() int {
@@ -352,7 +363,8 @@ func (tb *targetBuild) officialClickHouse() (spec.Query, string) {
 	if reason != "" {
 		return spec.Query{}, reason
 	}
-	return spec.Query{Query: sql, Format: format}, ""
+	interval, _ := tb.minStepOf("minInterval")
+	return spec.Query{Query: sql, Format: format, Interval: interval}, ""
 }
 
 func (tb *targetBuild) clickHouseFormat() (string, string) {
@@ -379,11 +391,14 @@ func (tb *targetBuild) clickHouseFormat() (string, string) {
 }
 
 func (tb *targetBuild) altinity(declared map[string]bool) (spec.Query, string) {
-	tb.use("query", "interval", "intervalFactor", "round", "extrapolate", "adHocFilters", "adHocValuesQuery")
+	tb.use("query", "interval", "intervalFactor", "round", "extrapolate", "adHocFilters", "adHocValuesQuery", "dateTimeType")
 	query := asString(tb.t["query"])
 	if strings.TrimSpace(query) == "" {
 		return spec.Query{}, "The query is empty."
 	}
+	tb.timeType = tb.timeColumnType()
+	tb.roundSeconds = tb.roundInSeconds()
+	tb.extrapolate = tb.extrapolates()
 	text, reason := tb.rewriteAltinity(query, declared)
 	if reason != "" {
 		return spec.Query{}, reason
@@ -397,65 +412,44 @@ func (tb *targetBuild) altinity(declared map[string]bool) (spec.Query, string) {
 	case "traces", "flamegraph":
 		q.Format = "table"
 	}
-	tb.reportRound(q)
-	if tb.rateMacro {
-		if extrapolate, set := tb.t["extrapolate"]; !set || truthy(extrapolate) {
-			tb.partial("extrapolate", "Edge extrapolation of rate macros is not kept.")
-		}
-	}
 	for _, key := range []string{"adHocFilters", "adHocValuesQuery"} {
 		if present(tb.t[key]) {
 			tb.partial(key, "Saved ad hoc filters are not kept.")
 		}
 	}
-	if tb.timeColumnIsUnix() {
-		tb.partial("dateTimeType", "The time column is a Unix timestamp; check the time filter.")
-	}
 	return q, ""
 }
 
-func (tb *targetBuild) reportRound(q spec.Query) {
+func (tb *targetBuild) timeColumnType() timeColumnType {
+	kind := strings.ToUpper(strings.TrimSpace(asString(tb.t["dateTimeType"])))
+	if kind == "" {
+		return timeColumnTypes["DATETIME"]
+	}
+	if t, ok := timeColumnTypes[kind]; ok {
+		return t
+	}
+	tb.partial("dateTimeType", fmt.Sprintf("The time column type %s is not supported; the column is read as a DateTime.", kind))
+	return timeColumnTypes["DATETIME"]
+}
+
+func (tb *targetBuild) roundInSeconds() string {
 	round := strings.TrimSpace(asString(tb.t["round"]))
-	if round == "" || round == "0s" || round == "$step" {
-		return
+	switch round {
+	case "", "0s":
+		return ""
+	case "$step":
+		return "$__interval_s"
 	}
-	if step, ok := tb.minimumStep(q); ok {
-		if size, err := spec.ParseInterval(round); err == nil && size > 0 && step%size == 0 {
-			return
-		}
+	if size, err := spec.ParseInterval(round); err == nil && size >= time.Second && size%time.Second == 0 {
+		return strconv.FormatInt(int64(size/time.Second), 10)
 	}
-	tb.partial("round", "Rounding of the time range is not supported yet.")
+	tb.partial("round", fmt.Sprintf("The rounding %s cannot be kept; the time range is not rounded.", round))
+	return ""
 }
 
-func (tb *targetBuild) minimumStep(q spec.Query) (time.Duration, bool) {
-	panelInterval := ""
-	if raw := strings.TrimSpace(asString(tb.b.raw["interval"])); raw != "" {
-		value, ok := tb.b.c.minStep(raw)
-		if !ok {
-			return 0, false
-		}
-		panelInterval = value
-	}
-	var step time.Duration
-	for _, text := range []string{q.Interval, panelInterval} {
-		if text == "" {
-			continue
-		}
-		d, err := spec.ParseInterval(text)
-		if err != nil {
-			return 0, false
-		}
-		step = max(step, d)
-	}
-	if step == 0 {
-		return 0, false
-	}
-	return step * time.Duration(max(q.IntervalFactor, 1)), true
-}
-
-func (tb *targetBuild) timeColumnIsUnix() bool {
-	kind := asString(tb.t["dateTimeType"])
-	return kind != "" && kind != "DATETIME" && kind != "DATETIME64"
+func (tb *targetBuild) extrapolates() bool {
+	value, set := tb.t["extrapolate"]
+	return !set || value == nil || truthy(value)
 }
 
 func (tb *targetBuild) finishQuery(q spec.Query, declared map[string]bool) (spec.Query, string) {
@@ -638,7 +632,7 @@ func (b *panelBuild) mapImpliedRef(position int, ref string, explicit map[string
 var altinityWholeQuery = map[string]bool{
 	"columns": true, "columnsMs": true, "rate": true, "rateColumns": true, "perSecond": true,
 	"perSecondColumns": true, "delta": true, "deltaColumns": true, "increase": true,
-	"increaseColumns": true, "lttb": true,
+	"increaseColumns": true, "lttb": true, "lttbMs": true,
 	"rateColumnsAggregated": true, "perSecondColumnsAggregated": true,
 	"deltaColumnsAggregated": true, "increaseColumnsAggregated": true,
 }
@@ -715,7 +709,6 @@ func (tb *targetBuild) expandWholeQuery(name, text string, end int, declared map
 		return "", altinityDropReason(name)
 	}
 	tb.expanded = true
-	tb.rateMacro = tb.rateMacro || isCounterMacro(name)
 	return tb.rewriteAltinityText(sql, declared, false)
 }
 
@@ -725,12 +718,12 @@ func (tb *targetBuild) inlineAltinity(name, text string, start, end int) (string
 		replacement := tb.adhocReplacement(text, end)
 		tb.addRewrite("$adhoc", replacement)
 		return replacement, end, ""
-	case "timeFilterByColumn":
+	case "timeFilterByColumn", "timeFilter64ByColumn":
 		m := timeFilterColumnArgument.FindStringSubmatch(text[end:])
 		if m == nil {
 			return "", 0, altinityDropReason(name)
 		}
-		replacement := "$__timeFilter(" + m[1] + ")"
+		replacement := tb.timeFilterOn(m[1], name == "timeFilter64ByColumn")
 		tb.addRewrite(text[start:end+len(m[0])], replacement)
 		return replacement, end + len(m[0]), ""
 	}
@@ -750,6 +743,9 @@ func (tb *targetBuild) adhocReplacement(text string, end int) string {
 			names = append(names, v.v.Name)
 		}
 	}
+	if len(names) == 0 && !tb.b.c.declaresAdhocVariable() {
+		return "1"
+	}
 	if len(names) != 1 {
 		tb.partial("query", "Ad hoc filters inside this query are not applied.")
 		return "1"
@@ -758,6 +754,17 @@ func (tb *targetBuild) adhocReplacement(text string, end int) string {
 		return "${" + names[0] + "}"
 	}
 	return "$" + names[0]
+}
+
+func (c *converter) declaresAdhocVariable() bool {
+	templating, _ := asObject(c.src.dash["templating"])
+	list, _ := asArray(templating["list"])
+	for _, item := range list {
+		if v, ok := asObject(item); ok && asString(v["type"]) == "adhoc" {
+			return true
+		}
+	}
+	return false
 }
 
 func (tb *targetBuild) altinityMacro(name, text string, start, end int) (string, int, bool) {
@@ -795,11 +802,11 @@ func (tb *targetBuild) unescapeMacro(text string, start, end int) (string, int, 
 func (tb *targetBuild) altinitySimple(name string) (string, bool) {
 	table, database := asString(tb.t["table"]), asString(tb.t["database"])
 	date, dateTime := asString(tb.t["dateColDataType"]), asString(tb.t["dateTimeColDataType"])
-	timeMacro := func(format string, args ...any) (string, bool) {
+	onTimeColumn := func(build func() string) (string, bool) {
 		if dateTime == "" {
 			return "", false
 		}
-		return fmt.Sprintf(format, args...), true
+		return build(), true
 	}
 	switch name {
 	case "table":
@@ -811,24 +818,23 @@ func (tb *targetBuild) altinitySimple(name string) (string, bool) {
 		}
 		return database + "." + table, true
 	case "timeFilter":
-		if date != "" {
-			return timeMacro("$__dateTimeFilter(%s, %s)", date, dateTime)
-		}
-		return timeMacro("$__timeFilter(%s)", dateTime)
+		return onTimeColumn(func() string { return tb.timeFilterWithDate(date, dateTime) })
 	case "timeFilterMs":
-		return timeMacro("$__timeFilter_ms(%s)", dateTime)
+		return onTimeColumn(func() string { return tb.timeFilterOn(dateTime, true) })
 	case "timeSeries":
-		return timeMacro("$__timeInterval(%s)", dateTime)
+		return onTimeColumn(func() string { return tb.timeSeriesOn(dateTime, false) })
 	case "timeSeriesMs":
-		return timeMacro("$__timeInterval_ms(%s)", dateTime)
+		return onTimeColumn(func() string { return tb.timeSeriesOn(dateTime, true) })
+	case "naturalTimeSeries":
+		return onTimeColumn(func() string { return tb.naturalTimeSeriesOn(dateTime) })
 	case "dateTimeCol":
 		return dateTime, dateTime != ""
 	case "dateCol":
 		return date, date != ""
 	case "from":
-		return "${__from:date:seconds}", true
+		return tb.boundValue(false), true
 	case "to":
-		return "${__to:date:seconds}", true
+		return tb.boundValue(true), true
 	case "interval":
 		return "$__interval_s", true
 	}
