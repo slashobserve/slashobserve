@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -519,22 +520,118 @@ func TestResolutionFactorImportsWhenItIsTwoToTen(t *testing.T) {
 	}
 }
 
-func TestVariableQueryNamingAnUndeclaredVariableSaysSo(t *testing.T) {
-	account := `{"name":"account","type":"query","datasource":` + promRef + `,"query":"label_values(up, accountID)"}`
-	project := `{"name":"project","type":"query","datasource":` + promRef + `,"query":"label_values(up{accountID=~\"$accountID\"}, projectID)"}`
-	panel := `{"id":1,"type":"timeseries","title":"P","gridPos":{"x":0,"y":0,"w":12,"h":4},"datasource":` + promRef + `,"targets":[{"refId":"A","expr":"up{projectID=~\"$project\"}"}]}`
-	res := convertDoc(t, dashboardJSON(templating(account, project), panel))
+func queryVariableJSON(name, query string) string {
+	return `{"name":"` + name + `","type":"query","datasource":` + promRef + `,"query":` + strconv.Quote(query) + `}`
+}
 
-	if names := variableNames(res); !slices.Equal(names, []string{"account"}) {
-		t.Fatalf("variables = %v, want only account", names)
+func projectPanel() string {
+	return `{"id":1,"type":"timeseries","title":"P","gridPos":{"x":0,"y":0,"w":12,"h":4},"datasource":` + promRef + `,"targets":[{"refId":"A","expr":"up{projectID=~\"$project\"}"}]}`
+}
+
+func TestVariableQueryNamingAnUndeclaredVariableThatNoOtherVariableListsDropsIt(t *testing.T) {
+	cases := []struct {
+		name string
+		with []string
+	}{
+		{"no variable lists the label", []string{queryVariableJSON("account", "label_values(up, other)")}},
+		{"two variables list the label", []string{queryVariableJSON("account", "label_values(up, accountID)"), queryVariableJSON("tenant", "label_values(down, accountID)")}},
+		{"the only variable listing the label is the one naming it", nil},
+		{"the label is listed without a selector", []string{queryVariableJSON("account", "label_values(accountID)")}},
+		{"the listing is not a label_values call", []string{queryVariableJSON("account", "query_result(up)")}},
+		{"the listing has more than a selector and a label", []string{queryVariableJSON("account", "label_values(up, accountID, extra)")}},
 	}
-	want := "Its query uses $accountID, but this dashboard declares no variable with that name, and SlashObserve cannot keep a reference to an undeclared variable."
-	notes := notesFor(res, "variable project")
-	if len(notes) != 1 || notes[0].Reason != want || !hasPath(notes, "templating.list[1]") {
-		t.Fatalf("notes = %+v, want one with %q", notes, want)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			project := queryVariableJSON("project", `label_values(up{accountID=~"$accountID"}, projectID)`)
+			if tc.with == nil {
+				project = queryVariableJSON("project", `label_values(up{accountID=~"$accountID"}, accountID)`)
+			}
+			res := convertDoc(t, dashboardJSON(templating(append(tc.with, project)...), projectPanel()))
+
+			if slices.Contains(variableNames(res), "project") {
+				t.Fatalf("variables = %v, want project dropped", variableNames(res))
+			}
+			want := "Its query uses $accountID, but this dashboard declares no variable with that name, and SlashObserve cannot keep a reference to an undeclared variable."
+			notes := notesFor(res, "variable project")
+			if len(notes) != 1 || notes[0].Reason != want || !hasPath(notes, "templating.list["+strconv.Itoa(len(tc.with))+"]") {
+				t.Fatalf("notes = %+v, want one with %q", notes, want)
+			}
+			if line := panelLine(t, res, "p1"); line.Status != statusPlaceholder {
+				t.Fatalf("panel using the variable = %+v, want a placeholder", line)
+			}
+		})
 	}
-	if line := panelLine(t, res, "p1"); line.Status != statusPlaceholder {
-		t.Fatalf("panel using the variable = %+v, want a placeholder", line)
+}
+
+func TestVariableQueryNamingAnUndeclaredLabelRefersToTheVariableListingIt(t *testing.T) {
+	cases := []struct {
+		name, query, want string
+	}{
+		{"plain", `label_values(up{accountID=~"$accountID"}, projectID)`, `label_values(up{accountID=~"$account"}, projectID)`},
+		{"braced", `label_values(up{accountID=~"${accountID}"}, projectID)`, `label_values(up{accountID=~"${account}"}, projectID)`},
+		{"with a format", `label_values(up{accountID=~"${accountID:regex}"}, projectID)`, `label_values(up{accountID=~"${account:regex}"}, projectID)`},
+		{"every form at once", `label_values(up{a="$accountID",b=~"${accountID:pipe}",c="${accountID}"}, projectID)`, `label_values(up{a="$account",b=~"${account:pipe}",c="${account}"}, projectID)`},
+		{"a longer name is not the label", `label_values(up{accountID=~"$accountID", x="$account"}, projectID)`, `label_values(up{accountID=~"$account", x="$account"}, projectID)`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			account := queryVariableJSON("account", "label_values(vm_tenant_active_timeseries, accountID)")
+			res := convertDoc(t, dashboardJSON(templating(account, queryVariableJSON("project", tc.query)), projectPanel()))
+
+			if names := variableNames(res); !slices.Equal(names, []string{"account", "project"}) {
+				t.Fatalf("variables = %v, want account and project", names)
+			}
+			if got := variableNamed(t, res, "project").Query; got != tc.want {
+				t.Fatalf("project query = %q, want %q", got, tc.want)
+			}
+			notes := notesFor(res, "variable project")
+			wantReason := "Its query used $accountID, which this dashboard does not declare; SlashObserve uses the variable account, which lists that label, instead."
+			if len(notes) != 1 || notes[0].Reason != wantReason || !hasPath(notes, "templating.list[1].query") {
+				t.Fatalf("notes = %+v, want one with %q at the variable's query", notes, wantReason)
+			}
+			if line := panelLine(t, res, "p1"); line.Status != statusImported || len(line.Paths) != 0 {
+				t.Fatalf("panel using the variable = %+v, want it imported whole: the note is on the dashboard", line)
+			}
+		})
+	}
+}
+
+func TestRewrittenVariableReferencesNeverCloseACircleOrPointAtADroppedVariable(t *testing.T) {
+	cases := []struct {
+		name         string
+		listing      string
+		dropsListing bool
+	}{
+		{"the listing variable uses the one being rewritten", `label_values(up{project=~"$project"}, accountID)`, false},
+		{"the listing variable itself names an undeclared variable", `label_values(up{zone=~"$zone"}, accountID)`, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := convertDoc(t, dashboardJSON(templating(
+				queryVariableJSON("account", tc.listing),
+				queryVariableJSON("project", `label_values(up{accountID=~"$accountID"}, projectID)`),
+			), projectPanel()))
+			if slices.Contains(variableNames(res), "project") {
+				t.Fatalf("variables = %v, want project dropped", variableNames(res))
+			}
+			if tc.dropsListing && slices.Contains(variableNames(res), "account") {
+				t.Fatalf("variables = %v, want account dropped as well", variableNames(res))
+			}
+		})
+	}
+}
+
+func TestDeclaredVariableNamedLikeALabelIsLeftAlone(t *testing.T) {
+	account := queryVariableJSON("account", "label_values(up, accountID)")
+	accountID := queryVariableJSON("accountID", "label_values(up, tenant)")
+	project := queryVariableJSON("project", `label_values(up{accountID=~"$accountID"}, projectID)`)
+	res := convertDoc(t, dashboardJSON(templating(account, accountID, project), projectPanel()))
+
+	if got := variableNamed(t, res, "project").Query; got != `label_values(up{accountID=~"$accountID"}, projectID)` {
+		t.Fatalf("project query = %q, want it untouched", got)
+	}
+	if notes := notesFor(res, "variable project"); len(notes) != 0 {
+		t.Fatalf("notes = %+v, want none", notes)
 	}
 }
 

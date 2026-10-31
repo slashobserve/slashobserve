@@ -55,6 +55,9 @@ Like Grafana, it adds the selected labels to the grouping of every aggregation i
 Its saved label options import as `keys` (up to 100 valid label names), the labels the picker offers instead of asking the datasource.
 A query variable's `regexApplyTo` imports without a note at its default `value`; at `text` the regular expression is not applied, because options here carry a value only, and the report says so.
 A group-by variable on any other datasource is dropped and reported.
+A `query` variable whose query uses a variable the dashboard does not declare is dropped and reported, and the panels that use it become placeholders.
+The exception is a Prometheus query whose undeclared `$name`, `${name}` or `${name:format}` is the label that exactly one other `query` variable lists with `label_values(selector, name)`, as in VictoriaMetrics' per-tenant dashboard after its rename of `accountID` to `account`: the reference imports as that variable, the report says so on the variable, and the panels that use it import whole.
+A variable that lists the label without a selector, a variable that depends on the one being repaired, or two variables that list the label keep the drop.
 A Grafana 13.1 ad hoc variable with `enableGroupBy` on Prometheus imports as the ad hoc variable plus a `groupby` variable on the same datasource and with the same visibility, named `<name>_groupby` (or the first free name that follows that pattern), without saved labels; it keeps the ad hoc variable's `skipUrlSync` and its `defaultKeys` as `keys`.
 On another datasource, or when the dashboard already holds 20 variables, `enableGroupBy` is reported.
 A min step of `$__interval` or `$__rate_interval` imports as no minimum, and a resolution factor from 2 to 10 is kept as `intervalFactor`.
@@ -189,6 +192,7 @@ A point size on a time series with automatic points imports and sizes the isolat
 An axis color mode other than `series` is Grafana's default, `text`.
 A value mapping keyed by the empty string imports as the empty-value mapping.
 A field's color mode imports as the classic palette (the default), a palette by series name, a fixed color, shades or a named color scheme, and a series-colored mode imports on time series and trend panels, a scheme also on stat, gauge, bar gauge, bar chart, XY chart, state timeline and status history (a state is colored by its place between the field's min and max, else the data's, and a value mapping color wins).
+A histogram colored by `thresholds` whose thresholds are only the base step imports as a fixed color, the base step's, because Grafana draws a histogram series in the color of the step its last value meets; with more steps it is reported.
 A color mode a panel type does not draw is reported as "The color mode X is not drawn on Y panels."
 A value mapping's icon is reported, and its text and color are kept.
 Grafana's renamed and retired panel types import as their modern type, such as `graph`, `table-old` and `singlestat`, and `grafana-worldmap-panel` imports as a geomap, with its circle sizes, thresholds and colors, view and wheel zoom.

@@ -23,6 +23,8 @@ var (
 	intervalPattern     = regexp.MustCompile(`^[1-9][0-9]{0,4}(ms|[smhdwy])$`)
 	legacyReference     = regexp.MustCompile(`\[\[([A-Za-z0-9_]+)(?::([A-Za-z0-9_]+))?\]\]`)
 	customPair          = regexp.MustCompile(`^\s*(.+)\s:\s(.+)$`)
+	labelValuesCall     = regexp.MustCompile(`(?s)^label_values\s*\((.*)\)$`)
+	labelNamePattern    = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
 
 var variableSilentKeys = map[string]bool{
@@ -130,7 +132,7 @@ func (c *converter) convertVariables() {
 			c.adhocGroupBy(raw, path, v, taken)
 		}
 	}
-	c.dropVariablesNamingUndeclared()
+	c.resolveUndeclaredReferences()
 	var moved []string
 	c.vars, moved = orderByDependency(c.vars)
 	if len(moved) > 0 {
@@ -138,18 +140,121 @@ func (c *converter) convertVariables() {
 	}
 }
 
-func (c *converter) dropVariablesNamingUndeclared() {
+func (c *converter) resolveUndeclaredReferences() {
 	known := c.declaredVariables()
+	declared := slices.Clone(c.vars)
 	kept := c.vars[:0]
-	for _, v := range c.vars {
-		if missing := undeclaredReferences(v.v, known); len(missing) > 0 {
-			c.droppedVars[v.v.Name] = true
-			c.note("variable "+v.v.Name, undeclaredReferencesReason(missing), v.path)
+	for _, v := range declared {
+		missing := undeclaredReferences(v.v, known)
+		if len(missing) == 0 {
+			kept = append(kept, v)
 			continue
 		}
-		kept = append(kept, v)
+		if targets, ok := listingTargets(declared, v, missing, known); ok {
+			v.v.Query = renameReferences(v.v.Query, targets)
+			for _, name := range missing {
+				c.note("variable "+v.v.Name, renamedReferenceReason(name, targets[name]), v.path+".query")
+			}
+			kept = append(kept, v)
+			continue
+		}
+		c.droppedVars[v.v.Name] = true
+		c.note("variable "+v.v.Name, undeclaredReferencesReason(missing), v.path)
 	}
 	c.vars = kept
+}
+
+func listingTargets(declared []*builtVar, from *builtVar, missing []string, known map[string]bool) (map[string]string, bool) {
+	targets := map[string]string{}
+	for _, name := range missing {
+		var listing []*builtVar
+		for _, other := range declared {
+			if label, ok := listedLabel(other.v); ok && label == name && other != from {
+				listing = append(listing, other)
+			}
+		}
+		if len(listing) != 1 || len(undeclaredReferences(listing[0].v, known)) > 0 || dependsOn(declared, listing[0], from.v.Name) {
+			return nil, false
+		}
+		targets[name] = listing[0].v.Name
+	}
+	return targets, true
+}
+
+func dependsOn(declared []*builtVar, v *builtVar, name string) bool {
+	byName := map[string]*builtVar{}
+	for _, other := range declared {
+		byName[other.v.Name] = other
+	}
+	seen := map[string]bool{}
+	var reaches func(v *builtVar) bool
+	reaches = func(v *builtVar) bool {
+		if seen[v.v.Name] {
+			return false
+		}
+		seen[v.v.Name] = true
+		refs, err := spec.ScanQuery(v.v.Query)
+		if err != nil {
+			return false
+		}
+		for _, ref := range spec.FlattenReferences(refs) {
+			if ref.Kind != spec.VariableRef {
+				continue
+			}
+			if ref.Name == name {
+				return true
+			}
+			if dep, ok := byName[ref.Name]; ok && reaches(dep) {
+				return true
+			}
+		}
+		return false
+	}
+	return reaches(v)
+}
+
+func listedLabel(v spec.Variable) (string, bool) {
+	if v.Type != spec.QueryVariable {
+		return "", false
+	}
+	call := labelValuesCall.FindStringSubmatch(strings.TrimSpace(v.Query))
+	if call == nil {
+		return "", false
+	}
+	args := spec.SplitMacroArgs(call[1])
+	if len(args) != 2 || args[0] == "" || !labelNamePattern.MatchString(args[1]) {
+		return "", false
+	}
+	return args[1], true
+}
+
+func renameReferences(query string, targets map[string]string) string {
+	refs, err := spec.ScanQuery(query)
+	if err != nil {
+		return query
+	}
+	flat := spec.FlattenReferences(refs)
+	slices.SortFunc(flat, func(a, b spec.Reference) int { return b.Start - a.Start })
+	for _, ref := range flat {
+		target, ok := targets[ref.Name]
+		if !ok || ref.Kind != spec.VariableRef {
+			continue
+		}
+		replacement := "$" + target
+		if strings.HasPrefix(query[ref.Start:], "${") {
+			replacement = "${" + target
+			if ref.Format != "" {
+				replacement += ":" + ref.Format
+			}
+			replacement += "}"
+		}
+		query = query[:ref.Start] + replacement + query[ref.End:]
+	}
+	return query
+}
+
+func renamedReferenceReason(undeclared, declared string) string {
+	return fmt.Sprintf("Its query used $%s, which this dashboard does not declare; SlashObserve uses the variable %s, which lists that label, instead.", undeclared, declared)
 }
 
 func undeclaredReferences(v spec.Variable, known map[string]bool) []string {

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 11,
-      "imported": 10,
-      "partial": 1,
+      "imported": 11,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -85,13 +85,9 @@
         "type": "histogram",
         "source_type": "histogram",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "The color mode thresholds is not drawn on histogram panels."
-        ],
-        "paths": [
-          "fieldConfig.defaults.color"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -277,7 +273,7 @@
     "dashboard mapped=4 bookkeeping=8",
     "panel panels[0] mapped=16 bookkeeping=5 field_config:1 query:1",
     "panel panels[1] mapped=18 bookkeeping=5 field_config:1 override:1 query:1",
-    "panel panels[2] mapped=19 reported=1 default=1 bookkeeping=5 field_config:1 override:1 query:1",
+    "panel panels[2] mapped=20 default=1 bookkeeping=5 field_config:1 override:1 query:1",
     "panel panels[3] mapped=18 bookkeeping=4 field_config:1 query:1",
     "panel panels[4] mapped=19 bookkeeping=5 field_config:1 override:1 query:1",
     "panel panels[5] mapped=32 default=1 bookkeeping=4 field_config:1 query:1 transformation:1",
@@ -426,6 +422,7 @@
             "color": "info"
           }
         ],
+        "color": "#8AB8FF",
         "fill": 80,
         "lineWidth": 1,
         "overrides": [

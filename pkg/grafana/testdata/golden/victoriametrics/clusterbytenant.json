@@ -41,9 +41,9 @@
     "verified": false,
     "counts": {
       "total": 19,
-      "imported": 12,
+      "imported": 19,
       "partial": 0,
-      "placeholder": 7,
+      "placeholder": 0,
       "unverified": 0
     },
     "panels": [
@@ -52,21 +52,19 @@
         "grafana_id": 2,
         "grafana_path": "panels[1]",
         "title": "Datapoints ingestion rate",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": "Statistic",
-        "status": "placeholder",
-        "reasons": [
-          "It uses variable project, which could not be imported."
-        ],
+        "status": "imported",
+        "reasons": [],
         "paths": [],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
+            "ref": "A",
+            "datasource": "${ds}",
             "rewrites": [],
-            "dropped": "The panel is a placeholder, so its query is not imported."
+            "dropped": null
           }
         ]
       },
@@ -75,21 +73,19 @@
         "grafana_id": 4,
         "grafana_path": "panels[2]",
         "title": "Read query rate",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": "Statistic",
-        "status": "placeholder",
-        "reasons": [
-          "It uses variable project, which could not be imported."
-        ],
+        "status": "imported",
+        "reasons": [],
         "paths": [],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
+            "ref": "A",
+            "datasource": "${ds}",
             "rewrites": [],
-            "dropped": "The panel is a placeholder, so its query is not imported."
+            "dropped": null
           }
         ]
       },
@@ -98,21 +94,19 @@
         "grafana_id": 6,
         "grafana_path": "panels[3]",
         "title": "Active time series",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": "Statistic",
-        "status": "placeholder",
-        "reasons": [
-          "It uses variable project, which could not be imported."
-        ],
+        "status": "imported",
+        "reasons": [],
         "paths": [],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
+            "ref": "A",
+            "datasource": "${ds}",
             "rewrites": [],
-            "dropped": "The panel is a placeholder, so its query is not imported."
+            "dropped": null
           }
         ]
       },
@@ -121,21 +115,19 @@
         "grafana_id": 31,
         "grafana_path": "panels[4]",
         "title": "Time spent on queries, seconds",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": "Statistic",
-        "status": "placeholder",
-        "reasons": [
-          "It uses variable project, which could not be imported."
-        ],
+        "status": "imported",
+        "reasons": [],
         "paths": [],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
+            "ref": "A",
+            "datasource": "${ds}",
             "rewrites": [],
-            "dropped": "The panel is a placeholder, so its query is not imported."
+            "dropped": null
           }
         ]
       },
@@ -144,21 +136,19 @@
         "grafana_id": 10,
         "grafana_path": "panels[5]",
         "title": "Disk space usage (datapoints only) ",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": "Statistic",
-        "status": "placeholder",
-        "reasons": [
-          "It uses variable project, which could not be imported."
-        ],
+        "status": "imported",
+        "reasons": [],
         "paths": [],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
+            "ref": "A",
+            "datasource": "${ds}",
             "rewrites": [],
-            "dropped": "The panel is a placeholder, so its query is not imported."
+            "dropped": null
           }
         ]
       },
@@ -167,21 +157,19 @@
         "grafana_id": 19,
         "grafana_path": "panels[6]",
         "title": "New series over 24h ",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": "Statistic",
-        "status": "placeholder",
-        "reasons": [
-          "It uses variable project, which could not be imported."
-        ],
+        "status": "imported",
+        "reasons": [],
         "paths": [],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
+            "ref": "A",
+            "datasource": "${ds}",
             "rewrites": [],
-            "dropped": "The panel is a placeholder, so its query is not imported."
+            "dropped": null
           }
         ]
       },
@@ -190,21 +178,19 @@
         "grafana_id": 34,
         "grafana_path": "panels[7]",
         "title": "Instant Churn Rate",
-        "type": "placeholder",
+        "type": "timeseries",
         "source_type": "timeseries",
         "row": "Statistic",
-        "status": "placeholder",
-        "reasons": [
-          "It uses variable project, which could not be imported."
-        ],
+        "status": "imported",
+        "reasons": [],
         "paths": [],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
+            "ref": "A",
+            "datasource": "${ds}",
             "rewrites": [],
-            "dropped": "The panel is a placeholder, so its query is not imported."
+            "dropped": null
           }
         ]
       },
@@ -475,22 +461,22 @@
       {
         "subject": "variable project",
         "status": "partial",
-        "reason": "Its query uses $accountID, but this dashboard declares no variable with that name, and SlashObserve cannot keep a reference to an undeclared variable.",
+        "reason": "Its query used $accountID, which this dashboard does not declare; SlashObserve uses the variable account, which lists that label, instead.",
         "paths": [
-          "templating.list[2]"
+          "templating.list[2].query"
         ]
       }
     ]
   },
   "blocks": [
     "dashboard mapped=7 excluded=3 bookkeeping=5",
-    "panel panels[1] outcome=reported",
-    "panel panels[2] outcome=reported",
-    "panel panels[3] outcome=reported",
-    "panel panels[4] outcome=reported",
-    "panel panels[5] outcome=reported",
-    "panel panels[6] outcome=reported",
-    "panel panels[7] outcome=reported",
+    "panel panels[1] mapped=41 default=2 bookkeeping=4 field_config:1 query:1",
+    "panel panels[2] mapped=42 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[3] mapped=43 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[4] mapped=42 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[5] mapped=43 default=2 bookkeeping=4 field_config:1 query:1",
+    "panel panels[6] mapped=40 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[7] mapped=40 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[9] mapped=22 bookkeeping=4 field_config:1 query:1",
     "panel panels[10] mapped=22 bookkeeping=4 field_config:1 query:1",
     "panel panels[11] mapped=22 bookkeeping=4 field_config:1 query:1",
@@ -534,6 +520,16 @@
         "allowCustomValue": true
       },
       {
+        "name": "project",
+        "type": "query",
+        "datasource": "${ds}",
+        "query": "label_values(vm_tenant_active_timeseries{accountID=~\"$account\"},projectID)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "allowCustomValue": true
+      },
+      {
         "name": "adhoc",
         "type": "adhoc",
         "datasource": "prom"
@@ -570,7 +566,7 @@
         "panels": [
           {
             "id": "p2",
-            "type": "placeholder",
+            "type": "timeseries",
             "title": "Datapoints ingestion rate",
             "description": "How many datapoints are inserted into storage per second by accountID and projectID",
             "gridPos": {
@@ -579,12 +575,30 @@
               "w": 12,
               "h": 8
             },
-            "reason": "It uses variable project, which could not be imported.",
-            "sourceType": "timeseries"
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vm_tenant_inserted_rows_total{accountID=~\"$account\", projectID=~\"$project\"}[$__rate_interval])) by (accountID,projectID) ",
+                "legend": "{{accountID}}:{{projectID}}"
+              }
+            ],
+            "unit": "short",
+            "points": "never",
+            "stack": "normal",
+            "thresholdsStyle": "off",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull"
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "tooltip": "all"
+            }
           },
           {
             "id": "p4",
-            "type": "placeholder",
+            "type": "timeseries",
             "title": "Read query rate",
             "description": "Request rate accepted by vmselect nodes per tenant",
             "gridPos": {
@@ -593,12 +607,29 @@
               "w": 12,
               "h": 8
             },
-            "reason": "It uses variable project, which could not be imported.",
-            "sourceType": "timeseries"
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vm_tenant_select_requests_total{accountID=~\"$account\", projectID=~\"$project\"}[$__rate_interval])) by (accountID,projectID) ",
+                "legend": "{{accountID}}:{{projectID}}"
+              }
+            ],
+            "unit": "short",
+            "points": "never",
+            "thresholdsStyle": "off",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull"
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "tooltip": "all"
+            }
           },
           {
             "id": "p6",
-            "type": "placeholder",
+            "type": "timeseries",
             "title": "Active time series",
             "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee following link for details:",
             "gridPos": {
@@ -607,12 +638,36 @@
               "w": 12,
               "h": 8
             },
-            "reason": "It uses variable project, which could not be imported.",
-            "sourceType": "timeseries"
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(vm_tenant_active_timeseries{accountID=~\"$account\",projectID=~\"$project\"}) by(accountID,projectID)",
+                "legend": "{{accountID}}:{{projectID}}"
+              }
+            ],
+            "unit": "short",
+            "links": [
+              {
+                "title": "troubleshooting",
+                "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#troubleshooting",
+                "newTab": true
+              }
+            ],
+            "points": "never",
+            "thresholdsStyle": "off",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull"
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "tooltip": "all"
+            }
           },
           {
             "id": "p31",
-            "type": "placeholder",
+            "type": "timeseries",
             "title": "Time spent on queries, seconds",
             "description": "Time spent on query execution per tenant per second",
             "gridPos": {
@@ -621,12 +676,29 @@
               "w": 12,
               "h": 8
             },
-            "reason": "It uses variable project, which could not be imported.",
-            "sourceType": "timeseries"
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vm_tenant_select_requests_duration_ms_total{accountID=~\"$account\", projectID=~\"$project\"}[$__rate_interval])) by (accountID,projectID) /1000",
+                "legend": "{{accountID}}:{{projectID}}"
+              }
+            ],
+            "unit": "short",
+            "points": "never",
+            "thresholdsStyle": "off",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull"
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "tooltip": "all"
+            }
           },
           {
             "id": "p10",
-            "type": "placeholder",
+            "type": "timeseries",
             "title": "Disk space usage (datapoints only)",
             "description": "Shows the amount of on-disk space occupied by data points only. The disk space is used for storing by datapoint and indexdb. There is no option to expose per tenant statistic for indexdb. Usually, indexed takes much less space compared to datapoints. But with a high churn rate, the size of the indexdb could grow significantly.",
             "gridPos": {
@@ -635,12 +707,29 @@
               "w": 12,
               "h": 8
             },
-            "reason": "It uses variable project, which could not be imported.",
-            "sourceType": "timeseries"
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(vm_tenant_used_tenant_bytes{accountID=~\"$account\",projectID=~\"$project\"}) by(accountID, projectID)",
+                "legend": "{{accountID}}:{{projectID}}"
+              }
+            ],
+            "unit": "bytes",
+            "points": "never",
+            "stack": "normal",
+            "thresholdsStyle": "off",
+            "display": {
+              "legendValues": [
+                "lastNotNull"
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "tooltip": "all"
+            }
           },
           {
             "id": "p19",
-            "type": "placeholder",
+            "type": "timeseries",
             "title": "New series over 24h",
             "description": "Number of new series created over last 24h.",
             "gridPos": {
@@ -649,12 +738,29 @@
               "w": 12,
               "h": 8
             },
-            "reason": "It uses variable project, which could not be imported.",
-            "sourceType": "timeseries"
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(increase(vm_tenant_timeseries_created_total{accountID=~\"$account\", projectID=~\"$project\"}[24h])) by(accountID,projectID)",
+                "legend": "{{accountID}}:{{projectID}}"
+              }
+            ],
+            "unit": "short",
+            "points": "never",
+            "thresholdsStyle": "off",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull"
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "tooltip": "all"
+            }
           },
           {
             "id": "p34",
-            "type": "placeholder",
+            "type": "timeseries",
             "title": "Instant Churn Rate",
             "description": "The higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nTo investigate stats about most expensive series use `api/v1/status/tsdb` handler. More details here https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://valyala.medium.com/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b",
             "gridPos": {
@@ -663,8 +769,25 @@
               "w": 12,
               "h": 8
             },
-            "reason": "It uses variable project, which could not be imported.",
-            "sourceType": "timeseries"
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vm_tenant_timeseries_created_total{accountID=~\"$account\", projectID=~\"$project\"}[$__rate_interval])) by(accountID,projectID)",
+                "legend": "{{accountID}}:{{projectID}}"
+              }
+            ],
+            "unit": "short",
+            "points": "never",
+            "thresholdsStyle": "off",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull"
+              ],
+              "legendSortBy": "lastNotNull",
+              "legendSortDesc": true,
+              "tooltip": "all"
+            }
           }
         ]
       },

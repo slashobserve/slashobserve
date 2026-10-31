@@ -179,6 +179,7 @@
     { "id": "fieldConfig.defaults.custom.fillOpacity=30", "path": "fieldConfig.defaults.custom.fillOpacity", "value": 30 },
     { "id": "fieldConfig.defaults.custom.gradientMode=opacity", "path": "fieldConfig.defaults.custom.gradientMode", "value": "opacity", "expect": "cosmetic" },
     { "id": "fieldConfig.defaults.custom.gradientMode=hue", "path": "fieldConfig.defaults.custom.gradientMode", "value": "hue", "expect": "cosmetic" },
-    { "id": "fieldConfig.defaults.custom.gradientMode=scheme", "path": "fieldConfig.defaults.custom.gradientMode", "value": "scheme", "expect": "cosmetic" }
+    { "id": "fieldConfig.defaults.custom.gradientMode=scheme", "path": "fieldConfig.defaults.custom.gradientMode", "value": "scheme", "expect": "cosmetic" },
+    { "id": "fieldConfig.defaults.color.mode=thresholds", "path": "fieldConfig.defaults.color.mode", "value": "thresholds", "with": {"fieldConfig.defaults.thresholds": {"mode": "absolute", "steps": [{"color": "light-blue", "value": null}]}} }
   ]
 }

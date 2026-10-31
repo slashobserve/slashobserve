@@ -666,12 +666,12 @@ func propColor(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 		return
 	}
 	reset := s.whole && b.colorResettable()
-	if reason := b.applyColorMode(p, cfg, asString(cfg["mode"]), reset); reason != "" {
+	if reason := b.applyColorMode(p, cfg, asString(cfg["mode"]), reset, s); reason != "" {
 		b.partial(s.at(""), reason)
 	}
 }
 
-func (b *panelBuild) applyColorMode(p *spec.FieldProps, cfg map[string]any, mode string, reset bool) string {
+func (b *panelBuild) applyColorMode(p *spec.FieldProps, cfg map[string]any, mode string, reset bool, s propSite) string {
 	switch {
 	case mode == "" || mode == "palette-classic":
 		if reset {
@@ -680,6 +680,9 @@ func (b *panelBuild) applyColorMode(p *spec.FieldProps, cfg map[string]any, mode
 		return ""
 	case mode == "fixed" || mode == "shades":
 		return b.applyFixedColor(p, cfg, mode, reset)
+	case mode == "thresholds" && b.typ == spec.Histogram && len(b.thresholdStepsOf(s)) == 1:
+		base, _ := asObject(b.thresholdStepsOf(s)[0])
+		return b.applyFixedColor(p, map[string]any{"fixedColor": base["color"]}, "fixed", reset)
 	case mode == "palette-classic-by-name" || mode == "thresholds" || continuousSchemes[mode] != "":
 		return b.applyDrawnColorMode(p, cfg, mode, reset)
 	}
@@ -721,6 +724,25 @@ func (b *panelBuild) applyDrawnColorMode(p *spec.FieldProps, cfg map[string]any,
 		return fmt.Sprintf("The color mode %s is not drawn on %s panels.", mode, b.typ)
 	}
 	return ""
+}
+
+func (b *panelBuild) thresholdStepsOf(s propSite) []any {
+	if s.whole {
+		overridePath, _, _ := strings.Cut(s.report, ".properties[")
+		properties, _ := asArray(lookupValue(b.raw, overridePath+".properties"))
+		for _, item := range properties {
+			if prop, _ := asObject(item); asString(prop["id"]) == "thresholds" {
+				return stepsOf(prop["value"])
+			}
+		}
+	}
+	return stepsOf(lookupValue(b.raw, "fieldConfig.defaults.thresholds"))
+}
+
+func stepsOf(thresholds any) []any {
+	cfg, _ := asObject(thresholds)
+	steps, _ := asArray(cfg["steps"])
+	return steps
 }
 
 func setColorBy(p *spec.FieldProps, cfg map[string]any, explicit bool) {

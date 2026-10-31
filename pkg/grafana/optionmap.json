@@ -5544,6 +5544,18 @@
   }
  },
  "panel:histogram": {
+  "fieldConfig.defaults.color.mode": {
+   "fields": [
+    "color",
+    "thresholds[].color"
+   ],
+   "values": {
+    "s:thresholds": [
+     "color",
+     "thresholds[].color"
+    ]
+   }
+  },
   "fieldConfig.defaults.custom.axisBorderShow": {
    "fields": [
     "axisBorder"
@@ -14724,6 +14736,9 @@
      "query"
     ],
     "s:label_values(up, instance)": [
+     "query"
+    ],
+    "s:label_values(up{job=~\"$job\"}, instance)": [
      "query"
     ],
     "s:metrics(node_.*)": [

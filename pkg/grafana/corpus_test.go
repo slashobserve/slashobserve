@@ -28,9 +28,9 @@ const (
 	corpusDir               = "corpus"
 	goldenDir               = "golden"
 	minimumRatio            = 90
-	minimumFull             = 99.2
+	minimumFull             = 99.6
 	fullSlack               = 0.5
-	maximumOpenPlaceholders = 7
+	maximumOpenPlaceholders = 0
 	worklistSize            = 10
 	maxLinePaths            = 100
 	tooManyPanels           = "too_many_panels"
