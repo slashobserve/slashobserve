@@ -64,7 +64,7 @@ func (s propSite) at(suffix string) string {
 type propHandler func(b *panelBuild, p *spec.FieldProps, v any, s propSite)
 
 var propOrder = []string{
-	"unit", "decimals", "min", "max", "fieldMinMax", "displayName", "displayNameFromDS", "noValue", "thresholds", "mappings", "links",
+	"unit", "decimals", "min", "max", "fieldMinMax", "displayName", "displayNameFromDS", "noValue", "description", "thresholds", "mappings", "links",
 	"color", "custom.drawStyle", "custom.fillOpacity", "custom.lineStyle",
 	"custom.lineInterpolation", "custom.lineWidth", "custom.showPoints", "custom.pointSize", "custom.pointShape", "custom.pointStrokeWidth", "custom.spanNulls",
 	"custom.lineColor", "custom.fillColor", "custom.pointColor", "custom.pointSymbol", "custom.showValues",
@@ -73,6 +73,7 @@ var propOrder = []string{
 	"custom.axisCenteredZero", "custom.axisWidth", "custom.axisGridShow", "custom.axisBorderShow", "custom.axisColorMode",
 	"custom.cellOptions", "custom.displayMode", "custom.wrapText",
 	"custom.width", "custom.minWidth", "custom.align", "custom.filterable", "custom.inspect", "custom.hideHeader",
+	"custom.wrapHeaderText", "custom.tooltip",
 	"custom.transform", "custom.fillBelowTo",
 	"custom.insertNulls", "custom.barAlignment", "custom.barWidthFactor", "custom.barMaxWidth", "custom.thresholdsStyle", "custom.neutral",
 }
@@ -86,6 +87,7 @@ var propHandlers = map[string]propHandler{
 	"displayName":              propDisplayName,
 	"displayNameFromDS":        propDisplayNameFromDS,
 	"noValue":                  propNoValue,
+	"description":              propFieldDescription,
 	"thresholds":               propThresholds,
 	"mappings":                 propMappings,
 	"links":                    propLinks,
@@ -126,6 +128,8 @@ var propHandlers = map[string]propHandler{
 	"custom.filterable":        propColumnFilterable,
 	"custom.inspect":           propColumnInspect,
 	"custom.hideHeader":        propColumnHideHeader,
+	"custom.wrapHeaderText":    propColumnWrapHeader,
+	"custom.tooltip":           propColumnTooltip,
 	"custom.transform":         propValueTransform,
 	"custom.fillBelowTo":       propFillBelowTo,
 	"custom.insertNulls":       propInsertNulls,

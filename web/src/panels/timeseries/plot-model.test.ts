@@ -49,6 +49,8 @@ function config(props: Partial<FieldConfig> = {}): FieldConfig {
     filterable: false,
     inspect: false,
     hideHeader: false,
+    wrapHeader: false,
+    tooltipPlacement: "auto",
     fieldMinMax: false,
     stackGroup: "A",
     nullAsZero: false,

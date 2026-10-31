@@ -16,6 +16,11 @@ const (
 	maxFooterFields  = 50
 	maxFieldNameKept = 200
 
+	minRowHeight        = 20
+	maxRowHeight        = 1000
+	maxFrameIndex       = 99
+	maxFieldDescription = 2000
+
 	legacyFooterReducerPath = "options.footer.reducer"
 	footerReducersPath      = "fieldConfig.defaults.custom.footer.reducers"
 )
@@ -24,7 +29,7 @@ var tableColumnProps = map[string]bool{
 	"custom.cellOptions": true, "custom.displayMode": true, "custom.wrapText": true,
 	"custom.width": true, "custom.minWidth": true, "custom.align": true,
 	"custom.filterable": true, "custom.inspect": true, "custom.hideHeader": true,
-	"custom.footer": true,
+	"custom.footer": true, "custom.wrapHeaderText": true, "custom.tooltip": true, "description": true,
 }
 
 func propColumnWidth(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
@@ -76,10 +81,50 @@ var (
 	propColumnFilterable = columnFlag(func(p *spec.FieldProps) **bool { return &p.Filterable })
 	propColumnInspect    = columnFlag(func(p *spec.FieldProps) **bool { return &p.Inspect })
 	propColumnHideHeader = columnFlag(func(p *spec.FieldProps) **bool { return &p.HideHeader })
+	propColumnWrapHeader = columnFlag(func(p *spec.FieldProps) **bool { return &p.WrapHeader })
 )
+
+func propFieldDescription(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	text, _ := v.(string)
+	if strings.TrimSpace(text) == "" {
+		return
+	}
+	cut, wasCut := cutRunes(text, maxFieldDescription)
+	if wasCut {
+		b.partial(s.at(""), "The field description was cut to 2000 characters.")
+	}
+	p.FieldDescription = cut
+}
+
+func propColumnTooltip(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	opts, ok := asObject(v)
+	if !ok {
+		return
+	}
+	field := b.fieldNameOption(s.value + ".field")
+	placement := asString(opts["placement"])
+	switch placement {
+	case "":
+	case "auto", "top", "bottom", "left", "right":
+		b.consume(s.value + ".placement")
+	default:
+		b.partial(s.at(""), fmt.Sprintf("The tooltip placement %s is not supported yet.", placement))
+		return
+	}
+	if field == "" {
+		return
+	}
+	p.TooltipField = field
+	if placement != "" && (placement != "auto" || s.whole) {
+		p.TooltipPlacement = placement
+	}
+}
 
 func (b *panelBuild) tableOptions(d *spec.Display) {
 	b.tableCellHeight(d)
+	d.MaxRowHeight, _ = b.wholeInRange("options.maxRowHeight", minRowHeight, maxRowHeight)
+	d.FrameIndex = b.tableFrameIndex()
 	if on, ok := b.boolOption("options.showTypeIcons"); ok && *on {
 		d.TypeIcons = on
 	}
@@ -98,12 +143,34 @@ func (b *panelBuild) tableCellHeight(d *spec.Display) {
 	switch height := asString(v); height {
 	case "sm":
 		b.consume(path)
-	case "md", "lg":
+	case "md", "lg", "auto":
 		b.consume(path)
 		d.CellHeight = height
 	default:
 		b.partial(path, fmt.Sprintf("The row height %s is not supported yet.", height))
 	}
+}
+
+func (b *panelBuild) tableFrameIndex() *int {
+	n, ok := b.wholeInRange("options.frameIndex", 0, maxFrameIndex)
+	if !ok {
+		return nil
+	}
+	return &n
+}
+
+func (b *panelBuild) wholeInRange(path string, low, high int) (int, bool) {
+	v, ok := b.value(path)
+	if !ok {
+		return 0, false
+	}
+	n, isInt := asInt(v)
+	if !isInt || n < low || n > high {
+		b.partial(path, fmt.Sprintf("Only whole numbers from %d to %d are supported.", low, high))
+		return 0, false
+	}
+	b.consume(path)
+	return n, true
 }
 
 func (b *panelBuild) tablePagination(d *spec.Display) {

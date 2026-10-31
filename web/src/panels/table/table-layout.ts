@@ -4,6 +4,12 @@ import type { TableColumn } from "./table-model"
 
 export type Align = "left" | "center" | "right"
 export type RowHeight = "sm" | "md" | "lg"
+export type TooltipSide = "top" | "bottom" | "left" | "right"
+export type RowSizing = {
+  padding: RowHeight
+  grows: boolean
+  maxHeight: number | null
+}
 export type Sort = { key: string; direction: "ascending" | "descending" }
 
 export type ColumnSizes = { width?: number; minWidth?: number }
@@ -26,6 +32,28 @@ export function alignOf(align: FieldConfig["align"], type: ColumnType): Align {
 export function rowHeightOf(display: Record<string, unknown>): RowHeight {
   const { cellHeight } = display
   return rowHeights.find((height) => height === cellHeight) ?? "sm"
+}
+
+export function rowSizing(
+  display: Record<string, unknown>,
+  dynamicHeight: boolean
+): RowSizing {
+  const { cellHeight, maxRowHeight } = display
+  const grows = cellHeight === "auto" || dynamicHeight
+  return {
+    padding: rowHeightOf(display),
+    grows,
+    maxHeight:
+      grows && typeof maxRowHeight === "number" && maxRowHeight > 0
+        ? maxRowHeight
+        : null,
+  }
+}
+
+export function tooltipSideOf(
+  placement: FieldConfig["tooltipPlacement"]
+): TooltipSide {
+  return placement === "auto" ? "top" : placement
 }
 
 export function columnWidths(

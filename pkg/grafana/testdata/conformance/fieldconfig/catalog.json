@@ -22,7 +22,7 @@
     { "id": "fieldConfig.defaults.fieldMinMax=bargauge", "path": "fieldConfig.defaults.fieldMinMax", "value": true, "with": {"type": "bargauge"} },
     { "id": "fieldConfig.defaults.fieldMinMax=timeseries", "path": "fieldConfig.defaults.fieldMinMax", "value": true, "expect": "cosmetic" },
     { "id": "fieldConfig.defaults.displayNameFromDS=text", "path": "fieldConfig.defaults.displayNameFromDS", "value": "From datasource" },
-    { "id": "fieldConfig.defaults.description=text", "path": "fieldConfig.defaults.description", "value": "Requests handled" },
+    { "id": "fieldConfig.defaults.description=text", "path": "fieldConfig.defaults.description", "value": "Requests handled", "with": {"type": "table"} },
     { "id": "fieldConfig.defaults.path=text", "path": "fieldConfig.defaults.path", "value": "/data/up" },
     { "id": "fieldConfig.defaults.writeable=true", "path": "fieldConfig.defaults.writeable", "value": true, "expect": "excluded" },
     { "id": "fieldConfig.defaults.filterable=true", "path": "fieldConfig.defaults.filterable", "value": true },

@@ -12,7 +12,9 @@ import {
   cellSpecAt,
   footerRows,
   gaugeFractionAt,
+  cellTooltipAt,
   rowFill,
+  selectFrames,
   sparklineAt,
   tableModel,
   type TableColumn,
@@ -734,5 +736,86 @@ describe("nested frames", () => {
   it("leaves other rows without nested frames", () => {
     const { model } = build([frame([text(["a"], "host")])])
     expect(model.rows[0].nested).toBeNull()
+  })
+})
+
+describe("frame selection", () => {
+  const frames = [
+    frame([text(["a"], "host")], { ref: "A" }),
+    frame([text(["b"], "host")], { ref: "B" }),
+    frame([text(["c"], "host")], { ref: "C" }),
+  ]
+
+  it("shows every frame when no index is set", () => {
+    expect(selectFrames(frames, undefined)).toBe(frames)
+  })
+
+  it("shows only the frame at the index", () => {
+    expect(selectFrames(frames, 1)).toEqual([frames[1]])
+    expect(selectFrames(frames, 0)).toEqual([frames[0]])
+  })
+
+  it("shows the last frame when the index is past it", () => {
+    expect(selectFrames(frames, 7)).toEqual([frames[2]])
+  })
+
+  it("leaves a single frame alone", () => {
+    expect(selectFrames([frames[0]], 3)).toEqual([frames[0]])
+  })
+
+  it("draws only the chosen frame's rows", () => {
+    const { model } = build(selectFrames(frames, 2))
+    expect(model.rows.map((row) => row.values["field:host"])).toEqual(["c"])
+  })
+})
+
+describe("cell tooltips", () => {
+  const rows = frame([
+    text(["api", "db"], "host"),
+    text(["Serves traffic", null], "note"),
+    number([1.5, 2], "load"),
+  ])
+
+  const tooltip = (extra: Partial<DataPanel>, row: number) => {
+    const { fields, model, column } = build([rows], extra)
+    return cellTooltipAt(fields, column("host"), model.rows[row])
+  }
+
+  it("shows another field's value of the same row", () => {
+    expect(tooltip({ tooltipField: "note" }, 0)).toEqual({
+      text: "Serves traffic",
+      placement: "auto",
+    })
+  })
+
+  it("formats the value like a cell of that field", () => {
+    expect(tooltip({ tooltipField: "load", unit: "percent" }, 1)?.text).toBe(
+      "2%"
+    )
+  })
+
+  it("keeps the placement the column asks for", () => {
+    expect(
+      tooltip({ tooltipField: "note", tooltipPlacement: "left" }, 0)?.placement
+    ).toBe("left")
+  })
+
+  it("shows none when the other field is empty in that row", () => {
+    expect(tooltip({ tooltipField: "note" }, 1)).toBeNull()
+  })
+
+  it("shows none when the field does not exist or none is named", () => {
+    expect(tooltip({ tooltipField: "missing" }, 0)).toBeNull()
+    expect(tooltip({}, 0)).toBeNull()
+  })
+
+  it("finds the field by its display name", () => {
+    const { fields, model, column } = build([rows], {
+      overrides: [{ match: { field: "note" }, displayName: "Note" }],
+      tooltipField: "Note",
+    })
+    expect(cellTooltipAt(fields, column("host"), model.rows[0])?.text).toBe(
+      "Serves traffic"
+    )
   })
 })

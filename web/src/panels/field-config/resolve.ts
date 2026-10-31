@@ -71,6 +71,10 @@ export type FieldConfig = {
   filterable: boolean
   inspect: boolean
   hideHeader: boolean
+  wrapHeader: boolean
+  fieldDescription?: string
+  tooltipField?: string
+  tooltipPlacement: NonNullable<FieldProps["tooltipPlacement"]>
   valueTransform?: "negativeY" | "constant"
   hideInLegend: boolean
   hideInTooltip: boolean
@@ -148,6 +152,10 @@ const fieldPropKeyFlags: Record<keyof FieldProps, true> = {
   filterable: true,
   inspect: true,
   hideHeader: true,
+  wrapHeader: true,
+  fieldDescription: true,
+  tooltipField: true,
+  tooltipPlacement: true,
   valueTransform: true,
   hideInLegend: true,
   hideInTooltip: true,

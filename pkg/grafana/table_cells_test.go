@@ -43,6 +43,10 @@ func TestTableCellTypesImport(t *testing.T) {
 		{"image", `{"cellOptions":{"type":"image","alt":"Logo","title":"Company logo"}}`, `{"type":"image","imageAlt":"Logo","imageTitle":"Company logo"}`},
 		{"data links", `{"cellOptions":{"type":"data-links"}}`, `{"type":"links"}`},
 		{"pill", `{"cellOptions":{"type":"pill"}}`, `{"type":"pill"}`},
+		{"markdown", `{"cellOptions":{"type":"markdown"}}`, `{"type":"markdown"}`},
+		{"markdown that grows", `{"cellOptions":{"type":"markdown","dynamicHeight":true}}`, `{"type":"markdown","dynamicHeight":true}`},
+		{"markdown with a fixed height is the default", `{"cellOptions":{"type":"markdown","dynamicHeight":false}}`, `{"type":"markdown"}`},
+		{"dynamic height of another type is inert", `{"cellOptions":{"type":"pill","dynamicHeight":true}}`, `{"type":"pill"}`},
 		{"wrapped text inside the cell options", `{"cellOptions":{"type":"color-text","wrapText":true}}`, `{"type":"text","wrap":true}`},
 		{"wrapped text beside the cell options", `{"wrapText":true}`, `{"type":"auto","wrap":true}`},
 		{"wrapped text beside a type", `{"cellOptions":{"type":"pill"},"wrapText":true}`, `{"type":"pill","wrap":true}`},
@@ -162,7 +166,6 @@ func TestTableCellOverrideLegacyModeAndWrap(t *testing.T) {
 func TestTableCellTypesTheRendererLacksAreReported(t *testing.T) {
 	cases := []struct{ name, custom, path, reason string }{
 		{"actions", `{"cellOptions":{"type":"actions"}}`, "fieldConfig.defaults.custom.cellOptions", "Cell actions are not supported yet."},
-		{"markdown", `{"cellOptions":{"type":"markdown"}}`, "fieldConfig.defaults.custom.cellOptions", "The cell type markdown is not supported yet."},
 		{"unknown legacy mode", `{"displayMode":"mystery"}`, "fieldConfig.defaults.custom.displayMode", "The cell type mystery is not supported yet."},
 		{"long image alt", `{"cellOptions":{"type":"image","alt":"` + strings.Repeat("a", 201) + `"}}`, "fieldConfig.defaults.custom.cellOptions", "The image alt was cut to 200 characters."},
 	}

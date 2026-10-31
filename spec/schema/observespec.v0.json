@@ -1876,6 +1876,34 @@
           "description": "Hides the text of the table column's header; screen readers still read it. Only table panels draw it.",
           "type": "boolean"
         },
+        "wrapHeader": {
+          "x-omitFromPrompt": true,
+          "description": "Wraps the text of the table column's header onto several lines. Only table panels draw it.",
+          "type": "boolean"
+        },
+        "fieldDescription": {
+          "x-omitFromPrompt": true,
+          "description": "Describes the field; a table shows it as a tooltip on the column header. Named apart from the panel's own description because field props sit beside it on the panel. Only table panels draw it.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "tooltipField": {
+          "x-omitFromPrompt": true,
+          "description": "The name of a field whose value in the same row is shown as a tooltip on this column's cells. Only table panels draw it.",
+          "$ref": "#/$defs/fieldName"
+        },
+        "tooltipPlacement": {
+          "x-omitFromPrompt": true,
+          "description": "Where the cell tooltip of tooltipField opens; auto lets the browser choose. Only table panels draw it.",
+          "enum": [
+            "auto",
+            "top",
+            "bottom",
+            "left",
+            "right"
+          ]
+        },
         "cell": {
           "x-omitFromPrompt": true,
           "description": "How a table column draws its cells; absent means the plain cell with colors from thresholds and colored mappings. Only table panels draw it.",
@@ -1892,7 +1920,8 @@
                 "json",
                 "image",
                 "links",
-                "pill"
+                "pill",
+                "markdown"
               ]
             },
             "gaugeStyle": {
@@ -1912,6 +1941,10 @@
               "type": "boolean"
             },
             "wrap": {
+              "type": "boolean"
+            },
+            "dynamicHeight": {
+              "description": "Lets the cell grow to its content up to the table's maxRowHeight.",
               "type": "boolean"
             },
             "imageAlt": {
@@ -4414,12 +4447,27 @@
                   },
                   "cellHeight": {
                     "x-omitFromPrompt": true,
-                    "description": "The height of a table row: sm is the compact row, md and lg add padding.",
+                    "description": "The height of a table row: sm is the compact row, md and lg add padding, and auto fits each row to its content up to maxRowHeight.",
                     "enum": [
                       "sm",
                       "md",
-                      "lg"
+                      "lg",
+                      "auto"
                     ]
+                  },
+                  "maxRowHeight": {
+                    "x-omitFromPrompt": true,
+                    "description": "The tallest a row may grow, in pixels, when cellHeight is auto or a cell has dynamicHeight.",
+                    "type": "integer",
+                    "minimum": 20,
+                    "maximum": 1000
+                  },
+                  "frameIndex": {
+                    "x-omitFromPrompt": true,
+                    "description": "Shows only this frame when the data has several and no transform merges them (the last frame when the index is past it); absent shows every frame, one after another.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 99
                   },
                   "pagination": {
                     "x-omitFromPrompt": true,

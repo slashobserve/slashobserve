@@ -33,6 +33,8 @@ export const specDefaults = {
     "filterable": false,
     "inspect": false,
     "hideHeader": false,
+    "wrapHeader": false,
+    "tooltipPlacement": "auto",
     "fieldMinMax": false
   },
   "query": {

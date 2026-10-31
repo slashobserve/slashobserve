@@ -36,6 +36,12 @@ func TestTableColumnFieldPropsImport(t *testing.T) {
 		{"not filterable is the default", `{"filterable":false}`, `{}`},
 		{"inspect", `{"inspect":true}`, `{"inspect":true}`},
 		{"hidden header", `{"hideHeader":true}`, `{"hideHeader":true}`},
+		{"wrapped header", `{"wrapHeaderText":true}`, `{"wrapHeader":true}`},
+		{"unwrapped header is the default", `{"wrapHeaderText":false}`, `{}`},
+		{"tooltip from another field", `{"tooltip":{"field":"Status"}}`, `{"tooltipField":"Status"}`},
+		{"tooltip placement", `{"tooltip":{"field":"Status","placement":"left"}}`, `{"tooltipField":"Status","tooltipPlacement":"left"}`},
+		{"automatic tooltip placement is the default", `{"tooltip":{"field":"Status","placement":"auto"}}`, `{"tooltipField":"Status"}`},
+		{"a placement without a field shows no tooltip", `{"tooltip":{"placement":"top"}}`, `{}`},
 		{"zero width means unset", `{"width":0}`, `{}`},
 	}
 	for _, tc := range cases {
@@ -88,8 +94,84 @@ func TestTableColumnOverridesWriteTheirValueWhole(t *testing.T) {
 	requireImported(t, line)
 }
 
+func TestTableColumnTooltipAndHeaderInAnOverrideAreWrittenWhole(t *testing.T) {
+	overrides := `{"matcher":{"id":"byName","options":"Value"},"properties":[
+		{"id":"custom.wrapHeaderText","value":false},
+		{"id":"custom.tooltip","value":{"field":"Status","placement":"auto"}},
+		{"id":"description","value":"Requests handled"}]}`
+	panel, line := tableCellPanel(t, `{"wrapHeaderText":true,"tooltip":{"field":"Other","placement":"top"}}`, overrides)
+	if got := propsJSON(t, panel.FieldProps); got != `{"wrapHeader":true,"tooltipField":"Other","tooltipPlacement":"top"}` {
+		t.Fatalf("panel props = %s", got)
+	}
+	if len(panel.Overrides) != 1 {
+		t.Fatalf("overrides = %+v", panel.Overrides)
+	}
+	want := `{"wrapHeader":false,"fieldDescription":"Requests handled","tooltipField":"Status","tooltipPlacement":"auto"}`
+	if got := propsJSON(t, panel.Overrides[0].FieldProps); got != want {
+		t.Fatalf("override props = %s, want %s", got, want)
+	}
+	requireImported(t, line)
+}
+
+func TestTableColumnTooltipReportsWhatItCannotKeep(t *testing.T) {
+	cases := []struct{ name, custom, want, path string }{
+		{"unknown placement", `{"tooltip":{"field":"Status","placement":"diagonal"}}`, `{}`, "fieldConfig.defaults.custom.tooltip"},
+		{"field name too long", `{"tooltip":{"field":"` + strings.Repeat("a", 201) + `"}}`, `{}`, "fieldConfig.defaults.custom.tooltip.field"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := tableCellPanel(t, tc.custom, "")
+			if got := propsJSON(t, panel.FieldProps); got != tc.want {
+				t.Fatalf("props = %s, want %s", got, tc.want)
+			}
+			if line.Status != statusPartial || !slices.Contains(line.Paths, tc.path) {
+				t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
+			}
+		})
+	}
+}
+
+func fieldDescriptionPanel(t *testing.T, typ, description string) (spec.Panel, PanelLine) {
+	t.Helper()
+	quoted, err := json.Marshal(description)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return convertedPanel(t, panelDoc(typ, upTarget+`,"fieldConfig":{"defaults":{"description":`+string(quoted)+`},"overrides":[]}`))
+}
+
+func TestFieldDescriptionImportsOnTables(t *testing.T) {
+	panel, line := fieldDescriptionPanel(t, "table", "Requests handled")
+	if panel.FieldDescription != "Requests handled" || panel.Description != "" {
+		t.Fatalf("field description = %q, panel description = %q", panel.FieldDescription, panel.Description)
+	}
+	requireImported(t, line)
+}
+
+func TestFieldDescriptionOverTheLimitIsCutAndReported(t *testing.T) {
+	panel, line := fieldDescriptionPanel(t, "table", strings.Repeat("é", 2001))
+	if got := len([]rune(panel.FieldDescription)); got != 2000 {
+		t.Fatalf("kept %d characters, want 2000", got)
+	}
+	if line.Status != statusPartial || !slices.Contains(line.Reasons, "The field description was cut to 2000 characters.") {
+		t.Fatalf("status = %s, reasons %v", line.Status, line.Reasons)
+	}
+	_, exact := fieldDescriptionPanel(t, "table", strings.Repeat("é", 2000))
+	requireImported(t, exact)
+}
+
+func TestFieldDescriptionStaysReportedOutsideTables(t *testing.T) {
+	panel, line := fieldDescriptionPanel(t, "timeseries", "Requests handled")
+	if panel.FieldDescription != "" {
+		t.Fatalf("field description = %q", panel.FieldDescription)
+	}
+	if line.Status != statusPartial || !slices.Contains(line.Paths, "fieldConfig.defaults.description") {
+		t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
+	}
+}
+
 func TestTableColumnPropsStayReportedOutsideTables(t *testing.T) {
-	for _, custom := range []string{`{"width":120}`, `{"align":"left"}`, `{"filterable":true}`} {
+	for _, custom := range []string{`{"width":120}`, `{"align":"left"}`, `{"filterable":true}`, `{"wrapHeaderText":true}`, `{"tooltip":{"field":"Status"}}`} {
 		_, line := customPanelOf(t, "stat", custom, "")
 		if line.Status != statusPartial {
 			t.Fatalf("%s: status = %s, paths %v", custom, line.Status, line.Paths)
@@ -101,7 +183,14 @@ func TestTableDisplayOptionsImport(t *testing.T) {
 	cases := []struct{ name, options, want string }{
 		{"medium rows", `{"cellHeight":"md"}`, `{"cellHeight":"md"}`},
 		{"large rows", `{"cellHeight":"lg"}`, `{"cellHeight":"lg"}`},
+		{"rows that fit their content", `{"cellHeight":"auto"}`, `{"cellHeight":"auto"}`},
 		{"small rows are the default", `{"cellHeight":"sm"}`, `null`},
+		{"a tallest row", `{"cellHeight":"auto","maxRowHeight":100}`, `{"cellHeight":"auto","maxRowHeight":100}`},
+		{"the smallest tallest row", `{"maxRowHeight":20}`, `{"maxRowHeight":20}`},
+		{"the largest tallest row", `{"maxRowHeight":1000}`, `{"maxRowHeight":1000}`},
+		{"the second frame", `{"frameIndex":1}`, `{"frameIndex":1}`},
+		{"the first frame", `{"frameIndex":0}`, `{"frameIndex":0}`},
+		{"the last frame index", `{"frameIndex":99}`, `{"frameIndex":99}`},
 		{"type icons", `{"showTypeIcons":true}`, `{"typeIcons":true}`},
 		{"pagination", `{"enablePagination":true}`, `{"pagination":true}`},
 		{"pagination beside the footer", `{"footer":{"enablePagination":true}}`, `{"pagination":true}`},
@@ -197,7 +286,12 @@ func TestTableFooterInAColumnOverrideStaysReported(t *testing.T) {
 
 func TestTableDisplayOptionsReportWhatTheyCannotKeep(t *testing.T) {
 	cases := []struct{ name, options, want, path string }{
-		{"automatic row height", `{"cellHeight":"auto"}`, `null`, "options.cellHeight"},
+		{"an unknown row height", `{"cellHeight":"huge"}`, `null`, "options.cellHeight"},
+		{"a tallest row under 20", `{"maxRowHeight":19}`, `null`, "options.maxRowHeight"},
+		{"a tallest row over 1000", `{"maxRowHeight":1001}`, `null`, "options.maxRowHeight"},
+		{"a fractional tallest row", `{"maxRowHeight":50.5}`, `null`, "options.maxRowHeight"},
+		{"a negative frame index", `{"frameIndex":-1}`, `null`, "options.frameIndex"},
+		{"a frame index over 99", `{"frameIndex":100}`, `null`, "options.frameIndex"},
 		{"more than ten frozen columns", `{"frozenColumns":{"left":12}}`, `{"frozenColumns":10}`, "options.frozenColumns.left"},
 		{"a second sort column", `{"sortBy":[{"displayName":"A"},{"displayName":"B","desc":true}]}`, `{"sortBy":"A"}`, "options.sortBy"},
 		{"a nameless sort column", `{"sortBy":[{"desc":true}]}`, `null`, "options.sortBy"},

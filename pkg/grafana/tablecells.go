@@ -21,6 +21,7 @@ var cellTypes = map[string]string{
 	"image":            "image",
 	"data-links":       "links",
 	"pill":             "pill",
+	"markdown":         "markdown",
 }
 
 var legacyCellModes = map[string]spec.Cell{
@@ -54,6 +55,7 @@ var sparklineFieldOptions = []struct {
 var cellOptionKeys = map[string][]string{
 	"background": {"mode", "applyToRow"},
 	"gauge":      {"mode", "valueDisplayMode"},
+	"markdown":   {"dynamicHeight"},
 	"image":      {"alt", "title"},
 	"sparkline": {
 		"hideValue", "drawStyle", "lineInterpolation", "lineWidth", "fillOpacity", "gradientMode",
@@ -116,6 +118,13 @@ func (b *panelBuild) cellOptions(p *spec.FieldProps, cell *spec.Cell, opts map[s
 		b.backgroundCell(cell, opts, s)
 	case "gauge":
 		b.gaugeCell(cell, opts, s)
+	case "markdown":
+		if on, isBool := opts["dynamicHeight"].(bool); isBool {
+			b.consume(s.value + ".dynamicHeight")
+			if on || s.whole {
+				cell.DynamicHeight = &on
+			}
+		}
 	case "image":
 		cell.ImageAlt = b.cellText(opts, "alt", s)
 		cell.ImageTitle = b.cellText(opts, "title", s)

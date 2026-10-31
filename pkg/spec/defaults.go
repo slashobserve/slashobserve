@@ -43,6 +43,8 @@ type FieldPropsDefaults struct {
 	Filterable        bool    `json:"filterable"`
 	Inspect           bool    `json:"inspect"`
 	HideHeader        bool    `json:"hideHeader"`
+	WrapHeader        bool    `json:"wrapHeader"`
+	TooltipPlacement  string  `json:"tooltipPlacement"`
 	FieldMinMax       bool    `json:"fieldMinMax"`
 }
 

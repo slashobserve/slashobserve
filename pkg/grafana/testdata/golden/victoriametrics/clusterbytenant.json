@@ -344,12 +344,10 @@
         "row": "Billing",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "options.frameIndex"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -371,12 +369,10 @@
         "row": "Billing",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "options.frameIndex"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -398,12 +394,10 @@
         "row": "Billing",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "options.frameIndex"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -425,12 +419,10 @@
         "row": "Billing",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "options.frameIndex"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -452,12 +444,10 @@
         "row": "Billing",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "options.frameIndex"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -479,12 +469,10 @@
         "row": "Billing",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "options.frameIndex"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -867,6 +855,7 @@
               }
             ],
             "display": {
+              "frameIndex": 1,
               "sortBy": "Value",
               "sortDesc": true
             }
@@ -906,6 +895,7 @@
               }
             ],
             "display": {
+              "frameIndex": 1,
               "sortBy": "Value",
               "sortDesc": true
             }
@@ -945,6 +935,7 @@
               }
             ],
             "display": {
+              "frameIndex": 1,
               "sortBy": "Value",
               "sortDesc": true
             }
@@ -984,6 +975,7 @@
               }
             ],
             "display": {
+              "frameIndex": 1,
               "sortBy": "Value",
               "sortDesc": true
             }
@@ -1023,6 +1015,7 @@
               }
             ],
             "display": {
+              "frameIndex": 1,
               "sortBy": "Value",
               "sortDesc": true
             }
@@ -1062,6 +1055,7 @@
               }
             ],
             "display": {
+              "frameIndex": 1,
               "sortBy": "Value",
               "sortDesc": true
             }
