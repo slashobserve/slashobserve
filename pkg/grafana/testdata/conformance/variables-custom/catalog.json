@@ -23,6 +23,7 @@
     { "id": "label=Pod", "path": "label", "value": "Pod" },
     { "id": "description=text", "path": "description", "value": "Pick a pod" },
     { "id": "skipUrlSync=true", "path": "skipUrlSync", "value": true },
-    { "id": "options=saved", "path": "options", "value": [{"selected": true, "text": "a", "value": "a"}], "expect": "bookkeeping" }
+    { "id": "options=saved", "path": "options", "value": [{"selected": true, "text": "a", "value": "a"}], "expect": "bookkeeping" },
+    {"id": "current.selected=true", "path": "current.selected", "value": true, "expect": "bookkeeping"}
   ]
 }

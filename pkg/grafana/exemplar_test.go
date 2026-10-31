@@ -1,7 +1,6 @@
 package grafana
 
 import (
-	"slices"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -32,13 +31,13 @@ func TestExemplarFalseIsSilentAndNotWritten(t *testing.T) {
 	}
 }
 
-func TestExemplarOnAnInstantOnlyTargetIsDroppedAndReported(t *testing.T) {
+func TestExemplarOnAnInstantOnlyTargetIsDroppedWithoutANote(t *testing.T) {
 	panel, line := exemplarPanel(t, "timeseries", `{"refId":"A","expr":"up","instant":true,"exemplar":true}`)
 	if panel.Queries[0].Exemplar || !panel.Queries[0].Instant {
 		t.Fatalf("query = %+v, want an instant query without exemplar", panel.Queries[0])
 	}
-	if !slices.Equal(line.Paths, []string{"targets[0].exemplar"}) || !slices.Contains(line.Reasons, exemplarsDrawnOnly) {
-		t.Fatalf("paths = %v, reasons = %v, want the exemplar path with %q", line.Paths, line.Reasons, exemplarsDrawnOnly)
+	if line.Status != statusImported || len(line.Paths) != 0 {
+		t.Fatalf("status = %s, paths %v, want imported with no report", line.Status, line.Paths)
 	}
 }
 
@@ -52,15 +51,15 @@ func TestExemplarOnAnInstantAndRangeTargetStaysOnTheRangeQuery(t *testing.T) {
 	}
 }
 
-func TestExemplarOnAPanelThatDrawsNoneIsDroppedAndReported(t *testing.T) {
+func TestExemplarOnAPanelThatDrawsNoneIsDroppedWithoutANote(t *testing.T) {
 	for _, typ := range []string{"stat", "table", "gauge", "bargauge", "state-timeline"} {
 		t.Run(typ, func(t *testing.T) {
 			panel, line := exemplarPanel(t, typ, `{"refId":"A","expr":"up","exemplar":true}`)
 			if panel.Queries[0].Exemplar {
 				t.Fatalf("query = %+v, want no exemplar", panel.Queries[0])
 			}
-			if !slices.Contains(line.Reasons, exemplarsDrawnOnly) {
-				t.Fatalf("reasons = %v, want %q", line.Reasons, exemplarsDrawnOnly)
+			if line.Status != statusImported || len(line.Paths) != 0 {
+				t.Fatalf("status = %s, paths %v, want imported with no report", line.Status, line.Paths)
 			}
 		})
 	}

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 4,
-      "imported": 3,
-      "partial": 1,
+      "imported": 4,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -85,15 +85,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Bucket Replicate Runs",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this query are not supported yet."
-        ],
-        "paths": [
-          "targets[0].logBase",
-          "targets[1].logBase",
-          "targets[2].logBase"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -174,7 +168,7 @@
     "dashboard mapped=7 bookkeeping=6",
     "panel rows[0].panels[0] mapped=34 default=6 bookkeeping=3 query:1",
     "panel rows[0].panels[1] mapped=34 default=6 bookkeeping=3 query:1",
-    "panel rows[0].panels[2] mapped=55 reported=3 default=7 bookkeeping=3 query:3",
+    "panel rows[0].panels[2] mapped=55 default=7 no_effect=3 bookkeeping=3 query:3",
     "panel rows[1].panels[0] mapped=52 default=7 bookkeeping=3 query:5"
   ],
   "spec": {

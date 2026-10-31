@@ -272,7 +272,8 @@ func TestIndexNumbersInPathsAreNormalized(t *testing.T) {
 }
 
 func TestHugeNumbersOfTargetsKeepTheReportBounded(t *testing.T) {
-	empty := func(n int) string { return strings.Repeat("{},", n) }
+	const unimportable = `{"expr":"$u"}`
+	unimportables := func(n int) string { return strings.Repeat(unimportable+",", n) }
 	hidden := func(n int) string { return strings.Repeat(`{"hide":true},`, n) }
 	const million = 1_000_000
 	const hundredThousand = 100_000
@@ -282,13 +283,13 @@ func TestHugeNumbersOfTargetsKeepTheReportBounded(t *testing.T) {
 		wantUp          bool
 		wantReason      string
 	}{
-		{"a kept query after the listed targets", "timeseries", "[" + empty(200) + `{"refId":"Z","expr":"up"},` + empty(million-202) + "{}]", million, true, fmt.Sprintf("%d more queries were not imported.", million-101)},
-		{"no query can be imported", "timeseries", "[" + empty(hundredThousand-1) + "{}]", hundredThousand, false, fmt.Sprintf("%d more queries were not imported.", hundredThousand-100)},
-		{"placeholder panel", "barchart", "[" + empty(hundredThousand-1) + "{}]", hundredThousand, false, fmt.Sprintf("%d more queries were not imported.", hundredThousand-100)},
-		{"one visible target past the cap", "timeseries", "[" + empty(100) + "{}]", 101, false, "1 more query was not imported."},
-		{"one visible target past the cap of a placeholder panel", "barchart", "[" + empty(100) + "{}]", 101, false, "1 more query was not imported."},
-		{"hidden targets past the cap are not counted", "timeseries", `[{"refId":"Z","expr":"up","noSuchKey":1},` + empty(99) + hidden(4) + `{"hide":true}]`, 105, true, ""},
-		{"hidden targets past the cap of a placeholder panel are not counted", "barchart", "[" + empty(100) + hidden(4) + `{"hide":true}]`, 105, false, ""},
+		{"a kept query after the listed targets", "timeseries", "[" + unimportables(200) + `{"refId":"Z","expr":"up"},` + unimportables(million-202) + unimportable + "]", million, true, fmt.Sprintf("%d more queries were not imported.", million-101)},
+		{"no query can be imported", "timeseries", "[" + unimportables(hundredThousand-1) + unimportable + "]", hundredThousand, false, fmt.Sprintf("%d more queries were not imported.", hundredThousand-100)},
+		{"placeholder panel", "barchart", "[" + unimportables(hundredThousand-1) + unimportable + "]", hundredThousand, false, fmt.Sprintf("%d more queries were not imported.", hundredThousand-100)},
+		{"one visible target past the cap", "timeseries", "[" + unimportables(100) + unimportable + "]", 101, false, "1 more query was not imported."},
+		{"one visible target past the cap of a placeholder panel", "barchart", "[" + unimportables(100) + unimportable + "]", 101, false, "1 more query was not imported."},
+		{"hidden targets past the cap are not counted", "timeseries", `[{"refId":"Z","expr":"up","noSuchKey":1},` + unimportables(99) + hidden(4) + `{"hide":true}]`, 105, true, ""},
+		{"hidden targets past the cap of a placeholder panel are not counted", "barchart", "[" + unimportables(100) + hidden(4) + `{"hide":true}]`, 105, false, ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -361,10 +362,10 @@ func TestDroppedTargetTakesItsPartialPathsAndReasonsWithIt(t *testing.T) {
 
 func TestDroppedTargetTakesItsOmittedPathsWithIt(t *testing.T) {
 	manyIssues := `"legendFormat":"` + strings.Repeat("l", 250) + `","interval":"7x","exemplar":true,"intervalFactor":2,"step":"7x"`
-	targets := `{"refId":"B","expr":"up"},` + strings.Repeat("{},", 98) + `{"refId":"Z","expr":"up{pod=\"$undeclared\"}",` + manyIssues + `}`
+	targets := `{"refId":"B","expr":"up"},` + strings.Repeat(`{"expr":"$u"},`, 98) + `{"refId":"Z","expr":"up{pod=\"$undeclared\"}",` + manyIssues + `}`
 	_, line := convertedPanel(t, panelDoc("timeseries", `"targets":[`+targets+`]`))
 	if len(line.Paths) != 99 {
-		t.Fatalf("paths = %d, want the 98 empty targets and the dropped one", len(line.Paths))
+		t.Fatalf("paths = %d, want the 98 unimportable targets and the dropped one", len(line.Paths))
 	}
 	for _, reason := range line.Reasons {
 		if strings.Contains(reason, "more options") {
@@ -629,7 +630,7 @@ func TestLegendTablesAreReportedWhereTheChartHasNoTableLegend(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, line := convertedPanel(t, panelDoc("stat", upTarget+`,"options":{"legend":`+tc.legend+`}`))
+			_, line := convertedPanel(t, panelDoc("gauge", upTarget+`,"options":{"legend":`+tc.legend+`}`))
 			if line.Status != statusPartial || !slices.Equal(line.Paths, tc.paths) || !slices.Contains(line.Reasons, wantLegendTableReason) {
 				t.Fatalf("status %s, paths %v, reasons %v, want %v and %q", line.Status, line.Paths, line.Reasons, tc.paths, wantLegendTableReason)
 			}
@@ -1683,7 +1684,8 @@ func TestIgnoredOptionsAreSilentOnlyOnTheirPanelType(t *testing.T) {
 		{"bar chart percent size", "barchart", `{"text":{"percentSize":14}}`, true},
 		{"state timeline legend calculations", "state-timeline", `{"legend":{"calcs":["min"]}}`, true},
 		{"status history legend sort", "status-history", `{"legend":{"sortBy":"Mean","sortDesc":true}}`, true},
-		{"stat legend calculations", "stat", `{"legend":{"calcs":["mean"]}}`, false},
+		{"stat legend calculations", "stat", `{"legend":{"calcs":["mean"]}}`, true},
+		{"gauge legend calculations", "gauge", `{"legend":{"calcs":["mean"]}}`, false},
 		{"table title size", "table", `{"text":{"titleSize":12}}`, false},
 		{"table orientation", "table", `{"orientation":"horizontal"}`, false},
 	}
@@ -1744,7 +1746,7 @@ func TestCosmeticOptionsListedForPanelTypesStayReportedElsewhere(t *testing.T) {
 		{"news images", "news", `{"showImage":false}`, true},
 		{"table search", "table", `{"showSearch":true}`, false},
 		{"table starred", "table", `{"showStarred":false}`, false},
-		{"stat hidden legend", "stat", `{"legend":{"showLegend":false}}`, false},
+		{"gauge hidden legend", "gauge", `{"legend":{"showLegend":false}}`, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

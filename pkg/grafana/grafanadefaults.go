@@ -222,7 +222,18 @@ var stateLegendIgnored = map[string]string{
 	"options.legend.calcs":    "the state legend lists states and has no calculations",
 }
 
+var anyPanelScope = optionScope("panel:*")
+
 var ignoredOptions = map[optionScope]map[string]string{
+	anyPanelScope: {
+		"fieldConfig.defaults.unitScale": "Grafana 12 defines no unit scale and never reads one",
+	},
+	panelScope(spec.Stat): {
+		"options.legend.showLegend":  "stat panels draw no legend",
+		"options.legend.displayMode": "stat panels draw no legend",
+		"options.legend.placement":   "stat panels draw no legend",
+		"options.legend.calcs":       "stat panels draw no legend",
+	},
 	panelScope(spec.StateTimeline): stateLegendIgnored,
 	panelScope(spec.StatusHistory): stateLegendIgnored,
 	panelScope(spec.BarChart): {
@@ -423,8 +434,13 @@ func isGrafanaDefault(typ spec.PanelType, path string, value any) bool {
 }
 
 func isIgnoredOption(scope optionScope, path string) bool {
-	_, ok := ignoredOptions[scope][normalizePath(path)]
-	return ok
+	normalized := normalizePath(path)
+	for _, s := range []optionScope{scope, scope.wildcard()} {
+		if _, ok := ignoredOptions[s][normalized]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func sameJSON(a, b any) bool {

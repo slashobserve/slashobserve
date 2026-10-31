@@ -43,6 +43,25 @@
     { "id": "staticOptions=none-option", "path": "staticOptions", "value": [{"text": "None", "value": ""}] },
     { "id": "staticOptionsOrder=before", "path": "staticOptionsOrder", "value": "before", "with": {"staticOptions": [{"text": "None", "value": ""}]} },
     { "id": "staticOptionsOrder=after", "path": "staticOptionsOrder", "value": "after", "with": {"staticOptions": [{"text": "None", "value": ""}]} },
-    { "id": "staticOptionsOrder=sorted", "path": "staticOptionsOrder", "value": "sorted", "with": {"staticOptions": [{"text": "None", "value": ""}]} }
+    { "id": "staticOptionsOrder=sorted", "path": "staticOptionsOrder", "value": "sorted", "with": {"staticOptions": [{"text": "None", "value": ""}]} },
+    {"id": "current.selected=true", "path": "current.selected", "value": true, "expect": "bookkeeping"},
+    {"id": "current.isNone=true", "path": "current.isNone", "value": true, "expect": "bookkeeping"},
+    {"id": "definition=label-values", "path": "definition", "value": "label_values(up, job)", "expect": "bookkeeping"},
+    {"id": "useTags=true", "path": "useTags", "value": true, "expect": "bookkeeping"},
+    {"id": "query.add_metadata=state", "path": "query.add_metadata", "value": false, "with": {"datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}, "query": {"rawSql": "SELECT DISTINCT ServiceName FROM otel_traces", "refId": "A"}}, "expect": "bookkeeping"},
+    {"id": "query.contextWindowSize=state", "path": "query.contextWindowSize", "value": "10", "with": {"datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}, "query": {"rawSql": "SELECT DISTINCT ServiceName FROM otel_traces", "refId": "A"}}, "expect": "bookkeeping"},
+    {"id": "query.datasourceMode=state", "path": "query.datasourceMode", "value": "multi", "with": {"datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}, "query": {"rawSql": "SELECT DISTINCT ServiceName FROM otel_traces", "refId": "A"}}, "expect": "bookkeeping"},
+    {"id": "query.editorMode=state", "path": "query.editorMode", "value": "builder", "with": {"datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}, "query": {"rawSql": "SELECT DISTINCT ServiceName FROM otel_traces", "refId": "A"}}, "expect": "bookkeeping"},
+    {"id": "query.editorType=state", "path": "query.editorType", "value": "sql", "with": {"datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}, "query": {"rawSql": "SELECT DISTINCT ServiceName FROM otel_traces", "refId": "A"}}, "expect": "bookkeeping"},
+    {"id": "query.extrapolate=state", "path": "query.extrapolate", "value": true, "with": {"datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}, "query": {"rawSql": "SELECT DISTINCT ServiceName FROM otel_traces", "refId": "A"}}, "expect": "bookkeeping"},
+    {"id": "query.format=state", "path": "query.format", "value": 1, "with": {"datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}, "query": {"rawSql": "SELECT DISTINCT ServiceName FROM otel_traces", "refId": "A"}}, "expect": "bookkeeping"},
+    {"id": "query.formattedQuery=state", "path": "query.formattedQuery", "value": "SELECT 1", "with": {"datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}, "query": {"rawSql": "SELECT DISTINCT ServiceName FROM otel_traces", "refId": "A"}}, "expect": "bookkeeping"},
+    {"id": "query.intervalFactor=state", "path": "query.intervalFactor", "value": 2, "with": {"datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}, "query": {"rawSql": "SELECT DISTINCT ServiceName FROM otel_traces", "refId": "A"}}, "expect": "bookkeeping"},
+    {"id": "query.qryType=state", "path": "query.qryType", "value": "sql", "with": {"datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}, "query": {"rawSql": "SELECT DISTINCT ServiceName FROM otel_traces", "refId": "A"}}, "expect": "bookkeeping"},
+    {"id": "query.rawQuery=state", "path": "query.rawQuery", "value": "SELECT 1", "with": {"datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}, "query": {"rawSql": "SELECT DISTINCT ServiceName FROM otel_traces", "refId": "A"}}, "expect": "bookkeeping"},
+    {"id": "query.rawSql=distinct-service", "path": "query.rawSql", "value": "SELECT DISTINCT ServiceName FROM otel_traces", "with": {"datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}, "query": {"rawSql": "SELECT 1", "refId": "A"}}},
+    {"id": "query.round=state", "path": "query.round", "value": "0s", "with": {"datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}, "query": {"rawSql": "SELECT DISTINCT ServiceName FROM otel_traces", "refId": "A"}}, "expect": "bookkeeping"},
+    {"id": "query.skip_comments=state", "path": "query.skip_comments", "value": true, "with": {"datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}, "query": {"rawSql": "SELECT DISTINCT ServiceName FROM otel_traces", "refId": "A"}}, "expect": "bookkeeping"},
+    {"id": "query.useWindowFuncForMacros=state", "path": "query.useWindowFuncForMacros", "value": true, "with": {"datasource": {"type": "grafana-clickhouse-datasource", "uid": "ch"}, "query": {"rawSql": "SELECT DISTINCT ServiceName FROM otel_traces", "refId": "A"}}, "expect": "bookkeeping"}
   ]
 }

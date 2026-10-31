@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 14,
-      "imported": 13,
-      "partial": 1,
+      "imported": 14,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are drawn on time series and heatmaps only."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -366,7 +362,7 @@
   },
   "blocks": [
     "dashboard mapped=7 excluded=2 bookkeeping=7",
-    "panel panels[0] mapped=17 reported=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[0] mapped=17 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[1] mapped=37 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[2] mapped=35 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[3] mapped=36 no_effect=1 bookkeeping=4 field_config:1 query:1",

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 13,
-      "imported": 0,
-      "partial": 13,
+      "imported": 13,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unitScale"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -68,13 +64,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unitScale"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -93,13 +85,11 @@
         "type": "gauge",
         "source_type": "gauge",
         "row": null,
-        "status": "partial",
+        "status": "imported",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
           "The gauge layout options are not part of SlashObserve."
         ],
         "paths": [
-          "fieldConfig.defaults.unitScale",
           "options.orientation"
         ],
         "queries": [
@@ -120,13 +110,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unitScale"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -145,13 +131,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unitScale"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -177,13 +159,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unitScale"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -209,13 +187,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unitScale"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -241,13 +215,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unitScale"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -266,13 +236,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unitScale"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -298,13 +264,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unitScale"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -330,13 +292,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unitScale"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -362,13 +320,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unitScale"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -387,13 +341,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.unitScale"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -409,19 +359,19 @@
   },
   "blocks": [
     "dashboard mapped=8 bookkeeping=8",
-    "panel panels[0] mapped=24 reported=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[1] mapped=26 reported=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[2] mapped=25 excluded=1 reported=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[3] mapped=37 reported=1 default=1 bookkeeping=5 field_config:1 query:1",
-    "panel panels[4] mapped=44 reported=1 default=1 bookkeeping=5 field_config:1 query:2",
-    "panel panels[5] mapped=46 reported=1 default=1 bookkeeping=5 field_config:1 override:1 query:2",
-    "panel panels[6] mapped=43 reported=1 default=1 bookkeeping=5 field_config:1 query:2",
-    "panel panels[7] mapped=40 reported=1 default=1 bookkeeping=4 field_config:1 override:1 query:1",
-    "panel panels[8] mapped=43 reported=1 default=1 bookkeeping=5 field_config:1 query:2",
-    "panel panels[9] mapped=49 reported=1 default=1 bookkeeping=5 field_config:1 override:3 query:2",
-    "panel panels[10] mapped=41 reported=1 default=1 bookkeeping=5 field_config:1 query:2",
-    "panel panels[11] mapped=39 reported=1 default=1 bookkeeping=5 field_config:1 override:1 query:1",
-    "panel panels[12] mapped=37 reported=1 default=1 bookkeeping=5 field_config:1 query:1"
+    "panel panels[0] mapped=24 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[1] mapped=26 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[2] mapped=25 excluded=1 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[3] mapped=37 default=1 no_effect=1 bookkeeping=5 field_config:1 query:1",
+    "panel panels[4] mapped=44 default=1 no_effect=1 bookkeeping=5 field_config:1 query:2",
+    "panel panels[5] mapped=46 default=1 no_effect=1 bookkeeping=5 field_config:1 override:1 query:2",
+    "panel panels[6] mapped=43 default=1 no_effect=1 bookkeeping=5 field_config:1 query:2",
+    "panel panels[7] mapped=40 default=1 no_effect=1 bookkeeping=4 field_config:1 override:1 query:1",
+    "panel panels[8] mapped=43 default=1 no_effect=1 bookkeeping=5 field_config:1 query:2",
+    "panel panels[9] mapped=49 default=1 no_effect=1 bookkeeping=5 field_config:1 override:3 query:2",
+    "panel panels[10] mapped=41 default=1 no_effect=1 bookkeeping=5 field_config:1 query:2",
+    "panel panels[11] mapped=39 default=1 no_effect=1 bookkeeping=5 field_config:1 override:1 query:1",
+    "panel panels[12] mapped=37 default=1 no_effect=1 bookkeeping=5 field_config:1 query:1"
   ],
   "spec": {
     "specVersion": "0",

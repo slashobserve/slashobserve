@@ -13,6 +13,7 @@
     { "id": "label=Environment", "path": "label", "value": "Environment" },
     { "id": "description=text", "path": "description", "value": "Fixed environment" },
     { "id": "skipUrlSync=true", "path": "skipUrlSync", "value": true },
-    { "id": "current=other", "path": "current", "value": {"text": "staging", "value": "staging"}, "expect": "bookkeeping" }
+    { "id": "current=other", "path": "current", "value": {"text": "staging", "value": "staging"}, "expect": "bookkeeping" },
+    {"id": "options=saved", "path": "options", "value": [{"selected": true, "text": "prod", "value": "prod"}], "expect": "bookkeeping"}
   ]
 }

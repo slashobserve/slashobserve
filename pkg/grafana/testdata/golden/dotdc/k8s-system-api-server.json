@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 12,
-      "imported": 10,
-      "partial": 2,
+      "imported": 12,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are drawn on time series and heatmaps only."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -68,13 +64,9 @@
         "type": "table",
         "source_type": "table",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Exemplars are drawn on time series and heatmaps only."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -310,8 +302,8 @@
   },
   "blocks": [
     "dashboard mapped=7 excluded=2 bookkeeping=8",
-    "panel panels[0] mapped=15 reported=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[1] mapped=26 reported=1 bookkeeping=4 field_config:1 override:1 query:1 transformation:4",
+    "panel panels[0] mapped=15 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[1] mapped=26 no_effect=1 bookkeeping=4 field_config:1 override:1 query:1 transformation:4",
     "panel panels[2] mapped=34 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[3] mapped=34 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[4] mapped=34 no_effect=1 bookkeeping=4 field_config:1 query:1",

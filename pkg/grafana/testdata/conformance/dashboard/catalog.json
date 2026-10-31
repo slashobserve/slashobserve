@@ -82,6 +82,19 @@
     { "id": "revision=1", "path": "revision", "value": 1, "expect": "bookkeeping" },
     { "id": "iteration=1700000000000", "path": "iteration", "value": 1700000000000, "expect": "bookkeeping" },
     { "id": "__inputs=empty", "path": "__inputs", "value": [], "expect": "bookkeeping" },
-    { "id": "__requires=grafana", "path": "__requires", "value": [{ "type": "grafana", "id": "grafana", "name": "Grafana", "version": "12.3.0" }], "expect": "bookkeeping" }
+    { "id": "__requires=grafana", "path": "__requires", "value": [{ "type": "grafana", "id": "grafana", "name": "Grafana", "version": "12.3.0" }], "expect": "bookkeeping" },
+    {"id": "templating.list[0].name=renamed:adhoc", "path": "templating.list[0].name", "value": "renamed", "with": {"templating.list[0]": {"name": "pod", "type": "adhoc", "datasource": {"type": "prometheus", "uid": "prom"}}}},
+    {"id": "templating.list[0].name=renamed:constant", "path": "templating.list[0].name", "value": "renamed", "with": {"templating.list[0]": {"name": "pod", "type": "constant", "query": "prod", "hide": 2}}},
+    {"id": "templating.list[0].name=renamed:custom", "path": "templating.list[0].name", "value": "renamed", "with": {"templating.list[0]": {"name": "pod", "type": "custom", "query": "a,b", "current": {"text": "a", "value": "a"}, "options": []}}},
+    {"id": "templating.list[0].name=renamed:datasource", "path": "templating.list[0].name", "value": "renamed", "with": {"templating.list[0]": {"name": "pod", "type": "datasource", "query": "prometheus", "current": {"text": "prom", "value": "prom"}, "options": []}}},
+    {"id": "templating.list[0].name=renamed:interval", "path": "templating.list[0].name", "value": "renamed", "with": {"templating.list[0]": {"name": "pod", "type": "interval", "query": "1m,10m", "current": {"text": "1m", "value": "1m"}, "options": []}}},
+    {"id": "templating.list[0].name=renamed:query", "path": "templating.list[0].name", "value": "renamed", "with": {"templating.list[0]": {"name": "pod", "type": "query", "datasource": {"type": "prometheus", "uid": "prom"}, "query": "label_values(up, job)", "refresh": 1, "current": {"text": "a", "value": "a"}, "options": []}}},
+    {"id": "templating.list[0].name=renamed:textbox", "path": "templating.list[0].name", "value": "renamed", "with": {"templating.list[0]": {"name": "pod", "type": "textbox", "query": "default", "current": {"text": "default", "value": "default"}, "options": []}}},
+    {"id": "style=dark", "path": "style", "value": "dark", "expect": "bookkeeping"},
+    {"id": "hideControls=true", "path": "hideControls", "value": true, "expect": "bookkeeping"},
+    {"id": "sharedCrosshair=true", "path": "sharedCrosshair", "value": true},
+    {"id": "timepicker.time_options=default", "path": "timepicker.time_options", "value": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"], "expect": "bookkeeping"},
+    {"id": "links[0].title=Runbook", "path": "links[0].title", "value": "Runbook", "with": {"links[0].type": "link", "links[0].url": "https://example.com/runbook"}},
+    {"id": "links[0].title=Prod+dashboards", "path": "links[0].title", "value": "Prod", "with": {"links[0].type": "dashboards"}}
   ]
 }

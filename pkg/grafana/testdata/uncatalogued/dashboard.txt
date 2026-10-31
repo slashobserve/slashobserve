@@ -1,6 +1,0 @@
-hideControls
-links[].title type:dashboards
-links[].title type:link
-sharedCrosshair
-style
-timepicker.time_options

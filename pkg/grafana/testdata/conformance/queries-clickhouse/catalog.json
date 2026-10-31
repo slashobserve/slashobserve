@@ -78,6 +78,7 @@
     { "id": "hide=true", "path": "hide", "value": true },
     { "id": "refId=B", "path": "refId", "value": "B" },
     { "id": "key=Q-1", "path": "key", "value": "Q-1", "expect": "bookkeeping" },
-    { "id": "requestId=Q100", "path": "requestId", "value": "Q100", "expect": "bookkeeping" }
+    { "id": "requestId=Q100", "path": "requestId", "value": "Q100", "expect": "bookkeeping" },
+    {"id": "expand=true", "path": "expand", "value": true, "expect": "bookkeeping"}
   ]
 }
