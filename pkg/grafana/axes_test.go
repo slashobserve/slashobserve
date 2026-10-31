@@ -79,7 +79,6 @@ func TestAxesUnsupportedAndCutValuesAreReported(t *testing.T) {
 		{"wide axis", `{"axisWidth":900}`, "fieldConfig.defaults.custom.axisWidth", "The axis width was cut to 400 pixels."},
 		{"log base 16", `{"scaleDistribution":{"type":"log","log":16}}`, "fieldConfig.defaults.custom.scaleDistribution.log", "Only log base 2 and 10 are supported."},
 		{"linear threshold of zero", `{"scaleDistribution":{"type":"symlog","linearThreshold":0}}`, "fieldConfig.defaults.custom.scaleDistribution.linearThreshold", "The linear threshold must be above zero."},
-		{"unknown axis color mode", `{"axisColorMode":"scheme"}`, "fieldConfig.defaults.custom.axisColorMode", "The axis color mode scheme is not supported yet."},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -366,5 +365,26 @@ func TestAxisOptionsAreStillReportedOnPanelsThatDrawNoAxis(t *testing.T) {
 	_, line := customPanelOf(t, "stat", `{"axisLabel":"Requests"}`, "")
 	if line.Status != statusPartial || strings.Join(line.Paths, " ") != "fieldConfig.defaults.custom.axisLabel" {
 		t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
+	}
+}
+
+func TestAxisColorModeOtherThanSeriesIsGrafanasDefault(t *testing.T) {
+	for _, mode := range []string{"thresholds", "scheme", "text"} {
+		t.Run(mode, func(t *testing.T) {
+			panel, line := customPanel(t, `{"axisColorMode":"`+mode+`"}`, "")
+			requireImported(t, line)
+			if panel.AxisColor != "" {
+				t.Fatalf("axis color = %q, want the Spec default", panel.AxisColor)
+			}
+		})
+	}
+}
+
+func TestAxisColorModeOverrideOfAnotherModeResetsAPanelSeriesColor(t *testing.T) {
+	doc := panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":{"custom":{"axisColorMode":"series"}},"overrides":[{"matcher":`+byUp+`,"properties":[`+property("custom.axisColorMode", `"thresholds"`)+`]}]}`)
+	panel, line := convertedPanel(t, doc)
+	requireImported(t, line)
+	if got := onlyOverride(t, panel); panel.AxisColor != "series" || got.AxisColor != "text" {
+		t.Fatalf("axis color %q, override %q, want series then text", panel.AxisColor, got.AxisColor)
 	}
 }

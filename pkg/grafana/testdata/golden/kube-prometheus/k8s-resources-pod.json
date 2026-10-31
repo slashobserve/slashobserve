@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 16,
-      "imported": 15,
-      "partial": 1,
+      "imported": 16,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -78,13 +78,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "The axis color mode thresholds is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.axisColorMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -544,7 +540,7 @@
   "blocks": [
     "dashboard mapped=6 excluded=1 bookkeeping=2",
     "panel panels[0] mapped=27 bookkeeping=5 field_config:1 override:2 query:3",
-    "panel panels[1] mapped=22 reported=1 bookkeeping=3 field_config:1 override:1 query:1",
+    "panel panels[1] mapped=22 default=1 bookkeeping=3 field_config:1 override:1 query:1",
     "panel panels[2] mapped=27 bookkeeping=7 override:1 query:5 transformation:2",
     "panel panels[3] mapped=28 bookkeeping=5 field_config:1 override:2 query:3",
     "panel panels[4] mapped=37 bookkeeping=10 field_config:1 override:1 query:8 transformation:2",

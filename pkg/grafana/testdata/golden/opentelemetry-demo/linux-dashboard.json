@@ -53,8 +53,8 @@
     "verified": false,
     "counts": {
       "total": 19,
-      "imported": 17,
-      "partial": 2,
+      "imported": 18,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -444,14 +444,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Basic",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[19].properties[2].value.group",
-          "fieldConfig.overrides[22].properties[2].value.group"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -674,10 +669,10 @@
     "panel panels[11] mapped=27 no_effect=5 bookkeeping=4 field_config:1 query:2",
     "panel panels[12] mapped=27 bookkeeping=4 field_config:1 query:1",
     "panel panels[13] mapped=27 no_effect=5 bookkeeping=4 field_config:1 query:2",
-    "panel panels[15] mapped=92 default=1 bookkeeping=14 field_config:1 override:7 query:6",
-    "panel panels[16] mapped=114 reported=2 default=1 bookkeeping=10 field_config:1 override:23 query:4",
-    "panel panels[17] mapped=51 default=1 bookkeeping=6 field_config:1 override:1 query:2",
-    "panel panels[18] mapped=51 default=1 no_effect=5 bookkeeping=6 field_config:1 override:1 query:3",
+    "panel panels[15] mapped=91 default=2 bookkeeping=14 field_config:1 override:7 query:6",
+    "panel panels[16] mapped=113 default=2 bookkeeping=10 field_config:1 override:23 query:4",
+    "panel panels[17] mapped=49 default=2 no_effect=1 bookkeeping=6 field_config:1 override:1 query:2",
+    "panel panels[18] mapped=49 default=2 no_effect=6 bookkeeping=6 field_config:1 override:1 query:3",
     "panel panels[19] mapped=66 bookkeeping=15 field_config:1 override:6 query:6 transformation:3",
     "panel panels[20] mapped=54 reported=2 bookkeeping=6 field_config:1 override:5 query:2 transformation:6"
   ],
@@ -1581,7 +1576,8 @@
                 },
                 "color": "#E0F9D7",
                 "fill": 0,
-                "stack": "normal"
+                "stack": "normal",
+                "stackGroup": "false"
               },
               {
                 "match": {
@@ -1601,7 +1597,8 @@
                 },
                 "color": "#DEDAF7",
                 "fill": 0,
-                "stack": "normal"
+                "stack": "normal",
+                "stackGroup": "false"
               }
             ],
             "display": {

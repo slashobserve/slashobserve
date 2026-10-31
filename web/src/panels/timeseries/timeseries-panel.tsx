@@ -56,6 +56,7 @@ import { zonedPlotDate } from "./plot-zone"
 import { isolatedPoints, squarePoints } from "./points"
 import { thresholdParts } from "./threshold-style"
 import {
+  autoPointSize,
   axesInUse,
   axisRange,
   fillPercent,
@@ -167,7 +168,7 @@ function linePoints(entry: ChartSeries): uPlot.Series.Points {
   return {
     show: false,
     filter: isolatedPoints,
-    size: 8,
+    size: autoPointSize(entry.pointSize),
     fill: color,
     stroke: color,
     ...pointShapePaths(entry),

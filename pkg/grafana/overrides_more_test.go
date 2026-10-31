@@ -405,3 +405,92 @@ func TestByRegexpOrNamesBecomesOneSeriesRegex(t *testing.T) {
 		})
 	}
 }
+
+func TestOverrideHiddenTableColumns(t *testing.T) {
+	cases := []struct {
+		name, property string
+		hidden         bool
+	}{
+		{"hidden true", property("custom.hidden", `true`), true},
+		{"hidden as text", property("custom.hidden", `"true"`), true},
+		{"hidden false resets a column", property("custom.hidden", `false`), false},
+		{"hide from viz id", property("custom.hideFrom.viz", `true`), true},
+		{"hide from viz in the object", property("custom.hideFrom", `{"legend":false,"tooltip":false,"viz":true}`), true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := convertedPanel(t, overridePanel("table", byUp, tc.property))
+			if !clean(line) {
+				t.Fatalf("status %s, paths %v, reasons %v", line.Status, line.Paths, line.Reasons)
+			}
+			got := onlyOverride(t, panel)
+			if got.Hidden == nil || *got.Hidden != tc.hidden {
+				t.Fatalf("hidden = %s, want %v", flagOf(got.Hidden), tc.hidden)
+			}
+		})
+	}
+}
+
+func TestTableHiddenColumnOnThePanelDefaults(t *testing.T) {
+	panel, line := convertedPanel(t, defaultsPanel("table", `{"custom":{"hidden":true}}`))
+	if !clean(line) || flagOf(panel.Hidden) != "true" {
+		t.Fatalf("status %s, paths %v, hidden %s", line.Status, line.Paths, flagOf(panel.Hidden))
+	}
+}
+
+func TestHiddenColumnIsReportedWhereNoTableIsDrawn(t *testing.T) {
+	_, line := convertedPanel(t, overridePanel("timeseries", byUp, property("custom.hidden", `true`)))
+	if line.Status != statusPartial || len(line.Paths) != 1 {
+		t.Fatalf("status %s, paths %v", line.Status, line.Paths)
+	}
+}
+
+func TestStackGroupOfAnyKindBecomesItsText(t *testing.T) {
+	cases := []struct {
+		name, stacking, want string
+	}{
+		{"false", `{"mode":"normal","group":false}`, "false"},
+		{"true", `{"mode":"percent","group":true}`, "true"},
+		{"number", `{"mode":"normal","group":2}`, "2"},
+		{"decimal", `{"mode":"normal","group":1.5}`, "1.5"},
+	}
+	for _, tc := range cases {
+		t.Run("override "+tc.name, func(t *testing.T) {
+			panel, line := convertedPanel(t, overridePanel("timeseries", byUp, property("custom.stacking", tc.stacking)))
+			if !clean(line) {
+				t.Fatalf("status %s, paths %v", line.Status, line.Paths)
+			}
+			if got := onlyOverride(t, panel); got.StackGroup != tc.want {
+				t.Fatalf("stack group = %q, want %q", got.StackGroup, tc.want)
+			}
+		})
+		t.Run("defaults "+tc.name, func(t *testing.T) {
+			panel, line := customPanel(t, `{"stacking":`+tc.stacking+`}`, "")
+			requireImported(t, line)
+			if panel.StackGroup != tc.want {
+				t.Fatalf("stack group = %q, want %q", panel.StackGroup, tc.want)
+			}
+		})
+	}
+}
+
+func TestStackGroupOfAnUnstackedSeriesHasNoEffect(t *testing.T) {
+	for _, group := range []string{`false`, `"B"`} {
+		t.Run(group, func(t *testing.T) {
+			panel, line := convertedPanel(t, overridePanel("timeseries", byUp, property("custom.stacking", `{"mode":"none","group":`+group+`}`)))
+			if !clean(line) {
+				t.Fatalf("status %s, paths %v", line.Status, line.Paths)
+			}
+			if got := onlyOverride(t, panel); got.StackGroup != "" || got.Stack != "none" {
+				t.Fatalf("stack %q group %q, want none and no group", got.Stack, got.StackGroup)
+			}
+		})
+	}
+}
+
+func TestStackGroupOfAHistogramFollowsTheSameRule(t *testing.T) {
+	panel, line := customPanelOf(t, "histogram", `{"stacking":{"mode":"normal","group":false}}`, "")
+	if !clean(line) || panel.StackGroup != "false" {
+		t.Fatalf("status %s, paths %v, group %q", line.Status, line.Paths, panel.StackGroup)
+	}
+}

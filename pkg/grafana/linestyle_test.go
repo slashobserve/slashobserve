@@ -186,11 +186,40 @@ func TestLineStyleLegacySeriesOverrides(t *testing.T) {
 	}
 }
 
-func TestPointSizeOfAutomaticPointsIsReported(t *testing.T) {
-	for _, custom := range []string{`{"pointSize":12}`, `{"showPoints":"auto","pointSize":12}`} {
+func TestPointSizeOfAutomaticPointsIsKept(t *testing.T) {
+	cases := []struct {
+		name, custom string
+		want         int
+	}{
+		{"size above the default", `{"pointSize":12}`, 12},
+		{"explicit auto mode", `{"showPoints":"auto","pointSize":12}`, 12},
+		{"size one", `{"pointSize":1}`, 1},
+		{"Grafana's own size", `{"pointSize":5}`, -1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := customPanel(t, tc.custom, "")
+			requireImported(t, line)
+			if got := intOf(panel.PointSize); got != tc.want {
+				t.Fatalf("point size = %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestPointSizeFourOnAutomaticPointsIsReported(t *testing.T) {
+	panel, line := customPanel(t, `{"pointSize":4}`, "")
+	requireReported(t, line, "fieldConfig.defaults.custom.pointSize", "cannot tell it from no size")
+	if panel.PointSize != nil {
+		t.Fatalf("point size = %d", *panel.PointSize)
+	}
+}
+
+func TestPointSizeIsDroppedSilentlyWhereNoPointIsDrawn(t *testing.T) {
+	for _, custom := range []string{`{"showPoints":"never","pointSize":1}`, `{"drawStyle":"bars","pointSize":1}`} {
 		t.Run(custom, func(t *testing.T) {
 			panel, line := customPanel(t, custom, "")
-			requireReported(t, line, "fieldConfig.defaults.custom.pointSize", "A point size applies only to points")
+			requireImported(t, line)
 			if panel.PointSize != nil {
 				t.Fatalf("point size = %d", *panel.PointSize)
 			}

@@ -448,13 +448,13 @@
     "panel panels[8] mapped=25 bookkeeping=4 field_config:1 override:2 query:1 transformation:1",
     "panel panels[9] mapped=25 bookkeeping=4 field_config:1 override:2 query:1 transformation:1",
     "panel panels[10].panels[0] mapped=35 default=1 bookkeeping=3 field_config:1 query:1",
-    "panel panels[10].panels[1] mapped=31 default=1 bookkeeping=3 field_config:1 query:1",
-    "panel panels[10].panels[2] mapped=32 default=1 bookkeeping=3 field_config:1 query:1",
+    "panel panels[10].panels[1] mapped=30 default=1 no_effect=1 bookkeeping=3 field_config:1 query:1",
+    "panel panels[10].panels[2] mapped=31 default=1 no_effect=1 bookkeeping=3 field_config:1 query:1",
     "panel panels[10].panels[3] mapped=21 bookkeeping=4 field_config:1 query:1 transformation:1",
     "panel panels[10].panels[4] mapped=32 default=1 bookkeeping=3 field_config:1 query:1",
-    "panel panels[10].panels[5] mapped=33 default=1 bookkeeping=3 field_config:1 query:1",
+    "panel panels[10].panels[5] mapped=32 default=1 no_effect=1 bookkeeping=3 field_config:1 query:1",
     "panel panels[11].panels[0] mapped=33 default=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[11].panels[1] mapped=31 default=1 bookkeeping=3 field_config:1 query:1",
+    "panel panels[11].panels[1] mapped=30 default=1 no_effect=1 bookkeeping=3 field_config:1 query:1",
     "panel panels[12].panels[0] mapped=33 default=1 bookkeeping=3 field_config:1 query:1"
   ],
   "spec": {

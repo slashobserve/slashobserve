@@ -443,6 +443,12 @@
     { "id": "fieldConfig.overrides[0].properties[0]=custom.transform", "path": "fieldConfig.overrides[0].properties[0]", "value": {"id": "custom.transform", "value": "negative-Y"}, "with": {"fieldConfig.overrides[0].matcher": {"id": "byName", "options": "up"}} },
     { "id": "fieldConfig.overrides[0].properties[0]=custom.showValues", "path": "fieldConfig.overrides[0].properties[0]", "value": {"id": "custom.showValues", "value": true}, "with": {"fieldConfig.overrides[0].matcher": {"id": "byName", "options": "up"}} },
     { "id": "fieldConfig.overrides[0].__systemRef=hideSeriesFrom", "path": "fieldConfig.overrides[0].__systemRef", "value": "hideSeriesFrom", "expect": "cosmetic", "with": {"fieldConfig.overrides[0].matcher": {"id": "byName", "options": "up"}, "fieldConfig.overrides[0].properties": [{"id": "unit", "value": "bytes"}]} },
-    {"id": "fieldConfig.defaults.unitScale=true", "path": "fieldConfig.defaults.unitScale", "value": true, "expect": "bookkeeping"}
+    {"id": "fieldConfig.defaults.unitScale=true", "path": "fieldConfig.defaults.unitScale", "value": true, "expect": "bookkeeping"},
+    { "id": "fieldConfig.defaults.custom.hidden=true", "path": "fieldConfig.defaults.custom.hidden", "value": true, "with": {"type": "table"} },
+    { "id": "fieldConfig.overrides[0].properties[0]=custom.hidden", "path": "fieldConfig.overrides[0].properties[0]", "value": {"id": "custom.hidden", "value": true}, "with": {"type": "table", "fieldConfig.overrides[0].matcher": {"id": "byName", "options": "up"}} },
+    { "id": "fieldConfig.overrides[0].properties[0]=custom.hidden-text", "path": "fieldConfig.overrides[0].properties[0]", "value": {"id": "custom.hidden", "value": "true"}, "with": {"type": "table", "fieldConfig.overrides[0].matcher": {"id": "byName", "options": "up"}} },
+    { "id": "fieldConfig.overrides[0].properties[0]=custom.hideFrom.viz", "path": "fieldConfig.overrides[0].properties[0]", "value": {"id": "custom.hideFrom.viz", "value": true}, "with": {"type": "table", "fieldConfig.overrides[0].matcher": {"id": "byName", "options": "up"}} },
+    { "id": "fieldConfig.overrides[0].properties[0]=custom.stacking-group-false", "path": "fieldConfig.overrides[0].properties[0]", "value": {"id": "custom.stacking", "value": {"mode": "normal", "group": false}}, "with": {"fieldConfig.overrides[0].matcher": {"id": "byName", "options": "up"}} },
+    { "id": "fieldConfig.defaults.mappings=value-empty-text", "path": "fieldConfig.defaults.mappings", "value": [{"type": "value", "options": {"": {"text": "Unset", "color": "red", "index": 0}}}] }
   ]
 }

@@ -68,7 +68,7 @@ var propOrder = []string{
 	"color", "custom.drawStyle", "custom.fillOpacity", "custom.lineStyle",
 	"custom.lineInterpolation", "custom.lineWidth", "custom.showPoints", "custom.pointSize", "custom.pointShape", "custom.pointStrokeWidth", "custom.spanNulls",
 	"custom.lineColor", "custom.fillColor", "custom.pointColor", "custom.pointSymbol", "custom.showValues",
-	"custom.stacking", "custom.axisPlacement", "custom.hideFrom",
+	"custom.stacking", "custom.axisPlacement", "custom.hideFrom", "custom.hidden",
 	"custom.axisLabel", "custom.axisSoftMin", "custom.axisSoftMax", "custom.scaleDistribution",
 	"custom.axisCenteredZero", "custom.axisWidth", "custom.axisGridShow", "custom.axisBorderShow", "custom.axisColorMode",
 	"custom.cellOptions", "custom.displayMode", "custom.wrapText",
@@ -112,6 +112,8 @@ var propHandlers = map[string]propHandler{
 	"custom.stacking":          propStacking,
 	"custom.axisPlacement":     propAxisPlacement,
 	"custom.hideFrom":          propHideFromUndrawn,
+	"custom.hideFrom.viz":      propHidden,
+	"custom.hidden":            propHidden,
 	"custom.axisLabel":         propAxisLabel,
 	"custom.axisSoftMin":       propAxisSoftMin,
 	"custom.axisSoftMax":       propAxisSoftMax,
@@ -948,8 +950,13 @@ func propPointSize(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 		setPointSize(p, pointSizeFor(f), s.whole)
 		return
 	}
-	if f != grafanaPointSize && !b.pointsHidden(p) {
-		b.partial(s.at(""), "A point size applies only to points that are always shown or drawn as the series.")
+	size := pointSizeFor(f)
+	switch {
+	case b.pointsHidden(p) || f == grafanaPointSize:
+	case size == canvasPointSize:
+		b.partial(s.at(""), "A point size of 4 on automatic points is not kept, because the Spec cannot tell it from no size.")
+	default:
+		setPointSize(p, size, true)
 	}
 }
 
@@ -1022,7 +1029,7 @@ func propStacking(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 		p.Stack = mode
 	}
 	if seriesDrawingTypes[b.typ] {
-		b.stackGroup(p, cfg["group"], s)
+		b.stackGroup(p, cfg["group"], asString(cfg["mode"]), s)
 	}
 }
 
@@ -1032,8 +1039,8 @@ func propHistogramStacking(b *panelBuild, p *spec.FieldProps, v any, s propSite)
 	if !ok {
 		return
 	}
-	b.stackGroup(p, cfg["group"], s)
 	mode := asString(cfg["mode"])
+	b.stackGroup(p, cfg["group"], mode, s)
 	if mode != "normal" && mode != "percent" && mode != "none" {
 		return
 	}
@@ -1044,13 +1051,26 @@ func propHistogramStacking(b *panelBuild, p *spec.FieldProps, v any, s propSite)
 	b.disp().Stack = mode
 }
 
-func (b *panelBuild) stackGroup(p *spec.FieldProps, v any, s propSite) {
-	group, ok := v.(string)
-	if !ok || group == "" {
+func stackGroupName(v any) (string, bool) {
+	switch x := v.(type) {
+	case string:
+		return x, x != ""
+	case bool:
+		return strconv.FormatBool(x), true
+	}
+	f, ok := numberValue(v)
+	return strconv.FormatFloat(f, 'f', -1, 64), ok
+}
+
+func (b *panelBuild) stackGroup(p *spec.FieldProps, v any, mode string, s propSite) {
+	group, ok := stackGroupName(v)
+	if !ok {
 		return
 	}
 	b.consume(s.value + ".group")
 	switch {
+	case mode == "none":
+		b.recordImplicit(s.at(".group"), outcomeNoEffect)
 	case !validLength(group, maxStackGroup):
 		b.partial(s.at(".group"), "The stacking group name is kept up to 50 characters.")
 	case group != defaultStackGroup || (s.whole && b.panel.StackGroup != ""):
@@ -1301,15 +1321,35 @@ func propAxisBorderShow(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 
 func propAxisColorMode(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	b.consume(s.value)
-	switch mode := asString(v); mode {
-	case "series":
-		p.AxisColor = mode
-	case "text":
-		if s.whole {
-			p.AxisColor = mode
+	if asString(v) == "series" {
+		p.AxisColor = "series"
+		return
+	}
+	if s.whole {
+		p.AxisColor = "text"
+	}
+	b.recordImplicit(s.report, outcomeDefault)
+}
+
+func flagValue(v any) (bool, bool) {
+	switch x := v.(type) {
+	case bool:
+		return x, true
+	case string:
+		switch strings.ToLower(strings.TrimSpace(x)) {
+		case "true":
+			return true, true
+		case "false":
+			return false, true
 		}
-	default:
-		b.partial(s.at(""), fmt.Sprintf("The axis color mode %s is not supported yet.", mode))
+	}
+	return false, false
+}
+
+func propHidden(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	if on, ok := flagValue(v); ok && (on || s.whole) {
+		p.Hidden = &on
 	}
 }
 
@@ -1558,9 +1598,9 @@ func valueMappings(options, legacy map[string]any) ([]spec.Mapping, string) {
 			reason = colorReason
 		}
 		n := utf8.RuneCountInString(key)
-		mapping, ok := result.apply(spec.Mapping{Value: key})
+		mapping, ok := result.apply(mappedKey(key))
 		switch {
-		case n < 1 || n > 200:
+		case n > 200:
 			reason = "Mapped values must be between 1 and 200 characters."
 		case !ok:
 			reason = "A value mapping without text or color is not kept."
@@ -1569,6 +1609,13 @@ func valueMappings(options, legacy map[string]any) ([]spec.Mapping, string) {
 		}
 	}
 	return out, reason
+}
+
+func mappedKey(key string) spec.Mapping {
+	if key == "" {
+		return spec.Mapping{Special: "empty"}
+	}
+	return spec.Mapping{Value: key}
 }
 
 func legacyValueMapping(m map[string]any) ([]spec.Mapping, string) {

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 27,
-      "imported": 6,
-      "partial": 21,
+      "imported": 7,
+      "partial": 20,
       "placeholder": 0,
       "unverified": 0
     },
@@ -153,13 +153,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Stats",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -623,12 +619,9 @@
         "row": "Troubleshooting",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.overrides[1].properties[0]",
           "options.filterable",
           "options.showSearch"
         ],
@@ -874,31 +867,31 @@
     "dashboard mapped=9 excluded=6 bookkeeping=6",
     "panel panels[1] mapped=21 bookkeeping=4 field_config:1 query:1",
     "panel panels[2] mapped=21 bookkeeping=4 field_config:1 query:1",
-    "panel panels[3] mapped=43 reported=2 default=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[3] mapped=41 reported=2 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[4] mapped=21 bookkeeping=4 field_config:1 query:1",
     "panel panels[5] mapped=19 bookkeeping=3 field_config:1 query:1",
-    "panel panels[6] mapped=21 reported=1 bookkeeping=4 field_config:1 override:2 query:1",
+    "panel panels[6] mapped=22 bookkeeping=4 field_config:1 override:2 query:1",
     "panel panels[7] mapped=24 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[8] mapped=24 no_effect=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[10] mapped=43 reported=2 default=1 bookkeeping=6 field_config:1 query:2",
-    "panel panels[11] mapped=47 reported=2 default=1 bookkeeping=6 field_config:1 query:2",
-    "panel panels[12] mapped=43 reported=2 default=1 bookkeeping=6 field_config:1 query:2",
-    "panel panels[13] mapped=39 reported=2 default=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[14] mapped=45 reported=2 default=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[15] mapped=48 reported=2 default=1 bookkeeping=8 field_config:1 query:3",
-    "panel panels[16].panels[0] mapped=52 reported=2 default=1 bookkeeping=8 field_config:1 query:3",
-    "panel panels[16].panels[1] mapped=57 reported=2 default=1 bookkeeping=8 field_config:1 query:3",
-    "panel panels[16].panels[2] mapped=45 reported=2 default=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[16].panels[3] mapped=45 reported=2 default=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[16].panels[4] mapped=49 reported=2 default=1 bookkeeping=4 field_config:1 override:1 query:1",
-    "panel panels[16].panels[5] mapped=46 reported=2 default=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[16].panels[6] mapped=46 reported=2 default=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[17].panels[0] mapped=22 reported=4 bookkeeping=4 field_config:1 override:2 query:1 transformation:1",
-    "panel panels[17].panels[1] mapped=40 reported=2 default=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[17].panels[2] mapped=43 reported=2 default=1 bookkeeping=6 field_config:1 query:2",
-    "panel panels[17].panels[3] mapped=41 reported=2 default=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[18].panels[0] mapped=53 reported=2 default=1 bookkeeping=6 field_config:1 override:1 query:2",
-    "panel panels[18].panels[1] mapped=64 reported=2 default=1 bookkeeping=7 field_config:1 query:5"
+    "panel panels[10] mapped=41 reported=2 default=2 no_effect=1 bookkeeping=6 field_config:1 query:2",
+    "panel panels[11] mapped=45 reported=2 default=2 no_effect=1 bookkeeping=6 field_config:1 query:2",
+    "panel panels[12] mapped=41 reported=2 default=2 no_effect=1 bookkeeping=6 field_config:1 query:2",
+    "panel panels[13] mapped=37 reported=2 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[14] mapped=43 reported=2 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[15] mapped=46 reported=2 default=2 no_effect=1 bookkeeping=8 field_config:1 query:3",
+    "panel panels[16].panels[0] mapped=50 reported=2 default=2 no_effect=1 bookkeeping=8 field_config:1 query:3",
+    "panel panels[16].panels[1] mapped=55 reported=2 default=2 no_effect=1 bookkeeping=8 field_config:1 query:3",
+    "panel panels[16].panels[2] mapped=43 reported=2 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[16].panels[3] mapped=43 reported=2 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[16].panels[4] mapped=47 reported=2 default=2 no_effect=1 bookkeeping=4 field_config:1 override:1 query:1",
+    "panel panels[16].panels[5] mapped=44 reported=2 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[16].panels[6] mapped=44 reported=2 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[17].panels[0] mapped=24 reported=2 bookkeeping=4 field_config:1 override:2 query:1 transformation:1",
+    "panel panels[17].panels[1] mapped=38 reported=2 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[17].panels[2] mapped=41 reported=2 default=2 no_effect=1 bookkeeping=6 field_config:1 query:2",
+    "panel panels[17].panels[3] mapped=39 reported=2 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[18].panels[0] mapped=51 reported=2 default=2 no_effect=1 bookkeeping=6 field_config:1 override:1 query:2",
+    "panel panels[18].panels[1] mapped=62 reported=2 default=2 no_effect=1 bookkeeping=7 field_config:1 query:5"
   ],
   "spec": {
     "specVersion": "0",
@@ -1172,6 +1165,12 @@
             ],
             "minWidth": 50,
             "overrides": [
+              {
+                "match": {
+                  "field": "Time"
+                },
+                "hidden": true
+              },
               {
                 "match": {
                   "field": "Value"
@@ -1744,6 +1743,20 @@
               }
             ],
             "filterable": true,
+            "overrides": [
+              {
+                "match": {
+                  "field": "Value"
+                },
+                "hidden": true
+              },
+              {
+                "match": {
+                  "field": "Time"
+                },
+                "hidden": true
+              }
+            ],
             "transform": [
               {
                 "type": "groupBy",
