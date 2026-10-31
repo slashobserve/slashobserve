@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 41,
-      "imported": 36,
-      "partial": 5,
+      "imported": 39,
+      "partial": 2,
       "placeholder": 0,
       "unverified": 0
     },
@@ -553,16 +553,11 @@
         "row": "Troubleshooting",
         "status": "partial",
         "reasons": [
-          "Moved or resized to fit the grid.",
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "gridPos",
           "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.overrides[1].properties[0]",
-          "options.filterable",
-          "options.showSearch"
+          "fieldConfig.overrides[1].properties[0]"
         ],
         "queries": [
           {
@@ -582,13 +577,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Troubleshooting",
-        "status": "partial",
-        "reasons": [
-          "Moved or resized to fit the grid."
-        ],
-        "paths": [
-          "gridPos"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -607,13 +598,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Troubleshooting",
-        "status": "partial",
-        "reasons": [
-          "Moved or resized to fit the grid."
-        ],
-        "paths": [
-          "gridPos"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -632,13 +619,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Troubleshooting",
-        "status": "partial",
-        "reasons": [
-          "Moved or resized to fit the grid."
-        ],
-        "paths": [
-          "gridPos"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1000,10 +983,10 @@
     "panel panels[13].panels[9] mapped=44 default=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[13].panels[10] mapped=43 default=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[13].panels[11] mapped=44 default=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[14].panels[0] mapped=24 reported=5 bookkeeping=4 field_config:1 override:2 query:1 transformation:1",
-    "panel panels[14].panels[1] mapped=38 reported=1 default=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[14].panels[2] mapped=41 reported=1 default=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[14].panels[3] mapped=41 reported=1 default=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[14].panels[0] mapped=25 reported=2 no_effect=2 bookkeeping=4 field_config:1 override:2 query:1 transformation:1",
+    "panel panels[14].panels[1] mapped=39 default=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[14].panels[2] mapped=42 default=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[14].panels[3] mapped=42 default=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[15].panels[0] mapped=38 default=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[15].panels[1] mapped=38 default=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[15].panels[2] mapped=38 default=1 bookkeeping=4 field_config:1 query:1",
@@ -2004,7 +1987,7 @@
             "title": "Non-default flags",
             "gridPos": {
               "x": 0,
-              "y": 27,
+              "y": 34,
               "w": 12,
               "h": 7
             },
@@ -2048,7 +2031,7 @@
             "description": "Missed evaluation means that group evaluation time takes longer than the configured evaluation interval. \nThis may result in missed alerting notifications or recording rules samples. Try increasing evaluation interval or concurrency for such groups. See https://docs.victoriametrics.com/victoriametrics/vmalert/#groups\n\nIf rule expressions are taking longer than expected, please see https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-queries.\"",
             "gridPos": {
               "x": 12,
-              "y": 27,
+              "y": 34,
               "w": 12,
               "h": 7
             },
@@ -2082,7 +2065,7 @@
             "description": "Shows the number of restarts per job. The chart can be useful to identify periodic process restarts and correlate them with potential issues or anomalies. Normally, processes shouldn't restart unless restart was inited by user. The reason of restarts should be figured out by checking the logs of each specific service. ",
             "gridPos": {
               "x": 0,
-              "y": 34,
+              "y": 27,
               "w": 12,
               "h": 7
             },
@@ -2115,7 +2098,7 @@
             "description": "Group iteration reset can be caused by irregular delays during evaluation or by the system wall clock being moved backward.\nIf it is caused by host clock changes, vmalert could generate duplicate results for the group rules, since some evaluations could be repeated.\nCheck the host clock time synchronization configuration if this happens frequently.\n",
             "gridPos": {
               "x": 12,
-              "y": 34,
+              "y": 27,
               "w": 12,
               "h": 7
             },

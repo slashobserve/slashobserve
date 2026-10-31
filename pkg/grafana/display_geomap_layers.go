@@ -464,8 +464,12 @@ func (b *panelBuild) markerSymbol(at string) (symbol, field string) {
 
 func (b *panelBuild) markerRotation(layer *spec.GeomapLayer, at string) {
 	layer.RotationField = b.fieldNameOption(at + ".field")
+	clamped := layer.RotationField != "" && asString(lookupValue(b.raw, at+".mode")) == "clamped"
+	if !clamped {
+		b.consumeWithoutEffect(at+".min", at+".max")
+	}
 	if layer.RotationField != "" {
-		if asString(lookupValue(b.raw, at+".mode")) == "clamped" {
+		if clamped {
 			layer.RotationMode = "clamp"
 			b.consume(at + ".mode")
 		}
@@ -473,6 +477,14 @@ func (b *panelBuild) markerRotation(layer *spec.GeomapLayer, at string) {
 	}
 	if degrees := b.boundedOption(at+".fixed", -maxRotation, maxRotation); degrees != nil {
 		layer.Rotation = *degrees
+	}
+}
+
+func (b *panelBuild) consumeWithoutEffect(paths ...string) {
+	for _, path := range paths {
+		if v, has := b.take(path); has && v != nil {
+			b.recordImplicit(path, outcomeNoEffect)
+		}
 	}
 }
 
@@ -512,6 +524,7 @@ func (b *panelBuild) markerLabel(at string) string {
 }
 
 func (b *panelBuild) heatmapConfig(layer *spec.GeomapLayer, config string) {
+	b.consumeWithoutEffect(config + ".opacity")
 	layer.WeightField = b.fieldNameOption(config + ".weight.field")
 	b.heatmapWeights(layer, config+".weight")
 	if radius, ok := b.boundedWhole(config+".radius", 1, maxHeatmapRadius); ok {

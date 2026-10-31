@@ -1,6 +1,3 @@
-datasource.type
-datasource.uid
-id
 options.enableLogDetails
 options.showTime
 options.sortOrder

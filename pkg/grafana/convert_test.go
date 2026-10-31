@@ -1858,7 +1858,7 @@ func TestCosmeticOptionsListedForPanelTypesStayReportedElsewhere(t *testing.T) {
 		{"bar gauge hidden legend", "bargauge", `{"legend":{"showLegend":false,"displayMode":"hidden"}}`, true},
 		{"dashboard list search", "dashlist", `{"showSearch":true,"showStarred":false}`, true},
 		{"news images", "news", `{"showImage":false}`, true},
-		{"table search", "table", `{"showSearch":true}`, false},
+		{"stat search", "stat", `{"showSearch":true}`, false},
 		{"table starred", "table", `{"showStarred":false}`, false},
 		{"gauge hidden legend", "gauge", `{"legend":{"showLegend":false}}`, false},
 	}
@@ -1869,5 +1869,16 @@ func TestCosmeticOptionsListedForPanelTypesStayReportedElsewhere(t *testing.T) {
 				t.Fatalf("status = %s, paths %v, want silent = %v", line.Status, line.Paths, tc.silent)
 			}
 		})
+	}
+}
+
+func TestTableSearchAndFilterPanelKeysImportWithoutANote(t *testing.T) {
+	for _, key := range []string{"showSearch", "filterable"} {
+		doc := panelDoc("table", upTarget+`,"options":{"`+key+`":true}`)
+		_, line := convertedPanel(t, doc)
+		if !clean(line) {
+			t.Errorf("%s: status = %s, paths %v, want imported with no report", key, line.Status, line.Paths)
+		}
+		requireLine(t, blocksOf(t, doc), "panels[0]", "options."+key, outcomeNoEffect)
 	}
 }

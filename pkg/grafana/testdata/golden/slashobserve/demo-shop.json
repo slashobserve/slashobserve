@@ -624,7 +624,7 @@
     "panel panels[22] mapped=17 bookkeeping=10 query:2",
     "panel panels[23] mapped=8 bookkeeping=6 query:1",
     "panel panels[24] mapped=12 bookkeeping=6 field_config:1 query:1",
-    "panel panels[26] mapped=42 default=5 bookkeeping=6 field_config:1 override:2 query:1",
+    "panel panels[26] mapped=42 default=3 no_effect=2 bookkeeping=6 field_config:1 override:2 query:1",
     "panel panels[27] mapped=129 no_effect=2 bookkeeping=8 field_config:1 query:3",
     "panel panels[29] mapped=6 default=1 no_effect=4 bookkeeping=1",
     "panel panels[30] outcome=excluded",

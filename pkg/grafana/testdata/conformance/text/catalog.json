@@ -19,6 +19,9 @@
     { "id": "options.code.language=xml", "path": "options.code.language", "value": "xml", "with": {"options.mode": "code"} },
     { "id": "options.code.language=yaml", "path": "options.code.language", "value": "yaml", "with": {"options.mode": "code"} },
     { "id": "options.code.showLineNumbers=true", "path": "options.code.showLineNumbers", "value": true, "with": {"options.mode": "code"} },
-    { "id": "options.code.showMiniMap=true", "path": "options.code.showMiniMap", "value": true, "with": {"options.mode": "code"}, "expect": "cosmetic" }
+    { "id": "options.code.showMiniMap=true", "path": "options.code.showMiniMap", "value": true, "with": {"options.mode": "code"}, "expect": "cosmetic" },
+    { "id": "content=legacy-root", "path": "content", "value": "# Legacy\nBody", "with": {"options": {}} },
+    { "id": "mode=legacy-root-html", "path": "mode", "value": "html", "with": {"options": {}} },
+    { "id": "mode=legacy-root-code", "path": "mode", "value": "code", "with": {"options": {}} }
   ]
 }

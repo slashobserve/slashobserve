@@ -1,13 +1,10 @@
 circleMaxSize
 circleMinSize
 colors
-datasource.type
-datasource.uid
 decimals
 esMetric
 hideEmpty
 hideZero
-id
 initialZoom
 locationData
 mapCenter

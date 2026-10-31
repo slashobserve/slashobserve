@@ -1,0 +1,13 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/features/dashboard/state/DashboardMigrator.ts"
+  ],
+  "root": "rows[0]",
+  "entries": [
+    { "id": "showTitle=true", "path": "showTitle", "value": true },
+    { "id": "collapse=true", "path": "collapse", "value": true },
+    { "id": "height=300px", "path": "height", "value": "300px", "with": {"showTitle": true} },
+    { "id": "titleSize=h1", "path": "titleSize", "value": "h1", "with": {"showTitle": true}, "expect": "bookkeeping" }
+  ]
+}

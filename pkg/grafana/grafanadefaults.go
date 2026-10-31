@@ -2,6 +2,7 @@ package grafana
 
 import (
 	"encoding/json"
+	"maps"
 	"reflect"
 	"regexp"
 	"slices"
@@ -262,6 +263,13 @@ func ignoredBecause(why string, groups ...[]string) map[string]string {
 	return rows
 }
 
+func alsoIgnored(rows, more map[string]string) map[string]string {
+	maps.Copy(rows, more)
+	return rows
+}
+
+const noTablePanelOption = "Grafana's table panel has no option of this name"
+
 var graphKeysOnTables = slices.Concat(
 	[]string{
 		"bars", "dashLength", "dashes", "fill", "fillGradient", "lines", "linewidth", "nullPointMode", "percentage",
@@ -315,11 +323,14 @@ var ignoredOptions = map[optionScope]map[string]string{
 	},
 	panelScope("singlestat"):               legacySinglestatIgnored,
 	panelScope("grafana-singlestat-panel"): legacySinglestatIgnored,
-	panelScope(spec.Table):                 ignoredBecause("a migrated table never reads Angular options", angularTableKeys, graphKeysOnTables),
-	panelScope("table-old"):                ignoredBecause("an Angular table never reads graph options", graphKeysOnTables),
-	panelScope(spec.Heatmap):               ignoredBecause("a migrated heatmap reads `options` only", angularHeatmapKeys),
-	panelScope(spec.StateTimeline):         stateLegendIgnored,
-	panelScope(spec.StatusHistory):         stateLegendIgnored,
+	panelScope(spec.Table): alsoIgnored(ignoredBecause("a migrated table never reads Angular options", angularTableKeys, graphKeysOnTables), map[string]string{
+		"options.showSearch": noTablePanelOption,
+		"options.filterable": noTablePanelOption,
+	}),
+	panelScope("table-old"):        ignoredBecause("an Angular table never reads graph options", graphKeysOnTables),
+	panelScope(spec.Heatmap):       ignoredBecause("a migrated heatmap reads `options` only", angularHeatmapKeys),
+	panelScope(spec.StateTimeline): stateLegendIgnored,
+	panelScope(spec.StatusHistory): stateLegendIgnored,
 	panelScope(spec.BarChart): {
 		"options.text.titleSize":   "bar charts draw no title text",
 		"options.text.percentSize": "bar charts draw no percent text",

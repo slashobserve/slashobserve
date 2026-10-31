@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 11,
-      "imported": 5,
-      "partial": 4,
+      "imported": 6,
+      "partial": 3,
       "placeholder": 2,
       "unverified": 0
     },
@@ -64,13 +64,9 @@
         "type": "geomap",
         "source_type": "geomap",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.layers[1].config.opacity"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -261,8 +257,8 @@
   },
   "blocks": [
     "dashboard mapped=5 bookkeeping=6",
-    "panel panels[0] mapped=47 default=5 no_effect=1 bookkeeping=3 field_config:1 query:1",
-    "panel panels[1] mapped=54 reported=1 default=5 no_effect=1 bookkeeping=3 field_config:1 query:1",
+    "panel panels[0] mapped=47 default=3 no_effect=3 bookkeeping=3 field_config:1 query:1",
+    "panel panels[1] mapped=54 default=3 no_effect=4 bookkeeping=3 field_config:1 query:1",
     "panel panels[2] mapped=24 default=6 bookkeeping=3 query:1",
     "panel panels[3] mapped=16 reported=2 default=5 bookkeeping=3 query:1",
     "panel panels[4] mapped=72 reported=1 no_effect=2 bookkeeping=3 field_config:1 query:1",

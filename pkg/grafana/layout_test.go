@@ -94,6 +94,19 @@ func TestCollapsedRowChildrenAreRebasedUnderTheirRow(t *testing.T) {
 	}
 }
 
+func TestCollapsedRowChildrenSavedAboveTheFirstOneAreNotMoved(t *testing.T) {
+	row := rowJSON(10, 0, true, `"panels":[`+panelJSON(11, 12, 110, 12, 4, "")+","+panelJSON(12, 0, 105, 12, 4, "")+`]`)
+	res := convertDoc(t, dashboardJSON("", row))
+	for _, id := range []string{"p11", "p12"} {
+		if got := gridOf(t, res, id); got.Y != 1 {
+			t.Errorf("%s y = %d, want 1 right under the row", id, got.Y)
+		}
+		if isMoved(panelLine(t, res, id)) {
+			t.Errorf("%s is marked moved though only the topmost child's y was used as the base", id)
+		}
+	}
+}
+
 func TestCollapsedRowChildrenAreCompactedSeparately(t *testing.T) {
 	row := rowJSON(10, 0, true, `"panels":[`+panelJSON(11, 0, 1, 24, 6, "")+","+panelJSON(12, 0, 1, 24, 6, "")+`]`)
 	res := convertDoc(t, dashboardJSON("", row, panelJSON(1, 0, 1, 24, 6, "")))

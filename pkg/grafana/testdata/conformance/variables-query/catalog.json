@@ -25,6 +25,7 @@
     { "id": "regex=filter", "path": "regex", "value": "/prod-.*/" },
     { "id": "regex=capture-group", "path": "regex", "value": "/prod-(.*)/" },
     { "id": "regex=named-groups", "path": "regex", "value": "/(?<text>[^:]+):(?<value>.*)/" },
+    { "id": "regexApplyTo=text", "path": "regexApplyTo", "value": "text", "with": {"regex": "/prod-.*/"}, "expect": "convert_noted" },
     { "id": "regex=case-insensitive-flag", "path": "regex", "value": "/(.*)-api/i" },
     { "id": "multi=true", "path": "multi", "value": true },
     { "id": "includeAll=true", "path": "includeAll", "value": true },

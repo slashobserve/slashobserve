@@ -2,13 +2,10 @@ backgroundColor
 colorMaps[].color
 colorMaps[].text
 crosshairColor
-datasource.type
-datasource.uid
 display
 expandFromQueryS
 extendLastValue
 highlightOnMouseover
-id
 legendSortBy
 lineColor
 metricNameColor

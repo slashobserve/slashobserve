@@ -117,6 +117,9 @@
     {"id": "legend=object", "path": "legend", "value": {"avg": true, "current": true, "max": true, "min": true, "show": false, "total": true, "values": true}, "expect": "bookkeeping", "with": {"fieldConfig.defaults.unit": "bytes"}},
     {"id": "tooltip=object", "path": "tooltip", "value": {"shared": true, "sort": 1, "value_type": "cumulative"}, "expect": "bookkeeping", "with": {"fieldConfig.defaults.unit": "bytes"}},
     {"id": "xaxis=object", "path": "xaxis", "value": {"buckets": 5, "mode": "series", "name": "x", "show": false, "values": ["avg"]}, "expect": "bookkeeping", "with": {"fieldConfig.defaults.unit": "bytes"}},
-    {"id": "yaxes=object", "path": "yaxes", "value": [{"decimals": 2, "format": "bytes", "label": "y", "logBase": 2, "max": "10", "min": "0", "show": false}], "expect": "bookkeeping", "with": {"fieldConfig.defaults.unit": "bytes"}}
+    {"id": "yaxes=object", "path": "yaxes", "value": [{"decimals": 2, "format": "bytes", "label": "y", "logBase": 2, "max": "10", "min": "0", "show": false}], "expect": "bookkeeping", "with": {"fieldConfig.defaults.unit": "bytes"}},
+    {"id": "options.showSearch=true", "path": "options.showSearch", "value": true, "expect": "bookkeeping"},
+    {"id": "options.filterable=true", "path": "options.filterable", "value": true, "expect": "bookkeeping"},
+    {"id": "options.footer.enablePagination=true", "path": "options.footer.enablePagination", "value": true}
   ]
 }

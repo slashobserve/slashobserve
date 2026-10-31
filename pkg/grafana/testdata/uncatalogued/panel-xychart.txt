@@ -1,7 +1,0 @@
-datasource.type
-datasource.uid
-id
-options.series[].y.matcher.id
-options.series[].y.matcher.options id:byNames
-options.tooltip.sort
-pluginVersion

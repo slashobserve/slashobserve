@@ -128,10 +128,17 @@ func placeGrid(nodes []*panelNode, heightCap int) (map[*panelNode]placement, boo
 		if !row.collapsed || len(row.children) == 0 {
 			continue
 		}
-		first := row.children[0].pos.y
-		fits = placeGroup(row.children, placed[row].pos.y+1, first, heightCap, placed) && fits
+		fits = placeGroup(row.children, placed[row].pos.y+1, topmost(row.children), heightCap, placed) && fits
 	}
 	return placed, fits
+}
+
+func topmost(group []*panelNode) int {
+	top := group[0].pos.y
+	for _, n := range group[1:] {
+		top = min(top, n.pos.y)
+	}
+	return top
 }
 
 func placeGroup(group []*panelNode, base, shift, heightCap int, out map[*panelNode]placement) bool {

@@ -1,7 +1,0 @@
-content
-datasource.type
-datasource.uid
-id
-mode
-pluginVersion
-transparent
