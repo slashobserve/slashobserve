@@ -99,7 +99,7 @@
               "$table -> default.test_logs",
               "$timeFilter -> $__timeFilter(event_time)",
               "$adhoc -> $adhoc_variable",
-              "$conditionalTest( -> $__conditionalAll("
+              "$conditionalTest(AND content ILIKE ${filter:sqlstring},$filter) -> AND $__conditionalAll(content ILIKE ${filter:sqlstring}, $filter)"
             ],
             "dropped": null
           }
@@ -212,7 +212,7 @@
         "datasource": "ch",
         "queries": [
           {
-            "query": "SELECT *\nFROM default.test_logs\n\nWHERE $__timeFilter(event_time) AND $adhoc_variable\n$__conditionalAll(AND content ILIKE ${filter:sqlstring},$filter)",
+            "query": "SELECT *\nFROM default.test_logs\n\nWHERE $__timeFilter(event_time) AND $adhoc_variable\nAND $__conditionalAll(content ILIKE ${filter:sqlstring}, $filter)",
             "format": "logs"
           }
         ],

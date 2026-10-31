@@ -40,6 +40,8 @@
     { "id": "query=macro-unescape", "path": "query", "value": "SELECT count() FROM $table WHERE window = $unescape($res)" },
     { "id": "query=macro-conditionalTest", "path": "query", "value": "SELECT count() FROM $table WHERE $conditionalTest(window IN ($res), $res)" },
     { "id": "query=macro-conditionalTest-else", "path": "query", "value": "SELECT count() FROM $table WHERE $conditionalTest(window IN ($res), window IN ('none'), $res)" },
+    { "id": "query=macro-conditionalTest-and", "path": "query", "value": "SELECT count() FROM $table WHERE 1 $conditionalTest(AND window IN ($res), $res)" },
+    { "id": "query=macro-conditionalTest-else-and", "path": "query", "value": "SELECT count() FROM $table WHERE 1 $conditionalTest(AND window IN ($res), AND window IN ('none'), $res)" },
     { "id": "database=default", "path": "database", "value": "default" },
     { "id": "table=requests", "path": "table", "value": "requests" },
     { "id": "dateColDataType=event_date", "path": "dateColDataType", "value": "event_date" },

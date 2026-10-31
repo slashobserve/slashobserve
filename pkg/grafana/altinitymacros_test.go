@@ -508,6 +508,50 @@ func TestAltinityConditionalTestImportsWithAndWithoutAnElseCondition(t *testing.
 	}
 }
 
+func TestAltinityConditionalTestMovesALeadingKeywordOutOfTheMacro(t *testing.T) {
+	const service = `{"name":"service_name","type":"custom","query":"mysql,redis","multi":true,"includeAll":true}`
+	cases := []struct{ name, call, want string }{
+		{"AND on the condition", "$conditionalTest(AND service_name IN ($service_name), $service_name)", "AND $__conditionalAll(service_name IN ($service_name), $service_name)"},
+		{"OR on the condition", "$conditionalTest(OR service_name IN ($service_name), $service_name)", "OR $__conditionalAll(service_name IN ($service_name), $service_name)"},
+		{"lower case keyword", "$conditionalTest(and service_name IN ($service_name), $service_name)", "and $__conditionalAll(service_name IN ($service_name), $service_name)"},
+		{"keyword and a line break", "$conditionalTest(AND\n service_name IN ($service_name), $service_name)", "AND $__conditionalAll(service_name IN ($service_name), $service_name)"},
+		{"AND on both conditions", "$conditionalTest(AND service_name IN ($service_name), AND service_name IN ('mysql'), $service_name)", "AND $__conditionalAll(service_name IN ($service_name), service_name IN ('mysql'), $service_name)"},
+		{"same keyword in different case", "$conditionalTest(AND service_name IN ($service_name), and service_name IN ('mysql'), $service_name)", "AND $__conditionalAll(service_name IN ($service_name), service_name IN ('mysql'), $service_name)"},
+		{"nested macro inside the condition", "$conditionalTest(AND $timeFilter, $service_name)", "AND $__conditionalAll($__dateTimeFilter(d, ts), $service_name)"},
+		{"column that only starts with the keyword", "$conditionalTest(android IN ($service_name), $service_name)", "$__conditionalAll(android IN ($service_name), $service_name)"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := altinityPanel(t, "SELECT 1 FROM t WHERE x = 1 "+tc.call, "", service)
+			want := "SELECT 1 FROM t WHERE x = 1 " + tc.want
+			if got := panel.Queries[0].Query; got != want {
+				t.Fatalf("query = %q, want %q", got, want)
+			}
+			if line.Status != statusImported || len(line.Paths) != 0 {
+				t.Fatalf("line = %+v, want an imported panel without reported paths", line)
+			}
+		})
+	}
+}
+
+func TestAltinityConditionalTestWithDifferentLeadingKeywordsIsReported(t *testing.T) {
+	const service = `{"name":"service_name","type":"custom","query":"mysql,redis","multi":true,"includeAll":true}`
+	calls := []string{
+		"$conditionalTest(AND service_name IN ($service_name), OR service_name IN ('mysql'), $service_name)",
+		"$conditionalTest(AND service_name IN ($service_name), service_name IN ('mysql'), $service_name)",
+		"$conditionalTest(service_name IN ($service_name), AND service_name IN ('mysql'), $service_name)",
+	}
+	for _, call := range calls {
+		t.Run(call, func(t *testing.T) {
+			res := convertDoc(t, altinityDoc("SELECT 1 FROM t WHERE x = 1 "+call, "", "", service))
+			line := panelLine(t, res, "p1")
+			if line.Status != statusPlaceholder || line.Queries[0].Dropped == nil {
+				t.Fatalf("line = %+v, want the query dropped", line)
+			}
+		})
+	}
+}
+
 func TestAltinityTimeFilterByColumnBecomesTheTimeFilterMacro(t *testing.T) {
 	got := altinityQuery(t, "SELECT 1 FROM t WHERE $timeFilterByColumn(created_at) AND x = 1", "")
 	if want := "SELECT 1 FROM t WHERE $__timeFilter(created_at) AND x = 1"; got != want {

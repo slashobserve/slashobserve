@@ -11834,6 +11834,12 @@
     "s:SELECT count() FROM $table WHERE $timeFilterMs": [
      "query"
     ],
+    "s:SELECT count() FROM $table WHERE 1 $conditionalTest(AND window IN ($res), $res)": [
+     "query"
+    ],
+    "s:SELECT count() FROM $table WHERE 1 $conditionalTest(AND window IN ($res), AND window IN ('none'), $res)": [
+     "query"
+    ],
     "s:SELECT count() FROM $table WHERE timestamp \u003c= $to": [
      "query"
     ],

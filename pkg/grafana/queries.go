@@ -735,7 +735,7 @@ func (tb *targetBuild) rewriteAltinityText(text string, declared map[string]bool
 			}
 			return out.String() + expanded, ""
 		}
-		replacement, next, reason := tb.inlineAltinity(name, text, i, end)
+		replacement, next, reason := tb.inlineAltinity(name, text, i, end, declared)
 		if reason != "" {
 			return "", reason
 		}
@@ -761,8 +761,10 @@ func (tb *targetBuild) expandWholeQuery(name, text string, end int, declared map
 	return tb.rewriteAltinityText(sql, declared, false)
 }
 
-func (tb *targetBuild) inlineAltinity(name, text string, start, end int) (string, int, string) {
+func (tb *targetBuild) inlineAltinity(name, text string, start, end int, declared map[string]bool) (string, int, string) {
 	switch name {
+	case "conditionalTest":
+		return tb.conditionalTestCall(text, start, end, declared)
 	case "adhoc":
 		replacement := tb.adhocReplacement(text, end)
 		tb.addRewrite("$adhoc", replacement)
@@ -781,6 +783,55 @@ func (tb *targetBuild) inlineAltinity(name, text string, start, end int) (string
 		replacement, next = text[start:end], end
 	}
 	return replacement, next, ""
+}
+
+var leadingBooleanKeyword = regexp.MustCompile(`(?i)^(AND|OR)(?:\s|\()`)
+
+func leadingKeyword(condition string) string {
+	m := leadingBooleanKeyword.FindStringSubmatch(condition)
+	if m == nil {
+		return ""
+	}
+	return m[1]
+}
+
+func (tb *targetBuild) conditionalTestCall(text string, start, end int, declared map[string]bool) (string, int, string) {
+	closing := -1
+	if strings.HasPrefix(text[end:], "(") {
+		closing = closingParen(text, end)
+	}
+	if closing < 0 {
+		return text[start:end], end, ""
+	}
+	args := splitCallArguments(text[end+1 : closing])
+	if len(args) != 2 && len(args) != 3 {
+		tb.addRewrite("$conditionalTest(", "$__conditionalAll(")
+		return "$__conditionalAll", end, ""
+	}
+	conditions := args[:len(args)-1]
+	keyword := leadingKeyword(conditions[0])
+	for _, condition := range conditions[1:] {
+		if !strings.EqualFold(leadingKeyword(condition), keyword) {
+			return "", 0, "Altinity macro $conditionalTest has different leading keywords in its two conditions and is not supported; rewrite it as SQL."
+		}
+	}
+	if keyword == "" {
+		tb.addRewrite("$conditionalTest(", "$__conditionalAll(")
+		return "$__conditionalAll", end, ""
+	}
+	for i, condition := range conditions {
+		args[i] = strings.TrimSpace(condition[len(keyword):])
+	}
+	rewritten := make([]string, len(args))
+	for i, arg := range args {
+		var reason string
+		if rewritten[i], reason = tb.rewriteAltinityText(arg, declared, false); reason != "" {
+			return "", 0, reason
+		}
+	}
+	replacement := keyword + " $__conditionalAll(" + strings.Join(rewritten, ", ") + ")"
+	tb.addRewrite(text[start:closing+1], replacement)
+	return replacement, closing + 1, ""
 }
 
 var timeFilterColumnArgument = regexp.MustCompile(`^\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)`)
@@ -817,15 +868,8 @@ func (c *converter) declaresAdhocVariable() bool {
 }
 
 func (tb *targetBuild) altinityMacro(name, text string, start, end int) (string, int, bool) {
-	switch name {
-	case "unescape":
+	if name == "unescape" {
 		return tb.unescapeMacro(text, start, end)
-	case "conditionalTest":
-		if !strings.HasPrefix(text[end:], "(") {
-			return "", 0, false
-		}
-		tb.addRewrite("$conditionalTest(", "$__conditionalAll(")
-		return "$__conditionalAll", end, true
 	}
 	replacement, ok := tb.altinitySimple(name)
 	if !ok {
