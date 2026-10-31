@@ -9,6 +9,7 @@ import {
   type LinkScope,
   type ResolvedLink,
 } from "../field-config"
+import { fieldActions, type FieldAction } from "../actions/field-actions"
 import { reduceItems, reduceOptionsOf, type ReduceItem } from "../reduce-items"
 import {
   thresholdColor,
@@ -264,16 +265,18 @@ export function gaugeModel(
   )
 }
 
-export function gaugeLinks(
+type BaseScope = Omit<
+  LinkScope,
+  "row" | "seriesName" | "fieldName" | "value" | "valueText"
+>
+
+export function gaugeScope(
   gauge: Gauge,
   fields: FieldResolver,
-  scope: Omit<
-    LinkScope,
-    "row" | "seriesName" | "fieldName" | "value" | "valueText"
-  >
-): ResolvedLink[] {
+  scope: BaseScope
+): LinkScope {
   const { frame, field } = gauge
-  const full: LinkScope = {
+  return {
     ...scope,
     row: { frame, index: gauge.row ?? field.values.length - 1 },
     labels: frame.labels,
@@ -282,7 +285,23 @@ export function gaugeLinks(
     value: gauge.value,
     valueText: gauge.text,
   }
+}
+
+export function gaugeLinks(
+  gauge: Gauge,
+  fields: FieldResolver,
+  scope: BaseScope
+): ResolvedLink[] {
+  const full = gaugeScope(gauge, fields, scope)
   return gauge.config.links
     .filter(isDataLink)
     .flatMap((link) => resolveLink(link, full) ?? [])
+}
+
+export function gaugeActions(
+  gauge: Gauge,
+  fields: FieldResolver,
+  scope: BaseScope
+): FieldAction[] {
+  return fieldActions(gauge.config, gaugeScope(gauge, fields, scope))
 }

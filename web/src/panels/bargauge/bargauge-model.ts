@@ -11,6 +11,7 @@ import {
   type LinkScope,
   type ResolvedLink,
 } from "../field-config"
+import { fieldActions, type FieldAction } from "../actions/field-actions"
 import { reduce } from "../reducers"
 import { reduceItems, reduceOptionsOf, type ReduceItem } from "../reduce-items"
 import type { ThresholdLevel } from "../thresholds"
@@ -229,15 +230,13 @@ export function valueTextOf(bar: Bar): string {
   return bar.word ? `${bar.text}, ${bar.word}` : bar.text
 }
 
-export function barLinks(
+export function barScope(
   fields: FieldResolver,
   bar: Bar,
   reducer: Reducer,
   scope: LinkScope
-): ResolvedLink[] {
-  const links = bar.config.links.filter(isDataLink)
-  if (links.length === 0) return []
-  const full: LinkScope = {
+): LinkScope {
+  return {
     ...scope,
     row: rowOf(bar, reducer),
     labels: bar.frame.labels,
@@ -246,5 +245,26 @@ export function barLinks(
     value: bar.value,
     valueText: bar.text,
   }
+}
+
+export function barLinks(
+  fields: FieldResolver,
+  bar: Bar,
+  reducer: Reducer,
+  scope: LinkScope
+): ResolvedLink[] {
+  const links = bar.config.links.filter(isDataLink)
+  if (links.length === 0) return []
+  const full = barScope(fields, bar, reducer, scope)
   return links.flatMap((link) => resolveLink(link, full) ?? [])
+}
+
+export function barActions(
+  fields: FieldResolver,
+  bar: Bar,
+  reducer: Reducer,
+  scope: LinkScope
+): FieldAction[] {
+  if (bar.config.actions.length === 0) return []
+  return fieldActions(bar.config, barScope(fields, bar, reducer, scope))
 }

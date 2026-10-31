@@ -6,6 +6,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -15,13 +16,21 @@ import {
 } from "@/dashboards/dashboard-links"
 import { cn } from "@/lib/utils"
 
+import { useActionRunner } from "../actions/action-runner"
+import {
+  fieldActionRequest,
+  oneClickTarget,
+  type FieldAction,
+} from "../actions/field-actions"
 import type { FieldResolver, LinkScope, ResolvedLink } from "../field-config"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
 import {
+  gaugeActions,
   gaugeLimits,
   gaugeLinks,
   gaugeModel,
+  gaugeScope,
   gaugeSizes,
   labelPosition,
   valueFontSize,
@@ -34,7 +43,17 @@ import { GaugeSvg } from "./gauge-svg"
 const bodyInsetX = 16
 const bodyInsetY = 8
 
-function MoreLinks({ links }: { links: ResolvedLink[] }) {
+function MoreLinks({
+  links,
+  actions,
+  onAction,
+  reason,
+}: {
+  links: ResolvedLink[]
+  actions: FieldAction[]
+  onAction: (action: FieldAction) => void
+  reason: string | null
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -43,7 +62,9 @@ function MoreLinks({ links }: { links: ResolvedLink[] }) {
             variant="ghost"
             size="icon-xs"
             className="text-muted-foreground"
-            aria-label="More links"
+            aria-label={
+              actions.length > 0 ? "More links and actions" : "More links"
+            }
           />
         }
       >
@@ -60,6 +81,27 @@ function MoreLinks({ links }: { links: ResolvedLink[] }) {
             {link.newTab ? <NewTabMark /> : null}
           </DropdownMenuItem>
         ))}
+        {links.length > 0 && actions.length > 0 ? (
+          <DropdownMenuSeparator />
+        ) : null}
+        {actions.map((action) => (
+          <DropdownMenuItem
+            key={`${action.override ?? "panel"}:${action.index}`}
+            disabled={reason !== null}
+            title={reason ?? undefined}
+            onClick={() => onAction(action)}
+            className="gap-2"
+          >
+            {action.color === null ? null : (
+              <span
+                aria-hidden="true"
+                className="size-2 shrink-0 rounded-full"
+                style={{ backgroundColor: action.color }}
+              />
+            )}
+            {action.title}
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -74,6 +116,8 @@ type CellProps = {
     LinkScope,
     "row" | "seriesName" | "fieldName" | "value" | "valueText"
   >
+  reason: string | null
+  onAction: (action: FieldAction, scope: LinkScope) => void
 }
 
 const nameOffset = 17
@@ -83,9 +127,30 @@ function offsetRow(offset: number): CSSProperties {
   return { top: `calc(50% + ${offset}cqmin)`, transform: "translateY(-50%)" }
 }
 
-function GaugeCell({ gauge, named, sizes, fields, scope }: CellProps) {
+function GaugeCell({
+  gauge,
+  named,
+  sizes,
+  fields,
+  scope,
+  reason,
+  onAction,
+}: CellProps) {
   const links = gaugeLinks(gauge, fields, scope)
+  const actions = gaugeActions(gauge, fields, scope)
   const [first, ...more] = links
+  const runAction = (action: FieldAction) =>
+    onAction(action, gaugeScope(gauge, fields, scope))
+  const target = oneClickTarget(links, actions)
+  const oneClick =
+    target === null
+      ? {}
+      : target.kind === "link"
+        ? oneClickProps(links)
+        : reason === null
+          ? oneClickProps([], () => runAction(target.action))
+          : {}
+  const hasMenu = more.length > 0 || actions.length > 0
   const { level, label: word } = gauge.threshold
   const Icon = level === "base" ? null : thresholdIcons[level]
   const value = (
@@ -99,7 +164,7 @@ function GaugeCell({ gauge, named, sizes, fields, scope }: CellProps) {
         style={{
           fontSize: sizes.valueSize
             ? `${sizes.valueSize}px`
-            : `${valueFontSize(gauge.text, more.length > 0).toFixed(2)}cqmin`,
+            : `${valueFontSize(gauge.text, hasMenu).toFixed(2)}cqmin`,
         }}
       >
         {first ? (
@@ -116,13 +181,20 @@ function GaugeCell({ gauge, named, sizes, fields, scope }: CellProps) {
           gauge.text
         )}
       </span>
-      {more.length > 0 ? <MoreLinks links={more} /> : null}
+      {hasMenu ? (
+        <MoreLinks
+          links={more}
+          actions={actions}
+          onAction={runAction}
+          reason={reason}
+        />
+      ) : null}
     </div>
   )
   return (
     <div
       data-gauge-cell=""
-      {...oneClickProps(links)}
+      {...oneClick}
       className="[container-type:size] relative min-h-0 min-w-0 data-one-click:cursor-pointer"
     >
       <div
@@ -202,14 +274,17 @@ function GaugeCell({ gauge, named, sizes, fields, scope }: CellProps) {
 }
 
 const GaugePanel: PanelRenderer = ({
+  panel,
   frames,
   fields,
   display,
   zone,
+  meta,
   links,
   width,
   height,
 }) => {
+  const runner = useActionRunner()
   const gauges = useMemo(
     () => gaugeModel(frames, fields, display, zone),
     [frames, fields, display, zone]
@@ -224,32 +299,52 @@ const GaugePanel: PanelRenderer = ({
   )
   const limited =
     limits.minWidth !== undefined || limits.minHeight !== undefined
+  function runAction(action: FieldAction, scope: LinkScope) {
+    if (runner.context === null) return
+    runner.open(
+      action,
+      fieldActionRequest({
+        context: runner.context,
+        panelId: panel.id,
+        action,
+        scope,
+        fromMs: Date.parse(meta.from),
+        toMs: Date.parse(meta.to),
+      })
+    )
+  }
+
   return (
-    <div
-      data-gauge-grid
-      className={cn(
-        "grid p-2 pt-0",
-        limited ? "overflow-auto" : "overflow-hidden"
-      )}
-      style={{
-        width,
-        height,
-        gap: gridGap,
-        gridTemplateColumns: `repeat(${columns}, minmax(${limits.minWidth ?? 0}px, 1fr))`,
-        gridTemplateRows: `repeat(${rows}, minmax(${limits.minHeight ?? 0}px, 1fr))`,
-      }}
-    >
-      {gauges.map((gauge) => (
-        <GaugeCell
-          key={gauge.key}
-          gauge={gauge}
-          named={gauges.length > 1}
-          sizes={sizes}
-          fields={fields}
-          scope={links}
-        />
-      ))}
-    </div>
+    <>
+      <div
+        data-gauge-grid
+        className={cn(
+          "grid p-2 pt-0",
+          limited ? "overflow-auto" : "overflow-hidden"
+        )}
+        style={{
+          width,
+          height,
+          gap: gridGap,
+          gridTemplateColumns: `repeat(${columns}, minmax(${limits.minWidth ?? 0}px, 1fr))`,
+          gridTemplateRows: `repeat(${rows}, minmax(${limits.minHeight ?? 0}px, 1fr))`,
+        }}
+      >
+        {gauges.map((gauge) => (
+          <GaugeCell
+            key={gauge.key}
+            gauge={gauge}
+            named={gauges.length > 1}
+            sizes={sizes}
+            fields={fields}
+            scope={links}
+            reason={runner.reason}
+            onAction={runAction}
+          />
+        ))}
+      </div>
+      {runner.dialog}
+    </>
   )
 }
 

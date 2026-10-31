@@ -7,9 +7,11 @@ import { displayWithDefaults, type DataPanel } from "@/spec"
 
 import {
   arcPath,
+  gaugeActions,
   gaugeLimits,
   gaugeLinks,
   gaugeModel,
+  gaugeScope,
   gaugeSizes,
   labelPosition,
   valueFontSize,
@@ -541,6 +543,81 @@ describe("gauge links", () => {
       gaugeLinks(gauge, fields, { vars: {}, fields }).map((link) => link.title)
     )
     expect(titles).toEqual([[], ["B 2"]])
+  })
+})
+
+describe("gauge field actions", () => {
+  const restart = {
+    title: "Restart",
+    url: "https://ops.example.com/${__data.fields.pod}/restart",
+  }
+  const gaugeFrame = frame(
+    [
+      time,
+      { name: "pod", type: "string" as const, values: ["a", "b", "c"] },
+      number([4, 7, 9], "a"),
+      number([5, 8, 6], "b"),
+    ],
+    { labels: { job: "web" } }
+  )
+
+  function actionsOf(extra: Partial<DataPanel>) {
+    const fields = createFieldResolver(panel(extra))
+    const gauges = gaugeModel(
+      [gaugeFrame],
+      fields,
+      displayWithDefaults("gauge", {}),
+      undefined
+    )
+    return gauges.map((gauge) =>
+      gaugeActions(gauge, fields, { vars: {}, fields })
+    )
+  }
+
+  it("carries the index of the override that set the actions", () => {
+    const [first, second] = actionsOf({
+      overrides: [
+        { match: { field: "a" }, unit: "short" },
+        { match: { field: "b" }, actions: [restart] },
+      ],
+    })
+    expect(first).toEqual([])
+    expect(second).toMatchObject([
+      { title: "Restart", host: "ops.example.com", index: 0, override: 1 },
+    ])
+  })
+
+  it("marks the panel's own actions with no override", () => {
+    const [first] = actionsOf({ actions: [restart] })
+    expect(first).toMatchObject([{ title: "Restart", override: null }])
+  })
+
+  it("returns nothing when the config has no actions", () => {
+    expect(actionsOf({})).toEqual([[], []])
+  })
+
+  it("reads data fields from the last row", () => {
+    const [first] = actionsOf({ actions: [restart] })
+    expect(first[0].fields).toEqual({ pod: "c" })
+  })
+
+  it("builds the scope with the value, its text and the series", () => {
+    const fields = createFieldResolver(panel({}))
+    const [gauge] = gaugeModel(
+      [gaugeFrame],
+      fields,
+      displayWithDefaults("gauge", {}),
+      undefined
+    )
+    const scope = gaugeScope(gauge, fields, { vars: { env: ["prod"] }, fields })
+    expect(scope).toMatchObject({
+      vars: { env: ["prod"] },
+      row: { index: 2 },
+      labels: { job: "web" },
+      fieldName: "a",
+      value: 9,
+      valueText: gauge.text,
+    })
   })
 })
 

@@ -1,5 +1,20 @@
-import { memo, useMemo, type CSSProperties } from "react"
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  type CSSProperties,
+} from "react"
+import { ZapIcon } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   anchorProps,
   NewTabMark,
@@ -8,12 +23,25 @@ import {
 import { cn } from "@/lib/utils"
 import type { Reducer } from "@/spec"
 
+import { useActionRunner } from "../actions/action-runner"
+import type {
+  ActionContext,
+  PendingRequest,
+  RunnableAction,
+} from "../actions/actions"
+import {
+  fieldActionRequest,
+  oneClickTarget,
+  type FieldAction,
+} from "../actions/field-actions"
 import type { FieldResolver, LinkScope } from "../field-config"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
 import {
+  barActions,
   barLimits,
   barLinks,
+  barScope,
   barSizes,
   barStyleOf,
   bargaugeModel,
@@ -38,6 +66,15 @@ const bodyInsetX = 24
 const bodyInsetY = 90
 const leftNameShare = 0.5
 
+type BarRunner = {
+  context: ActionContext | null
+  reason: string | null
+  open: (action: RunnableAction, request: PendingRequest) => void
+  panelId: string
+  fromMs: number
+  toMs: number
+}
+
 type BarProps = {
   bar: Bar
   orientation: Orientation
@@ -51,15 +88,89 @@ type BarProps = {
   cells: number
   limits: BarLimits
   sizes: BarSizes
+  runner: BarRunner
 }
 
 function textSize(size: number | undefined): CSSProperties | undefined {
   return size ? { fontSize: `${size}px` } : undefined
 }
 
-function oneClickOf({ bar, fields, reducer, scope, valueMode }: BarProps) {
+function runBarAction(
+  { bar, fields, reducer, scope, runner }: BarProps,
+  action: FieldAction
+) {
+  if (runner.context === null) return
+  runner.open(
+    action,
+    fieldActionRequest({
+      context: runner.context,
+      panelId: runner.panelId,
+      action,
+      scope: barScope(fields, bar, reducer, scope),
+      fromMs: runner.fromMs,
+      toMs: runner.toMs,
+    })
+  )
+}
+
+function oneClickOf(props: BarProps) {
+  const { bar, fields, reducer, scope, valueMode, runner } = props
   if (valueMode === "hidden") return {}
-  return oneClickProps(barLinks(fields, bar, reducer, scope))
+  const links = barLinks(fields, bar, reducer, scope)
+  const target = oneClickTarget(links, barActions(fields, bar, reducer, scope))
+  if (target === null) return {}
+  if (target.kind === "link") return oneClickProps(links)
+  if (runner.reason !== null) return {}
+  return oneClickProps([], () => runBarAction(props, target.action))
+}
+
+function BarActions({
+  bar,
+  actions,
+  reason,
+  onAction,
+}: {
+  bar: Bar
+  actions: FieldAction[]
+  reason: string | null
+  onAction: (action: FieldAction) => void
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="shrink-0 text-muted-foreground"
+            aria-label={`Actions for ${bar.name}`}
+          />
+        }
+      >
+        <ZapIcon aria-hidden="true" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-max">
+        {actions.map((action) => (
+          <DropdownMenuItem
+            key={`${action.override ?? "panel"}:${action.index}`}
+            disabled={reason !== null}
+            title={reason ?? undefined}
+            onClick={() => onAction(action)}
+            className="gap-2"
+          >
+            {action.color === null ? null : (
+              <span
+                aria-hidden="true"
+                className="size-2 shrink-0 rounded-full"
+                style={{ backgroundColor: action.color }}
+              />
+            )}
+            {action.title}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }
 
 const oneClickClass = "data-one-click:cursor-pointer"
@@ -163,18 +274,13 @@ function Level({ bar, orientation }: Pick<BarProps, "bar" | "orientation">) {
   )
 }
 
-function Value({
-  bar,
-  orientation,
-  fields,
-  reducer,
-  scope,
-  valueMode,
-  sizes,
-}: BarProps) {
+function Value(props: BarProps) {
+  const { bar, orientation, fields, reducer, scope, valueMode, sizes, runner } =
+    props
   if (valueMode === "hidden")
     return <Level bar={bar} orientation={orientation} />
   const [first] = barLinks(fields, bar, reducer, scope)
+  const actions = barActions(fields, bar, reducer, scope)
   const text = <span className="truncate">{bar.text}</span>
   const group = cn(
     "flex min-w-0 items-center tabular-nums",
@@ -197,6 +303,14 @@ function Value({
           {text}
         </span>
       )}
+      {actions.length > 0 ? (
+        <BarActions
+          bar={bar}
+          actions={actions}
+          reason={runner.reason}
+          onAction={(action) => runBarAction(props, action)}
+        />
+      ) : null}
     </span>
   )
 }
@@ -292,16 +406,42 @@ const VerticalColumn = memo(function VerticalColumn(props: BarProps) {
   )
 })
 
+function useStableRunner(panelId: string, from: string, to: string) {
+  const { context, reason, open, dialog } = useActionRunner()
+  const latestOpen = useRef(open)
+  useEffect(() => {
+    latestOpen.current = open
+  })
+  const stableOpen = useCallback<BarRunner["open"]>(
+    (action, request) => latestOpen.current(action, request),
+    []
+  )
+  const runner = useMemo<BarRunner>(
+    () => ({
+      context,
+      reason,
+      open: stableOpen,
+      panelId,
+      fromMs: Date.parse(from),
+      toMs: Date.parse(to),
+    }),
+    [context, reason, stableOpen, panelId, from, to]
+  )
+  return { runner, dialog }
+}
+
 const BargaugePanel: PanelRenderer = ({
   panel,
   frames,
   fields,
   display,
   zone,
+  meta,
   links,
   width,
   height,
 }) => {
+  const { runner, dialog } = useStableRunner(panel.id, meta.from, meta.to)
   const model = useMemo(
     () => bargaugeModel(frames, fields, display, zone),
     [frames, fields, display, zone]
@@ -326,25 +466,29 @@ const BargaugePanel: PanelRenderer = ({
     fields,
     reducer,
     scope: links,
+    runner,
   }
   return (
-    <div
-      role="region"
-      aria-label={`${panel.title} values`}
-      tabIndex={0}
-      data-orientation={orientation}
-      className={cn(
-        "flex px-3 pt-1.5 pb-3.5 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-        vertical
-          ? "flex-row gap-2 overflow-x-auto"
-          : "flex-col gap-3 overflow-y-auto"
-      )}
-      style={{ width, height }}
-    >
-      {model.bars.map((bar) => (
-        <Item key={bar.key} bar={bar} {...shared} />
-      ))}
-    </div>
+    <>
+      <div
+        role="region"
+        aria-label={`${panel.title} values`}
+        tabIndex={0}
+        data-orientation={orientation}
+        className={cn(
+          "flex px-3 pt-1.5 pb-3.5 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+          vertical
+            ? "flex-row gap-2 overflow-x-auto"
+            : "flex-col gap-3 overflow-y-auto"
+        )}
+        style={{ width, height }}
+      >
+        {model.bars.map((bar) => (
+          <Item key={bar.key} bar={bar} {...shared} />
+        ))}
+      </div>
+      {dialog}
+    </>
   )
 }
 

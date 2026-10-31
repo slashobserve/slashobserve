@@ -373,6 +373,7 @@ The options are `unit`, `decimals`, `min`, `max`, `fieldMinMax`, `thresholds` an
 `displayName` may use `${__field.name}`, `${__field.displayName}`, `${__series.name}`, `${__data.refId}`, `${__field.labels}` and `${__field.labels.<label>}`, and dashboard variables as `$name`, `${name}`, `[[name]]` and `${name:format}` (`raw`, `csv`, `text`, `pipe`, `json`, `percentencode` or `queryparam`); several selected values are joined with a comma and a space, and All reads `All`.
 A name that is not known is left as written.
 A link with `oneClick: true` is a data link on stat, gauge, bar gauge and table panels: when it is the only data link, the whole tile, bar, gauge or cell is the link.
+On those panels a field's actions show in the same menu after its links (a bar gauge shows its actions in a menu of their own), and a `oneClick` action that is the field's only link or action runs from the whole tile, gauge, bar or cell, after the same confirm dialog a menu item opens.
 `lineInterpolation` is `linear`, `smooth`, `stepBefore` or `stepAfter`, and stacked series always draw linear.
 `lineStyle` is `solid` (the default), `dashed`, `dotted` (round dots) or `square` (square dots as long as the line is wide), and `lineDash` is a dash length and a gap length in pixels, 1 to 100 each, that replaces the pattern of a dashed line.
 `lineColor`, `fillColor` and `pointColor` fix the color of the line, the area fill (still drawn at the `fill` opacity) and the points, and each falls back to the series color; the legend and tooltip keep the series color.
