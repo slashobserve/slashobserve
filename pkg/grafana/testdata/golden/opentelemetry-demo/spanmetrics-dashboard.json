@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 8,
-      "imported": 5,
-      "partial": 3,
+      "imported": 8,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -98,13 +98,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": "Service Level - Throughput and Latencies",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.showLegend"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -123,13 +119,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": "Service Level - Throughput and Latencies",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.showLegend"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -220,13 +212,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": "span_name Level - Latencies",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.showLegend"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",

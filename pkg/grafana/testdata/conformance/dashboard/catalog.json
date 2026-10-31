@@ -30,7 +30,7 @@
     { "id": "weekStart=monday", "path": "weekStart", "value": "monday" },
     { "id": "refresh=1d", "path": "refresh", "value": "1d" },
     { "id": "refresh=7d", "path": "refresh", "value": "7d" },
-    { "id": "preload=true", "path": "preload", "value": true },
+    { "id": "preload=true", "path": "preload", "value": true, "expect": "bookkeeping" },
     { "id": "links[0].type=link", "path": "links[0].type", "value": "link", "with": { "links[0].title": "Runbook", "links[0].url": "https://example.com/runbook" } },
     { "id": "links[0].type=dashboards", "path": "links[0].type", "value": "dashboards", "with": { "links[0].title": "Prod" } },
     { "id": "links[0].url=external", "path": "links[0].url", "value": "https://example.com/runbook", "with": { "links[0].type": "link", "links[0].title": "Runbook" } },

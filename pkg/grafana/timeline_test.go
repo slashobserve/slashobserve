@@ -98,15 +98,13 @@ func TestTimelineHiddenLegendAndTooltip(t *testing.T) {
 	}
 }
 
-func TestTimelineLegendSortAndCalculationsStayReported(t *testing.T) {
-	_, line := timelinePanel(t, "state-timeline", `{"legend":{"sortBy":"Mean","sortDesc":true,"calcs":["mean"]}}`, "")
-	if line.Status != statusPartial {
-		t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
-	}
-	want := "options.legend.calcs options.legend.sortBy options.legend.sortDesc"
-	got := append([]string(nil), line.Paths...)
-	if strings.Join(got, " ") != want {
-		t.Fatalf("paths = %v, want %s", got, want)
+func TestTimelineLegendSortAndCalculationsAreIgnored(t *testing.T) {
+	for _, typ := range []string{"state-timeline", "status-history"} {
+		panel, line := timelinePanel(t, typ, `{"legend":{"sortBy":"Mean","sortDesc":true,"calcs":["mean"]}}`, "")
+		requireImported(t, line)
+		if d := panel.Display; d != nil && (d.LegendSortBy != "" || d.LegendSortDesc != nil) {
+			t.Fatalf("%s display = %+v", typ, d)
+		}
 	}
 }
 
@@ -147,9 +145,9 @@ func TestTimelineFillOpacityIsWrittenAndATransparentFillIsReported(t *testing.T)
 	}
 }
 
-func TestTimelineLineStyleAndAxisPropsAreStillReported(t *testing.T) {
+func TestTimelineLineStyleIsStillReported(t *testing.T) {
 	for _, typ := range []string{"state-timeline", "status-history"} {
-		for _, custom := range []string{`{"showPoints":"always"}`, `{"axisLabel":"x"}`, `{"lineInterpolation":"smooth"}`} {
+		for _, custom := range []string{`{"showPoints":"always"}`, `{"lineInterpolation":"smooth"}`} {
 			_, line := timelinePanel(t, typ, `{}`, custom)
 			if line.Status != statusPartial {
 				t.Fatalf("%s %s: status = %s", typ, custom, line.Status)
@@ -174,9 +172,9 @@ func TestHideFromFollowsTheTypesThatDrawIt(t *testing.T) {
 		{"histogram", true, true, nil},
 		{"piechart", true, true, nil},
 		{"xychart", true, true, nil},
-		{"state-timeline", false, true, []string{legendPath}},
-		{"status-history", false, true, []string{legendPath}},
-		{"heatmap", false, false, []string{legendPath, tooltipPath}},
+		{"state-timeline", false, true, nil},
+		{"status-history", false, true, nil},
+		{"heatmap", false, false, nil},
 		{"stat", false, false, []string{legendPath, tooltipPath}},
 	}
 	for _, tc := range cases {

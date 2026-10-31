@@ -142,7 +142,7 @@
     { "id": "options.layers[0].config.src=countries-dynamic", "path": "options.layers[0].config.src", "value": "public/maps/countries.geojson", "with": {"options.layers[0].type": "dynamic-geojson"}, "expect": "excluded" },
     { "id": "options.layers[0].config.idField=id", "path": "options.layers[0].config.idField", "value": "id", "with": {"options.layers[0].type": "dynamic-geojson"}, "expect": "excluded" },
     { "id": "options.layers[0].config.dataStyle.color.field=Value", "path": "options.layers[0].config.dataStyle.color.field", "value": "Value", "with": {"options.layers[0].type": "dynamic-geojson"}, "expect": "excluded" },
-    { "id": "options.layers[0].config.kind=square", "path": "options.layers[0].config.kind", "value": "square", "with": {"options.layers[0].type": "photos"} },
+    { "id": "options.layers[0].config.kind=square", "path": "options.layers[0].config.kind", "value": "square", "with": {"options.layers[0].type": "photos"}, "expect": "cosmetic" },
     { "id": "options.layers[0].config.kind=anchored", "path": "options.layers[0].config.kind", "value": "anchored", "with": {"options.layers[0].type": "photos"}, "expect": "excluded" },
     { "id": "options.layers[0].config.kind=folio", "path": "options.layers[0].config.kind", "value": "folio", "with": {"options.layers[0].type": "photos"}, "expect": "excluded" },
     { "id": "options.layers[0].config.crop=true", "path": "options.layers[0].config.crop", "value": true, "with": {"options.layers[0].type": "photos"} },

@@ -207,3 +207,33 @@ func TestMappingWithoutIconStaysClean(t *testing.T) {
 		t.Fatalf("line = %+v", line)
 	}
 }
+
+func TestFilterableAndPathAreIgnoredWhereGrafanaDrawsNothingForThem(t *testing.T) {
+	override := `{"matcher":{"id":"byName","options":"up"},"properties":[{"id":"filterable","value":true}]}`
+	for _, typ := range []string{"timeseries", "stat", "barchart"} {
+		t.Run(typ, func(t *testing.T) {
+			panel, line := convertedPanel(t, panelDoc(typ, upTarget+`,"fieldConfig":{"defaults":{"filterable":true,"path":"/data/up"},"overrides":[`+override+`]}`))
+			if !clean(line) || len(panel.Overrides) != 0 {
+				t.Fatalf("line = %+v, overrides = %+v", line, panel.Overrides)
+			}
+		})
+	}
+}
+
+func TestFilterableStaysReportedOnTables(t *testing.T) {
+	_, line := convertedPanel(t, defaultsPanel("table", `{"filterable":true}`))
+	if line.Status != statusPartial || !slices.Contains(line.Paths, "fieldConfig.defaults.filterable") {
+		t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
+	}
+}
+
+func TestAnOverrideThatMatchesNothingIsDroppedSilently(t *testing.T) {
+	overrides := `[{"matcher":{"id":"neverMatch"},"properties":[{"id":"unit","value":"bytes"}]},{"matcher":{"id":"byName","options":"up"},"properties":[{"id":"unit","value":"percent"}]}]`
+	panel, line := convertedPanel(t, panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":{},"overrides":`+overrides+`}`))
+	if !clean(line) {
+		t.Fatalf("line = %+v", line)
+	}
+	if got := onlyOverride(t, panel); got.Unit != "percent" {
+		t.Fatalf("override = %+v, want the byName one", got)
+	}
+}

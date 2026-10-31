@@ -74,6 +74,7 @@ var targetSilent = map[string]bool{
 	"dateColDataType": true, "dateTimeColDataType": true, "dateTimeType": true,
 	"useBackend": true, "disableTextWrap": true, "fullMetaSearch": true, "includeNullMetadata": true,
 	"intervalMs": true, "maxDataPoints": true, "hinting": true,
+	"showHelp": true, "adhocFilters": true, "groupByKeys": true,
 }
 
 var targetDefaults = map[string]any{
@@ -412,10 +413,8 @@ func (tb *targetBuild) altinity(declared map[string]bool) (spec.Query, string) {
 	case "traces", "flamegraph":
 		q.Format = "table"
 	}
-	for _, key := range []string{"adHocFilters", "adHocValuesQuery"} {
-		if present(tb.t[key]) {
-			tb.partial(key, "Saved ad hoc filters are not kept.")
-		}
+	if present(tb.t["adHocValuesQuery"]) {
+		tb.partial("adHocValuesQuery", "Saved ad hoc filters are not kept.")
 	}
 	return q, ""
 }

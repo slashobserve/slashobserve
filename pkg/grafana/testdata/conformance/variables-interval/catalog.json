@@ -13,7 +13,7 @@
     { "id": "auto_min=1m", "path": "auto_min", "value": "1m", "with": {"auto": true} },
     { "id": "current=10m", "path": "current", "value": {"text": "10m", "value": "10m"} },
     { "id": "current=auto", "path": "current", "value": {"text": "auto", "value": "$__auto"}, "with": {"auto": true} },
-    { "id": "refresh=1", "path": "refresh", "value": 1 },
+    { "id": "refresh=1", "path": "refresh", "value": 1, "expect": "bookkeeping" },
     { "id": "hide=1", "path": "hide", "value": 1 },
     { "id": "hide=2", "path": "hide", "value": 2 },
     { "id": "hide=3", "path": "hide", "value": 3, "expect": "excluded" },

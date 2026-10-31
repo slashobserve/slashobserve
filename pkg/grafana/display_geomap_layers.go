@@ -582,8 +582,6 @@ func (b *panelBuild) photosConfig(layer *spec.GeomapLayer, config string) {
 	case "circle":
 		layer.Shape = kind
 		b.consume(config + ".kind")
-	case "square":
-		b.consume(config + ".kind")
 	case "anchored", "folio":
 		b.partial(config+".kind", geomapPhotoKindReason)
 	}

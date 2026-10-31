@@ -7,9 +7,9 @@
   ],
   "root": "panels[0]",
   "entries": [
-    { "id": "options.showStarred=false", "path": "options.showStarred", "value": false },
+    { "id": "options.showStarred=false", "path": "options.showStarred", "value": false, "expect": "cosmetic" },
     { "id": "options.showRecentlyViewed=true", "path": "options.showRecentlyViewed", "value": true, "expect": "excluded" },
-    { "id": "options.showSearch=true", "path": "options.showSearch", "value": true },
+    { "id": "options.showSearch=true", "path": "options.showSearch", "value": true, "expect": "cosmetic" },
     { "id": "options.showHeadings=false", "path": "options.showHeadings", "value": false, "expect": "cosmetic" },
     { "id": "options.showFolderNames=false", "path": "options.showFolderNames", "value": false, "expect": "cosmetic" },
     { "id": "options.query=checkout", "path": "options.query", "value": "checkout" },

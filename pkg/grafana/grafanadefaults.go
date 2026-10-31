@@ -119,6 +119,13 @@ var typeDefaults = map[spec.PanelType]map[string]any{
 	spec.Text: {
 		"options.mode": "markdown",
 	},
+	spec.DashList: {
+		"options.showSearch":         false,
+		"options.showRecentlyViewed": false,
+	},
+	spec.News: {
+		"options.showImage": true,
+	},
 	spec.StatusHistory: {
 		"options.colWidth": 0.9,
 	},
@@ -209,6 +216,26 @@ var typeDefaults = map[spec.PanelType]map[string]any{
 	},
 }
 
+var stateLegendIgnored = map[string]string{
+	"options.legend.sortBy":   "the state legend lists states and has no values to sort",
+	"options.legend.sortDesc": "the state legend lists states and has no values to sort",
+	"options.legend.calcs":    "the state legend lists states and has no calculations",
+}
+
+var ignoredOptions = map[spec.PanelType]map[string]string{
+	spec.StateTimeline: stateLegendIgnored,
+	spec.StatusHistory: stateLegendIgnored,
+	spec.BarChart: {
+		"options.text.titleSize":   "bar charts draw no title text",
+		"options.text.percentSize": "bar charts draw no percent text",
+	},
+	spec.PieChart: {
+		"options.legend.sortBy": "the pie legend shows slice values, not calculations, so there is no calculation to sort by",
+		"options.legend.calcs":  "the pie legend shows slice values, not calculations",
+		"options.orientation":   "a pie has no orientation",
+	},
+}
+
 var partialReasons = map[string]string{
 	"fieldConfig.defaults.custom.scaleDistribution": "Logarithmic axes are not supported yet.",
 	"fieldConfig.defaults.custom.transform":         "Value transforms are drawn on time series and trend panels only.",
@@ -231,6 +258,7 @@ var partialReasons = map[string]string{
 
 type cosmeticOption struct {
 	values []any
+	types  []spec.PanelType
 	why    string
 }
 
@@ -289,6 +317,36 @@ var cosmeticOptions = map[string]cosmeticOption{
 	"options.code.showMiniMap": {
 		why: "the code view has no minimap",
 	},
+	"options.legend.showLegend": {
+		values: []any{false},
+		types:  []spec.PanelType{spec.BarGauge},
+		why:    "a panel that converts no legend draws none, so hiding it changes nothing",
+	},
+	"options.legend.displayMode": {
+		values: []any{"hidden"},
+		types:  []spec.PanelType{spec.BarGauge},
+		why:    "a panel that converts no legend draws none, so hiding it changes nothing",
+	},
+	"options.showSearch": {
+		values: []any{true},
+		types:  []spec.PanelType{spec.DashList},
+		why:    "the dashboard list shows the dashboards that match its search text and tags",
+	},
+	"options.showStarred": {
+		values: []any{false},
+		types:  []spec.PanelType{spec.DashList},
+		why:    "the dashboard list has no starred section",
+	},
+	"options.layers[].config.kind": {
+		values: []any{"square"},
+		types:  []spec.PanelType{spec.Geomap},
+		why:    "photos are drawn as square frames",
+	},
+	"options.showImage": {
+		values: []any{false},
+		types:  []spec.PanelType{spec.News},
+		why:    "the news panel draws no images",
+	},
 	"options.showHeadings": {
 		why: "the dashboard list shows plain links without headings",
 	},
@@ -304,8 +362,15 @@ var cosmeticOptions = map[string]cosmeticOption{
 }
 
 func isCosmetic(path string, value any) bool {
+	return isCosmeticOn("", path, value)
+}
+
+func isCosmeticOn(typ spec.PanelType, path string, value any) bool {
 	option, ok := cosmeticOptions[normalizePath(path)]
 	if !ok {
+		return false
+	}
+	if typ != "" && len(option.types) > 0 && !slices.Contains(option.types, typ) {
 		return false
 	}
 	return len(option.values) == 0 || slices.ContainsFunc(option.values, func(v any) bool { return sameJSON(value, v) })
@@ -362,6 +427,11 @@ func isGrafanaDefault(typ spec.PanelType, path string, value any) bool {
 	}
 	def, ok := grafanaDefaults[normalized]
 	return ok && sameJSON(value, def)
+}
+
+func isIgnoredOption(typ spec.PanelType, path string) bool {
+	_, ok := ignoredOptions[typ][normalizePath(path)]
+	return ok
 }
 
 func sameJSON(a, b any) bool {

@@ -57,11 +57,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Saved ad hoc filters are not kept.",
           "Some Grafana options of this query are not supported yet."
         ],
         "paths": [
-          "targets[0].adHocFilters",
           "targets[0].contextWindowSize"
         ],
         "queries": [
@@ -87,11 +85,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Saved ad hoc filters are not kept.",
           "Some Grafana options of this query are not supported yet."
         ],
         "paths": [
-          "targets[0].adHocFilters",
           "targets[0].contextWindowSize"
         ],
         "queries": [

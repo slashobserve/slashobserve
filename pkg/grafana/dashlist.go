@@ -87,9 +87,7 @@ func (b *panelBuild) dashListSources() {
 		if truthy(lookupValue(b.raw, path)) {
 			b.partial(path, dashListSources)
 		}
-		b.consume(path)
 	}
-	b.consume("options.showSearch")
 	for _, path := range []string{"options.folderUID", "options.folderId"} {
 		if v := lookupValue(b.raw, path); present(v) && !sameJSON(v, 0) {
 			b.partial(path, dashListFolders)

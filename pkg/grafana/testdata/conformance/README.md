@@ -48,7 +48,7 @@ An entry has `id`, `path`, `value`, and optionally `with` and `expect`.
 | --- | --- |
 | `convert` (default) | Import cleanly, and its Spec must differ from the baseline's. |
 | `cosmetic` | Import cleanly with the baseline's Spec, and `isCosmetic(path, value)` must be true. Only for areas whose root is a panel, so a cosmetic option needs both a `cosmeticOptions` entry and a catalog line. |
-| `bookkeeping` | Import cleanly with the baseline's Spec. For ids, versions, plugin versions and editor state with no behaviour; never for an option a Grafana user can see. |
+| `bookkeeping` | Import cleanly with the baseline's Spec. For ids, versions, editor and transport state, inputs Grafana rejects, and options Grafana itself does not draw in this context (for example an axis option on a panel without a value axis); never for an option that changes what a Grafana user sees. |
 | `excluded` | Not import cleanly. For a feature Ishan excluded from SlashObserve (alert rules, annotations, Grafana's HTTP API and Live, export, and the options listed as not imported in `docs/use/import-grafana.md`); never a gap. |
 
 Importing cleanly means `Convert` returns no error, the result is ready (every source datasource has a match), every panel line is `imported` and the report has no notes.

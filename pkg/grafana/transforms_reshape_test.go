@@ -51,6 +51,11 @@ func TestReshapeTransformsConvert(t *testing.T) {
 			`[{"type":"partitionByValues","fields":["host"],"naming":"name"}]`,
 		},
 		{
+			"partitionByValues label naming ignores append",
+			`{"id":"partitionByValues","options":{"fields":["host"],"naming":{"asLabels":true,"append":true}}}`,
+			`[{"type":"partitionByValues","fields":["host"]}]`,
+		},
+		{
 			"partitionByValues appended to the frame name",
 			`{"id":"partitionByValues","options":{"fields":["host"],"naming":{"asLabels":false,"append":true}}}`,
 			`[{"type":"partitionByValues","fields":["host"],"naming":"append"}]`,
@@ -144,7 +149,6 @@ func TestReshapeTransformsReport(t *testing.T) {
 		{"labelsToFields other option", `{"id":"labelsToFields","options":{"sort":true}}`, "transformations[0].options.sort", 1},
 		{"joinByLabels without a value label", `{"id":"joinByLabels","options":{"join":["a"]}}`, "transformations[0]", 0},
 		{"partitionByValues without fields", `{"id":"partitionByValues","options":{"keepFields":true}}`, "transformations[0]", 0},
-		{"partitionByValues label naming with append", `{"id":"partitionByValues","options":{"fields":["a"],"naming":{"asLabels":true,"append":true}}}`, "transformations[0].options.naming.append", 1},
 		{"partitionByValues other naming option", `{"id":"partitionByValues","options":{"fields":["a"],"naming":{"separator":"-"}}}`, "transformations[0].options.naming.separator", 1},
 		{"prepareTimeSeries unknown format", `{"id":"prepareTimeSeries","options":{"format":"tall"}}`, "transformations[0].options.format", 0},
 		{"timeSeriesTable other time field", `{"id":"timeSeriesTable","options":{"A":{"timeField":"ts"}}}`, "transformations[0].options.A.timeField", 1},

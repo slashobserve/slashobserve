@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 125,
-      "imported": 118,
-      "partial": 7,
+      "imported": 122,
+      "partial": 3,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": "Quick CPU / Mem / Disk",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.showLegend"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2855,13 +2851,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": "Network Traffic",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.showLegend"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2880,13 +2872,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": "Network Traffic",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.showLegend"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -3801,13 +3789,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": "Node Exporter",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.showLegend"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",

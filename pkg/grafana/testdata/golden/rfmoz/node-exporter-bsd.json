@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 36,
-      "imported": 29,
-      "partial": 7,
+      "imported": 30,
+      "partial": 6,
       "placeholder": 0,
       "unverified": 0
     },
@@ -984,13 +984,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": "Node Exporter",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.showLegend"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
