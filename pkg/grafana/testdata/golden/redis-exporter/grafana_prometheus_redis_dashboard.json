@@ -246,11 +246,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0]",
           "fieldConfig.defaults.unitScale"
         ],
         "queries": [
@@ -369,11 +367,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0]",
           "fieldConfig.defaults.unitScale"
         ],
         "queries": [
@@ -757,6 +753,19 @@
         "spanNulls": true,
         "stack": "normal",
         "thresholdsStyle": "off",
+        "overrides": [
+          {
+            "match": {
+              "value": {
+                "reducer": "allIsZero",
+                "op": "gte",
+                "value": 0
+              }
+            },
+            "hideInLegend": true,
+            "hideInTooltip": true
+          }
+        ],
         "display": {
           "legendValues": [
             "lastNotNull"
@@ -910,6 +919,19 @@
         "points": "never",
         "spanNulls": true,
         "thresholdsStyle": "off",
+        "overrides": [
+          {
+            "match": {
+              "value": {
+                "reducer": "allIsZero",
+                "op": "gte",
+                "value": 0
+              }
+            },
+            "hideInLegend": true,
+            "hideInTooltip": true
+          }
+        ],
         "display": {
           "tooltip": "all"
         }

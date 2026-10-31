@@ -203,12 +203,42 @@ func TestByValueBecomesAValueMatch(t *testing.T) {
 	}
 }
 
+func TestByValueOnABooleanReducerBecomesAValueMatch(t *testing.T) {
+	for _, reducer := range []string{"allIsZero", "allIsNull"} {
+		t.Run(reducer, func(t *testing.T) {
+			matcher := `{"id":"byValue","options":{"op":"gte","reducer":"` + reducer + `","value":0}}`
+			panel, line := convertedPanel(t, overridePanel("timeseries", matcher, property("custom.hideFrom", `{"legend":true,"tooltip":true,"viz":true}`)))
+			got := onlyOverride(t, panel).Match.Value
+			if !clean(line) || got == nil || *got != (spec.ValueMatch{Reducer: reducer, Op: "gte", Value: 0}) {
+				t.Fatalf("status %s, paths %v, match %+v", line.Status, line.Paths, got)
+			}
+		})
+	}
+}
+
+func TestPositionalMatchersBecomeAFieldsMatch(t *testing.T) {
+	cases := []struct{ matcher, want string }{
+		{"first", "first"},
+		{"firstTimeField", "firstTime"},
+		{"alwaysMatch", "all"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.matcher, func(t *testing.T) {
+			panel, line := convertedPanel(t, overridePanel("timeseries", `{"id":"`+tc.matcher+`"}`, property("unit", `"bytes"`)))
+			if got := onlyOverride(t, panel); !clean(line) || got.Match != (spec.Match{Fields: tc.want}) {
+				t.Fatalf("status %s, paths %v, match %+v", line.Status, line.Paths, got.Match)
+			}
+		})
+	}
+}
+
 func TestByValueThatCannotBeExpressedIsReported(t *testing.T) {
 	cases := []struct{ name, options string }{
 		{"unknown reducer", `{"reducer":"p100","op":"gt","value":1}`},
 		{"unknown operator", `{"reducer":"max","op":"between","value":1}`},
 		{"value that is not a number", `{"reducer":"max","op":"gt","value":"high"}`},
 		{"no options", `{}`},
+		{"allValues reducer", `{"reducer":"allValues","op":"eq","value":1}`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

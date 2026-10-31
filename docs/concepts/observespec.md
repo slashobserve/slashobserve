@@ -379,8 +379,10 @@ A unit is any Grafana unit id such as `reqps`, `s`, `bytes`, `percentunit` or `r
 The text after `time:` is a date format, `si:` a symbol that scales by 1000 with SI prefixes (`si:mF` starts at milli), `count:` text after a K, Mil or Bil scaled number, and `currency:` a symbol before a scaled number.
 The agent prompt lists only the common ids and `suffix:` and `prefix:`, but a Spec may use any of them.
 
-An override has a `match`, which selects by `query` (a `ref`), `series`, `seriesRegex`, `field`, `fieldType` or `value`, and at least one option to apply.
+An override has a `match`, which selects by `query` (a `ref`), `series`, `seriesRegex`, `field`, `fieldType`, `value` or `fields`, and at least one option to apply.
 A `value` match selects the number fields whose `reducer` result compares to `value` with `op` (`eq`, `neq`, `lt`, `lte`, `gt` or `gte`).
+A `value` reducer may also be `allIsNull` or `allIsZero`, whose true result compares as 1 and false as 0.
+A `fields` match selects by position: `first` the first field of each frame, `firstTime` the first time field of each frame, and `all` every field.
 A panel has at most 50 overrides.
 
 `transform` is an ordered list of up to 20 steps that reshape the result in the browser after the query runs.

@@ -2049,7 +2049,18 @@
               "additionalProperties": false,
               "properties": {
                 "reducer": {
-                  "$ref": "#/$defs/reducer"
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/reducer"
+                    },
+                    {
+                      "x-omitFromPrompt": true,
+                      "enum": [
+                        "allIsNull",
+                        "allIsZero"
+                      ]
+                    }
+                  ]
                 },
                 "op": {
                   "enum": [
@@ -2074,6 +2085,23 @@
           },
           "required": [
             "value"
+          ]
+        },
+        {
+          "x-omitFromPrompt": true,
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "fields": {
+              "enum": [
+                "first",
+                "firstTime",
+                "all"
+              ]
+            }
+          },
+          "required": [
+            "fields"
           ]
         }
       ]

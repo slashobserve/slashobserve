@@ -43,7 +43,11 @@
         { "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\"}[$__rate_interval]))", "legend": "{{pod}}", "exemplar": true },
         { "ref": "B", "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\",status=~\"5..\"}[$__rate_interval]))", "legend": "errors {{pod}}", "interval": "${window}", "intervalFactor": 2 }
       ],
-      "overrides": [{ "match": { "query": "B" }, "color": "critical", "lineStyle": "dashed" }],
+      "overrides": [
+        { "match": { "query": "B" }, "color": "critical", "lineStyle": "dashed" },
+        { "match": { "fields": "first" }, "decimals": 1 },
+        { "match": { "value": { "reducer": "allIsZero", "op": "eq", "value": 1 } }, "hidden": true }
+      ],
       "display": { "legend": "right", "legendValues": ["p95", "allIsNull"], "tooltip": "all" } },
     { "id": "p_status", "type": "stat", "title": "Checkout up",
       "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 }, "datasource": "prom",

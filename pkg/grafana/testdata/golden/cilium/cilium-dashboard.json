@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 77,
-      "imported": 52,
-      "partial": 25,
+      "imported": 77,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -267,14 +267,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "API",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -293,14 +288,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "API",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -319,14 +309,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "API",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -345,14 +330,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "API",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -371,14 +351,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "API",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -397,14 +372,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "API",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -436,14 +406,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -462,14 +427,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -488,14 +448,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -535,13 +490,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -560,13 +511,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -585,14 +532,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -624,14 +566,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -650,14 +587,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -676,14 +608,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -702,14 +629,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -728,14 +650,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -1638,14 +1555,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1664,14 +1576,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1690,14 +1597,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1716,14 +1618,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1742,14 +1639,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1768,14 +1660,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1794,14 +1681,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1820,14 +1702,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.overrides[1]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2409,6 +2286,30 @@
             "fill": 10,
             "points": "never",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2439,6 +2340,30 @@
             "fill": 10,
             "points": "never",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2469,6 +2394,30 @@
             "fill": 10,
             "points": "never",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2499,6 +2448,30 @@
             "fill": 10,
             "points": "never",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2529,6 +2502,30 @@
             "fill": 10,
             "points": "never",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2559,6 +2556,30 @@
             "fill": 10,
             "points": "never",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2616,6 +2637,30 @@
             "points": "never",
             "stack": "normal",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2650,6 +2695,30 @@
             "points": "never",
             "stack": "normal",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2680,6 +2749,30 @@
             "fill": 10,
             "points": "never",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2742,6 +2835,19 @@
             "fill": 10,
             "points": "never",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -2768,6 +2874,19 @@
             "fill": 10,
             "points": "never",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -2794,6 +2913,30 @@
             "fill": 10,
             "points": "never",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -2835,6 +2978,30 @@
             "points": "never",
             "stack": "normal",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2868,6 +3035,30 @@
             "points": "never",
             "stack": "normal",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2898,6 +3089,30 @@
             "fill": 10,
             "points": "never",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2929,6 +3144,30 @@
             "fill": 10,
             "points": "never",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -2962,6 +3201,30 @@
             "points": "never",
             "stack": "normal",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -4927,6 +5190,30 @@
             "fill": 10,
             "points": "never",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legend": "right",
               "legendMode": "table",
@@ -4955,6 +5242,30 @@
             "fill": 10,
             "points": "never",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legend": "right",
               "legendMode": "table",
@@ -4985,6 +5296,30 @@
             "points": "never",
             "stack": "normal",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legendValues": [
                 "mean",
@@ -5017,6 +5352,30 @@
             "points": "never",
             "stack": "normal",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -5049,6 +5408,30 @@
             "points": "never",
             "stack": "normal",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legendValues": [
                 "mean"
@@ -5081,6 +5464,30 @@
             "points": "never",
             "stack": "normal",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legendValues": [
                 "mean"
@@ -5113,6 +5520,30 @@
             "points": "never",
             "stack": "normal",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legendValues": [
                 "mean"
@@ -5145,6 +5576,30 @@
             "points": "never",
             "stack": "normal",
             "thresholdsStyle": "off",
+            "overrides": [
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsZero",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              },
+              {
+                "match": {
+                  "value": {
+                    "reducer": "allIsNull",
+                    "op": "gte",
+                    "value": 0
+                  }
+                },
+                "hideInLegend": true,
+                "hideInTooltip": true
+              }
+            ],
             "display": {
               "legendValues": [
                 "mean"
