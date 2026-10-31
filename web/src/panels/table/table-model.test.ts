@@ -72,7 +72,7 @@ function build(
   display: Record<string, unknown> = {}
 ) {
   const fields = createFieldResolver(panel(extra))
-  const model = tableModel(frames, fields)
+  const model = tableModel(frames, fields, undefined)
   const footer = footerRows(model.columns, model.rows, display)
   const column = (label: string): TableColumn => {
     const found = model.columns.find((candidate) => candidate.label === label)
@@ -816,6 +816,35 @@ describe("cell tooltips", () => {
     })
     expect(cellTooltipAt(fields, column("host"), model.rows[0])?.text).toBe(
       "Serves traffic"
+    )
+  })
+})
+
+describe("time cells and zones", () => {
+  const stamp = Date.UTC(2026, 9, 17, 3, 35, 7)
+  const rows = frame([
+    { name: "Seen", type: "time", values: [stamp] },
+    { name: "Note", type: "string", values: ["a"] },
+  ])
+
+  it.each([
+    ["UTC", "2026-10-17 03:35:07"],
+    ["Asia/Kolkata", "2026-10-17 09:05:07"],
+    ["America/New_York", "2026-10-16 23:35:07"],
+  ])("draws a time cell in %s", (zone, want) => {
+    const fields = createFieldResolver(panel())
+    const model = tableModel([rows], fields, zone)
+    const column = model.columns.find((c) => c.label === "Seen")!
+    expect(cellOf(fields, column, model.rows[0]).text).toBe(want)
+  })
+
+  it("draws a time tooltip in the zone too", () => {
+    const withTooltip = panel({ tooltipField: "Seen" } as Partial<DataPanel>)
+    const fields = createFieldResolver(withTooltip)
+    const model = tableModel([rows], fields, "Asia/Kolkata")
+    const column = model.columns.find((c) => c.label === "Note")!
+    expect(cellTooltipAt(fields, column, model.rows[0])?.text).toBe(
+      "2026-10-17 09:05:07"
     )
   })
 })

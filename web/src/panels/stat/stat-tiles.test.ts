@@ -43,7 +43,7 @@ function tiles(
   reduce: Parameters<typeof statTiles>[2] = { reduce: "lastNotNull" }
 ) {
   const p = panel(extra)
-  return statTiles(frames, createFieldResolver(p), reduce, p.unit)
+  return statTiles(frames, createFieldResolver(p), reduce, p.unit, undefined)
 }
 
 describe("statTiles", () => {

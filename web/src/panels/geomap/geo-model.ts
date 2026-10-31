@@ -1,4 +1,4 @@
-import { formatDateTime } from "@/lib/time"
+import { zonedDateTime } from "@/lib/time"
 
 import { styleForSlot } from "../colors"
 import { displayValue, type FieldResolver } from "../field-config"
@@ -244,6 +244,7 @@ export type GeoContext = {
   remote?: Record<string, RemoteGeojson>
   time?: number
   from?: number
+  zone?: string
 }
 
 export type ViewOptions = {
@@ -571,11 +572,12 @@ function fieldText(
   frame: PreparedFrame,
   field: PreparedField,
   fields: FieldResolver,
-  row: number
+  row: number,
+  zone: string | undefined
 ): string {
   const value = field.values[row]
   return field.type === "time" && isNumber(value)
-    ? formatDateTime(value)
+    ? zonedDateTime(value, zone)
     : displayValue(value, fields.configFor(frame, field)).text
 }
 
@@ -583,7 +585,8 @@ function detailsOf(
   frame: PreparedFrame,
   fields: FieldResolver,
   hidden: readonly PreparedField[],
-  row: number
+  row: number,
+  zone: string | undefined
 ): Detail[] {
   return frame.fields.flatMap((field) => {
     if (hidden.includes(field)) return []
@@ -591,7 +594,7 @@ function detailsOf(
     return [
       {
         name: fields.displayName(frame, field),
-        text: fieldText(frame, field, fields, row),
+        text: fieldText(frame, field, fields, row, zone),
       },
     ]
   })
@@ -650,7 +653,12 @@ function labelOf(item: Located): string {
   return item.place ?? `${item.lat.toFixed(3)}, ${item.lon.toFixed(3)}`
 }
 
-function plainTip(item: Located, fields: FieldResolver, color: string): Tip {
+function plainTip(
+  item: Located,
+  fields: FieldResolver,
+  zone: string | undefined,
+  color: string
+): Tip {
   return {
     label: labelOf(item),
     color,
@@ -659,7 +667,8 @@ function plainTip(item: Located, fields: FieldResolver, color: string): Tip {
       item.frame,
       fields,
       locationFields(item.source),
-      item.row
+      item.row,
+      zone
     ),
   }
 }
@@ -694,7 +703,8 @@ function gather(
 function markersFrom(
   gathered: Gathered,
   layer: Layer,
-  fields: FieldResolver
+  fields: FieldResolver,
+  zone: string | undefined
 ): Marker[] {
   const radiusOf = sizeScale(gathered.all, layer)
   const fixed = fixedColorOf(layer.color)
@@ -720,14 +730,15 @@ function markersFrom(
         ? turned(item.rotationField.values[item.row], clamp)
         : fixedRotation,
       text: item.textField
-        ? fieldText(item.frame, item.textField, fields, item.row)
+        ? fieldText(item.frame, item.textField, fields, item.row, zone)
         : fixedText,
       label: labelOf(item),
       details: detailsOf(
         item.frame,
         fields,
         locationFields(item.source),
-        item.row
+        item.row,
+        zone
       ),
       ...colorOf(item, fields, fixed),
     }
@@ -847,7 +858,7 @@ function buildMarkers(config: Layer, name: string, env: Env): Built {
         label: labelLook(config),
         ...markerLook(config),
         outlineWidth: numberOf(config.lineWidth, defaultOutlineWidth),
-        markers: markersFrom(gathered, config, env.fields),
+        markers: markersFrom(gathered, config, env.fields, env.context.zone),
       },
     ],
   })
@@ -911,6 +922,7 @@ function buildRoute(config: Layer, name: string, env: Env): Built {
       tip: plainTip(
         item,
         env.fields,
+        env.context.zone,
         fixed ?? styleForSlot(item.frameIndex).color
       ),
     }
@@ -937,7 +949,12 @@ function buildPhotos(config: Layer, name: string, env: Env): Built {
     lat: item.lat,
     lon: item.lon,
     url: imageField(item.frame)?.values[item.row],
-    tip: plainTip(item, env.fields, fixed ?? styleForSlot(0).color),
+    tip: plainTip(
+      item,
+      env.fields,
+      env.context.zone,
+      fixed ?? styleForSlot(0).color
+    ),
   }))
   const model = photosModel(rows, config, undefined, fixed)
   const part = locatedPart(config, env, gathered)
@@ -1009,7 +1026,7 @@ function buildNetwork(config: Layer, name: string, env: Env): Built {
         label: labelLook(config),
         ...markerLook(config),
         outlineWidth: defaultOutlineWidth,
-        markers: markersFrom(gathered, config, env.fields),
+        markers: markersFrom(gathered, config, env.fields, env.context.zone),
       },
     ],
   })

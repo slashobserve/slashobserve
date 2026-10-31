@@ -520,14 +520,27 @@ describe("cell geometry", () => {
 describe("cell description", () => {
   it("reads the time range, bucket range and count", () => {
     const format = formatCounts([grid.min, grid.max])
-    expect(cellText(grid, { row: 1, col: 1 }, format)).toBe(
+    expect(cellText(grid, { row: 1, col: 1 }, format, undefined)).toBe(
       "2024-01-02 10:01:00 to 2024-01-02 10:02:00, bucket 1 - 2, count 5"
+    )
+  })
+
+  it("reads the time in the given zone", () => {
+    const single = build([
+      series([Date.UTC(2024, 0, 2, 10, 0, 0)], [2], { le: "1" }),
+    ])
+    const format = formatCounts([single.min, single.max])
+    expect(cellText(single, { row: 0, col: 0 }, format, "Asia/Kolkata")).toBe(
+      "2024-01-02 15:30:00, bucket 0 - 1, count 2"
+    )
+    expect(cellText(single, { row: 0, col: 0 }, format, "UTC")).toBe(
+      "2024-01-02 10:00:00, bucket 0 - 1, count 2"
     )
   })
 
   it("ends the last time bucket one step after its start", () => {
     const format = formatCounts([grid.min, grid.max])
-    expect(cellText(grid, { row: 0, col: 2 }, format)).toBe(
+    expect(cellText(grid, { row: 0, col: 2 }, format, undefined)).toBe(
       "2024-01-02 10:02:00 to 2024-01-02 10:03:00, bucket 0 - 1, count 3"
     )
   })
@@ -537,7 +550,7 @@ describe("cell description", () => {
       { ...series([start, start + minute], [1, null]), ref: "A" },
     ])
     const format = formatCounts([ordinal.min, ordinal.max])
-    expect(cellText(ordinal, { row: 0, col: 1 }, format)).toMatch(
+    expect(cellText(ordinal, { row: 0, col: 1 }, format, undefined)).toMatch(
       /^2024-01-02 10:01:00 to 2024-01-02 10:02:00, series .+, value -$/
     )
   })
@@ -545,7 +558,7 @@ describe("cell description", () => {
   it("gives a single time bucket only its start", () => {
     const single = build([series([start], [2], { le: "1" })])
     const format = formatCounts([single.min, single.max])
-    expect(cellText(single, { row: 0, col: 0 }, format)).toBe(
+    expect(cellText(single, { row: 0, col: 0 }, format, undefined)).toBe(
       "2024-01-02 10:00:00, bucket 0 - 1, count 2"
     )
   })
@@ -1029,7 +1042,7 @@ describe("cell frame of the heatmap transformation", () => {
   it("describes a cell by its bucket and count", () => {
     const model = build([sparse])
     const format = formatCounts([model.min, model.max])
-    expect(cellText(model, { row: 1, col: 1 }, format)).toMatch(
+    expect(cellText(model, { row: 1, col: 1 }, format, undefined)).toMatch(
       /, bucket 5 - 10, count 3$/
     )
   })

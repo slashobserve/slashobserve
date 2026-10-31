@@ -68,7 +68,7 @@ function build(
   return {
     fields,
     display: merged,
-    model: bargaugeModel(frames, fields, merged),
+    model: bargaugeModel(frames, fields, merged, undefined),
   }
 }
 

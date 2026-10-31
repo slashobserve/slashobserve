@@ -214,6 +214,7 @@ function DataPreview({
         cursor={noSharedCursor}
         onTimeRangeSelect={ignoreSelection}
         vars={vars}
+        timezone={spec.timezone}
         from={timeRange.from}
         to={timeRange.to}
       />

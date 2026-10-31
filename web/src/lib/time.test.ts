@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import resolveCasesText from "../../../spec/examples/time/resolve-cases.json?raw"
 import {
   describeRange,
+  displayZone,
   formatDateTime,
   formatDateTimeMs,
   formatRelative,
@@ -17,6 +18,9 @@ import {
   requestZone,
   resolveTime,
   timeOptionsFor,
+  zonedDateTime,
+  zonedDateTimeMs,
+  zonedTimeValue,
 } from "./time"
 
 type ResolveCase = {
@@ -93,6 +97,15 @@ describe("formatting", () => {
     expect(formatDateTimeMs(ms + 999)).toBe("2026-10-17 09:05:07.999")
     expect(formatDateTimeMs("not a time")).toBe("not a time")
     expect(formatTimeValue("now-1h")).toBe("now-1h")
+  })
+
+  it("gives the local output when no zone is set", () => {
+    const ms = new Date(2026, 9, 17, 9, 5, 7).getTime() + 42
+    expect(zonedDateTime(ms, undefined)).toBe(formatDateTime(ms))
+    expect(zonedDateTimeMs(ms, undefined)).toBe(formatDateTimeMs(ms))
+    expect(zonedTimeValue(String(ms), undefined)).toBe(
+      formatTimeValue(String(ms))
+    )
   })
 
   it("describes ranges", () => {
@@ -354,5 +367,58 @@ describe("requestZone", () => {
     for (const timezone of [undefined, "utc", "Asia/Kolkata"]) {
       expect(requestZone(timezone)).toBeUndefined()
     }
+  })
+})
+
+describe("displayZone", () => {
+  it.each([
+    ["absent panel and dashboard zones", undefined, undefined, undefined],
+    ["a dashboard browser zone", undefined, "browser", undefined],
+    ["a dashboard utc zone", undefined, "utc", "UTC"],
+    ["a dashboard IANA zone", undefined, "Asia/Kolkata", "Asia/Kolkata"],
+    [
+      "a panel zone over the dashboard's",
+      "Asia/Kolkata",
+      "utc",
+      "Asia/Kolkata",
+    ],
+    ["a panel utc zone", "utc", "Asia/Kolkata", "UTC"],
+    ["a panel browser zone over a dashboard zone", "browser", "utc", undefined],
+    ["an unknown panel zone", "Not/AZone", "utc", undefined],
+    ["an unknown dashboard zone", undefined, "Not/AZone", undefined],
+  ])("%s", (_name, panel, dashboard, want) => {
+    expect(displayZone(panel, dashboard)).toBe(want)
+  })
+})
+
+describe("zoned formatting", () => {
+  const at = Date.UTC(2026, 9, 17, 3, 35, 7, 42)
+
+  it("reads the clock of the zone", () => {
+    expect(zonedDateTime(at, "UTC")).toBe("2026-10-17 03:35:07")
+    expect(zonedDateTime(at, "Asia/Kolkata")).toBe("2026-10-17 09:05:07")
+    expect(zonedDateTime(new Date(at), "America/New_York")).toBe(
+      "2026-10-16 23:35:07"
+    )
+    expect(zonedDateTimeMs(at, "Asia/Kolkata")).toBe("2026-10-17 09:05:07.042")
+    expect(zonedTimeValue(String(at), "UTC")).toBe("2026-10-17 03:35:07")
+    expect(zonedTimeValue("now-1h", "UTC")).toBe("now-1h")
+    expect(zonedDateTime("not a time", "UTC")).toBe("not a time")
+  })
+
+  it("follows the daylight saving change of the zone", () => {
+    const zone = "America/New_York"
+    expect(zonedDateTime(Date.UTC(2026, 2, 8, 6, 59, 59), zone)).toBe(
+      "2026-03-08 01:59:59"
+    )
+    expect(zonedDateTime(Date.UTC(2026, 2, 8, 7, 0, 0), zone)).toBe(
+      "2026-03-08 03:00:00"
+    )
+    expect(zonedDateTime(Date.UTC(2026, 10, 1, 5, 59, 59), zone)).toBe(
+      "2026-11-01 01:59:59"
+    )
+    expect(zonedDateTime(Date.UTC(2026, 10, 1, 6, 0, 0), zone)).toBe(
+      "2026-11-01 01:00:00"
+    )
   })
 })

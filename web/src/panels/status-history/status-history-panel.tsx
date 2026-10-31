@@ -8,6 +8,7 @@ const StatusHistoryPanel: PanelRenderer = ({
   frames,
   fields,
   display,
+  zone,
   meta,
   width,
   height,
@@ -32,6 +33,7 @@ const StatusHistoryPanel: PanelRenderer = ({
       variant="cells"
       cursor={cursor}
       stateKey={`${stateScope}:${panel.id}`}
+      zone={zone}
     />
   )
 }

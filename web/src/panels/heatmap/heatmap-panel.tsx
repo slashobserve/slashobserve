@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 
-import { formatDateTime } from "@/lib/time"
+import { zonedDateTime } from "@/lib/time"
 import { useTheme } from "@/lib/theme"
 
 import { CursorLine, useCursorLine } from "../cursor-line"
@@ -120,8 +120,16 @@ function AxisTitle({
   )
 }
 
-function TimeLabels({ xs, width }: { xs: number[]; width: number }) {
-  const ticks = timeTicks(xs, Math.floor(width / tickSpacing)).filter(
+function TimeLabels({
+  xs,
+  width,
+  zone,
+}: {
+  xs: number[]
+  width: number
+  zone: string | undefined
+}) {
+  const ticks = timeTicks(xs, Math.floor(width / tickSpacing), zone).filter(
     (tick) => {
       const center = ((tick.index + 0.5) * width) / xs.length
       return center >= tickEdgeGap && center <= width - tickEdgeGap
@@ -275,6 +283,7 @@ function Tooltip({
   width,
   height,
   format,
+  zone,
 }: {
   model: HeatmapModel
   look: HeatmapLook
@@ -284,6 +293,7 @@ function Tooltip({
   width: number
   height: number
   format: (value: number) => string
+  zone: string | undefined
 }) {
   const value = model.cells[hover.row][hover.col]
   const onRight = hover.x > width / 2
@@ -305,7 +315,7 @@ function Tooltip({
       }}
     >
       <div className="mb-1 text-muted-foreground tabular-nums">
-        {formatDateTime(model.xs[hover.col])}
+        {zonedDateTime(model.xs[hover.col], zone)}
       </div>
       {listed === null ? (
         <div className="flex justify-between gap-3">
@@ -367,6 +377,7 @@ const HeatmapPanel: PanelRenderer = ({
   frames,
   fields,
   display,
+  zone,
   width,
   height,
   cursor,
@@ -479,7 +490,7 @@ const HeatmapPanel: PanelRenderer = ({
                 />
               ) : null}
               <div aria-live="polite" className="sr-only">
-                {focused === null ? "" : cellText(model, focused, format)}
+                {focused === null ? "" : cellText(model, focused, format, zone)}
               </div>
               {tooltip.mode !== "hidden" &&
               shown &&
@@ -494,13 +505,14 @@ const HeatmapPanel: PanelRenderer = ({
                   width={plotWidth}
                   height={plotHeight}
                   format={format}
+                  zone={zone}
                 />
               ) : null}
             </div>
             {axis.side === "right" ? labels("right") : null}
           </div>
           <div style={{ marginLeft: leftWidth, marginRight: rightWidth }}>
-            <TimeLabels xs={model.xs} width={plotWidth} />
+            <TimeLabels xs={model.xs} width={plotWidth} zone={zone} />
           </div>
           {legendShown ? <Legend look={look} format={format} /> : null}
         </>

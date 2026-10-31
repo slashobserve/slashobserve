@@ -63,7 +63,8 @@ function build(
   return gaugeModel(
     frames,
     createFieldResolver(panel(extra)),
-    displayWithDefaults("gauge", display)
+    displayWithDefaults("gauge", display),
+    undefined
   )
 }
 
@@ -137,7 +138,8 @@ describe("gauge set", () => {
     const [gauge] = gaugeModel(
       frames,
       createFieldResolver(withLegend),
-      displayWithDefaults("gauge", {})
+      displayWithDefaults("gauge", {}),
+      undefined
     )
     expect(gauge.name).toBe("web-1")
   })
@@ -498,7 +500,8 @@ describe("gauge links", () => {
     const [gauge] = gaugeModel(
       [frame([time, number([4, 7])], { labels: { pod: "web-1" } })],
       fields,
-      displayWithDefaults("gauge", {})
+      displayWithDefaults("gauge", {}),
+      undefined
     )
     return gaugeLinks(gauge, fields, { vars: {}, fields })
   }
@@ -531,7 +534,8 @@ describe("gauge links", () => {
     const gauges = gaugeModel(
       [frame([time, number([1], "a"), number([2], "b")])],
       fields,
-      displayWithDefaults("gauge", {})
+      displayWithDefaults("gauge", {}),
+      undefined
     )
     const titles = gauges.map((gauge) =>
       gaugeLinks(gauge, fields, { vars: {}, fields }).map((link) => link.title)

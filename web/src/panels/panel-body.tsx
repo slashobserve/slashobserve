@@ -3,6 +3,7 @@ import { Suspense, useMemo } from "react"
 import type { Selections } from "@/api/keys"
 import type { PanelDataResponse } from "@/dashboards/queries"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
+import { displayZone } from "@/lib/time"
 import {
   displayWithDefaults,
   resolveDatasourceRef,
@@ -53,6 +54,7 @@ type Props = {
   cursor: SharedCursor
   onTimeRangeSelect: PanelRendererProps["onTimeRangeSelect"]
   vars: Selections
+  timezone: string | undefined
   from: string | undefined
   to: string | undefined
   asTable?: boolean
@@ -69,6 +71,7 @@ export function PanelBody({
   cursor,
   onTimeRangeSelect,
   vars,
+  timezone,
   from,
   to,
   asTable = false,
@@ -113,6 +116,7 @@ export function PanelBody({
     () => linkScopeFor({ vars, from, to, fields, meta: data.meta }),
     [vars, from, to, fields, data.meta]
   )
+  const zone = displayZone(panel.timezone, timezone)
   const type = asTable ? "table" : panel.type
   const Renderer = dataRenderers[type]
   return (
@@ -124,6 +128,7 @@ export function PanelBody({
             frames={frames}
             fields={fields}
             display={display}
+            zone={zone}
             meta={data.meta}
             width={width}
             height={height}

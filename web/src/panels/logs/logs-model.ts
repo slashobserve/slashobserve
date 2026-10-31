@@ -1,4 +1,4 @@
-import { formatDateTime, formatDateTimeMs } from "@/lib/time"
+import { zonedDateTime, zonedDateTimeMs } from "@/lib/time"
 
 import { displayValue, type FieldResolver } from "../field-config"
 import { uniqueKey } from "../frames"
@@ -175,7 +175,8 @@ function lineText(
   frame: PreparedFrame,
   row: number,
   names: readonly string[],
-  fields: FieldResolver
+  fields: FieldResolver,
+  zone: string | undefined
 ): string {
   const parts: string[] = []
   for (const name of names) {
@@ -184,7 +185,7 @@ function lineText(
     const text = field
       ? value === null || value === undefined
         ? ""
-        : detailText(fields, { name, field, frame, index: row })
+        : detailText(fields, { name, field, frame, index: row }, zone)
       : (frame.labels?.[name] ?? "")
     if (text !== "") parts.push(text)
   }
@@ -201,15 +202,16 @@ const nanosPerMs = 1e6
 
 export function formatLogTime(
   time: number,
-  precision: TimePrecision | undefined
+  precision: TimePrecision | undefined,
+  zone: string | undefined
 ): string {
-  if (precision !== "ns") return formatDateTimeMs(time)
+  if (precision !== "ns") return zonedDateTimeMs(time, zone)
   const whole = Math.floor(time)
   const nanos = Math.min(
     nanosPerMs - 1,
     Math.round((time - whole) * nanosPerMs)
   )
-  return `${formatDateTimeMs(whole)}${String(nanos).padStart(6, "0")}`
+  return `${zonedDateTimeMs(whole, zone)}${String(nanos).padStart(6, "0")}`
 }
 
 function seriesDetails(frame: PreparedFrame): LogDetail[] {
@@ -222,7 +224,11 @@ function seriesDetails(frame: PreparedFrame): LogDetail[] {
     : [{ name: "__name__", text: frame.name }, ...details]
 }
 
-export function detailText(fields: FieldResolver, detail: LogDetail): string {
+export function detailText(
+  fields: FieldResolver,
+  detail: LogDetail,
+  zone: string | undefined
+): string {
   if ("text" in detail) return detail.text
   const value = detail.field.values[detail.index]
   const shown = displayValue(
@@ -231,7 +237,7 @@ export function detailText(fields: FieldResolver, detail: LogDetail): string {
   )
   const time = timeOf(value)
   return detail.field.type === "time" && time !== null && !shown.mapped
-    ? formatDateTime(time)
+    ? zonedDateTime(time, zone)
     : shown.text
 }
 
@@ -324,7 +330,8 @@ function withoutLabels(labels: Labels, common: Labels): Labels {
 export function logsModel(
   frames: PreparedFrame[],
   fields: FieldResolver,
-  display: Pick<LogsDisplay, "order" | "dedup" | "prettify" | "lineFields">
+  display: Pick<LogsDisplay, "order" | "dedup" | "prettify" | "lineFields">,
+  zone: string | undefined
 ): LogsModel {
   const located: Located[] = []
   for (const frame of frames) {
@@ -345,12 +352,12 @@ export function logsModel(
   const deduplicating = display.dedup !== "none"
   const drafted = deduplicating
     ? deduplicate(
-        located.map((item) => entryOf(item, fields, display.lineFields)),
+        located.map((item) => entryOf(item, fields, display.lineFields, zone)),
         display.dedup
       )
     : located
         .slice(0, maxEntries)
-        .map((item) => entryOf(item, fields, display.lineFields))
+        .map((item) => entryOf(item, fields, display.lineFields, zone))
   const total = deduplicating ? drafted.length : located.length
   const shown = drafted.slice(0, maxEntries)
 
@@ -401,12 +408,13 @@ type Drafted = {
 function entryOf(
   item: Located,
   fields: FieldResolver,
-  lineFields: readonly string[] | undefined
+  lineFields: readonly string[] | undefined,
+  zone: string | undefined
 ): Drafted {
   return {
     item,
     message: lineFields?.length
-      ? lineText(item.frame, item.row, lineFields, fields)
+      ? lineText(item.frame, item.row, lineFields, fields, zone)
       : messageOf(item.frame, item.columns.message, item.row, fields),
     labels: item.frame.labels ?? {},
     repeats: 1,

@@ -1,4 +1,4 @@
-import { formatTimeValue } from "@/lib/time"
+import { zonedTimeValue } from "@/lib/time"
 import { decimalsByUnit } from "@/lib/units"
 import type { Reducer } from "@/spec"
 
@@ -39,6 +39,7 @@ export type TableColumn = {
   source: ColumnSource
   decimals: Map<string | undefined, number | undefined>
   range: Pick<DisplayOptions, "fieldMin" | "fieldMax">
+  zone: string | undefined
 }
 
 type RowAt = { frame: PreparedFrame; index: number }
@@ -379,7 +380,8 @@ export function footerRows(
 
 export function tableModel(
   frames: PreparedFrame[],
-  fields: FieldResolver
+  fields: FieldResolver,
+  zone: string | undefined
 ): TableModel {
   const { drafts, rows } =
     frames.length > 0 && !frames.some(hasLabels)
@@ -400,6 +402,7 @@ export function tableModel(
       source,
       decimals: new Map(),
       range: rangeOf(field, values),
+      zone,
     }
     if (draft.type === "number") {
       column.decimals = columnDecimals(fields, column, rows)
@@ -421,7 +424,8 @@ export function selectFrames(
 function tooltipTextAt(
   fields: FieldResolver,
   row: TableRow,
-  name: string
+  name: string,
+  zone: string | undefined
 ): string | null {
   const { frame, index } = row.at
   const candidates = frame.fields.filter((field) => !field.nested)
@@ -433,7 +437,7 @@ function tooltipTextAt(
   const value = field?.values[index]
   if (!field || value === null || value === undefined) return null
   if (field.type === "time" && typeof value === "number") {
-    return formatTimeValue(String(value))
+    return zonedTimeValue(String(value), zone)
   }
   if (typeof value === "object") return JSON.stringify(value)
   return displayValue(value, fields.configFor(frame, field)).text
@@ -451,7 +455,7 @@ export function cellTooltipAt(
 ): CellTooltip | null {
   const { tooltipField, tooltipPlacement } = configAt(fields, column, row)
   if (tooltipField === undefined) return null
-  const text = tooltipTextAt(fields, row, tooltipField)
+  const text = tooltipTextAt(fields, row, tooltipField, column.zone)
   return text === null ? null : { text, placement: tooltipPlacement }
 }
 
@@ -478,7 +482,7 @@ export function cellOf(
     if (series) value = lastNumber(series)
   }
   if (column.type === "time" && typeof value === "number") {
-    return { ...plain, text: formatTimeValue(String(value)) }
+    return { ...plain, text: zonedTimeValue(String(value), column.zone) }
   }
   if (typeof value === "object" && value !== null) {
     return { ...plain, text: JSON.stringify(value) }

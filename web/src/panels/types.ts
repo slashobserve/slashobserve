@@ -20,6 +20,7 @@ export type PanelRendererProps = {
   frames: PreparedFrame[]
   fields: FieldResolver
   display: Record<string, unknown>
+  zone: string | undefined
   meta: PanelDataMeta
   width: number
   height: number

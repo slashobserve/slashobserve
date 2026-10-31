@@ -124,9 +124,15 @@ export function statTiles(
   frames: PreparedFrame[],
   fields: FieldResolver,
   display: Partial<StatDisplay>,
-  unit: string | undefined
+  unit: string | undefined,
+  zone: string | undefined
 ): StatTile[] {
-  const entries = reduceItems(frames, fields, reduceOptionsOf("stat", display))
+  const entries = reduceItems(
+    frames,
+    fields,
+    reduceOptionsOf("stat", display),
+    zone
+  )
   const decimals = commonDecimals(
     entries.map((entry) => entry.value),
     unit

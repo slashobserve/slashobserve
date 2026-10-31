@@ -314,15 +314,17 @@ function BodyCell({
 function NestedTable({
   nested,
   fields,
+  zone,
   label,
 }: {
   nested: NestedRows
   fields: FieldResolver
+  zone: string | undefined
   label: string
 }) {
   const model = useMemo(
-    () => tableModel([nested.frame], fields),
-    [nested.frame, fields]
+    () => tableModel([nested.frame], fields, zone),
+    [nested.frame, fields, zone]
   )
   return (
     <table className="w-full" aria-label={label}>
@@ -407,8 +409,9 @@ function ExpandCell({
 const BodyRow = memo(function BodyRow({
   views,
   expandable,
+  zone,
   ...rest
-}: RowShared & Expansion & { views: ColumnView[] }) {
+}: RowShared & Expansion & { views: ColumnView[]; zone: string | undefined }) {
   const { expanded, detailId, frozen, onToggle, ...shared } = rest
   const expansion = { expanded, detailId, frozen, onToggle }
   const rowColor = rowFill(
@@ -441,6 +444,7 @@ const BodyRow = memo(function BodyRow({
             <NestedTable
               nested={nested}
               fields={shared.fields}
+              zone={zone}
               label={`${label} rows`}
             />
           </TableCell>
@@ -572,6 +576,7 @@ const TablePanel: PanelRenderer = ({
   frames,
   fields,
   display,
+  zone,
   links,
   width,
   height,
@@ -581,8 +586,8 @@ const TablePanel: PanelRenderer = ({
     [frames, display.frameIndex]
   )
   const model = useMemo(
-    () => tableModel(shownFrames, fields),
-    [shownFrames, fields]
+    () => tableModel(shownFrames, fields, zone),
+    [shownFrames, fields, zone]
   )
   const [pick, setPick] = useState<{ from: string; sort: Sort | null } | null>(
     null
@@ -770,6 +775,7 @@ const TablePanel: PanelRenderer = ({
                 display={display}
                 fixed={fixed}
                 expandable={expandable}
+                zone={zone}
                 expanded={open.has(row.key)}
                 detailId={`${baseId}-${row.key}`}
                 frozen={frozen > 0}

@@ -297,13 +297,14 @@ const BargaugePanel: PanelRenderer = ({
   frames,
   fields,
   display,
+  zone,
   links,
   width,
   height,
 }) => {
   const model = useMemo(
-    () => bargaugeModel(frames, fields, display),
-    [frames, fields, display]
+    () => bargaugeModel(frames, fields, display, zone),
+    [frames, fields, display, zone]
   )
   const reducer = reducerOf(display)
   const orientation = orientationOf(display, { width, height })

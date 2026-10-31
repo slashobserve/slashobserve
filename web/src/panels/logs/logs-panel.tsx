@@ -77,10 +77,12 @@ function Message({ text, highlight }: { text: string; highlight: boolean }) {
 function LogDetails({
   entry,
   fields,
+  zone,
   id,
 }: {
   entry: LogEntry
   fields: FieldResolver
+  zone: string | undefined
   id: string
 }) {
   return (
@@ -92,7 +94,7 @@ function LogDetails({
         <div key={`${index}:${detail.name}`} className="contents">
           <dt className="text-muted-foreground">{detail.name}</dt>
           <dd className="font-mono [overflow-wrap:anywhere] whitespace-pre-wrap">
-            {detailText(fields, detail)}
+            {detailText(fields, detail, zone)}
           </dd>
         </div>
       ))}
@@ -103,6 +105,7 @@ function LogDetails({
 type RowProps = {
   entry: LogEntry
   fields: FieldResolver
+  zone: string | undefined
   wrap: boolean
   showTime: boolean
   showLabels: boolean
@@ -121,6 +124,7 @@ const rowButtonClasses =
 const LogRow = memo(function LogRow({
   entry,
   fields,
+  zone,
   wrap,
   showTime,
   showLabels,
@@ -146,7 +150,7 @@ const LogRow = memo(function LogRow({
             "-"
           ) : (
             <time dateTime={new Date(entry.time).toISOString()}>
-              {formatLogTime(entry.time, timePrecision)}
+              {formatLogTime(entry.time, timePrecision, zone)}
             </time>
           )}
         </span>
@@ -228,7 +232,7 @@ const LogRow = memo(function LogRow({
         </button>
       )}
       {detailsMode === "inline" && open ? (
-        <LogDetails entry={entry} fields={fields} id={detailsId} />
+        <LogDetails entry={entry} fields={fields} zone={zone} id={detailsId} />
       ) : null}
     </li>
   )
@@ -308,6 +312,7 @@ type ViewProps = {
   panelTitle: string
   frames: Parameters<typeof logsModel>[0]
   fields: FieldResolver
+  zone: string | undefined
   display: LogsDisplay
   width: number
   height: number
@@ -317,6 +322,7 @@ function LogsView({
   panelTitle,
   frames,
   fields,
+  zone,
   display,
   width,
   height,
@@ -336,15 +342,21 @@ function LogsView({
   )
   const { entries, commonLabels, truncated } = useMemo(
     () =>
-      logsModel(frames, fields, {
-        order: view.order,
-        dedup: view.dedup,
-        prettify: display.prettify,
-        lineFields: display.lineFields,
-      }),
+      logsModel(
+        frames,
+        fields,
+        {
+          order: view.order,
+          dedup: view.dedup,
+          prettify: display.prettify,
+          lineFields: display.lineFields,
+        },
+        zone
+      ),
     [
       frames,
       fields,
+      zone,
       view.order,
       view.dedup,
       display.prettify,
@@ -402,6 +414,7 @@ function LogsView({
                 key={entry.key}
                 entry={entry}
                 fields={fields}
+                zone={zone}
                 wrap={view.wrap}
                 showTime={view.showTime}
                 showLabels={showsAttributes(display)}
@@ -421,7 +434,12 @@ function LogsView({
             aria-label="Log line details"
             className="min-w-48 shrink-0 basis-2/5 overflow-auto border-l border-border"
           >
-            <LogDetails entry={selected} fields={fields} id={sidebarId} />
+            <LogDetails
+              entry={selected}
+              fields={fields}
+              zone={zone}
+              id={sidebarId}
+            />
           </aside>
         ) : null}
       </div>
@@ -433,6 +451,7 @@ const LogsPanel: PanelRenderer = ({
   panel,
   frames,
   fields,
+  zone,
   display: rawDisplay,
   width,
   height,
@@ -450,6 +469,7 @@ const LogsPanel: PanelRenderer = ({
       panelTitle={panel.title}
       frames={frames}
       fields={fields}
+      zone={zone}
       display={display}
       width={width}
       height={height}

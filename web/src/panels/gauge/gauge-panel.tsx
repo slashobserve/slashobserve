@@ -205,13 +205,14 @@ const GaugePanel: PanelRenderer = ({
   frames,
   fields,
   display,
+  zone,
   links,
   width,
   height,
 }) => {
   const gauges = useMemo(
-    () => gaugeModel(frames, fields, display),
-    [frames, fields, display]
+    () => gaugeModel(frames, fields, display, zone),
+    [frames, fields, display, zone]
   )
   const limits = gaugeLimits(display)
   const sizes = gaugeSizes(display)

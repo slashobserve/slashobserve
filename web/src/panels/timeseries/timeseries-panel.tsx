@@ -4,7 +4,7 @@ import "uplot/dist/uPlot.min.css"
 
 import type { PanelDataMeta, WireFrame } from "@/dashboards/queries"
 import { stableJson } from "@/lib/json"
-import { formatDateTime } from "@/lib/time"
+import { zonedDateTime } from "@/lib/time"
 import { timeLabel } from "@/lib/time-ticks"
 import { useTheme } from "@/lib/theme"
 import { axisDecimals, formatValue } from "@/lib/units"
@@ -52,6 +52,7 @@ import {
 } from "./plugins"
 import { scaleDistribution } from "./axis-scale"
 import { shapeNulls } from "./gaps"
+import { zonedPlotDate } from "./plot-zone"
 import { isolatedPoints, squarePoints } from "./points"
 import { thresholdParts } from "./threshold-style"
 import {
@@ -119,15 +120,20 @@ type PlotConfig = {
   host: HTMLElement
   latest: { current: Latest }
   xAxis: XAxis
+  zone: string | undefined
   draw?: uPlot.Plugin
 }
 
 const tickEdgeGap = 24
 
-function timeLabels(splits: (number | null)[], spanSeconds: number): string[] {
+function timeLabels(
+  splits: (number | null)[],
+  spanSeconds: number,
+  zone: string | undefined
+): string[] {
   const spanMs = spanSeconds * 1000
   return splits.map((seconds) =>
-    seconds === null ? "" : timeLabel(seconds * 1000, spanMs)
+    seconds === null ? "" : timeLabel(seconds * 1000, spanMs, zone)
   )
 }
 
@@ -257,7 +263,7 @@ function thresholdLineStroke(
 }
 
 function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
-  const { member, peerTooltip, host, latest, xAxis, draw } = config
+  const { member, peerTooltip, host, latest, xAxis, zone, draw } = config
   const timed = xAxis.kind === "time"
   const customPainted = draw !== undefined
   const { model } = latest.current
@@ -280,7 +286,9 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         first,
         () => latest.current.entries,
         (x) =>
-          xAxis.kind === "time" ? formatDateTime(x * 1000) : xAxis.format(x),
+          xAxis.kind === "time"
+            ? zonedDateTime(x * 1000, zone)
+            : xAxis.format(x),
         () => peerTooltip.current,
         () => latest.current.exemplars
       )
@@ -385,6 +393,7 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
   const options: uPlot.Options = {
     width,
     height: chartHeight,
+    ...zonedPlotDate(zone),
     padding: [8, 12, 0, 0],
     legend: { show: false },
     scales: {
@@ -422,7 +431,11 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         filter: dropEdgeTicks,
         values: (u, splits) =>
           xAxis.kind === "time"
-            ? timeLabels(splits, (u.scales.x.max ?? 0) - (u.scales.x.min ?? 0))
+            ? timeLabels(
+                splits,
+                (u.scales.x.max ?? 0) - (u.scales.x.min ?? 0),
+                zone
+              )
             : splits.map((value) =>
                 value === null ? "" : xAxis.format(value)
               ),
@@ -579,6 +592,7 @@ export type ChartProps = PanelRendererProps & {
 export function TimeseriesChart({
   panel,
   display,
+  zone,
   meta,
   width,
   height,
@@ -784,6 +798,7 @@ export function TimeseriesChart({
       host,
       latest,
       xAxis,
+      zone,
       draw,
     })
     if (xAxis.kind === "time") {
@@ -814,6 +829,7 @@ export function TimeseriesChart({
     theme,
     cursor,
     xAxis,
+    zone,
     draw,
     configsKey,
     displayKey,
@@ -887,7 +903,7 @@ export function TimeseriesChart({
       : ""
   const plotName =
     xAxis.kind === "time"
-      ? `${panel.title}: ${series.length} series${exemplarSuffix}, ${formatDateTime(meta.from)} to ${formatDateTime(meta.to)}`
+      ? `${panel.title}: ${series.length} series${exemplarSuffix}, ${zonedDateTime(meta.from, zone)} to ${zonedDateTime(meta.to, zone)}`
       : `${panel.title}: ${series.length} series`
 
   return (

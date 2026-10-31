@@ -48,13 +48,15 @@ function frame(
 function model(
   frames: PreparedFrame[],
   display: Partial<LogsDisplay> = {},
-  extra: Partial<DataPanel> = {}
+  extra: Partial<DataPanel> = {},
+  zone: string | undefined = undefined
 ) {
   const p = panel(extra)
   return logsModel(
     frames,
     createFieldResolver(p),
-    displayWithDefaults("logs", display) as LogsDisplay
+    displayWithDefaults("logs", display) as LogsDisplay,
+    zone
   )
 }
 
@@ -192,7 +194,7 @@ describe("logsModel columns", () => {
     expect(
       entries[0].details.map((detail) => [
         detail.name,
-        detailText(fields, detail),
+        detailText(fields, detail, undefined),
       ])
     ).toEqual([
       ["Time", formatDateTime(1000)],
@@ -497,12 +499,13 @@ describe("detailText", () => {
   function detailOf(
     f: PreparedFrame,
     name: string,
-    extra: Partial<DataPanel> = {}
+    extra: Partial<DataPanel> = {},
+    zone: string | undefined = undefined
   ) {
     const fields = createFieldResolver(panel(extra))
     const target = f.fields.find((candidate) => candidate.name === name)
     if (!target) throw new Error(`no field ${name}`)
-    return detailText(fields, { name, field: target, frame: f, index: 0 })
+    return detailText(fields, { name, field: target, frame: f, index: 0 }, zone)
   }
 
   const f = frame([
@@ -514,6 +517,13 @@ describe("detailText", () => {
 
   it("writes a time field as a date and time", () => {
     expect(detailOf(f, "Timestamp")).toBe(formatDateTime(1700000000000))
+  })
+
+  it("writes a time field in the given zone", () => {
+    expect(detailOf(f, "Timestamp", {}, "Asia/Kolkata")).toBe(
+      "2023-11-15 03:43:20"
+    )
+    expect(detailOf(f, "Timestamp", {}, "UTC")).toBe("2023-11-14 22:13:20")
   })
 
   it("applies the field's own config and mappings", () => {
@@ -754,6 +764,11 @@ describe("logsModel line fields", () => {
     expect(entries[0].message).toBe("checkout-0 hello")
   })
 
+  it("writes a time field of the line in the given zone", () => {
+    const { entries } = model([rows], { lineFields: ["Timestamp"] }, {}, "UTC")
+    expect(entries[0].message).toBe("1970-01-01 00:00:01")
+  })
+
   it("skips a null value", () => {
     const withNull = frame([
       field("Timestamp", "time", [1000]),
@@ -789,17 +804,28 @@ describe("formatLogTime", () => {
   const seconds = formatDateTime(stamp)
 
   it("prints milliseconds by default", () => {
-    expect(formatLogTime(stamp, undefined)).toBe(`${seconds}.123`)
-    expect(formatLogTime(stamp, "ms")).toBe(`${seconds}.123`)
+    expect(formatLogTime(stamp, undefined, undefined)).toBe(`${seconds}.123`)
+    expect(formatLogTime(stamp, "ms", undefined)).toBe(`${seconds}.123`)
+  })
+
+  it("prints the clock of the given zone", () => {
+    expect(formatLogTime(stamp, "ms", "UTC")).toBe("2023-11-14 22:13:20.123")
+    expect(formatLogTime(stamp + 0.5, "ns", "Asia/Kolkata")).toBe(
+      "2023-11-15 03:43:20.123500000"
+    )
   })
 
   it("pads whole milliseconds with zeros for nanoseconds", () => {
-    expect(formatLogTime(stamp, "ns")).toBe(`${seconds}.123000000`)
+    expect(formatLogTime(stamp, "ns", undefined)).toBe(`${seconds}.123000000`)
   })
 
   it("prints the sub-millisecond part the time carries", () => {
-    expect(formatLogTime(stamp + 0.5, "ns")).toBe(`${seconds}.123500000`)
-    expect(formatLogTime(stamp + 0.25, "ns")).toBe(`${seconds}.123250000`)
+    expect(formatLogTime(stamp + 0.5, "ns", undefined)).toBe(
+      `${seconds}.123500000`
+    )
+    expect(formatLogTime(stamp + 0.25, "ns", undefined)).toBe(
+      `${seconds}.123250000`
+    )
   })
 })
 

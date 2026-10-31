@@ -78,6 +78,7 @@ const StatPanel: PanelRenderer = ({
   frames,
   fields,
   display: rawDisplay,
+  zone,
   width,
   height,
   links,
@@ -85,8 +86,8 @@ const StatPanel: PanelRenderer = ({
   const { resolved: theme } = useTheme()
   const display = rawDisplay as StatDisplay
   const tiles = useMemo(
-    () => statTiles(frames, fields, display, panel.unit),
-    [frames, fields, display, panel.unit]
+    () => statTiles(frames, fields, display, panel.unit, zone),
+    [frames, fields, display, panel.unit, zone]
   )
   const background = display.colorMode === "background"
   const anyFilled = background && tiles.some((tile) => tile.color !== null)
