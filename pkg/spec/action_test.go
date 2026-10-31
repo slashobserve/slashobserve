@@ -138,6 +138,94 @@ func TestActionChecks(t *testing.T) {
 	}
 }
 
+func fieldActionDashboard(t *testing.T, panelType string, onOverride bool, action map[string]any) []byte {
+	t.Helper()
+	action["title"] = "Run"
+	if _, ok := action["url"]; !ok {
+		action["url"] = "https://example.com/run"
+	}
+	panel := map[string]any{
+		"id": "p1", "type": panelType, "title": "Field",
+		"gridPos":    map[string]any{"x": 0, "y": 0, "w": 12, "h": 8},
+		"datasource": "prom", "queries": []any{map[string]any{"query": "up"}},
+	}
+	if onOverride {
+		panel["overrides"] = []any{
+			map[string]any{"match": map[string]any{"field": "a"}, "unit": "percent"},
+			map[string]any{"match": map[string]any{"field": "b"}, "actions": []any{action}},
+		}
+	} else {
+		panel["actions"] = []any{action}
+	}
+	data, err := json.Marshal(map[string]any{
+		"specVersion": "0",
+		"title":       "Field actions",
+		"time":        map[string]any{"from": "now-15m", "to": "now"},
+		"variables":   []any{map[string]any{"name": "env", "type": "textbox"}},
+		"panels":      []any{panel},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
+func TestFieldActionChecks(t *testing.T) {
+	const panelPath = "/panels/0/actions/0"
+	const overridePath = "/panels/0/overrides/1/actions/0"
+	vars := func(keys ...string) []any {
+		var out []any
+		for _, k := range keys {
+			out = append(out, map[string]any{"key": k, "name": "Name of " + k})
+		}
+		return out
+	}
+	cases := []struct {
+		name       string
+		panelType  string
+		onOverride bool
+		action     map[string]any
+		code       spec.IssueCode
+		path       string
+	}{
+		{"action variable, dashboard variable and builtin in templates", "stat", false, map[string]any{
+			"variables": vars("reason"),
+			"url":       "https://example.com/${reason}/${env}/${__value.raw}",
+			"body":      "$reason",
+			"headers":   []any{map[string]any{"name": "X-Reason", "value": "${reason:raw}"}},
+			"query":     []any{map[string]any{"name": "r", "value": "${reason}"}},
+			"color":     "critical", "oneClick": true,
+		}, "", ""},
+		{"every panel type may carry field actions", "timeseries", false, map[string]any{}, "", ""},
+		{"undeclared name beside an action variable", "table", false, map[string]any{
+			"variables": vars("reason"), "url": "https://example.com/${nope}",
+		}, spec.CodeUnknownVariable, panelPath + "/url"},
+		{"reference to an undeclared action variable", "gauge", false, map[string]any{
+			"body": "${reason}",
+		}, spec.CodeUnknownVariable, panelPath + "/body"},
+		{"duplicate action variable keys", "stat", false, map[string]any{
+			"variables": vars("reason", "other", "reason"),
+		}, spec.CodeInvalidReference, panelPath + "/variables/2/key"},
+		{"credential header on an override action", "table", true, map[string]any{
+			"headers": []any{map[string]any{"name": "Authorization", "value": "v"}},
+		}, spec.CodeActionHeaderNotAllowed, overridePath + "/headers/0/name"},
+		{"undeclared name on an override action", "bargauge", true, map[string]any{
+			"query": []any{map[string]any{"name": "a", "value": "${nope}"}},
+		}, spec.CodeUnknownVariable, overridePath + "/query/0/value"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := spec.Parse(fieldActionDashboard(t, tc.panelType, tc.onOverride, tc.action))
+			assertSingleIssue(t, err, tc.code, tc.path)
+		})
+	}
+}
+
+func TestCanvasActionRefusesOneClick(t *testing.T) {
+	_, err := spec.Parse(actionDashboard(t, map[string]any{"oneClick": true}))
+	assertSingleIssue(t, err, spec.CodeInvalidReference, actionPath+"/oneClick")
+}
+
 func assertSingleIssue(t *testing.T, err error, code spec.IssueCode, path string) {
 	t.Helper()
 	if code == "" {

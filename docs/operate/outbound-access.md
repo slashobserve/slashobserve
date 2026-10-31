@@ -70,17 +70,21 @@ For dashboards many people open, prefer CARTO or your own tile server (an `xyz` 
 
 Each refusal is logged at INFO as `asset fetch failed` with the host, the code and the person's id (`actor_id`), never the address's path or query.
 
-## Canvas actions
+## Actions
 
-A canvas element can carry actions, which are HTTP requests that a person runs from the panel (see [Maps, canvases and actions](../concepts/observespec.md#maps-canvases-and-actions)).
+A canvas element or a field can carry actions, which are HTTP requests that a person runs from the panel (see [Maps, canvases and actions](../concepts/observespec.md#maps-canvases-and-actions)).
+A field's actions sit on its panel or on one of its overrides, and a table cell, stat tile, gauge or bar offers them.
 The browser never calls the other site.
 It asks the server with `POST /api/v1/dashboards/{id}/actions`, and the server sends the request under the same rules as every other outbound call: an allowed domain, `https` on port 443 and a public address.
 
 - Only a person with Edit on the dashboard can run an action, because it changes something outside SlashObserve.
   Viewers, Commenters and service-account keys are refused.
-- The request names the action by its place in the dashboard's latest saved version (panel, element and index), plus the values of the variables, the time range and the clicked value.
+- The request names the action by its place in the dashboard's latest saved version: the panel, the canvas element and the index, or, for a field action, the panel, the override (none for the panel's own actions) and the index.
+  It adds the values of the dashboard's variables, the time range and the clicked value, and the `inputs` that the person typed for the action's own variables.
   The method, address, headers and body template always come from the saved version, and a request made against an older version answers `409 stale_version`.
 - `__user.login`, `__user.email`, `__user.name` and `__user.id` come from the signed-in person.
+- Typed inputs are escaped for the place they land in, like variable values, and are never logged.
+  An input for a key the action does not declare answers `400 invalid_request`, and a declared key with no input answers `400 action_invalid`.
 - A value is escaped for the place it lands in: the path, the query, a form body or a JSON string.
   An action that would change its own host, put a line break in a header or leave a JSON body invalid answers `400 action_invalid`.
 - No credentials are sent, so an action can call only endpoints that need none.
@@ -91,5 +95,5 @@ It asks the server with `POST /api/v1/dashboards/{id}/actions`, and the server s
 - Actions are never cached or merged, so running one twice sends two requests.
 - A domain that is not allowed answers `403 outbound_domain_not_allowed` with the `host`, and a connection error, a timeout or a private address answers `502 action_failed` with the `host`.
 
-Every attempt that reaches the network is logged at INFO as `canvas action run` with the person (`actor_id`, `actor_role`), `dashboard_id`, `version`, `panel`, `element`, `action`, `method`, `host`, `status` (0 when no answer came), `outcome` (`ok`, `remote_error`, `refused` or `failed`) and `duration_ms`.
-The line never holds the address, a header, the body or a variable value.
+Every attempt that reaches the network is logged at INFO as `action run` with the person (`actor_id`, `actor_role`), `dashboard_id`, `version`, `panel`, `element` or `override` (when the request has one), `action`, `method`, `host`, `status` (0 when no answer came), `outcome` (`ok`, `remote_error`, `refused` or `failed`) and `duration_ms`.
+The line never holds the address, a header, the body, a variable value or an input.

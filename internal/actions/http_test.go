@@ -81,6 +81,23 @@ func canvasDashboard() *spec.Dashboard {
 					Body:  `{"env":"${env}","who":"${__user.email}"}`,
 				}},
 			}}},
+		}, {
+			ID:   "orders-stat",
+			Type: spec.Stat,
+			FieldProps: spec.FieldProps{Actions: []spec.Action{{
+				Title:     "Acknowledge",
+				URL:       "https://deploy.example.com/ack/${reason}",
+				Variables: []spec.ActionVariable{{Key: "reason", Name: "Reason"}},
+			}}},
+			Overrides: []spec.Override{
+				{Match: spec.Match{Field: "a"}},
+				{Match: spec.Match{Field: "b"}, FieldProps: spec.FieldProps{Actions: []spec.Action{{
+					Title:     "Page",
+					Method:    "GET",
+					URL:       "https://deploy.example.com/page/${who}?env=${env}",
+					Variables: []spec.ActionVariable{{Key: "who", Name: "Who"}},
+				}}}},
+			},
 		}},
 	}
 }
@@ -144,6 +161,17 @@ func validBody() map[string]any {
 	}
 }
 
+func fieldBody(extra map[string]any) map[string]any {
+	body := map[string]any{
+		"version": 7, "panel": "orders-stat", "action": 0,
+		"from": "2026-10-30T10:00:00Z", "to": "2026-10-30T11:00:00Z",
+	}
+	for k, v := range extra {
+		body[k] = v
+	}
+	return body
+}
+
 func with(body map[string]any, key string, value any) map[string]any {
 	out := map[string]any{}
 	for k, v := range body {
@@ -199,7 +227,7 @@ func TestRunWritesOneAuditRecordWithoutURLsBodiesOrValues(t *testing.T) {
 	if rec := r.post(validBody(), editor); rec.Code != http.StatusOK {
 		t.Fatalf("status = %d", rec.Code)
 	}
-	record := r.logs.Find(t, "canvas action run")
+	record := r.logs.Find(t, "action run")
 	want := map[string]any{
 		"actor_id": "user-1", "actor_role": "editor", "dashboard_id": dashboardID, "version": float64(7),
 		"panel": "orders-flow", "element": "restart", "action": float64(0), "method": "POST",
@@ -221,6 +249,42 @@ func TestRunWritesOneAuditRecordWithoutURLsBodiesOrValues(t *testing.T) {
 	r.logs.AssertAbsent(t, sentinelValue, "ada@example.com", "/api/", "/restart")
 }
 
+func TestRunSendsPanelAndOverrideFieldActionsWithTypedInputs(t *testing.T) {
+	cases := []struct {
+		name         string
+		extra        map[string]any
+		wantMethod   string
+		wantURL      string
+		wantOverride any
+	}{
+		{"panel default action", map[string]any{"inputs": map[string]string{"reason": sentinelValue}},
+			"POST", "https://deploy.example.com/ack/" + sentinelValue, nil},
+		{"override action", map[string]any{"override": 1, "variables": map[string][]string{"env": {"prod"}}, "inputs": map[string]string{"who": sentinelValue}},
+			"GET", "https://deploy.example.com/page/" + sentinelValue + "?env=prod", float64(1)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newRig(t)
+			rec := r.post(fieldBody(tc.extra), editor)
+			if rec.Code != http.StatusOK || rec.Body.String() != `{"status":204,"ok":true}` {
+				t.Fatalf("response = %d %s", rec.Code, rec.Body)
+			}
+			calls := r.sender.calls()
+			if len(calls) != 1 || calls[0].Method != tc.wantMethod || calls[0].URL != tc.wantURL {
+				t.Fatalf("sent %+v, want %s %s", calls, tc.wantMethod, tc.wantURL)
+			}
+			record := r.logs.Find(t, "action run")
+			if _, ok := record["element"]; ok {
+				t.Errorf("record names an element: %v", record)
+			}
+			if record["override"] != tc.wantOverride || record["panel"] != "orders-stat" || record["action"] != float64(0) {
+				t.Errorf("record = %v", record)
+			}
+			r.logs.AssertAbsent(t, sentinelValue, "inputs")
+		})
+	}
+}
+
 func TestRunReportsARemoteErrorStatusAsOkFalse(t *testing.T) {
 	r := newRig(t)
 	r.sender.result = egress.SendResult{Status: http.StatusInternalServerError}
@@ -228,7 +292,7 @@ func TestRunReportsARemoteErrorStatusAsOkFalse(t *testing.T) {
 	if rec.Code != http.StatusOK || rec.Body.String() != `{"status":500,"ok":false}` {
 		t.Fatalf("response = %d %s", rec.Code, rec.Body)
 	}
-	if outcome := r.logs.Find(t, "canvas action run")["outcome"]; outcome != "remote_error" {
+	if outcome := r.logs.Find(t, "action run")["outcome"]; outcome != "remote_error" {
 		t.Errorf("outcome = %v", outcome)
 	}
 }
@@ -261,6 +325,19 @@ func TestRunRefusesBeforeTheNetworkAndLogsNothing(t *testing.T) {
 		{"a field the caller may not choose", with(validBody(), "url", "https://evil.example/"), nil, http.StatusBadRequest, "invalid_request"},
 		{"not JSON", "not json", nil, http.StatusBadRequest, "invalid_request"},
 		{"declared variable with no value", with(validBody(), "variables", nil), nil, http.StatusBadRequest, "action_invalid"},
+		{"field action with no input", fieldBody(nil), nil, http.StatusBadRequest, "action_invalid"},
+		{"input the action does not declare", fieldBody(map[string]any{"inputs": map[string]string{"reason": "r", "other": "x"}}), nil, http.StatusBadRequest, "invalid_request"},
+		{"input for an action without variables", with(validBody(), "inputs", map[string]string{"reason": "r"}), nil, http.StatusBadRequest, "invalid_request"},
+		{"too many inputs", fieldBody(map[string]any{"inputs": manyFields(11)}), nil, http.StatusBadRequest, "invalid_request"},
+		{"input value over 1000 bytes", fieldBody(map[string]any{"inputs": map[string]string{"reason": string(make([]byte, 1001))}}), nil, http.StatusBadRequest, "invalid_request"},
+		{"input key over 64 bytes", fieldBody(map[string]any{"inputs": map[string]string{string(make([]byte, 65)): "x"}}), nil, http.StatusBadRequest, "invalid_request"},
+		{"element together with override", with(validBody(), "override", 0), nil, http.StatusBadRequest, "invalid_request"},
+		{"negative override", fieldBody(map[string]any{"override": -1}), nil, http.StatusBadRequest, "invalid_request"},
+		{"override past the list", fieldBody(map[string]any{"override": 2, "inputs": map[string]string{"who": "x"}}), nil, http.StatusNotFound, "action_not_found"},
+		{"override without actions", fieldBody(map[string]any{"override": 0}), nil, http.StatusNotFound, "action_not_found"},
+		{"panel action index past the list", fieldBody(map[string]any{"action": 1, "inputs": map[string]string{"reason": "r"}}), nil, http.StatusNotFound, "action_not_found"},
+		{"canvas element named on a panel that is not a canvas", with(fieldBody(nil), "element", "restart"), nil, http.StatusNotFound, "action_not_found"},
+		{"field action on a panel the request does not name", with(fieldBody(map[string]any{"inputs": map[string]string{"reason": "r"}}), "panel", "nope"), nil, http.StatusNotFound, "action_not_found"},
 		{"expansion that breaks the JSON body", with(validBody(), "variables", map[string][]string{"env": {"x"}}), func(r *rig) {
 			r.specs.dash.Panels[0].Display.Elements[0].Actions[0].Body = `{"n":${env}}`
 		}, http.StatusBadRequest, "action_invalid"},
@@ -278,7 +355,7 @@ func TestRunRefusesBeforeTheNetworkAndLogsNothing(t *testing.T) {
 			if len(r.sender.calls()) != 0 {
 				t.Error("sender was called")
 			}
-			r.logs.AssertAbsent(t, "canvas action run")
+			r.logs.AssertAbsent(t, "action run")
 		})
 	}
 }
@@ -317,7 +394,7 @@ func TestRunMapsSenderErrorsAndStillAudits(t *testing.T) {
 			if rec.Code != tc.wantCode || got.Code != tc.wantErr || got.Host != tc.wantHost {
 				t.Fatalf("response = %d %s, want %d %s host %q", rec.Code, rec.Body, tc.wantCode, tc.wantErr, tc.wantHost)
 			}
-			record := r.logs.Find(t, "canvas action run")
+			record := r.logs.Find(t, "action run")
 			if record["outcome"] != tc.wantOutcome || record["status"] != float64(0) {
 				t.Errorf("audit = %v, want outcome %s status 0", record, tc.wantOutcome)
 			}
@@ -387,7 +464,7 @@ func TestRunNeedsAPersonWithEditOnTheDashboard(t *testing.T) {
 			if len(r.sender.calls()) != 0 {
 				t.Error("sender was called")
 			}
-			r.logs.AssertAbsent(t, "canvas action run")
+			r.logs.AssertAbsent(t, "action run")
 		})
 	}
 }

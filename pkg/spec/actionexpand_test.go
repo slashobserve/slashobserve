@@ -189,3 +189,89 @@ func TestExpandActionErrorsNameReferencesNeverValues(t *testing.T) {
 		t.Errorf("error repeats a value: %v", err)
 	}
 }
+
+func TestExpandActionUsesTypedInputs(t *testing.T) {
+	action := spec.Action{
+		Method:      "POST",
+		URL:         "https://api.example.com/svc/${reason}/restart?why=${reason}",
+		ContentType: "application/json",
+		Body:        `{"reason":"${reason}","env":"${env}"}`,
+		Headers:     []spec.ActionParam{{Name: "X-Reason", Value: "${reason}"}},
+		Variables:   []spec.ActionVariable{{Key: "reason", Name: "Reason"}, {Key: "env", Name: "Environment"}},
+	}
+	env := spec.ActionEnv{
+		Variables: map[string][]string{"env": {"dashboard-env"}},
+		Inputs:    map[string]string{"reason": "disk full/\"now\"", "env": "typed-env"},
+	}
+	got, err := spec.ExpandAction(action, env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "https://api.example.com/svc/disk%20full%2F%22now%22/restart?why=disk+full%2F%22now%22"; got.URL != want {
+		t.Errorf("URL = %q, want %q", got.URL, want)
+	}
+	if want := `{"reason":"disk full/\"now\"","env":"typed-env"}`; string(got.Body) != want {
+		t.Errorf("body = %q, want %q", got.Body, want)
+	}
+	if want := "disk full/\"now\""; got.Header.Get("X-Reason") != want {
+		t.Errorf("header = %q, want %q", got.Header.Get("X-Reason"), want)
+	}
+}
+
+func TestExpandActionInputsInAQueryParameter(t *testing.T) {
+	action := spec.Action{
+		Method:    "GET",
+		URL:       "https://api.example.com/run",
+		Query:     []spec.ActionParam{{Name: "q", Value: "${reason}"}},
+		Variables: []spec.ActionVariable{{Key: "reason", Name: "Reason"}},
+	}
+	got, err := spec.ExpandAction(action, spec.ActionEnv{Inputs: map[string]string{"reason": "a&b=c"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "https://api.example.com/run?q=a%26b%3Dc"; got.URL != want {
+		t.Errorf("URL = %q, want %q", got.URL, want)
+	}
+}
+
+func TestExpandActionRefusesBadInputs(t *testing.T) {
+	vars := []spec.ActionVariable{{Key: "x", Name: "X"}}
+	cases := []struct {
+		name   string
+		action spec.Action
+		inputs map[string]string
+	}{
+		{"input missing", spec.Action{URL: "https://api.example.com/${x}", Variables: vars}, nil},
+		{"another key typed instead", spec.Action{URL: "https://api.example.com/${x}", Variables: vars}, map[string]string{"y": "v"}},
+		{"input tries to change the host", spec.Action{URL: "https://${x}.example.com/run", Variables: vars}, map[string]string{"x": "evil.com/"}},
+		{"input tries to add user info", spec.Action{URL: "https://api.example.com@${x}/run", Variables: vars}, map[string]string{"x": "evil.com"}},
+		{"input puts a line break in a header", spec.Action{
+			URL: "https://api.example.com/run", Variables: vars,
+			Headers: []spec.ActionParam{{Name: "X-A", Value: "${x}"}},
+		}, map[string]string{"x": "a\r\nX-Evil: 1"}},
+		{"input breaks a numeric JSON body", spec.Action{
+			URL: "https://api.example.com/run", Body: `{"n":${x}}`, Variables: vars,
+		}, map[string]string{"x": "1,\"evil\":2"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got, err := spec.ExpandAction(tc.action, spec.ActionEnv{Inputs: tc.inputs}); err == nil {
+				t.Fatalf("expanded to %+v, want an error", got)
+			}
+		})
+	}
+}
+
+func TestExpandActionErrorsNeverRepeatInputs(t *testing.T) {
+	_, err := spec.ExpandAction(spec.Action{
+		URL:       "https://api.example.com/run",
+		Headers:   []spec.ActionParam{{Name: "X-A", Value: "${x}"}},
+		Variables: []spec.ActionVariable{{Key: "x", Name: "X"}},
+	}, spec.ActionEnv{Inputs: map[string]string{"x": "hunter2\r\n"}})
+	if err == nil {
+		t.Fatal("want an error")
+	}
+	if strings.Contains(err.Error(), "hunter2") {
+		t.Errorf("error repeats an input: %v", err)
+	}
+}

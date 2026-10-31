@@ -282,10 +282,15 @@ An element's `actions` are HTTP requests that a person triggers from the panel:
 - The `url`, `body` and header and query values may reference declared variables, `__from`, `__to`, `__user.login`, `__user.email`, `__user.name`, `__user.id`, `__value.raw`, `__value.text`, `__value.numeric` and `__data.fields.<field>`.
   Any other name is refused with `unknown_variable`.
 - `oneClick` on an element (`action` or `link`) needs at least one action or link.
-- A person with Edit on the dashboard runs an action, and the server sends it on their behalf to an allowed domain; see [Canvas actions](../operate/outbound-access.md#canvas-actions).
+- A person with Edit on the dashboard runs an action, and the server sends it on their behalf to an allowed domain; see [Actions](../operate/outbound-access.md#actions).
   An action is sent as the latest saved version describes it, and it carries no credentials.
 
-People and imports write HTML text panels and canvas actions.
+Field props take `actions` too, on any panel and on any override, with the same fields, and a stat tile, gauge, bar gauge or table cell offers them (the table cell type `actions` shows them as buttons).
+- `variables` lists up to 10 values the person types when running the action, each a `key` (letters, digits and underscores, starting with a letter, unique within the action) and a `name` for the form; `${key}` refers to the typed value in the `url`, `body` and header and query values, and shadows a dashboard variable of the same name.
+- `color` is the color of the action's button.
+- `oneClick` (fields only; a canvas element keeps its own `oneClick`, and one set on a canvas element's action is refused with `invalid_reference`) makes a click on the cell, tile, gauge or bar run the action when it is the field's only link or action.
+
+People and imports write HTML text panels, canvas actions and field actions.
 The agent and MCP clients cannot add or change them, and cannot write HTML tags in any text panel: a save that does is refused with `html_not_allowed` or `action_not_allowed`.
 They may still move or delete such a panel or element.
 

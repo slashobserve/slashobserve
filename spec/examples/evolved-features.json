@@ -60,6 +60,13 @@
         { "special": "null", "text": "No data", "color": "info" }
       ],
       "thresholds": [{ "color": "critical" }, { "value": 1, "color": "ok" }],
+      "actions": [{
+        "title": "Acknowledge", "method": "POST", "url": "https://ops.example.com/api/ack",
+        "contentType": "application/json",
+        "body": "{\"service\":\"checkout\",\"env\":\"${env}\",\"reason\":\"${reason}\"}",
+        "variables": [{ "key": "reason", "name": "Reason" }],
+        "color": "warning", "oneClick": true, "confirm": "Acknowledge the checkout alert?"
+      }],
       "display": { "graph": false, "colorMode": "background" } },
     { "id": "p_note", "type": "text", "title": "Notes",
       "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },

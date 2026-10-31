@@ -247,6 +247,18 @@ func canvasPanelJSON(id, label, actions string) string {
 	return fmt.Sprintf(`{"id":%q,"type":"canvas","title":"Diagram","gridPos":{"x":6,"y":0,"w":6,"h":4},"datasource":%q,"queries":[{"query":"count(up)"}],"display":{"elements":[{"id":"btn","kind":"button","left":10,"top":10,"width":20,"height":20,"text":%q%s}]}}`, id, fakeUID, label, actions)
 }
 
+func fieldPanelJSON(id string, y int, extra string) string {
+	return fmt.Sprintf(`{"id":%q,"type":"stat","title":"Up","gridPos":{"x":0,"y":%d,"w":6,"h":4},"datasource":%q,"queries":[{"query":"count(up)"}]%s}`, id, y, fakeUID, extra)
+}
+
+func overridesJSON(entries ...string) string {
+	return `,"overrides":[` + strings.Join(entries, ",") + `]`
+}
+
+func overrideJSON(field, extra string) string {
+	return fmt.Sprintf(`{"match":{"field":%q}%s}`, field, extra)
+}
+
 const (
 	deployActions = `,"actions":[{"title":"Deploy","method":"POST","url":"https://deploy.example.com/api"}]`
 	otherActions  = `,"actions":[{"title":"Deploy","method":"DELETE","url":"https://deploy.example.com/api"}]`
@@ -351,6 +363,51 @@ func TestImportOnlyIssuesForHTMLAndActions(t *testing.T) {
 	}
 }
 
+func TestImportOnlyIssuesForFieldActions(t *testing.T) {
+	const fieldActions = `,"actions":[{"title":"Page","url":"https://deploy.example.com/page","variables":[{"key":"who","name":"Who"}]}]`
+	const otherFieldActions = `,"actions":[{"title":"Page","url":"https://deploy.example.com/page","oneClick":true}]`
+	withPanel := mustParse(t, fieldPanelJSON("p_up", 0, fieldActions))
+	withoutActions := mustParse(t, fieldPanelJSON("p_up", 0, ""))
+	withOverrides := mustParse(t, fieldPanelJSON("p_up", 0, overridesJSON(overrideJSON("a", `,"unit":"percent"`), overrideJSON("b", fieldActions))))
+	panelPath, overridePath := "/panels/0/actions", "/panels/0/overrides/1/actions"
+	actionCode := []spec.IssueCode{codeActionNotAllowed}
+
+	cases := []struct {
+		name   string
+		next   *spec.Dashboard
+		parent *spec.Dashboard
+		want   []spec.IssueCode
+		paths  []string
+	}{
+		{"create a panel action", mustParse(t, fieldPanelJSON("p_new", 0, fieldActions)), nil, actionCode, []string{panelPath}},
+		{"add a panel action to a panel without one", withPanel, withoutActions, actionCode, []string{panelPath}},
+		{"change a panel action", mustParse(t, fieldPanelJSON("p_up", 0, otherFieldActions)), withPanel, actionCode, []string{panelPath}},
+		{"keep a panel action and move the panel", mustParse(t, fieldPanelJSON("p_up", 8, fieldActions)), withPanel, nil, nil},
+		{"remove a panel action", withoutActions, withPanel, nil, nil},
+		{"add an override action", withOverrides, withoutActions, actionCode, []string{overridePath}},
+		{"change an override action", mustParse(t, fieldPanelJSON("p_up", 0, overridesJSON(overrideJSON("a", `,"unit":"percent"`), overrideJSON("b", otherFieldActions)))), withOverrides, actionCode, []string{overridePath}},
+		{"move an override whose actions are unchanged", mustParse(t, fieldPanelJSON("p_up", 0, overridesJSON(overrideJSON("b", fieldActions), overrideJSON("a", `,"unit":"percent"`)))), withOverrides, nil, nil},
+		{"carry actions to an override with another match", mustParse(t, fieldPanelJSON("p_up", 0, overridesJSON(overrideJSON("a", `,"unit":"percent"`), overrideJSON("c", fieldActions)))), withOverrides, actionCode, []string{overridePath}},
+		{"remove the override actions", mustParse(t, fieldPanelJSON("p_up", 0, overridesJSON(overrideJSON("a", `,"unit":"percent"`), overrideJSON("b", `,"unit":"percent"`)))), withOverrides, nil, nil},
+		{"keep both inside a row", mustParse(t, rowPanel("r_a", 0, fieldPanelJSON("p_up", 1, fieldActions))), withPanel, nil, nil},
+		{"reuse the id of another panel for a field action", mustParse(t, strings.Replace(fieldPanelJSON("p_up", 0, fieldActions), `"stat"`, `"table"`, 1)), mustParse(t, statPanel("p_up", 0)), actionCode, []string{panelPath}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			issues := importOnlyIssues(tc.next, tc.parent)
+			var codes []spec.IssueCode
+			var paths []string
+			for _, issue := range issues {
+				codes = append(codes, issue.Code)
+				paths = append(paths, issue.Path)
+			}
+			if !slices.Equal(codes, tc.want) || !slices.Equal(paths, tc.paths) {
+				t.Fatalf("issues = %+v, want codes %v at %v", issues, tc.want, tc.paths)
+			}
+		})
+	}
+}
+
 func TestImportOnlyMessagesTellTheAgentWhatToDo(t *testing.T) {
 	html := importOnlyIssues(mustParse(t, textPanelJSON("t_new", "<div>", "", 0)), nil)
 	if len(html) != 1 || html[0].Message != "the agent cannot write HTML; write Markdown without tags, or leave this imported panel unchanged" {
@@ -359,6 +416,10 @@ func TestImportOnlyMessagesTellTheAgentWhatToDo(t *testing.T) {
 	action := importOnlyIssues(mustParse(t, canvasPanelJSON("c_new", "Deploy", deployActions)), nil)
 	if len(action) != 1 || action[0].Message != "the agent cannot add or change canvas actions; keep them as they are or remove the element" {
 		t.Fatalf("action issues = %+v", action)
+	}
+	field := importOnlyIssues(mustParse(t, fieldPanelJSON("p_new", 0, `,"actions":[{"title":"Page","url":"https://deploy.example.com/page"}]`)), nil)
+	if len(field) != 1 || field[0].Message != "the agent cannot add or change field actions; keep them as they are or remove them" {
+		t.Fatalf("field action issues = %+v", field)
 	}
 }
 
@@ -376,6 +437,9 @@ func TestNeedsImportOnlyCheck(t *testing.T) {
 		{"canvas without actions", mustParse(t, canvasPanelJSON("c_map", "Deploy", "")), false},
 		{"canvas with an action", mustParse(t, canvasPanelJSON("c_map", "Deploy", deployActions)), true},
 		{"html inside a row", mustParse(t, rowPanel("r_a", 0, textPanelJSON("t_note", "<i>x</i>", "", 1))), true},
+		{"panel field action", mustParse(t, fieldPanelJSON("p_up", 0, `,"actions":[{"title":"Page","url":"https://deploy.example.com/page"}]`)), true},
+		{"override field action", mustParse(t, fieldPanelJSON("p_up", 0, overridesJSON(overrideJSON("b", `,"actions":[{"title":"Page","url":"https://deploy.example.com/page"}]`)))), true},
+		{"override without actions", mustParse(t, fieldPanelJSON("p_up", 0, overridesJSON(overrideJSON("b", `,"unit":"percent"`)))), false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

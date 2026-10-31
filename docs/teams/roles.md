@@ -17,7 +17,7 @@ A key is never on a list, so a key has what its role gives.
 Creating folders, managing saved prompts and the Admin pages follow the role only.
 A request the role does not allow is refused with `403` and the code `forbidden_role`.
 A service-account key can never create or revoke keys, whatever its role.
-A canvas action sends a request to another site on a person's behalf (see [Canvas actions](../operate/outbound-access.md#canvas-actions)), so it needs Edit on the dashboard and a person: a service-account key cannot run one, whatever its role.
+A canvas action sends a request to another site on a person's behalf (see [Actions](../operate/outbound-access.md#actions)), so it needs Edit on the dashboard and a person: a service-account key cannot run one, whatever its role.
 
 A person's role is decided in this order, and the first rule that applies wins:
 
