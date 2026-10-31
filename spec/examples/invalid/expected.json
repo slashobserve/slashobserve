@@ -7,6 +7,7 @@
     { "file": "schema/bad-datasource-uid.json", "layer": "schema", "code": "schema", "path": "/panels/0/datasource" },
     { "file": "schema/bad-datasource-ref.json", "layer": "schema", "code": "schema", "path": "/panels/0/datasource" },
     { "file": "schema/unknown-unit.json", "layer": "schema", "code": "unknown_unit", "path": "/panels/0/unit" },
+    { "file": "schema/reducer-percentile-out-of-range.json", "layer": "schema", "code": "schema", "path": "/panels/0/display/reduce" },
     { "file": "schema/custom-variable-without-options.json", "layer": "schema", "code": "schema", "path": "/variables/0" },
     { "file": "schema/grid-width.json", "layer": "schema", "code": "schema", "path": "/panels/0/gridPos/w" },
     { "file": "schema/wrong-spec-version.json", "layer": "schema", "code": "schema", "path": "/specVersion" },

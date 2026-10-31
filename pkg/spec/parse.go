@@ -301,6 +301,12 @@ func (c *issueCollector) collect(ve *jsonschema.ValidationError) {
 		c.issues = append(c.issues, unitIssue(ve))
 		return
 	}
+	if _, ok := ve.ErrorKind.(*kind.AnyOf); ok {
+		if leaves, ok := enumLeaves(ve); ok {
+			c.issues = append(c.issues, c.leafIssue(leaves[0]))
+			return
+		}
+	}
 	causes := ve.Causes
 	if _, ok := ve.ErrorKind.(*kind.OneOf); ok && len(causes) > 0 {
 		if branch, ok := presentExclusiveBranch(ve); ok {
@@ -345,6 +351,27 @@ func (c *issueCollector) collect(ve *jsonschema.ValidationError) {
 	for _, cause := range causes {
 		c.collect(cause)
 	}
+}
+
+func enumLeaves(ve *jsonschema.ValidationError) ([]*jsonschema.ValidationError, bool) {
+	switch ve.ErrorKind.(type) {
+	case *kind.Enum:
+		return []*jsonschema.ValidationError{ve}, len(ve.Causes) == 0
+	case *kind.AnyOf, *kind.Reference:
+		var leaves []*jsonschema.ValidationError
+		for _, cause := range ve.Causes {
+			if !slices.Equal(cause.InstanceLocation, ve.InstanceLocation) {
+				return nil, false
+			}
+			found, ok := enumLeaves(cause)
+			if !ok {
+				return nil, false
+			}
+			leaves = append(leaves, found...)
+		}
+		return leaves, len(leaves) > 0
+	}
+	return nil, false
 }
 
 type exclusiveMembers struct {
