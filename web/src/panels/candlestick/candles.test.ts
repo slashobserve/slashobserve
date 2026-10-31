@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest"
 
+import type { DataPanel } from "@/spec"
+
+import { createFieldResolver } from "../field-config"
+import { alignFrames } from "../timeseries/align"
+import { chartSeries, plotStateFor } from "../timeseries/plot-model"
+import { candidateRows } from "../timeseries/tooltip-rows"
 import type { PreparedFrame } from "../transforms"
 import {
   bodyWidth,
+  candleConfigs,
   candleOptions,
   directions,
   findCandleField,
@@ -282,5 +289,88 @@ describe("geometry", () => {
     expect(volumeHeight(null, 100, 500)).toBe(0)
     expect(volumeHeight(-1, 100, 500)).toBe(0)
     expect(volumeHeight(5, 0, 500)).toBe(0)
+  })
+})
+
+describe("candleConfigs", () => {
+  const prices = ["Open", "High", "Low", "Close"]
+  const source = {
+    ref: "A",
+    fields: [
+      { name: "time", type: "time", values: [1000, 2000] },
+      ...prices.map((name) => ({
+        name,
+        type: "number" as const,
+        values: [1, 2],
+      })),
+      { name: "Extra", type: "number", values: [3, 4] },
+    ],
+  } as PreparedFrame
+
+  function drawn(props: Record<string, unknown>) {
+    const panel = {
+      id: "p1",
+      title: "Candles",
+      gridPos: { x: 0, y: 0, w: 12, h: 8 },
+      type: "candlestick",
+      datasource: "prom",
+      queries: [{ query: "up" }],
+      valueTransform: "negativeY",
+      fillBelowTo: "Open",
+      overrides: [{ match: { field: "Extra" }, ...props }],
+    } as unknown as DataPanel
+    const selection = selectCandles(
+      [source],
+      candleOptions({ mode: "candles", includeAllFields: true })
+    )
+    if (selection.reason !== null) throw new Error(selection.reason)
+    const placed = alignFrames([selection.frame], (_frame, field) => field.name)
+    const configs = candleConfigs(
+      placed.series,
+      selection.columns,
+      createFieldResolver(panel).configFor,
+      false
+    )
+    const series = chartSeries(placed.series, configs, new Map())
+    const { state } = plotStateFor(placed.xs, [], series, new Set())
+    return { configs, series, state }
+  }
+
+  it("draws an extra series negated and leaves it out of the tooltip rows", () => {
+    const { series, state } = drawn({ hideInTooltip: true })
+    const extra = series.findIndex(({ label }) => label === "Extra")
+    expect(state.data[1 + extra]).toEqual([-3, -4])
+    const rows = candidateRows(
+      series.map((entry) => ({
+        hideInTooltip: entry.config.hideInTooltip,
+        values: entry.values,
+      })),
+      0,
+      () => true
+    )
+    expect(rows.map(({ index }) => series[index].label)).toEqual(prices)
+  })
+
+  it("keeps the candle columns un-transformed and in the legend only when listed", () => {
+    const { configs, state } = drawn({ valueTransform: "negativeY" })
+    expect(configs.slice(0, 4).map((c) => c.valueTransform)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ])
+    expect(configs.slice(0, 4).map((c) => c.fillBelowTo)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ])
+    expect(configs.slice(0, 4).map((c) => c.hideInLegend)).toEqual([
+      true,
+      true,
+      true,
+      true,
+    ])
+    expect(state.data[1]).toEqual([1, 2])
   })
 })

@@ -1,4 +1,6 @@
+import type { FieldConfig } from "../field-config"
 import { thresholdColor } from "../thresholds"
+import type { AlignedSeries } from "../timeseries/align"
 import type { Cell } from "../timeseries/stack"
 import {
   matchesName,
@@ -203,4 +205,40 @@ export function volumeHeight(
 ): number {
   if (!isNumber(value) || value <= 0 || maxVolume <= 0) return 0
   return (value / maxVolume) * plotHeight * volumeShare
+}
+
+function candleColumnConfig(
+  config: FieldConfig,
+  role: CandleRole,
+  listed: boolean
+): FieldConfig {
+  return {
+    ...config,
+    style: "line",
+    fill: 0,
+    stack: "none",
+    hidden: false,
+    hideInLegend: listed ? config.hideInLegend : true,
+    insertNulls: undefined,
+    nullAsZero: false,
+    valueTransform: undefined,
+    fillBelowTo: undefined,
+    axis: role === "volume" ? "hidden" : "left",
+  }
+}
+
+export function candleConfigs(
+  series: readonly Pick<AlignedSeries, "frame" | "field">[],
+  columns: readonly CandleColumn[],
+  configFor: (frame: PreparedFrame, field: PreparedField) => FieldConfig,
+  listed: boolean
+): FieldConfig[] {
+  const roles = new Map(columns.map(({ role, field }) => [field, role]))
+  return series.map(({ frame, field }) => {
+    const config = configFor(frame, field)
+    const role = roles.get(field)
+    return role === undefined
+      ? config
+      : candleColumnConfig(config, role, listed)
+  })
 }
