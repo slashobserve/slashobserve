@@ -226,7 +226,7 @@ func TestARetriedRequestWithoutAnImportAnswers200WithTheDashboardAlone(t *testin
 
 func TestTheRoutesRefuseWithBusyBeforeReadingTheBody(t *testing.T) {
 	svc := imports.New(nil, nil, nil, nil, slog.New(slog.DiscardHandler))
-	router := newRouter(svc, nil)
+	router := newRouter(svc, newRig(t).access)
 	for _, c := range []struct {
 		path string
 		hold func(auth.Principal) (func(), bool)

@@ -15,16 +15,22 @@ var ErrForbidden = errors.New(forbidden.RoleMessage)
 
 const requesterForbiddenMessage = "the person or key that asked no longer has access to change this dashboard"
 
-func runAllowed(source Source, hasDashboard bool, role auth.Role, a folders.Abilities) bool {
+func runAllowed(source Source, hasDashboard, canCreate bool, a folders.Abilities) bool {
 	if hasDashboard {
 		return a.Edit
 	}
-	return source == SourceObserve && role.AtLeast(auth.RoleEditor)
+	return source == SourceObserve && canCreate
 }
 
 func (s *Service) checkRun(ctx context.Context, source Source, dashboardID pgtype.UUID, by auth.Principal) error {
 	if !dashboardID.Valid {
-		if !runAllowed(source, false, by.Role, folders.Abilities{}) {
+		levels, err := s.access.Levels(ctx, by)
+		switch {
+		case errors.Is(err, folders.ErrForbidden):
+			return ErrForbidden
+		case err != nil:
+			return err
+		case !runAllowed(source, false, levels.CanCreate(), folders.Abilities{}):
 			return ErrForbidden
 		}
 		return nil
@@ -37,7 +43,7 @@ func (s *Service) checkRun(ctx context.Context, source Source, dashboardID pgtyp
 		return ErrForbidden
 	case err != nil:
 		return err
-	case !runAllowed(source, true, by.Role, access.Abilities):
+	case !runAllowed(source, true, false, access.Abilities):
 		return ErrForbidden
 	}
 	return nil

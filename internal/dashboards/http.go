@@ -61,7 +61,7 @@ type restoreRequest struct {
 
 func (s *Service) Register(api auth.Routes) {
 	g := api.Group("/dashboards")
-	g.POST("", auth.RoleEditor, s.createDashboard)
+	g.POST("", auth.RoleViewer, s.createDashboard)
 	g.GET("", auth.RoleViewer, s.listDashboards)
 	g.GET("/tags", auth.RoleViewer, s.listTags)
 	view := s.access.RequireDashboard(folders.NeedView)
@@ -73,7 +73,7 @@ func (s *Service) Register(api auth.Routes) {
 	g.GET("/:id/versions/:version", auth.RoleViewer, view, s.getVersion)
 	g.POST("/:id/versions", auth.RoleViewer, edit, s.addVersion)
 	g.POST("/:id/versions/:version/restore", auth.RoleViewer, edit, s.restoreVersion)
-	g.POST("/:id/duplicate", auth.RoleEditor, view, s.duplicateDashboard)
+	g.POST("/:id/duplicate", auth.RoleViewer, view, s.duplicateDashboard)
 	g.GET("/:id/diff", auth.RoleViewer, view, s.diff)
 }
 
