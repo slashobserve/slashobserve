@@ -32,6 +32,7 @@
     { "id": "options.tooltip.hideZeros=true", "path": "options.tooltip.hideZeros", "value": true },
     { "id": "options.tooltip.maxWidth=300", "path": "options.tooltip.maxWidth", "value": 300 },
     { "id": "options.tooltip.maxHeight=200", "path": "options.tooltip.maxHeight", "value": 200 },
+    { "id": "fieldConfig.defaults.color.mode=continuous-GrYlRd", "path": "fieldConfig.defaults.color.mode", "value": "continuous-GrYlRd" },
     { "id": "fieldConfig.defaults.custom.lineWidth=3", "path": "fieldConfig.defaults.custom.lineWidth", "value": 3 },
     { "id": "fieldConfig.defaults.custom.fillOpacity=40", "path": "fieldConfig.defaults.custom.fillOpacity", "value": 40 },
     { "id": "fieldConfig.defaults.custom.spanNulls=true", "path": "fieldConfig.defaults.custom.spanNulls", "value": true },

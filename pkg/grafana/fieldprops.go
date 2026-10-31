@@ -737,6 +737,7 @@ var seriesColoredTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Tre
 
 var schemeColoredTypes = map[spec.PanelType]bool{
 	spec.Stat: true, spec.Gauge: true, spec.BarGauge: true, spec.Table: true, spec.BarChart: true, spec.XYChart: true,
+	spec.StateTimeline: true, spec.StatusHistory: true,
 }
 
 var thresholdColoredTypes = map[spec.PanelType]bool{
