@@ -95,10 +95,7 @@ It is also covered when an entry above it holds the rest of the path in its valu
 A panel's own `type`, a variable's `type`, a transformation's `id`, the dashboard's export keys (`__inputs`, `__requires`, `__elements`) and the copies Grafana saved of repeated panels are not options.
 The entries of the `panel` and `fieldconfig` areas are generic to every panel type, and a datasource reference's `type` never counts as a discriminator.
 
-The options that are not covered yet are listed in `testdata/uncatalogued/<scope>.txt`, one sorted line per option, with the discriminating `id:` or `type:` after the path where there is one.
-The lists only shrink: a line there that is covered now fails the test, and `-uncatalogued.prune` deletes such lines.
-A plan that catalogues an option deletes its line in the same commit.
-`-uncatalogued.seed` writes the directory only when it does not exist.
+A new corpus file therefore comes with the catalog entries of the options it uses, and the test fails with `<scope>: <option> is not catalogued; add a catalog entry` for any option that has none.
 
 Legacy and plugin panels are scoped by the Grafana type they are written with (`panel:graph`, `panel:singlestat`, `panel:natel-discrete-panel`), so their vocabulary never mixes with the modern panel's.
 An area for one of them uses a base panel of that type.

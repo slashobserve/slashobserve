@@ -186,6 +186,8 @@ var lineStyleDrawnOnlyByGrafana = map[spec.PanelType]bool{
 
 var heatmapPanelTypes = map[spec.PanelType]bool{spec.Heatmap: true}
 
+var hideFromVizOnlyTypes = union(heatmapPanelTypes, map[spec.PanelType]bool{spec.Canvas: true, spec.Geomap: true})
+
 var timelinePanelTypes = map[spec.PanelType]bool{spec.StateTimeline: true, spec.StatusHistory: true}
 
 var barPanelTypes = map[spec.PanelType]bool{spec.BarChart: true, spec.Histogram: true}
@@ -274,7 +276,7 @@ var propGates = []propGate{
 	{ids: propIDs("custom.stacking"), types: histogramPanelTypes, handler: propHistogramStacking},
 	{ids: propIDs("custom.hideFrom"), types: legendTooltipHidingTypes, handler: propHideFromLegendAndTooltip},
 	{ids: propIDs("custom.hideFrom"), types: timelinePanelTypes, handler: propHideFromTooltipOnly},
-	{ids: propIDs("custom.hideFrom"), types: heatmapPanelTypes, handler: propHideFromOneField},
+	{ids: propIDs("custom.hideFrom"), types: hideFromVizOnlyTypes, handler: propHideFromVizOnly},
 	{ids: propIDs("color"), types: heatmapPanelTypes, handler: propNotDrawn},
 	{ids: propIDs("custom.thresholdsStyle"), types: thresholdsStyleTypes, outside: true, skip: true},
 	{ids: propIDs("custom.insertNulls"), types: insertNullsTypes, outside: true, skip: true},
@@ -1391,7 +1393,7 @@ var hideFromReasons = map[string]string{
 var (
 	propHideFromLegendAndTooltip = hideFromHandler([]string{"legend", "tooltip"}, nil)
 	propHideFromTooltipOnly      = hideFromHandler([]string{"tooltip"}, []string{"legend"})
-	propHideFromOneField         = hideFromHandler(nil, []string{"legend", "tooltip"})
+	propHideFromVizOnly          = hideFromHandler(nil, []string{"legend", "tooltip"})
 	propHideFromUndrawn          = hideFromHandler(nil, nil)
 )
 

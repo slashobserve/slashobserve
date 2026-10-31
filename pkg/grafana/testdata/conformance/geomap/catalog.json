@@ -154,6 +154,9 @@
     { "id": "options.layers[0].config.color=red", "path": "options.layers[0].config.color", "value": "red", "with": {"options.layers[0].type": "photos"} },
     { "id": "options.layers[0].config.radius=20", "path": "options.layers[0].config.radius", "value": 20, "with": {"options.layers[0].type": "photos"} },
     { "id": "options.layers[0].config.src=photo-field", "path": "options.layers[0].config.src", "value": "photo", "with": {"options.layers[0].type": "photos"} },
-    { "id": "options.layers[1]=second-markers-layer", "path": "options.layers[1]", "value": {"type": "markers", "name": "Layer 2", "location": {"mode": "auto"}} }
+    { "id": "options.layers[1]=second-markers-layer", "path": "options.layers[1]", "value": {"type": "markers", "name": "Layer 2", "location": {"mode": "auto"}} },
+    { "id": "fieldConfig.defaults.custom.hideFrom.legend=true", "path": "fieldConfig.defaults.custom.hideFrom.legend", "value": true, "expect": "bookkeeping" },
+    { "id": "fieldConfig.defaults.custom.hideFrom.tooltip=true", "path": "fieldConfig.defaults.custom.hideFrom.tooltip", "value": true, "expect": "bookkeeping" },
+    { "id": "fieldConfig.defaults.custom.hideFrom.viz=true", "path": "fieldConfig.defaults.custom.hideFrom.viz", "value": true }
   ]
 }

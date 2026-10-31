@@ -1700,6 +1700,16 @@
   }
  },
  "panel:canvas": {
+  "fieldConfig.defaults.custom.hideFrom.viz": {
+   "fields": [
+    "hidden"
+   ],
+   "values": {
+    "b:true": [
+     "hidden"
+    ]
+   }
+  },
   "options.infinitePan": {
    "fields": [
     "display.infinitePan"
@@ -2594,6 +2604,16 @@
   }
  },
  "panel:geomap": {
+  "fieldConfig.defaults.custom.hideFrom.viz": {
+   "fields": [
+    "hidden"
+   ],
+   "values": {
+    "b:true": [
+     "hidden"
+    ]
+   }
+  },
   "options.basemap.config.attribution": {
    "fields": [
     "display.basemapAttribution"
@@ -6108,6 +6128,34 @@
    }
   }
  },
+ "panel:logstable": {
+  "options.cellHeight": {
+   "fields": [
+    "display.cellHeight"
+   ],
+   "values": {
+    "s:auto": [
+     "display.cellHeight"
+    ],
+    "s:lg": [
+     "display.cellHeight"
+    ],
+    "s:md": [
+     "display.cellHeight"
+    ]
+   }
+  },
+  "options.showHeader": {
+   "fields": [
+    "display.header"
+   ],
+   "values": {
+    "b:false": [
+     "display.header"
+    ]
+   }
+  }
+ },
  "panel:natel-discrete-panel": {
   "colorMaps": {
    "fields": [
@@ -6788,6 +6836,16 @@
     "actions[].variables[].key",
     "actions[].variables[].name"
    ]
+  },
+  "fieldConfig.defaults.custom.fillOpacity": {
+   "fields": [
+    "fill"
+   ],
+   "values": {
+    "n:30": [
+     "fill"
+    ]
+   }
   },
   "fieldConfig.defaults.links": {
    "fields": [
