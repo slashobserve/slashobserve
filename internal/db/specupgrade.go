@@ -87,29 +87,48 @@ WHERE (dashboard_id, version) > ($2::uuid, $3) ORDER BY dashboard_id, version LI
 	return page, nil
 }
 
+type SpecUpgradeError struct {
+	DashboardID string
+	Version     int
+	Err         error
+}
+
+func (e *SpecUpgradeError) Error() string {
+	return fmt.Sprintf("dashboard %s version %d: %s", e.DashboardID, e.Version, e.Err)
+}
+
+func (e *SpecUpgradeError) Unwrap() error { return e.Err }
+
 func upgradeStoredSpec(ctx context.Context, tx *sql.Tx, row storedSpec) error {
+	if err := rewriteStoredSpec(ctx, tx, row); err != nil {
+		return &SpecUpgradeError{DashboardID: row.dashboardID, Version: row.version, Err: err}
+	}
+	return nil
+}
+
+func rewriteStoredSpec(ctx context.Context, tx *sql.Tx, row storedSpec) error {
 	out, changed, err := spec.Upgrade([]byte(row.text))
 	if err != nil {
-		return fmt.Errorf("upgrade the spec of dashboard %s version %d: %w", row.dashboardID, row.version, err)
+		return fmt.Errorf("upgrade the spec: %w", err)
 	}
 	if !changed {
 		return nil
 	}
 	if _, err := spec.Parse(out); err != nil {
-		return fmt.Errorf("the upgraded spec of dashboard %s version %d is not a valid Spec: %s", row.dashboardID, row.version, describeParseFailure(err))
+		return fmt.Errorf("the upgraded spec is not a valid Spec: %s", describeParseFailure(err))
 	}
 	result, err := tx.ExecContext(ctx,
 		`UPDATE dashboard_versions SET spec = $1::jsonb WHERE dashboard_id = $2::uuid AND version = $3`,
 		string(out), row.dashboardID, row.version)
 	if err != nil {
-		return fmt.Errorf("store the upgraded spec of dashboard %s version %d: %w", row.dashboardID, row.version, err)
+		return fmt.Errorf("store the upgraded spec: %w", err)
 	}
 	affected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("store the upgraded spec of dashboard %s version %d: %w", row.dashboardID, row.version, err)
+		return fmt.Errorf("store the upgraded spec: %w", err)
 	}
 	if affected != 1 {
-		return fmt.Errorf("store the upgraded spec of dashboard %s version %d: updated %d rows, want 1", row.dashboardID, row.version, affected)
+		return fmt.Errorf("store the upgraded spec: updated %d rows, want 1", affected)
 	}
 	return nil
 }

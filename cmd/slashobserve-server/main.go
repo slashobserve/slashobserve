@@ -114,6 +114,10 @@ func migrationExit(err error) error {
 	if version, ok := db.FailedMigrationVersion(err); ok {
 		exit.attrs = []any{slog.Int64("migration_version", version)}
 	}
+	var upgradeErr *db.SpecUpgradeError
+	if errors.As(err, &upgradeErr) {
+		exit.attrs = append(exit.attrs, slog.String("dashboard_id", upgradeErr.DashboardID), slog.Int("dashboard_version", upgradeErr.Version))
+	}
 	return exit
 }
 

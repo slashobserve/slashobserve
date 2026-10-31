@@ -69,6 +69,22 @@ func TestMigrationFailureNamesTheVersionAndSQLState(t *testing.T) {
 	}
 }
 
+func TestSpecUpgradeMigrationFailureNamesTheDashboardAndVersionWithoutSpecContent(t *testing.T) {
+	failed := fmt.Errorf("apply migrations: %w", &goose.PartialError{
+		Failed: &goose.MigrationResult{Source: &goose.Source{Version: 10}},
+		Err: &db.SpecUpgradeError{
+			DashboardID: "00000000-0000-4000-8000-00000000000a",
+			Version:     3,
+			Err:         errors.New("the upgraded spec is not a valid Spec: SECRET"),
+		},
+	})
+	record, logs := logExit(t, migrationExit(failed))
+	logs.AssertSafeFailure(t, record, "migration_failed", "SECRET")
+	if record["migration_version"] != float64(10) || record["dashboard_id"] != "00000000-0000-4000-8000-00000000000a" || record["dashboard_version"] != float64(3) {
+		t.Errorf("record = %v, want migration_version 10, the dashboard id and version 3", record)
+	}
+}
+
 func TestDatasourceFailureNamesTheUIDAndOnlyServerWrittenText(t *testing.T) {
 	sources := []config.Datasource{
 		{UID: "prom_bad", Type: "prometheus", Prometheus: &config.PrometheusDatasource{URL: fmt.Sprintf("ftp://%s:%s@metrics.internal", "user", "pw")}},

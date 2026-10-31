@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"os"
 	"reflect"
 	"strings"
@@ -213,6 +214,10 @@ func TestUpgradeStoredSpecsFailsLoudly(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), dashboardA) || !strings.Contains(err.Error(), " version 2") {
 		t.Errorf("error %q does not name the dashboard and version", err)
+	}
+	var upgradeErr *db.SpecUpgradeError
+	if !errors.As(err, &upgradeErr) || upgradeErr.DashboardID != dashboardA || upgradeErr.Version != 2 {
+		t.Errorf("error %v does not carry dashboard %s version 2 as a SpecUpgradeError", err, dashboardA)
 	}
 	if got := decodeJSON(t, storedSpec(t, sqlDB, dashboardA, 2)); !reflect.DeepEqual(got, decodeJSON(t, broken)) {
 		t.Error("the broken row changed although the migration failed")
