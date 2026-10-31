@@ -137,32 +137,7 @@ var typeDefaults = map[spec.PanelType]map[string]any{
 		"options.colors.flat": "gray",
 	},
 	spec.StateTimeline: {
-		"display":              "timeline",
-		"rowHeight":            50,
-		"metricNameColor":      "#000000",
-		"valueTextColor":       "#000000",
-		"timeTextColor":        "#d8d9da",
-		"crosshairColor":       "#8F070C",
-		"backgroundColor":      "rgba(128,128,128,0.1)",
-		"lineColor":            "rgba(0,0,0,0.1)",
-		"textSize":             24,
-		"textSizeTime":         12,
-		"extendLastValue":      true,
-		"writeLastValue":       true,
-		"writeAllValues":       false,
-		"writeMetricNames":     false,
-		"showTimeAxis":         true,
-		"showLegend":           true,
-		"showLegendNames":      true,
-		"showLegendValues":     true,
-		"showLegendPercent":    true,
-		"highlightOnMouseover": true,
-		"expandFromQueryS":     0,
-		"legendSortBy":         "-ms",
-		"timePrecision.name":   "Minutes",
-		"timePrecision.value":  "minutes",
-		"useTimePrecision":     false,
-		"use12HourClock":       false,
+		"showLegend": true,
 	},
 	spec.Geomap: {
 		"options.tooltip.mode":                                  "details",
@@ -193,15 +168,7 @@ var typeDefaults = map[spec.PanelType]map[string]any{
 		"options.layers[].config.style.textConfig.offsetY":      0,
 		"options.layers[].config.style.textConfig.textAlign":    "center",
 		"options.layers[].config.style.textConfig.textBaseline": "middle",
-		"esMetric":                     "Count",
-		"hideEmpty":                    false,
-		"hideZero":                     false,
-		"showLegend":                   true,
-		"stickyLabels":                 false,
-		"mouseWheelZoom":               false,
-		"unitSingle":                   "",
-		"unitPlural":                   "",
-		"tableQueryOptions.labelField": "",
+		"mouseWheelZoom":                                        false,
 	},
 	spec.Canvas: {
 		"options.panZoom":     false,
@@ -226,6 +193,23 @@ const graphMigrationIgnores = "Grafana's time series migration does not read it"
 
 const singlestatMigrationSkips = "Grafana's stat migration does not read it"
 
+const worldmapMigrationSkips = "Grafana's geomap migration does not read it"
+
+var worldmapIgnoredKeys = []string{
+	"esMetric", "hideEmpty", "hideZero", "showLegend", "stickyLabels", "tableQueryOptions.labelField",
+	"unitPlural", "unitSingle",
+}
+
+const discreteMigrationSkips = "Grafana's state timeline migration does not read it"
+
+var discreteIgnoredKeys = []string{
+	"backgroundColor", "crosshairColor", "display", "expandFromQueryS", "extendLastValue",
+	"highlightOnMouseover", "legendSortBy", "lineColor", "metricNameColor", "rowHeight",
+	"showLegendNames", "showLegendPercent", "showLegendValues", "showTimeAxis", "textSize",
+	"textSizeTime", "timePrecision.name", "timePrecision.value", "timeTextColor", "use12HourClock",
+	"useTimePrecision", "valueTextColor", "writeAllValues", "writeLastValue", "writeMetricNames",
+}
+
 var legacySinglestatIgnored = map[string]string{
 	"colorPrefix":          singlestatMigrationSkips,
 	"colorPostfix":         singlestatMigrationSkips,
@@ -241,6 +225,8 @@ var legacySinglestatIgnored = map[string]string{
 	"minSpan":              singlestatMigrationSkips,
 	"nullPointMode":        "the stat reducers skip nulls in both modes, and a connected first value is imported as firstNotNull",
 }
+
+const annotationLanesSkipped = "Grafana 12.3 time series panels define no annotation lanes or clustering"
 
 var anyPanelScope = optionScope("panel:*")
 
@@ -319,7 +305,13 @@ var ignoredOptions = map[optionScope]map[string]string{
 	panelScope("table-old"):                ignoredBecause("an Angular table never reads graph options", graphKeysOnTables),
 	panelScope(spec.Heatmap):               ignoredBecause("a migrated heatmap reads `options` only", angularHeatmapKeys),
 	panelScope(spec.StateTimeline):         stateLegendIgnored,
+	panelScope(discreteSource):             ignoredBecause(discreteMigrationSkips, discreteIgnoredKeys),
+	panelScope(worldmapSource):             ignoredBecause(worldmapMigrationSkips, worldmapIgnoredKeys),
 	panelScope(spec.StatusHistory):         stateLegendIgnored,
+	panelScope(spec.Timeseries): {
+		"options.annotations.multiLane":  annotationLanesSkipped,
+		"options.annotations.clustering": annotationLanesSkipped,
+	},
 	panelScope(spec.BarChart): {
 		"options.text.titleSize":   "bar charts draw no title text",
 		"options.text.percentSize": "bar charts draw no percent text",
@@ -339,7 +331,6 @@ var partialReasons = map[string]string{
 	"transformations":                               "Some transformations are not supported yet.",
 	"options.legend.displayMode":                    legendTableReason,
 	"options.legend.asTable":                        legendTableReason,
-	"rowHeight":                                     "A row height in pixels is not supported; rows share the height of the panel.",
 	"options.statColorMode":                         "The colors of the stat view are not supported yet.",
 	"options.statValueMappings":                     "The colors of the stat view are not supported yet.",
 }

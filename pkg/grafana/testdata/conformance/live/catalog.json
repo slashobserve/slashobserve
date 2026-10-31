@@ -1,0 +1,14 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/live/types.ts",
+    "public/app/plugins/panel/live/module.tsx"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    {"id": "options.channel=stream", "path": "options.channel", "value": {"scope": "stream", "namespace": "testdata", "path": "random-2s-stream"}, "with": {"type": "live"}, "expect": "excluded"},
+    {"id": "options.display=raw", "path": "options.display", "value": "raw", "with": {"type": "live"}, "expect": "excluded"},
+    {"id": "options.publish=json", "path": "options.publish", "value": "json", "with": {"type": "live"}, "expect": "excluded"},
+    {"id": "options.message=hello", "path": "options.message", "value": "hello", "with": {"type": "live"}, "expect": "excluded"}
+  ]
+}

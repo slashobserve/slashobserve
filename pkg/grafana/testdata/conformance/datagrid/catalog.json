@@ -1,0 +1,11 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/datagrid/panelcfg.cue",
+    "public/app/plugins/panel/datagrid/module.tsx"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    {"id": "options.selectedSeries=1", "path": "options.selectedSeries", "value": 1}
+  ]
+}

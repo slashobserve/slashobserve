@@ -1,0 +1,14 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/logs-new/panelcfg.cue",
+    "public/app/plugins/panel/logs-new/module.tsx"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    {"id": "options.enableLogDetails=false", "path": "options.enableLogDetails", "value": false},
+    {"id": "options.showTime=true", "path": "options.showTime", "value": true},
+    {"id": "options.sortOrder=Ascending", "path": "options.sortOrder", "value": "Ascending"},
+    {"id": "options.wrapLogMessage=true", "path": "options.wrapLogMessage", "value": true}
+  ]
+}

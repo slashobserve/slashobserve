@@ -2360,6 +2360,18 @@
    ]
   }
  },
+ "panel:datagrid": {
+  "options.selectedSeries": {
+   "fields": [
+    "display.frameIndex"
+   ],
+   "values": {
+    "n:1": [
+     "display.frameIndex"
+    ]
+   }
+  }
+ },
  "panel:flamegraph": {
   "fieldConfig.defaults.decimals": {
    "fields": [
@@ -3700,6 +3712,214 @@
    "values": {
     "s:max": [
      "display.reduce"
+    ]
+   }
+  }
+ },
+ "panel:grafana-worldmap-panel": {
+  "circleMaxSize": {
+   "fields": [
+    "display.markerSizeMax"
+   ],
+   "values": {
+    "n:20": [
+     "display.markerSizeMax"
+    ]
+   }
+  },
+  "circleMinSize": {
+   "fields": [
+    "display.markerSize"
+   ],
+   "values": {
+    "n:3": [
+     "display.markerSize"
+    ]
+   }
+  },
+  "colors": {
+   "fields": [
+    "thresholds[].color",
+    "thresholds[].value"
+   ]
+  },
+  "decimals": {
+   "fields": [
+    "decimals"
+   ],
+   "values": {
+    "n:2": [
+     "decimals"
+    ]
+   }
+  },
+  "initialZoom": {
+   "fields": [
+    "display.zoom"
+   ],
+   "values": {
+    "s:3": [
+     "display.zoom"
+    ]
+   }
+  },
+  "locationData": {
+   "fields": [
+    "display",
+    "display.layers[]",
+    "display.location"
+   ],
+   "values": {
+    "s:countries": [
+     "display.layers[]"
+    ],
+    "s:countries_3letter": [
+     "display.layers[]"
+    ],
+    "s:geohash": [
+     "display.location"
+    ],
+    "s:states": [
+     "display.layers[]"
+    ],
+    "s:table": [
+     "display"
+    ]
+   }
+  },
+  "mapCenter": {
+   "fields": [
+    "display.lat",
+    "display.lon",
+    "display.view"
+   ],
+   "values": {
+    "s:custom": [
+     "display.lat",
+     "display.lon",
+     "display.view"
+    ]
+   }
+  },
+  "mapCenterLatitude": {
+   "fields": [
+    "display.lat"
+   ],
+   "values": {
+    "n:20": [
+     "display.lat"
+    ]
+   }
+  },
+  "mapCenterLongitude": {
+   "fields": [
+    "display.lon"
+   ],
+   "values": {
+    "n:10": [
+     "display.lon"
+    ]
+   }
+  },
+  "mouseWheelZoom": {
+   "fields": [
+    "display.mouseWheelZoom"
+   ],
+   "values": {
+    "b:true": [
+     "display.mouseWheelZoom"
+    ]
+   }
+  },
+  "tableQueryOptions.geohashField": {
+   "fields": [
+    "display.geohashField"
+   ],
+   "values": {
+    "s:hash": [
+     "display.geohashField"
+    ]
+   }
+  },
+  "tableQueryOptions.latitudeField": {
+   "fields": [
+    "display.latField"
+   ],
+   "values": {
+    "s:lat": [
+     "display.latField"
+    ]
+   }
+  },
+  "tableQueryOptions.longitudeField": {
+   "fields": [
+    "display.lonField"
+   ],
+   "values": {
+    "s:lon": [
+     "display.lonField"
+    ]
+   }
+  },
+  "tableQueryOptions.metricField": {
+   "fields": [
+    "display.colorField",
+    "display.sizeField"
+   ],
+   "values": {
+    "s:hits": [
+     "display.colorField",
+     "display.sizeField"
+    ]
+   }
+  },
+  "tableQueryOptions.queryType": {
+   "fields": [
+    "display.latField",
+    "display.location",
+    "display.lonField"
+   ],
+   "values": {
+    "s:coordinates": [
+     "display.latField",
+     "display.location",
+     "display.lonField"
+    ]
+   }
+  },
+  "thresholds": {
+   "fields": [
+    "thresholds[].color",
+    "thresholds[].value"
+   ],
+   "values": {
+    "s:10,100": [
+     "thresholds[].color",
+     "thresholds[].value"
+    ]
+   }
+  },
+  "valueName": {
+   "fields": [
+    "transform[].reducers[]",
+    "transform[].type"
+   ],
+   "values": {
+    "s:avg": [
+     "transform[].reducers[]",
+     "transform[].type"
+    ],
+    "s:max": [
+     "transform[].reducers[]",
+     "transform[].type"
+    ],
+    "s:min": [
+     "transform[].reducers[]",
+     "transform[].type"
+    ],
+    "s:total": [
+     "transform[].reducers[]",
+     "transform[].type"
     ]
    }
   }
@@ -5764,6 +5984,88 @@
      "display.wrap"
     ]
    }
+  }
+ },
+ "panel:logs-new": {
+  "options.enableLogDetails": {
+   "fields": [
+    "display.details"
+   ],
+   "values": {
+    "b:false": [
+     "display.details"
+    ]
+   }
+  },
+  "options.showTime": {
+   "fields": [
+    "display.showTime"
+   ],
+   "values": {
+    "b:true": [
+     "display.showTime"
+    ]
+   }
+  },
+  "options.sortOrder": {
+   "fields": [
+    "display.order"
+   ],
+   "values": {
+    "s:Ascending": [
+     "display.order"
+    ]
+   }
+  },
+  "options.wrapLogMessage": {
+   "fields": [
+    "display.wrap"
+   ],
+   "values": {
+    "b:true": [
+     "display.wrap"
+    ]
+   }
+  }
+ },
+ "panel:natel-discrete-panel": {
+  "colorMaps": {
+   "fields": [
+    "mappings[].color",
+    "mappings[].value"
+   ]
+  },
+  "rangeMaps": {
+   "fields": [
+    "mappings[].range[]",
+    "mappings[].text"
+   ]
+  },
+  "showLegend": {
+   "fields": [
+    "display.legend"
+   ],
+   "values": {
+    "b:false": [
+     "display.legend"
+    ]
+   }
+  },
+  "units": {
+   "fields": [
+    "unit"
+   ],
+   "values": {
+    "s:percent": [
+     "unit"
+    ]
+   }
+  },
+  "valueMaps": {
+   "fields": [
+    "mappings[].text",
+    "mappings[].value"
+   ]
   }
  },
  "panel:news": {

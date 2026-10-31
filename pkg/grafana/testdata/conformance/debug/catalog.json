@@ -1,0 +1,19 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/debug/panelcfg.cue",
+    "public/app/plugins/panel/debug/module.tsx"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    {"id": "options.mode=events", "path": "options.mode", "value": "events", "with": {"type": "debug"}, "expect": "excluded"},
+    {"id": "options.mode=cursor", "path": "options.mode", "value": "cursor", "with": {"type": "debug"}, "expect": "excluded"},
+    {"id": "options.mode=State", "path": "options.mode", "value": "State", "with": {"type": "debug"}, "expect": "excluded"},
+    {"id": "options.mode=ThrowError", "path": "options.mode", "value": "ThrowError", "with": {"type": "debug"}, "expect": "excluded"},
+    {"id": "options.counters.render=false", "path": "options.counters.render", "value": false, "with": {"type": "debug"}, "expect": "excluded"},
+    {"id": "options.counters.dataChanged=false", "path": "options.counters.dataChanged", "value": false, "with": {"type": "debug"}, "expect": "excluded"},
+    {"id": "options.counters.schemaChanged=false", "path": "options.counters.schemaChanged", "value": false, "with": {"type": "debug"}, "expect": "excluded"},
+    {"id": "options.stateView=dashboard", "path": "options.stateView", "value": "dashboard", "with": {"type": "debug"}, "expect": "excluded"},
+    {"id": "options.dashboardUID=abc", "path": "options.dashboardUID", "value": "abc", "with": {"type": "debug"}, "expect": "excluded"}
+  ]
+}

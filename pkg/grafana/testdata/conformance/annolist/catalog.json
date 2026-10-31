@@ -1,0 +1,20 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/annolist/panelcfg.cue",
+    "public/app/plugins/panel/annolist/module.tsx"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    {"id": "options.onlyFromThisDashboard=true", "path": "options.onlyFromThisDashboard", "value": true, "with": {"type": "annolist"}, "expect": "excluded"},
+    {"id": "options.onlyInTimeRange=true", "path": "options.onlyInTimeRange", "value": true, "with": {"type": "annolist"}, "expect": "excluded"},
+    {"id": "options.tags=prod", "path": "options.tags", "value": ["prod"], "with": {"type": "annolist"}, "expect": "excluded"},
+    {"id": "options.limit=25", "path": "options.limit", "value": 25, "with": {"type": "annolist"}, "expect": "excluded"},
+    {"id": "options.showUser=false", "path": "options.showUser", "value": false, "with": {"type": "annolist"}, "expect": "excluded"},
+    {"id": "options.showTime=false", "path": "options.showTime", "value": false, "with": {"type": "annolist"}, "expect": "excluded"},
+    {"id": "options.showTags=false", "path": "options.showTags", "value": false, "with": {"type": "annolist"}, "expect": "excluded"},
+    {"id": "options.navigateToPanel=false", "path": "options.navigateToPanel", "value": false, "with": {"type": "annolist"}, "expect": "excluded"},
+    {"id": "options.navigateBefore=1h", "path": "options.navigateBefore", "value": "1h", "with": {"type": "annolist"}, "expect": "excluded"},
+    {"id": "options.navigateAfter=1h", "path": "options.navigateAfter", "value": "1h", "with": {"type": "annolist"}, "expect": "excluded"}
+  ]
+}

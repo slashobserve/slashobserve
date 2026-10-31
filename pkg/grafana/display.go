@@ -433,13 +433,13 @@ func (b *panelBuild) textSize(path string) int {
 
 func displayTable(b *panelBuild) {
 	d := b.disp()
-	if b.n.sourceType == "datagrid" {
-		b.datagridOptions()
-	}
 	if flag, ok := b.boolOption("options.showHeader"); ok {
 		d.Header = flag
 	}
 	b.tableOptions(d)
+	if b.n.sourceType == "datagrid" {
+		b.datagridOptions(d)
+	}
 }
 
 func (b *panelBuild) footerReducers(v any, path string) []string {

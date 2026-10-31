@@ -1,0 +1,38 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/state-timeline/migrations.ts"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    { "id": "units=percent", "path": "units", "value": "percent" },
+    { "id": "valueMaps=op-text-value", "path": "valueMaps", "value": [{"op": "=", "text": "Up", "value": "1"}] },
+    { "id": "rangeMaps=from-to-text", "path": "rangeMaps", "value": [{"from": "0", "to": "10", "text": "Low"}] },
+    { "id": "colorMaps=color-text", "path": "colorMaps", "value": [{"color": "#299c46", "text": "Up"}] },
+    { "id": "showLegend=false", "path": "showLegend", "value": false },
+    { "id": "backgroundColor=dark", "path": "backgroundColor", "value": "#101010", "expect": "bookkeeping" },
+    { "id": "crosshairColor=red", "path": "crosshairColor", "value": "#ff0000", "expect": "bookkeeping" },
+    { "id": "display=stacked", "path": "display", "value": "stacked", "expect": "bookkeeping" },
+    { "id": "expandFromQueryS=60", "path": "expandFromQueryS", "value": 60, "expect": "bookkeeping" },
+    { "id": "extendLastValue=false", "path": "extendLastValue", "value": false, "expect": "bookkeeping" },
+    { "id": "highlightOnMouseover=false", "path": "highlightOnMouseover", "value": false, "expect": "bookkeeping" },
+    { "id": "legendSortBy=count", "path": "legendSortBy", "value": "-count", "expect": "bookkeeping" },
+    { "id": "lineColor=white", "path": "lineColor", "value": "#ffffff", "expect": "bookkeeping" },
+    { "id": "metricNameColor=white", "path": "metricNameColor", "value": "#ffffff", "expect": "bookkeeping" },
+    { "id": "rowHeight=80", "path": "rowHeight", "value": 80, "expect": "bookkeeping" },
+    { "id": "showLegendNames=false", "path": "showLegendNames", "value": false, "expect": "bookkeeping" },
+    { "id": "showLegendPercent=false", "path": "showLegendPercent", "value": false, "expect": "bookkeeping" },
+    { "id": "showLegendValues=false", "path": "showLegendValues", "value": false, "expect": "bookkeeping" },
+    { "id": "showTimeAxis=false", "path": "showTimeAxis", "value": false, "expect": "bookkeeping" },
+    { "id": "textSize=12", "path": "textSize", "value": 12, "expect": "bookkeeping" },
+    { "id": "textSizeTime=14", "path": "textSizeTime", "value": 14, "expect": "bookkeeping" },
+    { "id": "timePrecision=seconds", "path": "timePrecision", "value": {"name": "Seconds", "value": "seconds"}, "expect": "bookkeeping" },
+    { "id": "timeTextColor=white", "path": "timeTextColor", "value": "#ffffff", "expect": "bookkeeping" },
+    { "id": "use12HourClock=true", "path": "use12HourClock", "value": true, "expect": "bookkeeping" },
+    { "id": "useTimePrecision=true", "path": "useTimePrecision", "value": true, "expect": "bookkeeping" },
+    { "id": "valueTextColor=white", "path": "valueTextColor", "value": "#ffffff", "expect": "bookkeeping" },
+    { "id": "writeAllValues=true", "path": "writeAllValues", "value": true, "expect": "bookkeeping" },
+    { "id": "writeLastValue=false", "path": "writeLastValue", "value": false, "expect": "bookkeeping" },
+    { "id": "writeMetricNames=true", "path": "writeMetricNames", "value": true, "expect": "bookkeeping" }
+  ]
+}

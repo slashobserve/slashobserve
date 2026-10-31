@@ -216,6 +216,8 @@
     { "id": "options.timezone=named-zone", "path": "options.timezone", "value": ["America/New_York"] },
     { "id": "options.timeCompare.timeCompare=true", "path": "options.timeCompare.timeCompare", "value": true, "expect": "excluded" },
     { "id": "options.orientation=horizontal", "path": "options.orientation", "value": "horizontal", "expect": "excluded" },
-    { "id": "options.orientation=vertical", "path": "options.orientation", "value": "vertical", "expect": "excluded" }
+    { "id": "options.orientation=vertical", "path": "options.orientation", "value": "vertical", "expect": "excluded" },
+    { "id": "options.annotations.multiLane=false", "path": "options.annotations.multiLane", "value": false, "expect": "bookkeeping" },
+    { "id": "options.annotations.clustering=-1", "path": "options.annotations.clustering", "value": -1, "expect": "bookkeeping" }
   ]
 }
