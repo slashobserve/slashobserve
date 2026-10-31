@@ -87,7 +87,11 @@ const displayKeysByType = Object.fromEntries([
   ],
   ["news", Object.keys(schema.$defs.newsPanel.properties.display.properties)],
 ])
-const displayKeysModule = `${banner}\nexport const displayKeysByType: Record<string, readonly string[]> = ${JSON.stringify(displayKeysByType, null, 2)}\n`
+const displayKeyUnion = [...new Set(Object.values(displayKeysByType).flat())]
+  .sort()
+  .map((key) => `  | ${JSON.stringify(key)}`)
+  .join("\n")
+const displayKeysModule = `${banner}\nexport type DisplayKey =\n${displayKeyUnion}\n\nexport const displayKeysByType: Record<string, readonly string[]> = ${JSON.stringify(displayKeysByType, null, 2)}\n`
 
 const outputs = {
   "observespec.gen.ts": types,

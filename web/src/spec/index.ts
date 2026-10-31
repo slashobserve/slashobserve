@@ -16,7 +16,7 @@ import { dataPanelTypes } from "./panels"
 export type * from "./observespec.gen"
 export * from "./datasource-ref"
 export * from "./defaults"
-export { displayKeysByType } from "./display-keys.gen"
+export { displayKeysByType, type DisplayKey } from "./display-keys.gen"
 export * from "./panels"
 export * from "./patterns"
 
