@@ -30,22 +30,12 @@ export const levelLabels: Record<Level, string> = {
 
 const maxGroupBytes = 256
 
-const viewerReason =
-  "A Viewer only views. Change their role on People to give more."
-const commenterReason =
-  "A Commenter only comments. Change their role on People to give more."
 const editorReason = "An Editor always edits folders they can see."
 const adminReason = "Admins manage every folder."
 
 const disabledReasons: Partial<
   Record<NonNullable<Entry["user"]>["role"], Partial<Record<Level, string>>>
 > = {
-  viewer: {
-    comment: viewerReason,
-    edit: viewerReason,
-    admin: viewerReason,
-  },
-  commenter: { edit: commenterReason, admin: commenterReason },
   editor: { view: editorReason, comment: editorReason },
   admin: {
     view: adminReason,

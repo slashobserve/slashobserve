@@ -8,6 +8,7 @@ import {
   dashboardCountText,
   groupByFolder,
   listSummary,
+  yourAccessText,
 } from "./folder-groups"
 
 const permissions = { comment: true, edit: true, manage: true, create: true }
@@ -140,6 +141,22 @@ describe("accessSummary", () => {
   it("says everyone by role for an open folder", () => {
     expect(accessSummary(payments)).toBe("Everyone, by role")
     expect(accessSummary(general)).toBe("Everyone, by role")
+  })
+})
+
+describe("yourAccessText", () => {
+  it("says nothing for an open folder", () => {
+    expect(yourAccessText(payments)).toBeNull()
+    expect(yourAccessText(general)).toBeNull()
+  })
+
+  it.each([
+    ["view", "Your access: View"],
+    ["edit", "Your access: Edit"],
+  ] as const)("names the %s level of a restricted folder", (level, text) => {
+    expect(
+      yourAccessText(folder("c", "Checkout", { restricted: true, level }))
+    ).toBe(text)
   })
 })
 

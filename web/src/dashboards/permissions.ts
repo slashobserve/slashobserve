@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import type { components } from "@/api/schema.gen"
-import { roleLabels, type Role } from "@/lib/roles"
 
 import { latestDashboardQuery, type DashboardEnvelope } from "./queries"
 
@@ -24,19 +23,35 @@ export function composerMode(p: DashboardPermissions): ComposerMode {
   return "read-only"
 }
 
-export function readerNote(mode: ComposerMode, role: Role): string | null {
+export function readerNote(
+  mode: ComposerMode,
+  folderTitle: string
+): string | null {
   switch (mode) {
     case "full":
       return null
     case "comment-only":
-      return `You can view and comment as a ${roleLabels[role]}. An Editor can send your comment to the agent or change the panels.`
+      return `You can view and comment in ${folderTitle}. Someone with Edit on this folder can send your comment to the agent or change the panels.`
     case "read-only":
-      return `You can view this dashboard as a ${roleLabels[role]}. To comment, ask an Admin to make you a Commenter.`
+      return `You can view dashboards in ${folderTitle}. Ask an Admin if you need to comment.`
   }
 }
 
 function selectPermissions(envelope: DashboardEnvelope) {
   return envelope.dashboard.permissions
+}
+
+function selectFolderTitle(envelope: DashboardEnvelope) {
+  return envelope.dashboard.folder.title
+}
+
+export function useLatestFolderTitle(dashboardId: string): string | undefined {
+  const queryClient = useQueryClient()
+  return useQuery({
+    ...latestDashboardQuery(queryClient, dashboardId),
+    staleTime: Infinity,
+    select: selectFolderTitle,
+  }).data
 }
 
 export function useLatestPermissions(

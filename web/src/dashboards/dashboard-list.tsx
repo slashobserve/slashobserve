@@ -3,7 +3,7 @@ import {
   useInfiniteQuery,
   useQuery,
 } from "@tanstack/react-query"
-import { Link, useRouteContext } from "@tanstack/react-router"
+import { Link } from "@tanstack/react-router"
 import { useTable } from "@tanstack/react-table"
 import {
   ChevronDownIcon,
@@ -28,8 +28,8 @@ import { LoadProblem } from "@/components/load-problem"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useCanCreateDashboards } from "@/folders/create-access"
 import { foldersQuery, type Folder } from "@/folders/queries"
-import { roleAtLeast } from "@/lib/roles"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 
@@ -44,6 +44,7 @@ import {
   dashboardCountText,
   groupByFolder,
   listSummary,
+  yourAccessText,
   type FolderSection,
 } from "./folder-groups"
 import {
@@ -196,6 +197,7 @@ function FolderHeaderRow({
   onToggle: () => void
 }) {
   const AccessIcon = folder.restricted ? LockIcon : UsersIcon
+  const yourAccess = yourAccessText(folder)
   return (
     <tr>
       <th
@@ -225,6 +227,9 @@ function FolderHeaderRow({
             <AccessIcon aria-hidden="true" className="size-3.5 flex-none" />
             {accessSummary(folder)}
           </span>
+          {yourAccess === null ? null : (
+            <span className="text-xs text-muted-foreground">{yourAccess}</span>
+          )}
           {folder.permissions.manage ? (
             <Link
               to="/folders/$folderId"
@@ -301,7 +306,7 @@ type Props = {
 }
 
 export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
-  const { principal } = useRouteContext({ from: "/_authed" })
+  const canCreate = useCanCreateDashboards()
   const query = useDashboardList(search)
   const folderResult = useQuery(foldersQuery())
   const pages = query.data?.pages
@@ -431,7 +436,7 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
                 >
                   Open the chat
                 </Link>
-                {roleAtLeast(principal.role, "editor") ? (
+                {canCreate === true ? (
                   <Link
                     to="/import"
                     className={cn(buttonVariants({ variant: "outline" }))}

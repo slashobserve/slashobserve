@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import { useRouteContext } from "@tanstack/react-router"
 
-import { canDriveAgent } from "./access"
+import { canSavePrompts } from "./access"
 import { PromptFormPanel } from "./prompt-form-panel"
 import { usePromptPanel } from "./prompt-panel-store"
 
@@ -12,7 +12,7 @@ export function PromptPanelHost() {
 
   useEffect(() => () => usePromptPanel.getState().closePanel(), [])
 
-  if (target === null || !canDriveAgent(principal)) return null
+  if (target === null || !canSavePrompts(principal)) return null
   return (
     <PromptFormPanel
       key={JSON.stringify(target)}

@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest"
 
-import type { Role } from "@/lib/roles"
-
 import {
   composerMode,
   readerNote,
@@ -20,13 +18,6 @@ function permissions(
   }
 }
 
-const roleCases: [Role, string][] = [
-  ["admin", "Admin"],
-  ["editor", "Editor"],
-  ["commenter", "Commenter"],
-  ["viewer", "Viewer"],
-]
-
 describe("composerMode", () => {
   it.each([
     [{ edit: true, comment: true }, "full"],
@@ -42,24 +33,18 @@ describe("composerMode", () => {
 
 describe("readerNote", () => {
   it("has no note for the full composer", () => {
-    expect(readerNote("full", "editor")).toBeNull()
+    expect(readerNote("full", "Payments")).toBeNull()
   })
 
-  it.each(roleCases)(
-    "names the %s role in the comment-only note",
-    (role, label) => {
-      expect(readerNote("comment-only", role)).toBe(
-        `You can view and comment as a ${label}. An Editor can send your comment to the agent or change the panels.`
-      )
-    }
-  )
+  it("names the folder in the comment-only note", () => {
+    expect(readerNote("comment-only", "Payments")).toBe(
+      "You can view and comment in Payments. Someone with Edit on this folder can send your comment to the agent or change the panels."
+    )
+  })
 
-  it.each(roleCases)(
-    "names the %s role in the read-only note",
-    (role, label) => {
-      expect(readerNote("read-only", role)).toBe(
-        `You can view this dashboard as a ${label}. To comment, ask an Admin to make you a Commenter.`
-      )
-    }
-  )
+  it("names the folder in the read-only note", () => {
+    expect(readerNote("read-only", "Payments")).toBe(
+      "You can view dashboards in Payments. Ask an Admin if you need to comment."
+    )
+  })
 })

@@ -5,7 +5,6 @@ import {
   type ReactNode,
   type RefObject,
 } from "react"
-import { useRouteContext } from "@tanstack/react-router"
 import {
   useInfiniteQuery,
   useQuery,
@@ -18,6 +17,7 @@ import { RoleNote } from "@/components/role-note"
 import {
   composerMode,
   readerNote,
+  useLatestFolderTitle,
   useLatestPermissions,
 } from "@/dashboards/permissions"
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
@@ -215,9 +215,9 @@ export function ActivityFeed({
   )
 
   const permissions = useLatestPermissions(dashboardId)
-  const { principal } = useRouteContext({ from: "/_authed" })
+  const folderTitle = useLatestFolderTitle(dashboardId)
   const mode = composerMode(permissions)
-  const note = readerNote(mode, principal.role)
+  const note = readerNote(mode, folderTitle ?? "this folder")
   const gate = sendToAgentState({
     canEdit: permissions.edit,
     agentAvailable: agent.data?.available,

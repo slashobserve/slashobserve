@@ -200,10 +200,6 @@ describe("entriesForPut", () => {
 })
 
 describe("levelOptions", () => {
-  const viewer =
-    "A Viewer only views. Change their role on People to give more."
-  const commenter =
-    "A Commenter only comments. Change their role on People to give more."
   const editor = "An Editor always edits folders they can see."
   const admin = "Admins manage every folder."
   const open = [
@@ -214,25 +210,11 @@ describe("levelOptions", () => {
   ]
 
   test.each([
-    [
-      "a viewer",
-      priya,
-      [
-        { level: "view", disabledReason: null },
-        { level: "comment", disabledReason: viewer },
-        { level: "edit", disabledReason: viewer },
-        { level: "admin", disabledReason: viewer },
-      ],
-    ],
+    ["a viewer", priya, open],
     [
       "a commenter",
       { ...priya, user: { ...priya.user!, role: "commenter" as const } },
-      [
-        { level: "view", disabledReason: null },
-        { level: "comment", disabledReason: null },
-        { level: "edit", disabledReason: commenter },
-        { level: "admin", disabledReason: commenter },
-      ],
+      open,
     ],
     [
       "an editor",
