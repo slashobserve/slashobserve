@@ -35,6 +35,19 @@ describe("rowsFromThresholds", () => {
     ])
   })
 
+  it("shows the text color as a named choice", () => {
+    const rows = rowsFromThresholds([
+      { color: "ok" },
+      { value: 5, color: "text" },
+    ])
+    expect(
+      rows.map(({ color, hex, value }) => ({ color, hex, value }))
+    ).toEqual([
+      { color: "ok", hex: "", value: "" },
+      { color: "text", hex: "", value: "5" },
+    ])
+  })
+
   it("gives every row its own key", () => {
     const rows = rowsFromThresholds([
       { value: 1, color: "warning" },
@@ -54,6 +67,14 @@ describe("thresholdsFromRows", () => {
       { value: 0.3, color: "warning" },
       { value: 0.5, color: "critical" },
     ]
+    expect(thresholdsFromRows(rowsFromThresholds(thresholds))).toEqual({
+      ok: true,
+      thresholds,
+    })
+  })
+
+  it("saves the text color without asking for a hex", () => {
+    const thresholds = [{ color: "text" }, { value: 5, color: "critical" }]
     expect(thresholdsFromRows(rowsFromThresholds(thresholds))).toEqual({
       ok: true,
       thresholds,
@@ -127,6 +148,15 @@ describe("setRowColor", () => {
     expect(custom).toMatchObject({ color: "custom", hex: "#2a78d6" })
     expect(setRowColor(custom, "info")).toMatchObject({
       color: "info",
+      hex: "",
+    })
+  })
+})
+
+describe("setRowColor text", () => {
+  it("clears the hex when a custom row becomes text", () => {
+    expect(setRowColor(row("custom", "5", "#2a78d6"), "text")).toMatchObject({
+      color: "text",
       hex: "",
     })
   })

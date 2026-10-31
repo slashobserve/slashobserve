@@ -192,6 +192,11 @@ describe("parseActions", () => {
     expect(oneAction({}).color).toBeNull()
     expect(oneAction({ color: "" }).color).toBeNull()
     expect(oneAction({ color: "var(--brand)" }).color).toBe("var(--brand)")
+    expect(oneAction({ color: "text" }).color).toBe("var(--foreground)")
+    expect(oneAction({ color: "critical" }).color).toBe(
+      "var(--threshold-critical)"
+    )
+    expect(oneAction({ color: "#2a78d6" }).color).toBe("#2a78d6")
     expect(oneAction({}).oneClick).toBe(false)
     expect(oneAction({ oneClick: true }).oneClick).toBe(true)
   })

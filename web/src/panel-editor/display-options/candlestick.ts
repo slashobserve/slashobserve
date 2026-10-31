@@ -7,6 +7,7 @@ import {
   legendSortDesc,
   legendValues,
   legendWidth,
+  semanticColorOptions,
   tooltip,
   tooltipCumulative,
   tooltipHideZeros,
@@ -15,13 +16,6 @@ import {
   tooltipSort,
   xAxis,
 } from "./shared"
-
-const colorOptions = [
-  { value: "ok", label: "OK" },
-  { value: "info", label: "Info" },
-  { value: "warning", label: "Warning" },
-  { value: "critical", label: "Critical" },
-]
 
 export const candlestick: readonly DisplayOption[] = [
   {
@@ -52,19 +46,24 @@ export const candlestick: readonly DisplayOption[] = [
       { value: "close-close", label: "Close to close" },
     ],
   },
-  { kind: "choice", key: "upColor", label: "Up color", options: colorOptions },
+  {
+    kind: "choice",
+    key: "upColor",
+    label: "Up color",
+    options: semanticColorOptions,
+  },
   {
     kind: "choice",
     key: "downColor",
     label: "Down color",
-    options: colorOptions,
+    options: semanticColorOptions,
   },
   {
     kind: "choice",
     key: "flatColor",
     label: "Flat color",
     absent: "Same as up color",
-    options: colorOptions,
+    options: semanticColorOptions,
   },
   fieldOption("open", "Open field", "Field named open"),
   fieldOption("high", "High field", "Field named high"),

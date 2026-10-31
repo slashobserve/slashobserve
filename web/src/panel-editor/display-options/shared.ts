@@ -19,6 +19,14 @@ export const reducerOptions = [
   { value: "changeCount", label: "Changes" },
 ]
 
+export const semanticColorOptions = [
+  { value: "ok", label: "OK" },
+  { value: "info", label: "Info" },
+  { value: "warning", label: "Warning" },
+  { value: "critical", label: "Critical" },
+  { value: "text", label: "Text" },
+]
+
 export const calculation: DisplayOption = {
   kind: "reducer",
   key: "reduce",

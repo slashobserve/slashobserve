@@ -112,14 +112,6 @@ func seriesColor(s string) (string, bool) {
 	return hex, ok
 }
 
-func hexSeriesColor(s string) (string, bool) {
-	color, ok := seriesColor(s)
-	if color == themeTextColor {
-		return "", false
-	}
-	return color, ok
-}
-
 func thresholdColor(s string) (string, bool) {
 	s = strings.TrimSpace(s)
 	name := strings.ToLower(s)

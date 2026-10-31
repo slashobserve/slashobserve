@@ -169,6 +169,41 @@ func TestSchemaAcceptsTheGuideExampleAndRejectsInvalidFixtures(t *testing.T) {
 	}
 }
 
+func TestGuideNamesEverySemanticColorTheSchemaAccepts(t *testing.T) {
+	var schema struct {
+		Defs struct {
+			Color struct {
+				Pattern string `json:"pattern"`
+			} `json:"color"`
+		} `json:"$defs"`
+	}
+	if err := json.Unmarshal(prompts.Schema(), &schema); err != nil {
+		t.Fatal(err)
+	}
+	pattern := schema.Defs.Color.Pattern
+	names := strings.Split(strings.TrimSuffix(strings.TrimPrefix(pattern, "^("), ")$"), "|")
+	if len(names) < 5 {
+		t.Fatalf("color pattern %q lists %d alternatives", pattern, len(names))
+	}
+	var thresholdLine string
+	for _, line := range strings.Split(prompts.SpecGuide(), "\n") {
+		if strings.HasPrefix(line, "- `thresholds`") {
+			thresholdLine = line
+		}
+	}
+	if thresholdLine == "" {
+		t.Fatal("spec guide has no thresholds line")
+	}
+	for _, name := range names {
+		if strings.HasPrefix(name, "#") {
+			continue
+		}
+		if !strings.Contains(thresholdLine, "`"+name+"`") {
+			t.Errorf("spec guide thresholds line does not name the semantic color %q", name)
+		}
+	}
+}
+
 func TestSchemaLeavesOutValuesOnlyImportsNeed(t *testing.T) {
 	schema := string(prompts.Schema())
 	if strings.Contains(schema, "x-omitFromPrompt") {

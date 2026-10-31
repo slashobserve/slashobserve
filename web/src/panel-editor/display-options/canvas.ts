@@ -1,12 +1,5 @@
 import type { DisplayOption } from "./types"
-import { calculation } from "./shared"
-
-const colorOptions = [
-  { value: "ok", label: "OK" },
-  { value: "info", label: "Info" },
-  { value: "warning", label: "Warning" },
-  { value: "critical", label: "Critical" },
-]
+import { calculation, semanticColorOptions } from "./shared"
 
 export const canvas: readonly DisplayOption[] = [
   calculation,
@@ -15,14 +8,14 @@ export const canvas: readonly DisplayOption[] = [
     key: "backgroundColor",
     label: "Background color",
     absent: "None",
-    options: colorOptions,
+    options: semanticColorOptions,
   },
   {
     kind: "choice",
     key: "borderColor",
     label: "Border color",
     absent: "Default border",
-    options: colorOptions,
+    options: semanticColorOptions,
   },
   {
     kind: "number",

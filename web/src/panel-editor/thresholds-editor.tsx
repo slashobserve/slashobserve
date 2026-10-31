@@ -65,7 +65,7 @@ export function ThresholdsEditor({
         Thresholds
       </span>
       {rows.map((row, index) => {
-        const Icon = thresholdIcons[row.color]
+        const Icon = thresholdIcons[row.color === "text" ? "custom" : row.color]
         const word = thresholdWords[row.color]
         return (
           <div key={row.key} className="flex flex-wrap items-center gap-1.5">

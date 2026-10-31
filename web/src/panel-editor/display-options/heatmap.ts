@@ -56,6 +56,7 @@ export const heatmap: readonly DisplayOption[] = [
       { value: "info", label: "Blue" },
       { value: "warning", label: "Yellow" },
       { value: "critical", label: "Red" },
+      { value: "text", label: "Text" },
     ],
   },
   {
@@ -315,6 +316,7 @@ export const heatmap: readonly DisplayOption[] = [
       { value: "info", label: "Blue" },
       { value: "warning", label: "Yellow" },
       { value: "critical", label: "Red" },
+      { value: "text", label: "Text" },
     ],
   },
 ]

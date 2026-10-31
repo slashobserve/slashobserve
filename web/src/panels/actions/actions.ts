@@ -4,6 +4,7 @@ import type { paths } from "@/api/schema.gen"
 import { actionDefaults } from "@/spec"
 
 import { selectedValues } from "../field-config/variable-format"
+import { thresholdColor } from "../thresholds"
 
 export type ActionContext = {
   dashboardId: string
@@ -206,7 +207,7 @@ export function parseActions(
         fields,
         color:
           typeof entry.color === "string" && entry.color !== ""
-            ? entry.color
+            ? thresholdColor(entry.color)
             : null,
         oneClick: entry.oneClick === true,
       },

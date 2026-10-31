@@ -42,7 +42,7 @@ The schema here leaves out rare, import-only and purely visual options; when a S
 
 ## Field options
 - `unit` is a unit id from the schema: `reqps` for request rates, `s` or `ms` for durations, `percentunit` for 0-1 ratios, `percent` for 0-100, `bytes`, `short` for counts, or `suffix:<text>`.
-- `thresholds` ascend; the first step may leave out `value` and is then the base color, for example `[{"color": "ok"}, {"value": 0.25, "color": "warning"}, {"value": 0.5, "color": "critical"}]`; colors are `ok`, `info`, `warning`, `critical` or a hex color.
+- `thresholds` ascend; the first step may leave out `value` and is then the base color, for example `[{"color": "ok"}, {"value": 0.25, "color": "warning"}, {"value": 0.5, "color": "critical"}]`; colors are `ok`, `info`, `warning`, `critical`, `text` (the theme's text color) or a hex color.
 - `decimals`, `min`, `max`, `displayName`, `noValue` and `mappings` (each needs `text`, `color` or both) refine values.
 - `overrides` set the same options for matching series, for example `{"match": {"query": "B"}, "unit": "s"}`.
 - `display` holds the per-type options in the schema; set it only when the request asks for one.
