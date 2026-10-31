@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  compareValues,
   describeFilter,
   formatFilter,
+  fromSpecFilter,
   keyHint,
+  labelsBySavedFilter,
   maxAdhocFilters,
+  opsFor,
   parseFilter,
   parseFilters,
   validFilter,
@@ -33,11 +37,24 @@ describe("parseFilter", () => {
   })
 
   it("accepts every operator and refuses anything else", () => {
-    for (const op of ["=", "!=", "=~", "!~"]) {
+    for (const op of ["=", "!=", "=~", "!~", "<", ">"]) {
       expect(parseFilter(`k|${op}|v`)?.op).toBe(op)
     }
-    expect(parseFilter("k|>|v")).toBeNull()
+    expect(parseFilter("k|~|v")).toBeNull()
     expect(parseFilter("k||v")).toBeNull()
+  })
+
+  it("reads a leading pipe as the or condition", () => {
+    expect(parseFilter("|job|=|api")).toEqual({
+      key: "job",
+      op: "=",
+      value: "api",
+      condition: "or",
+    })
+  })
+
+  it("keeps a key named or apart from the condition", () => {
+    expect(parseFilter("or|=|x")).toEqual({ key: "or", op: "=", value: "x" })
   })
 
   it("refuses text without two separators or without a key", () => {
@@ -45,12 +62,22 @@ describe("parseFilter", () => {
     expect(parseFilter("job")).toBeNull()
     expect(parseFilter("job|=")).toBeNull()
     expect(parseFilter("|=|v")).toBeNull()
+    expect(parseFilter("||=|v")).toBeNull()
+    expect(parseFilter("|job|=")).toBeNull()
   })
 })
 
 describe("formatFilter", () => {
   it("round-trips with parseFilter", () => {
-    for (const text of ["job|=|api", "a|!~|x|y", "k|=~|"]) {
+    for (const text of [
+      "job|=|api",
+      "a|!~|x|y",
+      "k|=~|",
+      "n|<|5",
+      "n|>|1.5",
+      "|n|>|1",
+      "|job|=|a|b",
+    ]) {
       const filter = parseFilter(text)
       expect(filter).not.toBeNull()
       expect(formatFilter(filter!)).toBe(text)
@@ -62,6 +89,85 @@ describe("formatFilter", () => {
       "job != api"
     )
   })
+
+  it("shows labels in place of the key and the value without changing the text that goes in the URL", () => {
+    const filter = { key: "job", op: "=" as const, value: "api" }
+    expect(describeFilter(filter, { keyLabel: "Job", valueLabel: "API" })).toBe(
+      "Job = API"
+    )
+    expect(describeFilter(filter, { keyLabel: "Job" })).toBe("Job = api")
+    expect(describeFilter(filter, { valueLabel: "API" })).toBe("job = API")
+    expect(formatFilter(filter)).toBe("job|=|api")
+  })
+})
+
+describe("saved filters from the Spec", () => {
+  const saved = [
+    { key: "job", operator: "=" as const, value: "api", keyLabel: "Job" },
+    {
+      key: "n",
+      operator: ">" as const,
+      value: "1",
+      valueLabel: "one",
+      condition: "or" as const,
+    },
+    {
+      key: "plain",
+      operator: "!=" as const,
+      value: "x",
+      condition: "and" as const,
+    },
+  ]
+
+  it("maps a Spec filter to a chip filter, writing only the or condition", () => {
+    expect(fromSpecFilter(saved[0])).toEqual({
+      key: "job",
+      op: "=",
+      value: "api",
+    })
+    expect(fromSpecFilter(saved[1])).toEqual({
+      key: "n",
+      op: ">",
+      value: "1",
+      condition: "or",
+    })
+    expect(fromSpecFilter(saved[2])).toEqual({
+      key: "plain",
+      op: "!=",
+      value: "x",
+    })
+  })
+
+  it("finds the labels of a filter by the text the URL carries", () => {
+    const labels = labelsBySavedFilter(saved)
+    expect(labels.get("job|=|api")).toEqual({
+      keyLabel: "Job",
+      valueLabel: undefined,
+    })
+    expect(labels.get("|n|>|1")).toEqual({
+      keyLabel: undefined,
+      valueLabel: "one",
+    })
+    expect(labels.has("plain|!=|x")).toBe(false)
+    expect(labelsBySavedFilter(undefined).size).toBe(0)
+  })
+})
+
+describe("compareValues", () => {
+  it.each([
+    ["2", "10", -1],
+    ["10", "2", 1],
+    ["5", "5.0", 0],
+    ["-3", "2", -1],
+    ["1e2", "99", 1],
+    ["abc", "abd", -1],
+    ["b", "a", 1],
+    ["a", "a", 0],
+    ["2", "10 apples", 1],
+    ["10", "2x", -1],
+  ])("compares %s with %s as %i", (cell, value, want) => {
+    expect(compareValues(cell, value)).toBe(want)
+  })
 })
 
 describe("parseFilters", () => {
@@ -69,6 +175,14 @@ describe("parseFilters", () => {
     expect(parseFilters(["b|=|1", "nope", "a|!=|2"])).toEqual([
       { key: "b", op: "=", value: "1" },
       { key: "a", op: "!=", value: "2" },
+    ])
+  })
+
+  it("keeps ordering operators and the or condition in order", () => {
+    expect(parseFilters(["a|<|1", "|b|>|2", "c|=|3"])).toEqual([
+      { key: "a", op: "<", value: "1" },
+      { key: "b", op: ">", value: "2", condition: "or" },
+      { key: "c", op: "=", value: "3" },
     ])
   })
 
@@ -88,6 +202,19 @@ describe("validFilter", () => {
     expect(validFilter(filter("1job"), "prometheus")).toBe(false)
     expect(validFilter(filter("my-label"), "prometheus")).toBe(false)
     expect(validFilter(filter(""), "prometheus")).toBe(false)
+  })
+
+  it("offers < and > on ClickHouse only", () => {
+    expect(opsFor("clickhouse")).toContain("<")
+    expect(opsFor("clickhouse")).toContain(">")
+    expect(opsFor("prometheus")).toEqual(["=", "!=", "=~", "!~"])
+    expect(opsFor(undefined)).toEqual(["=", "!=", "=~", "!~"])
+    expect(validFilter({ key: "n", op: "<", value: "1" }, "clickhouse")).toBe(
+      true
+    )
+    expect(validFilter({ key: "n", op: "<", value: "1" }, "prometheus")).toBe(
+      false
+    )
   })
 
   it("takes dotted column names for ClickHouse", () => {

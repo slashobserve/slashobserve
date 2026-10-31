@@ -70,6 +70,40 @@ func TestTableFilterSettings(t *testing.T) {
 			[]tableColumns{logs}, nil,
 			nil,
 		},
+		{
+			"a greater than on a text value compares text",
+			[]tableColumns{logs}, []datasource.AdhocFilter{{Key: "Body", Op: ">", Value: "m"}},
+			ch.Settings{"additional_table_filters": `{'otel.otel_logs': '(toString(Body) > \'m\')'}`},
+		},
+		{
+			"a less than on a number compares numbers when the column text is one",
+			[]tableColumns{logs}, []datasource.AdhocFilter{{Key: "Body", Op: "<", Value: "10"}},
+			ch.Settings{"additional_table_filters": `{'otel.otel_logs': '(if(match(toString(Body), \'^-?[0-9]+([.][0-9]+)?([eE][+-]?[0-9]+)?$\'), toFloat64OrNull(toString(Body)) < 10, toString(Body) < \'10\'))'}`},
+		},
+		{
+			"or joins two groups and a table without the second group's column stays unfiltered",
+			[]tableColumns{logs, traces},
+			[]datasource.AdhocFilter{service, {Key: "Body", Op: "=", Value: "b"}, {Key: "SpanName", Op: "=", Value: "s", Condition: "or"}},
+			ch.Settings{"additional_table_filters": `{'otel.otel_traces': '((ServiceName = \'cart\') OR (SpanName = \'s\'))'}`},
+		},
+		{
+			"a group none of whose columns exist leaves the table unfiltered",
+			[]tableColumns{logs},
+			[]datasource.AdhocFilter{service, {Key: "SpanName", Op: "=", Value: "s", Condition: "or"}},
+			nil,
+		},
+		{
+			"base filters and selected filters are anded as wholes",
+			[]tableColumns{logs},
+			[]datasource.AdhocFilter{service, {Key: "Body", Op: "=", Value: "b", Scope: 1}, {Key: "Body", Op: "=", Value: "c", Condition: "or", Scope: 1}},
+			ch.Settings{"additional_table_filters": `{'otel.otel_logs': '((ServiceName = \'cart\') AND ((Body = \'b\') OR (Body = \'c\')))'}`},
+		},
+		{
+			"a scope with no column on the table drops out and the other stays",
+			[]tableColumns{logs},
+			[]datasource.AdhocFilter{service, {Key: "SpanName", Op: "=", Value: "s", Scope: 1}},
+			ch.Settings{"additional_table_filters": `{'otel.otel_logs': '(ServiceName = \'cart\')'}`},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -86,7 +120,7 @@ func TestTableFilterSettings(t *testing.T) {
 
 func TestTableFilterSettingsRefuseAnInvalidFilter(t *testing.T) {
 	logs := tableColumns{tableName{"otel", "otel_logs"}, []string{"Body"}}
-	_, err := tableFilterSettings([]tableColumns{logs}, []datasource.AdhocFilter{{Key: "Body", Op: "<", Value: "x"}})
+	_, err := tableFilterSettings([]tableColumns{logs}, []datasource.AdhocFilter{{Key: "Body", Op: "~", Value: "x"}})
 	if err == nil {
 		t.Fatal("err = nil, want an invalid filter error")
 	}

@@ -1409,11 +1409,34 @@ export interface AdhocVariable {
    * @minItems 1
    * @maxItems 20
    */
-  default?: {
-    key: string;
-    operator: "=" | "!=" | "=~" | "!~";
-    value: string;
-  }[];
+  default?: AdhocFilter[];
+  /**
+   * Filters always applied to this variable's queries, ANDed with the selected filters as a whole; never shown and never in the URL.
+   *
+   * @minItems 1
+   * @maxItems 20
+   */
+  baseFilters?: AdhocFilter[];
+}
+export interface AdhocFilter {
+  key: string;
+  /**
+   * < and > compare as numbers when both sides are numbers, else as text; ClickHouse only.
+   */
+  operator: "=" | "!=" | "=~" | "!~" | "<" | ">";
+  value: string;
+  /**
+   * Text shown on the chip instead of the key.
+   */
+  keyLabel?: string;
+  /**
+   * Text shown on the chip instead of the value.
+   */
+  valueLabel?: string;
+  /**
+   * How the filter joins the filters before it: and (default) extends the current group, or starts a new group, so a, b, or c means (a AND b) OR c. ClickHouse only.
+   */
+  condition?: "and" | "or";
 }
 export interface GroupByVariable {
   name: VariableName;

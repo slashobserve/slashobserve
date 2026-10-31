@@ -492,6 +492,50 @@ func TestQueryWithoutFiltersIsSentUnchanged(t *testing.T) {
 	}
 }
 
+func TestAdhocFiltersWithBaseFiltersAreAllMatchers(t *testing.T) {
+	ds, rec := recordingDS(t)
+	now := time.Now()
+	r := datasource.TimeRange{From: now.Add(-time.Hour), To: now}
+	filters := datasource.AndAdhoc(
+		[]datasource.AdhocFilter{{Key: "env", Op: "=", Value: "prod"}},
+		[]datasource.AdhocFilter{{Key: "job", Op: "=~", Value: "api|web"}},
+	)
+	if _, err := ds.QueryInstant(context.Background(), datasource.Query{Text: "up", Filters: filters}, r); err != nil {
+		t.Fatalf("QueryInstant: %v", err)
+	}
+	if got := rec.to("/api/v1/query")[0].form.Get("query"); got != `up{env="prod",job=~"api|web"}` {
+		t.Errorf("query = %q, want up{env=\"prod\",job=~\"api|web\"}", got)
+	}
+}
+
+func TestAdhocFiltersPrometheusCannotExpressAreInvalid(t *testing.T) {
+	tests := []struct {
+		name    string
+		text    string
+		filters []datasource.AdhocFilter
+		naming  string
+	}{
+		{"less than", "up", []datasource.AdhocFilter{{Key: "job", Op: "<", Value: "5"}}, `"<"`},
+		{"greater than", "up", []datasource.AdhocFilter{{Key: "job", Op: ">", Value: "5"}}, `">"`},
+		{"or", "up", []datasource.AdhocFilter{{Key: "job", Op: "=", Value: "a"}, {Key: "job", Op: "=", Value: "b", Condition: "or"}}, `"or"`},
+		{"less than in a query with no selector", "1 + 1", []datasource.AdhocFilter{{Key: "job", Op: "<", Value: "5"}}, `"<"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds, rec := recordingDS(t)
+			now := time.Now()
+			r := datasource.TimeRange{From: now.Add(-time.Hour), To: now}
+			_, err := ds.QueryInstant(context.Background(), datasource.Query{Text: tt.text, Filters: tt.filters}, r)
+			if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), tt.naming) {
+				t.Fatalf("err = %v, want ErrInvalidQuery naming %s", err, tt.naming)
+			}
+			if n := len(rec.all()); n != 0 {
+				t.Errorf("%d upstream requests, want none", n)
+			}
+		})
+	}
+}
+
 func TestAdhocFilterWithABadRegexIsInvalid(t *testing.T) {
 	ds, rec := recordingDS(t)
 	now := time.Now()

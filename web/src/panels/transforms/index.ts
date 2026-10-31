@@ -179,7 +179,7 @@ export function prepareFrames(
     gazetteers
   )
   return applyTransforms(
-    filterByAdhoc(source, reusedFilter?.filters ?? []),
+    filterByAdhoc(source, reusedFilter?.scopes ?? []),
     transforms.slice(after),
     vars,
     gazetteers

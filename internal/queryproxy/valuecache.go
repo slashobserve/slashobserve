@@ -96,6 +96,8 @@ func valueKey(uid string, q datasource.Query, rng datasource.TimeRange) [sha256.
 			field(f.Key)
 			field(f.Op)
 			field(f.Value)
+			field(f.Condition)
+			number(int64(f.Scope))
 		}
 		number(int64(len(v.Values)))
 		for _, value := range v.Values {

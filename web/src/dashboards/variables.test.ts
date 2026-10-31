@@ -584,6 +584,28 @@ describe("saved ad hoc filters", () => {
     })
   })
 
+  it("selects saved or filters, labels and ordering operators as the text the URL carries, without labels or base filters", () => {
+    const rich: Variable = {
+      name: "af",
+      type: "adhoc",
+      datasource: "ch",
+      default: [
+        { key: "n", operator: ">", value: "1", keyLabel: "Count" },
+        {
+          key: "m",
+          operator: "<",
+          value: "9",
+          valueLabel: "nine",
+          condition: "or",
+        },
+      ],
+      baseFilters: [{ key: "env", operator: "=", value: "prod" }],
+    }
+    expect(resolveSelections([rich], {}, {}).selections).toEqual({
+      af: ["n|>|1", "|m|<|9"],
+    })
+  })
+
   it("lets URL filters replace the saved ones", () => {
     expect(
       resolveSelections([saved], { af: ["a|=|b"] }, {}).selections

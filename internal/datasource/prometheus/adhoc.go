@@ -10,6 +10,16 @@ import (
 )
 
 func applyFilters(expr string, filters []datasource.AdhocFilter) (string, error) {
+	for _, scope := range datasource.AdhocScopes(filters) {
+		if len(scope) > 1 {
+			return "", fmt.Errorf("adhoc filter condition %q is not supported on Prometheus; label matchers can only be combined with AND", datasource.AdhocOr)
+		}
+	}
+	for _, f := range filters {
+		if _, err := matchTypeOf(f.Op); err != nil {
+			return "", err
+		}
+	}
 	tree, err := promParser.ParseExpr(expr)
 	if err != nil {
 		return "", err
@@ -51,6 +61,9 @@ func matchTypeOf(op string) (labels.MatchType, error) {
 		return labels.MatchRegexp, nil
 	case "!~":
 		return labels.MatchNotRegexp, nil
+	}
+	if datasource.IsAdhocOrdering(op) {
+		return 0, fmt.Errorf("adhoc filter operator %q is not supported on Prometheus; label matchers have no comparison", op)
 	}
 	return 0, fmt.Errorf("adhoc filter operator %q is not supported", op)
 }

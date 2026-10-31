@@ -184,6 +184,7 @@ type Variable struct {
 	AutoSteps        int              `json:"autoSteps,omitempty"`
 	AutoMin          string           `json:"autoMin,omitempty"`
 	Default          *Selection       `json:"default,omitempty"`
+	BaseFilters      []AdhocFilter    `json:"baseFilters,omitempty"`
 }
 
 type VariableOption struct {
@@ -258,9 +259,12 @@ type Selection struct {
 }
 
 type AdhocFilter struct {
-	Key      string `json:"key"`
-	Operator string `json:"operator"`
-	Value    string `json:"value"`
+	Key        string `json:"key"`
+	Operator   string `json:"operator"`
+	Value      string `json:"value"`
+	KeyLabel   string `json:"keyLabel,omitempty"`
+	ValueLabel string `json:"valueLabel,omitempty"`
+	Condition  string `json:"condition,omitempty"`
 }
 
 func (s Selection) MarshalJSON() ([]byte, error) {

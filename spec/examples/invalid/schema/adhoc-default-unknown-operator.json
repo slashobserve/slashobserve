@@ -13,7 +13,7 @@
       "default": [
         {
           "key": "namespace",
-          "operator": "<",
+          "operator": "~",
           "value": "checkout"
         }
       ]

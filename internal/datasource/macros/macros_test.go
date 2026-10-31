@@ -1112,6 +1112,13 @@ func TestClickHouseAdhocVariable(t *testing.T) {
 	filter := func(key, op, value string) datasource.AdhocFilter {
 		return datasource.AdhocFilter{Key: key, Op: op, Value: value}
 	}
+	or := func(key, op, value string) datasource.AdhocFilter {
+		return datasource.AdhocFilter{Key: key, Op: op, Value: value, Condition: "or"}
+	}
+	scoped := func(f datasource.AdhocFilter, scope int) datasource.AdhocFilter {
+		f.Scope = scope
+		return f
+	}
 	runExpandCases(t, []expandCase{
 		{name: "no filters", d: macros.ClickHouse, query: `SELECT 1 WHERE $f AND a = 1`, env: envWith(adhoc("f")), want: `SELECT 1 WHERE 1 = 1 AND a = 1`},
 		{name: "equal", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", filter("ServiceName", "=", "cart"))), want: `SELECT 1 WHERE (ServiceName = 'cart')`},
@@ -1125,7 +1132,15 @@ func TestClickHouseAdhocVariable(t *testing.T) {
 		{name: "a format is refused", d: macros.ClickHouse, query: `SELECT 1 WHERE ${f:csv}`, env: envWith(adhoc("f")), err: true},
 		{name: "a string is refused", d: macros.ClickHouse, query: `SELECT 1 WHERE a = '$f'`, env: envWith(adhoc("f")), err: true},
 		{name: "a bad column is refused", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", filter("a b", "=", "x"))), err: true},
-		{name: "a bad operator is refused", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", filter("a", "<", "x"))), err: true},
+		{name: "a bad operator is refused", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", filter("a", "~", "x"))), err: true},
+		{name: "less than a number compares numbers when the column holds one", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", filter("a", "<", "5"))), want: `SELECT 1 WHERE (if(match(toString(a), '^-?[0-9]+([.][0-9]+)?([eE][+-]?[0-9]+)?$'), toFloat64OrNull(toString(a)) < 5, toString(a) < '5'))`},
+		{name: "greater than a decimal", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", filter("a", ">", "-2.5e3"))), want: `SELECT 1 WHERE (if(match(toString(a), '^-?[0-9]+([.][0-9]+)?([eE][+-]?[0-9]+)?$'), toFloat64OrNull(toString(a)) > -2.5e3, toString(a) > '-2.5e3'))`},
+		{name: "less than a word compares text", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", filter("a", "<", "it's"))), want: `SELECT 1 WHERE (toString(a) < 'it''s')`},
+		{name: "a number followed by text compares text", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", filter("a", ">", "5 OR 1=1"))), want: `SELECT 1 WHERE (toString(a) > '5 OR 1=1')`},
+		{name: "or starts a second group", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", filter("a", "=", "1"), filter("b", "=", "2"), or("c", "=", "3"))), want: `SELECT 1 WHERE ((a = '1' AND b = '2') OR (c = '3'))`},
+		{name: "two ors make three groups", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", filter("a", "=", "1"), or("b", "=", "2"), or("c", "=", "3"))), want: `SELECT 1 WHERE ((a = '1') OR (b = '2') OR (c = '3'))`},
+		{name: "a leading or is only a first filter", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", or("a", "=", "1"), filter("b", "=", "2"))), want: `SELECT 1 WHERE (a = '1' AND b = '2')`},
+		{name: "scopes are anded as wholes", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", scoped(filter("a", "=", "1"), 0), scoped(filter("b", "=", "2"), 1), scoped(or("c", "=", "3"), 1))), want: `SELECT 1 WHERE ((a = '1') AND ((b = '2') OR (c = '3')))`},
 		{name: "promql refuses a reference", d: macros.PromQL, query: `up{job="$f"}`, env: envWith(adhoc("f")), err: true},
 	})
 }

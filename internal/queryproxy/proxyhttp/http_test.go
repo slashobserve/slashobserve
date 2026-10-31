@@ -1826,7 +1826,7 @@ func TestPanelDataWithTheNewVariableTypes(t *testing.T) {
 		"interval not offered": "var-iv=10m",
 		"textbox twice":        "var-tb=a&var-tb=b",
 		"adhoc bad key":        "var-pf=Bad%20Key%7C%3D%7Cx",
-		"adhoc bad operator":   "var-pf=job%7C%3C%7Cx",
+		"adhoc bad operator":   "var-pf=job%7C%7E%7Cx",
 		"adhoc All":            "var-pf=%24__all",
 	} {
 		t.Run(name, func(t *testing.T) {

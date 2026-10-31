@@ -1,35 +1,87 @@
-export const adhocOps = ["=", "!=", "=~", "!~"] as const
+import type { AdhocFilter as SpecAdhocFilter } from "@/spec"
 
-export type AdhocOp = (typeof adhocOps)[number]
+const adhocOps = ["=", "!=", "=~", "!~"] as const
 
-export type AdhocFilter = { key: string; op: AdhocOp; value: string }
+const orderingOps = ["<", ">"] as const
+
+const allOps = [...adhocOps, ...orderingOps] as const
+
+export type AdhocOp = (typeof allOps)[number]
+
+export type AdhocFilter = {
+  key: string
+  op: AdhocOp
+  value: string
+  condition?: "or"
+}
+
+export type FilterLabels = { keyLabel?: string; valueLabel?: string }
 
 export const maxAdhocFilters = 20
 
+const orPrefix = "|"
+
 const labelNamePattern = /^[A-Za-z_][A-Za-z0-9_]*$/
 const columnPattern = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/
+const numberPattern = /^-?[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?$/
 
 function isOp(text: string): text is AdhocOp {
-  return (adhocOps as readonly string[]).includes(text)
+  return (allOps as readonly string[]).includes(text)
+}
+
+export function opsFor(datasourceType: string | undefined): readonly AdhocOp[] {
+  return datasourceType === "clickhouse" ? allOps : adhocOps
 }
 
 export function parseFilter(text: string): AdhocFilter | null {
-  const first = text.indexOf("|")
+  const or = text.startsWith(orPrefix)
+  const body = or ? text.slice(orPrefix.length) : text
+  const first = body.indexOf("|")
   if (first < 0) return null
-  const second = text.indexOf("|", first + 1)
+  const second = body.indexOf("|", first + 1)
   if (second < 0) return null
-  const key = text.slice(0, first)
-  const op = text.slice(first + 1, second)
+  const key = body.slice(0, first)
+  const op = body.slice(first + 1, second)
   if (key === "" || !isOp(op)) return null
-  return { key, op, value: text.slice(second + 1) }
+  const filter: AdhocFilter = { key, op, value: body.slice(second + 1) }
+  return or ? { ...filter, condition: "or" } : filter
 }
 
 export function formatFilter(filter: AdhocFilter): string {
-  return `${filter.key}|${filter.op}|${filter.value}`
+  const text = `${filter.key}|${filter.op}|${filter.value}`
+  return filter.condition === "or" ? orPrefix + text : text
 }
 
-export function describeFilter(filter: AdhocFilter): string {
-  return `${filter.key} ${filter.op} ${filter.value}`
+export function describeFilter(
+  filter: AdhocFilter,
+  labels: FilterLabels = {}
+): string {
+  return `${labels.keyLabel ?? filter.key} ${filter.op} ${labels.valueLabel ?? filter.value}`
+}
+
+export function fromSpecFilter(filter: SpecAdhocFilter): AdhocFilter {
+  const out: AdhocFilter = {
+    key: filter.key,
+    op: filter.operator,
+    value: filter.value,
+  }
+  return filter.condition === "or" ? { ...out, condition: "or" } : out
+}
+
+export function labelsBySavedFilter(
+  saved: readonly SpecAdhocFilter[] | undefined
+): Map<string, FilterLabels> {
+  const out = new Map<string, FilterLabels>()
+  for (const filter of saved ?? []) {
+    if (filter.keyLabel === undefined && filter.valueLabel === undefined) {
+      continue
+    }
+    out.set(formatFilter(fromSpecFilter(filter)), {
+      keyLabel: filter.keyLabel,
+      valueLabel: filter.valueLabel,
+    })
+  }
+  return out
 }
 
 export function parseFilters(texts: string[]): AdhocFilter[] {
@@ -58,5 +110,16 @@ export function validFilter(
   filter: AdhocFilter,
   datasourceType: string | undefined
 ): boolean {
-  return isOp(filter.op) && validKey(filter.key, datasourceType)
+  return (
+    opsFor(datasourceType).includes(filter.op) &&
+    validKey(filter.key, datasourceType)
+  )
+}
+
+export function compareValues(cell: string, value: string): number {
+  if (numberPattern.test(cell) && numberPattern.test(value)) {
+    return Math.sign(Number(cell) - Number(value))
+  }
+  if (cell < value) return -1
+  return cell > value ? 1 : 0
 }

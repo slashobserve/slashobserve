@@ -96,7 +96,7 @@ describe("reusedFilterOf", () => {
   it("filters the source's own results when its transforms are not applied", () => {
     expect(
       reusedFilterOf(filtering(true, false), source, variables, selections)
-    ).toEqual({ filters: [{ key: "pod", op: "=", value: "a" }], after: 0 })
+    ).toEqual({ scopes: [[{ key: "pod", op: "=", value: "a" }]], after: 0 })
   })
 
   it("filters after the source's transforms when they are applied", () => {
