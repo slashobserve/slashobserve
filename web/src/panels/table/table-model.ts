@@ -2,6 +2,7 @@ import { zonedTimeValue } from "@/lib/time"
 import { decimalsByUnit } from "@/lib/units"
 import type { Reducer } from "@/spec"
 
+import { fieldActions, type FieldAction } from "../actions/field-actions"
 import {
   displayValue,
   effectiveColorMode,
@@ -558,6 +559,26 @@ export function rowFill(
   return null
 }
 
+export function cellScope(
+  fields: FieldResolver,
+  column: TableColumn,
+  row: TableRow,
+  cell: Cell,
+  scope: LinkScope
+): LinkScope {
+  const { frame } = row.source
+  const field = row.source.fields[column.key] ?? column.source.field
+  return {
+    ...scope,
+    row: row.at,
+    labels: frame.labels,
+    seriesName: fields.seriesName(frame, field),
+    fieldName: field.name,
+    value: row.values[column.key],
+    valueText: cell.text,
+  }
+}
+
 export function cellLinks(
   fields: FieldResolver,
   column: TableColumn,
@@ -567,16 +588,18 @@ export function cellLinks(
 ): ResolvedLink[] {
   const links = configAt(fields, column, row).links.filter(isDataLink)
   if (links.length === 0) return []
-  const { frame } = row.source
-  const field = row.source.fields[column.key] ?? column.source.field
-  const full: LinkScope = {
-    ...scope,
-    row: row.at,
-    labels: frame.labels,
-    seriesName: fields.seriesName(frame, field),
-    fieldName: field.name,
-    value: row.values[column.key],
-    valueText: cell.text,
-  }
+  const full = cellScope(fields, column, row, cell, scope)
   return links.flatMap((link) => resolveLink(link, full) ?? [])
+}
+
+export function cellActions(
+  fields: FieldResolver,
+  column: TableColumn,
+  row: TableRow,
+  cell: Cell,
+  scope: LinkScope
+): FieldAction[] {
+  const config = configAt(fields, column, row)
+  if (config.actions.length === 0) return []
+  return fieldActions(config, cellScope(fields, column, row, cell, scope))
 }

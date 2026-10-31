@@ -7,6 +7,7 @@ import type { DataPanel } from "@/spec"
 
 import { initialSort } from "./table-layout"
 import {
+  cellActions,
   cellLinks,
   cellOf,
   cellSpecAt,
@@ -86,7 +87,12 @@ function build(
       vars: {},
       fields,
     })
-  return { fields, model, footer, column, cell, links }
+  const actions = (label: string, row: number) =>
+    cellActions(fields, column(label), model.rows[row], cell(label, row), {
+      vars: {},
+      fields,
+    })
+  return { fields, model, footer, column, cell, links, actions }
 }
 
 const labels = (model: TableModel) => model.columns.map((c) => c.label)
@@ -494,6 +500,45 @@ describe("table links", () => {
     )
     expect(cellLinksOf("n", 1)[0].href).toBe("/routes?name=%2Fpay")
     expect(cellLinksOf("pod", 0)[0].href).toBe("/routes?name=%2Fcart")
+  })
+})
+
+describe("table field actions", () => {
+  const restart = {
+    title: "Restart",
+    url: "https://ops.example.com/${__data.fields.route}/restart",
+  }
+  const frames = [
+    frame([text(["/cart", "/pay"], "route"), number([1, 2], "n")]),
+  ]
+
+  it("returns the actions of the override that gives them, with its index", () => {
+    const { actions } = build(frames, {
+      overrides: [
+        { match: { field: "route" }, unit: "short" },
+        { match: { field: "n" }, actions: [restart] },
+      ],
+    })
+    const [action] = actions("n", 1)
+    expect(action).toMatchObject({
+      title: "Restart",
+      method: "POST",
+      host: "ops.example.com",
+      index: 0,
+      override: 1,
+    })
+    expect(actions("route", 1)).toEqual([])
+  })
+
+  it("returns the panel's own actions with no override index", () => {
+    const { actions } = build(frames, { actions: [restart] })
+    expect(actions("n", 0)).toMatchObject([
+      { title: "Restart", override: null },
+    ])
+  })
+
+  it("returns nothing for a column without actions", () => {
+    expect(build(frames).actions("n", 0)).toEqual([])
   })
 })
 
