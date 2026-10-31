@@ -28,7 +28,7 @@ const (
 	corpusDir               = "corpus"
 	goldenDir               = "golden"
 	minimumRatio            = 90
-	minimumFull             = 97.7
+	minimumFull             = 99.2
 	fullSlack               = 0.5
 	maximumOpenPlaceholders = 7
 	worklistSize            = 10

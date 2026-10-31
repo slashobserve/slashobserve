@@ -1,4 +1,0 @@
-fieldConfig.defaults.custom.fillOpacity
-fieldConfig.defaults.custom.gradientMode
-fieldConfig.defaults.custom.showPoints
-fieldConfig.defaults.thresholds.min

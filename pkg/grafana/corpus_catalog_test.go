@@ -1,27 +1,16 @@
 package grafana
 
 import (
-	"errors"
-	"flag"
 	"fmt"
 	"io/fs"
 	"maps"
-	"path"
 	"slices"
 	"sort"
 	"strings"
 	"testing"
 )
 
-var (
-	uncataloguedSeed  = flag.Bool("uncatalogued.seed", false, "write testdata/uncatalogued when it does not exist")
-	uncataloguedPrune = flag.Bool("uncatalogued.prune", false, "delete the worklist lines that are catalogued now")
-)
-
-const (
-	uncataloguedDir  = "uncatalogued"
-	maxReportedLines = 40
-)
+const maxReportedLines = 40
 
 var exportRootKeys = []string{"__inputs", "__requires", "__elements"}
 
@@ -343,10 +332,6 @@ func uncataloguedLines(src *source, ix catalogIndex) map[optionScope]map[string]
 	return out
 }
 
-func worklistFileName(scope optionScope) string {
-	return strings.ReplaceAll(string(scope), ":", "-") + ".txt"
-}
-
 func corpusSources(t *testing.T) map[string]*source {
 	t.Helper()
 	root := conformanceRoot(t)
@@ -376,71 +361,11 @@ func corpusSources(t *testing.T) map[string]*source {
 	return sources
 }
 
-func readWorklist(t *testing.T) (map[string]map[string]bool, bool) {
-	t.Helper()
-	root := conformanceRoot(t)
-	entries, err := fs.ReadDir(root.FS(), uncataloguedDir)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return map[string]map[string]bool{}, false
-		}
-		t.Fatal(err)
-	}
-	files := map[string]map[string]bool{}
-	for _, entry := range entries {
-		raw, err := root.ReadFile(path.Join(uncataloguedDir, entry.Name()))
-		if err != nil {
-			t.Fatal(err)
-		}
-		lines := map[string]bool{}
-		for _, line := range strings.Split(string(raw), "\n") {
-			if line != "" {
-				lines[line] = true
-			}
-		}
-		files[entry.Name()] = lines
-	}
-	return files, true
-}
-
-func writeWorklist(t *testing.T, files map[string]map[string]bool) {
-	t.Helper()
-	root := conformanceRoot(t)
-	if err := root.MkdirAll(uncataloguedDir, 0o750); err != nil {
-		t.Fatal(err)
-	}
-	for name, lines := range files {
-		file := path.Join(uncataloguedDir, name)
-		if len(lines) == 0 {
-			if err := root.Remove(file); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				t.Fatal(err)
-			}
-			continue
-		}
-		body := strings.Join(slices.Sorted(maps.Keys(lines)), "\n") + "\n"
-		if err := root.WriteFile(file, []byte(body), 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
-}
-
-func worklistProblems(uncovered map[string]map[string]bool, scopes map[string]optionScope, recorded map[string]map[string]bool) []string {
+func uncataloguedProblems(uncovered map[optionScope]map[string]bool) []string {
 	var problems []string
-	for _, name := range slices.Sorted(maps.Keys(uncovered)) {
-		for _, line := range slices.Sorted(maps.Keys(uncovered[name])) {
-			if !recorded[name][line] {
-				problems = append(problems, fmt.Sprintf("%s: %s is not catalogued; add a catalog entry", scopes[name], line))
-			}
-		}
-	}
-	for _, name := range slices.Sorted(maps.Keys(recorded)) {
-		if len(recorded[name]) == 0 {
-			problems = append(problems, fmt.Sprintf("delete %s", name))
-		}
-		for _, line := range slices.Sorted(maps.Keys(recorded[name])) {
-			if !uncovered[name][line] {
-				problems = append(problems, fmt.Sprintf("%s: %s is catalogued now; delete the line (or run with -uncatalogued.prune)", strings.TrimSuffix(name, ".txt"), line))
-			}
+	for _, scope := range slices.Sorted(maps.Keys(uncovered)) {
+		for _, line := range slices.Sorted(maps.Keys(uncovered[scope])) {
+			problems = append(problems, fmt.Sprintf("%s: %s is not catalogued; add a catalog entry", scope, line))
 		}
 	}
 	return problems
@@ -448,37 +373,16 @@ func worklistProblems(uncovered map[string]map[string]bool, scopes map[string]op
 
 func TestCorpusOptionsAreCatalogued(t *testing.T) {
 	ix := buildCatalogIndex(t, loadConformanceAreas(t, conformanceRoot(t)))
-	uncovered := map[string]map[string]bool{}
-	scopes := map[string]optionScope{}
+	uncovered := map[optionScope]map[string]bool{}
 	for _, src := range corpusSources(t) {
 		for scope, lines := range uncataloguedLines(src, ix) {
-			name := worklistFileName(scope)
-			scopes[name] = scope
-			if uncovered[name] == nil {
-				uncovered[name] = map[string]bool{}
+			if uncovered[scope] == nil {
+				uncovered[scope] = map[string]bool{}
 			}
-			maps.Copy(uncovered[name], lines)
+			maps.Copy(uncovered[scope], lines)
 		}
 	}
-	recorded, exists := readWorklist(t)
-	if *uncataloguedSeed && !exists {
-		writeWorklist(t, uncovered)
-		return
-	}
-	if *uncataloguedPrune {
-		kept := map[string]map[string]bool{}
-		for name, lines := range recorded {
-			kept[name] = map[string]bool{}
-			for line := range lines {
-				if uncovered[name][line] {
-					kept[name][line] = true
-				}
-			}
-		}
-		writeWorklist(t, kept)
-		return
-	}
-	problems := worklistProblems(uncovered, scopes, recorded)
+	problems := uncataloguedProblems(uncovered)
 	if len(problems) > maxReportedLines {
 		problems = append(problems[:maxReportedLines], fmt.Sprintf("and %d more", len(problems)-maxReportedLines))
 	}
@@ -660,8 +564,7 @@ func TestWorklistLine(t *testing.T) {
 	}
 }
 
-func TestWorklistProblems(t *testing.T) {
-	scopes := map[string]optionScope{"panel-graph.txt": "panel:graph"}
+func TestUncataloguedProblems(t *testing.T) {
 	set := func(lines ...string) map[string]bool {
 		out := map[string]bool{}
 		for _, l := range lines {
@@ -671,19 +574,22 @@ func TestWorklistProblems(t *testing.T) {
 	}
 	cases := []struct {
 		name      string
-		uncovered map[string]map[string]bool
-		recorded  map[string]map[string]bool
+		uncovered map[optionScope]map[string]bool
 		want      []string
 	}{
-		{"matching lists are quiet", map[string]map[string]bool{"panel-graph.txt": set("bars")}, map[string]map[string]bool{"panel-graph.txt": set("bars")}, nil},
-		{"a new line fails", map[string]map[string]bool{"panel-graph.txt": set("bars", "lines")}, map[string]map[string]bool{"panel-graph.txt": set("bars")}, []string{"panel:graph: lines is not catalogued; add a catalog entry"}},
-		{"a covered line fails", map[string]map[string]bool{"panel-graph.txt": set("bars")}, map[string]map[string]bool{"panel-graph.txt": set("bars", "lines")}, []string{"panel-graph: lines is catalogued now; delete the line (or run with -uncatalogued.prune)"}},
-		{"an empty file fails", map[string]map[string]bool{}, map[string]map[string]bool{"panel-graph.txt": set()}, []string{"delete panel-graph.txt"}},
-		{"a file of covered lines fails per line", map[string]map[string]bool{}, map[string]map[string]bool{"panel-graph.txt": set("bars")}, []string{"panel-graph: bars is catalogued now; delete the line (or run with -uncatalogued.prune)"}},
+		{"nothing uncovered is quiet", map[optionScope]map[string]bool{}, nil},
+		{"each line names its scope", map[optionScope]map[string]bool{"panel:graph": set("lines", "bars")}, []string{
+			"panel:graph: bars is not catalogued; add a catalog entry",
+			"panel:graph: lines is not catalogued; add a catalog entry",
+		}},
+		{"scopes come in order", map[optionScope]map[string]bool{"panel:stat": set("a"), "panel:graph": set("b")}, []string{
+			"panel:graph: b is not catalogued; add a catalog entry",
+			"panel:stat: a is not catalogued; add a catalog entry",
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := worklistProblems(tc.uncovered, scopes, tc.recorded); !slices.Equal(got, tc.want) {
+			if got := uncataloguedProblems(tc.uncovered); !slices.Equal(got, tc.want) {
 				t.Fatalf("problems = %q, want %q", got, tc.want)
 			}
 		})

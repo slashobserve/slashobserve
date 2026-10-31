@@ -1,3 +1,0 @@
-fieldConfig.defaults.custom.hideFrom.legend
-fieldConfig.defaults.custom.hideFrom.tooltip
-fieldConfig.defaults.custom.hideFrom.viz

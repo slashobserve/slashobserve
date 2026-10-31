@@ -229,6 +229,8 @@ var legacySinglestatIgnored = map[string]string{
 
 const annotationLanesSkipped = "Grafana 12.3 time series panels define no annotation lanes or clustering"
 
+const alertThresholdsWithoutRules = "Grafana draws alert thresholds only for an alert rule linked to the panel, and SlashObserve has no alert rules"
+
 var anyPanelScope = optionScope("panel:*")
 
 func underKeys(prefix string, keys ...string) []string {
@@ -322,6 +324,7 @@ var ignoredOptions = map[optionScope]map[string]string{
 	panelScope(spec.Timeseries): {
 		"options.annotations.multiLane":  annotationLanesSkipped,
 		"options.annotations.clustering": annotationLanesSkipped,
+		"options.alertThreshold":         alertThresholdsWithoutRules,
 	},
 	panelScope(spec.BarChart): {
 		"options.text.titleSize":   "bar charts draw no title text",

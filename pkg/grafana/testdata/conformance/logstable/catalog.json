@@ -1,0 +1,14 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/logstable/panelcfg.cue",
+    "public/app/plugins/panel/logstable/module.tsx"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    { "id": "options.cellHeight=md", "path": "options.cellHeight", "value": "md" },
+    { "id": "options.cellHeight=lg", "path": "options.cellHeight", "value": "lg" },
+    { "id": "options.cellHeight=auto", "path": "options.cellHeight", "value": "auto" },
+    { "id": "options.showHeader=false", "path": "options.showHeader", "value": false }
+  ]
+}

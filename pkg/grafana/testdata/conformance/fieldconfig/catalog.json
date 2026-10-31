@@ -453,6 +453,7 @@
     { "id": "fieldConfig.overrides[0].properties[0]=custom.hidden-text", "path": "fieldConfig.overrides[0].properties[0]", "value": {"id": "custom.hidden", "value": "true"}, "with": {"type": "table", "fieldConfig.overrides[0].matcher": {"id": "byName", "options": "up"}} },
     { "id": "fieldConfig.overrides[0].properties[0]=custom.hideFrom.viz", "path": "fieldConfig.overrides[0].properties[0]", "value": {"id": "custom.hideFrom.viz", "value": true}, "with": {"type": "table", "fieldConfig.overrides[0].matcher": {"id": "byName", "options": "up"}} },
     { "id": "fieldConfig.overrides[0].properties[0]=custom.stacking-group-false", "path": "fieldConfig.overrides[0].properties[0]", "value": {"id": "custom.stacking", "value": {"mode": "normal", "group": false}}, "with": {"fieldConfig.overrides[0].matcher": {"id": "byName", "options": "up"}} },
-    { "id": "fieldConfig.defaults.mappings=value-empty-text", "path": "fieldConfig.defaults.mappings", "value": [{"type": "value", "options": {"": {"text": "Unset", "color": "red", "index": 0}}}] }
+    { "id": "fieldConfig.defaults.mappings=value-empty-text", "path": "fieldConfig.defaults.mappings", "value": [{"type": "value", "options": {"": {"text": "Unset", "color": "red", "index": 0}}}] },
+    { "id": "fieldConfig.defaults.thresholds.steps[0].index=0", "path": "fieldConfig.defaults.thresholds.steps[0].index", "value": 0, "with": {"fieldConfig.defaults.thresholds.steps": [{"color": "green", "value": null}, {"color": "red", "value": 80}]}, "expect": "bookkeeping" }
   ]
 }

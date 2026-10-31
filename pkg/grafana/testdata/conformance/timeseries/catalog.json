@@ -222,6 +222,7 @@
     { "id": "fieldConfig.defaults.custom.stacking.group=false", "path": "fieldConfig.defaults.custom.stacking.group", "value": false, "with": {"fieldConfig.defaults.custom.stacking.mode": "normal"} },
     { "id": "fieldConfig.defaults.custom.stacking.group=B-unstacked", "path": "fieldConfig.defaults.custom.stacking.group", "value": "B", "with": {"fieldConfig.defaults.custom.stacking.mode": "none"}, "expect": "bookkeeping" },
     { "id": "options.annotations.multiLane=false", "path": "options.annotations.multiLane", "value": false, "expect": "bookkeeping" },
-    { "id": "options.annotations.clustering=-1", "path": "options.annotations.clustering", "value": -1, "expect": "bookkeeping" }
+    { "id": "options.annotations.clustering=-1", "path": "options.annotations.clustering", "value": -1, "expect": "bookkeeping" },
+    { "id": "options.alertThreshold=false", "path": "options.alertThreshold", "value": false, "expect": "bookkeeping" }
   ]
 }

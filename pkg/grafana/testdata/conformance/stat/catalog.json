@@ -41,6 +41,10 @@
     {"id": "options.legend.showLegend=false", "path": "options.legend.showLegend", "value": false, "expect": "bookkeeping"},
     {"id": "options.legend.displayMode=table", "path": "options.legend.displayMode", "value": "table", "expect": "bookkeeping"},
     {"id": "options.legend.placement=right", "path": "options.legend.placement", "value": "right", "expect": "bookkeeping"},
-    {"id": "options.legend.calcs=mean", "path": "options.legend.calcs", "value": ["mean"], "expect": "bookkeeping"}
+    {"id": "options.legend.calcs=mean", "path": "options.legend.calcs", "value": ["mean"], "expect": "bookkeeping"},
+    {"id": "fieldConfig.defaults.custom.fillOpacity=30", "path": "fieldConfig.defaults.custom.fillOpacity", "value": 30},
+    {"id": "fieldConfig.defaults.custom.gradientMode=hue", "path": "fieldConfig.defaults.custom.gradientMode", "value": "hue", "expect": "cosmetic"},
+    {"id": "fieldConfig.defaults.custom.showPoints=always", "path": "fieldConfig.defaults.custom.showPoints", "value": "always", "expect": "bookkeeping"},
+    {"id": "fieldConfig.defaults.thresholds.min=0", "path": "fieldConfig.defaults.thresholds.min", "value": 0, "expect": "bookkeeping"}
   ]
 }
