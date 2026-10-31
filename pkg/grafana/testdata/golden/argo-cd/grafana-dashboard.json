@@ -82,8 +82,8 @@
   },
   "blocks": [
     "dashboard mapped=4 bookkeeping=8",
-    "panel panels[0] mapped=29 default=10 bookkeeping=2 query:1",
-    "panel panels[1] mapped=29 default=10 bookkeeping=2 query:1"
+    "panel panels[0] mapped=32 default=8 bookkeeping=1 query:1",
+    "panel panels[1] mapped=32 default=8 bookkeeping=1 query:1"
   ],
   "spec": {
     "specVersion": "0",

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 33,
-      "imported": 29,
-      "partial": 4,
+      "imported": 33,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -246,9 +246,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network",
-        "status": "partial",
+        "status": "imported",
         "reasons": [
-          "Alerts are not supported yet."
+          "Alert rules are not part of SlashObserve."
         ],
         "paths": [
           "alert"
@@ -292,9 +292,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network",
-        "status": "partial",
+        "status": "imported",
         "reasons": [
-          "Alerts are not supported yet."
+          "Alert rules are not part of SlashObserve."
         ],
         "paths": [
           "alert"
@@ -338,9 +338,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network",
-        "status": "partial",
+        "status": "imported",
         "reasons": [
-          "Alerts are not supported yet."
+          "Alert rules are not part of SlashObserve."
         ],
         "paths": [
           "alert"
@@ -636,9 +636,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "DNS",
-        "status": "partial",
+        "status": "imported",
         "reasons": [
-          "Alerts are not supported yet."
+          "Alert rules are not part of SlashObserve."
         ],
         "paths": [
           "alert"
@@ -763,39 +763,39 @@
   },
   "blocks": [
     "dashboard mapped=5 bookkeeping=8",
-    "panel panels[1] mapped=50 default=8 bookkeeping=2 query:3",
-    "panel panels[2] mapped=33 default=7 bookkeeping=2 query:1",
-    "panel panels[3] mapped=33 default=7 bookkeeping=2 query:1",
-    "panel panels[4] mapped=33 default=7 bookkeeping=2 query:1",
-    "panel panels[6] mapped=32 default=8 bookkeeping=2 query:1",
-    "panel panels[7] mapped=32 default=8 bookkeeping=2 query:1",
-    "panel panels[8] mapped=35 default=6 bookkeeping=2 query:1",
-    "panel panels[9] mapped=39 default=7 bookkeeping=2 query:1",
-    "panel panels[10] mapped=38 default=8 bookkeeping=2 query:1",
-    "panel panels[11] mapped=43 reported=1 default=8 bookkeeping=2 query:1",
-    "panel panels[12] mapped=34 default=8 bookkeeping=2 query:1",
-    "panel panels[13] mapped=43 reported=1 default=8 bookkeeping=2 query:1",
-    "panel panels[14] mapped=32 default=8 bookkeeping=2 query:1",
-    "panel panels[15] mapped=37 reported=1 default=8 bookkeeping=2 query:1",
-    "panel panels[16] mapped=32 default=8 bookkeeping=2 query:1",
-    "panel panels[17] mapped=32 default=8 bookkeeping=2 query:1",
-    "panel panels[19] mapped=32 default=8 bookkeeping=2 query:1",
-    "panel panels[20] mapped=32 default=8 bookkeeping=2 query:1",
-    "panel panels[21] mapped=32 default=8 bookkeeping=2 query:1",
-    "panel panels[22] mapped=32 default=8 bookkeeping=2 query:1",
-    "panel panels[24] mapped=33 default=8 bookkeeping=2 query:1",
-    "panel panels[25] mapped=33 default=8 bookkeeping=2 query:1",
-    "panel panels[26] mapped=32 default=8 bookkeeping=2 query:1",
-    "panel panels[27] mapped=32 default=8 bookkeeping=2 query:1",
-    "panel panels[28] mapped=35 default=6 bookkeeping=2 query:1",
-    "panel panels[30] mapped=32 default=8 bookkeeping=2 query:1",
-    "panel panels[31] mapped=33 default=8 bookkeeping=2 query:1",
-    "panel panels[32] mapped=37 reported=1 default=8 bookkeeping=2 query:1",
-    "panel panels[33] mapped=33 default=8 bookkeeping=2 query:1",
-    "panel panels[34] mapped=33 default=8 bookkeeping=2 query:1",
-    "panel panels[35] mapped=33 default=8 bookkeeping=2 query:1",
-    "panel panels[36] mapped=35 default=8 bookkeeping=2 query:1",
-    "panel panels[37] mapped=36 default=8 bookkeeping=2 query:1"
+    "panel panels[1] mapped=53 default=6 bookkeeping=1 query:3",
+    "panel panels[2] mapped=36 default=5 bookkeeping=1 query:1",
+    "panel panels[3] mapped=36 default=5 bookkeeping=1 query:1",
+    "panel panels[4] mapped=36 default=5 bookkeeping=1 query:1",
+    "panel panels[6] mapped=35 default=6 bookkeeping=1 query:1",
+    "panel panels[7] mapped=35 default=6 bookkeeping=1 query:1",
+    "panel panels[8] mapped=38 default=4 bookkeeping=1 query:1",
+    "panel panels[9] mapped=42 default=5 bookkeeping=1 query:1",
+    "panel panels[10] mapped=41 default=6 bookkeeping=1 query:1",
+    "panel panels[11] mapped=46 excluded=1 default=6 bookkeeping=1 query:1",
+    "panel panels[12] mapped=37 default=6 bookkeeping=1 query:1",
+    "panel panels[13] mapped=46 excluded=1 default=6 bookkeeping=1 query:1",
+    "panel panels[14] mapped=35 default=6 bookkeeping=1 query:1",
+    "panel panels[15] mapped=40 excluded=1 default=6 bookkeeping=1 query:1",
+    "panel panels[16] mapped=35 default=6 bookkeeping=1 query:1",
+    "panel panels[17] mapped=35 default=6 bookkeeping=1 query:1",
+    "panel panels[19] mapped=35 default=6 bookkeeping=1 query:1",
+    "panel panels[20] mapped=35 default=6 bookkeeping=1 query:1",
+    "panel panels[21] mapped=35 default=6 bookkeeping=1 query:1",
+    "panel panels[22] mapped=35 default=6 bookkeeping=1 query:1",
+    "panel panels[24] mapped=36 default=6 bookkeeping=1 query:1",
+    "panel panels[25] mapped=36 default=6 bookkeeping=1 query:1",
+    "panel panels[26] mapped=35 default=6 bookkeeping=1 query:1",
+    "panel panels[27] mapped=35 default=6 bookkeeping=1 query:1",
+    "panel panels[28] mapped=38 default=4 bookkeeping=1 query:1",
+    "panel panels[30] mapped=35 default=6 bookkeeping=1 query:1",
+    "panel panels[31] mapped=36 default=6 bookkeeping=1 query:1",
+    "panel panels[32] mapped=40 excluded=1 default=6 bookkeeping=1 query:1",
+    "panel panels[33] mapped=36 default=6 bookkeeping=1 query:1",
+    "panel panels[34] mapped=36 default=6 bookkeeping=1 query:1",
+    "panel panels[35] mapped=36 default=6 bookkeeping=1 query:1",
+    "panel panels[36] mapped=38 default=6 bookkeeping=1 query:1",
+    "panel panels[37] mapped=39 default=6 bookkeeping=1 query:1"
   ],
   "spec": {
     "specVersion": "0",
@@ -1134,6 +1134,7 @@
               }
             ],
             "fill": 10,
+            "thresholdsStyle": "line+area",
             "overrides": [
               {
                 "match": {
@@ -1205,6 +1206,7 @@
               }
             ],
             "fill": 10,
+            "thresholdsStyle": "line+area",
             "overrides": [
               {
                 "match": {
@@ -1276,6 +1278,7 @@
               }
             ],
             "fill": 10,
+            "thresholdsStyle": "line+area",
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"
@@ -1663,6 +1666,7 @@
               }
             ],
             "fill": 10,
+            "thresholdsStyle": "line+area",
             "display": {
               "tooltip": "all",
               "tooltipSort": "none"

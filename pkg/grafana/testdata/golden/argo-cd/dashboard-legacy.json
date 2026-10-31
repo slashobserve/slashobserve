@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 35,
-      "imported": 5,
-      "partial": 30,
+      "imported": 24,
+      "partial": 11,
       "placeholder": 0,
       "unverified": 0
     },
@@ -108,13 +108,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Applications",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -361,13 +357,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Controller Stats",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -386,13 +378,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Controller Stats",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -411,13 +399,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Controller Stats",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -436,13 +420,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Controller Stats",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -482,13 +462,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Controller Stats",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -507,13 +483,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Controller Stats",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -532,13 +504,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Server Stats:",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -557,13 +525,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Server Stats:",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -582,13 +546,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Server Stats:",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -620,15 +580,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Server Stats:",
-        "status": "partial",
-        "reasons": [
-          "Thresholds below a value are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "thresholds[0]",
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -647,15 +601,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Server Stats:",
-        "status": "partial",
-        "reasons": [
-          "Thresholds below a value are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "thresholds[0]",
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -674,15 +622,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Server Stats:",
-        "status": "partial",
-        "reasons": [
-          "Thresholds below a value are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "thresholds[0]",
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -701,15 +643,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Server Stats:",
-        "status": "partial",
-        "reasons": [
-          "Thresholds below a value are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "thresholds[0]",
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -728,15 +664,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Server Stats:",
-        "status": "partial",
-        "reasons": [
-          "Thresholds below a value are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "thresholds[0]",
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -755,15 +685,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Server Stats:",
-        "status": "partial",
-        "reasons": [
-          "Thresholds below a value are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "thresholds[0]",
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -782,15 +706,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Server Stats:",
-        "status": "partial",
-        "reasons": [
-          "Thresholds below a value are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "thresholds[0]",
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -809,13 +727,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Repo Server Stats:",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -834,13 +748,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Repo Server Stats:",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "paceLength"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -898,41 +808,41 @@
   },
   "blocks": [
     "dashboard mapped=4 bookkeeping=8",
-    "panel panels[1] mapped=4 bookkeeping=1",
-    "panel panels[2] mapped=35 reported=1 bookkeeping=2 query:1",
-    "panel panels[3] mapped=36 reported=3 bookkeeping=2 query:1",
-    "panel panels[4] mapped=37 reported=1 default=7 bookkeeping=2 query:1",
-    "panel panels[6] mapped=36 reported=3 bookkeeping=2 query:1",
-    "panel panels[7] mapped=36 reported=2 bookkeeping=2 query:1",
-    "panel panels[8] mapped=36 reported=1 bookkeeping=2 query:1",
-    "panel panels[9] mapped=36 reported=1 bookkeeping=2 query:1",
-    "panel panels[10] mapped=36 reported=1 bookkeeping=2 query:1",
-    "panel panels[11] mapped=36 reported=1 bookkeeping=2 query:1",
-    "panel panels[13] mapped=36 reported=1 bookkeeping=2 query:1",
-    "panel panels[14] mapped=36 reported=1 bookkeeping=2 query:1",
-    "panel panels[15] mapped=36 reported=1 bookkeeping=2 query:1",
-    "panel panels[17] mapped=38 reported=1 default=8 bookkeeping=2 query:1",
-    "panel panels[18] mapped=36 reported=1 default=8 bookkeeping=2 query:1",
-    "panel panels[19] mapped=32 reported=1 default=8 bookkeeping=2 query:1",
-    "panel panels[20] mapped=32 reported=1 default=8 bookkeeping=2 query:1",
-    "panel panels[21] mapped=23 no_effect=1 bookkeeping=2 query:1",
-    "panel panels[22] mapped=33 reported=1 default=8 bookkeeping=2 query:1",
-    "panel panels[23] mapped=34 reported=1 default=8 bookkeeping=2 query:1",
-    "panel panels[24].panels[0] mapped=33 reported=1 default=8 bookkeeping=2 query:1",
-    "panel panels[24].panels[1] mapped=32 reported=1 default=8 bookkeeping=2 query:1",
-    "panel panels[24].panels[2] mapped=32 reported=1 default=8 bookkeeping=2 query:1",
-    "panel panels[24].panels[3] mapped=4 bookkeeping=1",
-    "panel panels[24].panels[4] mapped=32 reported=2 default=8 bookkeeping=2 query:1",
-    "panel panels[24].panels[5] mapped=32 reported=2 default=8 bookkeeping=2 query:1",
-    "panel panels[24].panels[6] mapped=32 reported=2 default=8 bookkeeping=2 query:1",
-    "panel panels[24].panels[7] mapped=32 reported=2 default=8 bookkeeping=2 query:1",
-    "panel panels[24].panels[8] mapped=32 reported=2 default=8 bookkeeping=2 query:1",
-    "panel panels[24].panels[9] mapped=32 reported=2 default=8 bookkeeping=2 query:1",
-    "panel panels[24].panels[10] mapped=32 reported=2 default=8 bookkeeping=2 query:1",
-    "panel panels[26] mapped=33 reported=1 default=8 bookkeeping=2 query:1",
-    "panel panels[27] mapped=32 reported=1 default=8 bookkeeping=2 query:1",
-    "panel panels[28] mapped=32 default=8 bookkeeping=2 query:1",
-    "panel panels[29] mapped=32 default=8 bookkeeping=2 query:1"
+    "panel panels[1] mapped=5",
+    "panel panels[2] mapped=36 reported=1 bookkeeping=1 query:1",
+    "panel panels[3] mapped=37 reported=3 bookkeeping=1 query:1",
+    "panel panels[4] mapped=40 default=5 no_effect=1 bookkeeping=1 query:1",
+    "panel panels[6] mapped=37 reported=3 bookkeeping=1 query:1",
+    "panel panels[7] mapped=37 reported=2 bookkeeping=1 query:1",
+    "panel panels[8] mapped=37 reported=1 bookkeeping=1 query:1",
+    "panel panels[9] mapped=37 reported=1 bookkeeping=1 query:1",
+    "panel panels[10] mapped=37 reported=1 bookkeeping=1 query:1",
+    "panel panels[11] mapped=37 reported=1 bookkeeping=1 query:1",
+    "panel panels[13] mapped=37 reported=1 bookkeeping=1 query:1",
+    "panel panels[14] mapped=37 reported=1 bookkeeping=1 query:1",
+    "panel panels[15] mapped=37 reported=1 bookkeeping=1 query:1",
+    "panel panels[17] mapped=41 default=6 no_effect=1 bookkeeping=1 query:1",
+    "panel panels[18] mapped=39 default=6 no_effect=1 bookkeeping=1 query:1",
+    "panel panels[19] mapped=35 default=6 no_effect=1 bookkeeping=1 query:1",
+    "panel panels[20] mapped=35 default=6 no_effect=1 bookkeeping=1 query:1",
+    "panel panels[21] mapped=24 no_effect=1 bookkeeping=1 query:1",
+    "panel panels[22] mapped=36 default=6 no_effect=1 bookkeeping=1 query:1",
+    "panel panels[23] mapped=37 default=6 no_effect=1 bookkeeping=1 query:1",
+    "panel panels[24].panels[0] mapped=36 default=6 no_effect=1 bookkeeping=1 query:1",
+    "panel panels[24].panels[1] mapped=35 default=6 no_effect=1 bookkeeping=1 query:1",
+    "panel panels[24].panels[2] mapped=35 default=6 no_effect=1 bookkeeping=1 query:1",
+    "panel panels[24].panels[3] mapped=5",
+    "panel panels[24].panels[4] mapped=40 default=6 no_effect=2 bookkeeping=1 query:1",
+    "panel panels[24].panels[5] mapped=40 default=6 no_effect=2 bookkeeping=1 query:1",
+    "panel panels[24].panels[6] mapped=40 default=6 no_effect=2 bookkeeping=1 query:1",
+    "panel panels[24].panels[7] mapped=40 default=6 no_effect=2 bookkeeping=1 query:1",
+    "panel panels[24].panels[8] mapped=40 default=6 no_effect=2 bookkeeping=1 query:1",
+    "panel panels[24].panels[9] mapped=40 default=6 no_effect=2 bookkeeping=1 query:1",
+    "panel panels[24].panels[10] mapped=40 default=6 no_effect=2 bookkeeping=1 query:1",
+    "panel panels[26] mapped=36 default=6 no_effect=1 bookkeeping=1 query:1",
+    "panel panels[27] mapped=35 default=6 no_effect=1 bookkeeping=1 query:1",
+    "panel panels[28] mapped=35 default=6 bookkeeping=1 query:1",
+    "panel panels[29] mapped=35 default=6 bookkeeping=1 query:1"
   ],
   "spec": {
     "specVersion": "0",

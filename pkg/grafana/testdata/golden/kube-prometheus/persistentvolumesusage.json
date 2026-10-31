@@ -147,10 +147,10 @@
   },
   "blocks": [
     "dashboard mapped=6 excluded=1 bookkeeping=2",
-    "panel panels[0] mapped=17 bookkeeping=5 field_config:1 query:2",
-    "panel panels[1] mapped=11 bookkeeping=4 field_config:1 query:1",
-    "panel panels[2] mapped=17 bookkeeping=5 field_config:1 query:2",
-    "panel panels[3] mapped=11 bookkeeping=4 field_config:1 query:1"
+    "panel panels[0] mapped=18 bookkeeping=4 field_config:1 query:2",
+    "panel panels[1] mapped=12 bookkeeping=3 field_config:1 query:1",
+    "panel panels[2] mapped=18 bookkeeping=4 field_config:1 query:2",
+    "panel panels[3] mapped=12 bookkeeping=3 field_config:1 query:1"
   ],
   "spec": {
     "specVersion": "0",
