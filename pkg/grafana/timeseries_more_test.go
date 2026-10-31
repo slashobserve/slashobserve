@@ -280,3 +280,99 @@ func TestPlotDrawnPropsInAnOverrideAreReportedOnTimelines(t *testing.T) {
 		t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
 	}
 }
+
+func TestSeriesStylePropsConvertOnTimeSeries(t *testing.T) {
+	cases := []struct {
+		name, custom string
+		check        func(spec.FieldProps) bool
+	}{
+		{"line color", `{"lineColor":"#ff0000"}`, func(p spec.FieldProps) bool { return p.LineColor == "#ff0000" }},
+		{"line color from a rgb value", `{"lineColor":"rgb(255, 0, 0)"}`, func(p spec.FieldProps) bool { return strings.EqualFold(p.LineColor, "#ff0000") }},
+		{"fill color from a palette name", `{"fillColor":"blue"}`, func(p spec.FieldProps) bool { return p.FillColor == "#5794F2" }},
+		{"point color", `{"pointColor":"#0000ff"}`, func(p spec.FieldProps) bool { return p.PointColor == "#0000ff" }},
+		{"circle symbol", `{"pointSymbol":"circle"}`, func(p spec.FieldProps) bool { return p.PointShape == "circle" }},
+		{"square symbol", `{"pointSymbol":"square"}`, func(p spec.FieldProps) bool { return p.PointShape == "square" }},
+		{"circle marker path", `{"pointSymbol":"img/icons/marker/circle.svg"}`, func(p spec.FieldProps) bool { return p.PointShape == "circle" }},
+		{"square marker path", `{"pointSymbol":"img/icons/marker/square.svg"}`, func(p spec.FieldProps) bool { return p.PointShape == "square" }},
+		{"show values", `{"showValues":true}`, func(p spec.FieldProps) bool { return p.ShowValues != nil && *p.ShowValues }},
+		{"hidden values are Grafana's default", `{"showValues":false}`, func(p spec.FieldProps) bool { return p.ShowValues == nil }},
+	}
+	for _, typ := range []string{"timeseries", "trend", "candlestick"} {
+		for _, tc := range cases {
+			t.Run(typ+" "+tc.name, func(t *testing.T) {
+				panel, line := customPanelOf(t, typ, tc.custom, "")
+				requireImported(t, line)
+				if !tc.check(panel.FieldProps) {
+					t.Fatalf("field props = %+v", panel.FieldProps)
+				}
+			})
+		}
+	}
+}
+
+func TestSeriesStyleColorAndSymbolProblemsAreReported(t *testing.T) {
+	cases := []struct{ name, custom, path, reason string }{
+		{"unknown line color", `{"lineColor":"not-a-color"}`, "fieldConfig.defaults.custom.lineColor", "This line color is not supported yet."},
+		{"unknown fill color", `{"fillColor":"nope"}`, "fieldConfig.defaults.custom.fillColor", "This fill color is not supported yet."},
+		{"unknown point color", `{"pointColor":""}`, "fieldConfig.defaults.custom.pointColor", "This point color is not supported yet."},
+		{"unknown point symbol", `{"pointSymbol":"img/icons/marker/diamond.svg"}`, "fieldConfig.defaults.custom.pointSymbol", "The point symbol img/icons/marker/diamond.svg is not supported yet."},
+		{"point symbol that only ends like a marker", `{"pointSymbol":"notsquare.svg"}`, "fieldConfig.defaults.custom.pointSymbol", "The point symbol notsquare.svg is not supported yet."},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := customPanel(t, tc.custom, "")
+			requireReported(t, line, tc.path, tc.reason)
+			if !fieldPropsEmpty(panel.FieldProps) {
+				t.Fatalf("field props = %+v", panel.FieldProps)
+			}
+		})
+	}
+}
+
+func TestSeriesStylePropsAreReportedOutsideTheSeriesPanels(t *testing.T) {
+	cases := []struct{ name, custom, path string }{
+		{"line color", `{"lineColor":"#ff0000"}`, "fieldConfig.defaults.custom.lineColor"},
+		{"fill color", `{"fillColor":"blue"}`, "fieldConfig.defaults.custom.fillColor"},
+		{"point color", `{"pointColor":"#0000ff"}`, "fieldConfig.defaults.custom.pointColor"},
+		{"point symbol", `{"pointSymbol":"circle"}`, "fieldConfig.defaults.custom.pointSymbol"},
+		{"show values", `{"showValues":true}`, "fieldConfig.defaults.custom.showValues"},
+	}
+	for _, typ := range []string{"state-timeline", "barchart", "xychart", "piechart"} {
+		for _, tc := range cases {
+			t.Run(typ+" "+tc.name, func(t *testing.T) {
+				panel, line := customPanelOf(t, typ, tc.custom, "")
+				if line.Status != statusPartial || strings.Join(line.Paths, " ") != tc.path {
+					t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
+				}
+				if !fieldPropsEmpty(panel.FieldProps) {
+					t.Fatalf("field props = %+v", panel.FieldProps)
+				}
+			})
+		}
+	}
+}
+
+func TestShowValuesOverrideResetsThePanel(t *testing.T) {
+	off := overrideOf(`{"id":"custom.showValues","value":false}`)
+	panel, line := customPanel(t, `{"showValues":true}`, off)
+	requireImported(t, line)
+	reset := firstOverrideProps(t, panel).ShowValues
+	if reset == nil || *reset {
+		t.Fatalf("override props = %+v", firstOverrideProps(t, panel))
+	}
+	panel, line = customPanel(t, `{}`, off)
+	requireImported(t, line)
+	if len(panel.Overrides) != 0 {
+		t.Fatalf("overrides = %+v", panel.Overrides)
+	}
+}
+
+func TestSeriesStyleOverridesConvert(t *testing.T) {
+	override := overrideOf(`{"id":"custom.lineColor","value":"#ff0000"},{"id":"custom.fillColor","value":"blue"},{"id":"custom.pointColor","value":"#0000ff"},{"id":"custom.pointSymbol","value":"square"},{"id":"custom.showValues","value":true}`)
+	panel, line := customPanel(t, `{}`, override)
+	requireImported(t, line)
+	got := firstOverrideProps(t, panel)
+	if got.LineColor != "#ff0000" || got.FillColor != "#5794F2" || got.PointColor != "#0000ff" || got.PointShape != "square" || got.ShowValues == nil || !*got.ShowValues {
+		t.Fatalf("override props = %+v", got)
+	}
+}

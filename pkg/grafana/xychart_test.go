@@ -250,10 +250,27 @@ func TestXYChartTransparentFillIsReportedBecauseItDrawsOpaque(t *testing.T) {
 	}
 }
 
+func TestXYChartDrawsSquareDotsAndCustomDashes(t *testing.T) {
+	cases := []struct {
+		name, custom, style string
+		dash                []int
+	}{
+		{"square", `{"lineStyle":{"fill":"square"}}`, "square", nil},
+		{"dash pattern", `{"lineStyle":{"fill":"dash","dash":[10,15]}}`, "dashed", []int{10, 15}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := customPanelOf(t, "xychart", tc.custom, "")
+			requireImported(t, line)
+			if panel.LineStyle != tc.style || !slices.Equal(panel.LineDash, tc.dash) {
+				t.Fatalf("field props = %+v", panel.FieldProps)
+			}
+		})
+	}
+}
+
 func TestXYChartLineStylesTheRendererCannotDrawAreReported(t *testing.T) {
 	cases := []struct{ name, custom, path string }{
-		{"square", `{"lineStyle":{"fill":"square"}}`, "fieldConfig.defaults.custom.lineStyle.fill"},
-		{"dash pattern", `{"lineStyle":{"fill":"dash","dash":[10,15]}}`, "fieldConfig.defaults.custom.lineStyle.dash"},
 		{"smooth", `{"lineInterpolation":"smooth"}`, "fieldConfig.defaults.custom.lineInterpolation"},
 		{"ordinal scale", `{"scaleDistribution":{"type":"ordinal"}}`, "fieldConfig.defaults.custom.scaleDistribution.type"},
 	}

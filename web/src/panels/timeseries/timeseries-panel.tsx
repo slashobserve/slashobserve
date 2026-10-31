@@ -45,12 +45,13 @@ import {
   thresholdsPlugin,
   thresholdStroke,
   tooltipPlugin,
+  valueLabelsPlugin,
   type ExemplarLayer,
   type TooltipSeries,
   type TooltipView,
 } from "./plugins"
 import { scaleDistribution } from "./axis-scale"
-import { isolatedPoints } from "./points"
+import { isolatedPoints, squarePoints } from "./points"
 import { thresholdParts } from "./threshold-style"
 import {
   axesInUse,
@@ -137,23 +138,32 @@ const dropEdgeTicks: uPlot.Axis.Filter = (u, splits) =>
       : seconds
   })
 
-function linePoints(entry: ChartSeries, stroke: string): uPlot.Series.Points {
+function pointShapePaths(entry: ChartSeries): {
+  paths?: uPlot.Series.Points.PathBuilder
+} {
+  return entry.pointShape === "square" ? { paths: squarePoints } : {}
+}
+
+function linePoints(entry: ChartSeries): uPlot.Series.Points {
   if (entry.points === "never") return { show: false }
+  const color = resolveColor(entry.pointColor)
   if (entry.points === "always") {
     return {
       show: true,
       size: entry.pointSize,
       width: 0,
-      fill: stroke,
-      stroke,
+      fill: color,
+      stroke: color,
+      ...pointShapePaths(entry),
     }
   }
   return {
     show: false,
     filter: isolatedPoints,
     size: 8,
-    fill: stroke,
-    stroke,
+    fill: color,
+    stroke: color,
+    ...pointShapePaths(entry),
   }
 }
 
@@ -163,7 +173,9 @@ function seriesOptions(
   customPainted: boolean,
   lineStroke?: uPlot.Series.Stroke
 ): uPlot.Series {
-  const stroke = resolveColor(entry.color)
+  const stroke = resolveColor(entry.lineColor)
+  const fillColor = resolveColor(entry.fillColor)
+  const pointColor = resolveColor(entry.pointColor)
   const fill = fillPercent(entry.style, entry.fill)
   const base = {
     label: entry.label,
@@ -180,7 +192,7 @@ function seriesOptions(
     return {
       ...base,
       width: 1,
-      fill: fillStyle(stroke, fill),
+      fill: fillStyle(fillColor, fill),
       paths: uPlot.paths.bars!({
         size: [entry.config.barWidthFactor, entry.config.barMaxWidth],
         align: barAlign[entry.config.barAlignment],
@@ -197,8 +209,9 @@ function seriesOptions(
         show: true,
         size: entry.pointSize,
         width: 0,
-        fill: stroke,
-        stroke,
+        fill: pointColor,
+        stroke: pointColor,
+        ...pointShapePaths(entry),
       },
     }
   }
@@ -207,8 +220,8 @@ function seriesOptions(
     width: entry.lineWidth,
     ...(lineStroke ? { stroke: lineStroke } : {}),
     paths: pathBuilders[entry.interpolation],
-    ...(fill > 0 ? { fill: fillStyle(stroke, fill) } : {}),
-    points: linePoints(entry, stroke),
+    ...(fill > 0 ? { fill: fillStyle(fillColor, fill) } : {}),
+    points: linePoints(entry),
   }
 }
 
@@ -238,7 +251,7 @@ function thresholdLineStroke(
     thresholds.list,
     thresholds.mode,
     (color) => resolveColor(thresholdColor(color)),
-    resolveColor(entry.color)
+    resolveColor(entry.lineColor)
   )
 }
 
@@ -288,6 +301,15 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         first,
         () => latest.current.exemplars,
         () => latest.current.entries
+      )
+    )
+  }
+  if (series.some((entry) => entry.config.showValues)) {
+    plugins.push(
+      valueLabelsPlugin(
+        first,
+        () => latest.current.entries,
+        () => latest.current.model.painted
       )
     )
   }

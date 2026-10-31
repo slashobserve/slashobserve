@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { isolatedIndices } from "./points"
+import {
+  isolatedIndices,
+  labelsClearOfEachOther,
+  squareCorners,
+} from "./points"
 
 describe("isolatedIndices", () => {
   it("marks samples whose neighbours are both missing", () => {
@@ -63,5 +67,53 @@ describe("isolatedIndices", () => {
   it("returns nothing for empty data", () => {
     expect(isolatedIndices([], 0, 0)).toEqual([])
     expect(isolatedIndices([null, null], 0, 1)).toEqual([])
+  })
+})
+
+describe("labelsClearOfEachOther", () => {
+  it("keeps every label that fits beside the previous one", () => {
+    const boxes = [
+      { x: 20, width: 20 },
+      { x: 60, width: 20 },
+      { x: 100, width: 20 },
+    ]
+    expect(labelsClearOfEachOther(boxes, 6)).toEqual([0, 1, 2])
+  })
+
+  it("skips a label that would overlap the previous one that was drawn", () => {
+    const boxes = [
+      { x: 20, width: 20 },
+      { x: 35, width: 20 },
+      { x: 70, width: 20 },
+    ]
+    expect(labelsClearOfEachOther(boxes, 0)).toEqual([0, 2])
+  })
+
+  it("measures the gap between labels, not the distance between centers", () => {
+    const boxes = [
+      { x: 20, width: 20 },
+      { x: 45, width: 20 },
+    ]
+    expect(labelsClearOfEachOther(boxes, 4)).toEqual([0, 1])
+    expect(labelsClearOfEachOther(boxes, 6)).toEqual([0])
+  })
+
+  it("compares a label with the last drawn one, not with a skipped one", () => {
+    const boxes = [
+      { x: 20, width: 20 },
+      { x: 30, width: 40 },
+      { x: 60, width: 20 },
+    ]
+    expect(labelsClearOfEachOther(boxes, 0)).toEqual([0, 2])
+  })
+
+  it("handles no labels", () => {
+    expect(labelsClearOfEachOther([], 6)).toEqual([])
+  })
+})
+
+describe("squareCorners", () => {
+  it("centers a square of the given side on the point", () => {
+    expect(squareCorners(10, 20, 6)).toEqual([7, 17, 6, 6])
   })
 })

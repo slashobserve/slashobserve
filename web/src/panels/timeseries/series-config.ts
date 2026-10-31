@@ -28,6 +28,9 @@ export type StyledSeries = {
   key: string
   label: string
   color: string
+  lineColor: string
+  fillColor: string
+  pointColor: string
   dash?: number[]
   line: LineStyle
   style: DrawStyle
@@ -36,15 +39,58 @@ export type StyledSeries = {
   lineWidth: number
   points: FieldConfig["points"]
   pointSize: number
+  pointShape: "circle" | "square"
   spanNulls: FieldConfig["spanNulls"]
   axis: AxisKey
   stack: FieldConfig["stack"]
   hidden: boolean
 }
 
-const explicitDashes: Record<Exclude<LineStyle, "solid">, number[]> = {
-  dashed: [6, 4],
-  dotted: [2, 3],
+export type LinePatterns = { dashed: number[]; dotted: number[] }
+
+const seriesPatterns: LinePatterns = { dashed: [6, 4], dotted: [2, 3] }
+
+function squareDash(lineWidth: number): number[] {
+  const side = Math.max(lineWidth, 1)
+  return [side, side]
+}
+
+export function linePattern(
+  config: Pick<FieldConfig, "lineStyle" | "lineDash" | "lineWidth">,
+  patterns: LinePatterns
+): number[] | undefined {
+  switch (config.lineStyle) {
+    case "dashed":
+      return config.lineDash ?? patterns.dashed
+    case "dotted":
+      return patterns.dotted
+    case "square":
+      return squareDash(config.lineWidth)
+    default:
+      return undefined
+  }
+}
+
+const swatchLine: Record<FieldConfig["lineStyle"], LineStyle> = {
+  solid: "solid",
+  dashed: "dashed",
+  dotted: "dotted",
+  square: "dotted",
+}
+
+type PartColors = Pick<StyledSeries, "lineColor" | "fillColor" | "pointColor">
+
+export function partColors(
+  color: string,
+  config: Pick<FieldConfig, "lineColor" | "fillColor" | "pointColor">
+): PartColors {
+  const fixed = (part: string | undefined) =>
+    part ? thresholdColor(part) : color
+  return {
+    lineColor: fixed(config.lineColor),
+    fillColor: fixed(config.fillColor),
+    pointColor: fixed(config.pointColor),
+  }
 }
 
 function stackSafeInterpolation(
@@ -153,16 +199,14 @@ export function seriesStyles(
   return aligned.map(({ key, label }, index) => {
     const config = configs[index]
     const slot = slotStyles[index]
-    const explicit =
-      config.lineStyle === "solid"
-        ? undefined
-        : { dash: explicitDashes[config.lineStyle], line: config.lineStyle }
+    const dash = linePattern(config, seriesPatterns)
     return {
       key,
       label,
       color: colors[index],
-      dash: explicit?.dash ?? slot.dash,
-      line: explicit?.line ?? slot.line,
+      ...partColors(colors[index], config),
+      dash: dash ?? slot.dash,
+      line: dash ? swatchLine[config.lineStyle] : slot.line,
       style: config.style,
       fill: config.fill,
       interpolation: stackSafeInterpolation(
@@ -172,6 +216,7 @@ export function seriesStyles(
       lineWidth: config.lineWidth,
       points: config.points,
       pointSize: config.pointSize,
+      pointShape: config.pointShape ?? "circle",
       spanNulls: config.spanNulls,
       axis: config.axis,
       stack: config.stack,

@@ -1674,8 +1674,42 @@
           "enum": [
             "solid",
             "dashed",
-            "dotted"
-          ]
+            "dotted",
+            "square"
+          ],
+          "description": "The pattern of a line: dashed, dotted (round dots) or square (square dots)."
+        },
+        "lineDash": {
+          "x-omitFromPrompt": true,
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "description": "The dash and gap lengths in pixels when lineStyle is dashed."
+        },
+        "lineColor": {
+          "x-omitFromPrompt": true,
+          "$ref": "#/$defs/color",
+          "description": "A fixed color for the line, overriding the series color for the line only."
+        },
+        "fillColor": {
+          "x-omitFromPrompt": true,
+          "$ref": "#/$defs/color",
+          "description": "A fixed color for the area fill, overriding the series color for the fill only."
+        },
+        "pointColor": {
+          "x-omitFromPrompt": true,
+          "$ref": "#/$defs/color",
+          "description": "A fixed color for the points, overriding the series color for the points only."
+        },
+        "showValues": {
+          "x-omitFromPrompt": true,
+          "type": "boolean",
+          "description": "Print each point's formatted value above it."
         },
         "lineInterpolation": {
           "x-omitFromPrompt": false,
@@ -1711,7 +1745,8 @@
           "enum": [
             "circle",
             "square"
-          ]
+          ],
+          "description": "The shape of the points on every panel that draws points."
         },
         "pointStrokeWidth": {
           "x-omitFromPrompt": true,

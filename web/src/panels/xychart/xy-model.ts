@@ -14,6 +14,7 @@ import { seriesKey, uniqueKey } from "../frames"
 import type { SeriesLegendEntry } from "../legend/use-series-legend"
 import { isNumber } from "../reducers"
 import { thresholdColor } from "../thresholds"
+import { linePattern } from "../timeseries/series-config"
 import { tooltipRows, type TooltipSort } from "../timeseries/tooltip-rows"
 import {
   matchesName,
@@ -353,9 +354,13 @@ function pointsOf(source: PointSource): XyPoint[] {
   return points
 }
 
-function dashOf(config: FieldConfig): number[] {
-  if (config.lineStyle === "dashed") return dashedPattern
-  return config.lineStyle === "dotted" ? dottedPattern : []
+function dashOf(config: FieldConfig, lineWidth: number): number[] {
+  return (
+    linePattern(
+      { ...config, lineWidth },
+      { dashed: dashedPattern, dotted: dottedPattern }
+    ) ?? []
+  )
 }
 
 export function xyData(
@@ -391,6 +396,9 @@ export function xyData(
       for (const y of ys) {
         const config = fields.configFor(frame, y)
         if (config.hidden) continue
+        const lineWidth = fields.isSet(frame, y, "lineWidth")
+          ? config.lineWidth
+          : defaultLineWidth
         const color = config.color
           ? thresholdColor(config.color)
           : styleForSlot(series.length + built.length).color
@@ -424,10 +432,8 @@ export function xyData(
               ? { name: toneField.name, config: toneConfig }
               : null,
           points,
-          lineWidth: fields.isSet(frame, y, "lineWidth")
-            ? config.lineWidth
-            : defaultLineWidth,
-          dash: dashOf(config),
+          lineWidth,
+          dash: dashOf(config, lineWidth),
           square: config.pointShape === "square",
           strokeWidth: config.pointStrokeWidth ?? 0,
           fillAlpha: fields.isSet(frame, y, "fill") ? config.fill / 100 : 1,
