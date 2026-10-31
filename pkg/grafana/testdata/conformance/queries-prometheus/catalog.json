@@ -33,6 +33,7 @@
     { "id": "editorMode=builder", "path": "editorMode", "value": "builder", "expect": "bookkeeping" },
     { "id": "queryType=time-series", "path": "queryType", "value": "timeSeriesQuery", "expect": "bookkeeping" },
     { "id": "key=Q-1", "path": "key", "value": "Q-1", "expect": "bookkeeping" },
-    { "id": "requestId=Q100", "path": "requestId", "value": "Q100", "expect": "bookkeeping" }
+    { "id": "requestId=Q100", "path": "requestId", "value": "Q100", "expect": "bookkeeping" },
+    { "id": "expr=sum-up", "path": "expr", "value": "sum(up)" }
   ]
 }
