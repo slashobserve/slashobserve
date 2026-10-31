@@ -247,6 +247,8 @@ A `canvas` panel takes a background (`backgroundColor`, `backgroundImage`, `back
 An image is `{ "url": "https://..." }` or `{ "field": "<field>" }`.
 A canvas element can have the kinds `icon`, `button`, `server`, `triangle`, `cloud`, `parallelogram`, `windTurbine`, `droneTop`, `droneFront` and `droneSide` next to `metric`, `text`, `rectangle` and `ellipse`, and options such as `placement`, `rotation`, `valign`, `image`, `links` and `actions`.
 `placement` wins over `left`, `top`, `width` and `height` when present: numbers are pixels of the panel body, or percent on an axis whose mode is `scale`.
+An icon's `stroke` and `strokeWidth` (a whole number of pixels from 0 to 20, 0 by default) draw its outline; no outline is drawn while the width is 0.
+`textTemplate` is a text of 1 to 200 characters whose `${...}` data references, such as `${__data.fields.cpu}` and `${__value.text}`, are replaced with the element's field values, and a reference to a missing field becomes an empty string; it is never combined with `text`.
 A connection can set `path`, `vertices`, `lineStyle`, `arrow`, `widthField`, `minWidth` and `maxWidth`.
 
 An element's `actions` are HTTP requests that a person triggers from the panel:

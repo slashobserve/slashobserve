@@ -7,6 +7,7 @@ export {
 export {
   appendLinkParams,
   dashboardLinks,
+  interpolateText,
   isDataLink,
   oneClickLink,
   panelLinks,

@@ -8,6 +8,7 @@ import {
   canvasModel,
   defaultLineColor,
   foregroundColor,
+  iconOutlineWidth,
   type RgbOf,
 } from "./canvas-model"
 
@@ -254,6 +255,82 @@ describe("canvasModel colors and text", () => {
       elements: [{ ...rect("a", 0, 0), kind: "text", text: html }],
     }).elements
     expect(element.text).toBe(html)
+  })
+
+  it("fills a text template from the row of the bound frame", () => {
+    const frame: PreparedFrame = {
+      ref: "A",
+      name: "cpu",
+      labels: {},
+      fields: [
+        { name: "Time", type: "time", values: [0, 1] },
+        { name: "Value", type: "number", values: [3, 12] },
+        { name: "host", type: "string", values: ["a", "web-1"] },
+      ],
+    }
+    const [bare, bound] = build([frame], {
+      elements: [
+        {
+          ...rect("a", 0, 0),
+          kind: "text",
+          textTemplate: "${__data.fields.host}: ${__data.fields.Value} cores",
+        },
+        {
+          ...rect("b", 0, 0),
+          kind: "text",
+          field: "Value",
+          textTemplate: "now ${__value.text}",
+        },
+      ],
+    }).elements
+    expect(bare.text).toBe("web-1: 12 cores")
+    expect(bound.text).toBe("now 12")
+  })
+
+  it("shows an empty string for a template reference to a missing field", () => {
+    const [missing, none] = build([series("cpu", [1])], {
+      elements: [
+        {
+          ...rect("a", 0, 0),
+          kind: "text",
+          textTemplate: "[${__data.fields.nope}]",
+        },
+        {
+          ...rect("b", 0, 0),
+          kind: "text",
+          textTemplate: "${__data.fields.nope}",
+        },
+      ],
+    }).elements
+    expect(missing.text).toBe("[]")
+    expect(none.text).toBeNull()
+  })
+
+  it("resolves the icon outline width into the Spec range, none by default", () => {
+    const [plain, wide, huge] = build([], {
+      elements: [
+        rect("a", 0, 0, { kind: "icon", icon: "server" }),
+        rect("b", 0, 0, {
+          kind: "icon",
+          icon: "server",
+          strokeWidth: 3,
+          stroke: "info",
+        }),
+        rect("c", 0, 0, { kind: "icon", icon: "server", strokeWidth: 90 }),
+      ],
+    }).elements
+    expect(plain.strokeWidth).toBe(0)
+    expect(wide).toMatchObject({
+      strokeWidth: 3,
+      stroke: "var(--threshold-info)",
+    })
+    expect(huge.strokeWidth).toBe(20)
+  })
+
+  it("converts an outline width in pixels to the 24 unit icon grid", () => {
+    expect(iconOutlineWidth(1, { width: 24, height: 48 })).toBe(4)
+    expect(iconOutlineWidth(2, { width: 48, height: 48 })).toBe(4)
+    expect(iconOutlineWidth(1, { width: 0, height: 0 })).toBe(50)
   })
 
   it("drops elements of an undeclared kind or with an invalid box", () => {

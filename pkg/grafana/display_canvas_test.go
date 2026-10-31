@@ -82,6 +82,70 @@ func TestCanvasIconThatCannotBeLoadedIsReported(t *testing.T) {
 	}
 }
 
+func TestCanvasIconStroke(t *testing.T) {
+	icon := func(stroke string) string {
+		return `{"type":"icon","name":"i",` + canvasScaled + `,"config":{"path":{"mode":"fixed","fixed":"img/icons/unicons/bolt.svg"},"stroke":` + stroke + `}}`
+	}
+	cases := []struct {
+		name, stroke string
+		color        string
+		width        int
+		reported     bool
+	}{
+		{"color and width", `{"color":{"fixed":"red"},"width":2}`, "#F2495C", 2, false},
+		{"width alone", `{"width":20}`, "", 20, false},
+		{"zero width", `{"color":{"fixed":"red"},"width":0}`, "#F2495C", 0, false},
+		{"width past the limit", `{"width":25}`, "", 0, true},
+		{"negative width", `{"width":-1}`, "", 0, true},
+		{"fractional width", `{"width":1.5}`, "", 0, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			el, line := oneCanvasElement(t, icon(tc.stroke))
+			got := 0
+			if el.StrokeWidth != nil {
+				got = *el.StrokeWidth
+			}
+			if el.Stroke != tc.color || got != tc.width {
+				t.Errorf("stroke = %q width = %d, want %q and %d", el.Stroke, got, tc.color, tc.width)
+			}
+			if reported := slices.Contains(line.Paths, "options.root.elements[0].config.stroke.width"); reported != tc.reported {
+				t.Errorf("reported = %v, paths = %v", reported, line.Paths)
+			}
+		})
+	}
+}
+
+func TestCanvasTextTemplateAndFixedTextNeverBothSet(t *testing.T) {
+	cases := []struct {
+		name, mode, want string
+		template         bool
+	}{
+		{"template", "template", "${__data.fields.cpu} cores", true},
+		{"fixed", "fixed", "${__data.fields.cpu} cores", false},
+		{"no mode", "", "${__data.fields.cpu} cores", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mode := ""
+			if tc.mode != "" {
+				mode = `"mode":"` + tc.mode + `",`
+			}
+			el, line := oneCanvasElement(t, `{"type":"text","name":"t",`+canvasScaled+`,"config":{"text":{`+mode+`"fixed":"${__data.fields.cpu} cores"}}}`)
+			gotTemplate, gotText := el.TextTemplate, el.Text
+			if tc.template && (gotTemplate != tc.want || gotText != "") {
+				t.Errorf("template = %q text = %q", gotTemplate, gotText)
+			}
+			if !tc.template && (gotText != tc.want || gotTemplate != "") {
+				t.Errorf("template = %q text = %q", gotTemplate, gotText)
+			}
+			if line.Status != statusImported {
+				t.Errorf("paths = %v", line.Paths)
+			}
+		})
+	}
+}
+
 func TestCanvasElementStyling(t *testing.T) {
 	el, line := oneCanvasElement(t, `{"type":"rectangle","name":"m","constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":0,"top":0,"width":10,"height":10,"rotation":45},`+
 		`"config":{"valign":"top"},"background":{"image":{"mode":"fixed","fixed":"https://example.com/bg.png"},"size":"cover"},"border":{"width":3,"radius":8,"color":{"fixed":"red"}}}`)

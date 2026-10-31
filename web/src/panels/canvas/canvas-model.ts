@@ -10,8 +10,10 @@ import { cssColorToRgb, readableText, type Rgb } from "../contrast"
 import {
   displayValue,
   fieldRange,
+  interpolateText,
   type DisplayValue,
   type FieldResolver,
+  type LinkScope,
 } from "../field-config"
 import { reduce } from "../reducers"
 import { thresholdColor, type ThresholdLevel } from "../thresholds"
@@ -77,6 +79,7 @@ export type CanvasElement = {
   valueText: string | null
   fill: string | null
   stroke: string | null
+  strokeWidth: number
   textColor: string | null
   fontSize: number
   align: CanvasAlign
@@ -247,9 +250,11 @@ type Parsed = {
   percent: Box
   placement: Placement | null
   text: string | null
+  textTemplate: string | null
   field: string | null
   fill: ColorRef
   stroke: ColorRef
+  strokeWidth: number
   textColor: ColorRef
   iconColor: ColorRef
   accentColor: ColorRef
@@ -287,9 +292,14 @@ function parseElement(raw: unknown): Parsed | null {
     percent,
     placement: parsePlacement(raw.placement),
     text: typeof raw.text === "string" && raw.text !== "" ? raw.text : null,
+    textTemplate:
+      typeof raw.textTemplate === "string" && raw.textTemplate !== ""
+        ? raw.textTemplate
+        : null,
     field: fieldName(raw.field),
     fill: colorRef(raw.fill),
     stroke: colorRef(raw.stroke),
+    strokeWidth: finiteIn(raw.strokeWidth, 0, 20) ?? 0,
     textColor: colorRef(raw.textColor),
     iconColor: colorRef(raw.iconColor),
     accentColor: colorRef(raw.accentColor),
@@ -508,6 +518,39 @@ function actionValueOf(bound: Bound): ActionValue {
   }
 }
 
+function templated(
+  template: string,
+  fields: FieldResolver,
+  bound: Bound | null,
+  valued: Bound | null
+): string | null {
+  const scope: LinkScope = {
+    vars: {},
+    fields,
+    ...(bound
+      ? {
+          row: {
+            frame: bound.entry.frame,
+            index: bound.entry.field.values.length - 1,
+          },
+        }
+      : {}),
+    ...(valued
+      ? { value: valued.entry.value, valueText: valued.shown.text }
+      : {}),
+  }
+  const text = interpolateText(template, scope)
+  return text === "" ? null : text
+}
+
+const iconGrid = 24
+const iconLineWidth = 2
+
+export function iconOutlineWidth(strokeWidth: number, box: Size): number {
+  const side = Math.max(1, Math.min(box.width, box.height))
+  return iconLineWidth + (2 * strokeWidth * iconGrid) / side
+}
+
 const angleFields = {
   droneTop: "yawField",
   droneFront: "rollField",
@@ -596,11 +639,15 @@ export function canvasModel(
       id: parsed.id,
       kind: parsed.kind,
       box: elementBox(parsed.percent, parsed.placement, body),
-      text: parsed.text,
+      text:
+        parsed.textTemplate === null
+          ? parsed.text
+          : templated(parsed.textTemplate, fields, bound, valued),
       valueText:
         parsed.kind === "metric" ? (bound?.shown.text ?? noDataText) : null,
       fill,
       stroke: cssColor(parsed.stroke, bound),
+      strokeWidth: parsed.strokeWidth,
       textColor: textOn(fill, textColor, rgbOf),
       fontSize: parsed.fontSize,
       align: parsed.align,

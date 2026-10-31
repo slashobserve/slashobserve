@@ -30,7 +30,7 @@ const (
 	canvasPixelReason      = "Positions inside a group were converted to percentages of the panel and may shift."
 	canvasPlacementReason  = "A canvas element needs a position and a size; it was left out."
 	canvasRotationReason   = "Only rotations from -360 to 360 degrees are supported."
-	canvasTemplateReason   = "Text templates are not supported; the template is shown as plain text."
+	canvasStrokeReason     = "Only icon outline widths from 0 to 20 are supported."
 	canvasFieldReason      = "A color taken from a field other than the element's own is not supported."
 	canvasBorderReason     = "Only border widths from 0 to 20 are supported."
 	canvasRadiusReason     = "Only corner radii from 0 to 100 are supported."
@@ -249,6 +249,27 @@ func (c *canvasBuild) icon(out *spec.CanvasElement, el map[string]any, path stri
 		c.b.issues.add(base+".mode", canvasIconReason)
 	}
 	out.IconColor = c.color(el, path, "config.fill", "")
+	c.iconStroke(out, el, path)
+}
+
+func (c *canvasBuild) iconStroke(out *spec.CanvasElement, el map[string]any, path string) {
+	if color := c.color(el, path, "config.stroke.color", ""); color != "" {
+		out.Stroke = color
+	}
+	at := path + ".config.stroke.width"
+	c.b.consume(at)
+	raw := optionalNumber(lookupValue(el, "config.stroke.width"))
+	if raw == nil {
+		return
+	}
+	width := int(math.Round(*raw))
+	if *raw != math.Trunc(*raw) || width < 0 || width > canvasMaxBorderWidth {
+		c.b.issues.add(at, canvasStrokeReason)
+		return
+	}
+	if width > 0 {
+		out.StrokeWidth = &width
+	}
 }
 
 var canvasIconName = regexp.MustCompile(`^[a-z0-9-]{1,64}$`)
@@ -423,9 +444,6 @@ func (c *canvasBuild) text(out *spec.CanvasElement, el map[string]any, path, typ
 	mode := asString(cfg["mode"])
 	base := path + ".config.text"
 	c.b.consume(base)
-	if mode == "template" {
-		c.b.partial(base+".mode", canvasTemplateReason)
-	}
 	if typ == "metric-value" || mode == "field" {
 		field := asString(cfg["field"])
 		switch {
@@ -438,6 +456,10 @@ func (c *canvasBuild) text(out *spec.CanvasElement, el map[string]any, path, typ
 		return
 	}
 	text, _ := cutRunes(strings.TrimSpace(asString(cfg["fixed"])), canvasTextLimit)
+	if mode == "template" {
+		out.TextTemplate = text
+		return
+	}
 	out.Text = text
 }
 

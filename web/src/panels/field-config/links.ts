@@ -143,12 +143,30 @@ function tokenValue(
   return values && formatValues(values, format, encode)
 }
 
-function interpolate(text: string, scope: LinkScope, encode: Encode): string {
+type Unresolved = (written: string, inner: string) => string
+
+const keepWritten: Unresolved = (written) => written
+
+const blankReferences: Unresolved = (written, inner) =>
+  inner.trim().startsWith("__") ? "" : written
+
+function interpolate(
+  text: string,
+  scope: LinkScope,
+  encode: Encode,
+  unresolved: Unresolved = keepWritten
+): string {
   return text.replace(
     token,
-    (written, braced: string | undefined, bare: string | undefined) =>
-      tokenValue(braced ?? bare ?? "", scope, encode) ?? written
+    (written, braced: string | undefined, bare: string | undefined) => {
+      const inner = braced ?? bare ?? ""
+      return tokenValue(inner, scope, encode) ?? unresolved(written, inner)
+    }
   )
+}
+
+export function interpolateText(text: string, scope: LinkScope): string {
+  return interpolate(text, scope, identity, blankReferences)
 }
 
 function isSafeUrl(url: string): boolean {

@@ -7,6 +7,7 @@ import {
   appendLinkParams,
   createFieldResolver,
   dashboardLinks,
+  interpolateText,
   isDataLink,
   oneClickLink,
   panelLinks,
@@ -539,5 +540,48 @@ describe("appendLinkParams", () => {
   it("adds nothing without a flag or without a range to carry", () => {
     expect(appendLinkParams("/d", {}, range)).toBe("/d")
     expect(appendLinkParams("/d", { keepTime: true }, { vars: {} })).toBe("/d")
+  })
+})
+
+describe("interpolateText", () => {
+  const frame: WireFrame = {
+    ref: "A",
+    fields: [
+      { name: "Value", type: "number", values: [7, 9] },
+      { name: "host", type: "string", values: ["a & b", "c/d"] },
+    ],
+  }
+
+  it("replaces data references with plain text, never encoded", () => {
+    expect(
+      interpolateText("${__data.fields.host} runs ${__data.fields.Value}", {
+        vars: {},
+        row: { frame, index: 1 },
+      })
+    ).toBe("c/d runs 9")
+  })
+
+  it("turns a reference to a missing field or row into an empty string", () => {
+    expect(
+      interpolateText("[${__data.fields.nope}] [${__value.text}]", {
+        vars: {},
+        row: { frame, index: 1 },
+      })
+    ).toBe("[] []")
+    expect(interpolateText("[${__data.fields.host}]", { vars: {} })).toBe("[]")
+  })
+
+  it("fills variables and keeps text that is not a reference as written", () => {
+    expect(
+      interpolateText("$pod costs $USD for ${pod}", {
+        vars: { pod: ["web"] },
+      })
+    ).toBe("web costs $USD for web")
+  })
+
+  it("leaves the link behaviour alone", () => {
+    expect(
+      href("/r?x=${__data.fields.nope}", { row: { frame, index: 1 } })
+    ).toBe("/r?x=${__data.fields.nope}")
   })
 })

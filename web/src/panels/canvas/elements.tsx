@@ -22,15 +22,16 @@ import { cn } from "@/lib/utils"
 import type { ResolvedLink } from "../field-config"
 import { RemoteImage } from "../remote-image"
 import { thresholdIcons } from "../thresholds"
-import type {
-  Background,
-  CanvasAlign,
-  CanvasElement,
-  CanvasValign,
-  ButtonStyle,
-  Detail,
-  ImageSize,
-  MetricState,
+import {
+  iconOutlineWidth,
+  type Background,
+  type CanvasAlign,
+  type CanvasElement,
+  type CanvasValign,
+  type ButtonStyle,
+  type Detail,
+  type ImageSize,
+  type MetricState,
 } from "./canvas-model"
 import { noActionTitle, type ElementAction } from "./actions"
 import type { Interaction, Target } from "./element-links"
@@ -189,13 +190,25 @@ function IconBody({ element }: { element: CanvasElement }) {
     element.icon !== null && hasIcon(element.icon)
       ? iconsByName[element.icon]
       : unknownIcon
-  return (
+  const glyph = (
     <Icon
       role="img"
       aria-label={element.text ?? element.icon ?? "Icon"}
       className="size-full"
       style={{ color: element.iconColor ?? element.textColor ?? undefined }}
     />
+  )
+  if (element.strokeWidth === 0) return glyph
+  return (
+    <span className="relative size-full">
+      <Icon
+        aria-hidden="true"
+        className="absolute inset-0 size-full overflow-visible"
+        strokeWidth={iconOutlineWidth(element.strokeWidth, element.box)}
+        style={{ color: element.stroke ?? "var(--foreground)" }}
+      />
+      <span className="absolute inset-0 flex">{glyph}</span>
+    </span>
   )
 }
 

@@ -97,7 +97,18 @@
             { "ref": "low", "query": "min_over_time(process_open_fds[5m])" },
             { "ref": "close", "query": "process_open_fds" }
           ],
-          "display": { "legendMode": "table", "legendValues": ["mean", "p95"] } }
+          "display": { "legendMode": "table", "legendValues": ["mean", "p95"] } },
+        { "id": "p_canvas", "type": "canvas", "title": "Descriptor limit",
+          "gridPos": { "x": 12, "y": 17, "w": 12, "h": 8 }, "datasource": "prom",
+          "queries": [{ "ref": "A", "query": "process_max_fds" }],
+          "display": {
+            "elements": [
+              { "id": "limit_icon", "kind": "icon", "left": 5, "top": 10, "width": 15, "height": 30,
+                "icon": "bolt", "iconColor": "info", "stroke": "critical", "strokeWidth": 2 },
+              { "id": "limit_text", "kind": "text", "left": 25, "top": 10, "width": 60, "height": 30,
+                "textTemplate": "Limit ${__data.fields.Value} descriptors", "field": "Value" }
+            ]
+          } }
       ] }
   ]
 }
