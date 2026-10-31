@@ -616,7 +616,7 @@ export type Transform =
       type: "calculateField";
       alias: string;
       /**
-       * field_or_number op field_or_number, op one of + - * / % ^.
+       * field_or_number op field_or_number, op one of + - * / % ^; put spaces around op when a field name contains spaces.
        */
       expr?: string;
       reduceRow?: Reducer;

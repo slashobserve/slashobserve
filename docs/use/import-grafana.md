@@ -164,6 +164,7 @@ These import: `merge`, `seriesToRows`, `organize` (and the older `rename`, `orde
 Any other transformation, one past the 20th, and an option the Spec cannot hold are reported at their path.
 The grouping steps keep only their `by` and `aggregate` fields, as Grafana's output does, and take every reducer, including the true or false and list reducers (`allIsNull`, `allIsZero`, `allValues` and `uniqueValues`); a reducer name Grafana does not have is reported.
 `calculateField` imports its binary, row reduce (including its list of fields), unary, index, cumulative and window modes; the unary `percent`, a row reduce `nullValueMode` and `timeSeries: false` are reported.
+A binary calculation over field names with spaces imports (a name that holds a spaced operator, or a matcher other than `byName`, is reported), and a `convertFieldType` with no conversions imports as nothing, since Grafana changes no field either.
 A transformation that Grafana limits to some queries (a `filter` of `byRefId`) imports as `queries`, matched against the refs the panel imported: one ref, refs joined with `|`, a list or a `/regex/` pattern.
 A frame filter (`byFrameRefID`) imports the same way.
 A ref that did not import, a pattern that matches none and any other filter are reported at `filter`, and the transformation then applies to every query.

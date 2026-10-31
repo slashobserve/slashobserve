@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 8,
-      "imported": 7,
-      "partial": 1,
+      "imported": 8,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -204,14 +204,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Disk",
-        "status": "partial",
-        "reasons": [
-          "Some transformations are not supported yet."
-        ],
-        "paths": [
-          "transformations[2].options.binary",
-          "transformations[3].options.binary"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -281,7 +276,7 @@
     "panel panels[4] mapped=17 bookkeeping=6 field_config:1 query:4",
     "panel panels[5] mapped=8 bookkeeping=3 field_config:1 query:1",
     "panel panels[7] mapped=20 bookkeeping=5 field_config:1 override:2 query:3",
-    "panel panels[8] mapped=39 reported=2 bookkeeping=4 field_config:1 override:5 query:2 transformation:6",
+    "panel panels[8] mapped=47 bookkeeping=4 field_config:1 override:5 query:2 transformation:6",
     "panel panels[10] mapped=12 bookkeeping=3 field_config:1 query:1",
     "panel panels[11] mapped=11 bookkeeping=3 field_config:1 query:1"
   ],
@@ -646,6 +641,16 @@
               },
               {
                 "type": "merge"
+              },
+              {
+                "type": "calculateField",
+                "alias": "Used",
+                "expr": "Value #A (lastNotNull) - Value #B (lastNotNull)"
+              },
+              {
+                "type": "calculateField",
+                "alias": "Used, %",
+                "expr": "Used / Value #A (lastNotNull)"
               },
               {
                 "type": "organize",

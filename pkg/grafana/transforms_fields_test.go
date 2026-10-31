@@ -117,6 +117,11 @@ func TestFieldTransformsConvert(t *testing.T) {
 			`[{"type":"filterByValue","filters":[{"field":"host","op":"regex","value":"err"}]}]`,
 		},
 		{
+			"convertFieldType with no conversions changes nothing",
+			`{"id":"convertFieldType","options":{"conversions":[],"fields":{}}}`,
+			`null`,
+		},
+		{
 			"filterByRefId",
 			`{"id":"filterByRefId","options":{"include":"A | A"}}`,
 			`[{"type":"filterByRefId","include":["A"]}]`,
