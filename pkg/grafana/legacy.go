@@ -638,6 +638,7 @@ func (b *panelBuild) legacySinglestat() {
 	}
 	b.consume("nullText")
 	b.singlestatReducer(d)
+	b.singlestatNullMode(d)
 	b.singlestatThresholds(p)
 	b.singlestatColors(d)
 	b.singlestatMappings(p)
@@ -645,32 +646,29 @@ func (b *panelBuild) legacySinglestat() {
 	if present(b.raw["tableColumn"]) {
 		b.partial("tableColumn", "Picking one column of a table result is not supported yet.")
 	}
-	b.consume("tableColumn", "prefixFontSize", "postfixFontSize", "valueFontSize", "mappingTypes", "mappingType")
+	b.consume("tableColumn", "mappingType")
 }
 
 func (b *panelBuild) singlestatUnit(p *spec.FieldProps) {
 	format := asString(b.raw["format"])
 	prefix, postfix := asString(b.raw["prefix"]), asString(b.raw["postfix"])
-	b.consume("prefix", "postfix")
-	if (prefix != "" || postfix != "") && (format == "none" || format == "short" || format == "") {
-		switch {
-		case prefix != "" && postfix != "":
-			b.partial("prefix", "A prefix and a postfix together are not supported yet.")
-			fallthrough
-		case postfix != "":
-			p.Unit = "suffix:" + postfix
-		default:
-			p.Unit = "prefix:" + prefix
-		}
-		if !validUnit(p.Unit) {
-			p.Unit = ""
-			b.partial("postfix", "The prefix or postfix is too long to be kept.")
-		}
+	if (prefix == "" && postfix == "") || (format != "none" && format != "short" && format != "") {
+		b.legacyUnit(p, format, "format")
 		return
 	}
-	b.legacyUnit(p, format, "format")
-	if prefix != "" || postfix != "" {
-		b.partial("postfix", "A prefix or postfix cannot be combined with this unit.")
+	b.consume("prefix", "postfix")
+	switch {
+	case prefix != "" && postfix != "":
+		b.partial("postfix", "A prefix and a postfix together are not supported yet.")
+		p.Unit = "suffix:" + postfix
+	case postfix != "":
+		p.Unit = "suffix:" + postfix
+	default:
+		p.Unit = "prefix:" + prefix
+	}
+	if !validUnit(p.Unit) {
+		p.Unit = ""
+		b.partial("postfix", "The prefix or postfix is too long to be kept.")
 	}
 }
 
@@ -686,6 +684,18 @@ func (b *panelBuild) singlestatReducer(d *spec.Display) {
 		return
 	}
 	d.Reduce = reducer
+}
+
+func (b *panelBuild) singlestatNullMode(d *spec.Display) {
+	switch asString(b.raw["nullPointMode"]) {
+	case "connected":
+		if d.Reduce == "first" {
+			d.Reduce = "firstNotNull"
+			b.consume("nullPointMode")
+		}
+	case "null as zero":
+		b.partial("nullPointMode", "Reading a missing value as zero is not supported on a stat panel yet.")
+	}
 }
 
 func grafanaStatThresholds() []spec.Threshold {
@@ -723,7 +733,7 @@ func (b *panelBuild) singlestatThresholds(p *spec.FieldProps) {
 }
 
 func (b *panelBuild) singlestatColors(d *spec.Display) {
-	b.consume("colorBackground", "colorValue", "sparkline")
+	b.consume("colorBackground", "colorValue", "sparkline.show")
 	if b.typ != spec.Stat {
 		return
 	}

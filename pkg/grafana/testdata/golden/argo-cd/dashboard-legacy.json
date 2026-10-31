@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 35,
-      "imported": 5,
-      "partial": 30,
+      "imported": 16,
+      "partial": 19,
       "placeholder": 0,
       "unverified": 0
     },
@@ -56,13 +56,9 @@
         "type": "stat",
         "source_type": "singlestat",
         "row": "Applications",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -81,15 +77,9 @@
         "type": "stat",
         "source_type": "singlestat",
         "row": "Applications",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "colorPostfix",
-          "colorPrefix",
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -133,15 +123,9 @@
         "type": "stat",
         "source_type": "singlestat",
         "row": "Health Status",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "colorPostfix",
-          "colorPrefix",
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -160,14 +144,9 @@
         "type": "stat",
         "source_type": "singlestat",
         "row": "Health Status",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "colorPostfix",
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -186,13 +165,9 @@
         "type": "stat",
         "source_type": "singlestat",
         "row": "Health Status",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -211,13 +186,9 @@
         "type": "stat",
         "source_type": "singlestat",
         "row": "Health Status",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -236,13 +207,9 @@
         "type": "stat",
         "source_type": "singlestat",
         "row": "Health Status",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -261,13 +228,9 @@
         "type": "stat",
         "source_type": "singlestat",
         "row": "Health Status",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -286,13 +249,9 @@
         "type": "stat",
         "source_type": "singlestat",
         "row": "Sync Status",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -311,13 +270,9 @@
         "type": "stat",
         "source_type": "singlestat",
         "row": "Sync Status",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -336,13 +291,9 @@
         "type": "stat",
         "source_type": "singlestat",
         "row": "Sync Status",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -899,18 +850,18 @@
   "blocks": [
     "dashboard mapped=4 bookkeeping=8",
     "panel panels[1] mapped=4 bookkeeping=1",
-    "panel panels[2] mapped=35 reported=1 bookkeeping=2 query:1",
-    "panel panels[3] mapped=36 reported=3 bookkeeping=2 query:1",
+    "panel panels[2] mapped=21 no_effect=11 bookkeeping=2 query:1",
+    "panel panels[3] mapped=22 no_effect=13 bookkeeping=2 query:1",
     "panel panels[4] mapped=37 reported=1 default=7 bookkeeping=2 query:1",
-    "panel panels[6] mapped=36 reported=3 bookkeeping=2 query:1",
-    "panel panels[7] mapped=36 reported=2 bookkeeping=2 query:1",
-    "panel panels[8] mapped=36 reported=1 bookkeeping=2 query:1",
-    "panel panels[9] mapped=36 reported=1 bookkeeping=2 query:1",
-    "panel panels[10] mapped=36 reported=1 bookkeeping=2 query:1",
-    "panel panels[11] mapped=36 reported=1 bookkeeping=2 query:1",
-    "panel panels[13] mapped=36 reported=1 bookkeeping=2 query:1",
-    "panel panels[14] mapped=36 reported=1 bookkeeping=2 query:1",
-    "panel panels[15] mapped=36 reported=1 bookkeeping=2 query:1",
+    "panel panels[6] mapped=22 no_effect=13 bookkeeping=2 query:1",
+    "panel panels[7] mapped=22 no_effect=12 bookkeeping=2 query:1",
+    "panel panels[8] mapped=22 no_effect=11 bookkeeping=2 query:1",
+    "panel panels[9] mapped=22 no_effect=11 bookkeeping=2 query:1",
+    "panel panels[10] mapped=22 no_effect=11 bookkeeping=2 query:1",
+    "panel panels[11] mapped=22 no_effect=11 bookkeeping=2 query:1",
+    "panel panels[13] mapped=22 no_effect=11 bookkeeping=2 query:1",
+    "panel panels[14] mapped=22 no_effect=11 bookkeeping=2 query:1",
+    "panel panels[15] mapped=22 no_effect=11 bookkeeping=2 query:1",
     "panel panels[17] mapped=38 reported=1 default=8 bookkeeping=2 query:1",
     "panel panels[18] mapped=36 reported=1 default=8 bookkeeping=2 query:1",
     "panel panels[19] mapped=32 reported=1 default=8 bookkeeping=2 query:1",

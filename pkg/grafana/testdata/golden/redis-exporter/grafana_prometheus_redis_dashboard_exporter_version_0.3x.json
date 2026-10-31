@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 12,
-      "imported": 1,
-      "partial": 11,
+      "imported": 4,
+      "partial": 8,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "stat",
         "source_type": "singlestat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -68,13 +64,9 @@
         "type": "stat",
         "source_type": "singlestat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -93,13 +85,9 @@
         "type": "gauge",
         "source_type": "singlestat",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "nullPointMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -372,9 +360,9 @@
   },
   "blocks": [
     "dashboard mapped=7 bookkeeping=8",
-    "panel panels[0] mapped=36 reported=1 bookkeeping=4 query:1",
-    "panel panels[1] mapped=38 reported=1 bookkeeping=4 query:1",
-    "panel panels[2] mapped=39 reported=1 bookkeeping=4 query:1",
+    "panel panels[0] mapped=22 no_effect=11 bookkeeping=4 query:1",
+    "panel panels[1] mapped=24 no_effect=11 bookkeeping=4 query:1",
+    "panel panels[2] mapped=25 no_effect=11 bookkeeping=4 query:1",
     "panel panels[3] mapped=31 reported=1 default=8 bookkeeping=5 query:1",
     "panel panels[4] mapped=39 reported=2 default=7 bookkeeping=4 query:2",
     "panel panels[5] mapped=41 reported=1 default=8 bookkeeping=4 query:2",

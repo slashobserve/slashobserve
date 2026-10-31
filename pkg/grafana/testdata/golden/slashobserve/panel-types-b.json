@@ -270,7 +270,7 @@
     "panel panels[6] outcome=excluded",
     "panel panels[7] outcome=excluded",
     "panel panels[8] mapped=7 default=1 no_effect=4 bookkeeping=1",
-    "panel panels[9] mapped=31 reported=1 default=22 bookkeeping=4 query:1",
+    "panel panels[9] mapped=18 reported=1 default=22 bookkeeping=4 query:1",
     "panel panels[10] mapped=9 default=3 bookkeeping=1"
   ],
   "spec": {

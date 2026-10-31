@@ -69,7 +69,7 @@
   },
   "blocks": [
     "dashboard mapped=3 bookkeeping=6",
-    "panel panels[0] mapped=47 reported=1 default=11 bookkeeping=6 query:1"
+    "panel panels[0] mapped=42 reported=1 default=11 bookkeeping=6 query:1"
   ],
   "spec": {
     "specVersion": "0",
