@@ -831,6 +831,7 @@ type CanvasElement struct {
 	Width           float64          `json:"width"`
 	Height          float64          `json:"height"`
 	Text            string           `json:"text,omitempty"`
+	TextTemplate    string           `json:"textTemplate,omitempty"`
 	Field           string           `json:"field,omitempty"`
 	Fill            string           `json:"fill,omitempty"`
 	Stroke          string           `json:"stroke,omitempty"`
@@ -840,6 +841,7 @@ type CanvasElement struct {
 	Placement       *CanvasPlacement `json:"placement,omitempty"`
 	Rotation        *float64         `json:"rotation,omitempty"`
 	VAlign          string           `json:"valign,omitempty"`
+	StrokeWidth     *int             `json:"strokeWidth,omitempty"`
 	BorderWidth     *int             `json:"borderWidth,omitempty"`
 	Radius          *int             `json:"radius,omitempty"`
 	BackgroundImage *ImageRef        `json:"backgroundImage,omitempty"`

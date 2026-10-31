@@ -67,7 +67,7 @@
     { "id": "options.root.elements[0].background.color.fixed=red", "path": "options.root.elements[0].background.color.fixed", "value": "red" },
     { "id": "options.root.elements[0].background.color.field=Value", "path": "options.root.elements[0].background.color.field", "value": "Value", "with": {"options.root.elements[0].config.text.field": "Value", "options.root.elements[0].config.text.mode": "field"} },
     { "id": "options.root.elements[0].background.image.fixed=img-bg.png", "path": "options.root.elements[0].background.image.fixed", "value": "img/bg.png" },
-    { "id": "options.root.elements[0].background.image.mode=field", "path": "options.root.elements[0].background.image.mode", "value": "field", "with": {"options.root.elements[0].background.image.fixed": "img/bg.png"} },
+    { "id": "options.root.elements[0].background.image.mode=field", "path": "options.root.elements[0].background.image.mode", "value": "field", "with": {"options.root.elements[0].background.image.field": "Value"} },
     { "id": "options.root.elements[0].background.image.mode=mapping", "path": "options.root.elements[0].background.image.mode", "value": "mapping", "with": {"options.root.elements[0].background.image.fixed": "img/bg.png"} },
     { "id": "options.root.elements[0].background.size=original", "path": "options.root.elements[0].background.size", "value": "original", "with": {"options.root.elements[0].background.image.fixed": "https://example.com/bg.png"} },
     { "id": "options.root.elements[0].background.size=contain", "path": "options.root.elements[0].background.size", "value": "contain", "with": {"options.root.elements[0].background.image.fixed": "https://example.com/bg.png"} },

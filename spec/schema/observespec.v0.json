@@ -6507,6 +6507,13 @@
       "title": "CanvasElement",
       "type": "object",
       "additionalProperties": false,
+      "dependentSchemas": {
+        "textTemplate": {
+          "properties": {
+            "text": false
+          }
+        }
+      },
       "required": [
         "id",
         "kind",
@@ -6559,6 +6566,12 @@
           "maximum": 100
         },
         "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "textTemplate": {
+          "x-omitFromPrompt": true,
           "type": "string",
           "minLength": 1,
           "maxLength": 200
@@ -6649,6 +6662,12 @@
             "middle",
             "bottom"
           ]
+        },
+        "strokeWidth": {
+          "x-omitFromPrompt": true,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
         },
         "borderWidth": {
           "x-omitFromPrompt": true,
