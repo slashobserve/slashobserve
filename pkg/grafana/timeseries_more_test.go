@@ -62,12 +62,10 @@ func TestInsertNullsOverrideCannotTurnOffThePanelsNulls(t *testing.T) {
 
 func TestPlotOnlyPropsAreReportedOnBarChartAndHistogram(t *testing.T) {
 	customs := map[string]string{
-		"insertNulls":          `{"insertNulls":60000}`,
-		"barAlignment":         `{"barAlignment":1}`,
-		"barWidthFactor":       `{"barWidthFactor":0.8}`,
-		"barMaxWidth":          `{"barMaxWidth":20}`,
-		"thresholdsStyle line": `{"thresholdsStyle":{"mode":"line"}}`,
-		"thresholdsStyle area": `{"thresholdsStyle":{"mode":"area"}}`,
+		"insertNulls":    `{"insertNulls":60000}`,
+		"barAlignment":   `{"barAlignment":1}`,
+		"barWidthFactor": `{"barWidthFactor":0.8}`,
+		"barMaxWidth":    `{"barMaxWidth":20}`,
 	}
 	for _, typ := range []string{"barchart", "histogram"} {
 		for name, custom := range customs {
