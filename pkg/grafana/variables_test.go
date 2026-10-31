@@ -355,9 +355,8 @@ func TestClickHouseAdhocVariableAppliesToAllQueries(t *testing.T) {
 }
 
 const (
-	resolutionCustom   = `{"name":"resolution","type":"custom","query":"1s,15s,30s,1m","current":{"value":"30s"}}`
-	intervalDeclared   = `{"name":"iv","type":"interval","query":"1m,5m","current":{"value":"5m"}}`
-	promotedNoteReason = "Imported as an interval variable because queries use it as their min step."
+	resolutionCustom = `{"name":"resolution","type":"custom","query":"1s,15s,30s,1m","current":{"value":"30s"}}`
+	intervalDeclared = `{"name":"iv","type":"interval","query":"1m,5m","current":{"value":"5m"}}`
 )
 
 func minStepDoc(variables, panelMembers, targetMembers string) string {
@@ -441,9 +440,8 @@ func TestCustomVariableUsedAsAMinStepImportsAsAnIntervalVariable(t *testing.T) {
 			if v.Default == nil || !slices.Equal(v.Default.Values, []string{"30s"}) {
 				t.Fatalf("default = %+v, want 30s", v.Default)
 			}
-			notes := notesFor(res, "variable resolution")
-			if len(notes) != 1 || notes[0].Reason != promotedNoteReason {
-				t.Fatalf("notes = %+v, want the promotion note once", notes)
+			if notes := notesFor(res, "variable resolution"); len(notes) != 0 {
+				t.Fatalf("notes = %+v, want none because nothing is lost", notes)
 			}
 			if line := panelLine(t, res, "p1"); line.Status != statusImported {
 				t.Fatalf("panel line = %+v, want imported", line)
@@ -474,9 +472,6 @@ func TestCustomVariableThatIsNotASingleListOfDurationsStaysCustom(t *testing.T) 
 			res := convertDoc(t, minStepDoc(variable, "", `,"interval":"$resolution"`))
 			if v := variableNamed(t, res, "resolution"); v.Type != spec.CustomVariable {
 				t.Fatalf("type = %q, want custom", v.Type)
-			}
-			if slices.ContainsFunc(res.Report.Notes, func(n Note) bool { return n.Reason == promotedNoteReason }) {
-				t.Fatalf("notes = %+v, want no promotion note", res.Report.Notes)
 			}
 			line := panelLine(t, res, "p1")
 			if line.Status != statusPartial || !slices.Contains(line.Paths, "targets[0].interval") {

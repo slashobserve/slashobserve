@@ -352,14 +352,6 @@
         ]
       },
       {
-        "subject": "variable resolution",
-        "status": "partial",
-        "reason": "Imported as an interval variable because queries use it as their min step.",
-        "paths": [
-          "templating.list[4].type"
-        ]
-      },
-      {
         "subject": "variables",
         "status": "partial",
         "reason": "Variables were reordered so that each one comes after the variables its query uses.",

@@ -529,7 +529,6 @@ func (c *converter) customVariable(raw map[string]any, path, name string) (spec.
 	}
 	values := spec.OptionValues(options)
 	if !paired && c.promotesToInterval(raw, name, values) {
-		c.note(subject, "Imported as an interval variable because queries use it as their min step.", path+".type")
 		return spec.Variable{Type: spec.IntervalVariable, Options: options, Default: intervalDefault(raw, values)}, true
 	}
 	v := spec.Variable{Type: spec.CustomVariable, Options: options}

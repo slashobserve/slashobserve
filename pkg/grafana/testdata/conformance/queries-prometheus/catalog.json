@@ -11,7 +11,7 @@
     { "id": "interval=var:interval", "path": "interval", "value": "$interval" },
     { "id": "interval=var:braces", "path": "interval", "value": "${interval}" },
     { "id": "interval=var:legacy", "path": "interval", "value": "[[interval]]" },
-    { "id": "interval=var:resolution", "path": "interval", "value": "$resolution", "expect": "bookkeeping" },
+    { "id": "interval=var:resolution", "path": "interval", "value": "$resolution" },
     { "id": "interval=var:format", "path": "interval", "value": "${interval:text}" },
     { "id": "intervalFactor=2", "path": "intervalFactor", "value": 2 },
     { "id": "intervalFactor=3", "path": "intervalFactor", "value": 3 },

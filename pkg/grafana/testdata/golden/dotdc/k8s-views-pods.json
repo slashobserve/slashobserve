@@ -655,14 +655,6 @@
           "annotations.list[1]",
           "annotations.list[2]"
         ]
-      },
-      {
-        "subject": "variable resolution",
-        "status": "partial",
-        "reason": "Imported as an interval variable because queries use it as their min step.",
-        "paths": [
-          "templating.list[4].type"
-        ]
       }
     ]
   },
