@@ -159,7 +159,7 @@ func TestGroupTransformsReport(t *testing.T) {
 		name, transformation, path string
 		kept                       int
 	}{
-		{"groupBy unsupported reducer", `{"id":"groupBy","options":{"fields":{"a":{"operation":"aggregate","aggregations":["p95"]},"b":{"operation":"groupby"}}}}`, "transformations[0].options.fields.a.aggregations", 1},
+		{"groupBy unsupported reducer", `{"id":"groupBy","options":{"fields":{"a":{"operation":"aggregate","aggregations":["p100"]},"b":{"operation":"groupby"}}}}`, "transformations[0].options.fields.a.aggregations", 1},
 		{"groupBy other field option", `{"id":"groupBy","options":{"fields":{"a":{"operation":"groupby","aggregation":"x"}}}}`, "transformations[0].options.fields.a.aggregation", 1},
 		{"groupBy other option", `{"id":"groupBy","options":{"fields":{"a":{"operation":"groupby"}},"sort":true}}`, "transformations[0].options.sort", 1},
 		{"groupToNestedTable hidden headers without fields", `{"id":"groupToNestedTable","options":{"showSubframeHeaders":false}}`, "transformations[0].options.showSubframeHeaders", 0},

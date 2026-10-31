@@ -80,12 +80,8 @@ func modernSortReducer(name string) (string, bool) {
 	if name == "Name" {
 		return "name", true
 	}
-	for id, display := range reducerNames {
-		if display == name {
-			return id, true
-		}
-	}
-	return "", false
+	id, ok := reducerFromDisplayName(name)
+	return id, ok && isReducer(id)
 }
 
 func legacySortReducer(key string) (string, bool) {

@@ -3,6 +3,7 @@ package grafana
 import (
 	"encoding/json"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -142,6 +143,55 @@ func TestTableFooterOptionsImport(t *testing.T) {
 			}
 			requireImported(t, line)
 		})
+	}
+}
+
+func TestTableFooterFromFieldDefaultsImports(t *testing.T) {
+	cases := []struct {
+		name, options, reducers, want string
+		wantPaths                     []string
+	}{
+		{"reducers alone", ``, `["sum","countAll"]`, `{"footer":["sum","countAll"]}`, nil},
+		{"a single reducer", ``, `["p95"]`, `{"footer":["p95"]}`, nil},
+		{"shown footer with the same reducers", `"footer":{"show":true,"reducer":["mean"]},`, `["mean"]`, `{"footer":["mean"]}`, nil},
+		{"shown footer without a reducer", `"footer":{"show":true},`, `["max"]`, `{"footer":["max"]}`, nil},
+		{"hidden footer ignores them", `"footer":{"show":false},`, `["sum"]`, `null`, nil},
+		{"the newer setting wins over a different older one", `"footer":{"show":true,"reducer":["mean"]},`, `["max"]`, `{"footer":["max"]}`, []string{"options.footer.reducer"}},
+		{"a reducer that is not a number", ``, `["allIsNull"]`, `null`, []string{"fieldConfig.defaults.custom.footer.reducers"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			doc := panelDoc("table", upTarget+`,"options":{`+strings.TrimSuffix(tc.options, ",")+`},"fieldConfig":{"defaults":{"custom":{"footer":{"reducers":`+tc.reducers+`}}},"overrides":[]}`)
+			panel, line := convertedPanel(t, doc)
+			if got := displayJSON(t, panel); got != tc.want {
+				t.Fatalf("display = %s, want %s", got, tc.want)
+			}
+			if len(tc.wantPaths) == 0 {
+				requireImported(t, line)
+				return
+			}
+			if line.Status != statusPartial || !slices.Equal(line.Paths, tc.wantPaths) {
+				t.Fatalf("status = %s, paths %v, want %v", line.Status, line.Paths, tc.wantPaths)
+			}
+		})
+	}
+}
+
+func TestTableFooterFromFieldDefaultsStaysReportedOutsideTables(t *testing.T) {
+	_, line := customPanelOf(t, "stat", `{"footer":{"reducers":["sum"]}}`, "")
+	if line.Status != statusPartial || !slices.Contains(line.Paths, "fieldConfig.defaults.custom.footer.reducers") {
+		t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
+	}
+}
+
+func TestTableFooterInAColumnOverrideStaysReported(t *testing.T) {
+	overrides := `{"matcher":{"id":"byName","options":"Value"},"properties":[{"id":"custom.footer","value":{"reducers":["sum"]}}]}`
+	panel, line := tableCellPanel(t, `{}`, overrides)
+	if len(panel.Overrides) != 0 {
+		t.Fatalf("overrides = %+v", panel.Overrides)
+	}
+	if line.Status != statusPartial || !slices.Contains(line.Paths, "fieldConfig.overrides[0].properties[0]") {
+		t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
 	}
 }
 

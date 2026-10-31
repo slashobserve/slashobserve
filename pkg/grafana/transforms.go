@@ -25,22 +25,6 @@ const (
 	defaultWindowShare = 0.1
 )
 
-var reducerNames = map[string]string{
-	"last": "Last", "lastNotNull": "Last *", "first": "First", "firstNotNull": "First *",
-	"min": "Min", "max": "Max", "mean": "Mean", "median": "Median", "sum": "Total",
-	"count": "Count", "range": "Range", "delta": "Delta", "diff": "Difference",
-	"stdDev": "StdDev", "distinctCount": "Distinct Count", "changeCount": "Change Count",
-}
-
-func isReducer(id string) bool {
-	_, ok := reducerNames[id]
-	return ok
-}
-
-func isAggregateReducer(id string) bool {
-	return id == uniqueValuesReducer || isReducer(id)
-}
-
 var exprPattern = regexp.MustCompile(`^\s*\S+\s*[-+*/%^]\s*\S+\s*$`)
 
 var (
@@ -346,7 +330,7 @@ func fieldOrder(b *panelBuild, v any, path string) []string {
 }
 
 func reducerList(b *panelBuild, v any, path string) []string {
-	return acceptedReducers(b, v, path, isReducer)
+	return acceptedReducers(b, v, path, isAnyReducer)
 }
 
 func acceptedReducers(b *panelBuild, v any, path string, accepted func(string) bool) []string {
@@ -518,7 +502,7 @@ func reduceRowMode(b *panelBuild, t *spec.Transform, opts map[string]any, path s
 	if present(reduce["include"]) {
 		b.partial(path+".options.reduce.include", "")
 	}
-	return reducerNames[reducer], true
+	return reducerDisplayName(reducer)
 }
 
 func (b *panelBuild) optionalFieldName(options map[string]any, key, path string) (string, bool) {
