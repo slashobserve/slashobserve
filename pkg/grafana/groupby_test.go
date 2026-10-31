@@ -155,7 +155,7 @@ func TestGroupByVariableOnAnotherDatasourceIsDroppedAndReported(t *testing.T) {
 		variables []string
 		reason    string
 	}{
-		{"clickhouse", []string{`{"name":"by","type":"groupby","datasource":` + chRef + `}`}, "Group-by variables on this datasource are not supported."},
+		{"clickhouse", []string{`{"name":"by","type":"groupby","datasource":` + chRef + `}`}, decisionGroupByClickHouse.reason},
 		{"a clickhouse datasource variable", []string{`{"name":"ds","type":"datasource","query":"grafana-clickhouse-datasource"}`, `{"name":"by","type":"groupby","datasource":{"uid":"${ds}"}}`}, "Group-by variables on this datasource are not supported."},
 	}
 	for _, tc := range cases {

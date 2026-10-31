@@ -9,8 +9,6 @@ import (
 )
 
 const (
-	legacyAlertListReason  = "Legacy Grafana alerts are not available in SlashObserve."
-	managedAlertListReason = "Grafana-managed alerts are not available; SlashObserve lists Prometheus rule alerts."
 	alertSourceReason      = "An alert list needs a Prometheus datasource."
 	alertStateReason       = "Only firing and pending alerts are listed."
 	alertLabelFilterReason = "Only a list of label matchers such as severity=\"critical\" is supported."
@@ -50,10 +48,10 @@ func alertListReason(n *panelNode) string {
 	options, _ := asObject(n.raw["options"])
 	_, legacyFilter := options["stateFilter"].([]any)
 	if present(options["show"]) || legacyFilter {
-		return legacyAlertListReason
+		return decisionAlertRules.reason
 	}
 	if len(n.ds.targets) == 0 || n.ds.targets[0].kind == refSpecial {
-		return managedAlertListReason
+		return decisionAlertRules.reason
 	}
 	if ref := n.ds.targets[0]; ref.supported() && ref.src.kind != kindPrometheus {
 		return alertSourceReason

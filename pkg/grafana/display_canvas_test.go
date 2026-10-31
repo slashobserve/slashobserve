@@ -289,7 +289,7 @@ func TestCanvasActionsThatCannotBeKeptAreLeftOutAndReported(t *testing.T) {
 
 func TestCanvasInfinityActionsAreReported(t *testing.T) {
 	el, line := oneCanvasElement(t, actionElement(`{"type":"infinity","title":"Run","infinity":{"method":"GET","url":"/run","datasourceUid":"inf"}}`))
-	if len(el.Actions) != 0 || !slices.Contains(line.Reasons, actionTypeReason) {
+	if len(el.Actions) != 0 || !slices.Contains(line.Reasons, decisionInfinity.reason) {
 		t.Errorf("actions = %+v reasons = %v", el.Actions, line.Reasons)
 	}
 }

@@ -259,8 +259,8 @@ func TestAxisPlacement(t *testing.T) {
 		{"hidden", "hidden", "hidden", ""},
 		{"left is the Spec default", "left", "", ""},
 		{"auto is Grafana's default", "auto", "", ""},
-		{"top", "top", "", "The axis placement top is not supported yet."},
-		{"bottom", "bottom", "", "The axis placement bottom is not supported yet."},
+		{"top", "top", "", decisionValueAxisPlacement.reason},
+		{"bottom", "bottom", "", decisionValueAxisPlacement.reason},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

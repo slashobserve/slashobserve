@@ -78,7 +78,7 @@ func TestAxesUnsupportedAndCutValuesAreReported(t *testing.T) {
 		{"long label", `{"axisLabel":"` + strings.Repeat("a", 120) + `"}`, "fieldConfig.defaults.custom.axisLabel", "The axis label was cut to 100 characters."},
 		{"wide axis", `{"axisWidth":900}`, "fieldConfig.defaults.custom.axisWidth", "The axis width was cut to 400 pixels."},
 		{"log base 16", `{"scaleDistribution":{"type":"log","log":16}}`, "fieldConfig.defaults.custom.scaleDistribution.log", "Only log base 2 and 10 are supported."},
-		{"ordinal scale", `{"scaleDistribution":{"type":"ordinal"}}`, "fieldConfig.defaults.custom.scaleDistribution.type", "The scale type ordinal is not supported yet."},
+		{"ordinal scale", `{"scaleDistribution":{"type":"ordinal"}}`, "fieldConfig.defaults.custom.scaleDistribution.type", decisionValueAxisPlacement.reason},
 		{"linear threshold of zero", `{"scaleDistribution":{"type":"symlog","linearThreshold":0}}`, "fieldConfig.defaults.custom.scaleDistribution.linearThreshold", "The linear threshold must be above zero."},
 		{"unknown axis color mode", `{"axisColorMode":"scheme"}`, "fieldConfig.defaults.custom.axisColorMode", "The axis color mode scheme is not supported yet."},
 	}

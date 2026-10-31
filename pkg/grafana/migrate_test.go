@@ -148,8 +148,8 @@ func TestDatagridOptionsAreReportedBecauseCellsCannotBeEdited(t *testing.T) {
 
 func TestPanelTypesWithoutAnEquivalentSayWhy(t *testing.T) {
 	cases := []struct{ typ, reason string }{
-		{"annolist", "SlashObserve has no annotations yet, so an annotation list has nothing to show."},
-		{"live", "Grafana's live panels have no SlashObserve equivalent."},
+		{"annolist", decisionAnnotations.reason},
+		{"live", decisionLive.reason},
 		{"alertGroups", "Alertmanager is not supported yet."},
 		{"vendor-chart-panel", "Grafana panel type vendor-chart-panel is not supported yet."},
 	}
@@ -168,7 +168,7 @@ func TestDatasourceReasonBeatsThePanelTypeReason(t *testing.T) {
 	doc := dashboardJSON("", `{"id":1,"type":"annolist","title":"N","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":{"type":"influxdb","uid":"flux"}}`)
 	res := convertDoc(t, doc)
 	line := panelLine(t, res, "p1")
-	if line.Status != statusPlaceholder || line.Reasons[0] == "SlashObserve has no annotations yet, so an annotation list has nothing to show." {
+	if line.Status != statusPlaceholder || line.Reasons[0] == decisionAnnotations.reason {
 		t.Fatalf("reasons = %v, want the datasource reason first", line.Reasons)
 	}
 }

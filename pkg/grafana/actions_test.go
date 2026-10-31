@@ -120,7 +120,7 @@ func TestFieldActionsAreReportedOnTypesThatDrawNone(t *testing.T) {
 
 func TestFieldActionsOtherThanFetchAreReported(t *testing.T) {
 	panel, line := actionPanel(t, "stat", `"actions":[{"type":"infinity","title":"Query","infinity":{"method":"GET","url":"https://example.com/q"}}]`, "")
-	if len(panel.Actions) != 0 || !slices.Contains(line.Reasons, actionTypeReason) {
+	if len(panel.Actions) != 0 || !slices.Contains(line.Reasons, decisionInfinity.reason) {
 		t.Fatalf("actions = %+v reasons %v", panel.Actions, line.Reasons)
 	}
 }

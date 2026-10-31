@@ -185,8 +185,8 @@ func TestExpressionsThatCannotBeImportedAreDroppedWithAReason(t *testing.T) {
 		reason  string
 	}{
 		{"classic conditions", `"type":"classic_conditions","conditions":[{"type":"query","query":{"params":["A"]},"reducer":{"type":"avg","params":[]},"evaluator":{"type":"gt","params":[5]},"operator":{"type":"and"}}]`,
-			"Classic conditions belong to alert rules, which SlashObserve does not import."},
-		{"sql", `"type":"sql","expression":"SELECT * FROM A LIMIT 10"`, "SQL expressions are not supported."},
+			decisionAlertRules.reason},
+		{"sql", `"type":"sql","expression":"SELECT * FROM A LIMIT 10"`, decisionSQLExpressions.reason},
 		{"an unknown type", `"type":"fancy","expression":"A"`, "The expression type fancy is not supported yet."},
 		{"no type", `"expression":"A"`, "The expression has no expression type."},
 		{"an unknown math function", `"type":"math","expression":"sin($A) * 2"`, "The function sin is not supported yet."},

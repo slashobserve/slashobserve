@@ -1452,11 +1452,11 @@ func TestAlertListBecomesAPrometheusAlertsQuery(t *testing.T) {
 
 func TestAlertListsThatPrometheusCannotListArePlaceholders(t *testing.T) {
 	cases := []struct{ name, options, reason string }{
-		{"legacy show option", `"show":"current","maxItems":10`, legacyAlertListReason},
-		{"legacy state array", `"stateFilter":["alerting","pending"],"datasource":"prom"`, legacyAlertListReason},
-		{"grafana-managed alerts", `"datasource":""`, managedAlertListReason},
-		{"no datasource", `"maxItems":10`, managedAlertListReason},
-		{"the grafana rule source", `"datasource":"grafana"`, managedAlertListReason},
+		{"legacy show option", `"show":"current","maxItems":10`, decisionAlertRules.reason},
+		{"legacy state array", `"stateFilter":["alerting","pending"],"datasource":"prom"`, decisionAlertRules.reason},
+		{"grafana-managed alerts", `"datasource":""`, decisionAlertRules.reason},
+		{"no datasource", `"maxItems":10`, decisionAlertRules.reason},
+		{"the grafana rule source", `"datasource":"grafana"`, decisionAlertRules.reason},
 		{"a source that is not Prometheus", `"datasource":{"type":"grafana-clickhouse-datasource","uid":"ch"}`, alertSourceReason},
 		{"a source that is not supported", `"datasource":{"type":"loki","uid":"loki1"}`, "Loki is not supported yet."},
 	}
@@ -1529,7 +1529,7 @@ func TestDashListOptionsWithoutACounterpartAreReported(t *testing.T) {
 			t.Errorf("paths = %v, want %s reported", line.Paths, path)
 		}
 	}
-	if !slices.Contains(line.Reasons, dashListSources) || !slices.Contains(line.Reasons, dashListFolders) {
+	if !slices.Contains(line.Reasons, dashListSources) || !slices.Contains(line.Reasons, decisionDashboardListHistory.reason) {
 		t.Errorf("reasons = %v", line.Reasons)
 	}
 }
