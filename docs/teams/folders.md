@@ -7,7 +7,8 @@ Every dashboard lives in one folder.
 A new install has one folder, General, and every dashboard that existed before folders is in it.
 General is open to everyone by role, and it cannot be renamed, deleted or restricted.
 
-Editors and Admins create folders and move dashboards between them on the Dashboards page, and delete a dashboard from its row menu there or from the dashboard's **More** menu, after a confirmation.
+Editors and Admins create folders.
+Anyone with Edit on a folder moves its dashboards into another folder where they have Edit, on the Dashboards page, and deletes a dashboard from its row menu there or from the dashboard's **More** menu, after a confirmation.
 A move needs Edit on both folders and saves no version.
 A folder can be deleted only when it is empty.
 A title is 1 to 100 characters and unique without regard to case.
@@ -22,23 +23,28 @@ A folder is open or restricted, and the folder's settings page (**Folder setting
   Removing the last entry opens the folder to everyone again.
 
 Each entry gives a level.
-A person gets the higher of the level their role gives and the levels of the entries that match them, but never more than their role allows, so an entry never lowers access and never lifts a Viewer or Commenter:
+A person gets the higher of the level their role gives and the highest entry that matches them, on the folder and on every dashboard in it.
+An entry can give a Viewer or Commenter more and never gives anyone less:
 
-| Level   | May                                                                                |
-| ------- | ---------------------------------------------------------------------------------- |
-| View    | See the folder and its dashboards.                                                 |
-| Comment | Also comment and reply.                                                            |
-| Edit    | Also change dashboards, send requests to the agent, and move or delete dashboards. |
-| Admin   | Also rename the folder, delete it and change its list.                             |
+| Level   | May                                                                                                                                                                                                |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| View    | See the folder and its dashboards.                                                                                                                                                                 |
+| Comment | Also comment and reply.                                                                                                                                                                            |
+| Edit    | Also change and restore dashboards, edit their details, run canvas actions, send requests to the agent, create, duplicate or import dashboards into the folder, and move or delete its dashboards. |
+| Admin   | Also rename the folder, delete it and change its list.                                                                                                                                             |
 
-Some rules that follow from the roles:
+Restricted folders on the Dashboards page show `Your access: <level>` in their header.
+Folder settings tells a person who cannot manage the folder `Your access to this folder is <level>. Only folder Admins can change it.`
 
-- A Viewer only views and a Commenter only comments, whatever their entry says; change their role on the People page to give more.
-  An entry still matters to them on a restricted folder, because it lets them see the folder.
-- An Editor always edits the folders they can see, and an Admin entry makes them the folder's Admin.
-- Creating a dashboard, in the web, through the API or by importing, needs the Editor role as well as Edit on the folder.
-- The person who created a folder is its Admin and keeps seeing it when it is restricted, even if the list does not name them.
+Some rules that follow:
+
+- A Viewer or Commenter given Edit edits in that folder, including creating dashboards and starting them with the agent, and given Admin manages it.
+- An Editor given View or Comment still edits, and an Admin entry makes them the folder's Admin.
 - Admins have the Admin level on every folder.
+- The person who created a folder manages it while they are an Editor, and keeps seeing it when it is restricted, even if the list does not name them.
+- Creating, duplicating and importing a dashboard need Edit on the target folder.
+  Starting a dashboard with the agent needs Edit on some folder.
+- Creating a folder needs the Editor role.
 
 An entry names a person by email address or a group by its name.
 A person has to have signed in once before an entry can name them, and an unknown address is refused with `422 unknown_user`.
@@ -50,6 +56,10 @@ To let automation work in a restricted folder, use a key of an Admin service acc
 
 The agent works as the person or key that asked.
 The request needs Edit on the dashboard, and the server checks it when the request is queued and again when a worker starts it.
+A new dashboard from the chat needs Edit on some folder and goes to a folder where the requester has Edit.
 A request whose person lost access or was deleted in between fails with a message saying so.
 
 Over the API, a dashboard in a folder the caller cannot see answers `403 forbidden_role` and a folder answers `404 not_found`; MCP tools answer `not_found` for both.
+
+Before this release an entry never lifted a Viewer or Commenter.
+After upgrading, existing entries at Edit or Admin lift them, so review the lists of restricted folders.

@@ -57,12 +57,14 @@ An Admin can also edit and delete any shared prompt, but cannot see another pers
 
 ## Who can use them
 
-| Role      | Saved prompts                                                                              |
-| --------- | ------------------------------------------------------------------------------------------ |
-| Admin     | Create, run and change their own, and change or delete any shared prompt.                  |
-| Editor    | Create, run and change their own, and run shared prompts.                                  |
-| Commenter | None in the web app, which shows a note instead of the chat box. The API refuses a change. |
-| Viewer    | None in the web app, which shows a note instead of the chat box. The API refuses a change. |
+| Role      | Saved prompts                                                                                                                           |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Admin     | Create, run and change their own, and change or delete any shared prompt.                                                               |
+| Editor    | Create, run and change their own, and run shared prompts.                                                                               |
+| Commenter | Run shared prompts only when a folder's list gives them Edit. Otherwise none, and the chat home shows a note. The API refuses a change. |
+| Viewer    | Run shared prompts only when a folder's list gives them Edit. Otherwise none, and the chat home shows a note. The API refuses a change. |
 
-Running a prompt starts a new dashboard, which needs the Editor role, so Commenters and Viewers cannot run one (see [Roles](roles.md) and [Folders and access](folders.md)).
+Running a prompt starts a new dashboard, which needs Edit on some folder (see [Roles](roles.md) and [Folders and access](folders.md)).
+A Commenter or Viewer without such an entry sees the chat-home note and no saved prompts.
+Creating and editing prompts stays with Editors and Admins.
 A key can run shared prompts with `observe run` when its service account is an Editor or Admin.
