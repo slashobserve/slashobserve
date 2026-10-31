@@ -101,6 +101,12 @@
     ],
     "notes": []
   },
+  "blocks": [
+    "dashboard mapped=6 bookkeeping=6",
+    "panel panels[0] mapped=24 default=1 bookkeeping=9 field_config:1 query:1",
+    "panel panels[1] mapped=24 default=1 bookkeeping=9 field_config:1 query:1",
+    "panel panels[2] mapped=24 default=1 bookkeeping=9 field_config:1 query:1"
+  ],
   "spec": {
     "specVersion": "0",
     "title": "Stat panels",

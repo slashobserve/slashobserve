@@ -245,13 +245,6 @@ var partialReasons = map[string]string{
 	"options.legend.displayMode":                    legendTableReason,
 	"options.legend.asTable":                        legendTableReason,
 	"rowHeight":                                     "A row height in pixels is not supported; rows share the height of the panel.",
-	"options.enableInfiniteScrolling":               "Infinite scrolling of logs is not supported yet.",
-	"options.dashboardAlerts":                       "Listing only the alerts of this dashboard is not supported.",
-	"options.groupMode":                             "Grouping alerts is not supported.",
-	"options.groupBy":                               "Grouping alerts is not supported.",
-	"options.folder":                                "Folders are not supported.",
-	"options.showInstances":                         "Alert rules are not listed apart from their instances.",
-	"options.showInactiveAlerts":                    "Inactive alerts are not listed.",
 	"options.statColorMode":                         "The colors of the stat view are not supported yet.",
 	"options.statValueMappings":                     "The colors of the stat view are not supported yet.",
 }

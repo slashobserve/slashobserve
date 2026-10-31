@@ -271,6 +271,14 @@
       }
     ]
   },
+  "blocks": [
+    "dashboard mapped=6 excluded=1 bookkeeping=2",
+    "panel panels[0] mapped=30 bookkeeping=6 field_config:1 override:2 query:3",
+    "panel panels[1] mapped=27 bookkeeping=8 override:2 query:5 transformation:2",
+    "panel panels[2] mapped=31 bookkeeping=6 field_config:1 override:2 query:3",
+    "panel panels[3] mapped=31 bookkeeping=6 field_config:1 override:2 query:3",
+    "panel panels[4] mapped=37 bookkeeping=11 field_config:1 override:2 query:8 transformation:2"
+  ],
   "spec": {
     "specVersion": "0",
     "title": "Kubernetes / Compute Resources / Node (Pods)",

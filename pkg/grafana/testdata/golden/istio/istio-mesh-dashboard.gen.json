@@ -256,6 +256,16 @@
     ],
     "notes": []
   },
+  "blocks": [
+    "dashboard mapped=6 bookkeeping=2",
+    "panel panels[1] mapped=9 reported=2 no_effect=2 bookkeeping=4 field_config:1 query:1",
+    "panel panels[2] mapped=9 reported=2 no_effect=2 bookkeeping=4 field_config:1 query:1",
+    "panel panels[3] mapped=9 reported=2 no_effect=2 bookkeeping=4 field_config:1 query:1",
+    "panel panels[4] mapped=9 reported=2 no_effect=2 bookkeeping=4 field_config:1 query:1",
+    "panel panels[5] mapped=60 reported=3 bookkeeping=8 override:10 query:5 transformation:1",
+    "panel panels[6] mapped=31 reported=3 bookkeeping=5 override:7 query:2 transformation:1",
+    "panel panels[8] mapped=9 no_effect=1 bookkeeping=4 field_config:1 query:1"
+  ],
   "spec": {
     "specVersion": "0",
     "title": "Istio Mesh Dashboard",

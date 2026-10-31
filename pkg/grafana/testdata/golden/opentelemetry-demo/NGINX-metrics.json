@@ -122,6 +122,13 @@
     ],
     "notes": []
   },
+  "blocks": [
+    "dashboard mapped=5 bookkeeping=6",
+    "panel panels[0] mapped=20 bookkeeping=6 field_config:1 query:1",
+    "panel panels[1] mapped=20 bookkeeping=5 field_config:1 query:1",
+    "panel panels[2] mapped=20 bookkeeping=5 field_config:1 query:1",
+    "panel panels[3] mapped=37 default=1 bookkeeping=5 field_config:1 query:1"
+  ],
   "spec": {
     "specVersion": "0",
     "title": "[Image-Provider] NGINX Metrics",

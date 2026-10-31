@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
+	"maps"
 	"math"
 	"os"
 	"path/filepath"
@@ -109,7 +110,61 @@ type goldenResult struct {
 	Summary     grafana.Summary            `json:"summary"`
 	Datasources []grafana.SourceDatasource `json:"datasources"`
 	Report      grafana.Report             `json:"report"`
+	Blocks      []string                   `json:"blocks"`
 	Spec        *spec.Dashboard            `json:"spec"`
+}
+
+var summaryOutcomes = []grafana.Outcome{"mapped", "excluded", "reported", "default", "no_effect", "bookkeeping"}
+
+func tallyBlock(b grafana.Block, outcomes map[grafana.Outcome]int, children map[grafana.BlockKind]int, nested bool) {
+	for _, line := range b.Options {
+		outcomes[line.Outcome]++
+	}
+	for _, child := range b.Blocks {
+		if !nested {
+			children[child.Kind]++
+		}
+		tallyBlock(child, outcomes, children, true)
+	}
+}
+
+func summaryLine(b grafana.Block) string {
+	outcomes := map[grafana.Outcome]int{}
+	children := map[grafana.BlockKind]int{}
+	tallyBlock(b, outcomes, children, false)
+	parts := []string{string(b.Kind)}
+	if b.Path != "" {
+		parts = append(parts, b.Path)
+	}
+	if b.Outcome != nil {
+		parts = append(parts, "outcome="+string(*b.Outcome))
+	}
+	for _, o := range summaryOutcomes {
+		if outcomes[o] > 0 {
+			parts = append(parts, fmt.Sprintf("%s=%d", o, outcomes[o]))
+		}
+	}
+	for _, kind := range slices.Sorted(maps.Keys(children)) {
+		parts = append(parts, fmt.Sprintf("%s:%d", kind, children[kind]))
+	}
+	return strings.Join(parts, " ")
+}
+
+func summarizeBlocks(blocks []grafana.Block) []string {
+	out := []string{}
+	for _, b := range blocks {
+		switch b.Kind {
+		case "dashboard":
+			own := b
+			own.Blocks = nil
+			out = append(out, summaryLine(own))
+		case "panel":
+			out = append(out, summaryLine(b))
+		case "row":
+			out = append(out, summarizeBlocks(b.Blocks)...)
+		}
+	}
+	return out
 }
 
 var importerVersion = regexp.MustCompile(`"importer_version": \d+`)
@@ -118,7 +173,9 @@ func goldenBytes(t *testing.T, o outcome) []byte {
 	t.Helper()
 	var doc any = goldenFailure{InputError: o.inputCode}
 	if o.res != nil {
-		doc = goldenResult{Summary: o.res.Summary, Datasources: o.res.Datasources, Report: o.res.Report, Spec: o.res.Spec}
+		report := o.res.Report
+		report.Blocks = nil
+		doc = goldenResult{Summary: o.res.Summary, Datasources: o.res.Datasources, Report: report, Blocks: summarizeBlocks(o.res.Report.Blocks), Spec: o.res.Spec}
 	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -596,6 +653,36 @@ func checkUnits(t *testing.T, res *grafana.Result) {
 		for _, o := range entry.Panel.Overrides {
 			check(entry.Panel.ID, o.Unit)
 		}
+	}
+}
+
+func listedOptions(blocks []grafana.Block) int {
+	n := 0
+	for _, b := range blocks {
+		n += len(b.Options) + listedOptions(b.Blocks)
+	}
+	return n
+}
+
+func TestCorpusBlockReportsFitTheLimits(t *testing.T) {
+	const maxListed, maxBytes = 10_000, 2 << 20
+	for _, f := range corpusFiles(t) {
+		t.Run(f.id(), func(t *testing.T) {
+			res := convertFile(t, f).res
+			if res == nil {
+				t.Skip("the file does not convert")
+			}
+			if n := listedOptions(res.Report.Blocks); n > maxListed {
+				t.Errorf("%d options listed, want at most %d", n, maxListed)
+			}
+			encoded, err := json.Marshal(res.Report.Blocks)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(encoded) > maxBytes {
+				t.Errorf("blocks encode to %d bytes, want at most %d", len(encoded), maxBytes)
+			}
+		})
 	}
 }
 

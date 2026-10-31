@@ -124,6 +124,11 @@
     ],
     "notes": []
   },
+  "blocks": [
+    "dashboard mapped=4 bookkeeping=7",
+    "panel panels[0] mapped=21 reported=16 bookkeeping=5 field_config:1 override:2 query:1",
+    "panel panels[1] mapped=21 reported=16 bookkeeping=5 field_config:1 override:2 query:1"
+  ],
   "spec": {
     "specVersion": "0",
     "title": "table examples dashboard",

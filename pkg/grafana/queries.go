@@ -286,13 +286,19 @@ func (tb *targetBuild) convert(ref dsRef, declared map[string]bool) (spec.Query,
 func (tb *targetBuild) reportUnconsumed() {
 	for _, key := range sortedKeys(tb.t) {
 		v := tb.t[key]
-		if tb.used[key] || targetSilent[key] || !present(v) {
-			continue
+		path := tb.path + "." + key
+		def, hasDefault := targetDefaults[key]
+		switch {
+		case !present(v), tb.b.issues.covers(path):
+		case tb.used[key]:
+			tb.b.record(path, outcomeMapped)
+		case targetSilent[key]:
+			tb.b.record(path, outcomeBookkeeping)
+		case hasDefault && sameJSON(v, def):
+			tb.b.recordImplicit(path, outcomeDefault)
+		default:
+			tb.b.partial(path, genericQueryNote)
 		}
-		if def, ok := targetDefaults[key]; ok && sameJSON(v, def) {
-			continue
-		}
-		tb.b.partial(tb.path+"."+key, genericQueryNote)
 	}
 }
 
@@ -440,7 +446,7 @@ func (tb *targetBuild) altinity(declared map[string]bool) (spec.Query, string) {
 		q.Format = "table"
 	}
 	if present(tb.t["adHocValuesQuery"]) {
-		tb.partial("adHocValuesQuery", "Saved ad hoc filters are not kept.")
+		tb.partial("adHocValuesQuery", genericQueryNote)
 	}
 	return q, ""
 }

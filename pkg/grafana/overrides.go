@@ -109,6 +109,7 @@ func (b *panelBuild) overrideProperty(props *spec.FieldProps, item any, path str
 	if !ok {
 		if isCosmetic("fieldConfig.defaults."+id, prop["value"]) {
 			b.consume(site.report)
+			b.recordImplicit(site.report, outcomeNoEffect)
 			return
 		}
 		b.partial(site.report, "")

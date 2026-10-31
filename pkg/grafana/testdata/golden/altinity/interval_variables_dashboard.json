@@ -63,6 +63,10 @@
     ],
     "notes": []
   },
+  "blocks": [
+    "dashboard mapped=4 bookkeeping=8",
+    "panel panels[0] mapped=15 bookkeeping=5 field_config:1 query:1"
+  ],
   "spec": {
     "specVersion": "0",
     "title": "Interval variables dashboard",

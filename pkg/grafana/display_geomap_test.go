@@ -42,7 +42,7 @@ func TestGeomapBasemapTypes(t *testing.T) {
 		{"xyz over http is upgraded and reported", `{"type":"xyz","config":{"url":"http://tiles.example.com/{z}/{x}/{y}.png"}}`, spec.Display{Basemap: "xyz", BasemapURL: "https://tiles.example.com/{z}/{x}/{y}.png"}, []string{"options.basemap.config.url"}},
 		{"xyz with a variable host is reported", `{"type":"xyz","config":{"url":"https://${host}/{z}/{x}/{y}.png"}}`, spec.Display{Basemap: "carto"}, []string{"options.basemap.config.url", "options.basemap"}},
 		{"xyz without coordinates is reported", `{"type":"xyz","config":{"url":"https://tiles.example.com/tile.png"}}`, spec.Display{Basemap: "carto"}, []string{"options.basemap.config.url", "options.basemap"}},
-		{"maplibre is reported", `{"type":"maplibre","config":{"url":"https://example.com/style.json","accessToken":"secret"}}`, spec.Display{Basemap: "carto"}, []string{"options.basemap.config"}},
+		{"maplibre is reported", `{"type":"maplibre","config":{"url":"https://example.com/style.json","accessToken":"secret"}}`, spec.Display{Basemap: "carto"}, []string{"options.basemap"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

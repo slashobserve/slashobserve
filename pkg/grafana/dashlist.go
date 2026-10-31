@@ -16,7 +16,6 @@ const (
 	dashListTagLimit = "A dashboard list holds at most 10 tags."
 	dashListTagBad   = "This tag cannot be matched by a SlashObserve tag."
 	dashListSources  = "Starred and recently viewed lists are not available; the panel lists dashboards by last update."
-	dashListFolders  = "Folders are not supported."
 	dashListRepeat   = "Repeating dashboard lists is not supported yet."
 )
 
@@ -90,7 +89,7 @@ func (b *panelBuild) dashListSources() {
 	}
 	for _, path := range []string{"options.folderUID", "options.folderId"} {
 		if v := lookupValue(b.raw, path); present(v) && !sameJSON(v, 0) {
-			b.partial(path, dashListFolders)
+			b.partial(path, "")
 		}
 		b.consume(path)
 	}

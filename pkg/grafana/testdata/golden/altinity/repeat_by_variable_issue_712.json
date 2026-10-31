@@ -122,6 +122,13 @@
     ],
     "notes": []
   },
+  "blocks": [
+    "dashboard mapped=5 bookkeeping=6",
+    "panel panels[1] mapped=20 default=1 bookkeeping=11 field_config:1 query:1",
+    "panel panels[3] mapped=20 default=1 bookkeeping=11 field_config:1 query:1",
+    "panel panels[5] mapped=22 default=1 bookkeeping=11 field_config:1 query:1",
+    "panel panels[7] mapped=22 default=1 bookkeeping=11 field_config:1 query:1"
+  ],
   "spec": {
     "specVersion": "0",
     "title": "issue 712 variable repeat test",

@@ -308,6 +308,21 @@
       }
     ]
   },
+  "blocks": [
+    "dashboard mapped=7 excluded=2 bookkeeping=8",
+    "panel panels[0] mapped=15 reported=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[1] mapped=26 reported=1 bookkeeping=4 field_config:1 override:1 query:1 transformation:4",
+    "panel panels[2] mapped=34 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[3] mapped=34 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[4] mapped=34 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[5] mapped=34 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[6] mapped=34 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[7] mapped=34 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[8] mapped=34 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[9] mapped=34 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[10] mapped=35 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[11] mapped=34 no_effect=1 bookkeeping=4 field_config:1 query:1"
+  ],
   "spec": {
     "specVersion": "0",
     "title": "Kubernetes / System / API Server",

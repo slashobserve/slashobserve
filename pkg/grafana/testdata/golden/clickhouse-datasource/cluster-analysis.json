@@ -315,6 +315,22 @@
     ],
     "notes": []
   },
+  "blocks": [
+    "dashboard mapped=4 bookkeeping=8",
+    "panel panels[0] mapped=22 bookkeeping=5 field_config:1 override:1 query:1 transformation:2",
+    "panel panels[1] mapped=19 bookkeeping=5 field_config:1 override:1 query:1 transformation:1",
+    "panel panels[2] mapped=15 bookkeeping=5 field_config:1 query:1",
+    "panel panels[3] mapped=15 bookkeeping=5 field_config:1 query:1",
+    "panel panels[4] mapped=15 bookkeeping=5 field_config:1 query:1",
+    "panel panels[5] mapped=15 bookkeeping=5 field_config:1 query:1",
+    "panel panels[6] mapped=30 bookkeeping=5 field_config:1 override:5 query:1 transformation:1",
+    "panel panels[7] mapped=19 bookkeeping=5 field_config:1 override:1 query:1",
+    "panel panels[8] mapped=47 bookkeeping=5 field_config:1 override:12 query:1 transformation:1",
+    "panel panels[9] mapped=18 bookkeeping=5 field_config:1 override:1 query:1",
+    "panel panels[10] mapped=44 bookkeeping=5 field_config:1 override:9 query:1 transformation:2",
+    "panel panels[11] mapped=18 bookkeeping=5 field_config:1 query:1 transformation:1",
+    "panel panels[12] mapped=27 bookkeeping=5 field_config:1 override:5 query:1 transformation:1"
+  ],
   "spec": {
     "specVersion": "0",
     "title": "ClickHouse - Cluster Analysis",

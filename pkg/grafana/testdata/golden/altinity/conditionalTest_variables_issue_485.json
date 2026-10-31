@@ -88,6 +88,11 @@
     ],
     "notes": []
   },
+  "blocks": [
+    "dashboard mapped=4 bookkeeping=6",
+    "panel panels[0] mapped=42 default=2 bookkeeping=10 field_config:1 query:1",
+    "panel panels[1] outcome=reported"
+  ],
   "spec": {
     "specVersion": "0",
     "title": "$conditionalTest + template Variables",

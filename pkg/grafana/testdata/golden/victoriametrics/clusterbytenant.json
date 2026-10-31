@@ -506,6 +506,28 @@
       }
     ]
   },
+  "blocks": [
+    "dashboard mapped=7 excluded=3 bookkeeping=5",
+    "panel panels[1] outcome=reported",
+    "panel panels[2] outcome=reported",
+    "panel panels[3] outcome=reported",
+    "panel panels[4] outcome=reported",
+    "panel panels[5] outcome=reported",
+    "panel panels[6] outcome=reported",
+    "panel panels[7] outcome=reported",
+    "panel panels[9] mapped=21 bookkeeping=5 field_config:1 query:1",
+    "panel panels[10] mapped=21 bookkeeping=5 field_config:1 query:1",
+    "panel panels[11] mapped=21 bookkeeping=5 field_config:1 query:1",
+    "panel panels[12] mapped=23 bookkeeping=5 field_config:1 query:1",
+    "panel panels[13] mapped=21 bookkeeping=5 field_config:1 query:1",
+    "panel panels[14] mapped=21 bookkeeping=5 field_config:1 query:1",
+    "panel panels[15] mapped=26 reported=1 bookkeeping=5 field_config:1 override:3 query:1",
+    "panel panels[16] mapped=26 reported=1 bookkeeping=5 field_config:1 override:3 query:1",
+    "panel panels[17] mapped=26 reported=1 bookkeeping=5 field_config:1 override:3 query:1",
+    "panel panels[18] mapped=26 reported=1 bookkeeping=5 field_config:1 override:3 query:1",
+    "panel panels[19] mapped=26 reported=1 bookkeeping=5 field_config:1 override:3 query:1",
+    "panel panels[20] mapped=26 reported=1 bookkeeping=5 field_config:1 override:3 query:1"
+  ],
   "spec": {
     "specVersion": "0",
     "title": "VictoriaMetrics Cluster Per Tenant Statistic",

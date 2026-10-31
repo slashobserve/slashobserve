@@ -253,6 +253,7 @@ func propXYLineWidth(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 
 func propNotDrawn(b *panelBuild, _ *spec.FieldProps, _ any, s propSite) {
 	b.consume(s.value)
+	b.recordImplicit(s.report, outcomeNoEffect)
 }
 
 var propGates = []propGate{

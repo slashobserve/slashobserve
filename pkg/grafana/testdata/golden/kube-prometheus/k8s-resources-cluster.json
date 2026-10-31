@@ -663,6 +663,31 @@
       }
     ]
   },
+  "blocks": [
+    "dashboard mapped=6 excluded=1 bookkeeping=2",
+    "panel panels[0] mapped=7 bookkeeping=4 field_config:1 query:1",
+    "panel panels[1] mapped=7 bookkeeping=4 field_config:1 query:1",
+    "panel panels[2] mapped=7 bookkeeping=4 field_config:1 query:1",
+    "panel panels[3] mapped=7 bookkeeping=4 field_config:1 query:1",
+    "panel panels[4] mapped=7 bookkeeping=4 field_config:1 query:1",
+    "panel panels[5] mapped=7 bookkeeping=4 field_config:1 query:1",
+    "panel panels[6] mapped=14 bookkeeping=4 field_config:1 query:1",
+    "panel panels[7] mapped=34 bookkeeping=10 override:2 query:7 transformation:2",
+    "panel panels[8] mapped=15 bookkeeping=4 field_config:1 query:1",
+    "panel panels[9] mapped=40 bookkeeping=10 override:5 query:7 transformation:2",
+    "panel panels[10] mapped=33 bookkeeping=9 override:3 query:6 transformation:2",
+    "panel panels[11] mapped=15 bookkeeping=4 field_config:1 query:1",
+    "panel panels[12] mapped=15 bookkeeping=4 field_config:1 query:1",
+    "panel panels[13] mapped=15 bookkeeping=4 field_config:1 query:1",
+    "panel panels[14] mapped=15 bookkeeping=4 field_config:1 query:1",
+    "panel panels[15] mapped=15 bookkeeping=4 field_config:1 query:1",
+    "panel panels[16] mapped=15 bookkeeping=4 field_config:1 query:1",
+    "panel panels[17] mapped=15 bookkeeping=4 field_config:1 query:1",
+    "panel panels[18] mapped=15 bookkeeping=4 field_config:1 query:1",
+    "panel panels[19] mapped=15 bookkeeping=4 field_config:1 query:1",
+    "panel panels[20] mapped=15 bookkeeping=4 field_config:1 query:1",
+    "panel panels[21] mapped=33 bookkeeping=9 override:3 query:6 transformation:2"
+  ],
   "spec": {
     "specVersion": "0",
     "title": "Kubernetes / Compute Resources / Cluster",

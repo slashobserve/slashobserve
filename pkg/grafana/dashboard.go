@@ -35,6 +35,8 @@ var (
 	tagInvalid           = regexp.MustCompile(`[^a-z0-9_.-]`)
 )
 
+const dashboardOptionsNote = "Some Grafana dashboard options are not supported yet."
+
 var timeSettingKeys = []string{"weekStart", "fiscalYearStartMonth", "timepicker", "liveNow"}
 
 var timePickerHandledKeys = []string{"hidden", "refresh_intervals", "quick_ranges", "nowDelay"}
@@ -64,6 +66,7 @@ type converter struct {
 	reg          *registry
 	head         spec.Dashboard
 	notes        []Note
+	options      []optionEntry
 	vars         []*builtVar
 	droppedVars  map[string]bool
 	built        []*builtPanel
@@ -141,7 +144,7 @@ func (c *converter) convertHead() {
 	c.convertLinks(dash)
 	c.convertAnnotations(dash)
 	if editable, ok := dash["editable"].(bool); ok && !editable {
-		c.note("dashboard options", "Read-only dashboards are not supported; anyone with Edit access to the folder can change this dashboard.", "editable")
+		c.note("dashboard options", dashboardOptionsNote, "editable")
 	}
 	var unknown []string
 	for _, key := range sortedKeys(dash) {
@@ -150,7 +153,7 @@ func (c *converter) convertHead() {
 		}
 	}
 	if len(unknown) > 0 {
-		c.note("dashboard options", "Some Grafana dashboard options are not supported yet.", unknown...)
+		c.note("dashboard options", dashboardOptionsNote, unknown...)
 	}
 }
 
@@ -446,10 +449,10 @@ func (e *linkExtras) collect(link map[string]any, path string) {
 
 func (c *converter) noteLinkExtras(e linkExtras) {
 	if len(e.icons) > 0 {
-		c.note("dashboard links", "Link icons are not supported; the link is shown without its icon.", e.icons...)
+		c.note("dashboard links", dashboardOptionsNote, e.icons...)
 	}
 	if len(e.controls) > 0 {
-		c.note("dashboard links", "The controls menu is not supported; the link is shown with the other links.", e.controls...)
+		c.note("dashboard links", dashboardOptionsNote, e.controls...)
 	}
 	if len(e.tooltips) > 0 {
 		c.note("dashboard links", fmt.Sprintf("The tooltip was cut to %d characters.", maxLinkTooltip), e.tooltips...)
@@ -525,7 +528,7 @@ func (c *converter) convertAnnotations(dash map[string]any) {
 		paths = append(paths, fmt.Sprintf("annotations.list[%d]", i))
 	}
 	if len(paths) > 0 {
-		c.note("annotations", "Annotation queries are not supported yet.", paths...)
+		c.note("annotations", dashboardOptionsNote, paths...)
 	}
 }
 
@@ -842,6 +845,8 @@ func (c *converter) resetTime() bool {
 }
 
 func (c *converter) report() Report {
+	c.recordDashboardKeys()
+	c.recordVariableKeys()
 	report := Report{ImporterVersion: ImporterVersion, Panels: []PanelLine{}, Notes: []Note{}}
 	for _, bp := range c.built {
 		if !bp.isRow() {
@@ -854,5 +859,7 @@ func (c *converter) report() Report {
 	}
 	report.Notes = append(report.Notes, c.notes...)
 	report.recount()
+	report.Blocks = c.blocks()
+	applyLimits(report.Blocks)
 	return report
 }

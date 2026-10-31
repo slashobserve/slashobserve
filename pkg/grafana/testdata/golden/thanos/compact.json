@@ -532,6 +532,28 @@
     ],
     "notes": []
   },
+  "blocks": [
+    "dashboard mapped=7 bookkeeping=6",
+    "panel rows[0].panels[0] mapped=34 default=6 bookkeeping=3 query:1",
+    "panel rows[0].panels[1] mapped=35 default=6 bookkeeping=3 query:1",
+    "panel rows[1].panels[0] mapped=34 default=6 bookkeeping=3 query:1",
+    "panel rows[1].panels[1] mapped=35 default=6 bookkeeping=3 query:1",
+    "panel rows[2].panels[0] mapped=34 default=6 bookkeeping=3 query:1",
+    "panel rows[2].panels[1] mapped=35 default=6 bookkeeping=3 query:1",
+    "panel rows[2].panels[2] mapped=55 reported=3 default=7 bookkeeping=3 query:3",
+    "panel rows[3].panels[0] mapped=34 default=6 bookkeeping=3 query:1",
+    "panel rows[3].panels[1] mapped=33 default=7 bookkeeping=3 query:1",
+    "panel rows[3].panels[2] mapped=33 default=7 bookkeeping=3 query:1",
+    "panel rows[4].panels[0] mapped=34 default=6 bookkeeping=3 query:1",
+    "panel rows[4].panels[1] mapped=35 default=6 bookkeeping=3 query:1",
+    "panel rows[4].panels[2] mapped=55 reported=3 default=7 bookkeeping=3 query:3",
+    "panel rows[5].panels[0] mapped=34 default=6 bookkeeping=3 query:1",
+    "panel rows[5].panels[1] mapped=35 default=6 bookkeeping=3 query:1",
+    "panel rows[5].panels[2] mapped=55 reported=3 default=7 bookkeeping=3 query:3",
+    "panel rows[6].panels[0] mapped=57 default=7 bookkeeping=3 query:6",
+    "panel rows[6].panels[1] mapped=32 default=7 bookkeeping=3 query:1",
+    "panel rows[6].panels[2] mapped=32 default=7 bookkeeping=3 query:1"
+  ],
   "spec": {
     "specVersion": "0",
     "title": "Thanos / Compact",

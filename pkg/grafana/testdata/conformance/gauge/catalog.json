@@ -10,9 +10,9 @@
   "entries": [
     { "id": "options.showThresholdLabels=true", "path": "options.showThresholdLabels", "value": true },
     { "id": "options.showThresholdMarkers=false", "path": "options.showThresholdMarkers", "value": false },
-    { "id": "options.sizing=manual", "path": "options.sizing", "value": "manual", "with": {"options.orientation": "vertical"}, "expect": "excluded" },
-    { "id": "options.minVizWidth=120", "path": "options.minVizWidth", "value": 120, "with": {"options.orientation": "vertical", "options.sizing": "manual"}, "expect": "excluded" },
-    { "id": "options.minVizHeight=120", "path": "options.minVizHeight", "value": 120, "with": {"options.orientation": "vertical", "options.sizing": "manual"}, "expect": "excluded" },
+    { "id": "options.sizing=manual", "path": "options.sizing", "value": "manual" },
+    { "id": "options.minVizWidth=120", "path": "options.minVizWidth", "value": 120, "with": {"options.sizing": "manual"} },
+    { "id": "options.minVizHeight=120", "path": "options.minVizHeight", "value": 120, "with": {"options.sizing": "manual"} },
     { "id": "fieldConfig.defaults.custom.neutral=50", "path": "fieldConfig.defaults.custom.neutral", "value": 50 },
     { "id": "options.text.titleSize=20", "path": "options.text.titleSize", "value": 20 },
     { "id": "options.text.valueSize=40", "path": "options.text.valueSize", "value": 40 },

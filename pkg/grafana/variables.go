@@ -84,6 +84,9 @@ func (c *converter) note(subject, reason string, paths ...string) {
 	}
 	for _, key := range order {
 		c.notes = append(c.notes, Note{Subject: subject, Status: statusPartial, Reason: reasons[key], Paths: groups[key]})
+		for _, path := range groups[key] {
+			c.options = append(c.options, optionEntry{path: path, outcome: reportedOutcome(reasons[key]), reason: reasons[key]})
+		}
 	}
 }
 
@@ -258,10 +261,12 @@ func (c *converter) commonVariableFields(v *spec.Variable, raw map[string]any, p
 		case hide == 2:
 			v.Hide = "variable"
 		case hide == 3 && v.Type != spec.ConstantVariable:
-			c.note(subject, "The controls menu is not supported; the variable is shown.", path+".hide")
+			c.note(subject, variableOptionsNote, path+".hide")
 		}
 	}
 }
+
+const variableOptionsNote = "Some Grafana options of this variable are not supported yet."
 
 func (c *converter) reportUnhandledKeys(raw map[string]any, path, subject string) {
 	handled := variableHandledKeys[asString(raw["type"])]
@@ -273,7 +278,7 @@ func (c *converter) reportUnhandledKeys(raw map[string]any, path, subject string
 		paths = append(paths, path+"."+key)
 	}
 	if len(paths) > 0 {
-		c.note(subject, "Some Grafana options of this variable are not supported yet.", paths...)
+		c.note(subject, variableOptionsNote, paths...)
 	}
 }
 
@@ -703,7 +708,7 @@ func (c *converter) datasourceVariable(raw map[string]any, path, name string) (s
 		c.note(subject, "A datasource variable selects one datasource; multiple values and All are not kept.", path)
 	}
 	if allowed, ok := raw["allowCustomValue"].(bool); ok && !allowed {
-		c.note(subject, "A datasource variable offers only its datasources; the custom value setting is not kept.", path+".allowCustomValue")
+		c.note(subject, variableOptionsNote, path+".allowCustomValue")
 	}
 	if src := c.reg.byKey["${"+name+"}"]; src != nil && src.match != "" && matchSatisfies(v.Regex, src.match) {
 		v.Default = &spec.Selection{Values: []string{src.match}}

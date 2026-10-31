@@ -2399,6 +2399,26 @@
     ]
    }
   },
+  "options.minVizHeight": {
+   "fields": [
+    "display.minHeight"
+   ],
+   "values": {
+    "n:120": [
+     "display.minHeight"
+    ]
+   }
+  },
+  "options.minVizWidth": {
+   "fields": [
+    "display.minWidth"
+   ],
+   "values": {
+    "n:120": [
+     "display.minWidth"
+    ]
+   }
+  },
   "options.reduceOptions.calcs": {
    "fields": [
     "display.reduce"
@@ -2454,6 +2474,18 @@
    "values": {
     "b:false": [
      "display.thresholdMarkers"
+    ]
+   }
+  },
+  "options.sizing": {
+   "fields": [
+    "display.minHeight",
+    "display.minWidth"
+   ],
+   "values": {
+    "s:manual": [
+     "display.minHeight",
+     "display.minWidth"
     ]
    }
   },
