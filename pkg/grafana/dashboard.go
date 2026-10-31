@@ -305,13 +305,10 @@ func (c *converter) quickRanges(picker map[string]any) []spec.QuickRange {
 }
 
 func (c *converter) convertTimezone(dash map[string]any) {
-	zone := asString(dash["timezone"])
-	if strings.EqualFold(zone, "utc") {
-		zone = "utc"
-	}
+	zone := normalizedZone(asString(dash["timezone"]))
 	switch {
-	case zone == "", zone == "browser", zone == "default":
-	case zonePattern.MatchString(zone) && spec.CheckTimezone(zone) == nil:
+	case zone == "", zone == "browser":
+	case importableZone(zone):
 		c.head.Timezone = zone
 	default:
 		c.note("timezone", "The time zone is not supported and is not kept.", "timezone")

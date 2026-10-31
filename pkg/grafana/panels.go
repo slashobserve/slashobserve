@@ -474,12 +474,84 @@ func (b *panelBuild) buildData() *builtPanel {
 	b.assignQueries()
 	b.convertFieldConfig()
 	b.convertTransforms()
+	b.convertPanelTimezone()
 	b.convertDisplay()
 	b.convertPanelOptions()
 	b.convertPanelChrome()
 	b.convertLinks()
 	b.reportUnconsumed()
 	return b.finish()
+}
+
+var timezonePanelTypes = map[spec.PanelType]bool{
+	spec.Timeseries: true, spec.StateTimeline: true, spec.StatusHistory: true,
+}
+
+const timezoneListReason = "A panel draws its times in one time zone, and Grafana's list of zones must hold a single supported one."
+
+func (b *panelBuild) convertPanelTimezone() {
+	const path = "options.timezone"
+	if !timezonePanelTypes[b.typ] {
+		return
+	}
+	v, ok := b.value(path)
+	if !ok {
+		return
+	}
+	zones, listed := zonesOf(v)
+	if !listed {
+		b.partial(path, timezoneListReason)
+		return
+	}
+	var distinct []string
+	for _, zone := range zones {
+		if zone = normalizedZone(zone); !slices.Contains(distinct, zone) {
+			distinct = append(distinct, zone)
+		}
+	}
+	switch {
+	case len(distinct) == 0, len(distinct) == 1 && distinct[0] == "":
+		b.consume(path)
+	case len(distinct) == 1 && importableZone(distinct[0]):
+		b.panel.Timezone = distinct[0]
+		b.consume(path)
+	default:
+		b.partial(path, timezoneListReason)
+	}
+}
+
+func zonesOf(v any) ([]string, bool) {
+	switch zones := v.(type) {
+	case nil:
+		return nil, true
+	case string:
+		return []string{zones}, true
+	case []any:
+		out := make([]string, 0, len(zones))
+		for _, item := range zones {
+			zone, isText := item.(string)
+			if !isText {
+				return nil, false
+			}
+			out = append(out, zone)
+		}
+		return out, true
+	}
+	return nil, false
+}
+
+func normalizedZone(zone string) string {
+	switch {
+	case strings.EqualFold(zone, "utc"):
+		return "utc"
+	case zone == "default":
+		return ""
+	}
+	return zone
+}
+
+func importableZone(zone string) bool {
+	return zonePattern.MatchString(zone) && spec.CheckTimezone(zone) == nil
 }
 
 func (b *panelBuild) convertHideTimeOverride() {
