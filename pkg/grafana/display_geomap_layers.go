@@ -26,6 +26,7 @@ const (
 	geomapTileHTTPReason     = "Tiles are loaded over https, so the http address was changed."
 	geomapBasemapReason      = "This basemap is not supported yet, so the CARTO map is used."
 	geomapServerReason       = "This Esri server is not supported yet."
+	geomapTileZoomReason     = "The lowest tile zoom is above the highest, so neither is used."
 	maxGeomapRules           = 20
 	maxGeomapAddress         = 2000
 	maxLayerLineWidth        = 20
@@ -128,6 +129,25 @@ func (b *panelBuild) geomapBasemap(d *spec.Display) {
 	d.BasemapURL = tile.address
 	d.BasemapAttribution = tile.attribution
 	d.BasemapOpacity = b.boundedOption(base+".opacity", 0, 1)
+	if tile.kind == "xyz" {
+		b.basemapZoomLimits(d, base+".config")
+	}
+}
+
+func (b *panelBuild) basemapZoomLimits(d *spec.Display, config string) {
+	low, hasLow := b.boundedWhole(config+".minZoom", 0, maxGeomapZoom)
+	high, hasHigh := b.boundedWhole(config+".maxZoom", 0, maxGeomapZoom)
+	if hasLow && hasHigh && low > high {
+		b.partial(config+".minZoom", geomapTileZoomReason)
+		b.partial(config+".maxZoom", geomapTileZoomReason)
+		return
+	}
+	if hasLow {
+		d.BasemapMinZoom = &low
+	}
+	if hasHigh {
+		d.BasemapMaxZoom = &high
+	}
 }
 
 func (b *panelBuild) tileSettings(config, kind string) (tileSettings, bool) {
@@ -256,6 +276,7 @@ func (b *panelBuild) geomapLayer(at string) (spec.GeomapLayer, bool) {
 	case "markers":
 		b.layerLocation(&layer, at+".location")
 		b.markerStyle(&layer, config+".style")
+		b.markerLegend(&layer, config+".showLegend")
 	case "heatmap":
 		b.layerLocation(&layer, at+".location")
 		b.heatmapConfig(&layer, config)
@@ -401,6 +422,12 @@ func (b *panelBuild) markerStyle(layer *spec.GeomapLayer, style string) {
 	}
 	b.markerRotation(layer, style+".rotation")
 	b.markerText(layer, style)
+}
+
+func (b *panelBuild) markerLegend(layer *spec.GeomapLayer, at string) {
+	if shown, ok := b.boolOption(at); !ok || *shown {
+		layer.ShowLegend = ptr(true)
+	}
 }
 
 func (b *panelBuild) markerFill(layer *spec.GeomapLayer, at string) {

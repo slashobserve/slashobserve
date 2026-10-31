@@ -117,6 +117,23 @@ describe("basemapOf", () => {
     )
   })
 
+  it("carries the tile zoom limits of a custom basemap", () => {
+    const source = tilesOf(
+      basemapOf(
+        {
+          basemap: "xyz",
+          basemapUrl: "https://tiles.example.com/{z}/{x}/{y}.png",
+          basemapMinZoom: 1,
+          basemapMaxZoom: 12,
+        },
+        "light"
+      )
+    )
+    expect([source.minZoom, source.maxZoom]).toEqual([1, 12])
+    const carto = tilesOf(basemapOf({ basemap: "carto" }, "light"))
+    expect([carto.minZoom, carto.maxZoom]).toEqual([undefined, undefined])
+  })
+
   it("attributes a custom basemap to its text, else to its host", () => {
     const url = "https://tiles.example.com/{z}/{x}/{y}.png"
     expect(

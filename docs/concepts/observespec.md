@@ -247,11 +247,14 @@ Its `display` takes:
 
 - `view`: `fit`, `world`, `coords` or a region (`north-america`, `south-america`, `europe`, `africa`, `west-asia`, `south-asia`, `south-east-asia`, `east-asia`, `australia` or `oceania`).
 - `basemap`: `outline` (the default), `carto`, `esri`, `osm`, `xyz` or `none`, with `basemapTheme`, `basemapLabels`, `esriServer`, `basemapUrl` for `xyz`, `basemapAttribution` and `basemapOpacity`.
+  `basemapMinZoom` and `basemapMaxZoom` (whole levels from 0 to 18) are the zoom levels an `xyz` tile server serves: tiles are requested only at those levels, and outside them the nearest served level is scaled.
+  `noRepeat: true` draws the basemap and tile layers once, instead of repeating the world sideways when it is narrower than the panel.
 - `minZoom`, `maxZoom` and `zoom`: `minZoom` cannot exceed `maxZoom`, and when all three are set `zoom` lies between them.
 - Fit and controls: `fitLayer`, `fitLastOnly`, `fitPadding`, `sharedView`, `showZoom`, `mouseWheelZoom`, `showAttribution`, `showScale`, `showMeasure`, `showDebug` and `tooltip` (`details` or `none`).
 - `layers`: up to 10 layers, each with a `type` (`markers`, `heatmap`, `geojson`, `dayNight`, `route`, `photos`, `network`, `carto`, `esri`, `osm` or `xyz`) and the options of that type, such as `query`, `location`, `latField`, `lonField`, `rules` and `opacity`.
   A markers layer can draw a fixed label with `text` (or a label per row with `textField`, which wins when both are set), placed with `textOffsetX` and `textOffsetY` (pixels from -100 to 100), `textAlign` (`left`, `center` or `right`) and `textBaseline` (`top`, `middle` or `bottom`, measured against the marker center; without it the label sits below the marker).
   `fillOpacity` (0 to 1, 0.8 when absent) sets how opaque the marker symbols are inside the layer's `opacity`, and `symbolAlign` (`left`, `center` or `right`) with `symbolVerticalAlign` (`top`, `center` or `bottom`) moves each symbol by one marker radius against its point while the label stays on the point.
+  `showLegend: true` lists the layer in the map legend at the bottom right: its name, then one swatch for a fixed color, one entry per threshold step (the lower bound in the field's unit, the base step as Base) when the color field has thresholds, else the smallest and largest color values; absent means no legend.
   A heatmap layer without `weightField` gives every point the `weight` (0 to 1, 1 when absent); with `weightField` the values are scaled by the largest value and then into `weightMin` to `weightMax` (0 to 100, 0 and 1 when absent), and a weight above 1 draws as 1.
   A network layer draws its edges in `edgeColor` when set, else in the node `color`.
   A day and night layer shows the night at the end of the dashboard time range, or at its start with `nightAt` `from` (`to` when absent).

@@ -1417,7 +1417,8 @@
                   "colorField": "error_ratio",
                   "markerSize": 8,
                   "markerSizeMax": 30,
-                  "fillOpacity": 0.4
+                  "fillOpacity": 0.4,
+                  "showLegend": true
                 }
               ]
             }

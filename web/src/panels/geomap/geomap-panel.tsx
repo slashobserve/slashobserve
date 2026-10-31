@@ -49,6 +49,7 @@ import {
   type MarkersLayerModel,
   type Tip,
 } from "./geo-model"
+import { LayerLegend } from "./layer-legend"
 import {
   BlockedGeojsonNote,
   DayNightLayer,
@@ -178,14 +179,20 @@ function TileLayer({
   width,
   height,
   opacity,
+  repeat,
 }: {
   source: TileSource
   view: View
   width: number
   height: number
   opacity: number
+  repeat: boolean
 }) {
-  const tiles = visibleTiles(view, width, height)
+  const tiles = visibleTiles(view, width, height, {
+    minLevel: source.minZoom,
+    maxLevel: source.maxZoom,
+    repeat,
+  })
   return (
     <g opacity={opacity} aria-hidden="true">
       {tiles.map((tile) => {
@@ -498,6 +505,10 @@ const GeomapPanel: PanelRenderer = ({
     ...tileLayers.map((layer) => layer.source.attribution),
   ])
   const tooltipOn = display.tooltip !== "none"
+  const repeatWorld = display.noRepeat !== true
+  const legends = model.layers.flatMap((layer) =>
+    layer.kind === "markers" && layer.legend ? [layer.legend] : []
+  )
   const box = { left, top, size, width, height }
   const centre = unproject(view.center.x, view.center.y)
 
@@ -643,6 +654,7 @@ const GeomapPanel: PanelRenderer = ({
                 ? display.basemapOpacity
                 : 1
             }
+            repeat={repeatWorld}
           />
         ) : null}
         {drawOutline ? (
@@ -664,6 +676,7 @@ const GeomapPanel: PanelRenderer = ({
                   width={width}
                   height={height}
                   opacity={layer.opacity}
+                  repeat={repeatWorld}
                 />
               ) : null
             case "markers":
@@ -778,6 +791,7 @@ const GeomapPanel: PanelRenderer = ({
       {display.showScale === true ? (
         <ScaleBars latitude={centre.lat} zoom={view.zoom} />
       ) : null}
+      {legends.length > 0 ? <LayerLegend legends={legends} /> : null}
       <span id={hintId} className="sr-only">
         {keyboardHint}
       </span>

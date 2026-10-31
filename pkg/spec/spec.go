@@ -823,6 +823,9 @@ type Display struct {
 	BasemapURL         string             `json:"basemapUrl,omitempty"`
 	BasemapAttribution string             `json:"basemapAttribution,omitempty"`
 	BasemapOpacity     *float64           `json:"basemapOpacity,omitempty"`
+	NoRepeat           *bool              `json:"noRepeat,omitempty"`
+	BasemapMinZoom     *int               `json:"basemapMinZoom,omitempty"`
+	BasemapMaxZoom     *int               `json:"basemapMaxZoom,omitempty"`
 	MinZoom            *float64           `json:"minZoom,omitempty"`
 	MaxZoom            *float64           `json:"maxZoom,omitempty"`
 	FitLayer           string             `json:"fitLayer,omitempty"`
@@ -1022,6 +1025,7 @@ type GeomapLayer struct {
 	Border              *int         `json:"border,omitempty"`
 	Crop                *bool        `json:"crop,omitempty"`
 	Shadow              *bool        `json:"shadow,omitempty"`
+	ShowLegend          *bool        `json:"showLegend,omitempty"`
 	Theme               string       `json:"theme,omitempty"`
 	Labels              *bool        `json:"labels,omitempty"`
 	Server              string       `json:"server,omitempty"`

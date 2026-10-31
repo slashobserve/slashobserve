@@ -61,8 +61,45 @@ describe("visibleTiles", () => {
   })
 
   it("never asks for a level above the given maximum", () => {
-    const tiles = visibleTiles(centered(12), 300, 300, 6)
+    const tiles = visibleTiles(centered(12), 300, 300, { maxLevel: 6 })
     expect(tiles.every((tile) => tile.z <= 6)).toBe(true)
     expect(tiles[0].size).toBeCloseTo(256 * 2 ** 6, 6)
+  })
+
+  it("never asks for a level below the given minimum", () => {
+    const tiles = visibleTiles(centered(1.5), 300, 300, { minLevel: 3 })
+    expect(tiles.length).toBeGreaterThan(0)
+    expect(tiles.every((tile) => tile.z === 3)).toBe(true)
+    expect(tiles[0].size).toBeCloseTo(256 * 2 ** -1.5, 6)
+  })
+
+  it("keeps the minimum level when a coarser one would cut the tile budget", () => {
+    const view = { center: { x: 0.5, y: 0.5 }, zoom: 8 }
+    const tiles = visibleTiles(view, 1200, 1200, { minLevel: 6 })
+    expect(tiles.length).toBeLessThanOrEqual(maxTiles)
+    expect(tiles.every((tile) => tile.z >= 6)).toBe(true)
+  })
+
+  it("draws no tiles when the minimum level alone exceeds the tile budget", () => {
+    const view = { center: { x: 0.5, y: 0.5 }, zoom: 8 }
+    expect(visibleTiles(view, 4000, 4000, { minLevel: 8 })).toEqual([])
+  })
+
+  it("draws the world once with repeat off", () => {
+    const view = { center: { x: 0.5, y: 0.5 }, zoom: 1 }
+    const repeated = visibleTiles(view, 1500, 512)
+    const once = visibleTiles(view, 1500, 512, { repeat: false })
+    expect(repeated.some((tile) => tile.column < 0 || tile.column > 1)).toBe(
+      true
+    )
+    expect(once.map((tile) => tile.column).sort()).toEqual([0, 0, 1, 1])
+    expect(once.every((tile) => tile.column >= 0 && tile.column < 2)).toBe(true)
+  })
+
+  it("draws nothing sideways of the world when the view is past its edge", () => {
+    const view = { center: { x: 0.999, y: 0.5 }, zoom: 3 }
+    const once = visibleTiles(view, 600, 256, { repeat: false })
+    expect(once.every((tile) => tile.column <= 7)).toBe(true)
+    expect(Math.max(...once.map((tile) => tile.column))).toBe(7)
   })
 })

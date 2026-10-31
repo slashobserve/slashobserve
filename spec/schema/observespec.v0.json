@@ -6329,6 +6329,25 @@
                     "minimum": 0,
                     "maximum": 1
                   },
+                  "noRepeat": {
+                    "x-omitFromPrompt": true,
+                    "description": "The basemap and tile layers draw one world, never repeated sideways.",
+                    "type": "boolean"
+                  },
+                  "basemapMinZoom": {
+                    "x-omitFromPrompt": true,
+                    "description": "The lowest zoom level the XYZ tile server serves; below it the nearest served level is scaled.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 18
+                  },
+                  "basemapMaxZoom": {
+                    "x-omitFromPrompt": true,
+                    "description": "The highest zoom level the XYZ tile server serves; above it the nearest served level is scaled.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 18
+                  },
                   "minZoom": {
                     "x-omitFromPrompt": true,
                     "type": "number",
@@ -7762,6 +7781,11 @@
         "shadow": {
           "x-omitFromPrompt": true,
           "description": "Photos cast a drop shadow.",
+          "type": "boolean"
+        },
+        "showLegend": {
+          "x-omitFromPrompt": true,
+          "description": "A markers layer lists its colors in the map legend; absent means no legend.",
           "type": "boolean"
         },
         "theme": {

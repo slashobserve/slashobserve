@@ -4,6 +4,8 @@ export type TileSource = {
   template: string
   subdomains: string
   attribution: string
+  minZoom?: number
+  maxZoom?: number
 }
 
 export type TileCoordinate = { z: number; x: number; y: number }
@@ -72,6 +74,12 @@ function esriSource(config: Record<string, unknown>): TileSource {
   }
 }
 
+function zoomLevel(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value)
+    ? value
+    : undefined
+}
+
 function xyzSource(config: Record<string, unknown>): TileSource | null {
   const url = text(config.url)
   if (url === undefined || !url.startsWith("https://")) return null
@@ -82,6 +90,8 @@ function xyzSource(config: Record<string, unknown>): TileSource | null {
     template: url,
     subdomains: "a",
     attribution: text(config.attribution) ?? host,
+    minZoom: zoomLevel(config.minZoom),
+    maxZoom: zoomLevel(config.maxZoom),
   }
 }
 
@@ -124,6 +134,8 @@ export function basemapOf(
       server: display.esriServer,
       url: display.basemapUrl,
       attribution: display.basemapAttribution,
+      minZoom: display.basemapMinZoom,
+      maxZoom: display.basemapMaxZoom,
     },
     appTheme
   )

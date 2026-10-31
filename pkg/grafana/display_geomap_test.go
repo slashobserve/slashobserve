@@ -95,8 +95,8 @@ func TestGeomapWheelZoomIsOnUnlessTheDashboardTurnsItOff(t *testing.T) {
 	}
 }
 
-func TestGeomapSingleMarkersLayerStaysFlatOnlyWithoutAFillOpacity(t *testing.T) {
-	const layer = `{"type":"markers","name":"Markers","tooltip":true,"location":{"mode":"coords","latitude":"lat","longitude":"lon"},"config":{"style":{"color":{"field":"v","fixed":"dark-green"},"size":{"field":"v","min":3,"max":20},"opacity":%s}}}`
+func TestGeomapSingleMarkersLayerStaysFlatOnlyWithoutAFillOpacityAndALegend(t *testing.T) {
+	const layer = `{"type":"markers","name":"Markers","tooltip":true,"location":{"mode":"coords","latitude":"lat","longitude":"lon"},"config":{"showLegend":false,"style":{"color":{"field":"v","fixed":"dark-green"},"size":{"field":"v","min":3,"max":20},"opacity":%s}}}`
 	flat, line := geomapPanelWith(t, `{"view":{"id":"fit"},"layers":[`+strings.Replace(layer, "%s", "9", 1)+`]}`)
 	if len(flat.Layers) != 0 || flat.Location != "coords" || flat.LatField != "lat" || flat.SizeField != "v" || flat.ColorField != "v" || flat.MarkerSize != 3 || flat.MarkerSizeMax != 20 {
 		t.Fatalf("display = %+v", flat)
@@ -121,85 +121,85 @@ func TestGeomapLayerTypes(t *testing.T) {
 	}{
 		{"markers with a fixed color, symbol, text and rotation",
 			`{"type":"markers","name":"Hosts","opacity":0.5,"tooltip":false,"filterData":{"id":"byRefId","options":"A"},"location":{"mode":"auto"},"config":{"style":{"color":{"fixed":"red"},"symbol":{"mode":"fixed","fixed":"img/icons/marker/square.svg"},"rotation":{"field":"angle","mode":"mod","fixed":0,"min":-360,"max":360},"text":{"mode":"field","field":"label"},"textConfig":{"fontSize":14}}}}`,
-			`[{"type":"markers","name":"Hosts","query":"A","opacity":0.5,"tooltip":false,"color":"#F2495C","fillOpacity":0.4,"symbol":"square","textField":"label","textSize":14,"rotationField":"angle"}]`, nil},
+			`[{"type":"markers","name":"Hosts","query":"A","opacity":0.5,"tooltip":false,"color":"#F2495C","fillOpacity":0.4,"symbol":"square","textField":"label","textSize":14,"rotationField":"angle","showLegend":true}]`, nil},
 		{"markers fill opacity",
 			`{"type":"markers","name":"M","config":{"style":{"opacity":0.8}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.8}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.8,"showLegend":true}]`, nil},
 		{"markers without a fill opacity import Grafana's own 0.4",
 			`{"type":"markers","name":"M","config":{"style":{}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"showLegend":true}]`, nil},
 		{"markers fill opacity past 1 is reported and left unwritten",
 			`{"type":"markers","name":"M","config":{"style":{"opacity":3}}}`,
-			`[{"type":"markers","name":"M"}]`, []string{"options.layers[0].config.style.opacity"}},
+			`[{"type":"markers","name":"M","showLegend":true}]`, []string{"options.layers[0].config.style.opacity"}},
 		{"markers symbol alignment",
 			`{"type":"markers","name":"M","config":{"style":{"symbolAlign":{"horizontal":"left","vertical":"top"}}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4,"symbolAlign":"left","symbolVerticalAlign":"top"}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"symbolAlign":"left","symbolVerticalAlign":"top","showLegend":true}]`, nil},
 		{"markers symbol alignment of Grafana's default is silent",
 			`{"type":"markers","name":"M","config":{"style":{"symbolAlign":{"horizontal":"center","vertical":"center"}}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"showLegend":true}]`, nil},
 		{"markers outline width",
 			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"lineWidth":3}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4,"lineWidth":3}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"lineWidth":3,"showLegend":true}]`, nil},
 		{"markers outline width of Grafana's default is silent",
 			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"lineWidth":1}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"showLegend":true}]`, nil},
 		{"markers outline width past 20 is reported",
 			`{"type":"markers","name":"M","config":{"style":{"lineWidth":25}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, []string{"options.layers[0].config.style.lineWidth"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"showLegend":true}]`, []string{"options.layers[0].config.style.lineWidth"}},
 		{"fixed label with offsets, alignment and baseline",
 			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"text":{"mode":"fixed","fixed":"Pod"},"textConfig":{"fontSize":14,"offsetX":-5,"offsetY":8,"textAlign":"left","textBaseline":"top"}}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4,"text":"Pod","textSize":14,"textOffsetX":-5,"textOffsetY":8,"textAlign":"left","textBaseline":"top"}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"text":"Pod","textSize":14,"textOffsetX":-5,"textOffsetY":8,"textAlign":"left","textBaseline":"top","showLegend":true}]`, nil},
 		{"label placement of Grafana's defaults is silent",
 			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"text":{"mode":"fixed","fixed":""},"textConfig":{"offsetX":0,"offsetY":0,"textAlign":"center","textBaseline":"middle"}}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"showLegend":true}]`, nil},
 		{"label offset past 100 is reported",
 			`{"type":"markers","name":"M","config":{"style":{"textConfig":{"offsetX":150,"offsetY":-101}}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, []string{"options.layers[0].config.style.textConfig.offsetX", "options.layers[0].config.style.textConfig.offsetY"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"showLegend":true}]`, []string{"options.layers[0].config.style.textConfig.offsetX", "options.layers[0].config.style.textConfig.offsetY"}},
 		{"label alignment Grafana has but the Spec lacks is reported",
 			`{"type":"markers","name":"M","config":{"style":{"textConfig":{"textAlign":"justify","textBaseline":"alphabetic"}}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, []string{"options.layers[0].config.style.textConfig.textAlign", "options.layers[0].config.style.textConfig.textBaseline"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"showLegend":true}]`, []string{"options.layers[0].config.style.textConfig.textAlign", "options.layers[0].config.style.textConfig.textBaseline"}},
 		{"fixed label past 200 characters is reported",
 			`{"type":"markers","name":"M","config":{"style":{"text":{"fixed":"` + strings.Repeat("a", 201) + `"}}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, []string{"options.layers[0].config.style.text.fixed"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"showLegend":true}]`, []string{"options.layers[0].config.style.text.fixed"}},
 		{"symbol from a field",
 			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"symbol":{"mode":"field","field":"icon","fixed":"img/icons/marker/circle.svg"}}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4,"symbolField":"icon"}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"symbolField":"icon","showLegend":true}]`, nil},
 		{"a fixed symbol next to a symbol field is reported, never written with it",
 			`{"type":"markers","name":"M","config":{"style":{"symbol":{"mode":"field","field":"icon","fixed":"img/icons/marker/square.svg"}}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4,"symbolField":"icon"}]`, []string{"options.layers[0].config.style.symbol.fixed"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"symbolField":"icon","showLegend":true}]`, []string{"options.layers[0].config.style.symbol.fixed"}},
 		{"symbol field mode without a field is reported",
 			`{"type":"markers","name":"M","config":{"style":{"symbol":{"mode":"field"}}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, []string{"options.layers[0].config.style.symbol.mode"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"showLegend":true}]`, []string{"options.layers[0].config.style.symbol.mode"}},
 		{"fixed rotation",
 			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"rotation":{"fixed":45,"mode":"mod","min":-360,"max":360}}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4,"rotation":45}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"rotation":45,"showLegend":true}]`, nil},
 		{"fixed rotation past 360 is reported",
 			`{"type":"markers","name":"M","config":{"style":{"rotation":{"fixed":400}}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, []string{"options.layers[0].config.style.rotation.fixed"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"showLegend":true}]`, []string{"options.layers[0].config.style.rotation.fixed"}},
 		{"clamped rotation field",
 			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"rotation":{"field":"angle","mode":"clamped"}}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4,"rotationField":"angle","rotationMode":"clamp"}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"rotationField":"angle","rotationMode":"clamp","showLegend":true}]`, nil},
 		{"a fixed rotation next to a rotation field is reported, never written with it",
 			`{"type":"markers","name":"M","config":{"style":{"rotation":{"field":"angle","fixed":45}}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4,"rotationField":"angle"}]`, []string{"options.layers[0].config.style.rotation.fixed"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"rotationField":"angle","showLegend":true}]`, []string{"options.layers[0].config.style.rotation.fixed"}},
 		{"clamped rotation without a field is reported",
 			`{"type":"markers","name":"M","config":{"style":{"rotation":{"mode":"clamped"}}}}`,
-			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, []string{"options.layers[0].config.style.rotation.mode"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"showLegend":true}]`, []string{"options.layers[0].config.style.rotation.mode"}},
 		{"WKT location",
 			`{"type":"markers","name":"M","location":{"mode":"wkt","wkt":"geometry"}}`,
-			`[{"type":"markers","name":"M","location":"wkt","wktField":"geometry","fillOpacity":0.4}]`, nil},
+			`[{"type":"markers","name":"M","location":"wkt","wktField":"geometry","fillOpacity":0.4,"showLegend":true}]`, nil},
 		{"WKT location on a heatmap",
 			`{"type":"heatmap","name":"H","location":{"mode":"wkt","wkt":"geometry"}}`,
 			`[{"type":"heatmap","name":"H","location":"wkt","wktField":"geometry"}]`, nil},
 		{"lookup with a gazetteer",
 			`{"type":"markers","name":"M","location":{"mode":"lookup","lookup":"country","gazetteer":"public/gazetteer/usa-states.json"}}`,
-			`[{"type":"markers","name":"M","location":"lookup","lookupField":"country","gazetteer":"usa-states","fillOpacity":0.4}]`, nil},
+			`[{"type":"markers","name":"M","location":"lookup","lookupField":"country","gazetteer":"usa-states","fillOpacity":0.4,"showLegend":true}]`, nil},
 		{"airports lookup is imported and reported",
 			`{"type":"markers","name":"M","location":{"mode":"lookup","lookup":"code","gazetteer":"public/gazetteer/airports.json"}}`,
-			`[{"type":"markers","name":"M","location":"lookup","lookupField":"code","gazetteer":"airports","fillOpacity":0.4}]`, []string{"options.layers[0].location.gazetteer"}},
+			`[{"type":"markers","name":"M","location":"lookup","lookupField":"code","gazetteer":"airports","fillOpacity":0.4,"showLegend":true}]`, []string{"options.layers[0].location.gazetteer"}},
 		{"a custom gazetteer is reported",
 			`{"type":"markers","name":"M","location":{"mode":"lookup","lookup":"code","gazetteer":"https://example.com/places.json"}}`,
-			`[{"type":"markers","name":"M","location":"lookup","lookupField":"code","fillOpacity":0.4}]`, []string{"options.layers[0].location.gazetteer"}},
+			`[{"type":"markers","name":"M","location":"lookup","lookupField":"code","fillOpacity":0.4,"showLegend":true}]`, []string{"options.layers[0].location.gazetteer"}},
 		{"heatmap",
 			`{"type":"heatmap","name":"Heat","location":{"mode":"geohash","geohash":"hash"},"config":{"blur":20,"radius":10,"weight":{"field":"w","fixed":1,"min":0,"max":1}}}`,
 			`[{"type":"heatmap","name":"Heat","location":"geohash","geohashField":"hash","weightField":"w","radius":10,"blur":20}]`, nil},
@@ -286,7 +286,7 @@ func TestGeomapLayerTypes(t *testing.T) {
 			`null`, []string{"options.layers[0]"}},
 	}
 	const second = `{"type":"markers","name":"Second","location":{"mode":"auto"}}`
-	const secondLayer = `{"type":"markers","name":"Second","fillOpacity":0.4}`
+	const secondLayer = `{"type":"markers","name":"Second","fillOpacity":0.4,"showLegend":true}`
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			d, line := geomapPanelWith(t, `{"view":{"id":"fit"},"layers":[`+tc.layer+`,`+second+`]}`)
@@ -330,5 +330,103 @@ func TestGeomapLayersAreCappedAtTen(t *testing.T) {
 	d, line := geomapPanelWith(t, `{"layers":[`+strings.Repeat(layer+",", 11)+layer+`]}`)
 	if len(d.Layers) != maxGeomapLayers || !slices.Contains(line.Paths, "options.layers[10]") {
 		t.Fatalf("layers %d paths %v", len(d.Layers), line.Paths)
+	}
+}
+
+func TestGeomapViewNoRepeat(t *testing.T) {
+	cases := []struct {
+		name, view string
+		want       *bool
+	}{
+		{"true is imported", `{"id":"fit","noRepeat":true}`, ptr(true)},
+		{"false is Grafana's default and silent", `{"id":"fit","noRepeat":false}`, nil},
+		{"absent", `{"id":"fit"}`, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d, line := geomapPanelWith(t, `{"view":`+tc.view+`}`)
+			if (d.NoRepeat == nil) != (tc.want == nil) || (tc.want != nil && *d.NoRepeat != *tc.want) {
+				t.Errorf("noRepeat = %v, want %v", d.NoRepeat, tc.want)
+			}
+			if line.Status != statusImported {
+				t.Errorf("paths %v", line.Paths)
+			}
+		})
+	}
+}
+
+func TestGeomapXYZBasemapTileZoomLimits(t *testing.T) {
+	const url = `"url":"https://tiles.example.com/{z}/{x}/{y}.png"`
+	cases := []struct {
+		name, basemap string
+		low, high     *int
+		paths         []string
+	}{
+		{"both limits", `{"type":"xyz","config":{` + url + `,"minZoom":1,"maxZoom":12}}`, ptr(1), ptr(12), nil},
+		{"only the highest", `{"type":"xyz","config":{` + url + `,"maxZoom":9}}`, nil, ptr(9), nil},
+		{"zero is a limit", `{"type":"xyz","config":{` + url + `,"minZoom":0}}`, ptr(0), nil, nil},
+		{"above the supported range is reported", `{"type":"xyz","config":{` + url + `,"maxZoom":25}}`, nil, nil, []string{"options.basemap.config.maxZoom"}},
+		{"a minimum above the maximum reports both", `{"type":"xyz","config":{` + url + `,"minZoom":8,"maxZoom":3}}`, nil, nil, []string{"options.basemap.config.maxZoom", "options.basemap.config.minZoom"}},
+		{"a custom Esri server is an xyz basemap", `{"type":"esri-xyz","config":{"server":"custom",` + url + `,"minZoom":2,"maxZoom":6}}`, ptr(2), ptr(6), nil},
+		{"CARTO has no tile limits to import", `{"type":"carto","config":{"minZoom":2}}`, nil, nil, []string{"options.basemap.config.minZoom"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d, line := geomapPanelWith(t, `{"view":{"id":"fit"},"basemap":`+tc.basemap+`}`)
+			if !equalInts(d.BasemapMinZoom, tc.low) || !equalInts(d.BasemapMaxZoom, tc.high) {
+				t.Errorf("limits = %v, %v, want %v, %v", d.BasemapMinZoom, d.BasemapMaxZoom, tc.low, tc.high)
+			}
+			slices.Sort(line.Paths)
+			if !slices.Equal(line.Paths, tc.paths) {
+				t.Errorf("paths = %v, want %v", line.Paths, tc.paths)
+			}
+		})
+	}
+}
+
+func equalInts(a, b *int) bool {
+	return (a == nil && b == nil) || (a != nil && b != nil && *a == *b)
+}
+
+func TestGeomapTileLayerZoomLimitsStayReported(t *testing.T) {
+	_, line := geomapPanelWith(t, `{"layers":[{"type":"xyz","name":"T","config":{"url":"https://tiles.example.com/{z}/{x}/{y}.png","minZoom":3}}]}`)
+	if !slices.Contains(line.Paths, "options.layers[0].config.minZoom") {
+		t.Fatalf("paths %v", line.Paths)
+	}
+}
+
+func TestGeomapMarkersLayerLegend(t *testing.T) {
+	cases := []struct {
+		name, config string
+		want         *bool
+	}{
+		{"absent is Grafana's default of shown", `{}`, ptr(true)},
+		{"true", `{"showLegend":true}`, ptr(true)},
+		{"false", `{"showLegend":false}`, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d, line := geomapPanelWith(t, `{"layers":[{"type":"markers","name":"M","config":`+tc.config+`}]}`)
+			if len(d.Layers) != 1 {
+				t.Fatalf("display = %+v", d)
+			}
+			if got := d.Layers[0].ShowLegend; (got == nil) != (tc.want == nil) || (tc.want != nil && *got != *tc.want) {
+				t.Errorf("showLegend = %v, want %v", got, tc.want)
+			}
+			if line.Status != statusImported {
+				t.Errorf("paths %v", line.Paths)
+			}
+		})
+	}
+}
+
+func TestGeomapMarkersLayerWithALegendIsNotFlat(t *testing.T) {
+	layer := spec.GeomapLayer{Type: "markers", ColorField: "v", ShowLegend: ptr(true)}
+	if flatMarkers(layer) {
+		t.Fatal("a layer with a legend is flat")
+	}
+	layer.ShowLegend = nil
+	if !flatMarkers(layer) {
+		t.Fatal("a layer without a legend or fill opacity is not flat")
 	}
 }
