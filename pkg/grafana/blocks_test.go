@@ -211,6 +211,30 @@ func TestBlocksRecordASkippedFieldPropAsNoEffect(t *testing.T) {
 	requireLine(t, blocks, "panels[0].fieldConfig.defaults", "filterable", outcomeNoEffect)
 }
 
+func TestBlocksRecordACosmeticOverridePropertyAsNoEffect(t *testing.T) {
+	doc := `{"title":"T","schemaVersion":39,"panels":[
+	{"id":1,"type":"timeseries","title":"P","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prom"},
+	 "targets":[{"refId":"A","expr":"up"}],
+	 "fieldConfig":{"defaults":{},"overrides":[{"matcher":{"id":"byName","options":"up"},
+	  "properties":[{"id":"custom.gradientMode","value":"opacity"}]}]}}]}`
+	blocks := blocksOf(t, doc)
+	requireLine(t, blocks, "panels[0].fieldConfig.overrides[0]", "properties[0]", outcomeNoEffect)
+}
+
+func TestBlocksExcludeAMapLibreBasemapAsAWhole(t *testing.T) {
+	doc := `{"title":"T","schemaVersion":39,"panels":[
+	{"id":1,"type":"geomap","title":"P","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prom"},
+	 "targets":[{"refId":"A","expr":"up"}],
+	 "options":{"basemap":{"type":"maplibre","name":"Layer 0","config":{"style":"x"}},"view":{"id":"zero"},"layers":[]}}]}`
+	blocks := blocksOf(t, doc)
+	requireLine(t, blocks, "panels[0]", "options.basemap", outcomeExcluded)
+	for _, path := range []string{"options.basemap.type", "options.basemap.config"} {
+		if line := lineAt(blockAt(blocks, "panels[0]"), path); line != nil {
+			t.Fatalf("%s is listed on its own: %+v", path, line)
+		}
+	}
+}
+
 func TestBlocksMapDashboardVariables(t *testing.T) {
 	doc := `{"title":"T","schemaVersion":39,"templating":{"list":[
 	 {"name":"env","type":"custom","query":"a,b","current":{"text":"a","value":"a"},"options":[],"mystery":true}]},

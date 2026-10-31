@@ -113,7 +113,7 @@ func (b *panelBuild) geomapBasemap(d *spec.Display) {
 	case "", "default":
 		kind = "carto"
 	case "maplibre":
-		b.partial(base+".config", geomapBasemapReason)
+		b.partial(base, geomapBasemapReason)
 		kind = "carto"
 	}
 	tile, ok := b.tileSettings(base+".config", kind)

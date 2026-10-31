@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
+	"maps"
 	"math"
 	"os"
 	"path/filepath"
@@ -109,27 +110,59 @@ type goldenResult struct {
 	Summary     grafana.Summary            `json:"summary"`
 	Datasources []grafana.SourceDatasource `json:"datasources"`
 	Report      grafana.Report             `json:"report"`
-	Blocks      []blockSummary             `json:"blocks"`
+	Blocks      []string                   `json:"blocks"`
 	Spec        *spec.Dashboard            `json:"spec"`
 }
 
-type blockSummary struct {
-	Kind    grafana.BlockKind       `json:"kind"`
-	Path    string                  `json:"path"`
-	Outcome *grafana.Outcome        `json:"outcome"`
-	Counts  map[grafana.Outcome]int `json:"counts"`
-	Omitted int                     `json:"omitted"`
-	Blocks  []blockSummary          `json:"blocks"`
+var summaryOutcomes = []grafana.Outcome{"mapped", "excluded", "reported", "default", "no_effect", "bookkeeping"}
+
+func tallyBlock(b grafana.Block, outcomes map[grafana.Outcome]int, children map[grafana.BlockKind]int, nested bool) {
+	for _, line := range b.Options {
+		outcomes[line.Outcome]++
+	}
+	for _, child := range b.Blocks {
+		if !nested {
+			children[child.Kind]++
+		}
+		tallyBlock(child, outcomes, children, true)
+	}
 }
 
-func summarizeBlocks(blocks []grafana.Block) []blockSummary {
-	out := make([]blockSummary, len(blocks))
-	for i, b := range blocks {
-		counts := map[grafana.Outcome]int{}
-		for _, line := range b.Options {
-			counts[line.Outcome]++
+func summaryLine(b grafana.Block) string {
+	outcomes := map[grafana.Outcome]int{}
+	children := map[grafana.BlockKind]int{}
+	tallyBlock(b, outcomes, children, false)
+	parts := []string{string(b.Kind)}
+	if b.Path != "" {
+		parts = append(parts, b.Path)
+	}
+	if b.Outcome != nil {
+		parts = append(parts, "outcome="+string(*b.Outcome))
+	}
+	for _, o := range summaryOutcomes {
+		if outcomes[o] > 0 {
+			parts = append(parts, fmt.Sprintf("%s=%d", o, outcomes[o]))
 		}
-		out[i] = blockSummary{Kind: b.Kind, Path: b.Path, Outcome: b.Outcome, Counts: counts, Omitted: b.Omitted, Blocks: summarizeBlocks(b.Blocks)}
+	}
+	for _, kind := range slices.Sorted(maps.Keys(children)) {
+		parts = append(parts, fmt.Sprintf("%s:%d", kind, children[kind]))
+	}
+	return strings.Join(parts, " ")
+}
+
+func summarizeBlocks(blocks []grafana.Block) []string {
+	out := []string{}
+	for _, b := range blocks {
+		switch b.Kind {
+		case "dashboard":
+			own := b
+			own.Blocks = nil
+			out = append(out, summaryLine(own))
+		case "panel":
+			out = append(out, summaryLine(b))
+		case "row":
+			out = append(out, summarizeBlocks(b.Blocks)...)
+		}
 	}
 	return out
 }
