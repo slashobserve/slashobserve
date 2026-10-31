@@ -97,7 +97,12 @@ type LayerBase = { name: string; opacity: number }
 type Hoverable = { tooltip: boolean }
 
 export type MarkersLayerModel = LayerBase &
-  Hoverable & { kind: "markers"; textSize: number; markers: Marker[] }
+  Hoverable & {
+    kind: "markers"
+    textSize: number
+    outlineWidth: number
+    markers: Marker[]
+  }
 
 type TilesLayerModel = LayerBase & { kind: "tiles"; source: TileSource }
 
@@ -173,6 +178,7 @@ const defaultMarkerSize = 5
 const defaultMarkerSizeMax = 15
 const defaultZoom = 2
 const defaultTextSize = 12
+const defaultOutlineWidth = 1
 const markerKeys = [
   "location",
   "latField",
@@ -709,6 +715,7 @@ function buildMarkers(config: Layer, name: string, env: Env): Built {
         kind: "markers",
         ...common(config, name),
         textSize: numberOf(config.textSize, defaultTextSize),
+        outlineWidth: numberOf(config.lineWidth, defaultOutlineWidth),
         markers: markersFrom(gathered, config, env.fields),
       },
     ],
@@ -801,7 +808,7 @@ function buildPhotos(config: Layer, name: string, env: Env): Built {
     url: imageField(item.frame)?.values[item.row],
     tip: plainTip(item, env.fields, fixed ?? styleForSlot(0).color),
   }))
-  const model = photosModel(rows, config)
+  const model = photosModel(rows, config, undefined, fixed)
   const part = locatedPart(config, env, gathered)
   return built({
     ...part,
@@ -867,6 +874,7 @@ function buildNetwork(config: Layer, name: string, env: Env): Built {
         kind: "markers",
         ...common(config, name),
         textSize: numberOf(config.textSize, defaultTextSize),
+        outlineWidth: defaultOutlineWidth,
         markers: markersFrom(gathered, config, env.fields),
       },
     ],

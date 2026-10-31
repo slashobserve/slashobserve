@@ -459,6 +459,14 @@ describe("layers", () => {
     expect(drawn).toContainEqual(["triangle", 180, "b"])
   })
 
+  it("outlines markers with the layer's line width, 1 pixel by default", () => {
+    const outlineOf = (layer: Record<string, unknown>) =>
+      build([cities()], {}, { layers: [{ type: "markers", ...layer }] })
+        .layers[0]
+    expect(outlineOf({})).toMatchObject({ outlineWidth: 1 })
+    expect(outlineOf({ lineWidth: 3 })).toMatchObject({ outlineWidth: 3 })
+  })
+
   it("falls back to a circle for an unknown symbol", () => {
     const model = build(
       [cities()],
@@ -650,6 +658,22 @@ describe("layer types", () => {
   it("asks for an image field when a photos layer has none", () => {
     const model = withContext([cities()], [{ type: "photos", name: "Shots" }])
     expect(model.notes).toEqual(["Layer Shots needs an image field."])
+  })
+
+  it("colors and sizes photos from the layer", () => {
+    vi.stubGlobal("location", { origin: "https://app.test" })
+    const shots = cities([
+      { name: "image", type: "string", values: ["https://img.example/a.png"] },
+    ])
+    const model = withContext(
+      [shots],
+      [{ type: "photos", imageField: "image", color: "critical", radius: 25 }]
+    )
+    expect(model.layers[0]).toMatchObject({
+      kind: "photos",
+      borderColor: "var(--threshold-critical)",
+      radius: 25,
+    })
   })
 
   describe("network", () => {

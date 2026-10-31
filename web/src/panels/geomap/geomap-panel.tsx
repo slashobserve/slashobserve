@@ -247,7 +247,7 @@ function MarkersLayer({
                 fill: marker.color,
                 fillOpacity: 0.8 * layer.opacity,
                 stroke: "var(--background)",
-                strokeWidth: 1,
+                strokeWidth: layer.outlineWidth,
                 strokeOpacity: layer.opacity,
               }}
             />

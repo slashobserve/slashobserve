@@ -29,6 +29,7 @@ const (
 	maxGeomapAddress        = 2000
 	maxLayerLineWidth       = 20
 	maxHeatmapRadius        = 100
+	maxPhotoRadius          = 100
 	maxPhotoBorder          = 20
 	minTextSize             = 6
 	maxMarkerText           = 48
@@ -38,6 +39,7 @@ const (
 	geomapDefaultTextSize   = 12
 	geomapDefaultMarkerSize = 5
 	geomapDefaultMarkerMax  = 15
+	markerDefaultWidth      = 1
 	routeDefaultWidth       = 2
 	networkDefaultWidth     = 1
 	markerPrefix            = "img/icons/marker/"
@@ -382,6 +384,9 @@ func (b *panelBuild) markerStyle(layer *spec.GeomapLayer, style string) {
 		layer.Color = fixed
 	}
 	layer.Symbol = b.markerSymbol(style + ".symbol")
+	if width, ok := b.boundedWhole(style+".lineWidth", 1, maxLayerLineWidth); ok {
+		layer.LineWidth = width
+	}
 	layer.RotationField = b.fieldNameOption(style + ".rotation.field")
 	b.markerText(layer, style)
 }
@@ -480,6 +485,10 @@ func (b *panelBuild) photosConfig(layer *spec.GeomapLayer, config string) {
 	}
 	if border, ok := b.boundedWhole(config+".border", 0, maxPhotoBorder); ok {
 		layer.Border = &border
+	}
+	layer.Color = b.layerColor(config + ".color")
+	if radius, ok := b.boundedWhole(config+".radius", 1, maxPhotoRadius); ok {
+		layer.Radius = radius
 	}
 }
 
@@ -601,6 +610,8 @@ func trimLayerDefaults(layer *spec.GeomapLayer) {
 	clearDefault(&layer.Shape, "square")
 	clearDefault(&layer.Theme, "auto")
 	switch layer.Type {
+	case "markers":
+		clearDefault(&layer.LineWidth, markerDefaultWidth)
 	case "route":
 		clearDefault(&layer.LineWidth, routeDefaultWidth)
 	case "network":
