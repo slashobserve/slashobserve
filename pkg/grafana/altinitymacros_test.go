@@ -185,6 +185,26 @@ func TestAltinityUseWindowFuncForMacrosDoesNotChangeTheExpansion(t *testing.T) {
 	}
 }
 
+func TestAltinityLogContextWindowIsReportedUnlessItIsTheDefault(t *testing.T) {
+	cases := []struct {
+		name, members string
+		reported      bool
+	}{
+		{"absent", "", false},
+		{"altinity default", `,"contextWindowSize":"10"`, false},
+		{"another size", `,"contextWindowSize":"20"`, true},
+		{"the largest size", `,"contextWindowSize":"100"`, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, line := altinityPanel(t, "SELECT 1", tc.members)
+			if reported := hasPathSuffix(line.Paths, ".contextWindowSize"); reported != tc.reported {
+				t.Fatalf("paths = %v, want reported = %v", line.Paths, tc.reported)
+			}
+		})
+	}
+}
+
 func TestAltinityWholeQueryRewriteLineRestoresTheGrafanaText(t *testing.T) {
 	const query = "$columns(k, sum(a) c)\nFROM $table WHERE $timeFilter"
 	panel, line := altinityPanel(t, query, "")
