@@ -133,6 +133,43 @@ export function labelPlacement(
   }
 }
 
+const symbolHorizontals = ["left", "center", "right"] as const
+const symbolVerticals = ["top", "center", "bottom"] as const
+const defaultFillOpacity = 0.8
+
+export type SymbolAlign = {
+  horizontal: (typeof symbolHorizontals)[number]
+  vertical: (typeof symbolVerticals)[number]
+}
+
+export function symbolOffset(
+  align: SymbolAlign,
+  radius: number
+): { dx: number; dy: number } {
+  const horizontal = { left: -radius, center: 0, right: radius }
+  const vertical = { top: -radius, center: 0, bottom: radius }
+  return { dx: horizontal[align.horizontal], dy: vertical[align.vertical] }
+}
+
+function markerLook(layer: Layer): {
+  fillOpacity: number
+  symbolAlign: SymbolAlign
+} {
+  return {
+    fillOpacity: isNumber(layer.fillOpacity)
+      ? Math.max(0, Math.min(1, layer.fillOpacity))
+      : defaultFillOpacity,
+    symbolAlign: {
+      horizontal:
+        symbolHorizontals.find((side) => side === layer.symbolAlign) ??
+        "center",
+      vertical:
+        symbolVerticals.find((side) => side === layer.symbolVerticalAlign) ??
+        "center",
+    },
+  }
+}
+
 function labelLook(layer: Layer): LabelLook {
   return {
     align: labelAligns.find((align) => align === layer.textAlign) ?? "center",
@@ -152,6 +189,8 @@ export type MarkersLayerModel = LayerBase &
     kind: "markers"
     textSize: number
     label: LabelLook
+    fillOpacity: number
+    symbolAlign: SymbolAlign
     outlineWidth: number
     markers: Marker[]
   }
@@ -204,6 +243,7 @@ export type GeoContext = {
   atlases?: Partial<Record<AtlasName, Feature[]>>
   remote?: Record<string, RemoteGeojson>
   time?: number
+  from?: number
 }
 
 export type ViewOptions = {
@@ -805,6 +845,7 @@ function buildMarkers(config: Layer, name: string, env: Env): Built {
         ...common(config, name),
         textSize: numberOf(config.textSize, defaultTextSize),
         label: labelLook(config),
+        ...markerLook(config),
         outlineWidth: numberOf(config.lineWidth, defaultOutlineWidth),
         markers: markersFrom(gathered, config, env.fields),
       },
@@ -847,7 +888,7 @@ function buildHeatmap(config: Layer, name: string, env: Env): Built {
         kind: "heatmap",
         name,
         opacity: layerOpacity(config),
-        ...heatmapModel(rows, config),
+        ...heatmapModel(rows, config, weighted),
       },
     ],
   })
@@ -948,7 +989,8 @@ function buildNetwork(config: Layer, name: string, env: Env): Built {
     nodes,
     edgeRows,
     config,
-    fixedColorOf(config.color)
+    fixedColorOf(config.color),
+    fixedColorOf(config.edgeColor)
   )
   const part = locatedPart(config, env, gathered)
   return built({
@@ -965,6 +1007,7 @@ function buildNetwork(config: Layer, name: string, env: Env): Built {
         ...common(config, name),
         textSize: numberOf(config.textSize, defaultTextSize),
         label: labelLook(config),
+        ...markerLook(config),
         outlineWidth: defaultOutlineWidth,
         markers: markersFrom(gathered, config, env.fields),
       },
@@ -1015,7 +1058,8 @@ function buildGeojson(config: Layer, name: string, env: Env): Built {
 }
 
 function buildDayNight(config: Layer, name: string, env: Env): Built {
-  const date = new Date(env.context.time ?? Date.now())
+  const at = config.nightAt === "from" ? env.context.from : env.context.time
+  const date = new Date(at ?? Date.now())
   return built({
     layers: [
       {

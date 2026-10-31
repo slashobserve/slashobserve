@@ -47,6 +47,16 @@ describe("photosModel", () => {
     expect(truncated).toBe(0)
   })
 
+  it("fits whole photos without a shadow unless the layer crops or shadows", () => {
+    expect(photosModel([], {}, origin)).toMatchObject({
+      crop: false,
+      shadow: false,
+    })
+    expect(photosModel([], { crop: true, shadow: true }, origin)).toMatchObject(
+      { crop: true, shadow: true }
+    )
+  })
+
   it("keeps at most 200 photos and counts the rest", () => {
     const rows = Array.from({ length: maxPhotos + 25 }, (_, index) =>
       row(index, `https://img.example/${index}.png`)

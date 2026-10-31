@@ -18,6 +18,7 @@ export type NetworkModel = {
   unlocated: number
   truncated: number
   color: string | null
+  edgeColor: string | null
   lineWidth: number
   arrow: Arrow
 }
@@ -39,7 +40,8 @@ export function networkModel(
   nodes: readonly NetworkNode[],
   rows: readonly EdgeRow[],
   layer: Record<string, unknown>,
-  fixed: string | undefined
+  fixed: string | undefined,
+  edge?: string
 ): NetworkModel {
   const places = new Map<string, Point>()
   for (const node of nodes) {
@@ -66,6 +68,7 @@ export function networkModel(
     unlocated,
     truncated,
     color: fixed ?? null,
+    edgeColor: edge ?? null,
     lineWidth: isNumber(layer.lineWidth) ? layer.lineWidth : defaultLineWidth,
     arrow: arrowOf(layer.arrow),
   }

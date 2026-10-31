@@ -16,11 +16,13 @@ import {
   maxMarkers,
   noLocationReason,
   skippedText,
+  symbolOffset,
   symbolPath,
   viewOptions,
   viewTuning,
 } from "./geo-model"
 import type { Gazetteers } from "./gazetteer/lookup"
+import { dayNightModel } from "./layers/day-night"
 import type { Feature } from "./layers/geojson"
 import { clampZoom, fitBounds, project, worldView } from "./projection"
 import { regionCorners } from "./regions"
@@ -849,6 +851,18 @@ describe("layer types", () => {
       expect(model.markers).toHaveLength(3)
     })
 
+    it("carries an edge color apart from the node color", () => {
+      const model = withContext(
+        [nodes, edges],
+        [{ type: "network", color: "info", edgeColor: "critical" }]
+      )
+      expect(model.layers[0]).toMatchObject({
+        kind: "network",
+        color: "var(--threshold-info)",
+        edgeColor: "var(--threshold-critical)",
+      })
+    })
+
     it("counts an edge that reaches an unknown node as skipped", () => {
       const model = withContext([nodes, edges], [{ type: "network" }])
       expect(model.skipped).toBe(1)
@@ -874,6 +888,24 @@ describe("layer types", () => {
       const layer = model.layers[0]
       expect(layer.kind).toBe("dayNight")
       expect(layer.kind === "dayNight" && layer.sun).not.toBeNull()
+    })
+
+    it("shows the night at the start of the range with nightAt from", () => {
+      const from = Date.parse("2024-03-20T00:00:00Z")
+      const time = Date.parse("2024-09-22T12:00:00Z")
+      const pathAt = (layers: Record<string, unknown>[]) => {
+        const layer = withContext([], layers, { from, time }).layers[0]
+        return layer.kind === "dayNight" ? layer.path : null
+      }
+      expect(pathAt([{ type: "dayNight", nightAt: "from" }])).toBe(
+        dayNightModel(new Date(from), {}, undefined).path
+      )
+      expect(pathAt([{ type: "dayNight" }])).toBe(
+        dayNightModel(new Date(time), {}, undefined).path
+      )
+      expect(pathAt([{ type: "dayNight", nightAt: "to" }])).toBe(
+        dayNightModel(new Date(time), {}, undefined).path
+      )
     })
 
     it("keeps a chosen night color", () => {
@@ -1383,6 +1415,53 @@ describe("labelPlacement", () => {
     ],
   ] as const)("places %j", (look, expected) => {
     expect(labelPlacement(look, 5, 12)).toEqual(expected)
+  })
+})
+
+describe("symbolOffset", () => {
+  it.each([
+    ["left", "top", -6, -6],
+    ["left", "center", -6, 0],
+    ["left", "bottom", -6, 6],
+    ["center", "top", 0, -6],
+    ["center", "center", 0, 0],
+    ["center", "bottom", 0, 6],
+    ["right", "top", 6, -6],
+    ["right", "center", 6, 0],
+    ["right", "bottom", 6, 6],
+  ] as const)(
+    "moves a %s %s symbol by one radius",
+    (horizontal, vertical, dx, dy) => {
+      expect(symbolOffset({ horizontal, vertical }, 6)).toEqual({ dx, dy })
+    }
+  )
+})
+
+describe("marker look", () => {
+  function markersLayer(layer: Record<string, unknown>) {
+    const model = geoModel(
+      [cities()],
+      createFieldResolver(panel()),
+      displayWithDefaults("geomap", { layers: [{ type: "markers", ...layer }] })
+    )
+    return model.layers[0]
+  }
+
+  it("fills markers at 0.8 and centers symbols unless the layer says otherwise", () => {
+    expect(markersLayer({})).toMatchObject({
+      fillOpacity: 0.8,
+      symbolAlign: { horizontal: "center", vertical: "center" },
+    })
+    expect(
+      markersLayer({
+        fillOpacity: 0.4,
+        symbolAlign: "left",
+        symbolVerticalAlign: "top",
+      })
+    ).toMatchObject({
+      fillOpacity: 0.4,
+      symbolAlign: { horizontal: "left", vertical: "top" },
+    })
   })
 })
 

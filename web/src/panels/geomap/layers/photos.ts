@@ -31,6 +31,8 @@ export type PhotosModel = {
   border: number
   borderColor: string | null
   radius: number
+  crop: boolean
+  shadow: boolean
 }
 
 export const maxPhotos = 200
@@ -87,5 +89,7 @@ export function photosModel(
       typeof layer.radius === "number" && layer.radius > 0
         ? layer.radius
         : defaultRadius,
+    crop: layer.crop === true,
+    shadow: layer.shadow === true,
   }
 }

@@ -95,10 +95,19 @@ func TestGeomapWheelZoomIsOnUnlessTheDashboardTurnsItOff(t *testing.T) {
 	}
 }
 
-func TestGeomapSingleMarkersLayerStaysFlat(t *testing.T) {
-	d, line := geomapPanelWith(t, `{"view":{"id":"fit"},"layers":[{"type":"markers","name":"Markers","tooltip":true,"location":{"mode":"coords","latitude":"lat","longitude":"lon"},"config":{"style":{"color":{"field":"v","fixed":"dark-green"},"size":{"field":"v","min":3,"max":20}}}}]}`)
-	if len(d.Layers) != 0 || d.Location != "coords" || d.LatField != "lat" || d.SizeField != "v" || d.ColorField != "v" || d.MarkerSize != 3 || d.MarkerSizeMax != 20 {
-		t.Fatalf("display = %+v", d)
+func TestGeomapSingleMarkersLayerStaysFlatOnlyWithoutAFillOpacity(t *testing.T) {
+	const layer = `{"type":"markers","name":"Markers","tooltip":true,"location":{"mode":"coords","latitude":"lat","longitude":"lon"},"config":{"style":{"color":{"field":"v","fixed":"dark-green"},"size":{"field":"v","min":3,"max":20},"opacity":%s}}}`
+	flat, line := geomapPanelWith(t, `{"view":{"id":"fit"},"layers":[`+strings.Replace(layer, "%s", "9", 1)+`]}`)
+	if len(flat.Layers) != 0 || flat.Location != "coords" || flat.LatField != "lat" || flat.SizeField != "v" || flat.ColorField != "v" || flat.MarkerSize != 3 || flat.MarkerSizeMax != 20 {
+		t.Fatalf("display = %+v", flat)
+	}
+	if !slices.Equal(line.Paths, []string{"options.layers[0].config.style.opacity"}) {
+		t.Fatalf("paths %v", line.Paths)
+	}
+	layered, line := geomapPanelWith(t, `{"view":{"id":"fit"},"layers":[`+strings.Replace(layer, "%s", "0.4", 1)+`]}`)
+	want := `[{"type":"markers","name":"Markers","location":"coords","latField":"lat","lonField":"lon","sizeField":"v","colorField":"v","markerSize":3,"markerSizeMax":20,"fillOpacity":0.4}]`
+	if got := layersJSON(t, layered); got != want {
+		t.Fatalf("layers = %s, want %s", got, want)
 	}
 	if line.Status != statusImported {
 		t.Fatalf("paths %v", line.Paths)
@@ -112,73 +121,106 @@ func TestGeomapLayerTypes(t *testing.T) {
 	}{
 		{"markers with a fixed color, symbol, text and rotation",
 			`{"type":"markers","name":"Hosts","opacity":0.5,"tooltip":false,"filterData":{"id":"byRefId","options":"A"},"location":{"mode":"auto"},"config":{"style":{"color":{"fixed":"red"},"symbol":{"mode":"fixed","fixed":"img/icons/marker/square.svg"},"rotation":{"field":"angle","mode":"mod","fixed":0,"min":-360,"max":360},"text":{"mode":"field","field":"label"},"textConfig":{"fontSize":14}}}}`,
-			`[{"type":"markers","name":"Hosts","query":"A","opacity":0.5,"tooltip":false,"color":"#F2495C","symbol":"square","textField":"label","textSize":14,"rotationField":"angle"}]`, nil},
+			`[{"type":"markers","name":"Hosts","query":"A","opacity":0.5,"tooltip":false,"color":"#F2495C","fillOpacity":0.4,"symbol":"square","textField":"label","textSize":14,"rotationField":"angle"}]`, nil},
+		{"markers fill opacity",
+			`{"type":"markers","name":"M","config":{"style":{"opacity":0.8}}}`,
+			`[{"type":"markers","name":"M","fillOpacity":0.8}]`, nil},
+		{"markers without a fill opacity import Grafana's own 0.4",
+			`{"type":"markers","name":"M","config":{"style":{}}}`,
+			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, nil},
+		{"markers fill opacity past 1 is reported and left unwritten",
+			`{"type":"markers","name":"M","config":{"style":{"opacity":3}}}`,
+			`[{"type":"markers","name":"M"}]`, []string{"options.layers[0].config.style.opacity"}},
+		{"markers symbol alignment",
+			`{"type":"markers","name":"M","config":{"style":{"symbolAlign":{"horizontal":"left","vertical":"top"}}}}`,
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"symbolAlign":"left","symbolVerticalAlign":"top"}]`, nil},
+		{"markers symbol alignment of Grafana's default is silent",
+			`{"type":"markers","name":"M","config":{"style":{"symbolAlign":{"horizontal":"center","vertical":"center"}}}}`,
+			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, nil},
 		{"markers outline width",
 			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"lineWidth":3}}}`,
-			`[{"type":"markers","name":"M","lineWidth":3}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"lineWidth":3}]`, nil},
 		{"markers outline width of Grafana's default is silent",
 			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"lineWidth":1}}}`,
-			`[{"type":"markers","name":"M"}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, nil},
 		{"markers outline width past 20 is reported",
 			`{"type":"markers","name":"M","config":{"style":{"lineWidth":25}}}`,
-			`[{"type":"markers","name":"M"}]`, []string{"options.layers[0].config.style.lineWidth"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, []string{"options.layers[0].config.style.lineWidth"}},
 		{"fixed label with offsets, alignment and baseline",
 			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"text":{"mode":"fixed","fixed":"Pod"},"textConfig":{"fontSize":14,"offsetX":-5,"offsetY":8,"textAlign":"left","textBaseline":"top"}}}}`,
-			`[{"type":"markers","name":"M","text":"Pod","textSize":14,"textOffsetX":-5,"textOffsetY":8,"textAlign":"left","textBaseline":"top"}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"text":"Pod","textSize":14,"textOffsetX":-5,"textOffsetY":8,"textAlign":"left","textBaseline":"top"}]`, nil},
 		{"label placement of Grafana's defaults is silent",
 			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"text":{"mode":"fixed","fixed":""},"textConfig":{"offsetX":0,"offsetY":0,"textAlign":"center","textBaseline":"middle"}}}}`,
-			`[{"type":"markers","name":"M"}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, nil},
 		{"label offset past 100 is reported",
 			`{"type":"markers","name":"M","config":{"style":{"textConfig":{"offsetX":150,"offsetY":-101}}}}`,
-			`[{"type":"markers","name":"M"}]`, []string{"options.layers[0].config.style.textConfig.offsetX", "options.layers[0].config.style.textConfig.offsetY"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, []string{"options.layers[0].config.style.textConfig.offsetX", "options.layers[0].config.style.textConfig.offsetY"}},
 		{"label alignment Grafana has but the Spec lacks is reported",
 			`{"type":"markers","name":"M","config":{"style":{"textConfig":{"textAlign":"justify","textBaseline":"alphabetic"}}}}`,
-			`[{"type":"markers","name":"M"}]`, []string{"options.layers[0].config.style.textConfig.textAlign", "options.layers[0].config.style.textConfig.textBaseline"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, []string{"options.layers[0].config.style.textConfig.textAlign", "options.layers[0].config.style.textConfig.textBaseline"}},
 		{"fixed label past 200 characters is reported",
 			`{"type":"markers","name":"M","config":{"style":{"text":{"fixed":"` + strings.Repeat("a", 201) + `"}}}}`,
-			`[{"type":"markers","name":"M"}]`, []string{"options.layers[0].config.style.text.fixed"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, []string{"options.layers[0].config.style.text.fixed"}},
 		{"symbol from a field",
 			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"symbol":{"mode":"field","field":"icon","fixed":"img/icons/marker/circle.svg"}}}}`,
-			`[{"type":"markers","name":"M","symbolField":"icon"}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"symbolField":"icon"}]`, nil},
 		{"a fixed symbol next to a symbol field is reported, never written with it",
 			`{"type":"markers","name":"M","config":{"style":{"symbol":{"mode":"field","field":"icon","fixed":"img/icons/marker/square.svg"}}}}`,
-			`[{"type":"markers","name":"M","symbolField":"icon"}]`, []string{"options.layers[0].config.style.symbol.fixed"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"symbolField":"icon"}]`, []string{"options.layers[0].config.style.symbol.fixed"}},
 		{"symbol field mode without a field is reported",
 			`{"type":"markers","name":"M","config":{"style":{"symbol":{"mode":"field"}}}}`,
-			`[{"type":"markers","name":"M"}]`, []string{"options.layers[0].config.style.symbol.mode"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, []string{"options.layers[0].config.style.symbol.mode"}},
 		{"fixed rotation",
 			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"rotation":{"fixed":45,"mode":"mod","min":-360,"max":360}}}}`,
-			`[{"type":"markers","name":"M","rotation":45}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"rotation":45}]`, nil},
 		{"fixed rotation past 360 is reported",
 			`{"type":"markers","name":"M","config":{"style":{"rotation":{"fixed":400}}}}`,
-			`[{"type":"markers","name":"M"}]`, []string{"options.layers[0].config.style.rotation.fixed"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, []string{"options.layers[0].config.style.rotation.fixed"}},
 		{"clamped rotation field",
 			`{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"rotation":{"field":"angle","mode":"clamped"}}}}`,
-			`[{"type":"markers","name":"M","rotationField":"angle","rotationMode":"clamp"}]`, nil},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"rotationField":"angle","rotationMode":"clamp"}]`, nil},
 		{"a fixed rotation next to a rotation field is reported, never written with it",
 			`{"type":"markers","name":"M","config":{"style":{"rotation":{"field":"angle","fixed":45}}}}`,
-			`[{"type":"markers","name":"M","rotationField":"angle"}]`, []string{"options.layers[0].config.style.rotation.fixed"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4,"rotationField":"angle"}]`, []string{"options.layers[0].config.style.rotation.fixed"}},
 		{"clamped rotation without a field is reported",
 			`{"type":"markers","name":"M","config":{"style":{"rotation":{"mode":"clamped"}}}}`,
-			`[{"type":"markers","name":"M"}]`, []string{"options.layers[0].config.style.rotation.mode"}},
+			`[{"type":"markers","name":"M","fillOpacity":0.4}]`, []string{"options.layers[0].config.style.rotation.mode"}},
 		{"WKT location",
 			`{"type":"markers","name":"M","location":{"mode":"wkt","wkt":"geometry"}}`,
-			`[{"type":"markers","name":"M","location":"wkt","wktField":"geometry"}]`, nil},
+			`[{"type":"markers","name":"M","location":"wkt","wktField":"geometry","fillOpacity":0.4}]`, nil},
 		{"WKT location on a heatmap",
 			`{"type":"heatmap","name":"H","location":{"mode":"wkt","wkt":"geometry"}}`,
 			`[{"type":"heatmap","name":"H","location":"wkt","wktField":"geometry"}]`, nil},
 		{"lookup with a gazetteer",
 			`{"type":"markers","name":"M","location":{"mode":"lookup","lookup":"country","gazetteer":"public/gazetteer/usa-states.json"}}`,
-			`[{"type":"markers","name":"M","location":"lookup","lookupField":"country","gazetteer":"usa-states"}]`, nil},
+			`[{"type":"markers","name":"M","location":"lookup","lookupField":"country","gazetteer":"usa-states","fillOpacity":0.4}]`, nil},
 		{"airports lookup is imported and reported",
 			`{"type":"markers","name":"M","location":{"mode":"lookup","lookup":"code","gazetteer":"public/gazetteer/airports.json"}}`,
-			`[{"type":"markers","name":"M","location":"lookup","lookupField":"code","gazetteer":"airports"}]`, []string{"options.layers[0].location.gazetteer"}},
+			`[{"type":"markers","name":"M","location":"lookup","lookupField":"code","gazetteer":"airports","fillOpacity":0.4}]`, []string{"options.layers[0].location.gazetteer"}},
 		{"a custom gazetteer is reported",
 			`{"type":"markers","name":"M","location":{"mode":"lookup","lookup":"code","gazetteer":"https://example.com/places.json"}}`,
-			`[{"type":"markers","name":"M","location":"lookup","lookupField":"code"}]`, []string{"options.layers[0].location.gazetteer"}},
+			`[{"type":"markers","name":"M","location":"lookup","lookupField":"code","fillOpacity":0.4}]`, []string{"options.layers[0].location.gazetteer"}},
 		{"heatmap",
 			`{"type":"heatmap","name":"Heat","location":{"mode":"geohash","geohash":"hash"},"config":{"blur":20,"radius":10,"weight":{"field":"w","fixed":1,"min":0,"max":1}}}`,
 			`[{"type":"heatmap","name":"Heat","location":"geohash","geohashField":"hash","weightField":"w","radius":10,"blur":20}]`, nil},
+		{"heatmap with a fixed weight",
+			`{"type":"heatmap","name":"H","config":{"weight":{"fixed":0.5,"min":0,"max":1}}}`,
+			`[{"type":"heatmap","name":"H","weight":0.5}]`, nil},
+		{"heatmap fixed weight above 1 is the same as 1 and stays silent",
+			`{"type":"heatmap","name":"H","config":{"weight":{"fixed":2}}}`,
+			`[{"type":"heatmap","name":"H"}]`, nil},
+		{"heatmap fixed weight below 0 is reported",
+			`{"type":"heatmap","name":"H","config":{"weight":{"fixed":-1}}}`,
+			`[{"type":"heatmap","name":"H"}]`, []string{"options.layers[0].config.weight.fixed"}},
+		{"heatmap weight range with a weight field",
+			`{"type":"heatmap","name":"H","config":{"weight":{"field":"w","fixed":1,"min":0.2,"max":5}}}`,
+			`[{"type":"heatmap","name":"H","weightField":"w","weightMin":0.2,"weightMax":5}]`, nil},
+		{"heatmap weight range past 100 is reported",
+			`{"type":"heatmap","name":"H","config":{"weight":{"field":"w","max":500}}}`,
+			`[{"type":"heatmap","name":"H","weightField":"w"}]`, []string{"options.layers[0].config.weight.max"}},
+		{"heatmap weight range without a weight field imports nothing and reports nothing",
+			`{"type":"heatmap","name":"H","config":{"weight":{"min":0.2,"max":5}}}`,
+			`[{"type":"heatmap","name":"H"}]`, nil},
 		{"geojson from the bundled countries",
 			`{"type":"geojson","name":"G","location":{"mode":"auto"},"config":{"src":"public/maps/countries.geojson","rules":[{"property":"name","operation":"eq","value":"Peru","style":{"color":{"fixed":"red"},"opacity":0.7}}]}}`,
 			`[{"type":"geojson","name":"G","source":"countries","rules":[{"property":"name","operation":"eq","value":"Peru","color":"#F2495C","opacity":0.7}]}]`, nil},
@@ -191,6 +233,12 @@ func TestGeomapLayerTypes(t *testing.T) {
 		{"day and night with the sun",
 			`{"type":"dayNight","name":"N","location":{"mode":"auto"},"config":{"show":"to","sun":true,"nightColor":"#000000"}}`,
 			`[{"type":"dayNight","name":"N","showSun":true,"nightColor":"#000000"}]`, nil},
+		{"day and night showing the start of the range",
+			`{"type":"dayNight","name":"N","config":{"show":"from"}}`,
+			`[{"type":"dayNight","name":"N","nightAt":"from"}]`, nil},
+		{"day and night showing something else is reported",
+			`{"type":"dayNight","name":"N","config":{"show":"noon"}}`,
+			`[{"type":"dayNight","name":"N"}]`, []string{"options.layers[0].config.show"}},
 		{"day and night defaults are silent",
 			`{"type":"dayNight","name":"N","config":{"show":"to","sun":false,"nightColor":"#a7a6ba4D"}}`,
 			`[{"type":"dayNight","name":"N"}]`, nil},
@@ -203,6 +251,12 @@ func TestGeomapLayerTypes(t *testing.T) {
 		{"photo border color and size",
 			`{"type":"photos","name":"P","location":{"mode":"auto"},"config":{"src":"photo","color":"red","radius":20}}`,
 			`[{"type":"photos","name":"P","color":"#F2495C","radius":20,"imageField":"photo"}]`, nil},
+		{"photos cropped with a shadow",
+			`{"type":"photos","name":"P","config":{"src":"photo","crop":true,"shadow":true}}`,
+			`[{"type":"photos","name":"P","imageField":"photo","crop":true,"shadow":true}]`, nil},
+		{"photos left whole and flat are silent",
+			`{"type":"photos","name":"P","config":{"src":"photo","crop":false,"shadow":false}}`,
+			`[{"type":"photos","name":"P","imageField":"photo"}]`, nil},
 		{"photo size past 100 is reported",
 			`{"type":"photos","name":"P","config":{"src":"photo","radius":150}}`,
 			`[{"type":"photos","name":"P","imageField":"photo"}]`, []string{"options.layers[0].config.radius"}},
@@ -211,7 +265,10 @@ func TestGeomapLayerTypes(t *testing.T) {
 			`[{"type":"photos","name":"P"}]`, []string{"options.layers[0].config.kind"}},
 		{"network",
 			`{"type":"network","name":"Net","location":{"mode":"auto"},"config":{"arrow":2,"edgeStyle":{"size":{"fixed":3},"color":{"fixed":"red"}},"style":{"color":{"fixed":"red"}}}}`,
-			`[{"type":"network","name":"Net","color":"#F2495C","arrow":"both","lineWidth":3}]`, nil},
+			`[{"type":"network","name":"Net","color":"#F2495C","edgeColor":"#F2495C","arrow":"both","lineWidth":3}]`, nil},
+		{"network edges in their own color",
+			`{"type":"network","name":"Net","location":{"mode":"auto"},"config":{"edgeStyle":{"color":{"fixed":"blue"}},"style":{"color":{"fixed":"red"}}}}`,
+			`[{"type":"network","name":"Net","color":"#F2495C","edgeColor":"#5794F2"}]`, nil},
 		{"carto tiles",
 			`{"type":"carto","name":"Tiles","config":{"theme":"dark","showLabels":false}}`,
 			`[{"type":"carto","name":"Tiles","theme":"dark","labels":false}]`, nil},
@@ -229,12 +286,13 @@ func TestGeomapLayerTypes(t *testing.T) {
 			`null`, []string{"options.layers[0]"}},
 	}
 	const second = `{"type":"markers","name":"Second","location":{"mode":"auto"}}`
+	const secondLayer = `{"type":"markers","name":"Second","fillOpacity":0.4}`
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			d, line := geomapPanelWith(t, `{"view":{"id":"fit"},"layers":[`+tc.layer+`,`+second+`]}`)
-			want := tc.want
-			if want != "null" {
-				want = strings.TrimSuffix(want, "]") + `,{"type":"markers","name":"Second"}]`
+			want := "[" + secondLayer + "]"
+			if tc.want != "null" {
+				want = strings.TrimSuffix(tc.want, "]") + "," + secondLayer + "]"
 			}
 			if got := layersJSON(t, d); got != want {
 				t.Errorf("layers = %s\nwant     %s", got, want)

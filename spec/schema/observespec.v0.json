@@ -7392,6 +7392,13 @@
         "color": {
           "$ref": "#/$defs/color"
         },
+        "fillOpacity": {
+          "x-omitFromPrompt": true,
+          "description": "The fill opacity of marker symbols; 0.8 when absent.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
         "symbol": {
           "enum": [
             "circle",
@@ -7400,6 +7407,24 @@
             "star",
             "cross",
             "x"
+          ]
+        },
+        "symbolAlign": {
+          "x-omitFromPrompt": true,
+          "description": "Where the marker symbol sits horizontally against its point; center when absent.",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "symbolVerticalAlign": {
+          "x-omitFromPrompt": true,
+          "description": "Where the marker symbol sits vertically against its point; center when absent.",
+          "enum": [
+            "top",
+            "center",
+            "bottom"
           ]
         },
         "symbolField": {
@@ -7475,6 +7500,27 @@
         "weightField": {
           "$ref": "#/$defs/fieldName"
         },
+        "weight": {
+          "x-omitFromPrompt": true,
+          "description": "The weight of every point of a heatmap layer without weightField; 1 when absent.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "weightMin": {
+          "x-omitFromPrompt": true,
+          "description": "With weightField, the weight of the smallest value; 0 when absent.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "weightMax": {
+          "x-omitFromPrompt": true,
+          "description": "With weightField, the weight of the largest value; a weight above 1 draws as 1; 1 when absent.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
         "radius": {
           "type": "integer",
           "minimum": 1,
@@ -7507,6 +7553,19 @@
         "nightColor": {
           "$ref": "#/$defs/color"
         },
+        "nightAt": {
+          "x-omitFromPrompt": true,
+          "description": "The end of the dashboard range a day/night layer shows; to when absent.",
+          "enum": [
+            "from",
+            "to"
+          ]
+        },
+        "edgeColor": {
+          "x-omitFromPrompt": true,
+          "description": "The color of network edges; the node color when absent.",
+          "$ref": "#/$defs/color"
+        },
         "arrow": {
           "enum": [
             "none",
@@ -7533,6 +7592,16 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 20
+        },
+        "crop": {
+          "x-omitFromPrompt": true,
+          "description": "Photos fill their frame and are cut to it; the whole photo is shown inside the frame when absent.",
+          "type": "boolean"
+        },
+        "shadow": {
+          "x-omitFromPrompt": true,
+          "description": "Photos cast a drop shadow.",
+          "type": "boolean"
         },
         "theme": {
           "enum": [

@@ -77,6 +77,14 @@ describe("networkModel", () => {
       networkModel([], [], { lineWidth: 3, arrow: "forward" }, "var(--x)")
     ).toMatchObject({ lineWidth: 3, arrow: "forward", color: "var(--x)" })
   })
+
+  it("carries the edge color apart from the node color", () => {
+    expect(networkModel([], [], {}, "var(--x)", "var(--y)")).toMatchObject({
+      color: "var(--x)",
+      edgeColor: "var(--y)",
+    })
+    expect(networkModel([], [], {}, "var(--x)").edgeColor).toBeNull()
+  })
 })
 
 describe("idText", () => {

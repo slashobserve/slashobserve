@@ -41,6 +41,7 @@ const cullMargin = 8
 const nightOpacity = 0.15
 const sunRadius = 6
 const dotRadius = 4
+const photoShadow = { offset: 2, blur: 2, opacity: 0.35 }
 const arrowViewBox = "0 0 10 10"
 const arrowShape = "M0 0L10 5L0 10Z"
 
@@ -345,7 +346,7 @@ export function NetworkEdges({
   box: Box
 }) {
   const id = useId()
-  const color = layer.color ?? "var(--muted-foreground)"
+  const color = layer.edgeColor ?? layer.color ?? "var(--muted-foreground)"
   return (
     <g opacity={layer.opacity} pointerEvents="none" aria-hidden="true">
       {layer.arrow === "none" ? null : (
@@ -374,6 +375,7 @@ export function PhotosLayer({
   ...hovering
 }: { layer: PhotosLayerModel; box: Box } & Hovering) {
   const clip = useId()
+  const shadow = useId()
   const interactive = hovering.hoverable && layer.tooltip
   const half = layer.radius
   const photoSize = 2 * half
@@ -382,6 +384,17 @@ export function PhotosLayer({
   return (
     <g opacity={layer.opacity}>
       <defs>
+        {layer.shadow ? (
+          <filter id={shadow} x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow
+              dx={0}
+              dy={photoShadow.offset}
+              stdDeviation={photoShadow.blur}
+              floodColor="var(--foreground)"
+              floodOpacity={photoShadow.opacity}
+            />
+          </filter>
+        ) : null}
         <clipPath id={clip}>
           {circle ? (
             <circle r={half} />
@@ -399,6 +412,7 @@ export function PhotosLayer({
             key={photo.key}
             transform={`translate(${x} ${y})`}
             pointerEvents={interactive ? "all" : "none"}
+            filter={layer.shadow ? `url(#${shadow})` : undefined}
             {...hoverProps(photo.tip, { ...hovering, hoverable: interactive })}
           >
             {layer.border === 0 ? null : circle ? (
@@ -421,7 +435,9 @@ export function PhotosLayer({
               y={-half}
               width={photoSize}
               height={photoSize}
-              preserveAspectRatio="xMidYMid slice"
+              preserveAspectRatio={
+                layer.crop ? "xMidYMid slice" : "xMidYMid meet"
+              }
               clipPath={`url(#${clip})`}
             />
           </g>
