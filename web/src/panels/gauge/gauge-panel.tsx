@@ -16,12 +16,9 @@ import {
 } from "@/dashboards/dashboard-links"
 import { cn } from "@/lib/utils"
 
-import { useActionRunner } from "../actions/action-runner"
-import {
-  fieldActionRequest,
-  oneClickTarget,
-  type FieldAction,
-} from "../actions/field-actions"
+import { ActionMenuItems } from "../actions/action-menu-items"
+import { runFieldAction, useStableActionRunner } from "../actions/action-runner"
+import { oneClickTarget, type FieldAction } from "../actions/field-actions"
 import type { FieldResolver, LinkScope, ResolvedLink } from "../field-config"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
@@ -84,24 +81,11 @@ function MoreLinks({
         {links.length > 0 && actions.length > 0 ? (
           <DropdownMenuSeparator />
         ) : null}
-        {actions.map((action) => (
-          <DropdownMenuItem
-            key={`${action.override ?? "panel"}:${action.index}`}
-            disabled={reason !== null}
-            title={reason ?? undefined}
-            onClick={() => onAction(action)}
-            className="gap-2"
-          >
-            {action.color === null ? null : (
-              <span
-                aria-hidden="true"
-                className="size-2 shrink-0 rounded-full"
-                style={{ backgroundColor: action.color }}
-              />
-            )}
-            {action.title}
-          </DropdownMenuItem>
-        ))}
+        <ActionMenuItems
+          actions={actions}
+          reason={reason}
+          onAction={onAction}
+        />
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -284,7 +268,7 @@ const GaugePanel: PanelRenderer = ({
   width,
   height,
 }) => {
-  const runner = useActionRunner()
+  const { runner, dialog } = useStableActionRunner(panel.id, meta)
   const gauges = useMemo(
     () => gaugeModel(frames, fields, display, zone),
     [frames, fields, display, zone]
@@ -299,20 +283,6 @@ const GaugePanel: PanelRenderer = ({
   )
   const limited =
     limits.minWidth !== undefined || limits.minHeight !== undefined
-  function runAction(action: FieldAction, scope: LinkScope) {
-    if (runner.context === null) return
-    runner.open(
-      action,
-      fieldActionRequest({
-        context: runner.context,
-        panelId: panel.id,
-        action,
-        scope,
-        fromMs: Date.parse(meta.from),
-        toMs: Date.parse(meta.to),
-      })
-    )
-  }
 
   return (
     <>
@@ -339,11 +309,11 @@ const GaugePanel: PanelRenderer = ({
             fields={fields}
             scope={links}
             reason={runner.reason}
-            onAction={runAction}
+            onAction={(action, scope) => runFieldAction(runner, action, scope)}
           />
         ))}
       </div>
-      {runner.dialog}
+      {dialog}
     </>
   )
 }

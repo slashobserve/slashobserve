@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { anchorProps, NewTabMark } from "@/dashboards/dashboard-links"
 
+import { ActionMenuItems } from "../../actions/action-menu-items"
 import type { FieldAction } from "../../actions/field-actions"
 import type { ResolvedLink } from "../../field-config"
 
@@ -54,24 +55,11 @@ export function MoreLinks({
         {links.length > 0 && actions.length > 0 ? (
           <DropdownMenuSeparator />
         ) : null}
-        {actions.map((action) => (
-          <DropdownMenuItem
-            key={`${action.override ?? "panel"}:${action.index}`}
-            disabled={reason !== null}
-            title={reason ?? undefined}
-            onClick={() => onAction(action)}
-            className="gap-2"
-          >
-            {action.color === null ? null : (
-              <span
-                aria-hidden="true"
-                className="size-2 shrink-0 rounded-full"
-                style={{ backgroundColor: action.color }}
-              />
-            )}
-            {action.title}
-          </DropdownMenuItem>
-        ))}
+        <ActionMenuItems
+          actions={actions}
+          reason={reason}
+          onAction={onAction}
+        />
       </DropdownMenuContent>
     </DropdownMenu>
   )
