@@ -108,7 +108,14 @@
               { "id": "limit_text", "kind": "text", "left": 25, "top": 10, "width": 60, "height": 30,
                 "textTemplate": "Limit ${__data.fields.Value} descriptors", "field": "Value" }
             ]
-          } }
+          } },
+        { "id": "p_sites", "type": "geomap", "title": "Sites",
+          "gridPos": { "x": 0, "y": 25, "w": 12, "h": 8 }, "datasource": "prom",
+          "queries": [{ "query": "sum by (lat, lon, icon) (up)" }],
+          "display": { "layers": [
+            { "type": "markers", "name": "Sites", "location": "coords", "latField": "lat", "lonField": "lon",
+              "symbolField": "icon", "text": "Site", "textAlign": "left", "textOffsetX": 6, "rotation": 45 }
+          ] } }
       ] }
   ]
 }

@@ -10,6 +10,7 @@ import {
   geoModel,
   type GeoContext,
   initialView,
+  labelPlacement,
   layerNeeds,
   markerSymbols,
   maxMarkers,
@@ -474,6 +475,153 @@ describe("layers", () => {
       { layers: [{ type: "markers", symbol: "hexagon" }] }
     )
     expect(model.markers[0].symbol).toBe("circle")
+  })
+
+  it("draws a fixed label on every marker, and the label field wins when both are set", () => {
+    const fixed = build(
+      [cities()],
+      {},
+      { layers: [{ type: "markers", text: "Pod" }] }
+    )
+    expect(fixed.markers.map((m) => m.text)).toEqual(["Pod", "Pod", "Pod"])
+    const frame = table(
+      { name: "lat", values: [10, 20] },
+      { name: "lon", values: [30, 40] },
+      { name: "name", type: "string", values: ["a", "b"] }
+    )
+    const both = build(
+      [frame],
+      {},
+      { layers: [{ type: "markers", text: "Pod", textField: "name" }] }
+    )
+    expect(both.markers.map((m) => m.text).sort()).toEqual(["a", "b"])
+    expect(build([cities()]).markers.map((m) => m.text)).toEqual([
+      null,
+      null,
+      null,
+    ])
+  })
+
+  it("reads the label placement and keeps the label below the marker without one", () => {
+    const lookOf = (layer: Record<string, unknown>) =>
+      build([cities()], {}, { layers: [{ type: "markers", ...layer }] })
+        .layers[0]
+    expect(lookOf({})).toMatchObject({
+      label: { align: "center", baseline: "below", offsetX: 0, offsetY: 0 },
+    })
+    expect(
+      lookOf({
+        textAlign: "left",
+        textBaseline: "top",
+        textOffsetX: -5,
+        textOffsetY: 8,
+      })
+    ).toMatchObject({
+      label: { align: "left", baseline: "top", offsetX: -5, offsetY: 8 },
+    })
+    expect(
+      lookOf({ textAlign: "justify", textBaseline: "alphabetic" })
+    ).toMatchObject({ label: { align: "center", baseline: "below" } })
+  })
+
+  it("picks the symbol of each row from the symbol field", () => {
+    const frame = table(
+      { name: "lat", values: [1, 2, 3, 4, 5, 6] },
+      { name: "lon", values: [1, 2, 3, 4, 5, 6] },
+      {
+        name: "icon",
+        type: "string",
+        values: [
+          "star",
+          "img/icons/marker/square.svg",
+          "https://example.com/x/triangle.svg",
+          "hexagon",
+          "img/icons/marker/hexagon.svg",
+          "star.svg",
+        ],
+      }
+    )
+    const model = build(
+      [frame],
+      {},
+      { layers: [{ type: "markers", symbol: "cross", symbolField: "icon" }] }
+    )
+    const byRow = new Map(model.markers.map((m) => [m.row, m.symbol]))
+    expect([...byRow.entries()].sort()).toEqual([
+      [0, "star"],
+      [1, "square"],
+      [2, "triangle"],
+      [3, "circle"],
+      [4, "circle"],
+      [5, "circle"],
+    ])
+  })
+
+  it("draws a circle for a symbol value that is not text and the fixed symbol without a symbol field", () => {
+    const frame = table(
+      { name: "lat", values: [1, 2] },
+      { name: "lon", values: [1, 2] },
+      { name: "icon", values: [3, null] }
+    )
+    const withField = build(
+      [frame],
+      {},
+      { layers: [{ type: "markers", symbol: "cross", symbolField: "icon" }] }
+    )
+    expect(withField.markers.map((m) => m.symbol)).toEqual(["circle", "circle"])
+    const missingField = build(
+      [frame],
+      {},
+      { layers: [{ type: "markers", symbol: "cross", symbolField: "nope" }] }
+    )
+    expect(missingField.markers.map((m) => m.symbol)).toEqual([
+      "cross",
+      "cross",
+    ])
+  })
+
+  it("turns every marker by the fixed rotation", () => {
+    const model = build(
+      [cities()],
+      {},
+      { layers: [{ type: "markers", rotation: 45 }] }
+    )
+    expect(model.markers.map((m) => m.rotation)).toEqual([45, 45, 45])
+  })
+
+  it("wraps field angles by default and clamps them to -360..360 on request", () => {
+    const frame = table(
+      { name: "lat", values: [1, 2, 3, 4] },
+      { name: "lon", values: [1, 2, 3, 4] },
+      { name: "heading", values: [450, -500, 90, "x"] }
+    )
+    const anglesOf = (layer: Record<string, unknown>) => {
+      const model = build(
+        [frame],
+        {},
+        { layers: [{ type: "markers", rotationField: "heading", ...layer }] }
+      )
+      return [...model.markers]
+        .sort((a, b) => a.row - b.row)
+        .map((m) => m.rotation)
+    }
+    expect(anglesOf({})).toEqual([450, -500, 90, 0])
+    expect(anglesOf({ rotationMode: "wrap" })).toEqual([450, -500, 90, 0])
+    expect(anglesOf({ rotationMode: "clamp" })).toEqual([360, -360, 90, 0])
+  })
+
+  it("takes field angles over the fixed rotation", () => {
+    const frame = table(
+      { name: "lat", values: [1] },
+      { name: "lon", values: [1] },
+      { name: "heading", values: [10] }
+    )
+    const model = build(
+      [frame],
+      {},
+      { layers: [{ type: "markers", rotation: 45, rotationField: "heading" }] }
+    )
+    expect(model.markers[0].rotation).toBe(10)
   })
 
   it("draws tile layers in order with the markers", () => {
@@ -1134,6 +1282,107 @@ describe("view tuning", () => {
     expect(initialView(options, [], 800, 500)).toEqual(
       fitBounds(regionCorners("europe"), 800, 500)
     )
+  })
+})
+
+describe("WKT locations", () => {
+  const wktFrame = (values: unknown[], name = "geometry") =>
+    table(
+      { name, type: "string", values },
+      { name: "value", values: values.map(() => 1) }
+    )
+
+  it("places POINT rows and skips other geometries and bad text", () => {
+    const model = build(
+      [
+        wktFrame([
+          "POINT (2.35 48.85)",
+          "SRID=4326;point(-74 40.7)",
+          "LINESTRING (0 0, 1 1)",
+          "POLYGON ((0 0, 1 0, 1 1, 0 0))",
+          "not wkt",
+          null,
+        ]),
+      ],
+      {},
+      { layers: [{ type: "markers", location: "wkt", wktField: "geometry" }] }
+    )
+    expect(model.markers).toHaveLength(2)
+    expect(model.skipped).toBe(4)
+    const paris = project(2.35, 48.85)
+    const found = model.markers.find((m) => m.row === 0)
+    expect(found?.x).toBeCloseTo(paris.x, 10)
+    expect(found?.y).toBeCloseTo(paris.y, 10)
+  })
+
+  it("skips a point outside the world like any other row", () => {
+    const model = build(
+      [wktFrame(["POINT (200 10)", "POINT (10 95)", "POINT (10 10)"])],
+      {},
+      { layers: [{ type: "markers", location: "wkt", wktField: "geometry" }] }
+    )
+    expect(model.markers).toHaveLength(1)
+    expect(model.skipped).toBe(2)
+  })
+
+  it("reads the named field, else a field called wkt or geometry", () => {
+    const named = build(
+      [wktFrame(["POINT (1 2)"], "shape")],
+      {},
+      { layers: [{ type: "markers", location: "wkt", wktField: "shape" }] }
+    )
+    expect(named.markers).toHaveLength(1)
+    const auto = build(
+      [wktFrame(["POINT (1 2)"], "WKT")],
+      {},
+      { layers: [{ type: "markers", location: "wkt" }] }
+    )
+    expect(auto.markers).toHaveLength(1)
+  })
+
+  it("keeps the WKT text out of the marker details and finds no location without the field", () => {
+    const model = build(
+      [wktFrame(["POINT (1 2)"])],
+      {},
+      { layers: [{ type: "markers", location: "wkt", wktField: "geometry" }] }
+    )
+    expect(model.markers[0].details.map((d) => d.name)).not.toContain(
+      "geometry"
+    )
+    const none = build(
+      [wktFrame(["POINT (1 2)"], "shape")],
+      {},
+      { layers: [{ type: "markers", location: "wkt" }] }
+    )
+    expect(none.markers).toHaveLength(0)
+    expect(none.reason).toBe(noLocationReason)
+  })
+})
+
+describe("labelPlacement", () => {
+  it.each([
+    [
+      { align: "center", baseline: "below", offsetX: 0, offsetY: 0 },
+      { dx: 0, dy: 17, anchor: "middle", baseline: "auto" },
+    ],
+    [
+      { align: "left", baseline: "top", offsetX: 5, offsetY: -3 },
+      { dx: 5, dy: -3, anchor: "start", baseline: "hanging" },
+    ],
+    [
+      { align: "right", baseline: "middle", offsetX: 0, offsetY: 4 },
+      { dx: 0, dy: 4, anchor: "end", baseline: "central" },
+    ],
+    [
+      { align: "center", baseline: "bottom", offsetX: -2, offsetY: 0 },
+      { dx: -2, dy: 0, anchor: "middle", baseline: "text-after-edge" },
+    ],
+    [
+      { align: "center", baseline: "below", offsetX: 0, offsetY: 6 },
+      { dx: 0, dy: 23, anchor: "middle", baseline: "auto" },
+    ],
+  ] as const)("places %j", (look, expected) => {
+    expect(labelPlacement(look, 5, 12)).toEqual(expected)
   })
 })
 

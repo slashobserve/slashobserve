@@ -7065,7 +7065,8 @@
             "auto",
             "coords",
             "geohash",
-            "lookup"
+            "lookup",
+            "wkt"
           ]
         },
         "latField": {
@@ -7078,6 +7079,11 @@
           "$ref": "#/$defs/fieldName"
         },
         "lookupField": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "wktField": {
+          "x-omitFromPrompt": true,
+          "description": "The field holding WKT text; only POINT geometries place a marker.",
           "$ref": "#/$defs/fieldName"
         },
         "gazetteer": {
@@ -7116,6 +7122,18 @@
             "x"
           ]
         },
+        "symbolField": {
+          "x-omitFromPrompt": true,
+          "description": "A field whose values name the symbol of each marker; ignored when symbol is set.",
+          "$ref": "#/$defs/fieldName"
+        },
+        "text": {
+          "x-omitFromPrompt": true,
+          "description": "A fixed label drawn on every marker; ignored when textField is set.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
         "textField": {
           "$ref": "#/$defs/fieldName"
         },
@@ -7124,8 +7142,55 @@
           "minimum": 6,
           "maximum": 48
         },
+        "textOffsetX": {
+          "x-omitFromPrompt": true,
+          "description": "Label offset to the right, in pixels.",
+          "type": "integer",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "textOffsetY": {
+          "x-omitFromPrompt": true,
+          "description": "Label offset downward, in pixels.",
+          "type": "integer",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "textAlign": {
+          "x-omitFromPrompt": true,
+          "description": "Horizontal label anchor against the marker center; center when absent.",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "textBaseline": {
+          "x-omitFromPrompt": true,
+          "description": "Vertical label anchor against the marker center; the label sits below the marker when absent.",
+          "enum": [
+            "top",
+            "middle",
+            "bottom"
+          ]
+        },
+        "rotation": {
+          "x-omitFromPrompt": true,
+          "description": "A fixed rotation of every marker in degrees; ignored when rotationField is set.",
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360
+        },
         "rotationField": {
           "$ref": "#/$defs/fieldName"
+        },
+        "rotationMode": {
+          "x-omitFromPrompt": true,
+          "description": "How field angles outside -360 to 360 are treated: wrap turns them around, clamp stops them at the ends; wrap when absent.",
+          "enum": [
+            "wrap",
+            "clamp"
+          ]
         },
         "weightField": {
           "$ref": "#/$defs/fieldName"
