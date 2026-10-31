@@ -179,7 +179,7 @@ func generateOptionMap(t *testing.T, areas []*conformanceArea) optionMap {
 	b := optionMapBuilder(m)
 	for _, a := range areas {
 		for _, e := range a.catalog.Entries {
-			if e.expectation() != expectConvert || a.hasGap(e.ID) {
+			if !e.converts() || a.hasGap(e.ID) {
 				continue
 			}
 			baselineDoc, variantDoc, err := a.documents(e)
@@ -187,7 +187,7 @@ func generateOptionMap(t *testing.T, areas []*conformanceArea) optionMap {
 				t.Fatalf("%s/%s: %v", a.name, e.ID, err)
 			}
 			baseline, variant := observeConversion(baselineDoc), observeConversion(variantDoc)
-			if baseline.spec == nil || !variant.clean {
+			if baseline.spec == nil || variant.spec == nil {
 				continue
 			}
 			src, err := load(variantDoc)

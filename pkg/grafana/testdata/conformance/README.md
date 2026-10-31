@@ -47,13 +47,16 @@ An entry has `id`, `path`, `value`, and optionally `with` and `expect`.
 | `expect` | The variant must |
 | --- | --- |
 | `convert` (default) | Import cleanly, and its Spec must differ from the baseline's. |
+| `convert_noted` | Convert as `convert` does (the Spec must differ from the baseline's), and the report must carry an issue at the option's path and no issue elsewhere. The issue must not be an exclusion decision. For an option that imports what it can and tells the user what it left out. |
 | `cosmetic` | Import cleanly with the baseline's Spec, and `isCosmetic(path, value)` must be true. Only for areas whose root is a panel, so a cosmetic option needs both a `cosmeticOptions` entry and a catalog line. |
 | `bookkeeping` | Import cleanly with the baseline's Spec. For ids, versions, editor and transport state, inputs Grafana rejects, and options Grafana itself does not draw in this context (for example an axis option on a panel without a value axis); never for an option that changes what a Grafana user sees. |
 | `excluded` | Not import cleanly. For a feature Ishan excluded from SlashObserve (alert rules, annotations, Grafana's HTTP API and Live, export, and the options listed as not imported in `docs/use/import-grafana.md`); never a gap. The import report gives such an option the reason of one of the decisions in `pkg/grafana/exclusions.go`; `TestExcludedEntriesCarryADecision` checks every `excluded` entry, and a new exclusion needs a decision and an `excludedOptions` row. |
 
+A `convert_noted` entry is the one outcome that imports with report lines: a panel line that is not `imported` or a note, all at the option's path or on its parents or children, none carrying the reason of a decision in `pkg/grafana/exclusions.go`.
+
 Importing cleanly means `Convert` returns no error, the result is ready (every source datasource has a match), every panel line is `imported` and the report has no notes.
 
-For an area whose root is a panel, a `convert` entry whose value is the importer's own Grafana default is a catalog error.
+For an area whose root is a panel, a `convert` or `convert_noted` entry whose value is the importer's own Grafana default is a catalog error.
 
 ## Known gaps
 
@@ -79,7 +82,7 @@ A change that adds entries to an area that already has a seed must make them pas
 
 ## Option map
 
-`TestOptionMapIsCurrent` records, for every passing `convert` entry, the Spec fields that differ between the baseline's Spec and the variant's, keyed by option scope and option path, in `pkg/grafana/optionmap.json`.
+`TestOptionMapIsCurrent` records, for every passing `convert` and `convert_noted` entry, the Spec fields that differ between the baseline's Spec and the variant's, keyed by option scope and option path, in `pkg/grafana/optionmap.json`.
 The importer reads that file to name the Spec field an option became.
 The file is generated and never edited by hand: the test fails when it differs from a fresh run, and `make golden` rewrites it.
 Entries with a gap file are left out until they convert.

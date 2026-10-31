@@ -25,6 +25,7 @@ const (
 	conformanceDir     = "conformance"
 	conformanceVersion = "v12.3.0"
 	expectConvert      = "convert"
+	expectConvertNoted = "convert_noted"
 	expectCosmetic     = "cosmetic"
 	expectBookkeeping  = "bookkeeping"
 	expectExcluded     = "excluded"
@@ -56,6 +57,10 @@ func (e conformanceEntry) expectation() string {
 		return expectConvert
 	}
 	return e.Expect
+}
+
+func (e conformanceEntry) converts() bool {
+	return e.expectation() == expectConvert || e.expectation() == expectConvertNoted
 }
 
 type conformanceCatalog struct {
@@ -230,10 +235,16 @@ func (a *conformanceArea) documents(e conformanceEntry) (baseline, variant []byt
 	return baseline, variant, nil
 }
 
+type conformanceIssue struct {
+	paths   []string
+	reasons []string
+}
+
 type conformanceObservation struct {
 	clean  bool
 	detail string
 	spec   []byte
+	issues []conformanceIssue
 }
 
 func observeConversion(raw []byte) conformanceObservation {
@@ -253,28 +264,34 @@ func observeConversion(raw []byte) conformanceObservation {
 		return conformanceObservation{detail: "error: " + err.Error()}
 	}
 	var parts []string
+	var issues []conformanceIssue
 	for _, p := range res.Report.Panels {
 		if p.Status == statusImported {
 			continue
 		}
 		parts = append(parts, fmt.Sprintf("panel %s %s %s %s", p.PanelID, p.Status, strings.Join(p.Reasons, " "), strings.Join(p.Paths, " ")))
+		issues = append(issues, conformanceIssue{paths: p.Paths, reasons: p.Reasons})
 	}
 	for _, n := range res.Report.Notes {
 		parts = append(parts, fmt.Sprintf("note %s: %s %s", n.Subject, n.Reason, strings.Join(n.Paths, " ")))
+		issues = append(issues, conformanceIssue{paths: n.Paths, reasons: []string{n.Reason}})
 	}
 	if len(parts) > 0 {
-		return conformanceObservation{detail: "reported: " + strings.Join(parts, "; "), spec: specJSON}
+		return conformanceObservation{detail: "reported: " + strings.Join(parts, "; "), spec: specJSON, issues: issues}
 	}
 	return conformanceObservation{clean: true, spec: specJSON}
 }
 
-func classifyConformance(e conformanceEntry, variant conformanceObservation, changed, cosmetic bool) string {
+func classifyConformance(e conformanceEntry, fullPath string, variant conformanceObservation, changed, cosmetic bool) string {
 	expect := e.expectation()
 	if expect == expectExcluded {
 		if variant.clean {
 			return "imported cleanly but is excluded"
 		}
 		return ""
+	}
+	if expect == expectConvertNoted {
+		return classifyNoted(fullPath, variant, changed)
 	}
 	if !variant.clean {
 		return variant.detail
@@ -299,6 +316,32 @@ func classifyConformance(e conformanceEntry, variant conformanceObservation, cha
 	return ""
 }
 
+func classifyNoted(fullPath string, variant conformanceObservation, changed bool) string {
+	if variant.spec == nil {
+		return variant.detail
+	}
+	if variant.clean {
+		return "converted without a note: the report has no issue at " + fullPath
+	}
+	if !changed {
+		return "silently dropped: the Spec did not change and the option is only noted"
+	}
+	noted := false
+	for _, issue := range variant.issues {
+		if slices.ContainsFunc(issue.reasons, isDecisionReason) {
+			return "noted as an exclusion decision, which is never a convert_noted option: " + variant.detail
+		}
+		if !slices.ContainsFunc(issue.paths, func(p string) bool { return related(fullPath, p) }) {
+			return "reports an issue away from " + fullPath + ": " + variant.detail
+		}
+		noted = true
+	}
+	if !noted {
+		return "converted without a note: the report has no issue at " + fullPath
+	}
+	return ""
+}
+
 func valueJSON(v any) string {
 	b, err := json.Marshal(v)
 	if err != nil {
@@ -319,7 +362,7 @@ func (a *conformanceArea) run(e conformanceEntry) string {
 	variant := observeConversion(variantDoc)
 	changed := !bytes.Equal(baseline.spec, variant.spec)
 	cosmetic := e.expectation() == expectCosmetic && isCosmetic(e.Path, e.Value)
-	return classifyConformance(e, variant, changed, cosmetic)
+	return classifyConformance(e, joinPath(a.catalog.Root, e.Path), variant, changed, cosmetic)
 }
 
 func (a *conformanceArea) rootIsPanel() bool {
@@ -385,18 +428,18 @@ func (a *conformanceArea) entryProblems(e conformanceEntry, seen map[string]conf
 		add("duplicate id")
 	}
 	switch e.expectation() {
-	case expectConvert, expectBookkeeping, expectExcluded:
+	case expectConvert, expectConvertNoted, expectBookkeeping, expectExcluded:
 	case expectCosmetic:
 		if !a.rootIsPanel() {
 			add("cosmetic is only for areas whose root is a panel")
 		}
 	default:
-		add("expect %q is not convert, cosmetic, bookkeeping or excluded", e.Expect)
+		add("expect %q is not convert, convert_noted, cosmetic, bookkeeping or excluded", e.Expect)
 	}
 	if _, _, err := a.documents(e); err != nil {
 		add("%v", err)
 	}
-	if e.expectation() == expectConvert && a.rootIsPanel() && isGrafanaDefault(spec.PanelType(a.panelType()), e.Path, e.Value) {
+	if e.converts() && a.rootIsPanel() && isGrafanaDefault(spec.PanelType(a.panelType()), e.Path, e.Value) {
 		add("value is the importer's Grafana default")
 	}
 	return out
@@ -647,6 +690,18 @@ func TestConformancePathSetter(t *testing.T) {
 func TestConformanceClassify(t *testing.T) {
 	clean := conformanceObservation{clean: true}
 	reported := conformanceObservation{detail: "reported: note dashboard options: not supported yet weekStart"}
+	noted := conformanceObservation{
+		detail: "reported: note variable v: Some intervals are not kept. p.q",
+		spec:   []byte(`{}`),
+		issues: []conformanceIssue{{paths: []string{"p.q"}, reasons: []string{"Some intervals are not kept."}}},
+	}
+	withIssue := func(issue conformanceIssue) conformanceObservation {
+		return conformanceObservation{detail: "reported: elsewhere", spec: []byte(`{}`), issues: []conformanceIssue{issue}}
+	}
+	decided := withIssue(conformanceIssue{paths: []string{"p"}, reasons: []string{decisions[0].reason}})
+	elsewhere := withIssue(conformanceIssue{paths: []string{"other"}, reasons: []string{"Not kept."}})
+	failed := conformanceObservation{detail: "datasource not matched"}
+	convertedClean := conformanceObservation{clean: true, spec: []byte(`{}`)}
 	cases := []struct {
 		name     string
 		expect   string
@@ -668,10 +723,19 @@ func TestConformanceClassify(t *testing.T) {
 		{"bookkeeping fails when the Spec changes", expectBookkeeping, clean, true, false, "changed the Spec but is marked bookkeeping"},
 		{"excluded passes when reported", expectExcluded, reported, false, false, ""},
 		{"excluded fails when imported cleanly", expectExcluded, clean, true, false, "imported cleanly but is excluded"},
+		{"convert_noted passes when the Spec changes and the option is noted", expectConvertNoted, noted, true, false, ""},
+		{"convert_noted passes when the note is on a child of the option", expectConvertNoted, withIssue(conformanceIssue{paths: []string{"p.q.r"}, reasons: []string{"Not kept."}}), true, false, ""},
+		{"convert_noted passes when the note is on a parent of the option", expectConvertNoted, withIssue(conformanceIssue{paths: []string{"p"}, reasons: []string{"Not kept."}}), true, false, ""},
+		{"convert_noted fails when the note is missing", expectConvertNoted, convertedClean, true, false, "converted without a note"},
+		{"convert_noted fails when the note is missing and the Spec is unchanged", expectConvertNoted, convertedClean, false, false, "converted without a note"},
+		{"convert_noted fails when the Spec does not change", expectConvertNoted, noted, false, false, "silently dropped"},
+		{"convert_noted fails when the note is for another option", expectConvertNoted, elsewhere, true, false, "reports an issue away from p"},
+		{"convert_noted fails when the note is an exclusion decision", expectConvertNoted, decided, true, false, "exclusion decision"},
+		{"convert_noted fails when the import fails", expectConvertNoted, failed, false, false, failed.detail},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := classifyConformance(conformanceEntry{ID: "p=1", Path: "p", Value: 1, Expect: tc.expect}, tc.variant, tc.changed, tc.cosmetic)
+			got := classifyConformance(conformanceEntry{ID: "p=1", Path: "p", Value: 1, Expect: tc.expect}, "p", tc.variant, tc.changed, tc.cosmetic)
 			if tc.want == "" && got != "" || !strings.Contains(got, tc.want) {
 				t.Fatalf("outcome = %q, want %q", got, tc.want)
 			}
@@ -707,6 +771,33 @@ func TestConformanceObservesRealConversions(t *testing.T) {
 	}
 }
 
+func TestConformanceNotedOptionsAgainstRealConversions(t *testing.T) {
+	area := &conformanceArea{
+		name:    "inline",
+		catalog: conformanceCatalog{Root: "templating.list[0]"},
+		base:    []byte(`{"title":"T","schemaVersion":41,"templating":{"list":[{"name":"v","type":"interval","query":"1m,5m"}]},"panels":[{"id":1,"type":"timeseries","title":"Up","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prom"},"targets":[{"refId":"A","expr":"up","datasource":{"type":"prometheus","uid":"prom"}}]}]}`),
+	}
+	cases := []struct {
+		name  string
+		entry conformanceEntry
+		want  string
+	}{
+		{"a kept interval with a dropped member passes as noted", conformanceEntry{ID: "query=bad", Path: "query", Value: "1m,abc", Expect: expectConvertNoted}, ""},
+		{"a dropped member fails as convert", conformanceEntry{ID: "query=bad", Path: "query", Value: "1m,abc"}, "reported: note variable v"},
+		{"a clean conversion fails as noted", conformanceEntry{ID: "query=ok", Path: "query", Value: "30s,5m", Expect: expectConvertNoted}, "converted without a note"},
+		{"a bookkeeping option fails as noted", conformanceEntry{ID: "refresh=1", Path: "refresh", Value: 1, Expect: expectConvertNoted}, "converted without a note"},
+		{"a note on another option fails", conformanceEntry{ID: "auto_count=10", Path: "auto_count", Value: 10, With: map[string]any{"query": "1m,abc", "auto": true}, Expect: expectConvertNoted}, "reports an issue away from templating.list[0].auto_count"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := area.run(tc.entry)
+			if tc.want == "" && got != "" || !strings.Contains(got, tc.want) {
+				t.Fatalf("outcome = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestConformanceCatalogProblems(t *testing.T) {
 	base := []byte(`{"title":"T","panels":[{"id":1,"type":"timeseries"}]}`)
 	good := conformanceCatalog{Grafana: conformanceVersion, Sources: []string{"s"}, Entries: []conformanceEntry{{ID: "a=1", Path: "a", Value: 1}}}
@@ -725,6 +816,7 @@ func TestConformanceCatalogProblems(t *testing.T) {
 		}, "duplicate id"},
 		{"bad id", conformanceArea{name: "ok", base: base, catalog: good}, func(a *conformanceArea) { a.catalog.Entries[0].ID = "a b" }, "id does not match"},
 		{"unknown expect", conformanceArea{name: "ok", base: base, catalog: good}, func(a *conformanceArea) { a.catalog.Entries[0].Expect = "maybe" }, "is not convert"},
+		{"convert_noted is a known expect", conformanceArea{name: "ok", base: base, catalog: good}, func(a *conformanceArea) { a.catalog.Entries[0].Expect = expectConvertNoted }, ""},
 		{"cosmetic outside a panel root", conformanceArea{name: "ok", base: base, catalog: good}, func(a *conformanceArea) { a.catalog.Entries[0].Expect = expectCosmetic }, "only for areas whose root is a panel"},
 		{"missing root", conformanceArea{name: "ok", base: base, catalog: good}, func(a *conformanceArea) { a.catalog.Root = "panels[3]" }, "does not exist in base.json"},
 		{"gap that is not an id", conformanceArea{name: "ok", base: base, catalog: good, hasSeed: true, seed: []string{"a=1"}, gaps: []string{"zzz"}}, nil, "gaps/zzz is not a catalog id"},
@@ -737,6 +829,10 @@ func TestConformanceCatalogProblems(t *testing.T) {
 		{"default value in a panel area", conformanceArea{name: "ok", base: base, catalog: good}, func(a *conformanceArea) {
 			a.catalog.Root = "panels[0]"
 			a.catalog.Entries = []conformanceEntry{{ID: "options.legend.showLegend=true", Path: "options.legend.showLegend", Value: true}}
+		}, "importer's Grafana default"},
+		{"default value in a panel area with convert_noted", conformanceArea{name: "ok", base: base, catalog: good}, func(a *conformanceArea) {
+			a.catalog.Root = "panels[0]"
+			a.catalog.Entries = []conformanceEntry{{ID: "options.legend.showLegend=true", Path: "options.legend.showLegend", Value: true, Expect: expectConvertNoted}}
 		}, "importer's Grafana default"},
 	}
 	for _, tc := range cases {
