@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -213,7 +214,7 @@ func TestAnObserveRequestOfAHiddenDashboardIsNotFound(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	hidden := seedDashboard(t, d, 1)
 	rev := submit(t, svc, hidden, "go")
-	moveToRestrictedFolder(t, d, hidden)
+	foldertest.Move(t, d, hidden, foldertest.Restricted(t, d, "Private", "nobody"))
 	id := rev.ID
 
 	for role, want := range map[auth.Role]int{auth.RoleEditor: http.StatusNotFound, auth.RoleAdmin: http.StatusOK} {
@@ -240,12 +241,14 @@ func TestRevisionRoutesAnswerForbiddenRoleWithoutEdit(t *testing.T) {
 		body   string
 		want   int
 	}{
-		"Viewer reads the list":                    {auth.RoleViewer, http.MethodGet, revisionsPath(dash), "", http.StatusOK},
-		"Viewer may not send a prompt":             {auth.RoleViewer, http.MethodPost, revisionsPath(dash), body, http.StatusForbidden},
-		"Commenter may not send a prompt":          {auth.RoleCommenter, http.MethodPost, revisionsPath(dash), body, http.StatusForbidden},
-		"Editor sends a prompt":                    {auth.RoleEditor, http.MethodPost, revisionsPath(dash), body, http.StatusAccepted},
-		"Viewer may not follow up through observe": {auth.RoleViewer, http.MethodPost, "/api/v1/observe", `{"prompt":"go","dashboard_id":"` + dash.String() + `"}`, http.StatusForbidden},
-		"Commenter may not start a new dashboard":  {auth.RoleCommenter, http.MethodPost, "/api/v1/observe", `{"prompt":"go"}`, http.StatusForbidden},
+		"Viewer reads the list":                       {auth.RoleViewer, http.MethodGet, revisionsPath(dash), "", http.StatusOK},
+		"Viewer may not send a prompt":                {auth.RoleViewer, http.MethodPost, revisionsPath(dash), body, http.StatusForbidden},
+		"Commenter may not send a prompt":             {auth.RoleCommenter, http.MethodPost, revisionsPath(dash), body, http.StatusForbidden},
+		"Editor sends a prompt":                       {auth.RoleEditor, http.MethodPost, revisionsPath(dash), body, http.StatusAccepted},
+		"Viewer may not follow up through observe":    {auth.RoleViewer, http.MethodPost, "/api/v1/observe", `{"prompt":"go","dashboard_id":"` + dash.String() + `"}`, http.StatusForbidden},
+		"Commenter may not start a new dashboard":     {auth.RoleCommenter, http.MethodPost, "/api/v1/observe", `{"prompt":"go"}`, http.StatusForbidden},
+		"Viewer may not start a new dashboard":        {auth.RoleViewer, http.MethodPost, "/api/v1/observe", `{"prompt":"go"}`, http.StatusForbidden},
+		"Commenter may not follow up through observe": {auth.RoleCommenter, http.MethodPost, "/api/v1/observe", `{"prompt":"go","dashboard_id":"` + dash.String() + `"}`, http.StatusForbidden},
 	} {
 		t.Run(name, func(t *testing.T) {
 			r := gin.New()
