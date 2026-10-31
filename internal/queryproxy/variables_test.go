@@ -1575,3 +1575,66 @@ func TestAdhocDefaultFilters(t *testing.T) {
 		}
 	})
 }
+
+func TestVariableValuesOfferStaticOptionsWhereStaticOrderSays(t *testing.T) {
+	none := spec.StaticOption{Text: "None", Value: ""}
+	tests := []struct {
+		order string
+		want  []spec.VariableOption
+	}{
+		{"", []spec.VariableOption{{Text: "None"}, spec.PlainOption("web"), spec.PlainOption("api")}},
+		{"before", []spec.VariableOption{{Text: "None"}, spec.PlainOption("web"), spec.PlainOption("api")}},
+		{"after", []spec.VariableOption{spec.PlainOption("web"), spec.PlainOption("api"), {Text: "None"}}},
+		{"sorted", []spec.VariableOption{{Text: "None"}, spec.PlainOption("api"), spec.PlainOption("web")}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.order, func(t *testing.T) {
+			fake := newFake("prometheus")
+			fake.onVariable = answer("web", "api")
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+			v := queryVariable("v", "prom", "label_values(job)")
+			v.StaticOptions, v.StaticOrder, v.Sort = []spec.StaticOption{none}, tt.order, "alpha"
+			if tt.order != "sorted" {
+				v.Sort = ""
+			}
+			got, _, err := runner.VariableValues(t.Context(), dashboardOf(nil, v), "v", testRange(), nil, datasource.QueryUser{})
+			if err != nil || !slices.Equal(got, tt.want) {
+				t.Fatalf("got %+v err=%v, want %+v", got, err, tt.want)
+			}
+		})
+	}
+}
+
+func TestVariableValuesWithRefreshNeverRunNoQuery(t *testing.T) {
+	fake := newFake("prometheus")
+	fake.onVariable = answer("web")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	v := queryVariable("v", "prom", "label_values(job)")
+	v.Refresh = spec.RefreshNever
+	v.StaticOptions = []spec.StaticOption{{Text: "API", Value: "api"}, {Text: "None", Value: ""}}
+	got, _, err := runner.VariableValues(t.Context(), dashboardOf(nil, v), "v", testRange(), nil, datasource.QueryUser{})
+	want := []spec.VariableOption{{Text: "API", Value: "api"}, {Text: "None"}}
+	if err != nil || !slices.Equal(got, want) {
+		t.Fatalf("got %+v err=%v, want %+v", got, err, want)
+	}
+	if fake.callCount() != 0 {
+		t.Fatalf("upstream calls = %d, want 0", fake.callCount())
+	}
+}
+
+func TestSelectingAllLeavesOutAnEmptyStaticOption(t *testing.T) {
+	fake := newFake("prometheus")
+	fake.onVariable = answer("a", "b")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	v := queryVariable("job", "prom", "label_values(job)")
+	v.IncludeAll, v.Multi = true, true
+	v.StaticOptions = []spec.StaticOption{{Text: "None", Value: ""}}
+	d := dashboardOf([]spec.Panel{panelOf("p0", spec.Timeseries, "prom", `up{job=~"$job"}`)}, v)
+	if issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{}); err != nil || issues != nil {
+		t.Fatalf("issues = %+v, err = %v", issues, err)
+	}
+	got := fake.callsTo("range")[0].query.Variables
+	if !equalVariables(got, []datasource.Variable{{Name: "job", Values: []string{"a", "b"}, All: true}}) {
+		t.Fatalf("variables = %+v", got)
+	}
+}

@@ -16,7 +16,7 @@
     { "id": "refresh=1", "path": "refresh", "value": 1 },
     { "id": "hide=1", "path": "hide", "value": 1 },
     { "id": "hide=2", "path": "hide", "value": 2 },
-    { "id": "hide=3", "path": "hide", "value": 3 },
+    { "id": "hide=3", "path": "hide", "value": 3, "expect": "excluded" },
     { "id": "label=Pod", "path": "label", "value": "Pod" },
     { "id": "description=text", "path": "description", "value": "Pick a pod" },
     { "id": "skipUrlSync=true", "path": "skipUrlSync", "value": true },

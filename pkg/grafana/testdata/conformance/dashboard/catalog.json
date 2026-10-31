@@ -12,7 +12,7 @@
     { "id": "timezone=Etc-GMT+5", "path": "timezone", "value": "Etc/GMT+5" },
     { "id": "timezone=three-part-zone", "path": "timezone", "value": "America/Argentina/Buenos_Aires" },
     { "id": "timezone=utc", "path": "timezone", "value": "utc" },
-    { "id": "editable=false", "path": "editable", "value": false },
+    { "id": "editable=false", "path": "editable", "value": false, "expect": "excluded" },
     { "id": "graphTooltip=1", "path": "graphTooltip", "value": 1 },
     { "id": "graphTooltip=2", "path": "graphTooltip", "value": 2 },
     { "id": "time=relative-7d", "path": "time", "value": { "from": "now-7d", "to": "now" } },
@@ -42,12 +42,12 @@
     { "id": "links[0].includeVars=true+dashboards", "path": "links[0].includeVars", "value": true, "with": { "links[0].type": "dashboards", "links[0].title": "Prod" } },
     { "id": "links[0].targetBlank=true", "path": "links[0].targetBlank", "value": true, "with": { "links[0].type": "link", "links[0].title": "Runbook", "links[0].url": "https://example.com/runbook" } },
     { "id": "links[0].targetBlank=true+dashboards", "path": "links[0].targetBlank", "value": true, "with": { "links[0].type": "dashboards", "links[0].title": "Prod" } },
-    { "id": "links[0].icon=bolt", "path": "links[0].icon", "value": "bolt", "with": { "links[0].type": "link", "links[0].title": "Runbook", "links[0].url": "https://example.com/runbook" } },
-    { "id": "links[0].icon=bolt+dashboards", "path": "links[0].icon", "value": "bolt", "with": { "links[0].type": "dashboards", "links[0].title": "Prod" } },
+    { "id": "links[0].icon=bolt", "path": "links[0].icon", "value": "bolt", "with": { "links[0].type": "link", "links[0].title": "Runbook", "links[0].url": "https://example.com/runbook" }, "expect": "excluded" },
+    { "id": "links[0].icon=bolt+dashboards", "path": "links[0].icon", "value": "bolt", "with": { "links[0].type": "dashboards", "links[0].title": "Prod" }, "expect": "excluded" },
     { "id": "links[0].tooltip=text", "path": "links[0].tooltip", "value": "Open the runbook", "with": { "links[0].type": "link", "links[0].title": "Runbook", "links[0].url": "https://example.com/runbook" } },
     { "id": "links[0].tooltip=text+dashboards", "path": "links[0].tooltip", "value": "Open the dashboards", "with": { "links[0].type": "dashboards", "links[0].title": "Prod" } },
-    { "id": "links[0].placement=inControlsMenu", "path": "links[0].placement", "value": "inControlsMenu", "with": { "links[0].type": "link", "links[0].title": "Runbook", "links[0].url": "https://example.com/runbook" } },
-    { "id": "links[0].placement=inControlsMenu+dashboards", "path": "links[0].placement", "value": "inControlsMenu", "with": { "links[0].type": "dashboards", "links[0].title": "Prod" } },
+    { "id": "links[0].placement=inControlsMenu", "path": "links[0].placement", "value": "inControlsMenu", "with": { "links[0].type": "link", "links[0].title": "Runbook", "links[0].url": "https://example.com/runbook" }, "expect": "excluded" },
+    { "id": "links[0].placement=inControlsMenu+dashboards", "path": "links[0].placement", "value": "inControlsMenu", "with": { "links[0].type": "dashboards", "links[0].title": "Prod" }, "expect": "excluded" },
     { "id": "panels[0].repeat=pod", "path": "panels[0].repeat", "value": "pod" },
     { "id": "panels[0].repeatDirection=v", "path": "panels[0].repeatDirection", "value": "v", "with": { "panels[0].repeat": "pod" } },
     { "id": "panels[0].maxPerRow=2", "path": "panels[0].maxPerRow", "value": 2, "with": { "panels[0].repeat": "pod", "panels[0].repeatDirection": "h" } },
@@ -64,7 +64,8 @@
     {
       "id": "snapshot=internal",
       "path": "snapshot",
-      "value": { "created": "2025-01-01T00:00:00Z", "updated": "2025-01-01T00:00:00Z", "expires": "", "external": false, "externalUrl": "", "originalUrl": "", "id": 1, "key": "abc", "name": "Snapshot", "orgId": 1, "userId": 1 }
+      "value": { "created": "2025-01-01T00:00:00Z", "updated": "2025-01-01T00:00:00Z", "expires": "", "external": false, "externalUrl": "", "originalUrl": "", "id": 1, "key": "abc", "name": "Snapshot", "orgId": 1, "userId": 1 },
+      "expect": "excluded"
     },
     {
       "id": "annotations.list[1]=query",

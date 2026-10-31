@@ -3,7 +3,6 @@ import { Fragment } from "react"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
 import { datasourceRefType, resolveDatasourceRef } from "@/spec"
 
-import { useSetDashboardSearch } from "./search"
 import { UnverifiedLabel } from "./unverified-label"
 import type { VariableState } from "./use-variables"
 import { AdhocControl } from "./variable-controls/adhoc-control"
@@ -13,9 +12,12 @@ import { IntervalControl } from "./variable-controls/interval-control"
 import { TextboxControl } from "./variable-controls/textbox-control"
 import { variableLabel } from "./variable-controls/variable-box"
 import { VariableSelect } from "./variable-select"
-import { applyVariableChange } from "./variables"
 
-type Props = { states: VariableState[]; unverified: Map<string, string> }
+type Props = {
+  states: VariableState[]
+  unverified: Map<string, string>
+  onSelect: (name: string, values: string[]) => void
+}
 
 function isShown(state: VariableState): boolean {
   return (
@@ -23,8 +25,7 @@ function isShown(state: VariableState): boolean {
   )
 }
 
-export function VariablesBar({ states, unverified }: Props) {
-  const setSearch = useSetDashboardSearch()
+export function VariablesBar({ states, unverified, onSelect }: Props) {
   const datasources = useDatasources()
   const shown = states.filter(isShown)
   if (shown.length === 0) return null
@@ -35,16 +36,7 @@ export function VariablesBar({ states, unverified }: Props) {
 
   function control(state: VariableState) {
     const { variable } = state
-    const onChange = (values: string[]) =>
-      setSearch((current) => ({
-        ...current,
-        vars: applyVariableChange(
-          variables,
-          current.vars,
-          variable.name,
-          values
-        ),
-      }))
+    const onChange = (values: string[]) => onSelect(variable.name, values)
     switch (variable.type) {
       case "query":
       case "custom":

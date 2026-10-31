@@ -353,3 +353,65 @@ func TestLinksWithForeignSchemesAreNotKept(t *testing.T) {
 		t.Errorf("the dropped panel links are not reported: %+v", panelLine(t, res, "p1"))
 	}
 }
+
+func TestLinkTooltipsImportOnBothLinkTypes(t *testing.T) {
+	long := strings.Repeat("t", 201)
+	links := `"links":[
+		{"type":"link","title":"Docs","url":"https://example.com","tooltip":" Open the docs "},
+		{"type":"dashboards","title":"Prod","tags":["prod"],"tooltip":"Production dashboards"},
+		{"type":"link","title":"Plain","url":"https://example.com/plain","tooltip":""},
+		{"type":"link","title":"Long","url":"https://example.com/long","tooltip":"` + long + `"}
+	]`
+	res := convertDoc(t, dashboardJSON(links, panelJSON(1, 0, 0, 12, 4, "")))
+	var got []string
+	for _, l := range res.Spec.Links {
+		got = append(got, l.Tooltip)
+	}
+	want := []string{"Open the docs", "Production dashboards", "", strings.Repeat("t", 200)}
+	if !slices.Equal(got, want) {
+		t.Fatalf("tooltips = %q, want %q", got, want)
+	}
+	notes := notesFor(res, "dashboard links")
+	if len(notes) != 1 || !slices.Equal(notes[0].Paths, []string{"links[3].tooltip"}) {
+		t.Fatalf("notes = %+v, want only the cut tooltip", notes)
+	}
+}
+
+func TestLinkIconsAndControlsMenuPlacementAreReported(t *testing.T) {
+	links := `"links":[
+		{"type":"link","title":"Default icon","url":"https://example.com/a","icon":"external link"},
+		{"type":"link","title":"Bolt","url":"https://example.com/b","icon":"bolt"},
+		{"type":"dashboards","title":"Menu","tags":["prod"],"placement":"inControlsMenu"},
+		{"type":"link","title":"Inline","url":"https://example.com/c","placement":""}
+	]`
+	res := convertDoc(t, dashboardJSON(links, panelJSON(1, 0, 0, 12, 4, "")))
+	if len(res.Spec.Links) != 4 {
+		t.Fatalf("links = %+v, want all four kept", res.Spec.Links)
+	}
+	notes := notesFor(res, "dashboard links")
+	if len(notes) != 2 {
+		t.Fatalf("notes = %+v, want an icon note and a controls menu note", notes)
+	}
+	if !hasPath(notes, "links[1].icon") || hasPath(notes, "links[0].icon") {
+		t.Errorf("icon paths wrong: %+v", notes)
+	}
+	if !hasPath(notes, "links[2].placement") || hasPath(notes, "links[3].placement") {
+		t.Errorf("placement paths wrong: %+v", notes)
+	}
+}
+
+func TestReadOnlyDashboardIsReported(t *testing.T) {
+	for _, tc := range []struct {
+		member string
+		want   bool
+	}{
+		{`"editable":false`, true},
+		{`"editable":true`, false},
+		{``, false},
+	} {
+		res := convertDoc(t, dashboardJSON(tc.member, panelJSON(1, 0, 0, 12, 4, "")))
+		if got := hasPath(notesFor(res, "dashboard options"), "editable"); got != tc.want {
+			t.Errorf("%q: reported = %v, want %v", tc.member, got, tc.want)
+		}
+	}
+}

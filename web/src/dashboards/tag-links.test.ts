@@ -76,6 +76,20 @@ describe("taggedLinks", () => {
     ])
   })
 
+  it("gives every linked dashboard the tooltip of the link", () => {
+    const targets = taggedLinks(
+      { ...link(["k8s"]), tooltip: "Related dashboards" },
+      listed,
+      "4",
+      {}
+    )
+    expect(targets.map((target) => target.tooltip)).toEqual([
+      "Related dashboards",
+      "Related dashboards",
+      "Related dashboards",
+    ])
+  })
+
   it("opens in a new tab on request", () => {
     const [first] = taggedLinks(
       { ...link(["prod"]), newTab: true },

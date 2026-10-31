@@ -499,6 +499,16 @@
     ],
     "notes": [
       {
+        "subject": "dashboard links",
+        "status": "partial",
+        "reason": "Link icons are not supported; the link is shown without its icon.",
+        "paths": [
+          "links[0].icon",
+          "links[1].icon",
+          "links[2].icon"
+        ]
+      },
+      {
         "subject": "variable project",
         "status": "partial",
         "reason": "Its query uses $accountID, but this dashboard declares no variable with that name, and SlashObserve cannot keep a reference to an undeclared variable.",

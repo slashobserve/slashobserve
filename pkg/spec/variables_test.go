@@ -482,3 +482,38 @@ func TestVariableDefinitionIssues(t *testing.T) {
 		})
 	}
 }
+
+func TestWithStaticOptions(t *testing.T) {
+	none := spec.StaticOption{Text: "None", Value: ""}
+	queried := []spec.VariableOption{spec.PlainOption("b"), spec.PlainOption("a")}
+	tests := []struct {
+		name    string
+		v       spec.Variable
+		queried []spec.VariableOption
+		want    []spec.VariableOption
+	}{
+		{"no static options leave the query results alone", spec.Variable{}, queried, queried},
+		{"static options go first by default", spec.Variable{StaticOptions: []spec.StaticOption{none}}, queried,
+			[]spec.VariableOption{{Text: "None"}, spec.PlainOption("b"), spec.PlainOption("a")}},
+		{"before", spec.Variable{StaticOptions: []spec.StaticOption{none}, StaticOrder: "before"}, queried,
+			[]spec.VariableOption{{Text: "None"}, spec.PlainOption("b"), spec.PlainOption("a")}},
+		{"after", spec.Variable{StaticOptions: []spec.StaticOption{none}, StaticOrder: "after"}, queried,
+			[]spec.VariableOption{spec.PlainOption("b"), spec.PlainOption("a"), {Text: "None"}}},
+		{"sorted merges with the variable's sort", spec.Variable{StaticOptions: []spec.StaticOption{{Text: "c", Value: "c"}}, StaticOrder: "sorted", Sort: "alpha"}, queried,
+			[]spec.VariableOption{spec.PlainOption("a"), spec.PlainOption("b"), spec.PlainOption("c")}},
+		{"sorted without a sort keeps static first", spec.Variable{StaticOptions: []spec.StaticOption{{Text: "c", Value: "c"}}, StaticOrder: "sorted"}, queried,
+			[]spec.VariableOption{spec.PlainOption("c"), spec.PlainOption("b"), spec.PlainOption("a")}},
+		{"a value offered twice appears once, at its first place", spec.Variable{StaticOptions: []spec.StaticOption{{Text: "Alpha", Value: "a"}}, StaticOrder: "after"}, queried,
+			[]spec.VariableOption{spec.PlainOption("b"), spec.PlainOption("a")}},
+		{"never leaves only the static options", spec.Variable{Refresh: spec.RefreshNever, StaticOptions: []spec.StaticOption{none, {Text: "api", Value: "api"}}, StaticOrder: "after"}, nil,
+			[]spec.VariableOption{{Text: "None"}, spec.PlainOption("api")}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := spec.WithStaticOptions(tt.v, tt.queried)
+			if !slices.Equal(got, tt.want) {
+				t.Fatalf("got %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}

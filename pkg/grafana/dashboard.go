@@ -17,6 +17,8 @@ import (
 const (
 	defaultTitle        = "Imported dashboard"
 	maxLinks            = 20
+	maxLinkTooltip      = 200
+	grafanaLinkIcon     = "external link"
 	maxTags             = 20
 	maxRefreshIntervals = 20
 	maxQuickRanges      = 30
@@ -138,6 +140,9 @@ func (c *converter) convertHead() {
 	c.head.LiveNow = truthy(dash["liveNow"])
 	c.convertLinks(dash)
 	c.convertAnnotations(dash)
+	if editable, ok := dash["editable"].(bool); ok && !editable {
+		c.note("dashboard options", "Read-only dashboards are not supported; anyone with Edit access to the folder can change this dashboard.", "editable")
+	}
 	var unknown []string
 	for _, key := range sortedKeys(dash) {
 		if !silentDashboardKeys[key] && !slices.Contains(timeSettingKeys, key) && present(dash[key]) {
@@ -385,6 +390,7 @@ func grafanaCursorSync(dash map[string]any) (spec.CursorSync, bool) {
 func (c *converter) convertLinks(dash map[string]any) {
 	items, _ := asArray(dash["links"])
 	var unsupported, invalid, badTags []string
+	var extras linkExtras
 	for i, item := range items {
 		link, ok := asObject(item)
 		path := fmt.Sprintf("links[%d]", i)
@@ -413,6 +419,7 @@ func (c *converter) convertLinks(dash map[string]any) {
 			continue
 		}
 		c.head.Links = append(c.head.Links, converted)
+		extras.collect(link, path)
 	}
 	if len(unsupported) > 0 {
 		c.note("dashboard links", "Only links to an address and links to other dashboards by tag are supported; this link is not kept.", unsupported...)
@@ -420,9 +427,41 @@ func (c *converter) convertLinks(dash map[string]any) {
 	if len(badTags) > 0 {
 		c.note("dashboard links", "These links to dashboards use more than 20 tags or a tag that starts with a symbol, which dashboards cannot carry here, so they are not kept.", badTags...)
 	}
+	c.noteLinkExtras(extras)
 	if len(invalid) > 0 {
 		c.note("dashboard links", "Some links have no address, a very long address, an address that does not start with http, https or mailto, or are past the first 20, and are not kept.", invalid...)
 	}
+}
+
+type linkExtras struct{ icons, controls, tooltips []string }
+
+func (e *linkExtras) collect(link map[string]any, path string) {
+	if icon := asString(link["icon"]); icon != "" && icon != grafanaLinkIcon {
+		e.icons = append(e.icons, path+".icon")
+	}
+	if present(link["placement"]) {
+		e.controls = append(e.controls, path+".placement")
+	}
+	if _, cut := cutRunes(strings.TrimSpace(asString(link["tooltip"])), maxLinkTooltip); cut {
+		e.tooltips = append(e.tooltips, path+".tooltip")
+	}
+}
+
+func (c *converter) noteLinkExtras(e linkExtras) {
+	if len(e.icons) > 0 {
+		c.note("dashboard links", "Link icons are not supported; the link is shown without its icon.", e.icons...)
+	}
+	if len(e.controls) > 0 {
+		c.note("dashboard links", "The controls menu is not supported; the link is shown with the other links.", e.controls...)
+	}
+	if len(e.tooltips) > 0 {
+		c.note("dashboard links", fmt.Sprintf("The tooltip was cut to %d characters.", maxLinkTooltip), e.tooltips...)
+	}
+}
+
+func linkTooltip(link map[string]any) string {
+	tooltip, _ := cutRunes(strings.TrimSpace(asString(link["tooltip"])), maxLinkTooltip)
+	return tooltip
 }
 
 func urlLink(link map[string]any) (spec.DashboardLink, bool) {
@@ -442,6 +481,7 @@ func urlLink(link map[string]any) (spec.DashboardLink, bool) {
 		NewTab:      truthy(link["targetBlank"]),
 		KeepTime:    truthy(link["keepTime"]),
 		IncludeVars: truthy(link["includeVars"]),
+		Tooltip:     linkTooltip(link),
 	}, true
 }
 
@@ -457,6 +497,7 @@ func dashboardsLink(link map[string]any) (spec.DashboardLink, bool) {
 		NewTab:      truthy(link["targetBlank"]),
 		KeepTime:    truthy(link["keepTime"]),
 		IncludeVars: truthy(link["includeVars"]),
+		Tooltip:     linkTooltip(link),
 	}
 	tags, _ := asArray(link["tags"])
 	for _, raw := range tags {

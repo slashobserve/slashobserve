@@ -36,6 +36,9 @@ A `custom` variable of durations that is single-select, has no All and is used a
 A `custom` variable's `text : value` pairs import as `{ text, value }` options, so the picker shows the text and the selection uses the value.
 A text box imports its saved value as its default, else its default text.
 A `query` variable's sort imports as `alpha`, `num`, `alphaCaseInsensitive` or `natural`, each in its two directions, and `allowCustomValue` imports as written, with Grafana's own default of true when it is missing.
+A variable's `skipUrlSync` imports as written, so it stays out of the URL and starts from its default on every load.
+A `query` variable's static options import as `staticOptions`, with Grafana's placement as `staticOrder`, and a query variable that Grafana never refreshes imports as `refresh: "never"` with its saved options as the static options, so only those are offered; one that never refreshes and has no saved options keeps loading and the report says so.
+A variable that Grafana hides in the controls menu (`hide` 3) imports shown and is reported, as is a datasource variable's `multi`, `includeAll` or `allowCustomValue: false`, because a datasource variable selects one datasource from the ones it lists.
 A saved ad hoc filter list imports as the variable's `default` when its operators are `=`, `!=`, `=~` and `!~`; a filter with another operator, an invalid key or regular expression, or a condition other than AND is reported, and base filters are not kept.
 A ClickHouse ad hoc variable imports with `applyToAll`, so its filters apply to every query on its datasource (see [Ad hoc filters](../concepts/datasources-and-variables.md#ad-hoc-filters)), and for the Altinity plugin the report notes that Grafana filters only the outermost query.
 A Grafana group-by variable on Prometheus imports as a `groupby` variable, with its current labels (else its default value) as the `default`, up to 20 labels that are valid label names.
@@ -62,6 +65,8 @@ A panel with no title imports with an internal name (`Panel <id>`) that menus an
 A dashboard's time settings carry over to the [dashboard fields](../concepts/observespec.md#the-dashboard) `timezone`, `weekStart`, `fiscalYearStartMonth` and `nowDelay` (from the time picker's now delay), and its time range may use `now/fy` and `now/fQ`.
 The time picker's hidden flag, refresh intervals and quick ranges, the live now switch, refresh intervals in days, and a time range written in epoch milliseconds carry over too (a refresh interval of `500ms` is left out and reported).
 Links to other dashboards by tag import as links that list the matching dashboards, and links to an address keep their keep-time and include-variables options.
+A link's tooltip imports as written (cut to 200 characters, and reported when cut), while link icons other than Grafana's default and placement in the controls menu are reported and the link is shown inline.
+A dashboard that is not editable in Grafana (`editable: false`) imports editable by anyone with Edit access to its folder, and the report says so.
 A unit imports as itself, and unit text Grafana does not know imports as the suffix Grafana shows, up to 20 characters.
 A stat, gauge, bar gauge or pie chart imports its value options: the first reducer, "Show" as every value (`allValues`, with `limit` when it is not 5000) and the `fields` name or pattern.
 Grafana uses only the first reducer of these panels, so extra reducers are dropped without a note.

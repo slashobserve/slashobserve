@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest"
 import { ALL } from "./search"
 import {
   applyVariableChange,
+  changeVars,
   isGroupByKey,
+  mergeVars,
+  splitVars,
   normalizeMultiSelection,
   resolveSelections,
   sortSelections,
@@ -709,5 +712,75 @@ describe("group by variables", () => {
     expect(isGroupByKey("")).toBe(false)
     expect(isGroupByKey("9job")).toBe(false)
     expect(isGroupByKey("pod-name")).toBe(false)
+  })
+})
+
+describe("variables that stay out of the URL", () => {
+  const quiet: Variable = { ...env, name: "quiet", skipUrlSync: true }
+  const later: Variable = { ...route, name: "later" }
+  const variables = [quiet, pod, later]
+
+  it("splits a selection map into URL values and session values", () => {
+    expect(
+      splitVars(variables, { quiet: ["x"], pod: ["a"], other: ["y"] })
+    ).toEqual({ url: { pod: ["a"], other: ["y"] }, session: { quiet: ["x"] } })
+  })
+
+  it("ignores a value for such a variable that arrives in the URL", () => {
+    expect(
+      mergeVars(variables, { url: { quiet: ["x"], pod: ["a"] }, session: {} })
+    ).toEqual({ pod: ["a"] })
+  })
+
+  it("reads the session value of such a variable over the URL", () => {
+    expect(
+      mergeVars(variables, {
+        url: { quiet: ["x"], pod: ["a"] },
+        session: { quiet: ["prod"] },
+      })
+    ).toEqual({ pod: ["a"], quiet: ["prod"] })
+  })
+
+  it("writes a change of such a variable to the session only, and clears dependants in the URL", () => {
+    expect(
+      changeVars(
+        variables,
+        { url: { pod: ["a"], later: ["/x"] }, session: {} },
+        "quiet",
+        ["prod"]
+      )
+    ).toEqual({ url: {}, session: { quiet: ["prod"] } })
+  })
+
+  it("writes a change of an ordinary variable to the URL and keeps the session values", () => {
+    expect(
+      changeVars(
+        variables,
+        { url: { pod: ["a"] }, session: { quiet: ["prod"] } },
+        "pod",
+        ["b"]
+      )
+    ).toEqual({ url: { pod: ["b"] }, session: { quiet: ["prod"] } })
+  })
+})
+
+describe("static options", () => {
+  const withNone: Variable = {
+    ...route,
+    staticOptions: [{ text: "None", value: "" }],
+  }
+
+  it("keeps an empty URL value when the variable offers an empty option", () => {
+    expect(
+      resolveSelections([withNone], { route: [""] }, { route: ["", "/pay"] })
+        .selections
+    ).toEqual({ route: [""] })
+  })
+
+  it("falls back to the first option for an empty URL value when none is offered", () => {
+    expect(
+      resolveSelections([route], { route: [""] }, { route: ["/pay", "/cart"] })
+        .selections
+    ).toEqual({ route: ["/pay"] })
   })
 })

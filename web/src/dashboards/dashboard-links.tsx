@@ -14,6 +14,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import {
   dashboardLinks,
   oneClickLink,
   type LinkScope,
@@ -77,11 +82,28 @@ const linkClass =
   "inline-flex items-center gap-1 text-[13px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
 
 function AnchorLink({ link }: { link: ResolvedLink }) {
-  return (
-    <a {...anchorProps(link)} className={linkClass}>
+  const label = (
+    <>
       {link.title}
       {link.newTab ? <NewTabMark /> : null}
-    </a>
+    </>
+  )
+  if (!link.tooltip) {
+    return (
+      <a {...anchorProps(link)} className={linkClass}>
+        {label}
+      </a>
+    )
+  }
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={<a {...anchorProps(link)} className={linkClass} />}
+      >
+        {label}
+      </TooltipTrigger>
+      <TooltipContent>{link.tooltip}</TooltipContent>
+    </Tooltip>
   )
 }
 
@@ -136,20 +158,31 @@ function TaggedLinks({
       <AnchorLink key={target.href} link={target} />
     ))
   }
+  const menuButton = (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-6 px-1.5 text-[13px] font-normal text-muted-foreground"
+    />
+  )
+  const label = (
+    <>
+      {link.title}
+      <ChevronDownIcon aria-hidden="true" />
+    </>
+  )
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-1.5 text-[13px] font-normal text-muted-foreground"
-          />
-        }
-      >
-        {link.title}
-        <ChevronDownIcon aria-hidden="true" />
-      </DropdownMenuTrigger>
+      {link.tooltip ? (
+        <Tooltip>
+          <TooltipTrigger render={<DropdownMenuTrigger render={menuButton} />}>
+            {label}
+          </TooltipTrigger>
+          <TooltipContent>{link.tooltip}</TooltipContent>
+        </Tooltip>
+      ) : (
+        <DropdownMenuTrigger render={menuButton}>{label}</DropdownMenuTrigger>
+      )}
       <DropdownMenuContent align="start" className="min-w-max">
         {targets.map((target) => (
           <DropdownMenuItem

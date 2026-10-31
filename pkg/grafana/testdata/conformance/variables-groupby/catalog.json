@@ -16,7 +16,7 @@
     { "id": "defaultValue=job", "path": "defaultValue", "value": {"text": "job", "value": "job"}, "with": {"type": "groupby"} },
     { "id": "hide=1", "path": "hide", "value": 1, "with": {"type": "groupby"} },
     { "id": "hide=2", "path": "hide", "value": 2, "with": {"type": "groupby"} },
-    { "id": "hide=3", "path": "hide", "value": 3, "with": {"type": "groupby"} },
+    { "id": "hide=3", "path": "hide", "value": 3, "with": {"type": "groupby"}, "expect": "excluded" },
     { "id": "label=Group-by", "path": "label", "value": "Group by", "with": {"type": "groupby"} },
     { "id": "description=text", "path": "description", "value": "Pick keys", "with": {"type": "groupby"} },
     { "id": "skipUrlSync=true", "path": "skipUrlSync", "value": true, "with": {"type": "groupby"} }

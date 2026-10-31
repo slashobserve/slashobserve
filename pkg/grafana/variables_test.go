@@ -603,3 +603,146 @@ func TestDatasourceVariableRegexIsKeptAndTheDefaultFollowsTheMatch(t *testing.T)
 		})
 	}
 }
+
+func TestSkipUrlSyncImportsOnEveryVariableType(t *testing.T) {
+	members := map[string]string{
+		"query":      `"datasource":` + promRef + `,"query":"label_values(up, job)"`,
+		"custom":     `"query":"a,b"`,
+		"constant":   `"query":"prod"`,
+		"interval":   `"query":"1m,5m"`,
+		"textbox":    `"query":"x"`,
+		"datasource": `"query":"prometheus"`,
+		"adhoc":      `"datasource":` + promRef,
+		"groupby":    `"datasource":` + promRef,
+	}
+	for kind, member := range members {
+		t.Run(kind, func(t *testing.T) {
+			res := convertVariables(t,
+				`{"name":"on","type":"`+kind+`",`+member+`,"skipUrlSync":true}`,
+				`{"name":"off","type":"`+kind+`",`+member+`,"skipUrlSync":false}`,
+			)
+			if !variableNamed(t, res, "on").SkipURLSync {
+				t.Error("skipUrlSync true was not imported")
+			}
+			if variableNamed(t, res, "off").SkipURLSync {
+				t.Error("skipUrlSync false was imported")
+			}
+			for _, name := range []string{"on", "off"} {
+				if notes := notesFor(res, "variable "+name); len(notes) != 0 {
+					t.Errorf("%s notes = %+v, want none", name, notes)
+				}
+			}
+		})
+	}
+}
+
+func TestQueryVariableStaticOptions(t *testing.T) {
+	tests := []struct {
+		name      string
+		members   string
+		wantOpts  []spec.StaticOption
+		wantOrder string
+		wantNote  bool
+	}{
+		{"none", ``, nil, "", false},
+		{"kept in order", `"staticOptions":[{"text":"None","value":""},{"text":"All pods","value":"all"}]`,
+			[]spec.StaticOption{{Text: "None", Value: ""}, {Text: "All pods", Value: "all"}}, "", false},
+		{"order is written when Grafana sets it", `"staticOptions":[{"text":"None","value":""}],"staticOptionsOrder":"after"`,
+			[]spec.StaticOption{{Text: "None"}}, "after", false},
+		{"sorted", `"staticOptions":[{"text":"None","value":""}],"staticOptionsOrder":"sorted"`,
+			[]spec.StaticOption{{Text: "None"}}, "sorted", false},
+		{"an order without options writes nothing", `"staticOptionsOrder":"after"`, nil, "", false},
+		{"an unknown order is not written", `"staticOptions":[{"text":"None","value":""}],"staticOptionsOrder":"middle"`,
+			[]spec.StaticOption{{Text: "None"}}, "", false},
+		{"a missing text takes the value", `"staticOptions":[{"value":"x"}]`, []spec.StaticOption{{Text: "x", Value: "x"}}, "", false},
+		{"an option with neither is reported", `"staticOptions":[{"text":"","value":""},{"text":"ok","value":"ok"}]`,
+			[]spec.StaticOption{{Text: "ok", Value: "ok"}}, "", true},
+		{"a value over 500 characters is reported", `"staticOptions":[{"text":"long","value":"` + strings.Repeat("v", 501) + `"}]`, nil, "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := convertVariables(t, `{"name":"q","type":"query","datasource":`+promRef+`,"query":"label_values(up, job)"`+withComma(tt.members)+`}`)
+			got := variableNamed(t, res, "q")
+			if !slices.Equal(got.StaticOptions, tt.wantOpts) || got.StaticOrder != tt.wantOrder {
+				t.Fatalf("static options = %+v order %q, want %+v order %q", got.StaticOptions, got.StaticOrder, tt.wantOpts, tt.wantOrder)
+			}
+			if reported := hasPath(notesFor(res, "variable q"), "templating.list[0].staticOptions"); reported != tt.wantNote {
+				t.Fatalf("reported = %v, want %v: %+v", reported, tt.wantNote, res.Report.Notes)
+			}
+		})
+	}
+}
+
+func withComma(members string) string {
+	if members == "" {
+		return ""
+	}
+	return "," + members
+}
+
+func TestQueryVariableThatNeverRefreshesOffersItsSavedOptions(t *testing.T) {
+	query := `"datasource":` + promRef + `,"query":"label_values(up, job)"`
+	res := convertVariables(t,
+		`{"name":"saved","type":"query",`+query+`,"refresh":0,"includeAll":true,"options":[{"text":"All","value":"$__all"},{"text":"API","value":"api","selected":true},{"text":"Web","value":"web"},{"text":"API again","value":"api"}]}`,
+		`{"name":"both","type":"query",`+query+`,"refresh":0,"staticOptions":[{"text":"None","value":""}],"staticOptionsOrder":"after","options":[{"text":"None","value":""},{"text":"web","value":"web"}]}`,
+		`{"name":"bare","type":"query",`+query+`,"refresh":0,"options":[]}`,
+		`{"name":"onlyall","type":"query",`+query+`,"refresh":0,"includeAll":true,"options":[{"text":"All","value":"$__all"}]}`,
+		`{"name":"load","type":"query",`+query+`,"refresh":1,"options":[{"text":"api","value":"api"}]}`,
+	)
+	saved := variableNamed(t, res, "saved")
+	if saved.Refresh != spec.RefreshNever || !slices.Equal(saved.StaticOptions, []spec.StaticOption{{Text: "API", Value: "api"}, {Text: "Web", Value: "web"}}) {
+		t.Fatalf("saved = refresh %q options %+v", saved.Refresh, saved.StaticOptions)
+	}
+	if notes := notesFor(res, "variable saved"); len(notes) != 0 {
+		t.Fatalf("saved notes = %+v, want none", notes)
+	}
+	both := variableNamed(t, res, "both")
+	if both.Refresh != spec.RefreshNever || both.StaticOrder != "after" ||
+		!slices.Equal(both.StaticOptions, []spec.StaticOption{{Text: "None"}, {Text: "web", Value: "web"}}) {
+		t.Fatalf("both = refresh %q order %q options %+v", both.Refresh, both.StaticOrder, both.StaticOptions)
+	}
+	for _, name := range []string{"bare", "onlyall"} {
+		v := variableNamed(t, res, name)
+		if v.Refresh != "" || len(v.StaticOptions) != 0 {
+			t.Errorf("%s = refresh %q options %+v, want a variable that loads", name, v.Refresh, v.StaticOptions)
+		}
+		if !hasPath(notesFor(res, "variable "+name), "templating.list["+map[string]string{"bare": "2", "onlyall": "3"}[name]+"].refresh") {
+			t.Errorf("%s: refresh 0 without saved options is not reported", name)
+		}
+	}
+	if v := variableNamed(t, res, "load"); v.Refresh != "" || len(v.StaticOptions) != 0 {
+		t.Errorf("load = refresh %q options %+v, want neither", v.Refresh, v.StaticOptions)
+	}
+}
+
+func TestHideInControlsMenuIsReportedAndTheVariableIsShown(t *testing.T) {
+	res := convertVariables(t,
+		`{"name":"c","type":"custom","query":"a,b","hide":3}`,
+		`{"name":"k","type":"constant","query":"prod","hide":3}`,
+		`{"name":"h","type":"custom","query":"a,b","hide":2}`,
+	)
+	if got := variableNamed(t, res, "c").Hide; got != "" {
+		t.Fatalf("hide = %q, want shown", got)
+	}
+	if !hasPath(notesFor(res, "variable c"), "templating.list[0].hide") {
+		t.Fatalf("custom hide 3 is not reported: %+v", res.Report.Notes)
+	}
+	for _, name := range []string{"k", "h"} {
+		if notes := notesFor(res, "variable "+name); len(notes) != 0 {
+			t.Errorf("%s notes = %+v, want none", name, notes)
+		}
+	}
+}
+
+func TestDatasourceVariableThatRefusesCustomValuesIsReported(t *testing.T) {
+	res := convertVariables(t,
+		`{"name":"no","type":"datasource","query":"prometheus","allowCustomValue":false}`,
+		`{"name":"yes","type":"datasource","query":"prometheus"}`,
+	)
+	if !hasPath(notesFor(res, "variable no"), "templating.list[0].allowCustomValue") {
+		t.Fatalf("allowCustomValue false is not reported: %+v", res.Report.Notes)
+	}
+	if hasPath(notesFor(res, "variable yes"), "templating.list[1].allowCustomValue") {
+		t.Fatalf("the default is reported: %+v", res.Report.Notes)
+	}
+}
