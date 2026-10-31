@@ -27,6 +27,7 @@ type Props = {
 }
 
 type FormProps = {
+  variable: GroupByVariable
   datasource: string | undefined
   datasourceType: string | undefined
   selected: string[]
@@ -34,6 +35,7 @@ type FormProps = {
 }
 
 function GroupByKeyForm({
+  variable,
   datasource,
   datasourceType,
   selected,
@@ -41,12 +43,14 @@ function GroupByKeyForm({
 }: FormProps) {
   const keyId = useId()
   const [key, setKey] = useState("")
-  const suggests = datasource !== undefined && datasourceType === "prometheus"
+  const listsLabels =
+    datasource !== undefined && datasourceType === "prometheus"
+  const suggests = variable.keys !== undefined || listsLabels
   const names = useQuery({
     ...labelNamesQuery(datasource ?? "", {}),
-    enabled: suggests,
+    enabled: listsLabels && variable.keys === undefined,
   })
-  const suggestions = (names.data?.labels ?? []).filter(
+  const suggestions = (variable.keys ?? names.data?.labels ?? []).filter(
     (label) => !selected.includes(label)
   )
   const full = selected.length >= maxGroupByKeys
@@ -149,6 +153,7 @@ export function GroupByControl({
           </PopoverTrigger>
           <PopoverContent align="start" className="w-72">
             <GroupByKeyForm
+              variable={variable}
               datasource={datasource}
               datasourceType={datasourceType}
               selected={keys}

@@ -185,6 +185,8 @@ type Variable struct {
 	AutoMin          string           `json:"autoMin,omitempty"`
 	Default          *Selection       `json:"default,omitempty"`
 	BaseFilters      []AdhocFilter    `json:"baseFilters,omitempty"`
+	Keys             []string         `json:"keys,omitempty"`
+	ListedValuesOnly bool             `json:"listedValuesOnly,omitempty"`
 }
 
 type VariableOption struct {

@@ -94,6 +94,7 @@ export function AdhocControl({
           </PopoverTrigger>
           <PopoverContent align="start" className="w-72">
             <AdhocFilterForm
+              variable={variable}
               datasource={datasource ?? variable.datasource}
               datasourceType={datasourceType}
               count={filters.length}

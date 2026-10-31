@@ -116,6 +116,23 @@ export function validFilter(
   )
 }
 
+export type ListedProblem = "key" | "value"
+
+export const listedProblemHint: Record<ListedProblem, string> = {
+  key: "Pick a key from the list.",
+  value: "Pick a value from the list.",
+}
+
+export function listedFilterProblem(
+  filter: Pick<AdhocFilter, "key" | "value">,
+  keys: readonly string[] | undefined,
+  values: readonly string[] | undefined
+): ListedProblem | null {
+  if (!keys?.includes(filter.key)) return "key"
+  if (!values?.includes(filter.value)) return "value"
+  return null
+}
+
 export function compareValues(cell: string, value: string): number {
   if (numberPattern.test(cell) && numberPattern.test(value)) {
     return Math.sign(Number(cell) - Number(value))

@@ -323,6 +323,8 @@ An `adhoc` variable's `default` and `baseFilters` are lists of up to 20 filters,
 Filters combine left to right and `or` starts a new group, so `a, b, or c` means `(a AND b) OR c`.
 `baseFilters` are always applied, never shown and never in the URL, and form one more group that is ANDed with the selected filters as a whole, so a selection cannot loosen them.
 Prometheus can only AND label matchers, so a Prometheus variable that uses `<`, `>` or `or` makes its queries fail with an error that names it.
+An `adhoc` variable can set `keys` (up to 100 unique names), which the filter picker offers instead of asking the datasource, and `listedValuesOnly: true`, which makes the picker accept a filter only when its key and value are picked from the lists it shows (the value list comes from Prometheus label values); absent means any text may be typed.
+A `groupby` variable can set `keys` (up to 100 unique label names) in the same way for its label picker.
 Any variable can set `skipUrlSync: true` to stay out of the URL: its selection is not read from `var-<name>` and not written to it, and it starts from its default on every load.
 A `query` variable can set `staticOptions` (up to 50 `text` and `value` pairs, where a `value` may be empty) that are offered next to the query results, before them by default and after them or merged and sorted with `sort` through `staticOrder` (`before`, `after` or `sorted`); an option with an empty `value` is never part of All.
 `refresh: "never"` runs no query and offers only the `staticOptions`.

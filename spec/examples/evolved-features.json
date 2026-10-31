@@ -33,6 +33,7 @@
     { "name": "filter", "type": "textbox", "default": "" },
     { "name": "source", "type": "datasource", "datasourceType": "prometheus", "regex": "prom.*", "default": "prom" },
     { "name": "adhoc", "type": "adhoc", "datasource": "prom",
+      "keys": ["service", "env", "pod"], "listedValuesOnly": true,
       "baseFilters": [{ "key": "env", "operator": "=", "value": "prod" }],
       "default": [{ "key": "service", "operator": "=", "value": "checkout", "keyLabel": "Service", "valueLabel": "Checkout" }] },
     { "name": "chfilters", "type": "adhoc", "datasource": "ch", "applyToAll": true,
@@ -40,7 +41,7 @@
         { "key": "Duration", "operator": ">", "value": "100" },
         { "key": "StatusCode", "operator": "=", "value": "Error", "condition": "or" }
       ] },
-    { "name": "groupby", "type": "groupby", "datasource": "prom", "default": ["pod"] }
+    { "name": "groupby", "type": "groupby", "datasource": "prom", "default": ["pod"], "keys": ["pod", "service", "env"] }
   ],
   "panels": [
     { "id": "p_rps", "type": "timeseries", "title": "Requests and errors per second",

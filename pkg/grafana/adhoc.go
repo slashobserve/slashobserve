@@ -16,6 +16,8 @@ const (
 	maxAdhocValueBytes      = 1024
 	maxAdhocKeyLabelRunes   = 200
 	maxAdhocValueLabelRunes = 500
+	maxVariableKeys         = 100
+	maxVariableKeyRunes     = 200
 	datasourceOr            = "or"
 )
 
@@ -44,6 +46,72 @@ func (c *converter) adhocFilterList(raw map[string]any, key, path, subject, kind
 	}
 	c.noteAdhocProblems(subject, problems)
 	return filters
+}
+
+func (c *converter) adhocPicker(v *spec.Variable, raw map[string]any, path, subject, kind string) {
+	list, _ := asArray(raw["defaultKeys"])
+	v.Keys = c.listedKeys(list, path+".defaultKeys", subject, keyRule{
+		valid: func(key string) bool {
+			return utf8.RuneCountInString(key) <= maxVariableKeyRunes && validAdhocKey(key, kind)
+		},
+		invalid: "A saved key that is not a label or column name of its datasource is not kept.",
+	})
+	if allowed, ok := raw["allowCustomValue"].(bool); ok && !allowed {
+		if kind == kindPrometheus {
+			v.ListedValuesOnly = true
+		} else {
+			c.note(subject, "Only Prometheus ad hoc variables can limit values to the listed ones.", path+".allowCustomValue")
+		}
+	}
+}
+
+type keyRule struct {
+	valid   func(string) bool
+	invalid string
+}
+
+func (c *converter) listedKeys(list []any, path, subject string, rule keyRule) []string {
+	var keys, relabelled, invalid []string
+	over := false
+	for i, item := range list {
+		at := fmt.Sprintf("%s[%d]", path, i)
+		key, relabel := optionKey(item)
+		switch {
+		case key == "" || slices.Contains(keys, key):
+			continue
+		case !rule.valid(key):
+			invalid = append(invalid, at)
+			continue
+		case len(keys) >= maxVariableKeys:
+			over = true
+			continue
+		}
+		keys = append(keys, key)
+		if relabel {
+			relabelled = append(relabelled, at)
+		}
+	}
+	if len(invalid) > 0 {
+		c.note(subject, rule.invalid, invalid...)
+	}
+	if over {
+		c.note(subject, fmt.Sprintf("SlashObserve keeps at most %d saved keys per variable.", maxVariableKeys), path)
+	}
+	if len(relabelled) > 0 {
+		c.note(subject, "Key labels are shown as the key itself.", relabelled...)
+	}
+	return keys
+}
+
+func optionKey(item any) (key string, relabelled bool) {
+	if obj, ok := asObject(item); ok {
+		text, value := asString(obj["text"]), asString(obj["value"])
+		if value == "" {
+			return text, false
+		}
+		return value, text != "" && text != value
+	}
+	return asString(item), false
 }
 
 func (c *converter) noteAdhocProblems(subject string, problems []adhocProblem) {
