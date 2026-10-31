@@ -159,9 +159,11 @@ An instant query passes the selected step on as its minimum interval, and the fa
 
 ## Ad hoc filters
 
-An `adhoc` variable lets a viewer add key, operator and value filters (`=`, `!=`, `=~` and `!~`).
+An `adhoc` variable lets a viewer add key, operator and value filters (`=`, `!=`, `=~` and `!~`, plus `<` and `>` on ClickHouse).
 On Prometheus the filters are added as label matchers to every selector in every query on that datasource, and a query cannot refer to the variable.
-A ClickHouse query uses the variable explicitly, as `$name` in a `WHERE` clause such as `AND $name`, which becomes the filters joined by `AND`, or `1 = 1` when there are none.
+A ClickHouse query uses the variable explicitly, as `$name` in a `WHERE` clause such as `AND $name`, which becomes the filters joined by `AND` (a filter that starts an `or` group opens a new group, so `a, b, or c` is `(a AND b) OR c`), or `1 = 1` when there are none.
+`<` and `>` compare as numbers when both sides are plain numbers and as text otherwise.
+Prometheus can only AND label matchers, so a Prometheus variable that uses `<`, `>` or `or` makes its queries fail with an error that names it.
 A ClickHouse variable with `applyToAll` also filters every query on its datasource that leaves out `$name`, through `additional_table_filters` on the tables the query reads, and each table gets only the filters whose key is one of its columns.
 A query on a ClickHouse datasource that leaves out `$name` ignores the filters when the variable does not set `applyToAll`.
 The Grafana importer sets `applyToAll` on every ClickHouse ad hoc variable.
@@ -169,7 +171,9 @@ The Grafana importer sets `applyToAll` on every ClickHouse ad hoc variable.
 A `groupby` variable (Prometheus only) lets a viewer pick labels, up to 20, and adds them to the grouping of every aggregation in every query on its datasource, as Grafana does, so the queries need no change.
 Its `default` lists the labels selected from the start, and a query that writes `$name` gets the labels there and no automatic grouping.
 
-An `adhoc` variable can start with filters: `default` is up to 20 objects, each with a `key` (1 to 200 characters), an `operator` (`=`, `!=`, `=~` or `!~`) and a `value` (up to 500 characters, possibly empty).
+An `adhoc` variable can start with filters: `default` is up to 20 objects, each with a `key` (1 to 200 characters), an `operator` (`=`, `!=`, `=~`, `!~`, `<` or `>`), a `value` (up to 500 characters, possibly empty), an optional `condition` (`and` or `or`) and optional chip texts `keyLabel` (up to 200 characters) and `valueLabel` (up to 500), which change only what the chip shows.
 Without a `var-<name>` parameter the dashboard uses these filters, and a link that sets the parameter replaces them.
 `var-<name>=` with nothing after the equals sign means no filters, which is how a viewer clears the saved ones.
-An operator outside the four is a schema error when the Spec is saved, and a key that is not a label name (Prometheus) or a column name (ClickHouse) fails the save checks.
+A filter with `condition: "or"` is written in the URL with a leading `|`, as `var-<name>=|key|op|value`.
+`baseFilters` take the same objects (up to 20) and are always applied, never shown and never in the URL, as one more group that the selected filters cannot loosen.
+An operator outside the six is a schema error when the Spec is saved, and a key that is not a label name (Prometheus) or a column name (ClickHouse) fails the save checks.

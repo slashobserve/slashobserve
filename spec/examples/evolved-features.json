@@ -32,8 +32,14 @@
     { "name": "window", "type": "interval", "options": ["1m", "5m", "1h"], "auto": true, "autoSteps": 30, "autoMin": "10s", "default": "5m" },
     { "name": "filter", "type": "textbox", "default": "" },
     { "name": "source", "type": "datasource", "datasourceType": "prometheus", "regex": "prom.*", "default": "prom" },
-    { "name": "adhoc", "type": "adhoc", "datasource": "prom" },
-    { "name": "chfilters", "type": "adhoc", "datasource": "ch", "applyToAll": true },
+    { "name": "adhoc", "type": "adhoc", "datasource": "prom",
+      "baseFilters": [{ "key": "env", "operator": "=", "value": "prod" }],
+      "default": [{ "key": "service", "operator": "=", "value": "checkout", "keyLabel": "Service", "valueLabel": "Checkout" }] },
+    { "name": "chfilters", "type": "adhoc", "datasource": "ch", "applyToAll": true,
+      "default": [
+        { "key": "Duration", "operator": ">", "value": "100" },
+        { "key": "StatusCode", "operator": "=", "value": "Error", "condition": "or" }
+      ] },
     { "name": "groupby", "type": "groupby", "datasource": "prom", "default": ["pod"] }
   ],
   "panels": [

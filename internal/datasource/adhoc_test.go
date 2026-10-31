@@ -23,13 +23,16 @@ func scoped(f datasource.AdhocFilter, scope int) datasource.AdhocFilter {
 }
 
 func TestIsAdhocNumber(t *testing.T) {
-	tests := map[string]bool{
-		"5": true, "-5": true, "5.25": true, "1e3": true, "-2.5E-3": true,
-		"": false, ".5": false, "5.": false, "NaN": false, "inf": false, "0x10": false, "1_000": false, "5 ": false, "1e": false, "+5": false,
+	tests := []struct {
+		text string
+		want bool
+	}{
+		{"5", true}, {"-5", true}, {"5.25", true}, {"1e3", true}, {"-2.5E-3", true},
+		{"", false}, {".5", false}, {"5.", false}, {"NaN", false}, {"inf", false}, {"0x10", false}, {"1_000", false}, {"5 ", false}, {"1e", false}, {"+5", false},
 	}
-	for text, want := range tests {
-		if got := datasource.IsAdhocNumber(text); got != want {
-			t.Errorf("IsAdhocNumber(%q) = %v, want %v", text, got, want)
+	for _, tt := range tests {
+		if got := datasource.IsAdhocNumber(tt.text); got != tt.want {
+			t.Errorf("IsAdhocNumber(%q) = %v, want %v", tt.text, got, tt.want)
 		}
 	}
 }

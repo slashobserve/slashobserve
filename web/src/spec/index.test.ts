@@ -152,7 +152,7 @@ describe("variable sort, custom values and saved filters", () => {
   })
 
   it.each([
-    ["an operator the request parameter refuses", { operator: "<" }],
+    ["an operator the request parameter refuses", { operator: "~" }],
     ["an empty key", { key: "" }],
     ["a value over 500 characters", { value: "x".repeat(501) }],
   ])("refuses a saved filter with %s", (_name, change) => {

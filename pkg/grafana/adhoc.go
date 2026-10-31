@@ -11,21 +11,31 @@ import (
 )
 
 const (
-	maxAdhocDefaults   = 20
-	maxAdhocValueRunes = 500
-	maxAdhocValueBytes = 1024
+	maxAdhocDefaults        = 20
+	maxAdhocValueRunes      = 500
+	maxAdhocValueBytes      = 1024
+	maxAdhocKeyLabelRunes   = 200
+	maxAdhocValueLabelRunes = 500
+	datasourceOr            = "or"
 )
 
-var adhocOperators = []string{"=", "!=", "=~", "!~"}
+var (
+	adhocOperators           = []string{"=", "!=", "=~", "!~"}
+	adhocClickHouseOperators = append(slices.Clone(adhocOperators), "<", ">")
+)
 
 type adhocProblem struct{ reason, path string }
 
 func (c *converter) adhocDefault(raw map[string]any, path, subject, kind string) []spec.AdhocFilter {
-	list, _ := asArray(raw["filters"])
+	return c.adhocFilterList(raw, "filters", path, subject, kind)
+}
+
+func (c *converter) adhocFilterList(raw map[string]any, key, path, subject, kind string) []spec.AdhocFilter {
+	list, _ := asArray(raw[key])
 	var filters []spec.AdhocFilter
 	var problems []adhocProblem
 	for i, item := range list {
-		at := fmt.Sprintf("%s.filters[%d]", path, i)
+		at := fmt.Sprintf("%s.%s[%d]", path, key, i)
 		f, found := adhocFilterOf(item, at, kind)
 		problems = append(problems, found...)
 		switch {
@@ -63,40 +73,103 @@ func adhocFilterOf(item any, at, kind string) (spec.AdhocFilter, []adhocProblem)
 	if !ok {
 		return spec.AdhocFilter{}, []adhocProblem{{"A saved filter is not an object and is not kept.", at}}
 	}
-	problems := adhocFilterExtras(obj, at)
 	f := spec.AdhocFilter{Key: asString(obj["key"]), Operator: asString(obj["operator"])}
 	value, hasValue := obj["value"].(string)
 	f.Value = value
+	problems := adhocFilterExtras(&f, obj, at, kind)
 	if reason := adhocFilterRefusal(f, hasValue, kind); reason != "" {
 		return spec.AdhocFilter{}, append(problems, adhocProblem{reason, at})
 	}
 	return f, problems
 }
 
-func adhocFilterExtras(obj map[string]any, at string) []adhocProblem {
+func adhocFilterExtras(f *spec.AdhocFilter, obj map[string]any, at, kind string) []adhocProblem {
 	var problems []adhocProblem
+	add := func(reason, key string) { problems = append(problems, adhocProblem{reason, at + "." + key}) }
 	for _, key := range sortedKeys(obj) {
 		switch key {
 		case "key", "operator", "value":
 		case "condition":
-			if condition := asString(obj[key]); condition != "" && !strings.EqualFold(condition, "AND") {
-				problems = append(problems, adhocProblem{fmt.Sprintf("SlashObserve combines saved filters with AND; %q is not kept.", condition), at + ".condition"})
+			if reason := adhocCondition(f, asString(obj[key]), kind); reason != "" {
+				add(reason, key)
+			}
+		case "keyLabel":
+			if label, ok := adhocLabel(obj[key], maxAdhocKeyLabelRunes); ok {
+				f.KeyLabel = label
+			} else if present(obj[key]) {
+				add("A saved filter's key label that is not text of 1 to 200 characters is not kept.", key)
+			}
+		case "valueLabels":
+			if reason := adhocValueLabels(f, obj[key]); reason != "" {
+				add(reason, key)
+			}
+		case "values":
+			if present(obj[key]) && !adhocValuesMatch(f, obj[key]) {
+				add("A saved filter's list of values that is not its regular expression's alternatives joined with | is not kept.", key)
 			}
 		default:
 			if present(obj[key]) {
-				problems = append(problems, adhocProblem{"Some options of the saved filters are not supported yet.", at + "." + key})
+				add("Some options of the saved filters are not supported yet.", key)
 			}
 		}
 	}
 	return problems
 }
 
+func adhocCondition(f *spec.AdhocFilter, condition, kind string) string {
+	switch {
+	case condition == "" || strings.EqualFold(condition, "AND"):
+		return ""
+	case strings.EqualFold(condition, "OR") && kind == kindClickHouse:
+		f.Condition = datasourceOr
+		return ""
+	}
+	return fmt.Sprintf("SlashObserve combines saved filters with AND; %q is not kept.", condition)
+}
+
+func adhocValueLabels(f *spec.AdhocFilter, v any) string {
+	labels, _ := asArray(v)
+	label, ok := "", false
+	if len(labels) > 0 {
+		label, ok = adhocLabel(labels[0], maxAdhocValueLabelRunes)
+	}
+	if ok {
+		f.ValueLabel = label
+	}
+	switch {
+	case present(v) && !ok:
+		return "A saved filter's value label that is not text of 1 to 500 characters is not kept."
+	case len(labels) > 1:
+		return "Only the first value label of a saved filter is kept."
+	}
+	return ""
+}
+
+func adhocLabel(v any, maxRunes int) (string, bool) {
+	label, ok := v.(string)
+	return label, ok && label != "" && utf8.RuneCountInString(label) <= maxRunes
+}
+
+func adhocValuesMatch(f *spec.AdhocFilter, v any) bool {
+	list, ok := asArray(v)
+	if !ok || (f.Operator != "=~" && f.Operator != "!~") {
+		return false
+	}
+	values := make([]string, len(list))
+	for i, item := range list {
+		if values[i], ok = item.(string); !ok {
+			return false
+		}
+	}
+	return strings.Join(values, "|") == f.Value
+}
+
 func adhocFilterRefusal(f spec.AdhocFilter, hasValue bool, kind string) string {
 	switch {
 	case f.Key == "" || f.Operator == "" || !hasValue:
 		return "A saved filter without a key, an operator and a value is not kept."
-	case !slices.Contains(adhocOperators, f.Operator):
-		return fmt.Sprintf("SlashObserve supports the filter operators =, !=, =~ and !~; saved filters that use %s are not kept.", f.Operator)
+	case !slices.Contains(adhocOperatorsFor(kind), f.Operator):
+		return adhocOperatorRefusal(f.Operator, kind)
 	case !validAdhocKey(f.Key, kind):
 		return "A saved filter whose key is not a label or column name of its datasource is not kept."
 	case utf8.RuneCountInString(f.Value) > maxAdhocValueRunes || len(f.Value) > maxAdhocValueBytes || hasControlRune(f.Value):
@@ -105,6 +178,20 @@ func adhocFilterRefusal(f spec.AdhocFilter, hasValue bool, kind string) string {
 		return "A saved filter whose regular expression is not valid is not kept."
 	}
 	return ""
+}
+
+func adhocOperatorsFor(kind string) []string {
+	if kind == kindClickHouse {
+		return adhocClickHouseOperators
+	}
+	return adhocOperators
+}
+
+func adhocOperatorRefusal(op, kind string) string {
+	if kind == kindClickHouse {
+		return fmt.Sprintf("SlashObserve supports the filter operators =, !=, =~, !~, < and > on ClickHouse; saved filters that use %s are not kept.", op)
+	}
+	return fmt.Sprintf("SlashObserve supports the filter operators =, !=, =~ and !~; saved filters that use %s are not kept.", op)
 }
 
 func validAdhocKey(key, kind string) bool {
