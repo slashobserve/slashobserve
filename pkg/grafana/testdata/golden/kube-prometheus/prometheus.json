@@ -290,16 +290,16 @@
   },
   "blocks": [
     "dashboard mapped=5 bookkeeping=2",
-    "panel panels[1] mapped=42 reported=2 bookkeeping=5 field_config:1 override:7 query:2",
-    "panel panels[3] mapped=11 bookkeeping=4 field_config:1 query:1",
-    "panel panels[4] mapped=13 bookkeeping=4 field_config:1 query:1",
-    "panel panels[6] mapped=11 bookkeeping=4 field_config:1 query:1",
-    "panel panels[7] mapped=25 bookkeeping=8 field_config:1 query:5",
-    "panel panels[8] mapped=13 bookkeeping=4 field_config:1 query:1",
-    "panel panels[10] mapped=13 bookkeeping=4 field_config:1 query:1",
-    "panel panels[11] mapped=13 bookkeeping=4 field_config:1 query:1",
-    "panel panels[13] mapped=13 bookkeeping=4 field_config:1 query:1",
-    "panel panels[14] mapped=13 bookkeeping=4 field_config:1 query:1"
+    "panel panels[1] mapped=43 reported=2 bookkeeping=4 field_config:1 override:7 query:2",
+    "panel panels[3] mapped=12 bookkeeping=3 field_config:1 query:1",
+    "panel panels[4] mapped=14 bookkeeping=3 field_config:1 query:1",
+    "panel panels[6] mapped=12 bookkeeping=3 field_config:1 query:1",
+    "panel panels[7] mapped=26 bookkeeping=7 field_config:1 query:5",
+    "panel panels[8] mapped=14 bookkeeping=3 field_config:1 query:1",
+    "panel panels[10] mapped=14 bookkeeping=3 field_config:1 query:1",
+    "panel panels[11] mapped=14 bookkeeping=3 field_config:1 query:1",
+    "panel panels[13] mapped=14 bookkeeping=3 field_config:1 query:1",
+    "panel panels[14] mapped=14 bookkeeping=3 field_config:1 query:1"
   ],
   "spec": {
     "specVersion": "0",

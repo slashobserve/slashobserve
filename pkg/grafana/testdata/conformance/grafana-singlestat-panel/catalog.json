@@ -43,6 +43,7 @@
     {"id": "span=6", "path": "span", "value": 6, "expect": "bookkeeping"},
     {"id": "isNew=true", "path": "isNew", "value": true, "expect": "bookkeeping"},
     {"id": "editable=false", "path": "editable", "value": false, "expect": "bookkeeping"},
+    {"id": "id=7", "path": "id", "value": 7},
     {"id": "error=true", "path": "error", "value": true, "expect": "bookkeeping"},
     {"id": "datasource=other", "path": "datasource", "value": {"type": "prometheus", "uid": "other"}, "expect": "bookkeeping"}
   ]

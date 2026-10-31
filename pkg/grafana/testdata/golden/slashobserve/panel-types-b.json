@@ -261,17 +261,17 @@
   },
   "blocks": [
     "dashboard mapped=5 bookkeeping=6",
-    "panel panels[0] mapped=46 default=5 no_effect=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[1] mapped=53 reported=1 default=5 no_effect=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[2] mapped=23 default=6 bookkeeping=4 query:1",
-    "panel panels[3] mapped=15 reported=2 default=5 bookkeeping=4 query:1",
-    "panel panels[4] mapped=71 reported=1 no_effect=2 bookkeeping=4 field_config:1 query:1",
-    "panel panels[5] mapped=71 no_effect=2 bookkeeping=4 field_config:1 query:1",
+    "panel panels[0] mapped=47 default=5 no_effect=1 bookkeeping=3 field_config:1 query:1",
+    "panel panels[1] mapped=54 reported=1 default=5 no_effect=1 bookkeeping=3 field_config:1 query:1",
+    "panel panels[2] mapped=24 default=6 bookkeeping=3 query:1",
+    "panel panels[3] mapped=16 reported=2 default=5 bookkeeping=3 query:1",
+    "panel panels[4] mapped=72 reported=1 no_effect=2 bookkeeping=3 field_config:1 query:1",
+    "panel panels[5] mapped=72 no_effect=2 bookkeeping=3 field_config:1 query:1",
     "panel panels[6] outcome=excluded",
     "panel panels[7] outcome=excluded",
-    "panel panels[8] mapped=7 default=1 no_effect=4 bookkeeping=1",
-    "panel panels[9] mapped=18 reported=1 default=22 bookkeeping=4 query:1",
-    "panel panels[10] mapped=9 default=3 bookkeeping=1"
+    "panel panels[8] mapped=8 default=1 no_effect=4",
+    "panel panels[9] mapped=19 reported=1 default=22 bookkeeping=3 query:1",
+    "panel panels[10] mapped=10 default=3"
   ],
   "spec": {
     "specVersion": "0",
