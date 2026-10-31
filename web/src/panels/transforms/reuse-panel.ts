@@ -33,10 +33,10 @@ export function reusedFilterOf(
 ): ReusedFilter | undefined {
   const query = panel.queries.find(isDashboardQuery)
   if (!query?.source.adHocFilters || !source) return undefined
-  const filters = adhocFiltersOf(variables, selections)
-  if (filters.length === 0) return undefined
+  const scopes = adhocFiltersOf(variables, selections)
+  if (scopes.length === 0) return undefined
   const after = query.source.withTransforms
     ? (source.transform ?? []).length
     : 0
-  return { filters, after }
+  return { scopes, after }
 }

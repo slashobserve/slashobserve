@@ -1111,6 +1111,60 @@
       ],
       "title": "DatasourceVariable"
     },
+    "adhocFilter": {
+      "x-omitFromPrompt": true,
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "operator": {
+          "enum": [
+            "=",
+            "!=",
+            "=~",
+            "!~",
+            "<",
+            ">"
+          ],
+          "description": "< and > compare as numbers when both sides are numbers, else as text; ClickHouse only."
+        },
+        "value": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "keyLabel": {
+          "x-omitFromPrompt": true,
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Text shown on the chip instead of the key."
+        },
+        "valueLabel": {
+          "x-omitFromPrompt": true,
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Text shown on the chip instead of the value."
+        },
+        "condition": {
+          "x-omitFromPrompt": true,
+          "enum": [
+            "and",
+            "or"
+          ],
+          "description": "How the filter joins the filters before it: and (default) extends the current group, or starts a new group, so a, b, or c means (a AND b) OR c. ClickHouse only."
+        }
+      },
+      "required": [
+        "key",
+        "operator",
+        "value"
+      ]
+    },
     "adhocVariable": {
       "type": "object",
       "additionalProperties": false,
@@ -1156,33 +1210,18 @@
           "minItems": 1,
           "maxItems": 20,
           "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "key": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 200
-              },
-              "operator": {
-                "enum": [
-                  "=",
-                  "!=",
-                  "=~",
-                  "!~"
-                ]
-              },
-              "value": {
-                "type": "string",
-                "maxLength": 500
-              }
-            },
-            "required": [
-              "key",
-              "operator",
-              "value"
-            ]
+            "$ref": "#/$defs/adhocFilter"
           }
+        },
+        "baseFilters": {
+          "x-omitFromPrompt": true,
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/adhocFilter"
+          },
+          "description": "Filters always applied to this variable's queries, ANDed with the selected filters as a whole; never shown and never in the URL."
         }
       },
       "required": [

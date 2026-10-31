@@ -94,26 +94,64 @@ func expandAdhoc(d Dialect, ref spec.Reference, c ctx, v datasource.Variable) (s
 }
 
 func ClickHouseAdhocCondition(filters []datasource.AdhocFilter) (string, bool) {
-	terms := make([]string, len(filters))
-	for i, f := range filters {
-		if !spec.IsColumnArg(f.Key) || hasControlByte(f.Value) {
-			return "", false
+	return ClickHouseAdhocScopes(datasource.AdhocScopes(filters))
+}
+
+func ClickHouseAdhocScopes(scopes []datasource.AdhocGroups) (string, bool) {
+	rendered := make([]string, len(scopes))
+	for i, groups := range scopes {
+		alternatives := make([]string, len(groups))
+		for j, group := range groups {
+			terms := make([]string, len(group))
+			for k, f := range group {
+				term, ok := clickHouseAdhocTerm(f)
+				if !ok {
+					return "", false
+				}
+				terms[k] = term
+			}
+			alternatives[j] = "(" + strings.Join(terms, " AND ") + ")"
 		}
-		value := "'" + sqlStringEscaper.Replace(f.Value) + "'"
-		switch f.Op {
-		case "=":
-			terms[i] = f.Key + " = " + value
-		case "!=":
-			terms[i] = f.Key + " != " + value
-		case "=~":
-			terms[i] = "match(" + f.Key + ", " + anchoredPattern(f.Value) + ")"
-		case "!~":
-			terms[i] = "NOT match(" + f.Key + ", " + anchoredPattern(f.Value) + ")"
-		default:
-			return "", false
+		if len(alternatives) == 1 {
+			rendered[i] = alternatives[0]
+		} else {
+			rendered[i] = "(" + strings.Join(alternatives, " OR ") + ")"
 		}
 	}
-	return "(" + strings.Join(terms, " AND ") + ")", true
+	if len(rendered) == 1 {
+		return rendered[0], true
+	}
+	return "(" + strings.Join(rendered, " AND ") + ")", true
+}
+
+func clickHouseAdhocTerm(f datasource.AdhocFilter) (string, bool) {
+	if !spec.IsColumnArg(f.Key) || hasControlByte(f.Value) {
+		return "", false
+	}
+	value := "'" + sqlStringEscaper.Replace(f.Value) + "'"
+	switch f.Op {
+	case "=":
+		return f.Key + " = " + value, true
+	case "!=":
+		return f.Key + " != " + value, true
+	case "=~":
+		return "match(" + f.Key + ", " + anchoredPattern(f.Value) + ")", true
+	case "!~":
+		return "NOT match(" + f.Key + ", " + anchoredPattern(f.Value) + ")", true
+	case "<", ">":
+		return clickHouseOrdering(f.Key, f.Op, f.Value, value), true
+	}
+	return "", false
+}
+
+func clickHouseOrdering(key, op, raw, quoted string) string {
+	text := "toString(" + key + ")"
+	asText := text + " " + op + " " + quoted
+	if !datasource.IsAdhocNumber(raw) {
+		return asText
+	}
+	numeric := "toFloat64OrNull(" + text + ") " + op + " " + raw
+	return "if(match(" + text + ", '" + datasource.AdhocNumberPattern + "'), " + numeric + ", " + asText + ")"
 }
 
 func anchoredPattern(pattern string) string {

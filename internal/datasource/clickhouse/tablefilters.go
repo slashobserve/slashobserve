@@ -65,11 +65,11 @@ type tableColumns struct {
 func tableFilterSettings(tables []tableColumns, filters []datasource.AdhocFilter) (ch.Settings, error) {
 	var entries []string
 	for _, t := range tables {
-		applicable := filtersFor(t.name, t.columns, filters)
+		applicable := scopesFor(t.name, t.columns, filters)
 		if len(applicable) == 0 {
 			continue
 		}
-		condition, ok := macros.ClickHouseAdhocCondition(applicable)
+		condition, ok := macros.ClickHouseAdhocScopes(applicable)
 		if !ok {
 			return nil, datasource.Errorf(datasource.ErrInvalidQuery, "invalid ad hoc filter")
 		}
@@ -82,6 +82,28 @@ func tableFilterSettings(tables []tableColumns, filters []datasource.AdhocFilter
 }
 
 func settingLiteral(s string) string { return "'" + settingLiteralEscaper.Replace(s) + "'" }
+
+func scopesFor(name tableName, columns []string, filters []datasource.AdhocFilter) []datasource.AdhocGroups {
+	var out []datasource.AdhocGroups
+	for _, scope := range datasource.AdhocScopes(filters) {
+		if groups, ok := groupsFor(name, columns, scope); ok {
+			out = append(out, groups)
+		}
+	}
+	return out
+}
+
+func groupsFor(name tableName, columns []string, scope datasource.AdhocGroups) (datasource.AdhocGroups, bool) {
+	var groups datasource.AdhocGroups
+	for _, group := range scope {
+		applicable := filtersFor(name, columns, group)
+		if len(applicable) == 0 {
+			return nil, false
+		}
+		groups = append(groups, applicable)
+	}
+	return groups, true
+}
 
 func filtersFor(name tableName, columns []string, filters []datasource.AdhocFilter) []datasource.AdhocFilter {
 	var out []datasource.AdhocFilter

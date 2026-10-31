@@ -65,7 +65,7 @@ func TestAdhocSavedFiltersThatCannotBeKeptAreReported(t *testing.T) {
 		`{"key":"d","operator":"=~","value":"a("}`,
 		`{"key":"e","operator":"=","value":"` + long + `"}`,
 		`{"key":"f","operator":"=","value":"1","condition":"OR"}`,
-		`{"key":"g","operator":"=","value":"1","keyLabel":"G"}`,
+		`{"key":"g","operator":"=","value":"1","extra":"x"}`,
 		`{"key":"","operator":"=","value":"1"}`,
 		`{"key":"h","operator":"="}`,
 		`"text"`,
@@ -92,17 +92,16 @@ func TestAdhocSavedFiltersThatCannotBeKeptAreReported(t *testing.T) {
 		"A saved filter whose regular expression is not valid is not kept.":                                                  {"templating.list[0].filters[4]"},
 		"A saved filter whose value is longer than 500 characters or 1024 bytes, or holds a control character, is not kept.": {"templating.list[0].filters[5]"},
 		`SlashObserve combines saved filters with AND; "OR" is not kept.`:                                                    {"templating.list[0].filters[6].condition"},
-		"Some options of the saved filters are not supported yet.":                                                           {"templating.list[0].filters[7].keyLabel"},
+		"Some options of the saved filters are not supported yet.":                                                           {"templating.list[0].filters[7].extra"},
 		"A saved filter without a key, an operator and a value is not kept.":                                                 {"templating.list[0].filters[8]", "templating.list[0].filters[9]"},
 		"A saved filter is not an object and is not kept.":                                                                   {"templating.list[0].filters[10]"},
-		"Base filters are not kept.": {"templating.list[0].baseFilters"},
 	} {
 		if got, ok := reasonsWithPaths[reason]; !ok || !slices.Equal(got, paths) {
 			t.Errorf("note %q has paths %v (present %v), want %v", reason, got, ok, paths)
 		}
 	}
-	if len(notes) != 11 {
-		t.Errorf("env has %d notes, want 11: %+v", len(notes), notes)
+	if len(notes) != 10 {
+		t.Errorf("env has %d notes, want 10: %+v", len(notes), notes)
 	}
 }
 

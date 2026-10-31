@@ -13,6 +13,7 @@ import type { VariableState } from "../use-variables"
 import {
   describeFilter,
   formatFilter,
+  labelsBySavedFilter,
   parseFilter,
   type AdhocFilter,
 } from "./adhoc"
@@ -36,9 +37,10 @@ export function AdhocControl({
 }: Props) {
   const id = useId()
   const [open, setOpen] = useState(false)
+  const labels = labelsBySavedFilter(variable.default)
   const filters = state.selected.flatMap((text) => {
     const filter = parseFilter(text)
-    return filter ? [{ text, filter }] : []
+    return filter ? [{ text, filter, labels: labels.get(text) }] : []
   })
 
   function add(filter: AdhocFilter) {
@@ -55,17 +57,20 @@ export function AdhocControl({
         aria-label={variableLabel(variable)}
         className="flex min-w-0 flex-wrap items-center gap-1 px-1 py-0.5"
       >
-        {filters.map(({ text, filter }) => (
+        {filters.map(({ text, filter, labels }, index) => (
           <span
             key={text}
             className="flex h-5 items-center gap-0.5 rounded-sm bg-muted pl-1.5 text-xs"
           >
-            <span className="font-mono">{describeFilter(filter)}</span>
+            {index > 0 && filter.condition === "or" ? (
+              <span className="text-muted-foreground">or</span>
+            ) : null}
+            <span className="font-mono">{describeFilter(filter, labels)}</span>
             <Button
               variant="ghost"
               size="icon-xs"
               className="size-5 opacity-60 hover:opacity-100"
-              aria-label={`Remove filter ${describeFilter(filter)}`}
+              aria-label={`Remove filter ${describeFilter(filter, labels)}`}
               onClick={() =>
                 onChange(state.selected.filter((item) => item !== text))
               }

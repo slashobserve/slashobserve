@@ -1,5 +1,7 @@
 import type { Selections } from "@/api/keys"
 import {
+  compareValues,
+  fromSpecFilter,
   parseFilters,
   type AdhocFilter,
 } from "@/dashboards/variable-controls/adhoc"
@@ -8,21 +10,30 @@ import { compileAnchoredPattern } from "@/spec/patterns"
 
 import { rowCount, type PreparedField, type PreparedFrame } from "./names"
 
-export type ReusedFilter = { filters: AdhocFilter[]; after: number }
+export type AdhocScope = AdhocFilter[]
+
+export type ReusedFilter = { scopes: AdhocScope[]; after: number }
 
 export function adhocFiltersOf(
   variables: readonly Variable[],
   selections: Selections
-): AdhocFilter[] {
+): AdhocScope[] {
   return variables.flatMap((variable) =>
     variable.type === "adhoc"
-      ? parseFilters(selections[variable.name] ?? [])
+      ? [
+          (variable.baseFilters ?? []).map(fromSpecFilter),
+          parseFilters(selections[variable.name] ?? []),
+        ].filter((scope) => scope.length > 0)
       : []
   )
 }
 
+function cellIsEmpty(value: unknown): boolean {
+  return value === null || value === undefined
+}
+
 function cellText(value: unknown): string {
-  return value === null || value === undefined ? "" : String(value)
+  return cellIsEmpty(value) ? "" : String(value)
 }
 
 function matchesPattern(pattern: string, text: string): boolean {
@@ -30,6 +41,9 @@ function matchesPattern(pattern: string, text: string): boolean {
 }
 
 function passes(filter: AdhocFilter, value: unknown): boolean {
+  if ((filter.op === "<" || filter.op === ">") && cellIsEmpty(value)) {
+    return false
+  }
   const text = cellText(value)
   switch (filter.op) {
     case "=":
@@ -40,37 +54,60 @@ function passes(filter: AdhocFilter, value: unknown): boolean {
       return matchesPattern(filter.value, text)
     case "!~":
       return !matchesPattern(filter.value, text)
+    case "<":
+      return compareValues(text, filter.value) < 0
+    case ">":
+      return compareValues(text, filter.value) > 0
   }
 }
 
 type Applicable = { filter: AdhocFilter; field: PreparedField }
 
-function applicableTo(
-  frame: PreparedFrame,
-  filters: AdhocFilter[]
-): Applicable[] {
-  const out: Applicable[] = []
-  for (const filter of filters) {
-    const field = frame.fields.find(
-      (candidate) => candidate.name === filter.key
-    )
-    if (field) out.push({ filter, field })
+function splitGroups(scope: AdhocScope): AdhocFilter[][] {
+  const groups: AdhocFilter[][] = []
+  for (const filter of scope) {
+    if (filter.condition === "or" || groups.length === 0) groups.push([])
+    groups[groups.length - 1].push(filter)
   }
-  return out
+  return groups
+}
+
+function applicableGroups(
+  frame: PreparedFrame,
+  scope: AdhocScope
+): Applicable[][] | null {
+  const groups: Applicable[][] = []
+  for (const group of splitGroups(scope)) {
+    const applicable: Applicable[] = []
+    for (const filter of group) {
+      const field = frame.fields.find(
+        (candidate) => candidate.name === filter.key
+      )
+      if (field) applicable.push({ filter, field })
+    }
+    if (applicable.length === 0) return null
+    groups.push(applicable)
+  }
+  return groups
 }
 
 function filterFrame(
   frame: PreparedFrame,
-  filters: AdhocFilter[]
+  scopes: AdhocScope[]
 ): PreparedFrame {
-  const applicable = applicableTo(frame, filters)
+  const applicable = scopes.flatMap((scope) => {
+    const groups = applicableGroups(frame, scope)
+    return groups ? [groups] : []
+  })
   if (applicable.length === 0) return frame
   const keep: number[] = []
   const rows = rowCount(frame)
   for (let row = 0; row < rows; row++) {
-    if (applicable.every((a) => passes(a.filter, a.field.values[row]))) {
-      keep.push(row)
-    }
+    const passesScope = (groups: Applicable[][]) =>
+      groups.some((group) =>
+        group.every((a) => passes(a.filter, a.field.values[row]))
+      )
+    if (applicable.every(passesScope)) keep.push(row)
   }
   return {
     ...frame,
@@ -83,8 +120,8 @@ function filterFrame(
 
 export function filterByAdhoc(
   frames: PreparedFrame[],
-  filters: AdhocFilter[]
+  scopes: AdhocScope[]
 ): PreparedFrame[] {
-  if (filters.length === 0) return frames
-  return frames.map((frame) => filterFrame(frame, filters))
+  if (scopes.length === 0) return frames
+  return frames.map((frame) => filterFrame(frame, scopes))
 }

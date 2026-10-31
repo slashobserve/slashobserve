@@ -14,9 +14,9 @@ import {
 import { labelNamesQuery, labelValuesQuery } from "@/panel-editor/queries"
 
 import {
-  adhocOps,
   keyHint,
   maxAdhocFilters,
+  opsFor,
   validFilter,
   validKey,
   type AdhocFilter,
@@ -82,6 +82,7 @@ export function AdhocFilterForm({
     enabled: keyKnown,
   })
 
+  const ops = opsFor(datasourceType)
   const full = count >= maxAdhocFilters
   const keyProblem = key !== "" && !validKey(key, datasourceType)
   const filter: AdhocFilter = { key, op, value }
@@ -109,7 +110,7 @@ export function AdhocFilterForm({
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={opId}>Operator</Label>
         <Select
-          items={adhocOps.map((item) => ({ value: item, label: item }))}
+          items={ops.map((item) => ({ value: item, label: item }))}
           value={op}
           onValueChange={(next) => {
             if (next !== null) setOp(next)
@@ -119,7 +120,7 @@ export function AdhocFilterForm({
             <SelectValue />
           </SelectTrigger>
           <SelectContent alignItemWithTrigger={false} align="start">
-            {adhocOps.map((item) => (
+            {ops.map((item) => (
               <SelectItem key={item} value={item}>
                 {item}
               </SelectItem>

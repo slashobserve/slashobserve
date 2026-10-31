@@ -709,11 +709,9 @@ func (c *converter) adhocVariable(raw map[string]any, path, name string) (spec.V
 	}
 	c.adhocSources[name] = ref.src
 	v := spec.Variable{Type: spec.AdhocVariable, Datasource: ref.src.ref(), ApplyToAll: ref.src.kind == kindClickHouse}
-	if filters := c.adhocDefault(raw, path, subject, ref.src.kind); len(filters) > 0 {
+	if filters := c.adhocFilterList(raw, "filters", path, subject, ref.src.kind); len(filters) > 0 {
 		v.Default = &spec.Selection{Filters: filters}
 	}
-	if present(raw["baseFilters"]) {
-		c.note(subject, "Base filters are not kept.", path+".baseFilters")
-	}
+	v.BaseFilters = c.adhocFilterList(raw, "baseFilters", path, subject, ref.src.kind)
 	return v, true
 }

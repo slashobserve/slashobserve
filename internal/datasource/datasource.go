@@ -42,6 +42,8 @@ func validYear(t time.Time) bool {
 
 type AdhocFilter struct {
 	Key, Op, Value string
+	Condition      string
+	Scope          int
 }
 
 type Variable struct {

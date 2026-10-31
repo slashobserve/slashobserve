@@ -309,6 +309,10 @@ The query language follows the datasource: PromQL for Prometheus and a single SQ
 Macros such as `$__rate_interval` for Prometheus and `$__timeFilter(Timestamp)` for ClickHouse expand when the query runs, from the time range and step of the request.
 A datasource is a uid from the datasources file or `${name}`, naming a datasource variable.
 An `adhoc` variable filters Prometheus queries automatically, and filters ClickHouse queries that leave out `$name` only when it sets `applyToAll`.
+An `adhoc` variable's `default` and `baseFilters` are lists of up to 20 filters, each a `key`, an `operator` (`=`, `!=`, `=~` and `!~`, plus `<` and `>` on ClickHouse, which compare as numbers when both sides are plain numbers and as text otherwise), a `value`, an optional `condition` (`and`, the default, or `or`, ClickHouse only), and the chip texts `keyLabel` and `valueLabel`, which change what is shown and never what is filtered or put in the URL.
+Filters combine left to right and `or` starts a new group, so `a, b, or c` means `(a AND b) OR c`.
+`baseFilters` are always applied, never shown and never in the URL, and form one more group that is ANDed with the selected filters as a whole, so a selection cannot loosen them.
+Prometheus can only AND label matchers, so a Prometheus variable that uses `<`, `>` or `or` makes its queries fail with an error that names it.
 Any variable can set `skipUrlSync: true` to stay out of the URL: its selection is not read from `var-<name>` and not written to it, and it starts from its default on every load.
 A `query` variable can set `staticOptions` (up to 50 `text` and `value` pairs, where a `value` may be empty) that are offered next to the query results, before them by default and after them or merged and sorted with `sort` through `staticOrder` (`before`, `after` or `sorted`); an option with an empty `value` is never part of All.
 `refresh: "never"` runs no query and offers only the `staticOptions`.
@@ -340,7 +344,7 @@ The source must be a data panel with queries that neither repeats nor itself reu
 The server runs the source panel's queries once, under the source's cache key, so both panels share one run.
 
 `withTransforms: true` applies the source panel's transforms to the results before the panel's own `transform` list.
-`adHocFilters: true` filters the reused rows in the browser by the selections of every ad hoc variable of the dashboard, after the source panel's transforms (when `withTransforms` is set) and before the panel's own: a filter keeps the rows whose field named by its key passes the operator (`=`, `!=`, `=~` and `!~`, the regular expressions matching the whole value), and a frame with no field of that name is left as it is.
+`adHocFilters: true` filters the reused rows in the browser by the selections of every ad hoc variable of the dashboard, after the source panel's transforms (when `withTransforms` is set) and before the panel's own: a filter keeps the rows whose field named by its key passes the operator (`=`, `!=`, `=~` and `!~`, the regular expressions matching the whole value, and `<` and `>`, which skip empty cells), the variable's base filters apply too, groups and `or` combine as for queries, and a frame with no field of that name is left as it is.
 The panel's `overrides` match the source's query refs.
 A reusing query can set `hide`, which leaves the panel without data.
 The response of a reusing panel names the source in `meta.source_panel`.

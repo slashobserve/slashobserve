@@ -281,12 +281,18 @@ func TestAdhocDefaultSchema(t *testing.T) {
 		variable string
 		wantPath string
 	}{
-		{"every accepted operator", `{"name":"f","type":"adhoc","datasource":"prom","default":[` + strings.Join([]string{filter("="), filter("!="), filter("=~"), filter("!~")}, ",") + `]}`, ""},
+		{"every accepted operator", `{"name":"f","type":"adhoc","datasource":"prom","default":[` + strings.Join([]string{filter("="), filter("!="), filter("=~"), filter("!~"), filter("<"), filter(">")}, ",") + `]}`, ""},
+		{"labels and condition", `{"name":"f","type":"adhoc","datasource":"prom","default":[{"key":"job","operator":"=","value":"api","keyLabel":"Job","valueLabel":"API","condition":"or"}]}`, ""},
+		{"base filters", `{"name":"f","type":"adhoc","datasource":"prom","baseFilters":[` + filter("=") + `]}`, ""},
+		{"no base filters", `{"name":"f","type":"adhoc","datasource":"prom","baseFilters":[]}`, "/variables/0/baseFilters"},
+		{"twenty-one base filters", `{"name":"f","type":"adhoc","datasource":"prom","baseFilters":[` + strings.TrimSuffix(strings.Repeat(filter("=")+",", 21), ",") + `]}`, "/variables/0/baseFilters"},
+		{"unknown condition", `{"name":"f","type":"adhoc","datasource":"prom","default":[{"key":"job","operator":"=","value":"x","condition":"xor"}]}`, "/variables/0/default/0/condition"},
+		{"empty key label", `{"name":"f","type":"adhoc","datasource":"prom","default":[{"key":"job","operator":"=","value":"x","keyLabel":""}]}`, "/variables/0/default/0/keyLabel"},
 		{"empty value", `{"name":"f","type":"adhoc","datasource":"prom","default":[{"key":"job","operator":"=","value":""}]}`, ""},
 		{"twenty filters", `{"name":"f","type":"adhoc","datasource":"prom","default":[` + strings.TrimSuffix(strings.Repeat(filter("=")+",", 20), ",") + `]}`, ""},
 		{"twenty-one filters", `{"name":"f","type":"adhoc","datasource":"prom","default":[` + strings.TrimSuffix(strings.Repeat(filter("=")+",", 21), ",") + `]}`, "/variables/0/default"},
 		{"no filters", `{"name":"f","type":"adhoc","datasource":"prom","default":[]}`, "/variables/0/default"},
-		{"less than", `{"name":"f","type":"adhoc","datasource":"prom","default":[` + filter("<") + `]}`, "/variables/0/default/0/operator"},
+		{"unknown operator", `{"name":"f","type":"adhoc","datasource":"prom","default":[` + filter("~") + `]}`, "/variables/0/default/0/operator"},
 		{"empty key", `{"name":"f","type":"adhoc","datasource":"prom","default":[{"key":"","operator":"=","value":"x"}]}`, "/variables/0/default/0/key"},
 		{"value over 500 characters", `{"name":"f","type":"adhoc","datasource":"prom","default":[{"key":"job","operator":"=","value":"` + strings.Repeat("x", 501) + `"}]}`, "/variables/0/default/0/value"},
 		{"unknown filter field", `{"name":"f","type":"adhoc","datasource":"prom","default":[{"key":"job","operator":"=","value":"x","extra":1}]}`, "/variables/0/default/0"},

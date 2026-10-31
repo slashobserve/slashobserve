@@ -1147,7 +1147,7 @@ describe("chaining", () => {
       { type: "limit", count: 2 },
       { type: "sortBy", field: "Value", desc: true },
     ]
-    const filter = { filters: [{ key: "pod", op: "=" as const, value: "a" }] }
+    const filter = { scopes: [[{ key: "pod", op: "=" as const, value: "a" }]] }
     const [afterSource] = prepareFrames(
       panel([{}], transforms),
       [rows],
@@ -1175,7 +1175,7 @@ describe("chaining", () => {
       { type: "limit", count: "${n}", queries: ["A"] },
     ]
     const filter = {
-      filters: [{ key: "pod", op: "=" as const, value: "a" }],
+      scopes: [[{ key: "pod", op: "=" as const, value: "a" }]],
       after: 1,
     }
     const out = prepareFrames(

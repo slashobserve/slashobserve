@@ -10,7 +10,11 @@ import type {
 } from "@/spec"
 
 import { ALL } from "./search"
-import { formatFilter, parseFilters } from "./variable-controls/adhoc"
+import {
+  formatFilter,
+  fromSpecFilter,
+  parseFilters,
+} from "./variable-controls/adhoc"
 
 export const AUTO = "$__auto"
 
@@ -164,11 +168,7 @@ function declaredSelection(
 
 function savedFilters(variable: AdhocVariable): string[] {
   return (variable.default ?? []).map((filter) =>
-    formatFilter({
-      key: filter.key,
-      op: filter.operator,
-      value: filter.value,
-    })
+    formatFilter(fromSpecFilter(filter))
   )
 }
 

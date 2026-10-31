@@ -148,6 +148,9 @@ func adhocDefault(v spec.Variable) Selection {
 	values := make([]string, len(v.Default.Filters))
 	for i, f := range v.Default.Filters {
 		values[i] = f.Key + "|" + f.Operator + "|" + f.Value
+		if f.Condition == datasource.AdhocOr {
+			values[i] = adhocOrPrefix + values[i]
+		}
 	}
 	return Selection{Values: values}
 }
@@ -471,7 +474,7 @@ func autoInterval(rng datasource.TimeRange, v spec.Variable) time.Duration {
 }
 
 func (r *Runner) adhocFilters(st *varState, d *spec.Dashboard, v spec.Variable, sel Selection) ([]datasource.AdhocFilter, error) {
-	if len(sel.Values) == 0 {
+	if len(sel.Values) == 0 && len(v.BaseFilters) == 0 {
 		return nil, nil
 	}
 	if filters, ok := st.parsed.cachedFilters(v.Name, sel.Values); ok {
@@ -481,12 +484,23 @@ func (r *Runner) adhocFilters(st *varState, d *spec.Dashboard, v spec.Variable, 
 	if err != nil {
 		return nil, err
 	}
-	filters := make([]datasource.AdhocFilter, len(sel.Values))
-	for i, text := range sel.Values {
-		if filters[i], err = parseAdhocFilter(v.Name, string(typ), text); err != nil {
+	base := make([]datasource.AdhocFilter, len(v.BaseFilters))
+	for i, f := range v.BaseFilters {
+		base[i] = datasource.AdhocFilter{Key: f.Key, Op: f.Operator, Value: f.Value}
+		if f.Condition == datasource.AdhocOr {
+			base[i].Condition = datasource.AdhocOr
+		}
+		if err := checkAdhocFilter(v.Name, string(typ), base[i]); err != nil {
 			return nil, err
 		}
 	}
+	selected := make([]datasource.AdhocFilter, len(sel.Values))
+	for i, text := range sel.Values {
+		if selected[i], err = parseAdhocFilter(v.Name, string(typ), text); err != nil {
+			return nil, err
+		}
+	}
+	filters := datasource.AndAdhoc(base, selected)
 	st.parsed.storeFilters(v.Name, sel.Values, filters)
 	return filters, nil
 }
@@ -518,10 +532,10 @@ func implicitScope(dsType string, use queryUse) func(spec.Variable) bool {
 }
 
 func (r *Runner) implicitFilters(st *varState, d *spec.Dashboard, selections map[string]Selection, uid string, applies func(spec.Variable) bool) ([]datasource.AdhocFilter, error) {
-	var out []datasource.AdhocFilter
+	var lists [][]datasource.AdhocFilter
 	for _, v := range d.Variables {
 		sel := selections[v.Name]
-		if v.Type != spec.AdhocVariable || len(sel.Values) == 0 || !applies(v) {
+		if v.Type != spec.AdhocVariable || len(sel.Values)+len(v.BaseFilters) == 0 || !applies(v) {
 			continue
 		}
 		resolved, err := ResolveDatasourceUID(d, v.Datasource, selections)
@@ -535,9 +549,9 @@ func (r *Runner) implicitFilters(st *varState, d *spec.Dashboard, selections map
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, filters...)
+		lists = append(lists, filters)
 	}
-	return out, nil
+	return datasource.AndAdhoc(lists...), nil
 }
 
 func implicitGroupBy(d *spec.Dashboard, selections map[string]Selection, uid string, use queryUse) ([]string, error) {
@@ -563,33 +577,43 @@ func implicitGroupBy(d *spec.Dashboard, selections map[string]Selection, uid str
 	return keys, nil
 }
 
+const adhocOrPrefix = "|"
+
+var adhocOperators = []string{"=", "!=", "=~", "!~", "<", ">"}
+
 func parseAdhocFilter(name, dsType, text string) (datasource.AdhocFilter, error) {
-	parts := strings.SplitN(text, "|", 3)
+	rest, isOr := strings.CutPrefix(text, adhocOrPrefix)
+	parts := strings.SplitN(rest, "|", 3)
 	if len(parts) != 3 {
 		return datasource.AdhocFilter{}, fmt.Errorf("%w: variable %q has a filter that is not key|operator|value", ErrInvalidRequest, name)
 	}
 	f := datasource.AdhocFilter{Key: parts[0], Op: parts[1], Value: parts[2]}
-	switch f.Op {
-	case "=", "!=", "=~", "!~":
-	default:
-		return datasource.AdhocFilter{}, fmt.Errorf("%w: variable %q has a filter with an operator other than =, !=, =~ or !~", ErrInvalidRequest, name)
+	if isOr {
+		f.Condition = datasource.AdhocOr
+	}
+	return f, checkAdhocFilter(name, dsType, f)
+}
+
+func checkAdhocFilter(name, dsType string, f datasource.AdhocFilter) error {
+	if !slices.Contains(adhocOperators, f.Op) {
+		return fmt.Errorf("%w: variable %q has a filter with an operator other than =, !=, =~, !~, < or >", ErrInvalidRequest, name)
 	}
 	validKey := spec.IsLabelName(f.Key)
 	if dsType == string(spec.ClickHouse) {
 		validKey = spec.IsColumnArg(f.Key)
 	}
 	if !validKey {
-		return datasource.AdhocFilter{}, fmt.Errorf("%w: variable %q has a filter with an invalid key", ErrInvalidRequest, name)
+		return fmt.Errorf("%w: variable %q has a filter with an invalid key", ErrInvalidRequest, name)
 	}
 	if err := checkValue(name, f.Value); err != nil {
-		return datasource.AdhocFilter{}, err
+		return err
 	}
 	if f.Op == "=~" || f.Op == "!~" {
 		if _, err := regexp.Compile(f.Value); err != nil {
-			return datasource.AdhocFilter{}, fmt.Errorf("%w: variable %q has a filter with an invalid regular expression", ErrInvalidRequest, name)
+			return fmt.Errorf("%w: variable %q has a filter with an invalid regular expression", ErrInvalidRequest, name)
 		}
 	}
-	return f, nil
+	return nil
 }
 
 type queryUse struct {
