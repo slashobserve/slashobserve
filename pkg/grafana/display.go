@@ -589,7 +589,11 @@ func (b *panelBuild) heatmapExemplarColor(d *spec.Display) {
 }
 
 func (b *panelBuild) isLegacyHeatmap() bool {
-	return asString(b.raw["dataFormat"]) != "" && b.c.schemaVersion() < legacyHeatmapV
+	if asString(b.raw["dataFormat"]) == "" {
+		return false
+	}
+	options, _ := asObject(b.raw["options"])
+	return b.c.schemaVersion() < legacyHeatmapV || len(options) == 0
 }
 
 func (b *panelBuild) heatmapCalculation(d *spec.Display) {
@@ -762,6 +766,12 @@ func (b *panelBuild) heatmapTooltip(d *spec.Display) {
 		d.Tooltip = "all"
 	case "none":
 		d.Tooltip = "hidden"
+	}
+	if shown, ok := b.boolOption("options.tooltip.show"); ok {
+		d.Tooltip = ""
+		if !*shown {
+			d.Tooltip = "hidden"
+		}
 	}
 	if flag, ok := b.boolOption("options.tooltip.yHistogram"); ok && *flag {
 		d.TooltipHistogram = flag

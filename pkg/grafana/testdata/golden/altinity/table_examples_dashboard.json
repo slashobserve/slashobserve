@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 2,
-      "imported": 0,
-      "partial": 2,
+      "imported": 2,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,28 +43,9 @@
         "type": "table",
         "source_type": "table",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fontSize",
-          "showHeader",
-          "sort.col",
-          "sort.desc",
-          "styles[0].alias",
-          "styles[0].align",
-          "styles[0].dateFormat",
-          "styles[0].pattern",
-          "styles[0].type",
-          "styles[1].align",
-          "styles[1].colors",
-          "styles[1].decimals",
-          "styles[1].pattern",
-          "styles[1].type",
-          "styles[1].unit",
-          "transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -86,28 +67,9 @@
         "type": "table",
         "source_type": "table",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fontSize",
-          "showHeader",
-          "sort.col",
-          "sort.desc",
-          "styles[0].alias",
-          "styles[0].align",
-          "styles[0].dateFormat",
-          "styles[0].pattern",
-          "styles[0].type",
-          "styles[1].align",
-          "styles[1].colors",
-          "styles[1].decimals",
-          "styles[1].pattern",
-          "styles[1].type",
-          "styles[1].unit",
-          "transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -126,8 +88,8 @@
   },
   "blocks": [
     "dashboard mapped=4 bookkeeping=7",
-    "panel panels[0] mapped=21 reported=16 bookkeeping=5 field_config:1 override:2 query:1",
-    "panel panels[1] mapped=21 reported=16 bookkeeping=5 field_config:1 override:2 query:1"
+    "panel panels[0] mapped=21 no_effect=16 bookkeeping=5 field_config:1 override:2 query:1",
+    "panel panels[1] mapped=21 no_effect=16 bookkeeping=5 field_config:1 override:2 query:1"
   ],
   "spec": {
     "specVersion": "0",

@@ -609,7 +609,7 @@
     "panel panels[4] mapped=20 default=2 no_effect=2 bookkeeping=5 field_config:1 query:1",
     "panel panels[5] mapped=34 default=1 bookkeeping=5 field_config:1 query:1",
     "panel panels[6] mapped=26 bookkeeping=5 field_config:1 query:1",
-    "panel panels[8] mapped=16 default=1 bookkeeping=5 field_config:1 query:1",
+    "panel panels[8] mapped=15 default=1 no_effect=1 bookkeeping=5 field_config:1 query:1",
     "panel panels[9] mapped=22 default=1 bookkeeping=5 field_config:1 query:1",
     "panel panels[10] mapped=37 default=1 bookkeeping=7 field_config:1 query:1",
     "panel panels[11] mapped=37 bookkeeping=7 field_config:1 query:1",

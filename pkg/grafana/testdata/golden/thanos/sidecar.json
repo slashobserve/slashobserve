@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 13,
-      "imported": 9,
-      "partial": 4,
+      "imported": 10,
+      "partial": 3,
       "placeholder": 0,
       "unverified": 0
     },
@@ -207,54 +207,11 @@
         "grafana_path": "rows[2].panels[0]",
         "title": "Successful Upload",
         "type": "table",
-        "source_type": "table",
+        "source_type": "table-old",
         "row": "Last Updated",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "bars",
-          "dashes",
-          "fill",
-          "legend.avg",
-          "legend.current",
-          "legend.max",
-          "legend.min",
-          "legend.show",
-          "legend.total",
-          "legend.values",
-          "lines",
-          "nullPointMode",
-          "pointradius",
-          "styles[0].alias",
-          "styles[0].dateFormat",
-          "styles[0].pattern",
-          "styles[0].type",
-          "styles[1].alias",
-          "styles[1].dateFormat",
-          "styles[1].decimals",
-          "styles[1].link",
-          "styles[1].linkTargetBlank",
-          "styles[1].linkTooltip",
-          "styles[1].pattern",
-          "styles[1].type",
-          "styles[1].unit",
-          "styles[2].dateFormat",
-          "styles[2].decimals",
-          "styles[2].pattern",
-          "styles[2].type",
-          "styles[2].unit",
-          "tooltip.shared",
-          "transform",
-          "yaxes[0].format",
-          "yaxes[0].logBase",
-          "yaxes[0].min",
-          "yaxes[0].show",
-          "yaxes[1].format",
-          "yaxes[1].logBase",
-          "yaxes[1].show"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -457,7 +414,7 @@
     "panel rows[1].panels[0] mapped=70 default=6 bookkeeping=3 query:1",
     "panel rows[1].panels[1] mapped=33 default=6 bookkeeping=3 query:1",
     "panel rows[1].panels[2] mapped=55 reported=3 default=7 bookkeeping=3 query:3",
-    "panel rows[2].panels[0] mapped=8 reported=40 default=12 bookkeeping=3 query:1",
+    "panel rows[2].panels[0] mapped=23 default=12 no_effect=25 bookkeeping=3 query:1",
     "panel rows[3].panels[0] mapped=33 default=6 bookkeeping=3 query:1",
     "panel rows[3].panels[1] mapped=34 default=6 bookkeeping=3 query:1",
     "panel rows[3].panels[2] mapped=54 reported=3 default=7 bookkeeping=3 query:3",
@@ -1030,6 +987,25 @@
                 "format": "table",
                 "interval": "10s",
                 "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "decimals": 2,
+            "overrides": [
+              {
+                "match": {
+                  "field": "Time"
+                },
+                "displayName": "Time",
+                "hidden": true
+              },
+              {
+                "match": {
+                  "field": "Value"
+                },
+                "unit": "s",
+                "decimals": 2,
+                "displayName": "Uploaded Ago"
               }
             ]
           }

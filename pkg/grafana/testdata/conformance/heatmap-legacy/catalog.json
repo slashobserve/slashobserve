@@ -1,0 +1,39 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/heatmap/migrations.ts",
+    "public/app/features/dashboard/state/DashboardMigrator.ts"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    {"id": "dataFormat=tsbuckets", "path": "dataFormat", "value": "tsbuckets"},
+    {"id": "hideZeroBuckets=true", "path": "hideZeroBuckets", "value": true},
+    {"id": "legend.show=false", "path": "legend.show", "value": false},
+    {"id": "reverseYBuckets=true", "path": "reverseYBuckets", "value": true},
+    {"id": "tooltip.show=false", "path": "tooltip.show", "value": false},
+    {"id": "tooltip.showHistogram=true", "path": "tooltip.showHistogram", "value": true},
+    {"id": "tooltipDecimals=2", "path": "tooltipDecimals", "value": 2},
+    {"id": "yAxis.format=s", "path": "yAxis.format", "value": "s"},
+    {"id": "yAxis.decimals=2", "path": "yAxis.decimals", "value": 2},
+    {"id": "yAxis.min=0", "path": "yAxis.min", "value": 0},
+    {"id": "yAxis.max=100", "path": "yAxis.max", "value": 100},
+    {"id": "yAxis.show=false", "path": "yAxis.show", "value": false},
+    {"id": "yAxis.logBase=2", "path": "yAxis.logBase", "value": 2},
+    {"id": "yAxis.logBase=10", "path": "yAxis.logBase", "value": 10},
+    {"id": "color.mode=opacity", "path": "color.mode", "value": "opacity"},
+    {"id": "color.cardColor=hex", "path": "color.cardColor", "value": "#112233", "with": {"color.mode": "opacity"}},
+    {"id": "color.colorScale=linear", "path": "color.colorScale", "value": "linear", "with": {"color.mode": "opacity"}},
+    {"id": "color.exponent=0.8", "path": "color.exponent", "value": 0.8, "with": {"color.mode": "opacity", "color.colorScale": "sqrt"}},
+    {"id": "color.colorScheme=interpolateWarm", "path": "color.colorScheme", "value": "interpolateWarm"},
+    {"id": "color.min=1", "path": "color.min", "value": 1},
+    {"id": "color.max=9", "path": "color.max", "value": 9},
+    {"id": "cards.cardPadding=4", "path": "cards.cardPadding", "value": 4},
+    {"id": "cards.cardRound=3", "path": "cards.cardRound", "value": 3},
+    {"id": "xBucketNumber=60", "path": "xBucketNumber", "value": 60},
+    {"id": "xBucketSize=5m", "path": "xBucketSize", "value": "5m"},
+    {"id": "yBucketNumber=10", "path": "yBucketNumber", "value": 10},
+    {"id": "yBucketSize=2", "path": "yBucketSize", "value": 2},
+    {"id": "yBucketBound=upper", "path": "yBucketBound", "value": "upper", "with": {"dataFormat": "tsbuckets"}},
+    {"id": "highlightCards=false", "path": "highlightCards", "value": false, "expect": "bookkeeping"}
+  ]
+}

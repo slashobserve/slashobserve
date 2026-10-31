@@ -362,7 +362,7 @@ func TestLegacyHeatmapHidesWhatItIsTold(t *testing.T) {
 func TestLegacyHeatmapOptionsTheRendererCannotDrawAreReported(t *testing.T) {
 	cases := []struct{ name, members, path string }{
 		{"a hidden time axis", `"xAxis":{"show":false}`, "xAxis.show"},
-		{"tooltip decimals", `"tooltipDecimals":2`, "tooltipDecimals"},
+		{"tooltip decimals out of range", `"tooltipDecimals":11`, "tooltipDecimals"},
 		{"a split factor", `"yAxis":{"splitFactor":2}`, "yAxis.splitFactor"},
 		{"a log base of 5", `"yAxis":{"logBase":5}`, "yAxis.logBase"},
 		{"a card color with no token", `"color":{"mode":"opacity","cardColor":"purple"}`, "color.cardColor"},
@@ -372,6 +372,51 @@ func TestLegacyHeatmapOptionsTheRendererCannotDrawAreReported(t *testing.T) {
 			_, line := legacyHeatmapDisplay(t, `"dataFormat":"tsbuckets",`+tc.members)
 			if line.Status != statusPartial || !slices.Contains(line.Paths, tc.path) {
 				t.Fatalf("status %s, paths %v", line.Status, line.Paths)
+			}
+		})
+	}
+}
+
+func TestLegacyHeatmapTooltipDecimalsAreTheCellDecimals(t *testing.T) {
+	cases := []struct {
+		name, members string
+		want          *int
+	}{
+		{"two decimals", `"tooltipDecimals":2`, ptr(2)},
+		{"zero decimals", `"tooltipDecimals":0`, ptr(0)},
+		{"a text number", `"tooltipDecimals":"3"`, ptr(3)},
+		{"null", `"tooltipDecimals":null`, nil},
+		{"absent", `"hideZeroBuckets":false`, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d, line := legacyHeatmapDisplay(t, `"dataFormat":"tsbuckets",`+tc.members)
+			requireImported(t, line)
+			if (d.CellDecimals == nil) != (tc.want == nil) || (tc.want != nil && *d.CellDecimals != *tc.want) {
+				t.Fatalf("cellDecimals = %v, want %v", d.CellDecimals, tc.want)
+			}
+		})
+	}
+}
+
+func TestHeatmapIsLegacyWhenItsOptionsAreEmptyOrTheDashboardIsOld(t *testing.T) {
+	cases := []struct {
+		name, schema, members string
+		legacy                bool
+	}{
+		{"empty options on a current dashboard", "39", `"dataFormat":"tsbuckets","options":{},"tooltipDecimals":3`, true},
+		{"absent options on a current dashboard", "39", `"dataFormat":"tsbuckets","tooltipDecimals":3`, true},
+		{"filled options on an old dashboard", "30", `"dataFormat":"tsbuckets","options":{"calculate":false},"tooltipDecimals":3`, true},
+		{"filled options on a current dashboard", "39", `"dataFormat":"tsbuckets","options":{"calculate":false},"tooltipDecimals":3`, false},
+		{"empty options with no data format", "39", `"options":{},"tooltipDecimals":3`, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			doc := strings.Replace(panelDoc("heatmap", upTarget+`,`+tc.members), `"schemaVersion":39`, `"schemaVersion":`+tc.schema, 1)
+			panel, line := convertedPanel(t, doc)
+			requireImported(t, line)
+			if d := displayOf(t, panel); tc.legacy != (d.CellDecimals != nil && *d.CellDecimals == 3) {
+				t.Fatalf("display = %+v", d)
 			}
 		})
 	}

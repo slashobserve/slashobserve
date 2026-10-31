@@ -2,6 +2,7 @@ package grafana
 
 import (
 	"encoding/json"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -333,6 +334,54 @@ func TestLegacyTableStyleAlignImports(t *testing.T) {
 			}
 			requireImported(t, line)
 		})
+	}
+}
+
+func TestLegacyTableStyleKeysGrafanaDoesNotDrawAreNotReported(t *testing.T) {
+	cases := []struct {
+		name, style, reported string
+	}{
+		{"a date format on a number column", `{"pattern":"Value","type":"number","dateFormat":"YYYY-MM-DD"}`, ""},
+		{"a date format on a hidden column", `{"pattern":"Time","type":"hidden","dateFormat":"YYYY-MM-DD"}`, ""},
+		{"link options with the link off", `{"pattern":"Value","type":"number","link":false,"linkUrl":"http://x","linkTooltip":"Drill","linkTargetBlank":true}`, ""},
+		{"link options with no link flag", `{"pattern":"Value","type":"number","linkUrl":"http://x","linkTooltip":"Drill","linkTargetBlank":true}`, ""},
+		{"a date format on a date column", `{"pattern":"Time","type":"date","dateFormat":"YYYY-MM-DD"}`, "styles[0].dateFormat"},
+		{"a link", `{"pattern":"Value","type":"number","link":true,"linkUrl":"http://x"}`, "styles[0].link"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, line := legacyTablePanel(t, `"styles":[`+tc.style+`]`)
+			if tc.reported == "" {
+				requireImported(t, line)
+				return
+			}
+			if line.Status != statusPartial || !slices.Contains(line.Paths, tc.reported) {
+				t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
+			}
+		})
+	}
+}
+
+func TestTableWithStylesAndNoFieldConfigRunsAsAnAngularTable(t *testing.T) {
+	const graphLeftovers = `"bars":false,"lines":true,"fill":1,"linewidth":1,"nullPointMode":"null as zero","legend":{"avg":false,"show":true},"tooltip":{"shared":false,"sort":0,"value_type":"individual"},"xaxis":{"mode":"time","show":true},"yaxes":[{"format":"short","logBase":1,"min":0,"show":true}]`
+	panel, line := convertedPanel(t, panelDoc("table", upTarget+`,"transform":"table","styles":[{"pattern":"Value","type":"number","unit":"s","decimals":2},{"pattern":"/.*/","type":"string","unit":"short"}],`+graphLeftovers))
+	requireImported(t, line)
+	if line.SourceType != "table-old" || line.Type != "table" {
+		t.Fatalf("type = %s, source type = %s", line.Type, line.SourceType)
+	}
+	if panel.Unit != "short" || len(panel.Overrides) != 1 || panel.Overrides[0].Match.Field != "Value" || panel.Overrides[0].Unit != "s" {
+		t.Fatalf("panel = %+v", panel)
+	}
+}
+
+func TestMigratedTableKeepsItsAngularKeysWithoutANote(t *testing.T) {
+	const fieldConfig = `"fieldConfig":{"defaults":{"custom":{"align":null}},"overrides":[]},"options":{"showHeader":true}`
+	const angular = `"transform":"table","showHeader":true,"fontSize":"100%","columns":[{"text":"Avg","value":"avg"}],"sort":{"col":1,"desc":false},"styles":[{"pattern":"Time","type":"date","dateFormat":"YYYY-MM-DD","alias":"Time","align":"auto"},{"pattern":"/.*/","type":"number","unit":"short","decimals":2,"colors":["red","green","blue"],"thresholds":[1,2],"colorMode":"cell","link":true,"linkUrl":"http://x","linkTooltip":"Drill","linkTargetBlank":true}],"yaxes":[{"format":"short","logBase":1,"min":0,"show":true}],"lines":true,"bars":false,"legend":{"show":true,"values":false},"tooltip":{"shared":true}`
+	plain, _ := convertedPanel(t, panelDoc("table", upTarget+","+fieldConfig))
+	left, line := convertedPanel(t, panelDoc("table", upTarget+","+fieldConfig+","+angular))
+	requireImported(t, line)
+	if line.SourceType != "table" || !reflect.DeepEqual(plain, left) {
+		t.Fatalf("source type = %s, panel = %+v, want %+v", line.SourceType, left, plain)
 	}
 }
 

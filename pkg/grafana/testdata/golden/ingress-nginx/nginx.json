@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 14,
-      "imported": 12,
-      "partial": 2,
+      "imported": 13,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -348,28 +348,9 @@
         "type": "heatmap",
         "source_type": "heatmap",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "color.cardColor",
-          "color.colorScale",
-          "color.colorScheme",
-          "color.exponent",
-          "color.mode",
-          "dataFormat",
-          "hideZeroBuckets",
-          "legend.show",
-          "reverseYBuckets",
-          "tooltip.show",
-          "tooltip.showHistogram",
-          "xAxis.show",
-          "yAxis.format",
-          "yAxis.logBase",
-          "yAxis.show",
-          "yBucketBound"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -427,7 +408,7 @@
     "panel panels[9] mapped=40 default=1 bookkeeping=5 field_config:1 query:1",
     "panel panels[10] mapped=79 reported=1 bookkeeping=8 field_config:1 override:7 query:5 transformation:1",
     "panel panels[11] mapped=51 default=1 bookkeeping=7 field_config:1 query:3",
-    "panel panels[12] mapped=30 reported=16 default=1 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[12] mapped=30 default=1 no_effect=17 bookkeeping=4 field_config:1 query:1",
     "panel panels[13] mapped=33 bookkeeping=5 field_config:1 override:2 query:1 transformation:1"
   ],
   "spec": {

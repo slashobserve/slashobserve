@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 44,
-      "imported": 7,
-      "partial": 37,
+      "imported": 8,
+      "partial": 36,
       "placeholder": 0,
       "unverified": 0
     },
@@ -336,29 +336,9 @@
         "type": "heatmap",
         "source_type": "heatmap",
         "row": "Controller Stats",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "color.cardColor",
-          "color.colorScale",
-          "color.colorScheme",
-          "color.exponent",
-          "color.mode",
-          "dataFormat",
-          "hideZeroBuckets",
-          "legend.show",
-          "reverseYBuckets",
-          "tooltip.show",
-          "tooltip.showHistogram",
-          "tooltipDecimals",
-          "xAxis.show",
-          "yAxis.format",
-          "yAxis.logBase",
-          "yAxis.show",
-          "yBucketBound"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -718,23 +698,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "color.cardColor",
-          "color.colorScale",
-          "color.colorScheme",
-          "color.exponent",
-          "color.mode",
-          "dataFormat",
-          "fieldConfig.defaults.unitScale",
-          "hideZeroBuckets",
-          "legend.show",
-          "reverseYBuckets",
-          "tooltip.show",
-          "tooltip.showHistogram",
-          "xAxis.show",
-          "yAxis.format",
-          "yAxis.logBase",
-          "yAxis.show",
-          "yBucketBound"
+          "fieldConfig.defaults.unitScale"
         ],
         "queries": [
           {
@@ -759,23 +723,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "color.cardColor",
-          "color.colorScale",
-          "color.colorScheme",
-          "color.exponent",
-          "color.mode",
-          "dataFormat",
-          "fieldConfig.defaults.unitScale",
-          "hideZeroBuckets",
-          "legend.show",
-          "reverseYBuckets",
-          "tooltip.show",
-          "tooltip.showHistogram",
-          "xAxis.show",
-          "yAxis.format",
-          "yAxis.logBase",
-          "yAxis.show",
-          "yBucketBound"
+          "fieldConfig.defaults.unitScale"
         ],
         "queries": [
           {
@@ -1173,7 +1121,7 @@
     "panel panels[9].panels[0] mapped=42 reported=1 default=9 bookkeeping=3 query:1",
     "panel panels[9].panels[1] mapped=41 reported=1 default=9 bookkeeping=3 query:1",
     "panel panels[10].panels[0] mapped=36 reported=1 default=10 bookkeeping=3 query:1",
-    "panel panels[10].panels[1] mapped=7 reported=17 no_effect=1 bookkeeping=3 query:1",
+    "panel panels[10].panels[1] mapped=24 no_effect=1 bookkeeping=3 query:1",
     "panel panels[10].panels[2] mapped=38 reported=1 default=10 bookkeeping=3 query:1",
     "panel panels[10].panels[3] mapped=37 default=10 bookkeeping=3 query:1",
     "panel panels[10].panels[4] mapped=38 default=10 bookkeeping=3 query:1",
@@ -1188,8 +1136,8 @@
     "panel panels[13].panels[2] mapped=36 default=10 bookkeeping=3 query:1",
     "panel panels[14].panels[0] mapped=32 reported=1 default=11 bookkeeping=4 field_config:1 query:1",
     "panel panels[14].panels[1] mapped=32 reported=1 default=11 bookkeeping=4 field_config:1 query:1",
-    "panel panels[14].panels[2] mapped=30 reported=17 default=1 no_effect=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[14].panels[3] mapped=30 reported=17 default=1 no_effect=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[14].panels[2] mapped=30 reported=1 default=1 no_effect=17 bookkeeping=4 field_config:1 query:1",
+    "panel panels[14].panels[3] mapped=30 reported=1 default=1 no_effect=17 bookkeeping=4 field_config:1 query:1",
     "panel panels[14].panels[4] mapped=33 reported=2 default=10 bookkeeping=3 field_config:1 query:1",
     "panel panels[14].panels[5] mapped=32 reported=1 default=10 bookkeeping=3 query:1",
     "panel panels[15].panels[0] mapped=34 reported=2 default=11 bookkeeping=4 field_config:1 query:1",
@@ -1862,10 +1810,13 @@
             ],
             "display": {
               "colorMode": "scheme",
-              "colorScheme": "oranges",
+              "colorScheme": "redYellowGreen",
               "colorSteps": 64,
               "cellGap": 1,
-              "showValues": "auto"
+              "cellDecimals": 0,
+              "hideBelow": -1,
+              "yUnit": "short",
+              "tooltipHistogram": true
             }
           },
           {

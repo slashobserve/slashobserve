@@ -2,6 +2,7 @@ package grafana
 
 import (
 	"encoding/json"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -23,6 +24,50 @@ func TestHeatmapWithoutOptionsImportsGrafanasDefaults(t *testing.T) {
 	}
 	if d.ColorScale != "" || d.ColorFill != "" || d.Legend != "" || d.HideBelow != nil || d.HideAbove != nil || d.CellRadius != 0 {
 		t.Fatalf("display = %+v", d)
+	}
+}
+
+func TestHeatmapAngularKeysLeftOnAMigratedHeatmapImportWithoutANote(t *testing.T) {
+	const angular = `"dataFormat":"tsbuckets","yBucketBound":"upper","yAxis":{"format":"s","logBase":2,"show":false,"min":"1","max":"9","decimals":2,"splitFactor":3},"xAxis":{"show":false},"tooltip":{"show":false,"showHistogram":true},"tooltipDecimals":4,"reverseYBuckets":true,"legend":{"show":false},"hideZeroBuckets":true,"highlightCards":false,"color":{"mode":"opacity","cardColor":"#112233","colorScale":"linear","colorScheme":"interpolateWarm","exponent":0.8,"min":1,"max":9},"cards":{"cardPadding":4,"cardRound":3},"xBucketNumber":10,"xBucketSize":"5m","yBucketNumber":10,"yBucketSize":2`
+	plain, _ := convertedPanel(t, panelDoc("heatmap", upTarget+`,"options":{"calculate":false}`))
+	left, line := convertedPanel(t, panelDoc("heatmap", upTarget+`,"options":{"calculate":false},`+angular))
+	requireImported(t, line)
+	if !reflect.DeepEqual(plain, left) {
+		t.Fatalf("panel = %+v, want %+v", left, plain)
+	}
+}
+
+func TestHeatmapColorFieldPropIsNotDrawn(t *testing.T) {
+	cases := []struct{ name, members string }{
+		{"in the defaults", `"fieldConfig":{"defaults":{"color":{"mode":"scheme","schemeName":"Oranges"}},"overrides":[]},"options":{"calculate":false}`},
+		{"in an override", `"fieldConfig":{"defaults":{},"overrides":[{"matcher":{"id":"byName","options":"up"},"properties":[{"id":"color","value":{"mode":"fixed","fixedColor":"red"}}]}]},"options":{"calculate":false}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := convertedPanel(t, panelDoc("heatmap", upTarget+`,`+tc.members))
+			requireImported(t, line)
+			if panel.ColorMode != "" || panel.Color != "" || len(panel.Overrides) != 0 {
+				t.Fatalf("panel = %+v", panel)
+			}
+		})
+	}
+}
+
+func TestHeatmapTooltipShowDecidesTheModeAsGrafanaMigratesIt(t *testing.T) {
+	cases := []struct{ name, tooltip, want string }{
+		{"hidden", `{"show":false}`, "hidden"},
+		{"hidden over a mode", `{"show":false,"mode":"multi"}`, "hidden"},
+		{"shown is the single mode", `{"show":true}`, ""},
+		{"shown over another mode", `{"show":true,"mode":"none"}`, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d, line := heatmapOptions(t, `{"tooltip":`+tc.tooltip+`}`)
+			requireImported(t, line)
+			if d.Tooltip != tc.want {
+				t.Fatalf("tooltip = %q, want %q", d.Tooltip, tc.want)
+			}
+		})
 	}
 }
 

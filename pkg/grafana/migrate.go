@@ -52,6 +52,11 @@ func panelTypeOf(p map[string]any) (typ, sourceType string) {
 			return "gauge", sourceType
 		}
 		return "stat", sourceType
+	case "table":
+		if isAngularTable(p) {
+			return "table", "table-old"
+		}
+		return "table", sourceType
 	case "table-old", "datagrid", "logstable":
 		return "table", sourceType
 	case "logs-new":
@@ -64,6 +69,10 @@ func panelTypeOf(p map[string]any) (typ, sourceType string) {
 		return "state-timeline", sourceType
 	}
 	return sourceType, sourceType
+}
+
+func isAngularTable(p map[string]any) bool {
+	return p["styles"] != nil && !present(p["fieldConfig"])
 }
 
 func isRepeatClone(p map[string]any) bool {
