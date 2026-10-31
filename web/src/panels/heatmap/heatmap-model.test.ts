@@ -646,6 +646,80 @@ describe("calculated time buckets", () => {
   })
 })
 
+describe("calculated time buckets on a log scale", () => {
+  it("spaces columns by the logarithm of the time", () => {
+    const model = build(
+      [series([1000, 1500, 3000, 6000, 16000], [1, 1, 1, 1, 1])],
+      {},
+      {
+        calculate: true,
+        xBucketScale: "log",
+        xBuckets: { mode: "count", value: 4 },
+      }
+    )
+    expect(model.xs).toEqual([1000, 2000, 4000, 8000])
+    expect(
+      model.cells.flat().reduce((sum, n) => (sum ?? 0) + (n ?? 0), 0)
+    ).toBe(5)
+  })
+
+  it("uses xBucketLogBase and a symlog scale that accepts zero", () => {
+    const model = build(
+      [series([0, 2, 4, 10, 15], [1, 1, 1, 1, 1])],
+      {},
+      {
+        calculate: true,
+        xBucketScale: "symlog",
+        xBucketLogBase: 10,
+        xBuckets: { mode: "count", value: 2 },
+      }
+    )
+    expect(model.xs).toEqual([0, 3])
+  })
+})
+
+describe("ordinal rows from the heatmap transform", () => {
+  it("draws one row per distinct value in order of first appearance", () => {
+    const counted = heatmap([series([0, 1, 2, 3], [5, 3, 5, 9])], {
+      type: "heatmap",
+      yScale: "ordinal",
+    })
+    const model = build(counted)
+    expect(model.rows.map((row) => row.label)).toEqual(["5", "3", "9"])
+    expect(model.rows.map((row) => row.range)).toEqual(["5", "3", "9"])
+    expect(model.cells).toEqual([
+      [1, 0, 1, 0],
+      [0, 1, 0, 0],
+      [0, 0, 0, 1],
+    ])
+  })
+})
+
+describe("rows frame value field", () => {
+  const rows: PreparedFrame = {
+    ref: "A",
+    fields: [
+      { name: "Time", type: "time", values: [1, 2] },
+      { name: "Other", type: "number", values: [7, 8] },
+      { name: "Count", type: "number", values: [3, 4] },
+    ],
+  }
+
+  it("reads every number field as a row without rowsValue", () => {
+    expect(build([rows]).rows).toHaveLength(2)
+  })
+
+  it("reads only the named field as the cell value", () => {
+    const model = build([rows], {}, { rowsValue: "Count" })
+    expect(model.rows.map((row) => row.label)).toEqual(["Count"])
+    expect(model.cells).toEqual([[3, 4]])
+  })
+
+  it("keeps a frame whole when it has no field of that name", () => {
+    expect(build([rows], {}, { rowsValue: "Missing" }).rows).toHaveLength(2)
+  })
+})
+
 describe("calculated value buckets", () => {
   const values = [0, 4, 8, 12, 16]
   const frame = series(

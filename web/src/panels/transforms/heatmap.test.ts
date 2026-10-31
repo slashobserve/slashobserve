@@ -96,6 +96,81 @@ describe("heatmap", () => {
     ;[2, 4, 8, 8].forEach((edge, at) => expect(yMax[at]).toBeCloseTo(edge))
   })
 
+  it("spaces time columns by the logarithm of the time on a log scale", () => {
+    const stamped: PreparedFrame = {
+      ref: "A",
+      fields: [
+        { name: "t", type: "time", values: [1000, 1500, 3000, 6000, 16000] },
+        { name: "v", type: "number", values: [1, 1, 1, 1, 1] },
+      ],
+    }
+    const [out] = heatmap([stamped], {
+      type: "heatmap",
+      xBuckets: { mode: "count", value: 4 },
+      yBuckets: { mode: "count", value: 1 },
+      xScale: "log",
+    })
+    const [xMin, , , count] = columns(out)
+    expect(xMin).toEqual([1000, 2000, 4000, 8000])
+    expect(count).toEqual([2, 1, 1, 1])
+  })
+
+  it("uses the x log base for the time columns", () => {
+    const stamped: PreparedFrame = {
+      ref: "A",
+      fields: [
+        { name: "t", type: "time", values: [10, 20, 100, 200, 1000] },
+        { name: "v", type: "number", values: [1, 1, 1, 1, 1] },
+      ],
+    }
+    const [out] = heatmap([stamped], {
+      type: "heatmap",
+      xBuckets: { mode: "count", value: 3 },
+      yBuckets: { mode: "count", value: 1 },
+      xScale: "log",
+      xLogBase: 10,
+    })
+    const [xMin, , , count] = columns(out)
+    expect(xMin).toEqual([10, 46, 215])
+    expect(count).toEqual([2, 2, 1])
+  })
+
+  it("spaces time columns on a symlog scale from zero", () => {
+    const stamped: PreparedFrame = {
+      ref: "A",
+      fields: [
+        { name: "t", type: "time", values: [0, 2, 4, 10, 15] },
+        { name: "v", type: "number", values: [1, 1, 1, 1, 1] },
+      ],
+    }
+    const [out] = heatmap([stamped], {
+      type: "heatmap",
+      xBuckets: { mode: "count", value: 4 },
+      yBuckets: { mode: "count", value: 1 },
+      xScale: "symlog",
+    })
+    const [xMin, , , count] = columns(out)
+    expect(xMin).toEqual([0, 1, 3, 7])
+    expect(count).toEqual([1, 1, 1, 2])
+  })
+
+  it("gives each distinct value its own row in order of first appearance on an ordinal scale", () => {
+    const states: PreparedFrame = {
+      ref: "A",
+      fields: [
+        { name: "t", type: "time", values: [0, 1, 2, 3] },
+        { name: "v", type: "number", values: [5, 3, 5, 9] },
+      ],
+    }
+    const [out] = heatmap([states], { type: "heatmap", yScale: "ordinal" })
+    expect(columns(out)).toEqual([
+      [0, 2, 1, 3],
+      [5, 5, 3, 9],
+      [5, 5, 3, 9],
+      [1, 1, 1, 1],
+    ])
+  })
+
   it("adds up the samples of every series that land in the same cell", () => {
     const other: PreparedFrame = {
       ref: "B",

@@ -21,6 +21,7 @@ const (
 	maxReducers       = 10
 	maxWindowSize     = 10000
 	maxSortThen       = 10
+	maxRowInclude     = 50
 
 	defaultWindowShare = 0.1
 )
@@ -481,9 +482,23 @@ func calculateTransform(b *panelBuild, opts map[string]any, path string) (spec.T
 	if !ok {
 		return t, false
 	}
+	b.reportRowCalculationOptions(opts, mode, path)
 	t.Alias, _ = cutRunes(cmp.Or(asString(opts["alias"]), fallback), maxNameMatch)
 	t.Replace = truthy(opts["replaceFields"])
 	return t, true
+}
+
+func (b *panelBuild) reportRowCalculationOptions(opts map[string]any, mode, path string) {
+	if joined, ok := opts["timeSeries"].(bool); ok && !joined {
+		b.partial(path+".options.timeSeries", "Calculating on each series without joining them by time first is not supported yet.")
+	}
+	if mode == "reduceRow" {
+		return
+	}
+	reduce, _ := asObject(opts["reduce"])
+	if present(reduce["include"]) {
+		b.partial(path+".options.reduce.include", "Only a row reduction takes a list of fields.")
+	}
 }
 
 func binaryMode(b *panelBuild, t *spec.Transform, opts map[string]any, path string) (string, bool) {
@@ -504,10 +519,30 @@ func reduceRowMode(b *panelBuild, t *spec.Transform, opts map[string]any, path s
 		return "", false
 	}
 	t.ReduceRow = reducer
-	if present(reduce["include"]) {
-		b.partial(path+".options.reduce.include", "")
+	t.Include = rowIncludeNames(b, reduce["include"], path+".options.reduce.include")
+	if present(reduce["nullValueMode"]) {
+		b.partial(path+".options.reduce.nullValueMode", "Choosing how a row calculation treats null values is not supported yet.")
 	}
 	return reducerDisplayName(reducer)
+}
+
+func rowIncludeNames(b *panelBuild, v any, path string) []string {
+	items, _ := asArray(v)
+	var names []string
+	for _, item := range items {
+		name, isText := item.(string)
+		switch {
+		case !isText || !validLength(name, maxFieldName):
+			b.partial(path, fieldNameLenReason)
+		case slices.Contains(names, name):
+		case len(names) == maxRowInclude:
+			b.partial(path, fmt.Sprintf("A row calculation reduces at most %d fields.", maxRowInclude))
+			return names
+		default:
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 func (b *panelBuild) optionalFieldName(options map[string]any, key, path string) (string, bool) {

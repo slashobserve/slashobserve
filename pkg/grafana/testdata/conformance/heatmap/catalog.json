@@ -14,7 +14,7 @@
     { "id": "options.calculation.xBuckets.value=10", "path": "options.calculation.xBuckets.value", "value": "10", "with": {"options.calculate": true} },
     { "id": "options.calculation.xBuckets.scale.type=log", "path": "options.calculation.xBuckets.scale.type", "value": "log", "with": {"options.calculate": true} },
     { "id": "options.calculation.xBuckets.scale.type=symlog", "path": "options.calculation.xBuckets.scale.type", "value": "symlog", "with": {"options.calculate": true} },
-    { "id": "options.calculation.xBuckets.scale.log=2", "path": "options.calculation.xBuckets.scale.log", "value": 2, "with": {"options.calculate": true, "options.calculation.xBuckets.scale.type": "log"} },
+    { "id": "options.calculation.xBuckets.scale.log=2", "path": "options.calculation.xBuckets.scale.log", "value": 2, "with": {"options.calculate": true, "options.calculation.xBuckets.scale.type": "log"}, "expect": "bookkeeping" },
     { "id": "options.calculation.yBuckets.mode=size", "path": "options.calculation.yBuckets.mode", "value": "size", "with": {"options.calculate": true} },
     { "id": "options.calculation.yBuckets.mode=count", "path": "options.calculation.yBuckets.mode", "value": "count", "with": {"options.calculate": true, "options.calculation.yBuckets.value": "10"} },
     { "id": "options.calculation.yBuckets.value=10", "path": "options.calculation.yBuckets.value", "value": "10", "with": {"options.calculate": true} },

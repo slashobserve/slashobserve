@@ -180,10 +180,11 @@ var (
 	bucketKeys      = []string{"mode", "value", "scale"}
 	bucketScaleKeys = []string{"type", "log"}
 	bucketScales    = []string{"linear", "log", "symlog"}
+	rowBucketScales = append(slices.Clone(bucketScales), "ordinal")
 	bucketModes     = []string{"size", "count"}
 )
 
-func (b *panelBuild) transformBuckets(opts map[string]any, key string, size func(any) (float64, bool), path string) (*spec.Buckets, map[string]any) {
+func (b *panelBuild) transformBuckets(opts map[string]any, key string, size func(any) (float64, bool), scales []string, path string) (*spec.Buckets, map[string]any) {
 	item, ok := asObject(opts[key])
 	if !ok {
 		if present(opts[key]) {
@@ -198,7 +199,7 @@ func (b *panelBuild) transformBuckets(opts map[string]any, key string, size func
 	}
 	scale, _ := asObject(item["scale"])
 	b.reportOtherKeys(scale, bucketScaleKeys, itemPath+".scale")
-	if kind := asString(scale["type"]); present(scale["type"]) && !slices.Contains(bucketScales, kind) {
+	if kind := asString(scale["type"]); present(scale["type"]) && !slices.Contains(scales, kind) {
 		b.partial(itemPath+".scale.type", "")
 	}
 	return b.heatmapBuckets(itemPath, size), scale
@@ -207,13 +208,19 @@ func (b *panelBuild) transformBuckets(opts map[string]any, key string, size func
 func heatmapTransform(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool) {
 	t := spec.Transform{Type: "heatmap", KeepOriginalData: truthy(opts["keepOriginalData"])}
 	var xScale, yScale map[string]any
-	t.XBuckets, xScale = b.transformBuckets(opts, "xBuckets", xBucketSize, path)
-	t.YBuckets, yScale = b.transformBuckets(opts, "yBuckets", yBucketSize, path)
+	t.XBuckets, xScale = b.transformBuckets(opts, "xBuckets", xBucketSize, bucketScales, path)
+	t.YBuckets, yScale = b.transformBuckets(opts, "yBuckets", yBucketSize, rowBucketScales, path)
 	if present(xScale) {
-		b.heatmapXBucketScale(path + ".options.xBuckets.scale")
+		scale, base, written := b.heatmapRowScale(path + ".options.xBuckets.scale")
+		if scale != "linear" {
+			t.XScale = scale
+		}
+		if written {
+			t.XLogBase = base
+		}
 	}
 	if present(yScale) {
-		scale, base, written := b.heatmapRowScale(path + ".options.yBuckets.scale")
+		scale, base, written := b.heatmapRowScale(path+".options.yBuckets.scale", "ordinal")
 		if scale != "linear" {
 			t.YScale = scale
 		}

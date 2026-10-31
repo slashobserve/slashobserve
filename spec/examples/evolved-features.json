@@ -68,6 +68,7 @@
       "gridPos": { "x": 12, "y": 4, "w": 12, "h": 4 }, "datasource": "ch",
       "queries": [{ "query": "SELECT SpanName AS span, quantile(0.99)(Duration) / 1e6 AS p99_ms, count() AS n FROM otel_traces WHERE $__timeFilter(Timestamp) GROUP BY span", "format": "table" }],
       "transform": [
+        { "type": "calculateField", "alias": "spans per millisecond", "reduceRow": "sum", "include": ["p99_ms", "n"] },
         { "type": "organize", "exclude": ["n"], "rename": { "p99_ms": "p99 (ms)" }, "order": ["span", "p99_ms"] },
         { "type": "sortBy", "field": "p99_ms", "desc": true },
         { "type": "reduce", "reducers": ["variance", "uniqueValues"] }
@@ -143,7 +144,11 @@
         { "id": "p_drift", "type": "gauge", "title": "Clock drift",
           "gridPos": { "x": 0, "y": 49, "w": 6, "h": 6 }, "datasource": "prom", "unit": "s",
           "min": -50, "max": 50, "neutral": 0,
-          "queries": [{ "query": "node_timex_offset_seconds{service=\"checkout\"}", "instant": true }] }
+          "queries": [{ "query": "node_timex_offset_seconds{service=\"checkout\"}", "instant": true }] },
+        { "id": "p_latency_heat", "type": "heatmap", "title": "Request latency over time",
+          "gridPos": { "x": 0, "y": 55, "w": 12, "h": 8 }, "datasource": "prom",
+          "queries": [{ "query": "http_request_duration_seconds{service=\"checkout\"}" }],
+          "display": { "calculate": true, "xBuckets": { "mode": "count", "value": 12 }, "xBucketScale": "log", "xBucketLogBase": 10 } }
       ] }
   ]
 }

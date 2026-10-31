@@ -172,8 +172,6 @@ func TestGroupTransformsReport(t *testing.T) {
 		{"regression prediction count out of range", `{"id":"regression","options":{"predictionCount":0.5}}`, "transformations[0].options.predictionCount", 1},
 		{"transpose unknown fill", `{"id":"transpose","options":{"emptyValue":"nan"}}`, "transformations[0].options.emptyValue", 1},
 		{"transpose other option", `{"id":"transpose","options":{"sort":true}}`, "transformations[0].options.sort", 1},
-		{"heatmap logarithmic time buckets", `{"id":"heatmap","options":{"xBuckets":{"scale":{"type":"log","log":10}}}}`, "transformations[0].options.xBuckets.scale.type", 1},
-		{"heatmap ordinal value buckets", `{"id":"heatmap","options":{"yBuckets":{"scale":{"type":"ordinal","log":2}}}}`, "transformations[0].options.yBuckets.scale.type", 1},
 		{"heatmap log base other than 2 or 10", `{"id":"heatmap","options":{"yBuckets":{"scale":{"type":"log","log":3}}}}`, "transformations[0].options.yBuckets.scale.log", 1},
 		{"heatmap bucket size not positive", `{"id":"heatmap","options":{"yBuckets":{"mode":"size","value":-1}}}`, "transformations[0].options.yBuckets.value", 1},
 		{"heatmap unknown bucket mode", `{"id":"heatmap","options":{"xBuckets":{"mode":"auto","value":5}}}`, "transformations[0].options.xBuckets.mode", 1},

@@ -3,6 +3,7 @@ package grafana
 import (
 	"encoding/json"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -123,6 +124,41 @@ func TestTransformOptionsConvert(t *testing.T) {
 			`[{"type":"calculateField","alias":"Max","reduceRow":"max","replace":true}]`,
 		},
 		{
+			"row reduction over chosen fields",
+			`{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"reducer":"sum","include":["a","b"]}}}`,
+			`[{"type":"calculateField","include":["a","b"],"alias":"Total","reduceRow":"sum"}]`,
+		},
+		{
+			"row reduction repeats a field once",
+			`{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"reducer":"max","include":["a","a"]}}}`,
+			`[{"type":"calculateField","include":["a"],"alias":"Max","reduceRow":"max"}]`,
+		},
+		{
+			"row reduction over no chosen field reduces them all",
+			`{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"reducer":"max","include":[]}}}`,
+			`[{"type":"calculateField","alias":"Max","reduceRow":"max"}]`,
+		},
+		{
+			"heatmap logarithmic time buckets",
+			`{"id":"heatmap","options":{"xBuckets":{"mode":"count","value":8,"scale":{"type":"log","log":10}}}}`,
+			`[{"type":"heatmap","xBuckets":{"mode":"count","value":8},"xScale":"log","xLogBase":10}]`,
+		},
+		{
+			"heatmap symlog time buckets of base 2",
+			`{"id":"heatmap","options":{"xBuckets":{"scale":{"type":"symlog","log":2}}}}`,
+			`[{"type":"heatmap","xScale":"symlog"}]`,
+		},
+		{
+			"heatmap linear time buckets are the default",
+			`{"id":"heatmap","options":{"xBuckets":{"scale":{"type":"linear","log":2}}}}`,
+			`[{"type":"heatmap"}]`,
+		},
+		{
+			"heatmap ordinal value buckets",
+			`{"id":"heatmap","options":{"yBuckets":{"scale":{"type":"ordinal","log":2}}}}`,
+			`[{"type":"heatmap","yScale":"ordinal"}]`,
+		},
+		{
 			"sort by several fields",
 			`{"id":"sortBy","options":{"sort":[{"field":"Value","desc":true},{"field":"Time"},{"field":"host","desc":true}]}}`,
 			`[{"type":"sortBy","field":"Value","desc":true,"then":[{"field":"Time"},{"field":"host","desc":true}]}]`,
@@ -175,6 +211,11 @@ func TestTransformOptionsReport(t *testing.T) {
 		{"filterFields matcher of another kind", `{"id":"filterFields","options":{"include":{"id":"byType","options":"number"}}}`, "transformations[0].options.include", 0},
 		{"limit from a global", `{"id":"limit","options":{"limitField":"$__interval"}}`, "transformations[0].options.limitField", 0},
 		{"second sort field without a name", `{"id":"sortBy","options":{"sort":[{"field":"Value"},{"desc":true}]}}`, "transformations[0].options.sort[1]", 1},
+		{"row reduction include with a binary calculation", `{"id":"calculateField","options":{"mode":"binary","binary":{"left":"a","operator":"+","right":"b"},"reduce":{"include":["a"]}}}`, "transformations[0].options.reduce.include", 1},
+		{"row reduction include with a name that is too long", `{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"include":["a","` + strings.Repeat("x", 201) + `"]}}}`, "transformations[0].options.reduce.include", 1},
+		{"row reduction null handling", `{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"reducer":"sum","nullValueMode":"null as zero"}}}`, "transformations[0].options.reduce.nullValueMode", 1},
+		{"calculation without joining series by time", `{"id":"calculateField","options":{"mode":"reduceRow","timeSeries":false}}`, "transformations[0].options.timeSeries", 1},
+		{"heatmap ordinal time buckets", `{"id":"heatmap","options":{"xBuckets":{"scale":{"type":"ordinal"}}}}`, "transformations[0].options.xBuckets.scale.type", 1},
 		{"orderBy", `{"id":"order","options":{"indexByName":{"a":0},"orderBy":[{"type":"name","name":"a"}]}}`, "transformations[0].options.orderBy", 1},
 	}
 	for _, tc := range cases {

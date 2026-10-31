@@ -19,6 +19,7 @@ export type CalculateOptions = Pick<
   | "alias"
   | "expr"
   | "reduceRow"
+  | "include"
   | "unary"
   | "index"
   | "cumulative"
@@ -118,9 +119,15 @@ function fromExpression(
 
 function fromRows(
   frame: PreparedFrame,
-  reducer: Reducer
+  reducer: Reducer,
+  include: string[] | undefined
 ): unknown[] | undefined {
-  const numbers = frame.fields.filter((field) => field.type === "number")
+  const numbers = frame.fields.filter(
+    (field) =>
+      field.type === "number" &&
+      (include === undefined ||
+        include.some((name) => matchesName(frame, field, name)))
+  )
   if (numbers.length === 0) return undefined
   const values: unknown[] = []
   const count = rowCount(frame)
@@ -260,7 +267,7 @@ function valuesFor(
 ): unknown[] | undefined {
   if (options.expr !== undefined) return fromExpression(frame, options.expr)
   if (options.reduceRow !== undefined) {
-    return fromRows(frame, options.reduceRow)
+    return fromRows(frame, options.reduceRow, options.include)
   }
   if (options.unary) return fromUnary(frame, options.unary)
   if (options.index) return fromIndex(frame, options.index)

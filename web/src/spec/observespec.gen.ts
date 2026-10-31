@@ -609,6 +609,13 @@ export type Transform =
       expr?: string;
       reduceRow?: Reducer;
       /**
+       * With reduceRow, reduce only the number fields with these names; names the frame lacks are skipped.
+       *
+       * @minItems 1
+       * @maxItems 50
+       */
+      include?: FieldName[];
+      /**
        * Apply fn to a number field; absent field means the first number field, absent fn means abs.
        */
       unary?: {
@@ -901,8 +908,19 @@ export type Transform =
       type: "heatmap";
       xBuckets?: HeatmapBuckets;
       yBuckets?: HeatmapBuckets;
-      yScale?: "linear" | "log" | "symlog";
+      /**
+       * Spacing of the value rows; ordinal gives each distinct value its own row, in order of first appearance.
+       */
+      yScale?: "linear" | "log" | "symlog" | "ordinal";
       yLogBase?: 2 | 10;
+      /**
+       * Spacing of the time columns; log and symlog space them by the logarithm of the time, with 16 columns when xBuckets has no count, and a size is then a step in scaled units, not seconds. Absent is linear.
+       */
+      xScale?: "linear" | "log" | "symlog";
+      /**
+       * Base of a logarithmic xScale; 2 when absent.
+       */
+      xLogBase?: 2 | 10;
       keepOriginalData?: boolean;
       queries?: TransformQueries30;
     }
