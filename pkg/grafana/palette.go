@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+const themeTextColor = "text"
+
 var shadePrefixes = []string{"super-light-", "semi-dark-", "light-", "dark-"}
 
 var seriesPalette = map[string]string{
@@ -100,7 +102,22 @@ func seriesColor(s string) (string, bool) {
 	if hex, ok := seriesPalette[strings.ToLower(s)]; ok {
 		return hex, true
 	}
-	return literalColor(s)
+	if s == themeTextColor {
+		return themeTextColor, true
+	}
+	if hex, ok := literalColor(s); ok {
+		return hex, true
+	}
+	hex, ok := cssColorNames[strings.ToLower(s)]
+	return hex, ok
+}
+
+func hexSeriesColor(s string) (string, bool) {
+	color, ok := seriesColor(s)
+	if color == themeTextColor {
+		return "", false
+	}
+	return color, ok
 }
 
 func thresholdColor(s string) (string, bool) {

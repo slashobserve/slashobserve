@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 76,
-      "imported": 75,
-      "partial": 1,
+      "imported": 76,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -946,13 +946,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Troubleshooting",
-        "status": "partial",
-        "reasons": [
-          "This fixed color is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[2].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1927,7 +1923,7 @@
     "panel panels[19].panels[1] mapped=45 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[19].panels[2] mapped=43 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[19].panels[3] mapped=44 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[19].panels[4] mapped=65 reported=1 default=2 no_effect=1 bookkeeping=8 field_config:1 override:3 query:3",
+    "panel panels[19].panels[4] mapped=66 default=2 no_effect=1 bookkeeping=8 field_config:1 override:3 query:3",
     "panel panels[19].panels[5] mapped=41 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[19].panels[6] mapped=46 default=2 no_effect=1 bookkeeping=6 field_config:1 query:2",
     "panel panels[19].panels[7] mapped=44 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
@@ -3620,6 +3616,12 @@
                   "query": "B"
                 },
                 "color": "#73BF69"
+              },
+              {
+                "match": {
+                  "query": "C"
+                },
+                "color": "#808080"
               }
             ],
             "display": {

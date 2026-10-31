@@ -26,6 +26,8 @@
     { "id": "options.percentChangeColorMode=same_as_value", "path": "options.percentChangeColorMode", "value": "same_as_value", "with": {"options.showPercentChange": true} },
     { "id": "options.text.titleSize=20", "path": "options.text.titleSize", "value": 20 },
     { "id": "options.text.valueSize=40", "path": "options.text.valueSize", "value": 40 },
+    { "id": "options.text.titleSize=2", "path": "options.text.titleSize", "value": 2 },
+    { "id": "options.text.valueSize=1", "path": "options.text.valueSize", "value": 1 },
     { "id": "options.text.percentSize=14", "path": "options.text.percentSize", "value": 14 },
     { "id": "options.orientation=vertical", "path": "options.orientation", "value": "vertical" },
     { "id": "options.orientation=horizontal", "path": "options.orientation", "value": "horizontal" },

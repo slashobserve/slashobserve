@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 27,
-      "imported": 26,
-      "partial": 1,
+      "imported": 27,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -85,13 +85,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Information",
-        "status": "partial",
-        "reasons": [
-          "The threshold color \"text\" is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.thresholds.steps[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -721,7 +717,7 @@
     "dashboard mapped=7 excluded=2 bookkeeping=9",
     "panel panels[1] mapped=17 bookkeeping=4 field_config:1 query:1",
     "panel panels[2] mapped=17 bookkeeping=4 field_config:1 query:1",
-    "panel panels[3] mapped=15 reported=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[3] mapped=16 bookkeeping=4 field_config:1 query:1",
     "panel panels[4] mapped=17 bookkeeping=4 field_config:1 query:1",
     "panel panels[6] mapped=35 default=1 no_effect=2 bookkeeping=4 field_config:1 query:1",
     "panel panels[7] mapped=35 default=1 no_effect=2 bookkeeping=4 field_config:1 query:1",
@@ -892,6 +888,11 @@
               {
                 "query": "sum(prometheus_tsdb_head_series{pod=~\"$pod\", cluster=~\"$cluster\"}) by (pod)",
                 "legend": "__auto"
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "text"
               }
             ],
             "noValue": "0",

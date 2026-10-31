@@ -134,7 +134,7 @@ func (b *panelBuild) actionColor(read, report string, raw map[string]any) string
 		return ""
 	}
 	b.consume(read + ".style.backgroundColor")
-	color, ok := seriesColor(text)
+	color, ok := hexSeriesColor(text)
 	if !ok {
 		b.issues.add(report+".style.backgroundColor", fmt.Sprintf("The color %q is not supported yet.", text))
 	}

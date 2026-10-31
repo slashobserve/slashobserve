@@ -20,7 +20,7 @@ const (
 	maxBucketCount        = 1000
 	maxReduceRows         = 5000
 	maxReduceFieldsLength = 200
-	minStatTextSize       = 6
+	minStatTextSize       = 1
 	maxVizLimit           = 2000
 	maxTextSize           = 200
 	minTooltipSize        = 100

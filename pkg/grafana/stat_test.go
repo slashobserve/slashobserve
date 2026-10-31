@@ -37,8 +37,13 @@ func TestStatTextSizesImportAndOutOfRangeSizesAreReported(t *testing.T) {
 		t.Fatalf("display = %+v, status %s, paths %v", d, line.Status, line.Paths)
 	}
 
+	d, line = statPanel(t, `{"text":{"titleSize":2,"valueSize":1}}`)
+	if d.TitleSize != 2 || d.ValueSize != 1 || line.Status != statusImported {
+		t.Fatalf("display = %+v, status %s, paths %v", d, line.Status, line.Paths)
+	}
+
 	cases := []struct{ name, options, path string }{
-		{"title below 6", `{"text":{"titleSize":5}}`, "options.text.titleSize"},
+		{"title below 1", `{"text":{"titleSize":0}}`, "options.text.titleSize"},
 		{"title above 200", `{"text":{"titleSize":201}}`, "options.text.titleSize"},
 		{"value fractional", `{"text":{"valueSize":12.5}}`, "options.text.valueSize"},
 	}
@@ -104,8 +109,12 @@ func TestStatPercentSizeImportsAndOutOfRangeSizesAreReported(t *testing.T) {
 	if d.PercentSize != 14 || line.Status != statusImported {
 		t.Fatalf("display = %+v, status %s, paths %v", d, line.Status, line.Paths)
 	}
+	d, line = statPanel(t, `{"text":{"percentSize":1}}`)
+	if d.PercentSize != 1 || line.Status != statusImported {
+		t.Fatalf("display = %+v, status %s, paths %v", d, line.Status, line.Paths)
+	}
 	cases := []struct{ name, options string }{
-		{"below 6", `{"text":{"percentSize":5}}`},
+		{"below 1", `{"text":{"percentSize":0}}`},
 		{"above 200", `{"text":{"percentSize":201}}`},
 		{"fractional", `{"text":{"percentSize":12.5}}`},
 	}
