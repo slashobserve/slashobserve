@@ -12,9 +12,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { labelNamesQuery, labelValuesQuery } from "@/panel-editor/queries"
+import type { AdhocVariable } from "@/spec"
 
 import {
   keyHint,
+  listedFilterProblem,
+  listedProblemHint,
   maxAdhocFilters,
   opsFor,
   validFilter,
@@ -52,6 +55,7 @@ function NameField({ id, value, suggestions, onChange }: FieldProps) {
 }
 
 type Props = {
+  variable: AdhocVariable
   datasource: string
   datasourceType: string | undefined
   count: number
@@ -59,6 +63,7 @@ type Props = {
 }
 
 export function AdhocFilterForm({
+  variable,
   datasource,
   datasourceType,
   count,
@@ -74,19 +79,28 @@ export function AdhocFilterForm({
   const suggests = datasourceType === "prometheus"
   const names = useQuery({
     ...labelNamesQuery(datasource, {}),
-    enabled: suggests,
+    enabled: suggests && variable.keys === undefined,
   })
-  const keyKnown = suggests && (names.data?.labels.includes(key) ?? false)
+  const keyList = variable.keys ?? (suggests ? names.data?.labels : undefined)
+  const keyKnown = suggests && (keyList?.includes(key) ?? false)
   const values = useQuery({
     ...labelValuesQuery(datasource, key, {}),
     enabled: keyKnown,
   })
+  const valueList = suggests && keyKnown ? values.data?.values : undefined
 
   const ops = opsFor(datasourceType)
   const full = count >= maxAdhocFilters
   const keyProblem = key !== "" && !validKey(key, datasourceType)
   const filter: AdhocFilter = { key, op, value }
-  const canAdd = !full && value !== "" && validFilter(filter, datasourceType)
+  const listedProblem = variable.listedValuesOnly
+    ? listedFilterProblem(filter, keyList, valueList)
+    : null
+  const canAdd =
+    !full &&
+    value !== "" &&
+    validFilter(filter, datasourceType) &&
+    listedProblem === null
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -100,11 +114,15 @@ export function AdhocFilterForm({
         <NameField
           id={keyId}
           value={key}
-          suggestions={suggests ? (names.data?.labels ?? []) : undefined}
+          suggestions={
+            variable.keys ?? (suggests ? (keyList ?? []) : undefined)
+          }
           onChange={setKey}
         />
         {keyProblem ? (
           <p className="text-xs text-destructive">{keyHint(datasourceType)}</p>
+        ) : listedProblem === "key" && (key !== "" || value !== "") ? (
+          <p className="text-xs text-destructive">{listedProblemHint.key}</p>
         ) : null}
       </div>
       <div className="flex flex-col gap-1.5">
@@ -136,6 +154,9 @@ export function AdhocFilterForm({
           suggestions={suggests ? (values.data?.values ?? []) : undefined}
           onChange={setValue}
         />
+        {listedProblem === "value" && value !== "" ? (
+          <p className="text-xs text-destructive">{listedProblemHint.value}</p>
+        ) : null}
       </div>
       {full ? (
         <p className="text-xs text-destructive">At most 20 filters.</p>

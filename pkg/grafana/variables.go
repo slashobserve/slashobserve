@@ -40,7 +40,7 @@ var variableHandledKeys = map[string][]string{
 	"interval":   {"query", "auto", "auto_count", "auto_min"},
 	"textbox":    {"query"},
 	"datasource": {"query", "regex", "multi", "includeAll"},
-	"adhoc":      {"filters", "baseFilters", "enableGroupBy"},
+	"adhoc":      {"filters", "baseFilters", "enableGroupBy", "defaultKeys", "allowCustomValue"},
 	"groupby":    {"multi", "defaultValue"},
 }
 
@@ -713,5 +713,6 @@ func (c *converter) adhocVariable(raw map[string]any, path, name string) (spec.V
 		v.Default = &spec.Selection{Filters: filters}
 	}
 	v.BaseFilters = c.adhocFilterList(raw, "baseFilters", path, subject, ref.src.kind)
+	c.adhocPicker(&v, raw, path, subject, ref.src.kind)
 	return v, true
 }

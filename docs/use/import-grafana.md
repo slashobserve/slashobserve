@@ -42,12 +42,14 @@ A variable that Grafana hides in the controls menu (`hide` 3) imports shown and 
 A saved ad hoc filter list imports as the variable's `default`, and its base filters as `baseFilters`, with each filter's key label and first value label, and a list of values that is the regular expression's alternatives joined with `|`.
 On ClickHouse the operators `<` and `>` and the condition OR import too; on Prometheus those three are reported, because label matchers can only be ANDed and have no comparison.
 A filter with another operator, an invalid key or regular expression, or another condition is reported, in the base filters as in the saved ones.
+An ad hoc variable's `defaultKeys` import as `keys` (up to 100), the keys the filter picker offers instead of asking the datasource; Grafana's key texts are shown as the keys themselves and the report says so.
+On Prometheus, `allowCustomValue: false` imports as `listedValuesOnly`, so a filter's key and value must be picked from the lists the picker shows; on another datasource the picker lists no values, so it is reported.
 A ClickHouse ad hoc variable imports with `applyToAll`, so its filters apply to every query on its datasource (see [Ad hoc filters](../concepts/datasources-and-variables.md#ad-hoc-filters)), and for the Altinity plugin the report notes that Grafana filters only the outermost query.
 A Grafana group-by variable on Prometheus imports as a `groupby` variable, with its current labels (else its default value) as the `default`, up to 20 labels that are valid label names.
 Like Grafana, it adds the selected labels to the grouping of every aggregation in the queries on its datasource, so the queries need no change.
-Saved label options are not kept, because the picker offers the datasource's labels.
+Its saved label options import as `keys` (up to 100 valid label names), the labels the picker offers instead of asking the datasource.
 A group-by variable on any other datasource is dropped and reported.
-A Grafana 13.1 ad hoc variable with `enableGroupBy` on Prometheus imports as the ad hoc variable plus a `groupby` variable on the same datasource and with the same visibility, named `<name>_groupby` (or the first free name that follows that pattern), without saved labels.
+A Grafana 13.1 ad hoc variable with `enableGroupBy` on Prometheus imports as the ad hoc variable plus a `groupby` variable on the same datasource and with the same visibility, named `<name>_groupby` (or the first free name that follows that pattern), without saved labels; it keeps the ad hoc variable's `skipUrlSync` and its `defaultKeys` as `keys`.
 On another datasource, or when the dashboard already holds 20 variables, `enableGroupBy` is reported.
 A min step of `$__interval` or `$__rate_interval` imports as no minimum, and a resolution factor from 2 to 10 is kept as `intervalFactor`.
 A Prometheus query that Grafana runs as both an instant and a range query (`instant` and `range` both on) imports as two queries: the range query keeps its ref, and an `instant` copy without the min step or resolution factor takes the next free ref, which the import report lists as `refId A (instant) -> B`.

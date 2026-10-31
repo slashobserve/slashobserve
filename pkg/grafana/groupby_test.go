@@ -56,7 +56,7 @@ func TestGroupByVariableReportsWhatItDoesNotKeep(t *testing.T) {
 	}{
 		{"different current and default values", `,"current":{"value":"job"},"defaultValue":{"value":"pod"}`, "templating.list[0].defaultValue", []string{"job"}},
 		{"a label that is not a label name", `,"current":{"value":["job","a-b"]}`, "templating.list[0].current", []string{"job"}},
-		{"saved label options", `,"options":[{"text":"job","value":"job"}]`, "templating.list[0].options", nil},
+		{"a saved option that is not a label name", `,"options":[{"value":"job"},{"value":"a-b"}]`, "templating.list[0].options[1]", nil},
 		{"a single-select variable", `,"multi":false`, "templating.list[0].multi", nil},
 		{"an include all option", `,"includeAll":true`, "templating.list[0].includeAll", nil},
 	}
@@ -84,6 +84,57 @@ func TestGroupByVariableCutsSavedLabelsAtTwenty(t *testing.T) {
 	}
 	if !hasPath(notesFor(res, "variable by"), "templating.list[0].current") {
 		t.Fatalf("notes = %+v, want one naming the current selection", notesFor(res, "variable by"))
+	}
+}
+
+func TestGroupByVariableImportsItsSavedOptionsAsKeys(t *testing.T) {
+	cases := []struct {
+		name    string
+		options string
+		want    []string
+		reason  string
+		paths   []string
+	}{
+		{"objects", `[{"text":"job","value":"job"},{"text":"instance","value":"instance"}]`, []string{"job", "instance"}, "", nil},
+		{"plain strings", `["job","pod"]`, []string{"job", "pod"}, "", nil},
+		{"text stands in for a missing value", `[{"text":"job"}]`, []string{"job"}, "", nil},
+		{"duplicates and empty entries go", `[{"value":"job"},{"value":"job"},{"value":""},{"text":""}]`, []string{"job"}, "", nil},
+		{"an empty list writes nothing", `[]`, nil, "", nil},
+		{"a text that differs from the value", `[{"text":"Job","value":"job"},{"text":"pod","value":"pod"},{"text":"Zone","value":"zone"}]`, []string{"job", "pod", "zone"}, "Key labels are shown as the key itself.", []string{"templating.list[0].options[0]", "templating.list[0].options[2]"}},
+		{"an invalid label name", `[{"value":"job"},{"value":"a-b"},{"value":"9x"}]`, []string{"job"}, "A saved label is not a valid label name, so it is not kept.", []string{"templating.list[0].options[1]", "templating.list[0].options[2]"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := convertVariables(t, groupByJSON(`,"options":`+tc.options))
+			if got := variableNamed(t, res, "by").Keys; !slices.Equal(got, tc.want) {
+				t.Fatalf("keys = %v, want %v", got, tc.want)
+			}
+			notes := notesFor(res, "variable by")
+			if tc.reason == "" {
+				if len(notes) != 0 {
+					t.Fatalf("notes = %+v, want none", notes)
+				}
+				return
+			}
+			if len(notes) != 1 || notes[0].Reason != tc.reason || !slices.Equal(notes[0].Paths, tc.paths) {
+				t.Fatalf("notes = %+v, want one %q at %v", notes, tc.reason, tc.paths)
+			}
+		})
+	}
+}
+
+func TestGroupByVariableCutsSavedOptionsAtOneHundred(t *testing.T) {
+	options := make([]string, 102)
+	for i := range options {
+		options[i] = fmt.Sprintf(`{"value":"k%d"}`, i)
+	}
+	res := convertVariables(t, groupByJSON(`,"options":[`+strings.Join(options, ",")+`]`))
+	keys := variableNamed(t, res, "by").Keys
+	if len(keys) != 100 || keys[99] != "k99" {
+		t.Fatalf("keys = %d long, want the first 100", len(keys))
+	}
+	if !hasPath(notesFor(res, "variable by"), "templating.list[0].options") {
+		t.Fatalf("notes = %+v, want one naming the options", notesFor(res, "variable by"))
 	}
 }
 
@@ -132,6 +183,24 @@ func TestAdhocVariableWithGroupByImportsAGroupByVariableBesideIt(t *testing.T) {
 	}
 	if notes := notesFor(res, "variable filters"); len(notes) != 0 {
 		t.Fatalf("notes = %+v, want none", notes)
+	}
+}
+
+func TestAdhocGroupByVariableKeepsSkipUrlSyncAndKeys(t *testing.T) {
+	res := convertVariables(t, `{"name":"filters","type":"adhoc","datasource":`+promRef+`,"enableGroupBy":true,"skipUrlSync":true,"defaultKeys":[{"text":"job","value":"job"},{"text":"pod","value":"pod"}]}`)
+	adhoc, groupBy := variableNamed(t, res, "filters"), variableNamed(t, res, "filters_groupby")
+	if !groupBy.SkipURLSync || !slices.Equal(groupBy.Keys, []string{"job", "pod"}) {
+		t.Fatalf("companion = %+v, want skipUrlSync and the keys job and pod", groupBy)
+	}
+	if !adhoc.SkipURLSync || !slices.Equal(adhoc.Keys, []string{"job", "pod"}) {
+		t.Fatalf("adhoc = %+v, want skipUrlSync and the keys job and pod", adhoc)
+	}
+}
+
+func TestAdhocGroupByVariableWithoutSkipUrlSyncOrKeysWritesNeither(t *testing.T) {
+	res := convertVariables(t, `{"name":"filters","type":"adhoc","datasource":`+promRef+`,"enableGroupBy":true}`)
+	if groupBy := variableNamed(t, res, "filters_groupby"); groupBy.SkipURLSync || groupBy.Keys != nil {
+		t.Fatalf("companion = %+v, want neither skipUrlSync nor keys", groupBy)
 	}
 }
 

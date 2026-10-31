@@ -1222,6 +1222,24 @@
             "$ref": "#/$defs/adhocFilter"
           },
           "description": "Filters always applied to this variable's queries, ANDed with the selected filters as a whole; never shown and never in the URL."
+        },
+        "keys": {
+          "x-omitFromPrompt": true,
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": "The keys the filter picker offers instead of asking the datasource."
+        },
+        "listedValuesOnly": {
+          "x-omitFromPrompt": true,
+          "type": "boolean",
+          "description": "A filter's key and value must be picked from the lists the picker shows; absent means any text may be typed."
         }
       },
       "required": [
@@ -1278,6 +1296,18 @@
             "type": "string",
             "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,199}$"
           }
+        },
+        "keys": {
+          "x-omitFromPrompt": true,
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,199}$"
+          },
+          "description": "The labels the picker offers instead of asking the datasource."
         }
       },
       "required": [

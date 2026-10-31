@@ -7,6 +7,7 @@ import {
   fromSpecFilter,
   keyHint,
   labelsBySavedFilter,
+  listedFilterProblem,
   maxAdhocFilters,
   opsFor,
   parseFilter,
@@ -228,5 +229,52 @@ describe("validFilter", () => {
     expect(validKey("a.b", undefined)).toBe(false)
     expect(keyHint(undefined)).toBe("Use a label name.")
     expect(keyHint("clickhouse")).toBe("Use a column name.")
+  })
+})
+
+describe("listedFilterProblem", () => {
+  const keys = ["job", "instance"]
+  const values = ["api", "web"]
+
+  it("accepts a listed key with a listed value", () => {
+    expect(
+      listedFilterProblem({ key: "job", value: "api" }, keys, values)
+    ).toBe(null)
+  })
+
+  it("blames the key when it is not listed, even if the value is", () => {
+    expect(
+      listedFilterProblem({ key: "pod", value: "api" }, keys, values)
+    ).toBe("key")
+  })
+
+  it("blames the value when only the key is listed", () => {
+    expect(listedFilterProblem({ key: "job", value: "db" }, keys, values)).toBe(
+      "value"
+    )
+  })
+
+  it("blames the key first when neither is listed", () => {
+    expect(listedFilterProblem({ key: "pod", value: "db" }, keys, values)).toBe(
+      "key"
+    )
+  })
+
+  it("treats lists that are still loading as not listing anything", () => {
+    expect(
+      listedFilterProblem({ key: "job", value: "api" }, undefined, values)
+    ).toBe("key")
+    expect(
+      listedFilterProblem({ key: "job", value: "api" }, keys, undefined)
+    ).toBe("value")
+    expect(
+      listedFilterProblem({ key: "job", value: "api" }, undefined, undefined)
+    ).toBe("key")
+  })
+
+  it("matches text exactly", () => {
+    expect(
+      listedFilterProblem({ key: "Job", value: "api" }, keys, values)
+    ).toBe("key")
   })
 })

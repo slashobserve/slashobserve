@@ -877,14 +877,6 @@
         "paths": [
           "templating.list[3].regexApplyTo"
         ]
-      },
-      {
-        "subject": "variable adhoc",
-        "status": "partial",
-        "reason": "Some Grafana options of this variable are not supported yet.",
-        "paths": [
-          "templating.list[4].allowCustomValue"
-        ]
       }
     ]
   },

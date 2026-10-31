@@ -1435,6 +1435,17 @@ export interface AdhocVariable {
    * @maxItems 20
    */
   baseFilters?: AdhocFilter[];
+  /**
+   * The keys the filter picker offers instead of asking the datasource.
+   *
+   * @minItems 1
+   * @maxItems 100
+   */
+  keys?: string[];
+  /**
+   * A filter's key and value must be picked from the lists the picker shows; absent means any text may be typed.
+   */
+  listedValuesOnly?: boolean;
 }
 export interface AdhocFilter {
   key: string;
@@ -1471,6 +1482,13 @@ export interface GroupByVariable {
    * @maxItems 20
    */
   default?: string[];
+  /**
+   * The labels the picker offers instead of asking the datasource.
+   *
+   * @minItems 1
+   * @maxItems 100
+   */
+  keys?: string[];
 }
 /**
  * A dashboard link, either to an address (title and url) or, with type dashboards, to the other dashboards that carry every one of the tags (all other dashboards when there are none), shown inline or as one dropdown. keepTime adds the current from and to and includeVars the var-* selections.

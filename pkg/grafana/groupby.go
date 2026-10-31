@@ -26,9 +26,11 @@ func (c *converter) groupByVariable(raw map[string]any, path, name string) (spec
 	if multi, ok := raw["multi"].(bool); ok && !multi {
 		c.note(subject, "A group-by variable here always selects several labels.", path+".multi")
 	}
-	if options, _ := asArray(raw["options"]); len(options) > 0 {
-		c.note(subject, "Saved label options are not kept: the picker offers the datasource's labels.", path+".options")
-	}
+	options, _ := asArray(raw["options"])
+	v.Keys = c.listedKeys(options, path+".options", subject, keyRule{
+		valid:   spec.IsGroupByKey,
+		invalid: "A saved label is not a valid label name, so it is not kept.",
+	})
 	return v, true
 }
 
@@ -113,5 +115,11 @@ func (c *converter) adhocGroupBy(raw map[string]any, path string, adhoc spec.Var
 		return
 	}
 	name := freeVariableName(adhoc.Name, taken)
-	c.vars = append(c.vars, &builtVar{v: spec.Variable{Name: name, Type: spec.GroupByVariable, Datasource: adhoc.Datasource, Hide: adhoc.Hide}, path: path})
+	companion := spec.Variable{Name: name, Type: spec.GroupByVariable, Datasource: adhoc.Datasource, Hide: adhoc.Hide, SkipURLSync: adhoc.SkipURLSync}
+	for _, key := range adhoc.Keys {
+		if spec.IsGroupByKey(key) {
+			companion.Keys = append(companion.Keys, key)
+		}
+	}
+	c.vars = append(c.vars, &builtVar{v: companion, path: path})
 }

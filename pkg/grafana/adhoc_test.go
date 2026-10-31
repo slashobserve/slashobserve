@@ -1,6 +1,7 @@
 package grafana
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -175,5 +176,65 @@ func TestAdhocBaseFiltersConvertLikeSavedFilters(t *testing.T) {
 				t.Fatalf("notes = %+v, want one %q at %s", notes, tt.reason, tt.wantPath)
 			}
 		})
+	}
+}
+
+func TestAdhocDefaultKeysAndAllowCustomValueConvert(t *testing.T) {
+	tests := []struct {
+		name       string
+		ref        string
+		extra      string
+		wantKeys   []string
+		wantListed bool
+		reason     string
+		wantPaths  []string
+	}{
+		{"objects", promRef, `,"defaultKeys":[{"text":"job","value":"job"},{"text":"pod","value":"pod"}]`, []string{"job", "pod"}, false, "", nil},
+		{"strings", promRef, `,"defaultKeys":["job","pod"]`, []string{"job", "pod"}, false, "", nil},
+		{"duplicates go", promRef, `,"defaultKeys":["job","job"]`, []string{"job"}, false, "", nil},
+		{"an empty list writes nothing", promRef, `,"defaultKeys":[]`, nil, false, "", nil},
+		{"a text that differs from the value", promRef, `,"defaultKeys":[{"text":"Job","value":"job"}]`, []string{"job"}, false,
+			"Key labels are shown as the key itself.", []string{"templating.list[0].defaultKeys[0]"}},
+		{"a key that is not a label name", promRef, `,"defaultKeys":[{"value":"job"},{"value":"a-b"}]`, []string{"job"}, false,
+			"A saved key that is not a label or column name of its datasource is not kept.", []string{"templating.list[0].defaultKeys[1]"}},
+		{"keys on ClickHouse", chRef, `,"defaultKeys":[{"value":"ServiceName"}]`, []string{"ServiceName"}, false, "", nil},
+		{"no custom values on Prometheus", promRef, `,"allowCustomValue":false`, nil, true, "", nil},
+		{"custom values allowed", promRef, `,"allowCustomValue":true`, nil, false, "", nil},
+		{"no custom values on ClickHouse", chRef, `,"allowCustomValue":false`, nil, false,
+			"Only Prometheus ad hoc variables can limit values to the listed ones.", []string{"templating.list[0].allowCustomValue"}},
+		{"custom values allowed on ClickHouse", chRef, `,"allowCustomValue":true`, nil, false, "", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := convertVariables(t, `{"name":"v","type":"adhoc","datasource":`+tt.ref+tt.extra+`}`)
+			v := variableNamed(t, res, "v")
+			if !slices.Equal(v.Keys, tt.wantKeys) || v.ListedValuesOnly != tt.wantListed {
+				t.Fatalf("keys = %v, listedValuesOnly = %v, want %v and %v", v.Keys, v.ListedValuesOnly, tt.wantKeys, tt.wantListed)
+			}
+			notes := notesFor(res, "variable v")
+			if tt.reason == "" {
+				if len(notes) != 0 {
+					t.Fatalf("notes = %+v, want none", notes)
+				}
+				return
+			}
+			if len(notes) != 1 || notes[0].Reason != tt.reason || !slices.Equal(notes[0].Paths, tt.wantPaths) {
+				t.Fatalf("notes = %+v, want one %q at %v", notes, tt.reason, tt.wantPaths)
+			}
+		})
+	}
+}
+
+func TestAdhocDefaultKeysAreCutAtOneHundred(t *testing.T) {
+	keys := make([]string, 101)
+	for i := range keys {
+		keys[i] = fmt.Sprintf(`"k%d"`, i)
+	}
+	res := convertVariables(t, `{"name":"v","type":"adhoc","datasource":`+promRef+`,"defaultKeys":[`+strings.Join(keys, ",")+`]}`)
+	if got := variableNamed(t, res, "v").Keys; len(got) != 100 || got[99] != "k99" {
+		t.Fatalf("keys = %d long, want the first 100", len(got))
+	}
+	if !hasPath(notesFor(res, "variable v"), "templating.list[0].defaultKeys") {
+		t.Fatalf("notes = %+v, want one naming the keys", notesFor(res, "variable v"))
 	}
 }
