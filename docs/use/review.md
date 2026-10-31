@@ -48,9 +48,9 @@ A panel with open comments shows a badge, "N open comments on `<title>`".
 A comment is attached to the latest version when you write it.
 **Add comment** never asks the agent to do anything.
 
-Commenting needs the Commenter role or higher, or Edit on the dashboard's folder.
-A Viewer without that access sees "You can view this dashboard as a Viewer. Ask an Admin if you need to comment."
-A Commenter sees "You can view and comment as a Commenter. An Editor can send your comment to the agent or change the panels."
+Commenting needs the Comment level on the dashboard's folder: the Commenter role or higher, or a Comment entry or higher on the folder.
+Without it you see "You can view dashboards in `<folder>`. Ask an Admin if you need to comment."
+With Comment but not Edit you see "You can view and comment in `<folder>`. Someone with Edit on this folder can send your comment to the agent or change the panels."
 See [Roles](../teams/roles.md) and [Folders](../teams/folders.md).
 
 ## Send a comment to the agent

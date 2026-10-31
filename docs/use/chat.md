@@ -14,8 +14,8 @@ Type into the box labelled "Message the agent" and press Enter (Shift+Enter adds
 A prompt is 1 to 4000 characters and cannot contain control or bidirectional-text characters.
 The box shows "Describe the dashboard you want first." when it is empty and "Use at most 4000 characters." when it is too long.
 
-Starting a dashboard needs the Editor role, because the agent creates a dashboard for you.
-A Commenter or Viewer sees "Starting dashboards needs the Editor role. Ask an Admin if you need it."
+Starting a dashboard needs Edit on a folder, because the agent creates a dashboard for you.
+Without it the chat home shows "Starting a dashboard needs Edit on a folder. Ask an Admin if you need it."
 See [Roles](../teams/roles.md).
 
 The chips under the box list the healthy datasources; the agent can only query datasources the server has configured, see [Prometheus](../connect/prometheus.md) and [ClickHouse](../connect/clickhouse.md).

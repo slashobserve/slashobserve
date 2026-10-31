@@ -64,8 +64,8 @@ The save tools reject a document that creates or edits a placeholder panel, writ
 
 The agent acts as the person or key that asked.
 The server checks the request when it is queued and again when a worker starts it.
-A new dashboard needs the Editor role, and a follow-up or revision needs Edit on the dashboard's folder.
-A new dashboard goes to the folder the requester last created a dashboard in, else General (see [Folders and access](../teams/folders.md)).
+A new dashboard needs Edit on some folder, and a follow-up or revision needs Edit on the dashboard's folder.
+A new dashboard goes to the folder the requester last created a dashboard in, else General when they may create there, else the first folder where they may (see [Folders and access](../teams/folders.md)).
 
 The saved version records the requester as its author and the request that asked for it, and the version menu on the dashboard shows "Agent" as the one who saved it.
 The tool-level roles do not apply inside a run, because the requester was already checked.
