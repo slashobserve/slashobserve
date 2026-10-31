@@ -76,3 +76,10 @@ A change that adds entries to an area that already has a seed must make them pas
 4. Commit the area.
 
 `go test ./pkg/grafana -run 'TestOptionConformance|TestConformanceCatalogs' -count=1 -v` logs one line per area, `<area>: <n> entries, <p> pass, <g> known gaps`, and a total.
+
+## Option map
+
+`TestOptionMapIsCurrent` records, for every passing `convert` entry, the Spec fields that differ between the baseline's Spec and the variant's, keyed by option scope and option path, in `pkg/grafana/optionmap.json`.
+The importer reads that file to name the Spec field an option became.
+The file is generated and never edited by hand: the test fails when it differs from a fresh run, and `make golden` rewrites it.
+Entries with a gap file are left out until they convert.

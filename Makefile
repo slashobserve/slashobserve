@@ -57,7 +57,7 @@ lint: web-deps
 	cd web && bun run format:check
 
 golden:
-	go test ./pkg/grafana -run TestCorpusGoldens -update
+	go test ./pkg/grafana -run 'TestCorpusGoldens|TestOptionMapIsCurrent' -update
 
 tidy-check:
 	go mod tidy -diff

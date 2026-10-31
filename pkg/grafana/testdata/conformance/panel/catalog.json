@@ -1,0 +1,20 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "kinds/dashboard/dashboard_kind.cue"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    { "id": "title=Renamed", "path": "title", "value": "Renamed" },
+    { "id": "description=About", "path": "description", "value": "About this panel" },
+    { "id": "gridPos=moved", "path": "gridPos", "value": {"x": 6, "y": 2, "w": 6, "h": 4} },
+    { "id": "timeFrom=1h", "path": "timeFrom", "value": "1h" },
+    { "id": "timeShift=1d", "path": "timeShift", "value": "1d" },
+    { "id": "maxDataPoints=500", "path": "maxDataPoints", "value": 500 },
+    { "id": "interval=1m", "path": "interval", "value": "1m" },
+    { "id": "repeat=host", "path": "repeat", "value": "host" },
+    { "id": "repeatDirection=v", "path": "repeatDirection", "value": "v", "with": {"repeat": "host"} },
+    { "id": "maxPerRow=4", "path": "maxPerRow", "value": 4, "with": {"repeat": "host"} },
+    { "id": "links=docs", "path": "links", "value": [{"title": "Docs", "url": "https://example.com/docs"}] }
+  ]
+}
