@@ -6,7 +6,7 @@ description: What the server logs and what it never logs.
 Logs are JSON by default on standard error.
 The server does not log secrets, prompt text, query text or tool results.
 Configuration secrets such as the database URL, the OIDC client secret and the LLM key are never logged.
-Request logs record the method, the path (never the query string), the status and the duration.
+Request logs record the method, the path (never the query string), the status, the response size in `bytes` and the duration.
 
 Errors are logged without their message, since a message from a driver or library can echo a query, a connection detail or a credential.
 Those lines carry:
@@ -18,6 +18,7 @@ Those lines carry:
 - the ids that locate the failure, such as `agent_request_id` (look it up with `observe status <id>` or `GET /api/v1/observe/{id}`), `dashboard_id`, `principal_id` and a datasource `uid`
 
 A panic is logged by its Go type (`panic_type`), never its value.
+A datasource that turns unhealthy logs `datasource unhealthy` once, with its `uid` and `type`; it does not log again until the datasource has recovered.
 A refused sign-in also logs the domain of the email address, and a failed code exchange logs the provider's `oauth_error` code (such as `invalid_grant`) when it is a plain code.
 
 A fatal error at startup is logged as `server exiting` with an `error_code`.

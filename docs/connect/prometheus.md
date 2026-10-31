@@ -19,10 +19,12 @@ prometheus:
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `url`                               | Required. `http` or `https`, with a host, and no user info, query or fragment.                          |
 | `scrapeInterval`                    | A Go duration, default `15s`. Feeds the `$__rate_interval` macro and the smallest query step.           |
-| `headers`                           | Plain request headers. Not for secrets.                                                                 |
+| `headers`                           | Plain request headers. Not for secrets. `Content-Type`, `Accept`, `Host` and `Content-Length` are managed by the server and refused. |
 | `headersFromEnv`, `headersFromFile` | Maps of header name to an environment variable name or a file path, for header values that are secrets. |
 | `basicAuth`                         | `username` plus one of `passwordEnv` or `passwordFile`. The password is required.                       |
 | `bearerTokenEnv`, `bearerTokenFile` | A bearer token from an environment variable or a file. Not combinable with `basicAuth`.                 |
+
+The server does not follow redirects, so give the final address, and it refuses a response over 64 MiB.
 
 ## Exemplars
 

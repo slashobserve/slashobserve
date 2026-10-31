@@ -11,6 +11,7 @@ Create a client in your provider and give SlashObserve its settings:
   The server sends PKCE (S256) and a nonce, and asks for the `openid`, `email` and `profile` scopes.
 - Set `SLASHOBSERVE_OIDC_ISSUER_URL` to the issuer exactly as the provider reports it in its discovery document.
   The server fetches `<issuer>/.well-known/openid-configuration` on the first sign-in attempt, not at startup, so a provider that is down when the server boots does not stop it.
+  While discovery fails, the sign-in page shows an error and the log has `oidc discovery failed` with `error_code` `oidc_unavailable`.
 - If the server reaches the provider at a different address than browsers do (for example by a Docker service name), set `SLASHOBSERVE_OIDC_INTERNAL_URL` to that origin.
   Only the server's own calls to the provider are rewritten; the issuer and the browser redirects keep the public address.
   The demo stack does this: browsers use `http://localhost:5556/dex` and the server uses `http://dex:5556`.
@@ -24,3 +25,4 @@ Create a client in your provider and give SlashObserve its settings:
 - The setting is required, so a deployment can never be open by accident.
 
 Users are identified by the provider's issuer and subject, and are created on first sign-in.
+The server also asks for the `groups` scope when the provider lists it in `scopes_supported`, so that `SLASHOBSERVE_OIDC_GROUP_ROLES` can map groups to roles (see [Roles](../teams/roles.md)).

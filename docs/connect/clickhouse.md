@@ -36,3 +36,7 @@ GRANT SELECT ON otel.* TO slashobserve_ro;
 ```
 
 Grant `SELECT` only on the database that holds your OpenTelemetry tables.
+The server also refuses a user that could reach outside systems or create temporary tables.
+It checks with `CHECK GRANT` that the user holds neither `CREATE TEMPORARY TABLE` nor a read or write grant on a source such as `FILE`, `URL`, `REMOTE`, `S3` or `MYSQL`, whether directly, through a role, or through `SOURCES` or `ALL`.
+The datasource then shows as unhealthy with "The ClickHouse user holds a grant that reaches outside systems; revoke it".
+A result over 32 MiB is refused as exceeding a limit, whatever the row limit.

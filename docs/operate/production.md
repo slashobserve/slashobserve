@@ -19,6 +19,8 @@ That address matters beyond links:
 
 Do not buffer or time out `GET /api/v1/dashboards/{id}/events`.
 It is a Server-Sent Events stream that sends a ping every 15 seconds, ends at the first ping after its session or key stops being valid or the person can no longer see the dashboard, and ends after 30 minutes; browsers reconnect on their own.
+Each person can hold 20 streams and one server process 1000; past either limit the server answers `429` or `503` with the code `too_many_streams`.
+Allow request bodies of at least 8 MiB, the size limit of a Grafana import and of an MCP request.
 The server ignores `X-Forwarded-For`.
 
 ## Health endpoints
@@ -26,7 +28,10 @@ The server ignores `X-Forwarded-For`.
 | Endpoint       | Meaning                                                                                                |
 | -------------- | ------------------------------------------------------------------------------------------------------ |
 | `GET /healthz` | Liveness. It checks nothing else, so use it to decide whether to restart.                              |
-| `GET /readyz`  | Readiness. It pings Postgres and confirms no migration is pending; it returns 200 only when both pass. |
+| `GET /readyz`  | Readiness. It pings Postgres and confirms no migration is pending; it returns 200 only when both pass, and 503 otherwise. |
+
+The `/readyz` body names each check, as in `{"status":"ok","checks":{"database":"ok","migrations":"ok"}}`, and a failing check shows `error` and logs `readiness_check_failed`.
+The image's Docker health check runs `slashobserve-server healthcheck`, which requests `/readyz` on the listen address and exits 1 unless it answers 200.
 
 Datasources never affect `/readyz`.
 An unreachable Prometheus shows up as a datasource health problem, not as a server that is down.

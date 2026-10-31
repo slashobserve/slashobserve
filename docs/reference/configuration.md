@@ -28,7 +28,7 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 | `SLASHOBSERVE_SESSION_TTL`                | `168h`  | A Go duration from `5m` to `720h`. A session lasts this long from sign-in.                                                       |
 | `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` | none    | Required. Comma-separated domains, or `*` for every account. See [Sign-in with OIDC](../connect/oidc.md).                        |
 | `SLASHOBSERVE_AUTH_PROVIDER_NAME`         | unset   | Optional. The identity provider's display name, up to 64 characters, shown to signed-in clients next to the sign-in rules.       |
-| `SLASHOBSERVE_ADMIN_EMAILS`               | unset   | Optional. Comma-separated email addresses that are always Admins, at most 100. See [Roles](../teams/roles.md).                              |
+| `SLASHOBSERVE_ADMIN_EMAILS`               | unset   | Optional. Comma-separated email addresses, compared without regard to case, that are always Admins, at most 100. Unset, the earliest person to sign in is the Admin. See [Roles](../teams/roles.md). |
 | `SLASHOBSERVE_OIDC_GROUP_ROLES`           | unset   | Optional. Comma-separated `group=role` entries that map identity-provider groups to roles, at most 100. See [Roles](../teams/roles.md).      |
 
 ## Datasources

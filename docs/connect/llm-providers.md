@@ -14,6 +14,11 @@ With it unset the server starts normally, and:
 The agent sends what its tools return to the provider: datasource and metric names, label values, sampled rows and query results.
 Choose a provider whose data handling fits what your datasources contain.
 
+The server calls `api.anthropic.com` for `anthropic` and `api.openai.com` for `openai`, over HTTPS, unless `SLASHOBSERVE_LLM_BASE_URL` names another server.
+These calls are not covered by the [outbound allowlist](../operate/outbound-access.md), so a firewall that restricts egress must allow the host.
+Neither adapter reads the provider's own environment variables, such as `ANTHROPIC_API_KEY` or `OPENAI_BASE_URL`; set every value through `SLASHOBSERVE_LLM_*`.
+A failed call is retried up to 2 times, inside the request timeout.
+
 ## Anthropic
 
 Anthropic is the default model family.

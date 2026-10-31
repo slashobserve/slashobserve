@@ -32,9 +32,12 @@ Dumps contain session and key hashes and your dashboards, so protect them like t
 3. Watch the log: the server applies pending migrations at startup, each logged as `applied migration` with its version, and `/readyz` returns 200 once they are done.
 
 Migrations run under a Postgres lock, so starting several servers at once is safe: one migrates and the others wait.
-The milestone 1 release changes the dashboard format: migration 10 rewrites every stored dashboard version from the earlier ObserveSpec v0 shape to evolved v0, in one transaction at startup.
+Upgrading from an early release changes the dashboard format: migration 10 rewrites every stored dashboard version from the earlier ObserveSpec v0 shape to evolved v0, in one transaction at startup.
 Take the backup first; this migration cannot be reverted, and an older image cannot read the rewritten versions.
-The server refuses to start if a stored version cannot be upgraded to a valid Spec, for example one that grows past the size limit; the error names the dashboard and version, the database is left unchanged, and you either restore the backup or fix that version.
+The server refuses to start if a stored version cannot be upgraded to a valid Spec, for example one that grows past the size limit; the log shows `migration_failed` with `migration_version` 10 but not which dashboard, the database is left unchanged, and you either restore the backup or fix that version.
+Upgrading from a release before roles and folders also changes access.
+The migrations put every existing dashboard in the General folder and make every existing person and service account an Editor, and the first start then applies the rules in [Roles](../teams/roles.md).
+Set `SLASHOBSERVE_ADMIN_EMAILS` before that first start; otherwise the earliest person who signed in becomes the Admin.
 The server runs migrations forward only; it never runs a migration's down section.
 To go back to an older version, restore the backup you took before upgrading rather than running the older image against a migrated database.
 

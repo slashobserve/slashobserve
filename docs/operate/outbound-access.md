@@ -66,6 +66,7 @@ For dashboards many people open, prefer CARTO or your own tile server (an `xyz` 
 - Both are cached on the server for 1 hour, in a cache separate from the news feeds'.
 - A domain that is not allowed answers `403 outbound_domain_not_allowed`, and the panel shows the image's alt text instead.
   A file that cannot be fetched, is too large or is not what it claims to be answers `502 asset_unavailable`.
+  An address that is not `https` with a domain name answers `400 invalid_asset_url`, and one over 2000 bytes answers `400 invalid_request`.
 - A site that redirects to a content network needs that network's domain on the allowlist too, because each redirect hop is checked.
 
 Each refusal is logged at INFO as `asset fetch failed` with the host, the code and the person's id (`actor_id`), never the address's path or query.
