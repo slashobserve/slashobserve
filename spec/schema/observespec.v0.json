@@ -5578,6 +5578,43 @@
                       "hidden"
                     ]
                   },
+                  "legendMode": {
+                    "x-omitFromPrompt": true,
+                    "enum": [
+                      "list",
+                      "table"
+                    ]
+                  },
+                  "legendValues": {
+                    "x-omitFromPrompt": true,
+                    "type": "array",
+                    "maxItems": 8,
+                    "uniqueItems": true,
+                    "items": {
+                      "$ref": "#/$defs/anyReducer"
+                    }
+                  },
+                  "legendSortBy": {
+                    "x-omitFromPrompt": true,
+                    "anyOf": [
+                      {
+                        "const": "name"
+                      },
+                      {
+                        "$ref": "#/$defs/reducer"
+                      }
+                    ]
+                  },
+                  "legendSortDesc": {
+                    "x-omitFromPrompt": true,
+                    "type": "boolean"
+                  },
+                  "legendWidth": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 40,
+                    "maximum": 2000
+                  },
                   "tooltip": {
                     "enum": [
                       "single",

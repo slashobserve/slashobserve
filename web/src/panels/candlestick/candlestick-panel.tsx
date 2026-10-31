@@ -33,6 +33,7 @@ import {
   type CandleStyle,
   type ColorStrategy,
 } from "./candles"
+import { candlestickLegend } from "./candlestick-legend"
 
 const legendBottomHeight = 28
 const legendRightWidth = 96
@@ -172,14 +173,18 @@ function selectCandlesFor(
   return selectCandles(frames, JSON.parse(optionsKey) as CandleOptions)
 }
 
-function priceConfig(config: FieldConfig, role: CandleRole): FieldConfig {
+function priceConfig(
+  config: FieldConfig,
+  role: CandleRole,
+  listed: boolean
+): FieldConfig {
   return {
     ...config,
     style: "line",
     fill: 0,
     stack: "none",
     hidden: false,
-    hideInLegend: true,
+    hideInLegend: listed ? config.hideInLegend : true,
     insertNulls: undefined,
     nullAsZero: false,
     axis: role === "volume" ? "hidden" : "left",
@@ -189,6 +194,7 @@ function priceConfig(config: FieldConfig, role: CandleRole): FieldConfig {
 const CandlestickPanel: PanelRenderer = (props) => {
   const { frames, fields, display, width, height } = props
   const options = useMemo(() => candleOptions(display), [display])
+  const legend = candlestickLegend(display)
   const optionsKey = useMemo(() => stableJson(options), [options])
   const selection = useMemo(
     () => selectCandlesFor(frames, optionsKey),
@@ -216,9 +222,11 @@ const CandlestickPanel: PanelRenderer = (props) => {
     return placed.series.map(({ frame, field }) => {
       const config = fields.configFor(frame, field)
       const role = roles.get(field)
-      return role === undefined ? config : priceConfig(config, role)
+      return role === undefined
+        ? config
+        : priceConfig(config, role, legend === "series")
     })
-  }, [placed, columns, fields])
+  }, [placed, columns, fields, legend])
   const aligned = useMemo(
     () => (placed ? shapeNulls(placed, configs) : null),
     [placed, configs]
@@ -256,19 +264,23 @@ const CandlestickPanel: PanelRenderer = (props) => {
   }
 
   const shades = directionColors(options)
-  const legendShown = options.legend !== "hidden"
+  const legendShown = legend === "upDown"
   const right = options.legend === "right"
   const chartWidth = width - (legendShown && right ? legendRightWidth : 0)
   const chartHeight = height - (legendShown && !right ? legendBottomHeight : 0)
-  const chartDisplay = {
-    ...display,
-    legend:
-      columns.length < (aligned?.series.length ?? 0)
-        ? options.legend
-        : "hidden",
-    legendValues: [],
-    tooltip: options.tooltip === "hidden" ? "hidden" : "all",
-  }
+  const tooltip = options.tooltip === "hidden" ? "hidden" : "all"
+  const chartDisplay =
+    legend === "series"
+      ? { ...display, tooltip }
+      : {
+          ...display,
+          legend:
+            columns.length < (aligned?.series.length ?? 0)
+              ? options.legend
+              : "hidden",
+          legendValues: [],
+          tooltip,
+        }
 
   return (
     <div
