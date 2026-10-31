@@ -14,6 +14,7 @@ import {
   variableDisplay,
   intervalOptions,
   optionTexts,
+  valuesRange,
   valuesRequests,
 } from "./variables"
 import type { IntervalVariable, Variable } from "@/spec"
@@ -804,5 +805,33 @@ describe("static options", () => {
       resolveSelections([route], { route: [""] }, { route: ["/pay", "/cart"] })
         .selections
     ).toEqual({ route: ["/pay"] })
+  })
+})
+
+describe("valuesRange", () => {
+  const current = { from: "now-24h", to: "now" }
+  const atLoad = { from: "now-1h", to: "now" }
+  const query = (refresh?: "load" | "timeRange" | "never"): Variable => ({
+    ...route,
+    ...(refresh ? { refresh } : {}),
+  })
+
+  it("keeps the range the dashboard loaded with for refresh load, absent and never", () => {
+    for (const variable of [query("load"), query(), query("never")]) {
+      expect(valuesRange(variable, current, atLoad)).toEqual(atLoad)
+    }
+  })
+
+  it("follows the time range for refresh timeRange", () => {
+    expect(valuesRange(query("timeRange"), current, atLoad)).toEqual(current)
+  })
+
+  it("follows the time range for variables that have no refresh setting", () => {
+    const datasource: Variable = {
+      name: "ds",
+      type: "datasource",
+      datasourceType: "prometheus",
+    }
+    expect(valuesRange(datasource, current, atLoad)).toEqual(current)
   })
 })

@@ -65,6 +65,18 @@ export type VariableDisplay = {
   selectable: string[] | undefined
 }
 
+export type ValuesRange = { from?: string; to?: string }
+
+export function valuesRange(
+  variable: Variable,
+  current: ValuesRange,
+  atLoad: ValuesRange
+): ValuesRange {
+  const followsTimeRange =
+    variable.type !== "query" || variable.refresh === "timeRange"
+  return followsTimeRange ? current : atLoad
+}
+
 export function parentKeyOf(selections: Selections): string {
   return JSON.stringify(selections)
 }

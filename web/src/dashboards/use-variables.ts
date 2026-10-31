@@ -14,6 +14,7 @@ import {
   mergeVars,
   parentKeyOf,
   resolveSelections,
+  valuesRange,
   valuesRequests,
   variableDisplay,
   type LoadedValues,
@@ -57,23 +58,28 @@ export function useVariables({
   }>({ dashboardId, vars: {} })
   const sessionVars =
     sessionState.dashboardId === dashboardId ? sessionState.vars : {}
+  const scope = `${dashboardId}:${version}`
+  const [loadRange, setLoadRange] = useState({ scope, from, to })
+  if (loadRange.scope !== scope) setLoadRange({ scope, from, to })
+  const atLoad = loadRange.scope === scope ? loadRange : { from, to }
   const vars = mergeVars(variables, { url: urlVars, session: sessionVars })
   const [knownOptions, setKnownOptions] = useState<VariableOptions>({})
   const requests = valuesRequests(variables, vars, knownOptions)
   const results = useQueries({
     queries: variables.map((variable, index) => {
       const { parents: earlier, parentsReady } = requests[index]
+      const asked = valuesRange(variable, { from, to }, atLoad)
       return {
         queryKey: dashboardKeys.variableValues(
           dashboardId,
           version,
           variable.name,
-          { from, to, selections: earlier }
+          { from: asked.from, to: asked.to, selections: earlier }
         ),
         queryFn: ({ signal }: { signal: AbortSignal }) => {
           const range: { from?: string; to?: string; tz?: string } = {}
-          if (from !== undefined) range.from = from
-          if (to !== undefined) range.to = to
+          if (asked.from !== undefined) range.from = asked.from
+          if (asked.to !== undefined) range.to = asked.to
           const tz = requestZone(timezone)
           if (tz !== undefined) range.tz = tz
           return panelRequestLimiter.run(
