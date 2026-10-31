@@ -20,7 +20,6 @@ datasource.uid
 decimals
 editable
 error
-fieldConfig.defaults.unitScale
 fill
 fillGradient
 hiddenSeries
@@ -56,9 +55,6 @@ pluginVersion
 pointradius
 points
 renderer
-scopedVars.*.selected
-scopedVars.*.text
-scopedVars.*.value
 seriesOverrides[].alias
 seriesOverrides[].color
 seriesOverrides[].fill

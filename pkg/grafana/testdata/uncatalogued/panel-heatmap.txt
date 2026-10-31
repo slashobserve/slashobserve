@@ -9,7 +9,6 @@ datasource
 datasource.type
 datasource.uid
 fieldConfig.defaults.color.schemeName
-fieldConfig.defaults.unitScale
 hideZeroBuckets
 highlightCards
 id
