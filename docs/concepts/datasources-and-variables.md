@@ -50,6 +50,7 @@ On ClickHouse it is one `SELECT`, and the first column gives the values.
 - `natural` and `naturalDesc` compare digit runs as numbers and other text by character, so `a9` comes before `a10`; with equal numbers, the longer run comes first, so `007` comes before `7`.
 
 `refresh: "never"` on a `query` variable runs no query and offers only its `staticOptions`.
+With any other `refresh` value, `load` or `timeRange`, a `query` variable runs its query when the dashboard opens and again whenever the time range changes.
 `staticOptions` (up to 50 `text` and `value` pairs) are offered next to the query results, before them by default, or after them or merged and sorted with `sort` when `staticOrder` is `after` or `sorted`; a value that the query also returns appears once.
 
 A `custom` variable's `options` are strings, or `{ "text": "Production", "value": "prod" }` objects that show `text` in the picker while the selection, the URL and the queries use `value`.
