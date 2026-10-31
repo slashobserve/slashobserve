@@ -1700,6 +1700,16 @@
   }
  },
  "panel:canvas": {
+  "options.infinitePan": {
+   "fields": [
+    "display.infinitePan"
+   ],
+   "values": {
+    "b:true": [
+     "display.infinitePan"
+    ]
+   }
+  },
   "options.panZoom": {
    "fields": [
     "display.panZoom"
@@ -1707,6 +1717,26 @@
    "values": {
     "b:true": [
      "display.panZoom"
+    ]
+   }
+  },
+  "options.root.background.color.fixed": {
+   "fields": [
+    "display.backgroundColor"
+   ],
+   "values": {
+    "s:red": [
+     "display.backgroundColor"
+    ]
+   }
+  },
+  "options.root.border.color.fixed": {
+   "fields": [
+    "display.borderColor"
+   ],
+   "values": {
+    "s:red": [
+     "display.borderColor"
     ]
    }
   },
@@ -2221,6 +2251,18 @@
    "values": {
     "n:20": [
      "display.elements[].left"
+    ]
+   }
+  },
+  "options.root.elements[].placement.right": {
+   "fields": [
+    "display.elements[].left",
+    "display.elements[].placement.right"
+   ],
+   "values": {
+    "n:20": [
+     "display.elements[].left",
+     "display.elements[].placement.right"
     ]
    }
   },
@@ -6101,6 +6143,60 @@
    }
   }
  },
+ "panel:row": {
+  "collapse": {
+   "fields": [
+    "collapsed",
+    "datasource",
+    "display.tooltip",
+    "display.tooltipSort"
+   ],
+   "values": {
+    "b:true": [
+     "collapsed",
+     "datasource",
+     "display.tooltip",
+     "display.tooltipSort"
+    ]
+   }
+  },
+  "collapsed": {
+   "fields": [
+    "collapsed"
+   ],
+   "values": {
+    "b:false": [
+     "collapsed"
+    ]
+   }
+  },
+  "height": {
+   "fields": [
+    "panels[].gridPos.h"
+   ],
+   "values": {
+    "s:300px": [
+     "panels[].gridPos.h"
+    ]
+   }
+  },
+  "showTitle": {
+   "fields": [
+    "datasource",
+    "display.tooltip",
+    "display.tooltipSort",
+    "gridPos.h"
+   ],
+   "values": {
+    "b:true": [
+     "datasource",
+     "display.tooltip",
+     "display.tooltipSort",
+     "gridPos.h"
+    ]
+   }
+  }
+ },
  "panel:singlestat": {
   "colorBackground": {
    "fields": [
@@ -7552,6 +7648,16 @@
     ]
    }
   },
+  "options.footer.enablePagination": {
+   "fields": [
+    "display.pagination"
+   ],
+   "values": {
+    "b:true": [
+     "display.pagination"
+    ]
+   }
+  },
   "options.footer.fields": {
    "fields": [
     "display.footerFields[]"
@@ -7742,6 +7848,29 @@
   }
  },
  "panel:text": {
+  "content": {
+   "fields": [
+    "content"
+   ],
+   "values": {
+    "s:# Legacy\nBody": [
+     "content"
+    ]
+   }
+  },
+  "mode": {
+   "fields": [
+    "mode"
+   ],
+   "values": {
+    "s:code": [
+     "mode"
+    ],
+    "s:html": [
+     "mode"
+    ]
+   }
+  },
   "options.code.language": {
    "fields": [
     "code.language"
@@ -9610,6 +9739,26 @@
     "gridPos.x"
    ]
   },
+  "hideTimeOverride": {
+   "fields": [
+    "hideTimeOverride"
+   ],
+   "values": {
+    "b:true": [
+     "hideTimeOverride"
+    ]
+   }
+  },
+  "id": {
+   "fields": [
+    "id"
+   ],
+   "values": {
+    "n:7": [
+     "id"
+    ]
+   }
+  },
   "interval": {
    "fields": [
     "interval"
@@ -9852,6 +10001,16 @@
    "values": {
     "s:Renamed": [
      "title"
+    ]
+   }
+  },
+  "transparent": {
+   "fields": [
+    "transparent"
+   ],
+   "values": {
+    "b:true": [
+     "transparent"
     ]
    }
   }
@@ -10942,6 +11101,14 @@
     "id:byName": [
      "display.series[]",
      "display.series[].y"
+    ],
+    "id:byNames": [
+     "display.series[]",
+     "display.series[].y"
+    ],
+    "id:byRegexp": [
+     "display.series[]",
+     "display.series[].y"
     ]
    }
   },
@@ -10985,6 +11152,19 @@
     ],
     "s:none": [
      "display.tooltip"
+    ]
+   }
+  },
+  "options.tooltip.sort": {
+   "fields": [
+    "display.tooltipSort"
+   ],
+   "values": {
+    "s:asc": [
+     "display.tooltipSort"
+    ],
+    "s:desc": [
+     "display.tooltipSort"
     ]
    }
   }
@@ -14140,6 +14320,16 @@
      "regex"
     ],
     "s:/prod-.*/": [
+     "regex"
+    ]
+   }
+  },
+  "regexApplyTo": {
+   "fields": [
+    "regex"
+   ],
+   "values": {
+    "s:text": [
      "regex"
     ]
    }

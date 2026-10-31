@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 27,
-      "imported": 7,
-      "partial": 20,
+      "imported": 8,
+      "partial": 19,
       "placeholder": 0,
       "unverified": 0
     },
@@ -617,14 +617,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Troubleshooting",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.filterable",
-          "options.showSearch"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -836,30 +831,6 @@
         "paths": [
           "templating.list[0].allowCustomValue"
         ]
-      },
-      {
-        "subject": "variable job",
-        "status": "partial",
-        "reason": "Some Grafana options of this variable are not supported yet.",
-        "paths": [
-          "templating.list[1].regexApplyTo"
-        ]
-      },
-      {
-        "subject": "variable instance",
-        "status": "partial",
-        "reason": "Some Grafana options of this variable are not supported yet.",
-        "paths": [
-          "templating.list[2].regexApplyTo"
-        ]
-      },
-      {
-        "subject": "variable user",
-        "status": "partial",
-        "reason": "Some Grafana options of this variable are not supported yet.",
-        "paths": [
-          "templating.list[3].regexApplyTo"
-        ]
       }
     ]
   },
@@ -886,7 +857,7 @@
     "panel panels[16].panels[4] mapped=47 reported=2 default=2 no_effect=1 bookkeeping=4 field_config:1 override:1 query:1",
     "panel panels[16].panels[5] mapped=44 reported=2 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[16].panels[6] mapped=44 reported=2 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[17].panels[0] mapped=24 reported=2 bookkeeping=4 field_config:1 override:2 query:1 transformation:1",
+    "panel panels[17].panels[0] mapped=24 no_effect=2 bookkeeping=4 field_config:1 override:2 query:1 transformation:1",
     "panel panels[17].panels[1] mapped=38 reported=2 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[17].panels[2] mapped=41 reported=2 default=2 no_effect=1 bookkeeping=6 field_config:1 query:2",
     "panel panels[17].panels[3] mapped=39 reported=2 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 76,
-      "imported": 74,
-      "partial": 2,
+      "imported": 75,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -1055,14 +1055,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Troubleshooting",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.filterable",
-          "options.showSearch"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1936,7 +1931,7 @@
     "panel panels[19].panels[5] mapped=41 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[19].panels[6] mapped=46 default=2 no_effect=1 bookkeeping=6 field_config:1 query:2",
     "panel panels[19].panels[7] mapped=44 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[19].panels[8] mapped=24 reported=2 bookkeeping=4 field_config:1 override:3 query:1",
+    "panel panels[19].panels[8] mapped=24 no_effect=2 bookkeeping=4 field_config:1 override:3 query:1",
     "panel panels[19].panels[9] mapped=43 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[19].panels[10] mapped=39 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[19].panels[11] mapped=42 default=2 no_effect=1 bookkeeping=4 field_config:1 query:1",

@@ -430,3 +430,34 @@ func TestGeomapMarkersLayerWithALegendIsNotFlat(t *testing.T) {
 		t.Fatal("a layer without a legend or fill opacity is not flat")
 	}
 }
+
+func TestGeomapHeatmapLayerOpacityHasNoEffect(t *testing.T) {
+	layer := `{"type":"heatmap","name":"H","location":{"mode":"auto"},"config":{"blur":15,"radius":5,"opacity":0.6,"weight":{"fixed":1,"min":0,"max":1}}}`
+	doc := panelDoc("geomap", upTarget+`,"options":{"layers":[`+layer+`]}`)
+	_, line := convertedPanel(t, doc)
+	if !clean(line) {
+		t.Fatalf("status = %s, paths %v, want the opacity of a heatmap layer config silent", line.Status, line.Paths)
+	}
+	requireLine(t, blocksOf(t, doc), "panels[0]", "options.layers[0].config.opacity", outcomeNoEffect)
+}
+
+func TestGeomapRotationRangeIsReadOnlyByAClampedFieldRotation(t *testing.T) {
+	cases := []struct {
+		name, rotation string
+		silent         bool
+	}{
+		{"a range beside a wrapped field rotation", `{"field":"angle","mode":"mod","min":-90,"max":90}`, true},
+		{"a range beside a fixed rotation", `{"fixed":10,"mode":"mod","min":-90,"max":90}`, true},
+		{"Grafana's own range on a clamped field rotation", `{"field":"angle","mode":"clamped","min":-360,"max":360}`, true},
+		{"another range on a clamped field rotation", `{"field":"angle","mode":"clamped","min":-90,"max":90}`, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			layer := `{"type":"markers","name":"M","location":{"mode":"auto"},"config":{"style":{"rotation":` + tc.rotation + `}}}`
+			_, line := convertedPanel(t, panelDoc("geomap", upTarget+`,"options":{"layers":[`+layer+`]}`))
+			if clean(line) != tc.silent {
+				t.Fatalf("status = %s, paths %v, want silent = %v", line.Status, line.Paths, tc.silent)
+			}
+		})
+	}
+}

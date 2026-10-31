@@ -1,9 +1,0 @@
-datasource
-datasource.type
-datasource.uid
-hideTimeOverride
-id
-options.filterable
-options.footer.enablePagination
-options.showSearch
-pluginVersion

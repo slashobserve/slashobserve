@@ -1,6 +1,1 @@
-datasource.type
-datasource.uid
 fieldConfig.defaults.thresholds.steps[].index
-hideTimeOverride
-id
-pluginVersion

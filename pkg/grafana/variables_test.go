@@ -740,3 +740,33 @@ func TestDatasourceVariableThatRefusesCustomValuesIsReported(t *testing.T) {
 		t.Fatalf("the default is reported: %+v", res.Report.Notes)
 	}
 }
+
+func TestRegexApplyToTextIsReportedAndTheRegexIsNotApplied(t *testing.T) {
+	cases := []struct {
+		name, member string
+		wantRegex    string
+		wantNote     bool
+	}{
+		{"value is Grafana's default", `,"regexApplyTo":"value"`, "/prod-.*/", false},
+		{"absent applies to the value", ``, "/prod-.*/", false},
+		{"text cannot be expressed", `,"regexApplyTo":"text"`, "", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := convertVariables(t, `{"name":"v","type":"query","datasource":`+promRef+`,"query":"label_values(up, job)","regex":"/prod-.*/"`+tc.member+`}`)
+			if got := variableNamed(t, res, "v").Regex; got != tc.wantRegex {
+				t.Errorf("regex = %q, want %q", got, tc.wantRegex)
+			}
+			if got := hasPath(notesFor(res, "variable v"), "templating.list[0].regexApplyTo"); got != tc.wantNote {
+				t.Errorf("regexApplyTo reported = %v, want %v: %+v", got, tc.wantNote, res.Report.Notes)
+			}
+		})
+	}
+}
+
+func TestRegexApplyToTextWithoutARegexIsSilent(t *testing.T) {
+	res := convertVariables(t, `{"name":"v","type":"query","datasource":`+promRef+`,"query":"label_values(up, job)","regexApplyTo":"text"}`)
+	if got := notesFor(res, "variable v"); len(got) != 0 {
+		t.Fatalf("notes = %+v, want none", got)
+	}
+}

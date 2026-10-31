@@ -689,3 +689,17 @@ func TestWorklistProblems(t *testing.T) {
 		})
 	}
 }
+
+func TestGenericPanelKeysResolveForEveryPanelScope(t *testing.T) {
+	ix := buildCatalogIndex(t, loadConformanceAreas(t, conformanceRoot(t)))
+	none := func() []keyLink { return nil }
+	keys := []string{"id", "datasource", "datasource.type", "datasource.uid", "pluginVersion", "span", "hideTimeOverride", "transparent"}
+	scopes := []optionScope{"panel:stat", "panel:table", "panel:row", "panel:canvas", "panel:geomap", "panel:xychart", "panel:logstable", "panel:natel-discrete-panel"}
+	for _, scope := range scopes {
+		for _, key := range keys {
+			if !ix.covers(scope, key, none) {
+				t.Errorf("%s: %s is not catalogued for every panel type", scope, key)
+			}
+		}
+	}
+}

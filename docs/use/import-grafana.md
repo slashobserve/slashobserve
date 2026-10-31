@@ -53,6 +53,7 @@ A ClickHouse ad hoc variable imports with `applyToAll`, so its filters apply to 
 A Grafana group-by variable on Prometheus imports as a `groupby` variable, with its current labels (else its default value) as the `default`, up to 20 labels that are valid label names.
 Like Grafana, it adds the selected labels to the grouping of every aggregation in the queries on its datasource, so the queries need no change.
 Its saved label options import as `keys` (up to 100 valid label names), the labels the picker offers instead of asking the datasource.
+A query variable's `regexApplyTo` imports without a note at its default `value`; at `text` the regular expression is not applied, because options here carry a value only, and the report says so.
 A group-by variable on any other datasource is dropped and reported.
 A Grafana 13.1 ad hoc variable with `enableGroupBy` on Prometheus imports as the ad hoc variable plus a `groupby` variable on the same datasource and with the same visibility, named `<name>_groupby` (or the first free name that follows that pattern), without saved labels; it keeps the ad hoc variable's `skipUrlSync` and its `defaultKeys` as `keys`.
 On another datasource, or when the dashboard already holds 20 variables, `enableGroupBy` is reported.
@@ -73,6 +74,7 @@ A query with no text is dropped without a note, because Grafana sends no request
 Among transformation options, the annotation and time region frame conversions, the exemplar frame conversion, the percent unary operator, the max window reducer, enum and time zone conversions of field types, ordering by label or in descending name order and by mode `auto`, the semicolon and pipe separators and names of partition by values, the ignore and threshold modes of rows to fields with its name and value fields, and the inline statistic of time series table are reported and not imported.
 The import report marks these options as excluded by decision, apart from options that are not supported yet.
 A panel whose only report lines are such decisions counts as imported, and its report line still lists them.
+Panels in a collapsed row keep their layout relative to the topmost one, whatever order they were saved in.
 Grafana's `-- Dashboard --` query, which shows another panel's results, imports as a query that reuses that panel (see [Reusing another panel's results](../concepts/observespec.md#reusing-another-panels-results)), and panels that reuse another are converted after all the others.
 Its `withTransforms` setting is kept, and `adHocFiltersEnabled` imports as `adHocFilters`, which filters the reused rows by the dashboard's ad hoc filters.
 A source panel that is missing, is not a data panel, repeats or itself reuses another panel drops the query with "The panel this one reuses could not be imported.", and a panel left with no query becomes a placeholder.
@@ -147,6 +149,7 @@ Thresholds are kept for the columns whose cells they color.
 A table column also imports its width and minimum width, alignment, filter, inspect and hidden header and wrapped header (`custom.width`, `custom.minWidth`, `custom.align`, `custom.filterable`, `custom.inspect`, `custom.hideHeader` and `custom.wrapHeaderText`), the cell tooltip (`custom.tooltip`, with its field and placement), and the older table panel's column alignment.
 A field description (`fieldConfig.defaults.description`, also as an override property) imports on tables, where it is the tooltip of the column header, cut to 2000 characters; on every other panel type it is reported, because they draw no field description.
 A table imports its row height (`sm`, `md`, `lg` and `auto`, which fits each row to its content), the maximum row height (20 to 1000 pixels), the frame it shows (`frameIndex`, 0 to 99), type icons, pagination, frozen columns, the first column of `sortBy` with its direction, and its footer: the reducers (a footer that is shown without a reducer sums), the columns it covers and the row count.
+A table panel's `showSearch` and `filterable` keys are not table options in Grafana, and they import without a note.
 A second sort column, more than 10 frozen columns and the footer reducers of a single column's override are still reported.
 The older table panel's saved sort is dropped silently when it is Grafana's own default (the first column, descending) and reported otherwise, because it names a column by position.
 A table with `styles` and no `fieldConfig` is read as Grafana reads it, as the older table panel, so its styles import as column units, decimals, names, alignment, thresholds and hidden columns; a style's `dateFormat` on a column that is not a date and its link options when `link` is off are Grafana's own no-ops and import without a note.

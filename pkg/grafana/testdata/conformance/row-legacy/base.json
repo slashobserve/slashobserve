@@ -1,0 +1,1 @@
+{"title":"Conformance","schemaVersion":14,"time":{"from":"now-6h","to":"now"},"rows":[{"title":"Row","height":"250px","panels":[{"id":1,"type":"graph","title":"Panel","span":12,"datasource":{"type":"prometheus","uid":"prom"},"lines":true,"linewidth":1,"targets":[{"refId":"A","expr":"up","datasource":{"type":"prometheus","uid":"prom"}}]}]}]}

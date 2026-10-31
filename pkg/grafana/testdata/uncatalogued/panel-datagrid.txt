@@ -1,4 +1,1 @@
-datasource.type
-datasource.uid
-id
 options.selectedSeries

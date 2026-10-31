@@ -1,5 +1,2 @@
-datasource.type
-datasource.uid
-id
 options.cellHeight
 options.showHeader

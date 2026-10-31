@@ -479,7 +479,7 @@ func (b *panelBuild) leaf(path string, v any) {
 			return
 		}
 	}
-	if b.issues.covers(path) {
+	if b.issues.covers(path) || b.recorded[scopedFullPath(b.n.path, path)] {
 		return
 	}
 	switch {

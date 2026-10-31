@@ -34,7 +34,7 @@ var variableSilentKeys = map[string]bool{
 }
 
 var variableHandledKeys = map[string][]string{
-	"query":      {"query", "regex", "sort", "refresh", "multi", "includeAll", "allValue", "allowCustomValue", "staticOptions", "staticOptionsOrder"},
+	"query":      {"query", "regex", "regexApplyTo", "sort", "refresh", "multi", "includeAll", "allValue", "allowCustomValue", "staticOptions", "staticOptionsOrder"},
 	"custom":     {"query", "multi", "includeAll", "allValue", "allowCustomValue"},
 	"constant":   {"query"},
 	"interval":   {"query", "auto", "auto_count", "auto_min"},
@@ -368,7 +368,7 @@ func (c *converter) queryVariable(raw map[string]any, path, name string) (spec.V
 		c.note(subject, "Rewrote "+strings.Join(rewrites, ", ")+" in the query.", path+".query")
 	}
 	v := spec.Variable{Type: spec.QueryVariable, Datasource: ref.src.ref(), Query: text, Sort: sortOf(raw)}
-	c.variableRegex(&v, raw, path, subject)
+	c.queryVariableRegex(&v, raw, path, subject)
 	v.StaticOptions = c.staticOptions(raw, path, subject)
 	if len(v.StaticOptions) > 0 {
 		v.StaticOrder = staticOrderOf(raw)
@@ -436,6 +436,16 @@ func keepStaticOptions(kept []spec.StaticOption, list []any) (options []spec.Sta
 		}
 	}
 	return options, dropped
+}
+
+const regexOnTextReason = "Grafana applies the regular expression to the option text, and options here carry a value only, so it is not applied."
+
+func (c *converter) queryVariableRegex(v *spec.Variable, raw map[string]any, path, subject string) {
+	if asString(raw["regexApplyTo"]) == "text" && asString(raw["regex"]) != "" {
+		c.note(subject, regexOnTextReason, path+".regexApplyTo")
+		return
+	}
+	c.variableRegex(v, raw, path, subject)
 }
 
 func (c *converter) variableRegex(v *spec.Variable, raw map[string]any, path, subject string) {

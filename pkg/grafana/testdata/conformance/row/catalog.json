@@ -1,0 +1,10 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "kinds/dashboard/dashboard_kind.cue"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    { "id": "collapsed=false", "path": "collapsed", "value": false, "with": {"panels": []} }
+  ]
+}

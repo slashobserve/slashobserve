@@ -1,5 +1,0 @@
-datasource
-datasource.type
-datasource.uid
-id
-pluginVersion
