@@ -34,6 +34,7 @@ The original JSON is stored with the import so a newer importer can convert it a
 A query's min step written as a variable (`$name`, `${name}` or `[[name]]`) imports as `${name}`, so the query uses the step selected in that variable.
 A `custom` variable of durations that is single-select, has no All and is used as a min step becomes an `interval` variable, and the import report says so.
 A `custom` variable's `text : value` pairs import as `{ text, value }` options, so the picker shows the text and the selection uses the value.
+A text box imports its saved value as its default, else its default text.
 A `query` variable's sort imports as `alpha`, `num`, `alphaCaseInsensitive` or `natural`, each in its two directions, and `allowCustomValue` imports as written, with Grafana's own default of true when it is missing.
 A saved ad hoc filter list imports as the variable's `default` when its operators are `=`, `!=`, `=~` and `!~`; a filter with another operator, an invalid key or regular expression, or a condition other than AND is reported, and base filters are not kept.
 A ClickHouse ad hoc variable imports with `applyToAll`, so its filters apply to every query on its datasource (see [Ad hoc filters](../concepts/datasources-and-variables.md#ad-hoc-filters)), and for the Altinity plugin the report notes that Grafana filters only the outermost query.
@@ -131,7 +132,7 @@ A time series, trend, candlestick or legacy graph panel imports its legend (plac
 It also imports the axis options, the line style (interpolation, width, dashes, points), how gaps draw (spanning nulls, or inserted nulls given in milliseconds), the bar alignment and width, the threshold style and a candlestick's extra number fields.
 A dash pattern other than Grafana's default, a square line fill, an axis placement of top or bottom, and inserted nulls at the query interval are reported.
 A state timeline and a status history import their row height (and a status history's column width), legend, tooltip, line width, fill and null spanning, and a state timeline imports its value alignment; a legend sort or calculation is reported, and a legacy discrete panel imports as a state timeline.
-An override imports its matcher (by name, regular expression, type, query ref, list of names or value) and its properties like the panel's own.
+An override imports its matcher (by name, regular expression, type, numeric fields, time fields, a list of types, a regular expression or names, query ref, list of names or value) and its properties like the panel's own; a list of types becomes one override per type.
 On time series and trend panels the series properties import too: negative-Y and constant transforms, hiding from the legend or tooltip, stack group and fill below to, and a legacy graph's series overrides import the same way.
 A field's color mode imports as the classic palette (the default), a palette by series name, a fixed color, shades or a named color scheme, and a series-colored mode imports on time series and trend panels, a scheme also on stat, gauge, bar gauge, bar chart and XY chart.
 A color mode a panel type does not draw is reported as "The color mode X is not drawn on Y panels."

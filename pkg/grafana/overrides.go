@@ -25,8 +25,7 @@ func (b *panelBuild) convertOverrides() {
 		if b.takeTimeAxisOverride(item, path) {
 			continue
 		}
-		override, ok := b.convertOverride(item, path)
-		if ok {
+		for _, override := range b.convertOverride(item, path) {
 			b.addOverride(override, path)
 			if instant, hasInstant := b.instantRefs[override.Match.Query]; hasInstant {
 				override.Match = spec.Match{Query: instant}
@@ -63,16 +62,16 @@ func (b *panelBuild) addOverride(override spec.Override, path string) {
 	b.panel.Overrides = append(b.panel.Overrides, override)
 }
 
-func (b *panelBuild) convertOverride(item any, path string) (spec.Override, bool) {
+func (b *panelBuild) convertOverride(item any, path string) []spec.Override {
 	raw, ok := asObject(item)
 	if !ok {
-		return spec.Override{}, false
+		return nil
 	}
 	matcher, _ := asObject(raw["matcher"])
-	match, ok := b.matchFor(matcher)
+	matches, ok := b.matchesFor(matcher)
 	if !ok {
 		b.partial(path, "")
-		return spec.Override{}, false
+		return nil
 	}
 	b.consume(path+".matcher.id", path+".matcher.options")
 	var props spec.FieldProps
@@ -82,9 +81,13 @@ func (b *panelBuild) convertOverride(item any, path string) (spec.Override, bool
 	}
 	b.fixMinMax(&props, path)
 	if fieldPropsEmpty(props) {
-		return spec.Override{}, false
+		return nil
 	}
-	return spec.Override{Match: match, FieldProps: props}, true
+	overrides := make([]spec.Override, len(matches))
+	for i, match := range matches {
+		overrides[i] = spec.Override{Match: match, FieldProps: props}
+	}
+	return overrides
 }
 
 func (b *panelBuild) overrideProperty(props *spec.FieldProps, item any, path string, j int) {
@@ -113,6 +116,41 @@ func (b *panelBuild) overrideProperty(props *spec.FieldProps, item any, path str
 func fieldPropsEmpty(props spec.FieldProps) bool {
 	data, err := json.Marshal(props)
 	return err == nil && string(data) == "{}"
+}
+
+func (b *panelBuild) matchesFor(matcher map[string]any) ([]spec.Match, bool) {
+	id := asString(matcher["id"])
+	if fieldType, ok := namedFieldTypes[id]; ok {
+		return []spec.Match{{FieldType: fieldType}}, true
+	}
+	switch id {
+	case "byTypes":
+		return typesMatches(matcher["options"])
+	case "byRegexpOrNames":
+		match, ok := regexpOrNamesMatch(matcher["options"])
+		return []spec.Match{match}, ok
+	}
+	match, ok := b.matchFor(matcher)
+	return []spec.Match{match}, ok
+}
+
+var namedFieldTypes = map[string]string{"numeric": "number", "time": "time"}
+
+func typesMatches(options any) ([]spec.Match, bool) {
+	items, _ := asArray(options)
+	var matches []spec.Match
+	var seen []string
+	for _, item := range items {
+		name, isText := item.(string)
+		if !isText || !slices.Contains(overrideFieldTypes, name) {
+			return nil, false
+		}
+		if !slices.Contains(seen, name) {
+			seen = append(seen, name)
+			matches = append(matches, spec.Match{FieldType: name})
+		}
+	}
+	return matches, len(matches) > 0
 }
 
 func (b *panelBuild) matchFor(matcher map[string]any) (spec.Match, bool) {
@@ -156,6 +194,53 @@ func valueMatch(options any) (spec.Match, bool) {
 		return spec.Match{}, false
 	}
 	return spec.Match{Value: &spec.ValueMatch{Reducer: reducer, Op: op, Value: value}}, true
+}
+
+func regexpOrNamesMatch(options any) (spec.Match, bool) {
+	cfg, ok := asObject(options)
+	if !ok {
+		return spec.Match{}, false
+	}
+	pattern, patternOK := cfg["pattern"].(string)
+	if cfg["pattern"] != nil && !patternOK {
+		return spec.Match{}, false
+	}
+	var names string
+	items, namesOK := asArray(cfg["names"])
+	if cfg["names"] != nil && !namesOK {
+		return spec.Match{}, false
+	}
+	if len(items) > 0 {
+		match, valid := namesMatch(map[string]any{"names": items})
+		if !valid {
+			return spec.Match{}, false
+		}
+		names = match.SeriesRegex
+	}
+	var combined string
+	valid := true
+	switch {
+	case pattern == "" && names == "":
+		valid = false
+	case names == "":
+		combined = pattern
+	case pattern == "":
+		combined = names
+	default:
+		combined, valid = joinAlternatives(pattern, names)
+	}
+	return spec.Match{SeriesRegex: combined}, valid && validLength(combined, maxRegexMatch)
+}
+
+func joinAlternatives(pattern, anchoredNames string) (string, bool) {
+	if !strings.HasPrefix(pattern, "/") {
+		return "(?:" + pattern + ")|" + anchoredNames, true
+	}
+	end := strings.LastIndex(pattern, "/")
+	if end == 0 {
+		return "", false
+	}
+	return "/(?:" + pattern[1:end] + ")|" + anchoredNames + "/" + pattern[end+1:], true
 }
 
 func namesMatch(options any) (spec.Match, bool) {

@@ -593,10 +593,14 @@ func (c *converter) promotesToInterval(raw map[string]any, name string, options 
 
 func (c *converter) textboxVariable(raw map[string]any, path, name string) (spec.Variable, bool) {
 	v := spec.Variable{Type: spec.TextboxVariable}
-	if text := asString(raw["query"]); text != "" {
+	text, textPath := asString(raw["query"]), path+".query"
+	if current, _ := asObject(raw["current"]); asString(current["value"]) != "" {
+		text, textPath = asString(current["value"]), path+".current"
+	}
+	if text != "" {
 		cut, wasCut := cutRunes(text, 200)
 		if wasCut {
-			c.note("variable "+name, "The default text was cut to 200 characters.", path+".query")
+			c.note("variable "+name, "The default text was cut to 200 characters.", textPath)
 		}
 		v.Default = &spec.Selection{Values: []string{cut}}
 	}
@@ -616,19 +620,18 @@ func (c *converter) datasourceVariable(raw map[string]any, path, name string) (s
 	if truthy(raw["multi"]) || truthy(raw["includeAll"]) {
 		c.note(subject, "A datasource variable selects one datasource; multiple values and All are not kept.", path)
 	}
-	if src := c.reg.byKey["${"+name+"}"]; src != nil && src.match != "" {
-		matches := true
-		if v.Regex != "" {
-			re, _ := spec.CompileVariableRegex(v.Regex)
-			matches = re.MatchString(src.match)
-		}
-		if matches {
-			v.Default = &spec.Selection{Values: []string{src.match}}
-		} else {
-			c.note(subject, fmt.Sprintf("The matched datasource %s does not satisfy the variable's regular expression, so no default is set.", src.match), path+".regex")
-		}
+	if src := c.reg.byKey["${"+name+"}"]; src != nil && src.match != "" && matchSatisfies(v.Regex, src.match) {
+		v.Default = &spec.Selection{Values: []string{src.match}}
 	}
 	return v, true
+}
+
+func matchSatisfies(regex, match string) bool {
+	if regex == "" {
+		return true
+	}
+	re, _ := spec.CompileVariableRegex(regex)
+	return re.MatchString(match)
 }
 
 func (c *converter) adhocVariable(raw map[string]any, path, name string) (spec.Variable, bool) {
