@@ -15,6 +15,7 @@
     { "id": "repeat=host", "path": "repeat", "value": "host" },
     { "id": "repeatDirection=v", "path": "repeatDirection", "value": "v", "with": {"repeat": "host"} },
     { "id": "maxPerRow=4", "path": "maxPerRow", "value": 4, "with": {"repeat": "host"} },
-    { "id": "links=docs", "path": "links", "value": [{"title": "Docs", "url": "https://example.com/docs"}] }
+    { "id": "links=docs", "path": "links", "value": [{"title": "Docs", "url": "https://example.com/docs"}] },
+    {"id": "scopedVars=host", "path": "scopedVars", "value": {"host": {"selected": false, "text": "a", "value": "a"}}, "expect": "bookkeeping"}
   ]
 }

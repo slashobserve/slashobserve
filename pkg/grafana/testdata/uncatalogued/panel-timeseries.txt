@@ -1,4 +1,3 @@
-fieldConfig.defaults.unitScale
 hideTimeOverride
 id
 links[].targetBlank

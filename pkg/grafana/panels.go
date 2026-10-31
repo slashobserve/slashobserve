@@ -51,7 +51,7 @@ var silentPanelKeys = map[string]bool{
 	"links": true, "repeat": true, "repeatDirection": true, "maxPerRow": true,
 	"timeFrom": true, "timeShift": true, "interval": true, "maxDataPoints": true,
 	"libraryPanel": true, "collapsed": true, "panels": true, "isNew": true,
-	"span": true, "height": true, "error": true, "editable": true,
+	"span": true, "height": true, "error": true, "editable": true, "scopedVars": true,
 }
 
 type issueEntry struct{ path, reason string }

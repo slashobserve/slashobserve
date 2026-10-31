@@ -25,7 +25,7 @@ const (
 	sqlFormatLogs    = 2
 	sqlFormatTraces  = 3
 
-	exemplarsDrawnOnly = "Exemplars are drawn on time series and heatmaps only."
+	emptyQueryReason = "The query is empty."
 
 	minResolutionFactor = 2
 	maxResolutionFactor = 10
@@ -75,6 +75,10 @@ var targetSilent = map[string]bool{
 	"useBackend": true, "disableTextWrap": true, "fullMetaSearch": true, "includeNullMetadata": true,
 	"intervalMs": true, "maxDataPoints": true, "hinting": true,
 	"showHelp": true, "adhocFilters": true, "groupByKeys": true,
+}
+
+var targetIgnored = map[string]string{
+	"logBase": "Grafana never reads a log base on a query",
 }
 
 var targetDefaults = map[string]any{
@@ -186,7 +190,11 @@ func (b *panelBuild) lineFor(i int) *QueryLine {
 }
 
 func (b *panelBuild) dropTarget(i int, target map[string]any, reason string) {
-	hidden := truthy(target["hide"])
+	empty := reason == emptyQueryReason
+	hidden := truthy(target["hide"]) || empty
+	if empty {
+		b.recordTargetNoEffect(i, target)
+	}
 	if i >= len(b.lines) {
 		if !hidden {
 			b.unlisted++
@@ -196,6 +204,14 @@ func (b *panelBuild) dropTarget(i int, target map[string]any, reason string) {
 	b.lines[i].Dropped = ptr(reason)
 	if !hidden {
 		b.partial(fmt.Sprintf("targets[%d]", i), reason)
+	}
+}
+
+func (b *panelBuild) recordTargetNoEffect(i int, target map[string]any) {
+	for _, key := range sortedKeys(target) {
+		if present(target[key]) {
+			b.recordImplicit(fmt.Sprintf("targets[%d].%s", i, key), outcomeNoEffect)
+		}
 	}
 }
 
@@ -294,6 +310,8 @@ func (tb *targetBuild) reportUnconsumed() {
 			tb.b.record(path, outcomeMapped)
 		case targetSilent[key]:
 			tb.b.record(path, outcomeBookkeeping)
+		case targetIgnored[key] != "":
+			tb.b.recordImplicit(path, outcomeNoEffect)
 		case hasDefault && sameJSON(v, def):
 			tb.b.recordImplicit(path, outcomeDefault)
 		default:
@@ -363,7 +381,7 @@ func (tb *targetBuild) prometheus() (spec.Query, string) {
 	tb.use("expr", "range", "instant", "format", "intervalFactor", "exemplar")
 	expr := asString(tb.t["expr"])
 	if strings.TrimSpace(expr) == "" {
-		return spec.Query{}, "The query is empty."
+		return spec.Query{}, emptyQueryReason
 	}
 	q := spec.Query{Query: expr, Legend: tb.legend(), Interval: tb.minInterval(), IntervalFactor: tb.resolutionFactor()}
 	if truthy(tb.t["instant"]) {
@@ -378,7 +396,7 @@ func (tb *targetBuild) prometheus() (spec.Query, string) {
 	}
 	if truthy(tb.t["exemplar"]) {
 		if q.Instant || !exemplarPanelTypes[tb.b.typ] {
-			tb.partial("exemplar", exemplarsDrawnOnly)
+			tb.b.recordImplicit(tb.path+".exemplar", outcomeNoEffect)
 		} else {
 			q.Exemplar = true
 		}
@@ -390,7 +408,7 @@ func (tb *targetBuild) officialClickHouse() (spec.Query, string) {
 	tb.use("rawSql")
 	sql := asString(tb.t["rawSql"])
 	if strings.TrimSpace(sql) == "" {
-		return spec.Query{}, "The query is empty."
+		return spec.Query{}, emptyQueryReason
 	}
 	format, reason := tb.clickHouseFormat()
 	if reason != "" {
@@ -427,7 +445,7 @@ func (tb *targetBuild) altinity(declared map[string]bool) (spec.Query, string) {
 	tb.use("query", "interval", "intervalFactor", "round", "extrapolate", "adHocFilters", "adHocValuesQuery", "dateTimeType")
 	query := asString(tb.t["query"])
 	if strings.TrimSpace(query) == "" {
-		return spec.Query{}, "The query is empty."
+		return spec.Query{}, emptyQueryReason
 	}
 	tb.timeType = tb.timeColumnType()
 	tb.roundSeconds = tb.roundInSeconds()

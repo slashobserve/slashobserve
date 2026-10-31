@@ -80,6 +80,19 @@
     ]
    }
   },
+  "links[].title": {
+   "fields": [
+    "links[].title"
+   ],
+   "values": {
+    "s:Prod": [
+     "links[].title"
+    ],
+    "s:Runbook": [
+     "links[].title"
+    ]
+   }
+  },
   "links[].tooltip": {
    "fields": [
     "links[].tooltip"
@@ -142,6 +155,16 @@
     ],
     "s:7d": [
      "refresh"
+    ]
+   }
+  },
+  "sharedCrosshair": {
+   "fields": [
+    "cursorSync"
+   ],
+   "values": {
+    "b:true": [
+     "cursorSync"
     ]
    }
   },
@@ -11102,6 +11125,18 @@
     ]
    }
   },
+  "range": {
+   "fields": [
+    "instant",
+    "query"
+   ],
+   "values": {
+    "b:true": [
+     "instant",
+     "query"
+    ]
+   }
+  },
   "refId": {
    "fields": [
     "ref"
@@ -11109,6 +11144,16 @@
    "values": {
     "s:B": [
      "ref"
+    ]
+   }
+  },
+  "step": {
+   "fields": [
+    "interval"
+   ],
+   "values": {
+    "n:30": [
+     "interval"
     ]
    }
   }
@@ -12992,6 +13037,16 @@
     ]
    }
   },
+  "name": {
+   "fields": [
+    "name"
+   ],
+   "values": {
+    "s:renamed": [
+     "name"
+    ]
+   }
+  },
   "skipUrlSync": {
    "fields": [
     "skipUrlSync"
@@ -13037,6 +13092,16 @@
    "values": {
     "s:Environment": [
      "label"
+    ]
+   }
+  },
+  "name": {
+   "fields": [
+    "name"
+   ],
+   "values": {
+    "s:renamed": [
+     "name"
     ]
    }
   },
@@ -13143,6 +13208,16 @@
     ]
    }
   },
+  "name": {
+   "fields": [
+    "name"
+   ],
+   "values": {
+    "s:renamed": [
+     "name"
+    ]
+   }
+  },
   "query": {
    "fields": [
     "options[]",
@@ -13208,6 +13283,16 @@
    "values": {
     "s:Pod": [
      "label"
+    ]
+   }
+  },
+  "name": {
+   "fields": [
+    "name"
+   ],
+   "values": {
+    "s:renamed": [
+     "name"
     ]
    }
   },
@@ -13396,6 +13481,16 @@
     ]
    }
   },
+  "name": {
+   "fields": [
+    "name"
+   ],
+   "values": {
+    "s:renamed": [
+     "name"
+    ]
+   }
+  },
   "query": {
    "fields": [
     "default",
@@ -13512,6 +13607,16 @@
     ]
    }
   },
+  "name": {
+   "fields": [
+    "name"
+   ],
+   "values": {
+    "s:renamed": [
+     "name"
+    ]
+   }
+  },
   "query": {
    "fields": [
     "query"
@@ -13527,6 +13632,16 @@
      "query"
     ],
     "s:query_result(count by (job) (up))": [
+     "query"
+    ]
+   }
+  },
+  "query.rawSql": {
+   "fields": [
+    "query"
+   ],
+   "values": {
+    "s:SELECT DISTINCT ServiceName FROM otel_traces": [
      "query"
     ]
    }
@@ -13667,6 +13782,16 @@
    "values": {
     "s:Pod": [
      "label"
+    ]
+   }
+  },
+  "name": {
+   "fields": [
+    "name"
+   ],
+   "values": {
+    "s:renamed": [
+     "name"
     ]
    }
   },

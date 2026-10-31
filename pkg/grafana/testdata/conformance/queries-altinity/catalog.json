@@ -85,6 +85,11 @@
     { "id": "rawQuery=text", "path": "rawQuery", "value": "SELECT 1", "expect": "bookkeeping" },
     { "id": "showFormattedSQL=true", "path": "showFormattedSQL", "value": true, "expect": "bookkeeping" },
     { "id": "showHelp=true", "path": "showHelp", "value": true, "expect": "bookkeeping" },
-    { "id": "initialized=true", "path": "initialized", "value": true, "expect": "bookkeeping" }
+    { "id": "initialized=true", "path": "initialized", "value": true, "expect": "bookkeeping" },
+    {"id": "datasource=altinity", "path": "datasource", "value": {"type": "vertamedia-clickhouse-datasource", "uid": "ch"}, "expect": "bookkeeping"},
+    {"id": "dateLoading=false", "path": "dateLoading", "value": false, "expect": "bookkeeping"},
+    {"id": "datetimeLoading=false", "path": "datetimeLoading", "value": false, "expect": "bookkeeping"},
+    {"id": "tableLoading=false", "path": "tableLoading", "value": false, "expect": "bookkeeping"},
+    {"id": "queryType=timeseries", "path": "queryType", "value": "timeseries", "expect": "bookkeeping"}
   ]
 }

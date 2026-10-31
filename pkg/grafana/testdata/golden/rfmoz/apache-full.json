@@ -112,11 +112,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are drawn on time series and heatmaps only.",
           "The color mode continuous-GrYlRd is not drawn on state-timeline panels."
         ],
         "paths": [
-          "targets[0].exemplar",
           "fieldConfig.defaults.color"
         ],
         "queries": [
@@ -480,7 +478,7 @@
     "panel panels[0] mapped=21 bookkeeping=2 field_config:1 query:1",
     "panel panels[1] mapped=23 reported=1 bookkeeping=2 field_config:1 query:1",
     "panel panels[3] mapped=20 bookkeeping=4 field_config:1 query:1",
-    "panel panels[2] mapped=23 reported=2 bookkeeping=2 field_config:1 query:1",
+    "panel panels[2] mapped=23 reported=1 no_effect=1 bookkeeping=2 field_config:1 query:1",
     "panel panels[4] mapped=42 default=1 bookkeeping=4 field_config:1 override:1 query:2",
     "panel panels[5] mapped=34 default=1 bookkeeping=3 field_config:1 query:1",
     "panel panels[7] mapped=33 default=1 bookkeeping=2 field_config:1 query:1",

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 18,
-      "imported": 14,
-      "partial": 4,
+      "imported": 18,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -85,15 +85,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Instant Query API",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this query are not supported yet."
-        ],
-        "paths": [
-          "targets[0].logBase",
-          "targets[1].logBase",
-          "targets[2].logBase"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -168,15 +162,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Range Query API",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this query are not supported yet."
-        ],
-        "paths": [
-          "targets[0].logBase",
-          "targets[1].logBase",
-          "targets[2].logBase"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -251,15 +239,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "gRPC (Unary)",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this query are not supported yet."
-        ],
-        "paths": [
-          "targets[0].logBase",
-          "targets[1].logBase",
-          "targets[2].logBase"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -334,15 +316,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "gRPC (Stream)",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this query are not supported yet."
-        ],
-        "paths": [
-          "targets[0].logBase",
-          "targets[1].logBase",
-          "targets[2].logBase"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -535,16 +511,16 @@
     "dashboard mapped=7 bookkeeping=6",
     "panel rows[0].panels[0] mapped=47 default=4 bookkeeping=2 query:1",
     "panel rows[0].panels[1] mapped=37 default=4 bookkeeping=2 query:1",
-    "panel rows[0].panels[2] mapped=58 reported=3 default=5 bookkeeping=2 query:3",
+    "panel rows[0].panels[2] mapped=58 default=5 no_effect=3 bookkeeping=2 query:3",
     "panel rows[1].panels[0] mapped=47 default=4 bookkeeping=2 query:1",
     "panel rows[1].panels[1] mapped=37 default=4 bookkeeping=2 query:1",
-    "panel rows[1].panels[2] mapped=58 reported=3 default=5 bookkeeping=2 query:3",
+    "panel rows[1].panels[2] mapped=58 default=5 no_effect=3 bookkeeping=2 query:3",
     "panel rows[2].panels[0] mapped=73 default=4 bookkeeping=2 query:1",
     "panel rows[2].panels[1] mapped=37 default=4 bookkeeping=2 query:1",
-    "panel rows[2].panels[2] mapped=58 reported=3 default=5 bookkeeping=2 query:3",
+    "panel rows[2].panels[2] mapped=58 default=5 no_effect=3 bookkeeping=2 query:3",
     "panel rows[3].panels[0] mapped=73 default=4 bookkeeping=2 query:1",
     "panel rows[3].panels[1] mapped=37 default=4 bookkeeping=2 query:1",
-    "panel rows[3].panels[2] mapped=58 reported=3 default=5 bookkeeping=2 query:3",
+    "panel rows[3].panels[2] mapped=58 default=5 no_effect=3 bookkeeping=2 query:3",
     "panel rows[4].panels[0] mapped=36 default=5 bookkeeping=2 query:1",
     "panel rows[4].panels[1] mapped=38 default=4 bookkeeping=2 query:1",
     "panel rows[5].panels[0] mapped=36 default=5 bookkeeping=2 query:1",

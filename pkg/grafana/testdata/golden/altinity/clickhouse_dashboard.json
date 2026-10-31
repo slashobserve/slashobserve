@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 11,
-      "imported": 10,
-      "partial": 1,
+      "imported": 11,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -112,15 +112,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "scopedVars.repeated_service.selected",
-          "scopedVars.repeated_service.text",
-          "scopedVars.repeated_service.value"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -334,7 +328,7 @@
     "panel panels[0] mapped=42 default=9 bookkeeping=4 query:1",
     "panel panels[1] mapped=42 default=9 bookkeeping=4 query:1",
     "panel panels[2] mapped=40 default=9 bookkeeping=4 query:1",
-    "panel panels[3] mapped=43 reported=3 default=9 bookkeeping=4 query:1",
+    "panel panels[3] mapped=43 default=9 bookkeeping=5 query:1",
     "panel panels[5] mapped=42 default=9 bookkeeping=4 query:1",
     "panel panels[6] mapped=43 default=9 bookkeeping=4 query:1",
     "panel panels[7] mapped=43 default=9 bookkeeping=4 query:1",

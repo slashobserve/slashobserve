@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 25,
-      "imported": 22,
-      "partial": 3,
+      "imported": 25,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -64,13 +64,9 @@
         "type": "gauge",
         "source_type": "gauge",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are drawn on time series and heatmaps only."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -180,13 +176,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are drawn on time series and heatmaps only."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -226,13 +218,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Exemplars are drawn on time series and heatmaps only."
-        ],
-        "paths": [
-          "targets[0].exemplar"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -770,10 +758,10 @@
   "blocks": [
     "dashboard mapped=7 excluded=2 bookkeeping=7",
     "panel panels[1] mapped=19 default=1 bookkeeping=4 field_config:1 query:1",
-    "panel panels[2] mapped=18 reported=1 default=1 bookkeeping=3 field_config:1 query:1",
+    "panel panels[2] mapped=18 default=1 no_effect=1 bookkeeping=3 field_config:1 query:1",
     "panel panels[3] mapped=69 no_effect=1 bookkeeping=13 field_config:1 query:11",
-    "panel panels[4] mapped=33 reported=1 bookkeeping=10 field_config:1 query:4",
-    "panel panels[5] mapped=33 reported=1 bookkeeping=10 field_config:1 query:4",
+    "panel panels[4] mapped=33 no_effect=1 bookkeeping=10 field_config:1 query:4",
+    "panel panels[5] mapped=33 no_effect=1 bookkeeping=10 field_config:1 query:4",
     "panel panels[7] mapped=40 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[8] mapped=39 no_effect=1 bookkeeping=4 field_config:1 query:1",
     "panel panels[9] mapped=45 no_effect=1 bookkeeping=4 field_config:1 query:1",

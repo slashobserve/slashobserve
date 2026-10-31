@@ -1,4 +1,0 @@
-name
-options[].selected
-options[].text
-options[].value

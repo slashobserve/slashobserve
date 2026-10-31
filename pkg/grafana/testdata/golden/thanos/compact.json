@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 19,
-      "imported": 16,
-      "partial": 3,
+      "imported": 19,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -169,15 +169,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Garbage Collection",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this query are not supported yet."
-        ],
-        "paths": [
-          "targets[0].logBase",
-          "targets[1].logBase",
-          "targets[2].logBase"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -315,15 +309,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Sync Meta",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this query are not supported yet."
-        ],
-        "paths": [
-          "targets[0].logBase",
-          "targets[1].logBase",
-          "targets[2].logBase"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -398,15 +386,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Object Store Operations",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this query are not supported yet."
-        ],
-        "paths": [
-          "targets[0].logBase",
-          "targets[1].logBase",
-          "targets[2].logBase"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -540,16 +522,16 @@
     "panel rows[1].panels[1] mapped=38 default=4 bookkeeping=2 query:1",
     "panel rows[2].panels[0] mapped=37 default=4 bookkeeping=2 query:1",
     "panel rows[2].panels[1] mapped=38 default=4 bookkeeping=2 query:1",
-    "panel rows[2].panels[2] mapped=58 reported=3 default=5 bookkeeping=2 query:3",
+    "panel rows[2].panels[2] mapped=58 default=5 no_effect=3 bookkeeping=2 query:3",
     "panel rows[3].panels[0] mapped=37 default=4 bookkeeping=2 query:1",
     "panel rows[3].panels[1] mapped=36 default=5 bookkeeping=2 query:1",
     "panel rows[3].panels[2] mapped=36 default=5 bookkeeping=2 query:1",
     "panel rows[4].panels[0] mapped=37 default=4 bookkeeping=2 query:1",
     "panel rows[4].panels[1] mapped=38 default=4 bookkeeping=2 query:1",
-    "panel rows[4].panels[2] mapped=58 reported=3 default=5 bookkeeping=2 query:3",
+    "panel rows[4].panels[2] mapped=58 default=5 no_effect=3 bookkeeping=2 query:3",
     "panel rows[5].panels[0] mapped=37 default=4 bookkeeping=2 query:1",
     "panel rows[5].panels[1] mapped=38 default=4 bookkeeping=2 query:1",
-    "panel rows[5].panels[2] mapped=58 reported=3 default=5 bookkeeping=2 query:3",
+    "panel rows[5].panels[2] mapped=58 default=5 no_effect=3 bookkeeping=2 query:3",
     "panel rows[6].panels[0] mapped=60 default=5 bookkeeping=2 query:6",
     "panel rows[6].panels[1] mapped=35 default=5 bookkeeping=2 query:1",
     "panel rows[6].panels[2] mapped=35 default=5 bookkeeping=2 query:1"

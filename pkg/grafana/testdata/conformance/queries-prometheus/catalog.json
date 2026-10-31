@@ -34,6 +34,14 @@
     { "id": "queryType=time-series", "path": "queryType", "value": "timeSeriesQuery", "expect": "bookkeeping" },
     { "id": "key=Q-1", "path": "key", "value": "Q-1", "expect": "bookkeeping" },
     { "id": "requestId=Q100", "path": "requestId", "value": "Q100", "expect": "bookkeeping" },
-    { "id": "expr=sum-up", "path": "expr", "value": "sum(up)" }
+    { "id": "expr=sum-up", "path": "expr", "value": "sum(up)" },
+    {"id": "logBase=1", "path": "logBase", "value": 1, "expect": "bookkeeping"},
+    {"id": "range=true+instant", "path": "range", "value": true, "with": {"instant": true}},
+    {"id": "step=30", "path": "step", "value": 30},
+    {"id": "metric=up", "path": "metric", "value": "up", "expect": "bookkeeping"},
+    {"id": "useBackend=true", "path": "useBackend", "value": true, "expect": "bookkeeping"},
+    {"id": "disableTextWrap=true", "path": "disableTextWrap", "value": true, "expect": "bookkeeping"},
+    {"id": "fullMetaSearch=true", "path": "fullMetaSearch", "value": true, "expect": "bookkeeping"},
+    {"id": "includeNullMetadata=false", "path": "includeNullMetadata", "value": false, "expect": "bookkeeping"}
   ]
 }

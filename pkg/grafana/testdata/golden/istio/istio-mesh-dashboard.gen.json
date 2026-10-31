@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 7,
-      "imported": 1,
-      "partial": 6,
+      "imported": 5,
+      "partial": 2,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,15 +43,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Global Traffic",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.calcs",
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -70,15 +64,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Global Traffic",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.calcs",
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -97,15 +85,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Global Traffic",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.calcs",
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -124,15 +106,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Global Traffic",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Legend tables are not supported; the legend is a plain list."
-        ],
-        "paths": [
-          "options.legend.calcs",
-          "options.legend.displayMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -258,10 +234,10 @@
   },
   "blocks": [
     "dashboard mapped=6 bookkeeping=2",
-    "panel panels[1] mapped=10 reported=2 no_effect=2 bookkeeping=3 field_config:1 query:1",
-    "panel panels[2] mapped=10 reported=2 no_effect=2 bookkeeping=3 field_config:1 query:1",
-    "panel panels[3] mapped=10 reported=2 no_effect=2 bookkeeping=3 field_config:1 query:1",
-    "panel panels[4] mapped=10 reported=2 no_effect=2 bookkeeping=3 field_config:1 query:1",
+    "panel panels[1] mapped=10 no_effect=4 bookkeeping=3 field_config:1 query:1",
+    "panel panels[2] mapped=10 no_effect=4 bookkeeping=3 field_config:1 query:1",
+    "panel panels[3] mapped=10 no_effect=4 bookkeeping=3 field_config:1 query:1",
+    "panel panels[4] mapped=10 no_effect=4 bookkeeping=3 field_config:1 query:1",
     "panel panels[5] mapped=61 reported=3 bookkeeping=7 override:10 query:5 transformation:1",
     "panel panels[6] mapped=32 reported=3 bookkeeping=4 override:7 query:2 transformation:1",
     "panel panels[8] mapped=10 no_effect=1 bookkeeping=3 field_config:1 query:1"
