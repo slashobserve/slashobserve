@@ -94,6 +94,31 @@ type Note struct {
 	Paths   []string `json:"paths"`
 }
 
+type Outcome string
+
+type BlockKind string
+
+type OptionLine struct {
+	Path    string   `json:"path"`
+	Outcome Outcome  `json:"outcome"`
+	Spec    []string `json:"spec"`
+	Reason  *string  `json:"reason"`
+}
+
+type Block struct {
+	Kind       BlockKind    `json:"kind"`
+	Path       string       `json:"path"`
+	Title      string       `json:"title"`
+	SourceType string       `json:"source_type"`
+	PanelID    *string      `json:"panel_id"`
+	Outcome    *Outcome     `json:"outcome"`
+	Reason     *string      `json:"reason"`
+	Options    []OptionLine `json:"options"`
+	Implicit   int          `json:"implicit"`
+	Omitted    int          `json:"omitted"`
+	Blocks     []Block      `json:"blocks"`
+}
+
 type Counts struct {
 	Total       int `json:"total"`
 	Imported    int `json:"imported"`
@@ -108,6 +133,7 @@ type Report struct {
 	Counts          Counts      `json:"counts"`
 	Panels          []PanelLine `json:"panels"`
 	Notes           []Note      `json:"notes"`
+	Blocks          []Block     `json:"blocks,omitempty"`
 }
 
 type Result struct {
