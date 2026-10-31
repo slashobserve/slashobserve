@@ -11,12 +11,12 @@ import { shapeNulls } from "../timeseries/gaps"
 import type { Cell } from "../timeseries/stack"
 import { LegendSwatch } from "../legend/legend"
 import { TimeseriesChart } from "../timeseries/timeseries-panel"
-import type { FieldConfig } from "../field-config"
 import type { PreparedFrame } from "../transforms"
 import type { PanelRenderer } from "../types"
 import { Unsupported } from "../unsupported"
 import {
   bodyWidth,
+  candleConfigs,
   candleOptions,
   directionColors,
   directions,
@@ -173,24 +173,6 @@ function selectCandlesFor(
   return selectCandles(frames, JSON.parse(optionsKey) as CandleOptions)
 }
 
-function priceConfig(
-  config: FieldConfig,
-  role: CandleRole,
-  listed: boolean
-): FieldConfig {
-  return {
-    ...config,
-    style: "line",
-    fill: 0,
-    stack: "none",
-    hidden: false,
-    hideInLegend: listed ? config.hideInLegend : true,
-    insertNulls: undefined,
-    nullAsZero: false,
-    axis: role === "volume" ? "hidden" : "left",
-  }
-}
-
 const CandlestickPanel: PanelRenderer = (props) => {
   const { frames, fields, display, width, height } = props
   const options = useMemo(() => candleOptions(display), [display])
@@ -216,17 +198,18 @@ const CandlestickPanel: PanelRenderer = (props) => {
         )
       : null
   }, [source, columns])
-  const configs = useMemo(() => {
-    if (!placed) return []
-    const roles = new Map(columns.map(({ role, field }) => [field, role]))
-    return placed.series.map(({ frame, field }) => {
-      const config = fields.configFor(frame, field)
-      const role = roles.get(field)
-      return role === undefined
-        ? config
-        : priceConfig(config, role, legend === "series")
-    })
-  }, [placed, columns, fields, legend])
+  const configs = useMemo(
+    () =>
+      placed
+        ? candleConfigs(
+            placed.series,
+            columns,
+            fields.configFor,
+            legend === "series"
+          )
+        : [],
+    [placed, columns, fields, legend]
+  )
   const aligned = useMemo(
     () => (placed ? shapeNulls(placed, configs) : null),
     [placed, configs]

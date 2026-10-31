@@ -223,6 +223,34 @@ func TestCandlestickIncludeAllFieldsOffIsSilent(t *testing.T) {
 	}
 }
 
+func TestCandlestickExtraSeriesTakeTheTimeSeriesProps(t *testing.T) {
+	cases := []struct {
+		name, custom string
+		check        func(spec.FieldProps) bool
+	}{
+		{"point size", `{"showPoints":"always","pointSize":8}`, func(p spec.FieldProps) bool { return intOf(p.PointSize) == 8 }},
+		{"fill below to", `{"fillBelowTo":"down"}`, func(p spec.FieldProps) bool { return p.FillBelowTo == "down" }},
+		{"constant transform", `{"transform":"constant"}`, func(p spec.FieldProps) bool { return p.ValueTransform == "constant" }},
+		{"negative Y transform", `{"transform":"negative-Y"}`, func(p spec.FieldProps) bool { return p.ValueTransform == "negativeY" }},
+		{"stacking group", `{"stacking":{"mode":"normal","group":"B"}}`, func(p spec.FieldProps) bool { return p.Stack == "normal" && p.StackGroup == "B" }},
+		{"hide from legend", `{"hideFrom":{"legend":true,"tooltip":false,"viz":false}}`, func(p spec.FieldProps) bool {
+			return p.HideInLegend != nil && *p.HideInLegend && p.HideInTooltip == nil
+		}},
+		{"hide from tooltip", `{"hideFrom":{"legend":false,"tooltip":true,"viz":false}}`, func(p spec.FieldProps) bool {
+			return p.HideInTooltip != nil && *p.HideInTooltip && p.HideInLegend == nil
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := customPanelOf(t, "candlestick", tc.custom, "")
+			requireImported(t, line)
+			if !tc.check(panel.FieldProps) {
+				t.Fatalf("props = %+v", panel.FieldProps)
+			}
+		})
+	}
+}
+
 func TestPlotDrawnPropsAreReportedOnTimelinesAndPieCharts(t *testing.T) {
 	cases := []struct{ name, custom, path string }{
 		{"insert nulls", `{"insertNulls":60000}`, "fieldConfig.defaults.custom.insertNulls"},

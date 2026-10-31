@@ -150,10 +150,10 @@ var dataLinkTypes = map[spec.PanelType]bool{spec.Stat: true, spec.Gauge: true, s
 
 var plotPanelTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true, spec.Candlestick: true}
 
-var seriesDrawingTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true}
+var seriesDrawingTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true, spec.Candlestick: true}
 
 var legendTooltipHidingTypes = map[spec.PanelType]bool{
-	spec.Timeseries: true, spec.Trend: true, spec.PieChart: true, spec.BarChart: true, spec.Histogram: true, spec.XYChart: true,
+	spec.Timeseries: true, spec.Trend: true, spec.Candlestick: true, spec.PieChart: true, spec.BarChart: true, spec.Histogram: true, spec.XYChart: true,
 }
 
 var thresholdsStyleTypes = union(plotPanelTypes, barChartPanelTypes)
