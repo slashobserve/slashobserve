@@ -29,10 +29,15 @@ func parseList(t *testing.T, entries ...string) domains.List {
 
 func serve(t *testing.T, lock Lock, kind auth.PrincipalKind, method, path, body string) *httptest.ResponseRecorder {
 	t.Helper()
+	return serveAs(t, lock, kind, auth.RoleAdmin, method, path, body)
+}
+
+func serveAs(t *testing.T, lock Lock, kind auth.PrincipalKind, role auth.Role, method, path, body string) *httptest.ResponseRecorder {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	api := engine.Group("/api/v1", func(c *gin.Context) {
-		p := auth.Principal{Kind: kind, ID: "3f1c2a52-8c5e-4a53-9a3e-1d2d4c0a9b11", Name: "Ada", Role: auth.RoleAdmin}
+		p := auth.Principal{Kind: kind, ID: "3f1c2a52-8c5e-4a53-9a3e-1d2d4c0a9b11", Name: "Ada", Role: role}
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), p))
 	})
 	New(nil, lock, slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(api))
@@ -131,6 +136,26 @@ func TestRemoveRefusesAnUnparsablePathValue(t *testing.T) {
 	rec := serve(t, Lock{}, auth.KindUser, http.MethodDelete, "/bad%20host", "")
 	if rec.Code != http.StatusUnprocessableEntity || code(t, rec) != "invalid_domain" {
 		t.Fatalf("status = %d, body %s, want 422 invalid_domain", rec.Code, rec.Body)
+	}
+}
+
+func TestOnlyAdminsCanChangeTheAllowlist(t *testing.T) {
+	for _, role := range []auth.Role{auth.RoleEditor, auth.RoleCommenter, auth.RoleViewer} {
+		for _, lock := range []Lock{{}, {Locked: true}} {
+			for _, tt := range []struct{ method, path, body string }{
+				{http.MethodPost, "", `{"domain":"example.com"}`},
+				{http.MethodDelete, "/example.com", ""},
+			} {
+				rec := serveAs(t, lock, auth.KindUser, role, tt.method, tt.path, tt.body)
+				if rec.Code != http.StatusForbidden || code(t, rec) != "forbidden_role" {
+					t.Fatalf("%s as %s locked=%v: status = %d, body %s, want 403 forbidden_role", tt.method, role, lock.Locked, rec.Code, rec.Body)
+				}
+			}
+		}
+	}
+	locked := Lock{Locked: true, Domains: parseList(t, "example.com")}
+	if rec := serveAs(t, locked, auth.KindUser, auth.RoleViewer, http.MethodGet, "", ""); rec.Code != http.StatusOK {
+		t.Fatalf("a Viewer's GET = %d %s, want 200", rec.Code, rec.Body)
 	}
 }
 

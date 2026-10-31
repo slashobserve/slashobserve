@@ -55,7 +55,11 @@ func newRigWithLogger(t *testing.T, logger *slog.Logger) *rig {
 	engine := gin.New()
 	api := engine.Group("/api/v1", func(c *gin.Context) {
 		if kind := c.GetHeader("X-Test-Kind"); kind != "" {
-			p := auth.Principal{Kind: auth.PrincipalKind(kind), ID: c.GetHeader("X-Test-Id"), Role: auth.RoleAdmin}
+			role := auth.RoleAdmin
+			if given := c.GetHeader("X-Test-Role"); given != "" {
+				role = auth.Role(given)
+			}
+			p := auth.Principal{Kind: auth.PrincipalKind(kind), ID: c.GetHeader("X-Test-Id"), Role: role}
 			c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), p))
 		}
 	})
@@ -89,6 +93,7 @@ func (r *rig) do(method, path string, caller auth.Principal) *httptest.ResponseR
 	if caller.Kind != "" {
 		req.Header.Set("X-Test-Kind", string(caller.Kind))
 		req.Header.Set("X-Test-Id", caller.ID)
+		req.Header.Set("X-Test-Role", string(caller.Role))
 	}
 	rec := httptest.NewRecorder()
 	r.engine.ServeHTTP(rec, req)
@@ -172,6 +177,32 @@ func TestServiceAccountsCannotUseThePeopleRoutes(t *testing.T) {
 	}
 	if n := countSessions(t, r, user); n != 1 {
 		t.Fatalf("sessions = %d, want the one the test made", n)
+	}
+}
+
+func TestOnlyAdminsCanUseThePeopleRoutes(t *testing.T) {
+	r := newRig(t)
+	user := r.addUser("ada", time.Now())
+	r.addSession(user, "ada-1")
+	for _, role := range []auth.Role{auth.RoleEditor, auth.RoleCommenter, auth.RoleViewer} {
+		caller := auth.Principal{Kind: auth.KindUser, ID: user.String(), Role: role}
+		for _, tc := range []struct{ method, path string }{
+			{http.MethodGet, "/api/v1/users"},
+			{http.MethodPatch, "/api/v1/users/" + user.String()},
+			{http.MethodDelete, "/api/v1/users/" + user.String() + "/sessions"},
+		} {
+			rec := r.do(tc.method, tc.path, caller)
+			if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), `"code":"forbidden_role"`) {
+				t.Errorf("%s %s as %s = %d %s, want 403 forbidden_role", tc.method, tc.path, role, rec.Code, rec.Body)
+			}
+		}
+	}
+	if n := countSessions(t, r, user); n != 1 {
+		t.Fatalf("sessions = %d, want the one the test made", n)
+	}
+	admin := auth.Principal{Kind: auth.KindUser, ID: user.String(), Role: auth.RoleAdmin}
+	if rec := r.do(http.MethodGet, "/api/v1/users", admin); rec.Code != http.StatusOK {
+		t.Fatalf("an Admin's GET /users = %d %s", rec.Code, rec.Body)
 	}
 }
 

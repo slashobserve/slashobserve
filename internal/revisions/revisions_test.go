@@ -22,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/logtest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -1234,18 +1235,11 @@ func asRole(role auth.Role) auth.Principal {
 	return p
 }
 
-func moveToRestrictedFolder(t *testing.T, d *dbtest.Database, dashboard pgtype.UUID) {
-	t.Helper()
-	d.Exec(t, `WITH f AS (INSERT INTO folders (title) VALUES ('Private') RETURNING id),
-		p AS (INSERT INTO folder_permissions (folder_id, group_name, level) SELECT id, 'nobody', 'view' FROM f)
-		UPDATE dashboards SET folder_id = (SELECT id FROM f) WHERE id = $1`, dashboard)
-}
-
 func TestRequestsNeedEditOnTheDashboardOrEditorForANewOne(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	open := seedDashboard(t, d, 1)
 	hidden := seedDashboard(t, d, 1)
-	moveToRestrictedFolder(t, d, hidden)
+	foldertest.Move(t, d, hidden, foldertest.Restricted(t, d, "Private", "nobody"))
 	missing := mustUUID(t, "99999999-9999-4999-8999-999999999999")
 
 	cases := []struct {
