@@ -150,6 +150,13 @@
     ],
     "notes": []
   },
+  "blocks": [
+    "dashboard mapped=6 bookkeeping=2",
+    "panel panels[1] mapped=12 bookkeeping=4 field_config:1 query:1",
+    "panel panels[2] mapped=15 bookkeeping=5 field_config:1 query:2",
+    "panel panels[4] mapped=16 bookkeeping=5 field_config:1 query:2",
+    "panel panels[5] mapped=19 bookkeeping=6 field_config:1 query:3"
+  ],
   "spec": {
     "specVersion": "0",
     "title": "Alertmanager / Overview",

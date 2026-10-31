@@ -311,6 +311,20 @@
     ],
     "notes": []
   },
+  "blocks": [
+    "dashboard mapped=5 bookkeeping=9",
+    "panel panels[1] mapped=15 bookkeeping=4 field_config:1 query:1",
+    "panel panels[2] mapped=18 bookkeeping=5 field_config:1 query:1",
+    "panel panels[3] mapped=43 default=1 bookkeeping=9 field_config:1 query:3",
+    "panel panels[5] mapped=35 default=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[6] mapped=35 default=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[7] mapped=46 default=1 bookkeeping=8 field_config:1 query:3",
+    "panel panels[8] mapped=35 default=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[10] mapped=35 default=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[11] mapped=35 default=1 bookkeeping=4 field_config:1 query:1",
+    "panel panels[12] mapped=46 default=1 bookkeeping=8 field_config:1 query:3",
+    "panel panels[13] mapped=35 default=1 bookkeeping=4 field_config:1 query:1"
+  ],
   "spec": {
     "specVersion": "0",
     "title": "Hubble L7 HTTP Metrics by Workload",

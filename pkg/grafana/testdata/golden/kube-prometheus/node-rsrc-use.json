@@ -241,6 +241,18 @@
     ],
     "notes": []
   },
+  "blocks": [
+    "dashboard mapped=6 bookkeeping=2",
+    "panel panels[1] mapped=11 bookkeeping=4 field_config:1 query:1",
+    "panel panels[2] mapped=11 bookkeeping=4 field_config:1 query:1",
+    "panel panels[4] mapped=11 bookkeeping=4 field_config:1 query:1",
+    "panel panels[5] mapped=11 bookkeeping=4 field_config:1 query:1",
+    "panel panels[7] mapped=15 bookkeeping=5 field_config:1 override:1 query:2",
+    "panel panels[8] mapped=15 bookkeeping=5 field_config:1 override:1 query:2",
+    "panel panels[10] mapped=11 bookkeeping=4 field_config:1 query:1",
+    "panel panels[11] mapped=11 bookkeeping=4 field_config:1 query:1",
+    "panel panels[13] mapped=11 bookkeeping=4 field_config:1 query:1"
+  ],
   "spec": {
     "specVersion": "0",
     "title": "Node Exporter / USE Method / Node",
