@@ -405,8 +405,7 @@ func displayCandlestick(b *panelBuild) {
 	if v, ok := b.boolOption("options.includeAllFields"); ok && *v {
 		d.IncludeAllFields = v
 	}
-	b.legendAndTooltip(d)
-	b.tooltipOptions(d)
+	b.seriesLegendAndTooltip(d)
 }
 
 func (b *panelBuild) candleColor(path string) string {
