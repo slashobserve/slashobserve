@@ -1,0 +1,148 @@
+package tools
+
+import (
+	"context"
+	"encoding/json"
+	"log/slog"
+	"regexp"
+	"slices"
+	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/imports"
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
+)
+
+func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
+	database := dbtest.New(t)
+	logger := slog.New(slog.DiscardHandler)
+	ds := &fakeDS{
+		rangeFn: func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+			return []datasource.Frame{timeNumberFrame(nil, 1, 2)}, nil
+		},
+		instantFn: func(context.Context, datasource.Query, datasource.TimeRange) ([]datasource.Frame, error) {
+			return []datasource.Frame{timeNumberFrame(nil, 1, 2)}, nil
+		},
+	}
+	datasources, err := datasource.NewRegistry(logger, datasource.Instance{UID: fakeUID, Name: "Fake", Datasource: ds})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := queryproxy.NewRunner(datasources, logger)
+	access := folders.NewAccess(database.DB)
+	service := dashboards.New(database.DB, runner, access, logger)
+	comments := dashboards.NewComments(database.DB, service, nil)
+	registry := New(Deps{
+		Datasources: datasources,
+		Runner:      runner,
+		Dashboards:  service,
+		Comments:    comments,
+		Imports:     imports.New(database.DB, service, access, datasources, logger),
+		Folders:     access,
+		Logger:      logger,
+	})
+	ctx := auth.WithPrincipal(context.Background(), placeholderUser)
+
+	validSpec := specOf(statPanel("p1", 0))
+	dash, _, err := service.Create(ctx, placeholderUser, pgtype.UUID{}, []byte(validSpec), "seed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dashboardID, err := db.ParseUUID(dash.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	comment, err := comments.Create(ctx, placeholderUser, dashboardID, dashboards.NewComment{Version: 1, Body: "seed"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	samples := map[string]json.RawMessage{
+		"datasource":     json.RawMessage(`"` + fakeUID + `"`),
+		"query":          json.RawMessage(`"up"`),
+		"table":          json.RawMessage(`"t"`),
+		"label":          json.RawMessage(`"job"`),
+		"dashboard_id":   json.RawMessage(`"` + dash.ID + `"`),
+		"comment_id":     json.RawMessage(`"` + comment.ID + `"`),
+		"parent_version": json.RawMessage(`1`),
+		"spec":           json.RawMessage(validSpec),
+		"body":           json.RawMessage(`"done"`),
+		"json":           json.RawMessage(`"{\"title\":\"Imported\",\"schemaVersion\":39,\"panels\":[]}"`),
+	}
+
+	for _, tool := range registry.List() {
+		t.Run(tool.Name, func(t *testing.T) {
+			var schema struct {
+				Required   []string                   `json:"required"`
+				Properties map[string]json.RawMessage `json:"properties"`
+			}
+			if err := json.Unmarshal(tool.InputSchema, &schema); err != nil {
+				t.Fatal(err)
+			}
+			base := map[string]json.RawMessage{}
+			for _, field := range schema.Required {
+				sample, ok := samples[field]
+				if !ok {
+					t.Fatalf("no sample value for required field %q; add one to samples", field)
+				}
+				base[field] = sample
+			}
+			baseRes := callWith(ctx, t, registry, tool.Name, base)
+			baseBody := contentJSON(t, baseRes)
+			if baseRes.IsError {
+				var body struct{ Code, Message string }
+				_ = json.Unmarshal(baseBody, &body)
+				for field := range schema.Properties {
+					if !slices.Contains(schema.Required, field) && body.Code == codeInvalidRequest && mentions(body.Message, field) {
+						t.Errorf("a call with exactly the declared required fields %v is rejected for %q, which the schema does not require: %s", schema.Required, field, body.Message)
+					}
+				}
+			}
+			for _, field := range schema.Required {
+				without := map[string]json.RawMessage{}
+				for name, value := range base {
+					if name != field {
+						without[name] = value
+					}
+				}
+				res := callWith(ctx, t, registry, tool.Name, without)
+				if !res.IsError || string(contentJSON(t, res)) == string(baseBody) {
+					t.Errorf("the schema requires %q but the handler does not reject a call without it: %s", field, contentJSON(t, res))
+				}
+			}
+		})
+	}
+}
+
+func mentions(message, field string) bool {
+	return regexp.MustCompile(`\b` + regexp.QuoteMeta(field) + `\b`).MatchString(message)
+}
+
+func callWith(ctx context.Context, t *testing.T, r *Registry, name string, input map[string]json.RawMessage) Result {
+	t.Helper()
+	body, err := json.Marshal(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := r.Call(ctx, name, body)
+	if err != nil {
+		t.Fatalf("%s %s: %v", name, body, err)
+	}
+	return res
+}
+
+func contentJSON(t *testing.T, res Result) []byte {
+	t.Helper()
+	body, err := json.Marshal(res.Content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return body
+}

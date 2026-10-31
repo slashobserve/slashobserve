@@ -89,7 +89,7 @@ const (
 
 	schemaCreateDashboard = `{"type":"object","properties":{` + propSpec + `,` + propSummary + `{folder_prop}},"required":["spec"],"additionalProperties":false}`
 
-	schemaUpdateDashboard = `{"type":"object","properties":{` + propDashID + `,"parent_version":{"type":"integer","minimum":1,"description":"The version this change is based on."},` + propSpec + `,` + propSummary + `},"required":["spec"],"additionalProperties":false}`
+	schemaUpdateDashboard = `{"type":"object","properties":{` + propDashID + `,"parent_version":{"type":"integer","minimum":1,"description":"The version this change is based on."},` + propSpec + `,` + propSummary + `},"required":[{update_target}"spec"],"additionalProperties":false}`
 )
 
 const (

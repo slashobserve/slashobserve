@@ -122,3 +122,27 @@ func TestMissingSpecErrorNamesOnlyWhatTheCallerHas(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateDashboardRequiredFieldsDifferForMCPAndAgent(t *testing.T) {
+	var update Tool
+	for _, tool := range New(Deps{}).List() {
+		if tool.Name == nameUpdateDashboard {
+			update = tool
+		}
+	}
+	requiredOf := func(schema json.RawMessage) []string {
+		var parsed struct {
+			Required []string `json:"required"`
+		}
+		if err := json.Unmarshal(schema, &parsed); err != nil {
+			t.Fatal(err)
+		}
+		return parsed.Required
+	}
+	if got, want := fmt.Sprint(requiredOf(update.InputSchema)), "[dashboard_id parent_version spec]"; got != want {
+		t.Errorf("MCP required = %s, want %s", got, want)
+	}
+	if got, want := fmt.Sprint(requiredOf(update.ForAgent().InputSchema)), "[spec]"; got != want {
+		t.Errorf("agent required = %s, want %s", got, want)
+	}
+}
