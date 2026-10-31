@@ -443,6 +443,120 @@ func TestLegacyGraphThresholdsKeepTheirOrderBelowTheFirstValue(t *testing.T) {
 	}
 }
 
+func TestLegacyGraphKeysTheMigrationDropsImportWithoutANote(t *testing.T) {
+	cases := []struct{ name, members string }{
+		{"pace length", `"paceLength":10`},
+		{"millisecond tooltip resolution", `"tooltip":{"shared":true,"msResolution":false}`},
+		{"percentage without stacking", `"percentage":true`},
+		{"a threshold without a value", `"thresholds":[{"colorMode":"critical","op":"gt","value":null,"fill":true,"line":true}]`},
+		{"hidden series flag", `"hiddenSeries":true`},
+		{"renderer", `"renderer":"png"`},
+		{"alert threshold option", `"options":{"alertThreshold":false}`},
+		{"aligned y axes", `"yaxis":{"align":true,"alignLevel":0}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := graphPanel(t, tc.members)
+			if line.Status != statusImported || len(line.Paths) != 0 {
+				t.Fatalf("status %s, paths %v, reasons %v, want imported with no note", line.Status, line.Paths, line.Reasons)
+			}
+			if len(panel.Thresholds) != 0 || panel.Stack != "" {
+				t.Fatalf("thresholds %v, stack %q, want neither", panel.Thresholds, panel.Stack)
+			}
+		})
+	}
+}
+
+func TestLegacyGraphThresholdBelowAValueStaysReported(t *testing.T) {
+	_, line := graphPanel(t, `"thresholds":[{"colorMode":"critical","op":"lt","value":10}]`)
+	if line.Status != statusPartial || !slices.Equal(line.Paths, []string{"thresholds[0]"}) {
+		t.Fatalf("status %s, paths %v, want thresholds[0] reported", line.Status, line.Paths)
+	}
+}
+
+func TestLegacyGraphThresholdsStyleFollowsFillAndLine(t *testing.T) {
+	cases := []struct {
+		name, members, want string
+	}{
+		{"neither", `"fill":false,"line":false`, "line"},
+		{"line only", `"line":true`, "line"},
+		{"fill only", `"fill":true`, "area"},
+		{"both", `"fill":true,"line":true`, "line+area"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := graphPanel(t, `"thresholds":[{"colorMode":"critical","op":"gt","value":80,`+tc.members+`}]`)
+			if panel.ThresholdsStyle != tc.want {
+				t.Fatalf("thresholdsStyle = %q, want %q", panel.ThresholdsStyle, tc.want)
+			}
+			if len(line.Paths) != 0 {
+				t.Fatalf("paths = %v", line.Paths)
+			}
+		})
+	}
+}
+
+func TestLegacyGraphWithoutThresholdsWritesNoThresholdsStyle(t *testing.T) {
+	panel, _ := graphPanel(t, `"thresholds":[]`)
+	if panel.ThresholdsStyle != "" {
+		t.Fatalf("thresholdsStyle = %q, want none", panel.ThresholdsStyle)
+	}
+}
+
+func TestLegacyGraphDashPatternFollowsDashAndSpaceLength(t *testing.T) {
+	cases := []struct {
+		name, members string
+		want          []int
+		reported      string
+	}{
+		{"both lengths", `"dashes":true,"dashLength":5,"spaceLength":20`, []int{5, 20}, ""},
+		{"dash length alone", `"dashes":true,"dashLength":4`, []int{4, 10}, ""},
+		{"space length alone", `"dashes":true,"spaceLength":3`, []int{10, 3}, ""},
+		{"Grafana's own pattern", `"dashes":true,"dashLength":10,"spaceLength":10`, nil, ""},
+		{"no lengths", `"dashes":true`, nil, ""},
+		{"lengths without dashes", `"dashLength":5,"spaceLength":20`, nil, ""},
+		{"a dash length past 100", `"dashes":true,"dashLength":150`, nil, "dashLength"},
+		{"a fractional space length", `"dashes":true,"spaceLength":2.5`, nil, "spaceLength"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := graphPanel(t, tc.members)
+			if !slices.Equal(panel.LineDash, tc.want) {
+				t.Fatalf("lineDash = %v, want %v", panel.LineDash, tc.want)
+			}
+			if tc.reported == "" && len(line.Paths) != 0 {
+				t.Fatalf("paths = %v, want none", line.Paths)
+			}
+			if tc.reported != "" && !slices.Equal(line.Paths, []string{tc.reported}) {
+				t.Fatalf("paths = %v, want %s", line.Paths, tc.reported)
+			}
+		})
+	}
+}
+
+func TestLegacyGraphAlertIsExcludedWithAlertRules(t *testing.T) {
+	panel, line := graphPanel(t, `"alert":{"name":"High load","frequency":"60s","conditions":[{"type":"query","evaluator":{"type":"gt","params":[10]},"reducer":{"type":"avg","params":[]}}]}`)
+	if line.Status != statusImported {
+		t.Fatalf("status = %s, want imported", line.Status)
+	}
+	if !slices.Equal(line.Paths, []string{"alert"}) || !slices.Equal(line.Reasons, []string{decisionAlertRules.reason}) {
+		t.Fatalf("paths %v, reasons %v, want alert with the alert rules reason", line.Paths, line.Reasons)
+	}
+	if panel.Type != spec.Timeseries {
+		t.Fatalf("type = %s, want the graph imported as a time series", panel.Type)
+	}
+}
+
+func TestLegacyGraphSeriesOverrideFillGradientIsCosmetic(t *testing.T) {
+	panel, line := graphPanel(t, `"seriesOverrides":[{"alias":"errors","color":"#ff0000","fillGradient":6}]`)
+	if line.Status != statusImported || len(line.Paths) != 0 {
+		t.Fatalf("status %s, paths %v, want imported with no note", line.Status, line.Paths)
+	}
+	if len(panel.Overrides) != 1 || panel.Overrides[0].Color != "#ff0000" {
+		t.Fatalf("overrides = %+v, want only the color", panel.Overrides)
+	}
+}
+
 func TestSinglestatThresholdsFollowTheirColors(t *testing.T) {
 	const colors = `"colors":["#299c46","rgba(237, 129, 40, 0.89)","#d44a3a"]`
 	defaults := []string{"ok", "critical@80"}

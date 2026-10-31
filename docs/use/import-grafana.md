@@ -175,6 +175,8 @@ A field's color mode imports as the classic palette (the default), a palette by 
 A color mode a panel type does not draw is reported as "The color mode X is not drawn on Y panels."
 A value mapping's icon is reported, and its text and color are kept.
 Grafana's renamed and retired panel types import as their modern type, such as `graph`, `table-old` and `singlestat`, and `grafana-worldmap-panel` imports as a geomap.
+Graph options that Grafana's own time series migration drops, such as `paceLength` and the tooltip's millisecond resolution, thresholds without a value and `percentage` without stacking import without a note, and a legacy graph alert is excluded with alert rules.
+A legacy graph's threshold fill and line choose the threshold style the way Grafana's migration does (lines, areas, or both), and `dashLength` and `spaceLength` set the pattern of a dashed line.
 An annotation list, a live panel and an Alertmanager panel become placeholders that give the reason.
 A `welcome` panel imports as a text panel with a one-line note, `gettingstarted` as a text checklist that links these docs, and `debug` as a table over its own targets.
 An alert list imports as one Prometheus `ALERTS` query, and a Grafana-managed or legacy alert list becomes a placeholder.

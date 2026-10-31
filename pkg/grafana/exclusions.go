@@ -134,6 +134,8 @@ var excludedOptions = slices.Concat(
 		{scope: panelScope(spec.AlertList), path: "options.dashboardAlerts", values: []any{true}, decision: decisionAlertRules},
 		{scope: panelScope(spec.AlertList), path: "options.folder", decision: decisionAlertRules},
 
+		{scope: optionScope("panel:graph"), path: "alert", decision: decisionAlertRules},
+
 		{scope: panelScope(spec.BarGauge), path: "options.legend", decision: decisionBarGaugeLegend},
 		{scope: panelScope(spec.Gauge), path: "options.orientation", values: []any{"vertical", "horizontal"}, decision: decisionGaugeLayout},
 		{scope: panelScope(spec.Heatmap), path: "options.selectionMode", values: []any{"xy", "y"}, decision: decisionHeatmapSelection},

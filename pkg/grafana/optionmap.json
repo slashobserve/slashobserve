@@ -3443,6 +3443,754 @@
    }
   }
  },
+ "panel:graph": {
+  "aliasColors.errors": {
+   "fields": [
+    "overrides[].color",
+    "overrides[].match.series"
+   ],
+   "values": {
+    "s:#ff0000": [
+     "overrides[].color",
+     "overrides[].match.series"
+    ]
+   }
+  },
+  "bars": {
+   "fields": [
+    "fill",
+    "style"
+   ],
+   "values": {
+    "b:true": [
+     "fill",
+     "style"
+    ]
+   }
+  },
+  "dashLength": {
+   "fields": [
+    "lineDash[]"
+   ],
+   "values": {
+    "n:5": [
+     "lineDash[]"
+    ]
+   }
+  },
+  "dashes": {
+   "fields": [
+    "lineStyle"
+   ],
+   "values": {
+    "b:true": [
+     "lineStyle"
+    ]
+   }
+  },
+  "decimals": {
+   "fields": [
+    "decimals"
+   ],
+   "values": {
+    "n:2": [
+     "decimals"
+    ]
+   }
+  },
+  "fill": {
+   "fields": [
+    "fill"
+   ],
+   "values": {
+    "n:3": [
+     "fill"
+    ]
+   }
+  },
+  "id": {
+   "fields": [
+    "id"
+   ],
+   "values": {
+    "n:7": [
+     "id"
+    ]
+   }
+  },
+  "legend.alignAsTable": {
+   "fields": [
+    "display.legendMode"
+   ],
+   "values": {
+    "b:true": [
+     "display.legendMode"
+    ]
+   }
+  },
+  "legend.avg": {
+   "fields": [
+    "display.legendMode",
+    "display.legendValues[]"
+   ],
+   "values": {
+    "b:true": [
+     "display.legendMode",
+     "display.legendValues[]"
+    ]
+   }
+  },
+  "legend.current": {
+   "fields": [
+    "display.legendMode",
+    "display.legendValues[]"
+   ],
+   "values": {
+    "b:true": [
+     "display.legendMode",
+     "display.legendValues[]"
+    ]
+   }
+  },
+  "legend.hideEmpty": {
+   "fields": [
+    "display.legendHideEmpty"
+   ],
+   "values": {
+    "b:true": [
+     "display.legendHideEmpty"
+    ]
+   }
+  },
+  "legend.hideZero": {
+   "fields": [
+    "display.legendHideZero"
+   ],
+   "values": {
+    "b:true": [
+     "display.legendHideZero"
+    ]
+   }
+  },
+  "legend.max": {
+   "fields": [
+    "display.legendMode",
+    "display.legendValues[]"
+   ],
+   "values": {
+    "b:true": [
+     "display.legendMode",
+     "display.legendValues[]"
+    ]
+   }
+  },
+  "legend.min": {
+   "fields": [
+    "display.legendMode",
+    "display.legendValues[]"
+   ],
+   "values": {
+    "b:true": [
+     "display.legendMode",
+     "display.legendValues[]"
+    ]
+   }
+  },
+  "legend.rightSide": {
+   "fields": [
+    "display.legend"
+   ],
+   "values": {
+    "b:true": [
+     "display.legend"
+    ]
+   }
+  },
+  "legend.show": {
+   "fields": [
+    "display.legend"
+   ],
+   "values": {
+    "b:false": [
+     "display.legend"
+    ]
+   }
+  },
+  "legend.sideWidth": {
+   "fields": [
+    "display.legendWidth"
+   ],
+   "values": {
+    "n:250": [
+     "display.legendWidth"
+    ]
+   }
+  },
+  "legend.sort": {
+   "fields": [
+    "display.legendSortBy"
+   ],
+   "values": {
+    "s:avg": [
+     "display.legendSortBy"
+    ]
+   }
+  },
+  "legend.sortDesc": {
+   "fields": [
+    "display.legendSortDesc"
+   ],
+   "values": {
+    "b:true": [
+     "display.legendSortDesc"
+    ]
+   }
+  },
+  "legend.total": {
+   "fields": [
+    "display.legendMode",
+    "display.legendValues[]"
+   ],
+   "values": {
+    "b:true": [
+     "display.legendMode",
+     "display.legendValues[]"
+    ]
+   }
+  },
+  "legend.values": {
+   "fields": [
+    "display.legendMode",
+    "display.legendValues[]"
+   ],
+   "values": {
+    "b:true": [
+     "display.legendMode",
+     "display.legendValues[]"
+    ]
+   }
+  },
+  "lines": {
+   "fields": [
+    "style"
+   ],
+   "values": {
+    "b:false": [
+     "style"
+    ]
+   }
+  },
+  "linewidth": {
+   "fields": [
+    "lineWidth"
+   ],
+   "values": {
+    "n:3": [
+     "lineWidth"
+    ]
+   }
+  },
+  "nullPointMode": {
+   "fields": [
+    "nullAsZero",
+    "spanNulls"
+   ],
+   "values": {
+    "s:connected": [
+     "spanNulls"
+    ],
+    "s:null as zero": [
+     "nullAsZero"
+    ]
+   }
+  },
+  "percentage": {
+   "fields": [
+    "stack"
+   ],
+   "values": {
+    "b:true": [
+     "stack"
+    ]
+   }
+  },
+  "pointradius": {
+   "fields": [
+    "pointSize"
+   ],
+   "values": {
+    "n:3": [
+     "pointSize"
+    ]
+   }
+  },
+  "points": {
+   "fields": [
+    "points"
+   ],
+   "values": {
+    "b:true": [
+     "points"
+    ]
+   }
+  },
+  "seriesOverrides[].alias": {
+   "fields": [
+    "overrides[].color",
+    "overrides[].match.series"
+   ],
+   "values": {
+    "s:errors": [
+     "overrides[].color",
+     "overrides[].match.series"
+    ]
+   }
+  },
+  "seriesOverrides[].bars": {
+   "fields": [
+    "overrides[].fill",
+    "overrides[].match.series",
+    "overrides[].style"
+   ],
+   "values": {
+    "b:true": [
+     "overrides[].fill",
+     "overrides[].match.series",
+     "overrides[].style"
+    ]
+   }
+  },
+  "seriesOverrides[].color": {
+   "fields": [
+    "overrides[].color",
+    "overrides[].match.series"
+   ],
+   "values": {
+    "s:#ff0000": [
+     "overrides[].color",
+     "overrides[].match.series"
+    ]
+   }
+  },
+  "seriesOverrides[].dashes": {
+   "fields": [
+    "overrides[].lineStyle",
+    "overrides[].match.series"
+   ],
+   "values": {
+    "b:true": [
+     "overrides[].lineStyle",
+     "overrides[].match.series"
+    ]
+   }
+  },
+  "seriesOverrides[].fill": {
+   "fields": [
+    "overrides[].fill",
+    "overrides[].match.series"
+   ],
+   "values": {
+    "n:5": [
+     "overrides[].fill",
+     "overrides[].match.series"
+    ]
+   }
+  },
+  "seriesOverrides[].fillBelowTo": {
+   "fields": [
+    "overrides[].fillBelowTo",
+    "overrides[].match.series"
+   ],
+   "values": {
+    "s:other": [
+     "overrides[].fillBelowTo",
+     "overrides[].match.series"
+    ]
+   }
+  },
+  "seriesOverrides[].hiddenSeries": {
+   "fields": [
+    "overrides[].hidden",
+    "overrides[].match.series"
+   ],
+   "values": {
+    "b:true": [
+     "overrides[].hidden",
+     "overrides[].match.series"
+    ]
+   }
+  },
+  "seriesOverrides[].hideTooltip": {
+   "fields": [
+    "overrides[].hideInTooltip",
+    "overrides[].match.series"
+   ],
+   "values": {
+    "b:true": [
+     "overrides[].hideInTooltip",
+     "overrides[].match.series"
+    ]
+   }
+  },
+  "seriesOverrides[].legend": {
+   "fields": [
+    "overrides[].hideInLegend",
+    "overrides[].match.series"
+   ],
+   "values": {
+    "b:false": [
+     "overrides[].hideInLegend",
+     "overrides[].match.series"
+    ]
+   }
+  },
+  "seriesOverrides[].lines": {
+   "fields": [
+    "overrides[].match.series",
+    "overrides[].style"
+   ],
+   "values": {
+    "b:false": [
+     "overrides[].match.series",
+     "overrides[].style"
+    ]
+   }
+  },
+  "seriesOverrides[].linewidth": {
+   "fields": [
+    "overrides[].lineWidth",
+    "overrides[].match.series"
+   ],
+   "values": {
+    "n:3": [
+     "overrides[].lineWidth",
+     "overrides[].match.series"
+    ]
+   }
+  },
+  "seriesOverrides[].nullPointMode": {
+   "fields": [
+    "overrides[].match.series",
+    "overrides[].spanNulls"
+   ],
+   "values": {
+    "s:connected": [
+     "overrides[].match.series",
+     "overrides[].spanNulls"
+    ]
+   }
+  },
+  "seriesOverrides[].pointradius": {
+   "fields": [
+    "overrides[].pointSize"
+   ],
+   "values": {
+    "n:3": [
+     "overrides[].pointSize"
+    ]
+   }
+  },
+  "seriesOverrides[].points": {
+   "fields": [
+    "overrides[].match.series",
+    "overrides[].points"
+   ],
+   "values": {
+    "b:true": [
+     "overrides[].match.series",
+     "overrides[].points"
+    ]
+   }
+  },
+  "seriesOverrides[].stack": {
+   "fields": [
+    "overrides[].match.series",
+    "overrides[].stack",
+    "overrides[].stackGroup"
+   ],
+   "values": {
+    "s:B": [
+     "overrides[].match.series",
+     "overrides[].stack",
+     "overrides[].stackGroup"
+    ]
+   }
+  },
+  "seriesOverrides[].steppedLine": {
+   "fields": [
+    "overrides[].lineInterpolation",
+    "overrides[].match.series"
+   ],
+   "values": {
+    "b:true": [
+     "overrides[].lineInterpolation",
+     "overrides[].match.series"
+    ]
+   }
+  },
+  "seriesOverrides[].transform": {
+   "fields": [
+    "overrides[].match.series",
+    "overrides[].valueTransform"
+   ],
+   "values": {
+    "s:negative-Y": [
+     "overrides[].match.series",
+     "overrides[].valueTransform"
+    ]
+   }
+  },
+  "seriesOverrides[].yaxis": {
+   "fields": [
+    "overrides[].axis",
+    "overrides[].match.series"
+   ],
+   "values": {
+    "n:2": [
+     "overrides[].axis",
+     "overrides[].match.series"
+    ]
+   }
+  },
+  "spaceLength": {
+   "fields": [
+    "lineDash[]"
+   ],
+   "values": {
+    "n:5": [
+     "lineDash[]"
+    ]
+   }
+  },
+  "stack": {
+   "fields": [
+    "stack"
+   ],
+   "values": {
+    "b:true": [
+     "stack"
+    ]
+   }
+  },
+  "steppedLine": {
+   "fields": [
+    "lineInterpolation"
+   ],
+   "values": {
+    "b:true": [
+     "lineInterpolation"
+    ]
+   }
+  },
+  "thresholds[].colorMode": {
+   "fields": [
+    "thresholds[].color"
+   ],
+   "values": {
+    "s:warning": [
+     "thresholds[].color"
+    ]
+   }
+  },
+  "thresholds[].fill": {
+   "fields": [
+    "thresholdsStyle"
+   ],
+   "values": {
+    "b:true": [
+     "thresholdsStyle"
+    ]
+   }
+  },
+  "thresholds[].fillColor": {
+   "fields": [
+    "thresholdsStyle",
+    "thresholds[].color",
+    "thresholds[].value"
+   ],
+   "values": {
+    "s:#0000ff": [
+     "thresholdsStyle",
+     "thresholds[].color",
+     "thresholds[].value"
+    ]
+   }
+  },
+  "thresholds[].line": {
+   "fields": [
+    "thresholdsStyle"
+   ],
+   "values": {
+    "b:true": [
+     "thresholdsStyle"
+    ]
+   }
+  },
+  "thresholds[].lineColor": {
+   "fields": [
+    "thresholdsStyle",
+    "thresholds[].color",
+    "thresholds[].value"
+   ],
+   "values": {
+    "s:#0000ff": [
+     "thresholdsStyle",
+     "thresholds[].color",
+     "thresholds[].value"
+    ]
+   }
+  },
+  "thresholds[].op": {
+   "fields": [
+    "thresholdsStyle",
+    "thresholds[].color",
+    "thresholds[].value"
+   ],
+   "values": {
+    "s:gt": [
+     "thresholdsStyle",
+     "thresholds[].color",
+     "thresholds[].value"
+    ]
+   }
+  },
+  "thresholds[].value": {
+   "fields": [
+    "thresholdsStyle",
+    "thresholds[].color",
+    "thresholds[].value"
+   ],
+   "values": {
+    "n:80": [
+     "thresholdsStyle",
+     "thresholds[].color",
+     "thresholds[].value"
+    ]
+   }
+  },
+  "tooltip.shared": {
+   "fields": [
+    "display.tooltip",
+    "display.tooltipSort"
+   ],
+   "values": {
+    "b:false": [
+     "display.tooltip",
+     "display.tooltipSort"
+    ]
+   }
+  },
+  "tooltip.sort": {
+   "fields": [
+    "display.tooltipSort"
+   ],
+   "values": {
+    "n:1": [
+     "display.tooltipSort"
+    ]
+   }
+  },
+  "tooltip.value_type": {
+   "fields": [
+    "display.tooltipCumulative"
+   ],
+   "values": {
+    "s:cumulative": [
+     "display.tooltipCumulative"
+    ]
+   }
+  },
+  "transparent": {
+   "fields": [
+    "transparent"
+   ],
+   "values": {
+    "b:true": [
+     "transparent"
+    ]
+   }
+  },
+  "xaxis.show": {
+   "fields": [
+    "display.xAxis"
+   ],
+   "values": {
+    "b:false": [
+     "display.xAxis"
+    ]
+   }
+  },
+  "yaxes[].decimals": {
+   "fields": [
+    "decimals"
+   ],
+   "values": {
+    "n:2": [
+     "decimals"
+    ]
+   }
+  },
+  "yaxes[].format": {
+   "fields": [
+    "unit"
+   ],
+   "values": {
+    "s:bytes": [
+     "unit"
+    ]
+   }
+  },
+  "yaxes[].label": {
+   "fields": [
+    "axisLabel"
+   ],
+   "values": {
+    "s:Latency": [
+     "axisLabel"
+    ]
+   }
+  },
+  "yaxes[].logBase": {
+   "fields": [
+    "scale"
+   ],
+   "values": {
+    "n:10": [
+     "scale"
+    ]
+   }
+  },
+  "yaxes[].max": {
+   "fields": [
+    "max"
+   ],
+   "values": {
+    "n:100": [
+     "max"
+    ]
+   }
+  },
+  "yaxes[].min": {
+   "fields": [
+    "min"
+   ],
+   "values": {
+    "n:1": [
+     "min"
+    ]
+   }
+  },
+  "yaxes[].show": {
+   "fields": [
+    "axis"
+   ],
+   "values": {
+    "b:false": [
+     "axis"
+    ]
+   }
+  }
+ },
  "panel:heatmap": {
   "fieldConfig.defaults.custom.hideFrom.viz": {
    "fields": [

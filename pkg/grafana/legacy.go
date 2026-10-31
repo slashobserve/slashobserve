@@ -201,13 +201,33 @@ func (b *panelBuild) graphDrawing(p *spec.FieldProps) {
 	}
 	b.consume("bars", "lines")
 	b.graphFill(p, bars)
-	if flagOr(b.raw, "dashes", false) {
-		p.LineStyle = "dashed"
-	}
-	b.consume("dashes")
+	b.graphDashes(p)
 	b.graphStack(p)
 	b.graphLine(p)
 	b.graphPoints(p, bars)
+}
+
+var graphDashKeys = []string{"dashLength", "spaceLength"}
+
+func (b *panelBuild) graphDashes(p *spec.FieldProps) {
+	b.consume("dashes", "dashLength", "spaceLength")
+	if !flagOr(b.raw, "dashes", false) {
+		return
+	}
+	p.LineStyle = "dashed"
+	dash := []any{float64(grafanaDashLength), float64(grafanaDashLength)}
+	site := propSite{whole: true}
+	for i, key := range graphDashKeys {
+		v := b.raw[key]
+		if v == nil {
+			continue
+		}
+		dash[i] = v
+		if _, ok := dashPair([]any{v, v}); !ok && site.report == "" {
+			site.report = key
+		}
+	}
+	b.applyLineDash(p, dash, site)
 }
 
 func (b *panelBuild) graphLine(p *spec.FieldProps) {
@@ -325,20 +345,38 @@ func (b *panelBuild) graphThresholds(p *spec.FieldProps) {
 	items, _ := asArray(b.raw["thresholds"])
 	b.consume("thresholds")
 	steps := []thresholdStep{{index: -1, color: "transparent"}}
+	var area, line bool
 	for i, item := range items {
 		t, _ := asObject(item)
 		path := fmt.Sprintf("thresholds[%d]", i)
 		value, ok := numberValue(t["value"])
-		if asString(t["op"]) != "gt" || !ok {
+		switch {
+		case asString(t["op"]) != "gt":
 			b.partial(path, "Thresholds below a value are not supported yet.")
-			continue
+		case !ok:
+			b.recordImplicit(path+".value", outcomeNoEffect)
+		default:
+			area, line = area || truthy(t["fill"]), line || truthy(t["line"])
+			steps = append(steps, thresholdStep{index: i, value: &value, color: legacyThresholdColor(t)})
 		}
-		steps = append(steps, thresholdStep{index: i, value: &value, color: legacyThresholdColor(t)})
 	}
 	if len(steps) == 1 {
 		return
 	}
 	p.Thresholds = b.finishThresholds(steps, func(i int) string { return fmt.Sprintf("thresholds[%d]", i) })
+	if len(p.Thresholds) > 0 {
+		p.ThresholdsStyle = legacyThresholdsStyle(area, line)
+	}
+}
+
+func legacyThresholdsStyle(area, line bool) string {
+	switch {
+	case area && line:
+		return "line+area"
+	case area:
+		return "area"
+	}
+	return "line"
 }
 
 func legacyThresholdColor(t map[string]any) string {
@@ -566,7 +604,7 @@ func (b *panelBuild) lineShapeOverrideKey(props *spec.FieldProps, key string, o 
 		}
 		return false
 	case "fillGradient":
-		return true
+		return isCosmetic("seriesOverrides[].fillGradient", v)
 	}
 	return false
 }

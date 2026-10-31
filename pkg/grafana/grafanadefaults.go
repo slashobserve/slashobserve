@@ -222,7 +222,19 @@ var stateLegendIgnored = map[string]string{
 	"options.legend.calcs":    "the state legend lists states and has no calculations",
 }
 
+const graphMigrationIgnores = "Grafana's time series migration does not read it"
+
 var ignoredOptions = map[optionScope]map[string]string{
+	optionScope("panel:graph"): {
+		"paceLength":             graphMigrationIgnores,
+		"tooltip.msResolution":   graphMigrationIgnores,
+		"hiddenSeries":           graphMigrationIgnores,
+		"renderer":               graphMigrationIgnores,
+		"options.alertThreshold": graphMigrationIgnores,
+		"yaxis.align":            graphMigrationIgnores,
+		"yaxis.alignLevel":       graphMigrationIgnores,
+		"percentage":             "Grafana's time series migration reads it only with stacking",
+	},
 	panelScope(spec.StateTimeline): stateLegendIgnored,
 	panelScope(spec.StatusHistory): stateLegendIgnored,
 	panelScope(spec.BarChart): {
@@ -348,6 +360,9 @@ var cosmeticOptions = map[string]cosmeticOption{
 	},
 	"seriesOverrides[].zindex": {
 		why: "series are drawn in query order",
+	},
+	"seriesOverrides[].fillGradient": {
+		why: "the renderer draws every fill flat by the no-gradients rule (decision 8)",
 	},
 	"fieldConfig.overrides[].__systemRef": {
 		why: "bookkeeping marker Grafana writes when a legend click hides a series; the hideFrom property beside it is the converted part",
