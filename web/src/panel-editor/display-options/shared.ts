@@ -63,6 +63,8 @@ export const legendValues: DisplayOption = {
   key: "legendValues",
   label: "Legend values",
   options: legendReducerOptions,
+  max: 8,
+  more: "anyReducer",
 }
 
 export const legendMode: DisplayOption = {
@@ -82,6 +84,7 @@ export const legendSortBy: DisplayOption = {
   label: "Sort legend by",
   absent: "Series order",
   options: [{ value: "name", label: "Name" }, ...legendReducerOptions],
+  more: "reducer",
 }
 
 export const legendSortDesc: DisplayOption = {

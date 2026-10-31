@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest"
 import type { AnyReducer, Reducer } from "@/spec"
 
 import {
+  anyReducerIds,
   isCountReducer,
   isReducer,
   reduce,
   reduceAny,
   reduceField,
   reducerKind,
+  reducerIds,
   reducerLabel,
 } from "./reducers"
 
@@ -232,6 +234,30 @@ describe("reduce", () => {
     expect(isReducer("p0")).toBe(false)
     expect(isReducer("uniqueValues")).toBe(false)
     expect(isReducer(7)).toBe(false)
+  })
+})
+
+describe("reducer id lists", () => {
+  it("lists the 120 reducers once each, named ones first and then p1 to p99", () => {
+    expect(reducerIds).toHaveLength(120)
+    expect(new Set(reducerIds).size).toBe(120)
+    expect(reducerIds.slice(0, 3)).toEqual(["last", "lastNotNull", "first"])
+    expect(reducerIds.slice(21)).toEqual(
+      Array.from({ length: 99 }, (_, index) => `p${index + 1}`)
+    )
+  })
+
+  it("adds the four non-number reducers after the 120", () => {
+    expect(anyReducerIds).toHaveLength(124)
+    expect(new Set(anyReducerIds).size).toBe(124)
+    expect(anyReducerIds.slice(0, 120)).toEqual(reducerIds)
+    expect(anyReducerIds.slice(120)).toEqual(nonNumber)
+  })
+
+  it("labels every id", () => {
+    for (const id of anyReducerIds) {
+      expect(reducerLabel(id)).not.toBe("")
+    }
   })
 })
 
