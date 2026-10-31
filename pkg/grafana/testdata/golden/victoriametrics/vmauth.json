@@ -827,6 +827,17 @@
     ],
     "notes": [
       {
+        "subject": "dashboard links",
+        "status": "partial",
+        "reason": "Link icons are not supported; the link is shown without its icon.",
+        "paths": [
+          "links[0].icon",
+          "links[1].icon",
+          "links[2].icon",
+          "links[3].icon"
+        ]
+      },
+      {
         "subject": "annotations",
         "status": "partial",
         "reason": "Annotation queries are not supported yet.",

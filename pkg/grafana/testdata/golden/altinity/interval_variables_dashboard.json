@@ -61,16 +61,7 @@
         ]
       }
     ],
-    "notes": [
-      {
-        "subject": "variable custom_interval",
-        "status": "partial",
-        "reason": "Grafana never refreshes this variable's values; SlashObserve loads them with the dashboard.",
-        "paths": [
-          "templating.list[0].refresh"
-        ]
-      }
-    ]
+    "notes": []
   },
   "spec": {
     "specVersion": "0",
@@ -98,6 +89,49 @@
         "type": "query",
         "datasource": "ch",
         "query": "SELECT (arrayJoin(variable) as x).1 AS __text, x.2 AS __value\nFROM (\n  SELECT\n    arrayMap((x, y) -> (x, y),\n        splitByChar(',', '1m,10m,30m,1h,6h,12h,1d,7d,14d,30d'),\n        splitByChar(',', '60,600,1800,3600,21600,43200,86400,604800,1209600,2592000')\n    ) AS variable\n)",
+        "refresh": "never",
+        "staticOptions": [
+          {
+            "text": "1m",
+            "value": "60"
+          },
+          {
+            "text": "10m",
+            "value": "600"
+          },
+          {
+            "text": "30m",
+            "value": "1800"
+          },
+          {
+            "text": "1h",
+            "value": "3600"
+          },
+          {
+            "text": "6h",
+            "value": "21600"
+          },
+          {
+            "text": "12h",
+            "value": "43200"
+          },
+          {
+            "text": "1d",
+            "value": "86400"
+          },
+          {
+            "text": "7d",
+            "value": "604800"
+          },
+          {
+            "text": "14d",
+            "value": "1209600"
+          },
+          {
+            "text": "30d",
+            "value": "2592000"
+          }
+        ],
         "allowCustomValue": true,
         "default": "1800"
       }

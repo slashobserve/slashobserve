@@ -302,22 +302,6 @@
     ],
     "notes": [
       {
-        "subject": "variable remote_host",
-        "status": "partial",
-        "reason": "Grafana never refreshes this variable's values; SlashObserve loads them with the dashboard.",
-        "paths": [
-          "templating.list[1].refresh"
-        ]
-      },
-      {
-        "subject": "variable cluster_name",
-        "status": "partial",
-        "reason": "Grafana never refreshes this variable's values; SlashObserve loads them with the dashboard.",
-        "paths": [
-          "templating.list[2].refresh"
-        ]
-      },
-      {
         "subject": "repeated panels",
         "status": "partial",
         "reason": "Grafana saved copies of repeated panels and rows; SlashObserve repeats them from their variable, so only the original is imported.",
@@ -380,6 +364,29 @@
         "type": "query",
         "datasource": "ch",
         "query": "SELECT DISTINCT concat(host_name, ':', toString(port)) AS remote_host FROM system.clusters",
+        "refresh": "never",
+        "staticOptions": [
+          {
+            "text": "127.0.0.1:9000",
+            "value": "127.0.0.1:9000"
+          },
+          {
+            "text": "127.0.0.2:9000",
+            "value": "127.0.0.2:9000"
+          },
+          {
+            "text": "localhost:9000",
+            "value": "localhost:9000"
+          },
+          {
+            "text": "localhost:9440",
+            "value": "localhost:9440"
+          },
+          {
+            "text": "localhost:1",
+            "value": "localhost:1"
+          }
+        ],
         "allowCustomValue": true,
         "default": "localhost:9000"
       },
@@ -388,6 +395,33 @@
         "type": "query",
         "datasource": "ch",
         "query": "SELECT DISTINCT cluster FROM system.clusters",
+        "refresh": "never",
+        "staticOptions": [
+          {
+            "text": "localhost_cluster",
+            "value": "localhost_cluster"
+          },
+          {
+            "text": "test_cluster_two_shards",
+            "value": "test_cluster_two_shards"
+          },
+          {
+            "text": "test_cluster_two_shards_localhost",
+            "value": "test_cluster_two_shards_localhost"
+          },
+          {
+            "text": "test_shard_localhost",
+            "value": "test_shard_localhost"
+          },
+          {
+            "text": "test_shard_localhost_secure",
+            "value": "test_shard_localhost_secure"
+          },
+          {
+            "text": "test_unavailable_shard",
+            "value": "test_unavailable_shard"
+          }
+        ],
         "allowCustomValue": true,
         "default": "test_shard_localhost"
       },

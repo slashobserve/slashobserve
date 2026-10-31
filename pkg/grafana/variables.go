@@ -15,6 +15,7 @@ const (
 	maxVariableOptions    = 200
 	maxIntervalOptions    = 50
 	maxQueryLength        = 20000
+	maxStaticOptions      = 50
 )
 
 var (
@@ -33,7 +34,7 @@ var variableSilentKeys = map[string]bool{
 }
 
 var variableHandledKeys = map[string][]string{
-	"query":      {"query", "regex", "sort", "refresh", "multi", "includeAll", "allValue", "allowCustomValue"},
+	"query":      {"query", "regex", "sort", "refresh", "multi", "includeAll", "allValue", "allowCustomValue", "staticOptions", "staticOptionsOrder"},
 	"custom":     {"query", "multi", "includeAll", "allValue", "allowCustomValue"},
 	"constant":   {"query"},
 	"interval":   {"query", "auto", "auto_count", "auto_min"},
@@ -229,12 +230,15 @@ func (c *converter) commonVariableFields(v *spec.Variable, raw map[string]any, p
 			c.note(subject, "The description was cut to 500 characters.", path+".description")
 		}
 	}
+	v.SkipURLSync = truthy(raw["skipUrlSync"])
 	if hide, ok := asInt(raw["hide"]); ok {
-		switch hide {
-		case 1:
+		switch {
+		case hide == 1:
 			v.Hide = "label"
-		case 2:
+		case hide == 2:
 			v.Hide = "variable"
+		case hide == 3 && v.Type != spec.ConstantVariable:
+			c.note(subject, "The controls menu is not supported; the variable is shown.", path+".hide")
 		}
 	}
 }
@@ -340,14 +344,73 @@ func (c *converter) queryVariable(raw map[string]any, path, name string) (spec.V
 	}
 	v := spec.Variable{Type: spec.QueryVariable, Datasource: ref.src.ref(), Query: text, Sort: sortOf(raw)}
 	c.variableRegex(&v, raw, path, subject)
+	v.StaticOptions = c.staticOptions(raw, path, subject)
+	if len(v.StaticOptions) > 0 {
+		v.StaticOrder = staticOrderOf(raw)
+	}
 	if refresh, ok := asInt(raw["refresh"]); ok && refresh == 2 {
 		v.Refresh = "timeRange"
 	} else if ok && refresh == 0 {
-		c.note(subject, "Grafana never refreshes this variable's values; SlashObserve loads them with the dashboard.", path+".refresh")
+		c.neverRefresh(&v, raw, path, subject)
 	}
 	c.listFlags(&v, raw, path, subject)
 	v.Default = c.variableDefault(raw, path, subject, &v, nil)
 	return v, true
+}
+
+func staticOrderOf(raw map[string]any) string {
+	switch order := asString(raw["staticOptionsOrder"]); order {
+	case "before", "after", "sorted":
+		return order
+	}
+	return ""
+}
+
+func (c *converter) staticOptions(raw map[string]any, path, subject string) []spec.StaticOption {
+	list, _ := asArray(raw["staticOptions"])
+	options, dropped := keepStaticOptions(nil, list)
+	if dropped {
+		c.note(subject, "Some static options have no text and no value, are too long or are past the first 50, and are not kept.", path+".staticOptions")
+	}
+	return options
+}
+
+func (c *converter) neverRefresh(v *spec.Variable, raw map[string]any, path, subject string) {
+	saved, _ := asArray(raw["options"])
+	options, dropped := keepStaticOptions(v.StaticOptions, saved)
+	if len(options) == len(v.StaticOptions) {
+		c.note(subject, "Grafana never refreshes this variable's values; SlashObserve loads them with the dashboard.", path+".refresh")
+		return
+	}
+	v.Refresh = spec.RefreshNever
+	v.StaticOptions = options
+	if dropped {
+		c.note(subject, "Some saved options have no text and no value, are too long or are past the first 50, and are not kept.", path+".options")
+	}
+}
+
+func keepStaticOptions(kept []spec.StaticOption, list []any) (options []spec.StaticOption, dropped bool) {
+	options = slices.Clone(kept)
+	for _, item := range list {
+		raw, ok := asObject(item)
+		if !ok {
+			continue
+		}
+		text, value := asString(raw["text"]), asString(raw["value"])
+		if text == "" {
+			text = value
+		}
+		_, textTooLong := cutRunes(text, 200)
+		_, valueTooLong := cutRunes(value, 500)
+		switch {
+		case value == spec.SelectAll || slices.ContainsFunc(options, func(o spec.StaticOption) bool { return o.Value == value }):
+		case text == "" || textTooLong || valueTooLong || len(options) >= maxStaticOptions:
+			dropped = true
+		default:
+			options = append(options, spec.StaticOption{Text: text, Value: value})
+		}
+	}
+	return options, dropped
 }
 
 func (c *converter) variableRegex(v *spec.Variable, raw map[string]any, path, subject string) {
@@ -619,6 +682,9 @@ func (c *converter) datasourceVariable(raw map[string]any, path, name string) (s
 	c.variableRegex(&v, raw, path, subject)
 	if truthy(raw["multi"]) || truthy(raw["includeAll"]) {
 		c.note(subject, "A datasource variable selects one datasource; multiple values and All are not kept.", path)
+	}
+	if allowed, ok := raw["allowCustomValue"].(bool); ok && !allowed {
+		c.note(subject, "A datasource variable offers only its datasources; the custom value setting is not kept.", path+".allowCustomValue")
 	}
 	if src := c.reg.byKey["${"+name+"}"]; src != nil && src.match != "" && matchSatisfies(v.Regex, src.match) {
 		v.Default = &spec.Selection{Values: []string{src.match}}
