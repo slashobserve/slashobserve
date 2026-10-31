@@ -143,6 +143,10 @@ func (l *issueLog) any() bool {
 	return len(l.paths) > 0
 }
 
+func (l *issueLog) decided() bool {
+	return len(l.omitted) == 0 && !slices.ContainsFunc(l.all, func(e issueEntry) bool { return !isDecisionReason(e.reason) })
+}
+
 func (l *issueLog) report() (paths, reasons []string) {
 	paths = append([]string{}, l.paths...)
 	reasons = append([]string{}, l.reasons...)
@@ -723,7 +727,7 @@ func (b *panelBuild) textCode() *spec.TextCode {
 func (b *panelBuild) finish() *builtPanel {
 	n := b.n
 	status := statusImported
-	if b.issues.any() {
+	if b.issues.any() && !b.issues.decided() {
 		status = statusPartial
 	}
 	paths, reasons := b.issues.report()

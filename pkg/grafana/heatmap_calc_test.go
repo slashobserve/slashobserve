@@ -188,7 +188,7 @@ func TestHeatmapRowsValueThatIsTooLongIsReported(t *testing.T) {
 func TestHeatmapSelectionModesOtherThanTimeAreReported(t *testing.T) {
 	for _, mode := range []string{"xy", "y"} {
 		_, line := heatmapOptions(t, `{"selectionMode":"`+mode+`"}`)
-		if line.Status != statusPartial || !slices.Contains(line.Paths, "options.selectionMode") {
+		if line.Status != statusImported || !slices.Contains(line.Paths, "options.selectionMode") {
 			t.Fatalf("%s: status %s, paths %v", mode, line.Status, line.Paths)
 		}
 	}

@@ -266,7 +266,7 @@ func observeConversion(raw []byte) conformanceObservation {
 	var parts []string
 	var issues []conformanceIssue
 	for _, p := range res.Report.Panels {
-		if p.Status == statusImported {
+		if p.Status == statusImported && len(p.Paths) == 0 {
 			continue
 		}
 		parts = append(parts, fmt.Sprintf("panel %s %s %s %s", p.PanelID, p.Status, strings.Join(p.Reasons, " "), strings.Join(p.Paths, " ")))

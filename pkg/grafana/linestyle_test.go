@@ -272,7 +272,7 @@ func TestAxisPlacement(t *testing.T) {
 				requireImported(t, line)
 				return
 			}
-			requireReported(t, line, "fieldConfig.defaults.custom.axisPlacement", tc.reason)
+			requireDecided(t, line, "fieldConfig.defaults.custom.axisPlacement", tc.reason)
 		})
 	}
 }

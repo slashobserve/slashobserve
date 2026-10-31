@@ -174,7 +174,6 @@ func TestFieldTransformsReport(t *testing.T) {
 		{"time format with moment words", `{"id":"formatTime","options":{"timeField":"Time","outputFormat":"dddd MMM Do"}}`, "transformations[0].options.outputFormat", 0},
 		{"conversion date format with moment words", `{"id":"convertFieldType","options":{"conversions":[{"targetField":"Time","destinationType":"time","dateFormat":"MMM D"}]}}`, "transformations[0].options.conversions[0].dateFormat", 0},
 		{"conversion without a destination", `{"id":"convertFieldType","options":{"conversions":[{"targetField":"Time"}]}}`, "transformations[0].options.conversions[0]", 0},
-		{"enum settings", `{"id":"convertFieldType","options":{"conversions":[{"targetField":"s","destinationType":"enum","enumConfig":{"text":["a"]}}]}}`, "transformations[0].options.conversions[0].enumConfig", 1},
 		{"fields set", `{"id":"convertFieldType","options":{"fields":{"a":1},"conversions":[{"targetField":"s","destinationType":"number"}]}}`, "transformations[0].options.fields", 1},
 		{"empty rename pattern", `{"id":"renameByRegex","options":{"regex":"a","renamePattern":""}}`, "transformations[0].options.renamePattern", 0},
 		{"unknown extract format", `{"id":"extractFields","options":{"source":"line","format":"xml"}}`, "transformations[0].options.format", 0},

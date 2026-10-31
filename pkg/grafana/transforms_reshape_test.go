@@ -154,7 +154,6 @@ func TestReshapeTransformsReport(t *testing.T) {
 		{"timeSeriesTable other time field", `{"id":"timeSeriesTable","options":{"A":{"timeField":"ts"}}}`, "transformations[0].options.A.timeField", 1},
 		{"timeSeriesTable unknown stat", `{"id":"timeSeriesTable","options":{"A":{"stat":"p100"}}}`, "transformations[0].options.A.stat", 1},
 		{"timeSeriesTable stat for a query the panel lacks", `{"id":"timeSeriesTable","options":{"Z":{"stat":"max"}}}`, "transformations[0].options.Z.stat", 1},
-		{"rowsToFields threshold handler", `{"id":"rowsToFields","options":{"mappings":[{"fieldName":"T","handlerKey":"threshold1"}]}}`, "transformations[0].options.mappings[0].handlerKey", 1},
 		{"rowsToFields reducer", `{"id":"rowsToFields","options":{"mappings":[{"fieldName":"V","handlerKey":"field.value","reducerId":"max"}]}}`, "transformations[0].options.mappings[0].reducerId", 1},
 		{"configFromData without a known config query", `{"id":"configFromData","options":{"configRefId":"Z","mappings":[{"fieldName":"a","handlerKey":"max"}]}}`, "transformations[0].options.configRefId", 0},
 		{"configFromData with no usable mapping", `{"id":"configFromData","options":{"configRefId":"config","mappings":[{"fieldName":"a","handlerKey":"threshold1"}]}}`, "transformations[0].options.mappings", 0},

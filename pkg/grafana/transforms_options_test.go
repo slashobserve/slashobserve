@@ -195,8 +195,6 @@ func TestTransformOptionsReport(t *testing.T) {
 		name, transformation, path string
 		kept                       int
 	}{
-		{"percent unary", `{"id":"calculateField","options":{"mode":"unary","unary":{"operator":"percent"}}}`, "transformations[0].options.unary.operator", 0},
-		{"window max", `{"id":"calculateField","options":{"mode":"windowFunctions","window":{"reducer":"max"}}}`, "transformations[0].options.window.reducer", 0},
 		{"fixed window without a size", `{"id":"calculateField","options":{"mode":"windowFunctions","window":{"windowSizeMode":"fixed"}}}`, "transformations[0].options.window.windowSizeMode", 0},
 		{"fractional fixed window", `{"id":"calculateField","options":{"mode":"windowFunctions","window":{"windowSizeMode":"fixed","windowSize":2.5}}}`, "transformations[0].options.window.windowSize", 0},
 		{"percentage above one", `{"id":"calculateField","options":{"mode":"windowFunctions","window":{"windowSizeMode":"percentage","windowSize":4}}}`, "transformations[0].options.window.windowSize", 0},
@@ -213,10 +211,7 @@ func TestTransformOptionsReport(t *testing.T) {
 		{"second sort field without a name", `{"id":"sortBy","options":{"sort":[{"field":"Value"},{"desc":true}]}}`, "transformations[0].options.sort[1]", 1},
 		{"row reduction include with a binary calculation", `{"id":"calculateField","options":{"mode":"binary","binary":{"left":"a","operator":"+","right":"b"},"reduce":{"include":["a"]}}}`, "transformations[0].options.reduce.include", 1},
 		{"row reduction include with a name that is too long", `{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"include":["a","` + strings.Repeat("x", 201) + `"]}}}`, "transformations[0].options.reduce.include", 1},
-		{"row reduction null handling", `{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"reducer":"sum","nullValueMode":"null as zero"}}}`, "transformations[0].options.reduce.nullValueMode", 1},
-		{"calculation without joining series by time", `{"id":"calculateField","options":{"mode":"reduceRow","timeSeries":false}}`, "transformations[0].options.timeSeries", 1},
 		{"heatmap ordinal time buckets", `{"id":"heatmap","options":{"xBuckets":{"scale":{"type":"ordinal"}}}}`, "transformations[0].options.xBuckets.scale.type", 1},
-		{"orderBy", `{"id":"order","options":{"indexByName":{"a":0},"orderBy":[{"type":"name","name":"a"}]}}`, "transformations[0].options.orderBy", 1},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

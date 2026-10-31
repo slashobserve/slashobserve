@@ -120,7 +120,7 @@ func TestLogsOptionsWithoutASpecKeyAreStillReported(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.option, func(t *testing.T) {
 			_, line := logsPanel(t, `{"`+tc.option+`":`+tc.value+`}`)
-			if line.Status != statusPartial || !slices.Equal(line.Paths, []string{"options." + tc.option}) {
+			if line.Status != statusImported || !slices.Equal(line.Paths, []string{"options." + tc.option}) {
 				t.Fatalf("status %s, paths %v", line.Status, line.Paths)
 			}
 		})
@@ -128,11 +128,8 @@ func TestLogsOptionsWithoutASpecKeyAreStillReported(t *testing.T) {
 }
 
 func TestLogsInfiniteScrollingIsReportedWithItsOwnReason(t *testing.T) {
-	d, line := logsPanel(t, `{"enableInfiniteScrolling":true}`)
-	requireReported(t, line, "options.enableInfiniteScrolling", decisionLogScrolling.reason)
-	if line.Status != statusPartial {
-		t.Fatalf("display = %+v, status %s", d, line.Status)
-	}
+	_, line := logsPanel(t, `{"enableInfiniteScrolling":true}`)
+	requireDecided(t, line, "options.enableInfiniteScrolling", decisionLogScrolling.reason)
 }
 
 func TestLogsInfiniteScrollingAtGrafanasDefaultStaysSilent(t *testing.T) {
