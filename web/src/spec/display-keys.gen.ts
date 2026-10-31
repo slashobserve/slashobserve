@@ -11,6 +11,8 @@ export type DisplayKey =
   | "basemap"
   | "basemapAttribution"
   | "basemapLabels"
+  | "basemapMaxZoom"
+  | "basemapMinZoom"
   | "basemapOpacity"
   | "basemapTheme"
   | "basemapUrl"
@@ -114,6 +116,7 @@ export type DisplayKey =
   | "mode"
   | "mouseWheelZoom"
   | "namePlacement"
+  | "noRepeat"
   | "open"
   | "order"
   | "orientation"
@@ -533,6 +536,9 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "basemapUrl",
     "basemapAttribution",
     "basemapOpacity",
+    "noRepeat",
+    "basemapMinZoom",
+    "basemapMaxZoom",
     "minZoom",
     "maxZoom",
     "fitLayer",

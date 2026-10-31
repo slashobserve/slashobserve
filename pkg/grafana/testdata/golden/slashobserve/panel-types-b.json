@@ -312,7 +312,8 @@
               "colorField": "Value",
               "markerSize": 3,
               "markerSizeMax": 20,
-              "fillOpacity": 0.4
+              "fillOpacity": 0.4,
+              "showLegend": true
             }
           ]
         }
@@ -356,7 +357,8 @@
               "location": "lookup",
               "lookupField": "country",
               "gazetteer": "countries",
-              "fillOpacity": 0.4
+              "fillOpacity": 0.4,
+              "showLegend": true
             },
             {
               "type": "heatmap",

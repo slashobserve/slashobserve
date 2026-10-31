@@ -13,14 +13,30 @@ export type Tile = {
 export const maxTiles = 64
 const maxTileZoom = 18
 
-function tilesAt(view: View, width: number, height: number, z: number): Tile[] {
+export type TileOptions = {
+  minLevel?: number
+  maxLevel?: number
+  repeat?: boolean
+}
+
+function tilesAt(
+  view: View,
+  width: number,
+  height: number,
+  z: number,
+  repeat: boolean
+): Tile[] {
   const size = tileSize * 2 ** (view.zoom - z)
   const pixels = worldSize(view.zoom)
   const originLeft = width / 2 - view.center.x * pixels
   const originTop = height / 2 - view.center.y * pixels
   const columns = 2 ** z
-  const firstX = Math.floor(-originLeft / size)
-  const lastX = Math.ceil((width - originLeft) / size) - 1
+  const firstX = repeat
+    ? Math.floor(-originLeft / size)
+    : Math.max(0, Math.floor(-originLeft / size))
+  const lastX = repeat
+    ? Math.ceil((width - originLeft) / size) - 1
+    : Math.min(columns - 1, Math.ceil((width - originLeft) / size) - 1)
   const firstY = Math.max(0, Math.floor(-originTop / size))
   const lastY = Math.min(
     columns - 1,
@@ -47,13 +63,13 @@ export function visibleTiles(
   view: View,
   width: number,
   height: number,
-  maxLevel = maxTileZoom
+  { minLevel = 0, maxLevel = maxTileZoom, repeat = true }: TileOptions = {}
 ): Tile[] {
-  let z = Math.max(0, Math.min(maxLevel, Math.floor(view.zoom)))
-  let tiles = tilesAt(view, width, height, z)
-  while (tiles.length > maxTiles && z > 0) {
+  let z = Math.max(minLevel, Math.min(maxLevel, Math.floor(view.zoom)))
+  let tiles = tilesAt(view, width, height, z, repeat)
+  while (tiles.length > maxTiles && z > minLevel) {
     z -= 1
-    tiles = tilesAt(view, width, height, z)
+    tiles = tilesAt(view, width, height, z, repeat)
   }
-  return tiles
+  return tiles.length > maxTiles ? [] : tiles
 }

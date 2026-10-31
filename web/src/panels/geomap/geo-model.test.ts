@@ -1481,3 +1481,105 @@ describe("symbolPath", () => {
     }
   })
 })
+
+describe("markers layer legend", () => {
+  const legendOf = (
+    frame: PreparedFrame,
+    layer: Record<string, unknown>,
+    extra: Partial<DataPanel> = {}
+  ) => {
+    const model = build([frame], extra, {
+      layers: [{ type: "markers", name: "Sites", showLegend: true, ...layer }],
+    })
+    const [drawn] = model.layers
+    return drawn.kind === "markers" ? drawn.legend : undefined
+  }
+  const loads = table(
+    { name: "lat", values: [1, 2, 3] },
+    { name: "lon", values: [4, 5, 6] },
+    { name: "load", values: [10, 40, 90] }
+  )
+
+  it("is absent unless the layer asks for it", () => {
+    const model = build([loads], {}, { layers: [{ type: "markers" }] })
+    expect(model.layers[0]).toMatchObject({ legend: null })
+  })
+
+  it("lists the marker color under the layer name without a color field", () => {
+    expect(legendOf(loads, { color: "#112233" })).toEqual({
+      name: "Sites",
+      entries: [{ color: "#112233", text: "Sites" }],
+    })
+  })
+
+  it("falls back to the first series color", () => {
+    const bare = table(
+      { name: "lat", values: [1, 2] },
+      { name: "lon", values: [4, 5] }
+    )
+    expect(legendOf(bare, {})?.entries).toEqual([
+      { color: "var(--series-1)", text: "Sites" },
+    ])
+  })
+
+  it("lists one entry per threshold step with its lower bound and unit", () => {
+    const legend = legendOf(
+      loads,
+      { colorField: "load" },
+      {
+        unit: "percent",
+        thresholds: [
+          { color: "ok" },
+          { value: 50, color: "warning" },
+          { value: 80, color: "critical" },
+        ],
+      }
+    )
+    expect(legend).toEqual({
+      name: "Sites",
+      entries: [
+        { color: "var(--threshold-ok)", text: "Base" },
+        { color: "var(--threshold-warning)", text: "50%" },
+        { color: "var(--threshold-critical)", text: "80%" },
+      ],
+    })
+  })
+
+  it("lists the smallest and largest color values without thresholds", () => {
+    const legend = legendOf(
+      loads,
+      { colorField: "load", color: "#112233" },
+      { unit: "percent" }
+    )
+    expect(legend?.entries).toEqual([
+      { color: "#112233", text: "10%" },
+      { color: "#112233", text: "90%" },
+    ])
+  })
+
+  it("lists the color range of a scheme, drawn markers only", () => {
+    const legend = legendOf(
+      loads,
+      { colorField: "load" },
+      {
+        colorMode: "scheme",
+        colorScheme: "blues",
+        min: 0,
+        max: 100,
+        thresholds: [{ color: "ok" }, { value: 50, color: "critical" }],
+      }
+    )
+    expect(legend?.entries).toHaveLength(2)
+    expect(legend?.entries.map((entry) => entry.text)).toEqual(["10", "90"])
+    expect(legend?.entries[0].color).not.toBe(legend?.entries[1].color)
+  })
+
+  it("lists a single entry when every color value is the same", () => {
+    const flat = table(
+      { name: "lat", values: [1, 2] },
+      { name: "lon", values: [4, 5] },
+      { name: "load", values: [7, 7] }
+    )
+    expect(legendOf(flat, { colorField: "load" })?.entries).toHaveLength(1)
+  })
+})

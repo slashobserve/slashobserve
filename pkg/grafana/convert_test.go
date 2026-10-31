@@ -982,38 +982,38 @@ func TestGeomapImportsItsMarkersLayer(t *testing.T) {
 		{
 			name:    "coordinates with a sized and colored field",
 			options: geomapOptions(`{"id":"coords","lat":52,"lon":5,"zoom":4}`, geomapLayer(`{"mode":"coords","latitude":"lat","longitude":"lon"}`, `{"color":{"field":"Value","fixed":"red"},"size":{"field":"Value","min":3,"max":20}}`)),
-			display: `{"view":"coords","lat":52,"lon":5,"zoom":4,` + tiles + `,"layers":[{"type":"markers","name":"Markers","location":"coords","latField":"lat","lonField":"lon","sizeField":"Value","colorField":"Value","markerSize":3,"markerSizeMax":20,"fillOpacity":0.4}]}`,
+			display: `{"view":"coords","lat":52,"lon":5,"zoom":4,` + tiles + `,"layers":[{"type":"markers","name":"Markers","location":"coords","latField":"lat","lonField":"lon","sizeField":"Value","colorField":"Value","markerSize":3,"markerSizeMax":20,"fillOpacity":0.4,"showLegend":true}]}`,
 		},
 		{
 			name:    "geohash with a fixed size and color keeps the color on its layer",
 			options: geomapOptions(`{"id":"fit"}`, geomapLayer(`{"mode":"geohash","geohash":"hash"}`, `{"color":{"fixed":"blue"},"size":{"fixed":9,"min":2,"max":15}}`)),
-			display: `{` + tiles + `,"layers":[{"type":"markers","name":"Markers","location":"geohash","geohashField":"hash","markerSize":9,"color":"#5794F2","fillOpacity":0.4}]}`,
+			display: `{` + tiles + `,"layers":[{"type":"markers","name":"Markers","location":"geohash","geohashField":"hash","markerSize":9,"color":"#5794F2","fillOpacity":0.4,"showLegend":true}]}`,
 		},
 		{
 			name:    "world view and automatic location",
 			options: geomapOptions(`{"id":"zero","lat":0,"lon":0,"zoom":1}`, geomapLayer(`{"mode":"auto"}`, plainStyle)),
-			display: `{"view":"world",` + tiles + `,"layers":[{"type":"markers","name":"Markers","fillOpacity":0.4}]}`,
+			display: `{"view":"world",` + tiles + `,"layers":[{"type":"markers","name":"Markers","fillOpacity":0.4,"showLegend":true}]}`,
 		},
 		{
 			name:    "a lookup layer is written as a layer",
 			options: geomapOptions(`{"id":"fit"}`, geomapLayer(`{"mode":"lookup","lookup":"country","gazetteer":"public/gazetteer/countries.json"}`, plainStyle)),
-			display: `{` + tiles + `,"layers":[{"type":"markers","name":"Markers","location":"lookup","lookupField":"country","gazetteer":"countries","fillOpacity":0.4}]}`,
+			display: `{` + tiles + `,"layers":[{"type":"markers","name":"Markers","location":"lookup","lookupField":"country","gazetteer":"countries","fillOpacity":0.4,"showLegend":true}]}`,
 		},
 		{
 			name:    "a named region is imported",
 			options: geomapOptions(`{"id":"europe","lat":46,"lon":14,"zoom":4}`, geomapLayer(`{"mode":"auto"}`, plainStyle)),
-			display: `{"view":"europe",` + tiles + `,"layers":[{"type":"markers","name":"Markers","fillOpacity":0.4}]}`,
+			display: `{"view":"europe",` + tiles + `,"layers":[{"type":"markers","name":"Markers","fillOpacity":0.4,"showLegend":true}]}`,
 		},
 		{
 			name:    "coordinates outside the range are reported",
 			options: geomapOptions(`{"id":"coords","lat":120,"lon":5,"zoom":30}`, geomapLayer(`{"mode":"auto"}`, plainStyle)),
-			display: `{"view":"coords","lon":5,` + tiles + `,"layers":[{"type":"markers","name":"Markers","fillOpacity":0.4}]}`,
+			display: `{"view":"coords","lon":5,` + tiles + `,"layers":[{"type":"markers","name":"Markers","fillOpacity":0.4,"showLegend":true}]}`,
 			paths:   []string{"options.view.lat", "options.view.zoom"},
 		},
 		{
 			name:    "several layers are all written",
 			options: geomapOptions(`{"id":"fit"}`, geomapLayer(`{"mode":"auto"}`, plainStyle)+","+geomapLayer(`{"mode":"auto"}`, plainStyle)+`,{"type":"heatmap","config":{}}`),
-			display: `{` + tiles + `,"layers":[{"type":"markers","name":"Markers","fillOpacity":0.4},{"type":"markers","name":"Markers","fillOpacity":0.4},{"type":"heatmap"}]}`,
+			display: `{` + tiles + `,"layers":[{"type":"markers","name":"Markers","fillOpacity":0.4,"showLegend":true},{"type":"markers","name":"Markers","fillOpacity":0.4,"showLegend":true},{"type":"heatmap"}]}`,
 		},
 		{
 			name:    "controls that differ from the defaults are imported",

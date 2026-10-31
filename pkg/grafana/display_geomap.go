@@ -72,6 +72,9 @@ func (b *panelBuild) geomapView(d *spec.Display) {
 	if shared, ok := b.boolOption("options.view.shared"); ok && *shared {
 		d.SharedView = shared
 	}
+	if repeat, ok := b.boolOption("options.view.noRepeat"); ok && *repeat {
+		d.NoRepeat = repeat
+	}
 	b.geomapFitLayers(d)
 }
 

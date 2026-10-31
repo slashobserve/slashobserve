@@ -127,10 +127,11 @@
         { "id": "p_sites", "type": "geomap", "title": "Sites",
           "gridPos": { "x": 0, "y": 25, "w": 12, "h": 8 }, "datasource": "prom",
           "queries": [{ "query": "sum by (lat, lon, icon) (up)" }],
-          "display": { "layers": [
+          "display": { "noRepeat": true, "basemap": "xyz", "basemapUrl": "https://tile.example.com/{z}/{x}/{y}.png",
+            "basemapMinZoom": 1, "basemapMaxZoom": 12, "layers": [
             { "type": "markers", "name": "Sites", "location": "coords", "latField": "lat", "lonField": "lon",
               "symbolField": "icon", "text": "Site", "textAlign": "left", "textOffsetX": 6, "rotation": 45,
-              "fillOpacity": 0.6, "symbolAlign": "right", "symbolVerticalAlign": "bottom" }
+              "fillOpacity": 0.6, "symbolAlign": "right", "symbolVerticalAlign": "bottom", "showLegend": true }
           ] } },
         { "id": "p_share", "type": "piechart", "title": "Requests by pod",
           "gridPos": { "x": 0, "y": 33, "w": 8, "h": 8 }, "datasource": "prom",

@@ -1,7 +1,11 @@
 import { formatDateTime } from "@/lib/time"
 
 import { styleForSlot } from "../colors"
-import { displayValue, type FieldResolver } from "../field-config"
+import {
+  displayValue,
+  effectiveColorMode,
+  type FieldResolver,
+} from "../field-config"
 import { isNumber } from "../reducers"
 import { thresholdColor, type ThresholdLevel } from "../thresholds"
 import {
@@ -184,6 +188,10 @@ function labelLook(layer: Layer): LabelLook {
 type LayerBase = { name: string; opacity: number }
 type Hoverable = { tooltip: boolean }
 
+type LegendEntry = { color: string; text: string }
+
+export type MarkersLegend = { name: string; entries: LegendEntry[] }
+
 export type MarkersLayerModel = LayerBase &
   Hoverable & {
     kind: "markers"
@@ -193,6 +201,7 @@ export type MarkersLayerModel = LayerBase &
     symbolAlign: SymbolAlign
     outlineWidth: number
     markers: Marker[]
+    legend: MarkersLegend | null
   }
 
 type TilesLayerModel = LayerBase & { kind: "tiles"; source: TileSource }
@@ -632,6 +641,74 @@ function colorOf(
   }
 }
 
+function thresholdEntries(
+  item: Colored,
+  fields: FieldResolver
+): LegendEntry[] | null {
+  const config = fields.configFor(item.frame, item.colorField)
+  const steps = config.thresholds
+  if (
+    !steps?.length ||
+    config.thresholdMode !== "absolute" ||
+    effectiveColorMode(config) === "scheme"
+  ) {
+    return null
+  }
+  return steps.map((step) => ({
+    color: thresholdColor(step.color),
+    text:
+      step.value === undefined ? "Base" : displayValue(step.value, config).text,
+  }))
+}
+
+type Colored = Located & { colorField: PreparedField }
+
+function extremeEntries(
+  items: Colored[],
+  fields: FieldResolver,
+  fallback: LegendEntry
+): LegendEntry[] {
+  type Extreme = { value: number; item: Colored }
+  let low: Extreme | undefined
+  let high: Extreme | undefined
+  for (const item of items) {
+    const value = item.colorField.values[item.row]
+    if (!isNumber(value) || !Number.isFinite(value)) continue
+    if (!low || value < low.value) low = { value, item }
+    if (!high || value > high.value) high = { value, item }
+  }
+  if (!low || !high) return [fallback]
+  return (low.value === high.value ? [low] : [low, high]).map(
+    ({ value, item }) => {
+      const shown = displayValue(
+        value,
+        fields.configFor(item.frame, item.colorField)
+      )
+      return { color: shown.color ?? fallback.color, text: shown.text }
+    }
+  )
+}
+
+function markersLegend(
+  name: string,
+  items: Located[],
+  fixed: string | undefined,
+  fields: FieldResolver
+): MarkersLegend {
+  const fallback = fixed ?? styleForSlot(0).color
+  const only = { color: fallback, text: name }
+  const colored = items.filter(
+    (item): item is Colored => item.colorField !== undefined
+  )
+  if (colored.length === 0) return { name, entries: [only] }
+  return {
+    name,
+    entries:
+      thresholdEntries(colored[0], fields) ??
+      extremeEntries(colored, fields, only),
+  }
+}
+
 function symbolOf(value: unknown): MarkerSymbol {
   return markerSymbols.find((symbol) => symbol === value) ?? "circle"
 }
@@ -848,6 +925,15 @@ function buildMarkers(config: Layer, name: string, env: Env): Built {
         ...markerLook(config),
         outlineWidth: numberOf(config.lineWidth, defaultOutlineWidth),
         markers: markersFrom(gathered, config, env.fields),
+        legend:
+          config.showLegend === true
+            ? markersLegend(
+                name,
+                gathered.kept,
+                fixedColorOf(config.color),
+                env.fields
+              )
+            : null,
       },
     ],
   })
@@ -1010,6 +1096,7 @@ function buildNetwork(config: Layer, name: string, env: Env): Built {
         ...markerLook(config),
         outlineWidth: defaultOutlineWidth,
         markers: markersFrom(gathered, config, env.fields),
+        legend: null,
       },
     ],
   })
