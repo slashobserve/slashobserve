@@ -9,6 +9,8 @@ Choose **Activity** at the top right of a dashboard to open it; the button shows
 Versions are immutable and linear.
 Each save adds the next version number, and nothing edits or deletes an earlier one.
 Deleting the dashboard deletes its versions, comments, agent requests and import record with it, for everyone, and cannot be undone.
+**Delete dashboard...** is in the dashboard's **More** menu and in the row menu on the Dashboards page, asks for confirmation, and needs Edit on the folder; `observe dashboards delete` does the same from the [CLI](cli.md).
+Anyone with the dashboard open sees a toast saying that it was deleted.
 
 ## The activity timeline
 
@@ -20,7 +22,7 @@ Entries are sorted by time and come in four kinds:
   Choosing the panel name scrolls to the panel and highlights it.
   A comment on a panel that no longer exists reads "on a removed panel".
 - **Agent requests** show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
-  While the agent works, the entry reads "Agent is working on it" with its latest step, or "Waiting to start".
+  While the agent works, the entry reads "Agent is working on it" with its latest step and the step number, or "Waiting to start" while it is queued.
   **Details** opens the full conversation at `/observe/<id>` in a new tab.
 - **Versions** show who saved: "Agent saved", "`<name>` saved" or "`<client>` saved over MCP", then "Version N" with its summary, or "No summary".
   **See changes** opens the comparison with the previous version.
@@ -75,6 +77,16 @@ It sees the Spec, your message and the panel you chose.
 - you are editing the layout: "Finish editing the layout to send changes to the agent.";
 - 5 requests are already queued or running for this dashboard: "5 requests are already waiting for the agent. Send this when one finishes."
 
+## Share a link
+
+**Share** in the dashboard's top row opens a Share pane in the same card.
+"Link to this dashboard" copies the address of the dashboard.
+It carries the time range and the variable values you are looking at, and each has a checkbox to leave it out.
+"Link to one panel" picks a data or text panel by title and copies a link that opens the dashboard with that panel focused, expanding its row if the row is collapsed.
+A link grants nothing: the person who opens it signs in, and sees "You don't have access to this dashboard" when the dashboard's folder is not open to them.
+"Who has access" says "Everyone, by role" for an open folder, or lists the people and groups of a restricted one, with the instance Admins who always have access.
+People who can manage a folder other than General also get a **Manage folder access** button; see [Folders](../teams/folders.md).
+
 ## Resolve and reopen
 
 A thread has **Resolve** and, once resolved, **Reopen**.
@@ -89,6 +101,7 @@ Resolving and replying need the same access as commenting.
 ## Versions
 
 The version button in the dashboard's top row reads "Live · v3" when you are on the latest version and "v2 of 3" when you have pinned an older one.
+"Live" becomes "Connecting" or "Reconnecting" while the page has no connection for live updates.
 Choose it to see the five newest versions, each with its number, summary, author and time, and "Latest" on the newest.
 Picking one pins it in the page address as `version=2`, so a link shares exactly that version.
 

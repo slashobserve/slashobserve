@@ -24,6 +24,10 @@ Each has a lowest role, which the server checks when a client calls it, using th
 A call below the key's role returns the tool error `forbidden_role`.
 Folder access applies on top: a tool that names a dashboard or folder the key cannot see returns `not_found`, and changing a dashboard needs Edit on its folder.
 
+`create_dashboard` and `update_dashboard` run every panel query before they save and reject a panel whose query fails or returns no data, as described in [What a save checks](../concepts/agent.md#what-a-save-checks).
+`update_dashboard` needs the `dashboard_id` and the `parent_version` you read; if a newer version has been saved since, it returns the tool error `version_conflict` with the latest version.
+`get_dashboard` returns the Spec at the latest version or at `version`, and returns `too_large` for a Spec over 128 KiB.
+
 `list_folders` is available over MCP only.
 It lists the folders the key can see, with `can_create` for each, and sets `truncated` when there are more than fit in the result.
 `create_dashboard` takes an optional `folder_id` from that list; without it, the dashboard goes to the folder the key last created a dashboard in, else General.

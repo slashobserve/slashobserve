@@ -10,7 +10,8 @@ For a first run, follow [Your first dashboard](../get-started/first-dashboard.md
 
 ## Start a chat
 
-Type into the box labelled "Message the agent" and press Enter (Shift+Enter adds a line), or choose one of the example prompts.
+Type into the box labelled "Message the agent" and press Enter (Shift+Enter adds a line; on a touch device Enter adds a line and the arrow button sends), or choose one of the example prompts, which sends it at once.
+Pressing `/` outside a text field moves the cursor to the box.
 A prompt is 1 to 4000 characters and cannot contain control or bidirectional-text characters.
 The box shows "Describe the dashboard you want first." when it is empty and "Use at most 4000 characters." when it is too long.
 
@@ -18,7 +19,11 @@ Starting a dashboard needs Edit on a folder, because the agent creates a dashboa
 Without it the chat home shows "Starting a dashboard needs Edit on a folder. Ask an Admin if you need it."
 See [Roles](../teams/roles.md).
 
-The chips under the box list the healthy datasources; the agent can only query datasources the server has configured, see [Prometheus](../connect/prometheus.md) and [ClickHouse](../connect/clickhouse.md).
+The chips under the box list the healthy datasources and the name of the model; the agent can only query datasources the server has configured, see [Prometheus](../connect/prometheus.md) and [ClickHouse](../connect/clickhouse.md).
+Without a model the box is replaced by "No model is connected to this server."
+**Import from Grafana** next to the send button opens [Import Grafana dashboards](import-grafana.md), which needs no model.
+
+Under the example prompts, the chat home lists your saved prompts and those shared with everyone, and typing `/` as the whole first line of the box opens a picker for them; see [Saved prompts](../teams/saved-prompts.md).
 
 Each person may have 3 new-dashboard requests queued or running, and the instance 20.
 Past that the server answers `429` with `too_many_requests` or `agent_busy` ("The agent is busy with other requests; try again in a moment."); wait for a request to finish.
@@ -30,12 +35,13 @@ Your recent chats appear on the Observe page under "Recent chats", and the **His
 
 The agent is a loop of model calls and tool calls run by the server.
 It does not see your browser, and it can only act through its tools.
-Its instructions tell it to use only the datasources it is given and only the metric, label, table and column names it discovered, so it does not invent names.
+Its instructions hold the Spec guide, the schema and an example, and tell it to use only the datasources it is given and only the metric, label, table and column names it discovered, so it does not invent names.
+If the prompt itself contains a Grafana dashboard JSON, the agent imports it with the importer instead of rewriting it, which ends the run like a save; this works for a new dashboard only, and the JSON has to fit in the 4000 characters of the prompt.
 
 Its order of work is:
 
 1. Pick a datasource, then discover what exists: list datasources, metrics, labels and label values on Prometheus, and tables, schemas and sample rows on ClickHouse.
-2. Draft the dashboard as an ObserveSpec document, reading the Spec guide first.
+2. Draft the dashboard as an ObserveSpec document.
 3. Lint every new or changed query against its datasource.
 4. Optionally run a query to see its data.
 5. Save.
@@ -44,7 +50,7 @@ The conversation shows these as phases, each with a message from the server:
 
 | Phase            | Examples of what you see                                                               |
 | ---------------- | -------------------------------------------------------------------------------------- |
-| Discovering      | "Listed 14 metrics on prom", "Read the otel_logs schema on ch", "Read the Spec guide"  |
+| Discovering      | "Listed 14 metrics on prom", "Read the otel_logs schema on ch"                         |
 | Checking queries | "Checked a query on prom: 0 errors"                                                    |
 | Running queries  | "Ran a query on prom: ..."                                                             |
 | Saving           | "Saved version 1"                                                                      |
@@ -59,7 +65,7 @@ A successful save ends the run, and the version summary is a sentence the agent 
 Queries the agent runs while drafting are capped at 15 seconds, 200 series, 100,000 points and 1,000 rows, so a heavy query may fail where the saved panel would work.
 A run gets 3 minutes and at most 20 model calls.
 When it runs out of either, the conversation ends with "The dashboard could not be built" and a **Try again** button.
-A run interrupted by a restart is picked up again once.
+A run that a server shutdown interrupts goes back to the queue and starts again, and one that a crash interrupts gets one more attempt.
 
 Only the server's step messages and errors are shown.
 The model's own text is never displayed, so there is no commentary to read and no answer to a question.
@@ -75,7 +81,8 @@ The result card shows the title, "N panels from `<datasources>`" and the footer 
 Choose **Open dashboard** to go to it.
 
 The dashboard lands in the folder you last created a dashboard in, or General when you have not created one; see [Folders](../teams/folders.md).
-A failed request shows "The dashboard could not be built" with the reason the server stored, and **Try again** starts a new request with the same prompt.
+A failed request shows "The dashboard could not be built" (or "The dashboard could not be updated" for a follow-up) with the reason the server stored, and **Try again** starts a new request with the same prompt.
+When the request already has a dashboard, an **Open dashboard** button is shown next to it.
 Every request has an id, shown as "Request" and its first eight characters at the bottom of the conversation, which you can quote when reporting a problem.
 
 The page keeps polling the server.
@@ -86,6 +93,7 @@ The run itself goes on server-side either way.
 
 Once the first dashboard exists, the box under the conversation reads "Ask for another change to `<title>`", with the note "Each change is saved as a new version of the dashboard."
 Until then it is disabled with "Wait for the dashboard, then ask for changes."
+An empty follow-up says "Describe the change you want first."
 
 A follow-up is not a continuation of the chat.
 The agent starts a fresh run that sees the datasources, your new message and the current Spec of the dashboard, not the earlier messages.
