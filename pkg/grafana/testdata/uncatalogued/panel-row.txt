@@ -1,0 +1,8 @@
+collapse
+collapsed
+datasource.type
+datasource.uid
+height
+id
+showTitle
+titleSize

@@ -1,0 +1,3 @@
+datasource.type
+datasource.uid
+refId

@@ -1,0 +1,11 @@
+datasource.type
+datasource.uid
+fieldConfig.defaults.custom.fillOpacity
+fieldConfig.defaults.custom.gradientMode
+fieldConfig.defaults.custom.showPoints
+fieldConfig.defaults.thresholds.min
+fieldConfig.defaults.unitScale
+id
+options.legend.calcs
+options.legend.displayMode
+pluginVersion

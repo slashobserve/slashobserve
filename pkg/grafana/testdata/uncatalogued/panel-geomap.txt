@@ -1,0 +1,10 @@
+datasource.type
+datasource.uid
+fieldConfig.defaults.custom.hideFrom.legend
+fieldConfig.defaults.custom.hideFrom.tooltip
+fieldConfig.defaults.custom.hideFrom.viz
+id
+options.layers[].config.opacity type:heatmap
+options.layers[].config.style.rotation.max type:markers
+options.layers[].config.style.rotation.min type:markers
+pluginVersion

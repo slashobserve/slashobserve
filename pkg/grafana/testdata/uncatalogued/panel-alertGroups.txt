@@ -1,0 +1,4 @@
+id
+options.alertmanager
+options.expandAll
+pluginVersion

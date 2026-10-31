@@ -1,0 +1,19 @@
+datasource.type
+datasource.uid
+fieldConfig.defaults.custom.hideFrom.legend
+fieldConfig.defaults.custom.hideFrom.tooltip
+fieldConfig.defaults.custom.hideFrom.viz
+id
+options.infinitePan
+options.root.background.color.fixed type:frame
+options.root.border.color.fixed type:frame
+options.root.constraint.horizontal type:frame
+options.root.constraint.vertical type:frame
+options.root.elements[].placement.right type:metric-value
+options.root.name type:frame
+options.root.placement.height type:frame
+options.root.placement.left type:frame
+options.root.placement.top type:frame
+options.root.placement.width type:frame
+options.root.type
+pluginVersion

@@ -1,0 +1,6 @@
+datasource.type
+datasource.uid
+dateLoading
+datetimeLoading
+queryType
+tableLoading

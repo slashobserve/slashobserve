@@ -1,0 +1,11 @@
+id
+options.limit
+options.navigateAfter
+options.navigateBefore
+options.navigateToPanel
+options.onlyFromThisDashboard
+options.onlyInTimeRange
+options.showTags
+options.showTime
+options.showUser
+pluginVersion

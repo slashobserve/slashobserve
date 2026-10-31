@@ -1,0 +1,97 @@
+alert.conditions[].evaluator.params type:gt
+alert.conditions[].evaluator.type type:query
+alert.conditions[].operator.type type:query
+alert.conditions[].query.params type:query
+alert.conditions[].reducer.type type:query
+alert.conditions[].type
+alert.executionErrorState
+alert.for
+alert.frequency
+alert.handler
+alert.name
+alert.noDataState
+aliasColors.*
+bars
+dashLength
+dashes
+datasource
+datasource.type
+datasource.uid
+decimals
+editable
+error
+fieldConfig.defaults.unitScale
+fill
+fillGradient
+hiddenSeries
+id
+isNew
+legend.alignAsTable
+legend.avg
+legend.current
+legend.hideEmpty
+legend.hideZero
+legend.max
+legend.min
+legend.rightSide
+legend.show
+legend.sideWidth
+legend.sort
+legend.sortDesc
+legend.total
+legend.values
+lines
+linewidth
+links[].dashboard type:dashboard
+links[].includeVars type:dashboard
+links[].keepTime type:dashboard
+links[].title type:dashboard
+links[].type
+minSpan
+nullPointMode
+options.alertThreshold
+paceLength
+percentage
+pluginVersion
+pointradius
+points
+renderer
+scopedVars.*.selected
+scopedVars.*.text
+scopedVars.*.value
+seriesOverrides[].alias
+seriesOverrides[].color
+seriesOverrides[].fill
+seriesOverrides[].fillBelowTo
+seriesOverrides[].fillGradient
+seriesOverrides[].lines
+seriesOverrides[].stack
+seriesOverrides[].transform
+seriesOverrides[].yaxis
+spaceLength
+span
+stack
+steppedLine
+thresholds[].colorMode
+thresholds[].fill
+thresholds[].line
+thresholds[].op
+thresholds[].value
+thresholds[].visible
+thresholds[].yaxis
+tooltip.msResolution
+tooltip.shared
+tooltip.sort
+tooltip.value_type
+transparent
+xaxis.mode
+xaxis.show
+yaxes[].$$hashKey
+yaxes[].decimals
+yaxes[].format
+yaxes[].label
+yaxes[].logBase
+yaxes[].max
+yaxes[].min
+yaxes[].show
+yaxis.align
