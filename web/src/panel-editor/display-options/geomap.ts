@@ -132,6 +132,21 @@ export const geomap: readonly DisplayOption[] = [
   },
   {
     kind: "number",
+    key: "basemapMinZoom",
+    label: "Lowest tile zoom",
+    hint: "A whole number from 0 to 18, the lowest level the XYZ server serves.",
+    rule: { min: 0, max: 18, integer: true },
+  },
+  {
+    kind: "number",
+    key: "basemapMaxZoom",
+    label: "Highest tile zoom",
+    hint: "A whole number from 0 to 18, the highest level the XYZ server serves.",
+    rule: { min: 0, max: 18, integer: true },
+  },
+  { kind: "toggle", key: "noRepeat", label: "Draw the world once" },
+  {
+    kind: "number",
     key: "minZoom",
     label: "Lowest zoom",
     hint: "A number from 0 to 18.",
