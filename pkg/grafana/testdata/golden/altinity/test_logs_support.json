@@ -41,8 +41,8 @@
     "verified": false,
     "counts": {
       "total": 3,
-      "imported": 1,
-      "partial": 2,
+      "imported": 3,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -55,7 +55,7 @@
         "type": "logs",
         "source_type": "logs",
         "row": null,
-        "status": "partial",
+        "status": "imported",
         "reasons": [
           "Log context is not part of SlashObserve."
         ],
@@ -83,7 +83,7 @@
         "type": "logs",
         "source_type": "logs",
         "row": null,
-        "status": "partial",
+        "status": "imported",
         "reasons": [
           "Log context is not part of SlashObserve."
         ],

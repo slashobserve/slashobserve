@@ -191,8 +191,8 @@ func TestMappingIconIsReportedWhileTheMappingTextIsKept(t *testing.T) {
 			if len(panel.Mappings) != 1 || panel.Mappings[0].Text == "" {
 				t.Fatalf("mappings = %+v, want the text kept", panel.Mappings)
 			}
-			if line.Status != statusPartial || !slices.Contains(line.Paths, c.path) {
-				t.Fatalf("line = %+v, want %s reported", line, c.path)
+			if line.Status != statusImported || !slices.Contains(line.Paths, c.path) {
+				t.Fatalf("line = %+v, want %s listed on an imported panel", line, c.path)
 			}
 			if !slices.ContainsFunc(line.Reasons, func(r string) bool { return strings.Contains(r, "icon") }) {
 				t.Fatalf("reasons = %v, want one naming the icon", line.Reasons)

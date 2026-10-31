@@ -1729,7 +1729,7 @@ func TestQueryEditorStateKeysAreConsumedSilently(t *testing.T) {
 		t.Fatalf("altinity line = %+v", line)
 	}
 	_, line = altinityPanel(t, "SELECT 1", `,"adHocValuesQuery":"SELECT DISTINCT status FROM t"`)
-	if line.Status != statusPartial || !slices.Contains(line.Paths, "targets[0].adHocValuesQuery") {
+	if line.Status != statusImported || !slices.Contains(line.Paths, "targets[0].adHocValuesQuery") {
 		t.Fatalf("adHocValuesQuery: status = %s, paths %v", line.Status, line.Paths)
 	}
 }

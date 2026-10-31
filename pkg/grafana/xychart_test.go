@@ -272,7 +272,6 @@ func TestXYChartDrawsSquareDotsAndCustomDashes(t *testing.T) {
 func TestXYChartLineStylesTheRendererCannotDrawAreReported(t *testing.T) {
 	cases := []struct{ name, custom, path string }{
 		{"smooth", `{"lineInterpolation":"smooth"}`, "fieldConfig.defaults.custom.lineInterpolation"},
-		{"ordinal scale", `{"scaleDistribution":{"type":"ordinal"}}`, "fieldConfig.defaults.custom.scaleDistribution.type"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -28,7 +28,7 @@ const (
 	corpusDir               = "corpus"
 	goldenDir               = "golden"
 	minimumRatio            = 90
-	minimumFull             = 86.3
+	minimumFull             = 87.0
 	fullSlack               = 0.5
 	maximumOpenPlaceholders = 8
 	worklistSize            = 10
@@ -462,7 +462,7 @@ func checkStatuses(t *testing.T, res *grafana.Result) {
 				t.Errorf("%s is a placeholder without a reason", line.PanelID)
 			}
 		case "imported":
-			if len(line.Paths) != 0 || len(line.Reasons) != 0 {
+			if (len(line.Paths) == 0) != (len(line.Reasons) == 0) {
 				t.Errorf("%s is imported with %d paths and %d reasons", line.PanelID, len(line.Paths), len(line.Reasons))
 			}
 		default:

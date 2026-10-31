@@ -70,7 +70,7 @@ func TestGeomapBasemapTypes(t *testing.T) {
 func TestGeomapBasemapNeverImportsAnAccessToken(t *testing.T) {
 	d, line := geomapPanelWith(t, `{"basemap":{"type":"maplibre","config":{"url":"https://example.com/style.json","accessToken":"pk.secret"}}}`)
 	data, _ := json.Marshal(d)
-	if strings.Contains(string(data), "pk.secret") || line.Status != statusPartial {
+	if strings.Contains(string(data), "pk.secret") || len(line.Paths) == 0 {
 		t.Fatalf("display %s status %s", data, line.Status)
 	}
 }

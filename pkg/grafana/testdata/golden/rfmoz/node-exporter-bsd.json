@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 36,
-      "imported": 30,
-      "partial": 6,
+      "imported": 36,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,7 +43,7 @@
         "type": "gauge",
         "source_type": "gauge",
         "row": "Quick CPU / Mem / Disk",
-        "status": "partial",
+        "status": "imported",
         "reasons": [
           "The gauge layout options are not part of SlashObserve."
         ],
@@ -68,7 +68,7 @@
         "type": "gauge",
         "source_type": "gauge",
         "row": "Quick CPU / Mem / Disk",
-        "status": "partial",
+        "status": "imported",
         "reasons": [
           "The gauge layout options are not part of SlashObserve."
         ],
@@ -93,7 +93,7 @@
         "type": "gauge",
         "source_type": "gauge",
         "row": "Quick CPU / Mem / Disk",
-        "status": "partial",
+        "status": "imported",
         "reasons": [
           "The gauge layout options are not part of SlashObserve."
         ],
@@ -118,7 +118,7 @@
         "type": "gauge",
         "source_type": "gauge",
         "row": "Quick CPU / Mem / Disk",
-        "status": "partial",
+        "status": "imported",
         "reasons": [
           "The gauge layout options are not part of SlashObserve."
         ],
@@ -143,7 +143,7 @@
         "type": "gauge",
         "source_type": "gauge",
         "row": "Quick CPU / Mem / Disk",
-        "status": "partial",
+        "status": "imported",
         "reasons": [
           "The gauge layout options are not part of SlashObserve."
         ],
@@ -168,7 +168,7 @@
         "type": "gauge",
         "source_type": "gauge",
         "row": "Quick CPU / Mem / Disk",
-        "status": "partial",
+        "status": "imported",
         "reasons": [
           "The gauge layout options are not part of SlashObserve."
         ],
