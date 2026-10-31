@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 8,
-      "imported": 3,
-      "partial": 5,
+      "imported": 4,
+      "partial": 4,
       "placeholder": 0,
       "unverified": 0
     },
@@ -250,13 +250,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "span_name Level - Latencies",
-        "status": "partial",
-        "reasons": [
-          "Some legend values are not supported yet."
-        ],
-        "paths": [
-          "options.legend.calcs"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -755,6 +751,7 @@
             "display": {
               "legendValues": [
                 "mean",
+                "logmin",
                 "max",
                 "delta"
               ]

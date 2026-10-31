@@ -205,7 +205,7 @@ func TestByValueBecomesAValueMatch(t *testing.T) {
 
 func TestByValueThatCannotBeExpressedIsReported(t *testing.T) {
 	cases := []struct{ name, options string }{
-		{"unknown reducer", `{"reducer":"p95","op":"gt","value":1}`},
+		{"unknown reducer", `{"reducer":"p100","op":"gt","value":1}`},
 		{"unknown operator", `{"reducer":"max","op":"between","value":1}`},
 		{"value that is not a number", `{"reducer":"max","op":"gt","value":"high"}`},
 		{"no options", `{}`},

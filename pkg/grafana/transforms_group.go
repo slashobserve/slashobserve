@@ -17,8 +17,6 @@ const (
 	defaultRestName    = "Value"
 	groupByOperation   = "groupby"
 	aggregateOperation = "aggregate"
-
-	uniqueValuesReducer = "uniqueValues"
 )
 
 var emptyFills = []string{"empty", "zero", "true", "false"}
@@ -43,7 +41,7 @@ func (b *panelBuild) groupFields(v any, path string) ([]string, []spec.Aggregati
 			}
 			by = append(by, name)
 		case aggregateOperation:
-			reducers := acceptedReducers(b, item["aggregations"], itemPath+".aggregations", isAggregateReducer)
+			reducers := acceptedReducers(b, item["aggregations"], itemPath+".aggregations", isAnyReducer)
 			switch {
 			case len(reducers) == 0:
 			case len(aggregate) >= maxGroupFields:

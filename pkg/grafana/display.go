@@ -257,7 +257,7 @@ func (b *panelBuild) legendValues(v any) []string {
 	unsupported := false
 	for _, calc := range stringList(v) {
 		switch {
-		case !isReducer(calc):
+		case !isAnyReducer(calc):
 			unsupported = true
 		case slices.Contains(out, calc):
 		case len(out) >= maxLegendValues:
@@ -436,7 +436,7 @@ func displayTable(b *panelBuild) {
 	b.tableOptions(d)
 }
 
-func (b *panelBuild) footerReducers(v any) []string {
+func (b *panelBuild) footerReducers(v any, path string) []string {
 	var out []string
 	unsupported := false
 	for _, calc := range stringList(v) {
@@ -451,7 +451,7 @@ func (b *panelBuild) footerReducers(v any) []string {
 		}
 	}
 	if unsupported {
-		b.partial("options.footer.reducer", "Some footer values are not supported yet.")
+		b.partial(path, "Some footer values are not supported yet.")
 	}
 	return out
 }

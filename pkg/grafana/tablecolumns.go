@@ -15,12 +15,16 @@ const (
 	maxFrozenColumns = 10
 	maxFooterFields  = 50
 	maxFieldNameKept = 200
+
+	legacyFooterReducerPath = "options.footer.reducer"
+	footerReducersPath      = "fieldConfig.defaults.custom.footer.reducers"
 )
 
 var tableColumnProps = map[string]bool{
 	"custom.cellOptions": true, "custom.displayMode": true, "custom.wrapText": true,
 	"custom.width": true, "custom.minWidth": true, "custom.align": true,
 	"custom.filterable": true, "custom.inspect": true, "custom.hideHeader": true,
+	"custom.footer": true,
 }
 
 func propColumnWidth(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
@@ -155,17 +159,29 @@ func (b *panelBuild) tableSortBy(d *spec.Display) {
 
 func (b *panelBuild) tableFooter(d *spec.Display) {
 	show, hasShow := b.boolOption("options.footer.show")
-	reducer, hasReducer := b.take("options.footer.reducer")
+	reducer, hasReducer := b.take(legacyFooterReducerPath)
+	current, hasCurrent := b.take(footerReducersPath)
 	countRows, hasCount := b.boolOption("options.footer.countRows")
 	fields, hasFields := b.take("options.footer.fields")
-	if !hasShow || !*show {
+	if hasShow && !*show {
 		return
 	}
+	legacyShown := hasShow
 	switch {
+	case hasCurrent:
+		d.Footer = b.footerReducers(singleToList(current), footerReducersPath)
+		if legacyShown && hasReducer && !slices.Equal(d.Footer, b.footerReducers(singleToList(reducer), legacyFooterReducerPath)) {
+			b.partial(legacyFooterReducerPath, "The footer set in the field defaults was kept instead of this older setting.")
+		}
+	case !legacyShown:
+		return
 	case !hasReducer:
 		d.Footer = []string{"sum"}
 	default:
-		d.Footer = b.footerReducers(singleToList(reducer))
+		d.Footer = b.footerReducers(singleToList(reducer), legacyFooterReducerPath)
+	}
+	if !legacyShown {
+		return
 	}
 	if hasCount && *countRows {
 		d.FooterCountRows = countRows
