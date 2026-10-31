@@ -36,7 +36,8 @@ export type FieldConfig = {
   noValue?: string
   mappings: Mapping[]
   links: Link[]
-  actions?: Action[]
+  actions: Action[]
+  actionsOverride: number | null
   style: "line" | "bars" | "points"
   fill: number
   lineStyle: "solid" | "dashed" | "dotted" | "square"
@@ -225,13 +226,16 @@ export function createFieldResolver(
       ...fieldPropDefaults,
       mappings: [],
       links: [],
+      actions: [],
+      actionsOverride: null,
     } as FieldConfig,
     panel
   )
   const baseGiven = givenKeys(panel)
-  const overrides = (panel.overrides ?? []).map((override) => ({
+  const overrides = (panel.overrides ?? []).map((override, index) => ({
     matches: compileMatch(override.match),
     props: override,
+    index,
   }))
   const cache = new WeakMap<PreparedFrame, WeakMap<PreparedField, Resolved>>()
 
@@ -240,9 +244,12 @@ export function createFieldResolver(
     let config = field.config ? withProps(base, field.config) : base
     const given = new Set(baseGiven)
     if (field.config) givenKeys(field.config).forEach((key) => given.add(key))
-    for (const { matches, props } of overrides) {
+    for (const { matches, props, index } of overrides) {
       if (matches({ frame, field, seriesName })) {
         config = withProps(config, props)
+        if (props.actions !== undefined) {
+          config = { ...config, actionsOverride: index }
+        }
         givenKeys(props).forEach((key) => given.add(key))
       }
     }

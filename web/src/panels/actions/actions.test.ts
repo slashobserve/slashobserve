@@ -13,11 +13,12 @@ import {
   outsideDashboardReason,
   parseActions,
   requestLine,
-  type CanvasActionContext,
-  type ElementAction,
+  withInputs,
+  type ActionContext,
+  type RunnableAction,
 } from "./actions"
 
-const context: CanvasActionContext = {
+const context: ActionContext = {
   dashboardId: "d1",
   version: 4,
   latestVersion: 4,
@@ -26,7 +27,7 @@ const context: CanvasActionContext = {
 
 const noField = () => null
 
-function oneAction(raw: Record<string, unknown>): ElementAction {
+function oneAction(raw: Record<string, unknown>): RunnableAction {
   const [action] = parseActions(
     [{ title: "Restart", url: "https://ops.example.com/restart", ...raw }],
     noField
@@ -143,14 +144,56 @@ describe("parseActions", () => {
     expect(JSON.stringify(action)).not.toContain("restart")
     expect(JSON.stringify(action)).not.toContain("secret-ish")
     expect(Object.keys(action).sort()).toEqual([
+      "color",
       "confirm",
       "fields",
       "host",
       "index",
+      "inputs",
       "method",
+      "oneClick",
       "title",
       "variables",
     ])
+  })
+
+  it("keeps an action's own input out of the dashboard variables", () => {
+    const action = oneAction({
+      url: "https://ops.example.com/${region}/restart",
+      body: '{"reason":"${reason}","ticket":"$ticket"}',
+      variables: [
+        { key: "reason", name: "Reason" },
+        { key: "ticket", name: "Ticket" },
+      ],
+    })
+    expect(action.variables).toEqual(["region"])
+    expect(action.inputs).toEqual([
+      { key: "reason", name: "Reason" },
+      { key: "ticket", name: "Ticket" },
+    ])
+  })
+
+  it("keeps only inputs with a valid key and a name, once per key", () => {
+    const action = oneAction({
+      variables: [
+        { key: "ok", name: "Fine" },
+        { key: "1bad", name: "Bad key" },
+        { key: "has-dash", name: "Bad key" },
+        { key: "nameless", name: "" },
+        { key: "ok", name: "Again" },
+        { key: "noname" },
+        "text",
+      ],
+    })
+    expect(action.inputs).toEqual([{ key: "ok", name: "Fine" }])
+  })
+
+  it("reads the button color and one-click flag, defaulting to none and false", () => {
+    expect(oneAction({}).color).toBeNull()
+    expect(oneAction({ color: "" }).color).toBeNull()
+    expect(oneAction({ color: "var(--brand)" }).color).toBe("var(--brand)")
+    expect(oneAction({}).oneClick).toBe(false)
+    expect(oneAction({ oneClick: true }).oneClick).toBe(true)
   })
 
   it("returns nothing for a missing or malformed list", () => {
@@ -161,21 +204,24 @@ describe("parseActions", () => {
 })
 
 describe("actionRequest", () => {
-  const action: ElementAction = {
+  const action: RunnableAction = {
     index: 2,
     title: "Restart",
     method: "POST",
     host: "ops.example.com",
     confirm: null,
     variables: ["region", "missing", "pods"],
+    inputs: [],
     fields: { pod: "checkout-0" },
+    color: null,
+    oneClick: false,
   }
 
   it("posts the latest version, ids, referenced variables, absolute range, value and fields", () => {
     const body = actionRequest({
       context,
       panelId: "canvas1",
-      elementId: "restart",
+      target: { element: "restart" },
       value: { raw: "0.5", text: "50%", numeric: 0.5 },
       action,
       vars: {
@@ -203,7 +249,7 @@ describe("actionRequest", () => {
     const body = actionRequest({
       context,
       panelId: "p",
-      elementId: "e",
+      target: { element: "e" },
       value: null,
       action,
       vars: {},
@@ -212,6 +258,74 @@ describe("actionRequest", () => {
     })
     expect(body.value).toBeNull()
     expect(body.variables).toEqual({})
+  })
+})
+
+describe("actionRequest for a field action", () => {
+  const action: RunnableAction = {
+    index: 1,
+    title: "Restart",
+    method: "POST",
+    host: "ops.example.com",
+    confirm: null,
+    variables: [],
+    inputs: [],
+    fields: {},
+    color: null,
+    oneClick: false,
+  }
+  const base = {
+    context,
+    panelId: "table1",
+    value: null,
+    action,
+    vars: {},
+    fromMs: 0,
+    toMs: 1000,
+  }
+
+  it("names the override that holds the action", () => {
+    const body = actionRequest({ ...base, target: { override: 3 } })
+    expect(body.override).toBe(3)
+    expect(body.element).toBeUndefined()
+    expect(body.action).toBe(1)
+  })
+
+  it("sends no override for the panel's own actions", () => {
+    const body = actionRequest({ ...base, target: { override: null } })
+    expect(body).not.toHaveProperty("override")
+    expect(body).not.toHaveProperty("element")
+  })
+})
+
+describe("withInputs", () => {
+  const request = actionRequest({
+    context,
+    panelId: "p",
+    target: { override: null },
+    value: null,
+    action: { ...oneAction({}) },
+    vars: {},
+    fromMs: 0,
+    toMs: 1000,
+  })
+
+  it("sends no inputs for an action without variables", () => {
+    expect(
+      withInputs(request, oneAction({}), { stray: "x" })
+    ).not.toHaveProperty("inputs")
+  })
+
+  it("sends every declared key, an empty one as an empty string, and nothing else", () => {
+    const action = oneAction({
+      variables: [
+        { key: "reason", name: "Reason" },
+        { key: "ticket", name: "Ticket" },
+      ],
+    })
+    expect(
+      withInputs(request, action, { reason: "deploy", stray: "x" })
+    ).toEqual({ ...request, inputs: { reason: "deploy", ticket: "" } })
   })
 })
 

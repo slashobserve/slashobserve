@@ -66,7 +66,7 @@ export function isDataLink(link: Link): boolean {
   )
 }
 
-function rowValue(scope: LinkScope, name: string): string | null {
+export function rowValue(scope: LinkScope, name: string): string | null {
   const { row } = scope
   if (!row) return null
   const { fields } = row.frame
