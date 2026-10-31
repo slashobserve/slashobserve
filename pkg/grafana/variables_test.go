@@ -543,3 +543,63 @@ func TestVariableQueryNamingAnUndeclaredVariableSaysSo(t *testing.T) {
 		t.Fatalf("panel using the variable = %+v, want a placeholder", line)
 	}
 }
+
+func TestTextboxSavedValueIsTheDefaultBeforeTheQuery(t *testing.T) {
+	cases := []struct {
+		name, member, want string
+	}{
+		{"saved value wins over the query", `"query":"api","current":{"text":"worker","value":"worker"}`, "worker"},
+		{"empty saved value falls back to the query", `"query":"api","current":{"text":"","value":""}`, "api"},
+		{"no saved value falls back to the query", `"query":"api"`, "api"},
+		{"saved value without a query", `"current":{"text":"worker","value":"worker"}`, "worker"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := convertVariables(t, `{"name":"tb","type":"textbox",`+tc.member+`}`)
+			got := variableNamed(t, res, "tb").Default
+			if got == nil || !slices.Equal(got.Values, []string{tc.want}) {
+				t.Fatalf("default = %+v, want %q", got, tc.want)
+			}
+			if notes := notesFor(res, "variable tb"); len(notes) != 0 {
+				t.Fatalf("notes = %+v, want none", notes)
+			}
+		})
+	}
+}
+
+func TestTextboxSavedValueOverTwoHundredCharactersIsCutAndReported(t *testing.T) {
+	res := convertVariables(t, `{"name":"tb","type":"textbox","query":"api","current":{"text":"x","value":"`+strings.Repeat("x", 201)+`"}}`)
+	got := variableNamed(t, res, "tb").Default
+	if got == nil || len([]rune(got.Values[0])) != 200 {
+		t.Fatalf("default = %+v, want 200 characters", got)
+	}
+	if notes := notesFor(res, "variable tb"); len(notes) != 1 || !hasPath(notes, "templating.list[0].current") {
+		t.Fatalf("notes = %+v, want one at current", notes)
+	}
+}
+
+func TestDatasourceVariableRegexIsKeptAndTheDefaultFollowsTheMatch(t *testing.T) {
+	cases := []struct {
+		name, regex string
+		wantDefault bool
+	}{
+		{"no regex", ``, true},
+		{"a regex the match satisfies", `/prom.*/`, true},
+		{"a regex the match fails", `/^never$/`, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := convertVariables(t, `{"name":"ds","type":"datasource","query":"prometheus","regex":"`+tc.regex+`","current":{"text":"prom","value":"prom"}}`)
+			v := variableNamed(t, res, "ds")
+			if v.Regex != tc.regex {
+				t.Fatalf("regex = %q, want %q", v.Regex, tc.regex)
+			}
+			if (v.Default != nil) != tc.wantDefault {
+				t.Fatalf("default = %+v, want present %v", v.Default, tc.wantDefault)
+			}
+			if notes := notesFor(res, "variable ds"); len(notes) != 0 {
+				t.Fatalf("notes = %+v, want none", notes)
+			}
+		})
+	}
+}

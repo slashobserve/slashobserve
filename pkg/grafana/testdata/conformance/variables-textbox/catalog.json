@@ -6,7 +6,7 @@
   ],
   "root": "templating.list[0]",
   "entries": [
-    { "id": "query=api", "path": "query", "value": "api" },
+    { "id": "query=api", "path": "query", "value": "api", "with": {"current": {"text": "", "value": ""}} },
     { "id": "current=worker", "path": "current", "value": {"text": "worker", "value": "worker"} },
     { "id": "hide=1", "path": "hide", "value": 1 },
     { "id": "hide=2", "path": "hide", "value": 2 },

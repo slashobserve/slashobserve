@@ -300,3 +300,78 @@ func TestLegacySeriesOverrideKeysThatCannotBeKeptAreReported(t *testing.T) {
 		})
 	}
 }
+
+func TestTypeMatchersBecomeFieldTypeMatches(t *testing.T) {
+	cases := []struct {
+		name, matcher string
+		want          []string
+	}{
+		{"numeric", `{"id":"numeric"}`, []string{"number"}},
+		{"time", `{"id":"time"}`, []string{"time"}},
+		{"byTypes keeps the list order", `{"id":"byTypes","options":["string","number","boolean"]}`, []string{"string", "number", "boolean"}},
+		{"byTypes drops a repeated type", `{"id":"byTypes","options":["number","number","time"]}`, []string{"number", "time"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := convertedPanel(t, overridePanel("timeseries", tc.matcher, property("unit", `"bytes"`)))
+			if !clean(line) {
+				t.Fatalf("status %s, paths %v", line.Status, line.Paths)
+			}
+			var got []string
+			for _, o := range panel.Overrides {
+				if o.Unit != "bytes" {
+					t.Fatalf("override props = %+v, want the unit on every override", o.FieldProps)
+				}
+				got = append(got, o.Match.FieldType)
+			}
+			if !slices.Equal(got, tc.want) {
+				t.Fatalf("field types = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestTypeAndNameMatchersThatCannotBeExpressedAreReported(t *testing.T) {
+	cases := []struct{ name, matcher string }{
+		{"byTypes with an unknown type among known ones", `{"id":"byTypes","options":["number","other"]}`},
+		{"byTypes with an empty list", `{"id":"byTypes","options":[]}`},
+		{"byTypes with a type that is not text", `{"id":"byTypes","options":[1]}`},
+		{"byTypes that is not a list", `{"id":"byTypes","options":"number"}`},
+		{"byRegexpOrNames with neither pattern nor names", `{"id":"byRegexpOrNames","options":{"pattern":"","names":[]}}`},
+		{"byRegexpOrNames with a name that is not text", `{"id":"byRegexpOrNames","options":{"pattern":"x","names":[1]}}`},
+		{"byRegexpOrNames with names that are not a list", `{"id":"byRegexpOrNames","options":{"pattern":"x","names":"a"}}`},
+		{"byRegexpOrNames with a pattern that is not text", `{"id":"byRegexpOrNames","options":{"pattern":1,"names":["a"]}}`},
+		{"byRegexpOrNames with a slash and no closing slash", `{"id":"byRegexpOrNames","options":{"pattern":"/x","names":["a"]}}`},
+		{"byRegexpOrNames too long for a pattern", `{"id":"byRegexpOrNames","options":{"pattern":"` + strings.Repeat("a", 495) + `","names":["abcdef"]}}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := convertedPanel(t, overridePanel("timeseries", tc.matcher, property("unit", `"bytes"`)))
+			if len(panel.Overrides) != 0 || line.Status != statusPartial {
+				t.Fatalf("overrides = %+v, status %s, want the override reported", panel.Overrides, line.Status)
+			}
+		})
+	}
+}
+
+func TestByRegexpOrNamesBecomesOneSeriesRegex(t *testing.T) {
+	cases := []struct{ name, options, want string }{
+		{"pattern and names", `{"pattern":"^u","names":["down"]}`, `(?:^u)|^(?:down)$`},
+		{"pattern only", `{"pattern":"^u"}`, `^u`},
+		{"names only", `{"pattern":"","names":["a.b","c"]}`, `^(?:a\.b|c)$`},
+		{"slashed pattern keeps its flags", `{"pattern":"/^u/i","names":["down"]}`, `/(?:^u)|^(?:down)$/i`},
+		{"names are escaped", `{"pattern":"x","names":["a|b"]}`, `(?:x)|^(?:a\|b)$`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			matcher := `{"id":"byRegexpOrNames","options":` + tc.options + `}`
+			panel, line := convertedPanel(t, overridePanel("timeseries", matcher, property("unit", `"bytes"`)))
+			if !clean(line) {
+				t.Fatalf("status %s, paths %v", line.Status, line.Paths)
+			}
+			if got := onlyOverride(t, panel).Match.SeriesRegex; got != tc.want {
+				t.Fatalf("match = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
