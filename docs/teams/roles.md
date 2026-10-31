@@ -33,7 +33,7 @@ A person's role is decided in this order, and the first rule that applies wins:
 
 The first three are set by configuration, so the People page cannot change them.
 
-`SLASHOBSERVE_OIDC_GROUP_ROLES` is a comma-separated list of `group=role` entries, split on the last `=`, where the role is `admin`, `editor`, `commenter` or `viewer`.
+`SLASHOBSERVE_OIDC_GROUP_ROLES` is a comma-separated list of up to 100 `group=role` entries, split on the last `=`, where the role is `admin`, `editor`, `commenter` or `viewer`.
 A group name is 1 to 256 bytes without control characters and cannot contain a comma.
 For example:
 

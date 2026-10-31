@@ -11,6 +11,8 @@ These all save a version:
 - The first save, which is version 1, whether it comes from the agent, the web app, the API or a Grafana import.
 - A change in the web app: saving a layout, or saving a panel from the panel editor.
   Both ask for a short summary.
+- A change to the title, description or tags with **Edit details** in the **More** menu.
+  It asks for no summary and writes `Rename to "<title>"` when only the title changed and "Edit dashboard details" otherwise.
 - The agent revising a dashboard, and `update_dashboard` from an MCP client.
 - `POST /api/v1/dashboards/{id}/versions` over the API.
 - A restore of an older version.
@@ -56,7 +58,7 @@ Over the API, `GET /api/v1/dashboards/{id}/diff?from=&to=` returns the same chan
 
 **Restore** on any version except the latest asks for confirmation and then saves a copy of that version as a new latest version, marked "Restored from v3".
 Nothing is deleted, so the versions in between stay in the history, and you can restore again to go back.
-Deleting the dashboard is the only way versions go away: it deletes every version with it.
+Deleting the dashboard is the only way versions go away: **Delete dashboard** in the **More** menu or a row menu, or `DELETE /api/v1/dashboards/{id}`, deletes every version with it, and it cannot be undone.
 The summary defaults to "Restore version 3".
 
 A restore checks the document and that its datasources are still configured, but it does not run the queries again.

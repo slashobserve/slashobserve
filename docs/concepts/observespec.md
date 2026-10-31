@@ -118,7 +118,7 @@ The rest is optional, and an absent field means its default.
 | `nowDelay`             | How far behind the real time `now` is for every relative time, such as `30s` or `1m`.                                                                                                                               |
 | `cursorSync`           | How hovering one time chart shows on the others: `off`, `crosshair` or `tooltip`.                                                                                                                                   |
 | `variables`            | Up to 20 [variables](datasources-and-variables.md#variables).                                                                                                                                                       |
-| `links`                | Up to 20 links: a `title` with a `url` (and optionally `newTab`, `oneClick`, `keepTime`, `includeVars`, `tooltip`), or `"type": "dashboards"` with `tags` to list the other dashboards that carry every tag (`asDropdown` shows one menu). |
+| `links`                | Up to 20 links: a `title` with a `url` (and optionally `newTab`, `keepTime`, `includeVars`, `tooltip`), or `"type": "dashboards"` with `tags` to list the other dashboards that carry every tag (`asDropdown` shows one menu). |
 | `panels`               | 1 to 200 panels, counting the children of rows.                                                                                                                                                                     |
 
 ### Relative times

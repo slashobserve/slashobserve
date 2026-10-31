@@ -1,6 +1,6 @@
 ---
 title: Datasources and variables
-description: How a dashboard names its datasources, the seven variable types, and how multi-value, All and datasource variables work.
+description: How a dashboard names its datasources, the eight variable types, and how multi-value, All and datasource variables work.
 ---
 
 A dashboard names its datasources by `uid` and lets viewers change what its queries use through variables.
@@ -21,23 +21,24 @@ The agent is told which datasources are healthy before it starts.
 
 ## Variables
 
-A variable has a `name`, which starts with a letter and continues with letters, digits or `_` up to 40 characters, and the optional `label`, `description` and `hide`.
+A variable has a `name`, which starts with a letter and continues with letters, digits or `_` up to 40 characters, and the optional `label`, `description`, `hide` and `skipUrlSync`.
 `hide: label` drops the name and `hide: variable` drops the control, and neither drops the selection.
 Variable names are unique, and a document has at most 20 variables.
+`skipUrlSync: true` keeps the variable out of the address: its selection is not read from `var-<name>` and not written to it, so a shared link does not carry it.
 
 A query refers to a variable as `$name`, `${name}` or `${name:format}`.
 Each type has its own fields:
 
-| Type         | Fields                                                                                                              | Values                                                             |
-| ------------ | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `query`      | `datasource`, `query`, `regex`, `sort`, `refresh`, `multi`, `includeAll`, `allValue`, `allowCustomValue`, `default` | The result of the query on its datasource.                         |
-| `custom`     | `options`, `multi`, `includeAll`, `allValue`, `allowCustomValue`, `default`                                         | The listed options, up to 200.                                     |
-| `constant`   | `value`                                                                                                             | The one value. It has no control.                                  |
-| `interval`   | `options`, `auto`, `autoSteps`, `autoMin`, `default`                                                                | Durations such as `1m` or `1h`, plus `$__auto` when `auto` is set. |
-| `textbox`    | `default`                                                                                                           | Free text up to 200 characters.                                    |
-| `datasource` | `datasourceType`, `regex`, `default`                                                                                | The uids of the configured datasources of that type.               |
-| `adhoc`      | `datasource`, `default`                                                                                             | Key, operator and value filters that the viewer adds.              |
-| `groupby`    | `datasource`, `default`                                                                                             | Labels the viewer picks to group by.                               |
+| Type         | Fields                                                                                                                                              | Values                                                             |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `query`      | `datasource`, `query`, `regex`, `sort`, `refresh`, `staticOptions`, `staticOrder`, `multi`, `includeAll`, `allValue`, `allowCustomValue`, `default` | The result of the query on its datasource.                         |
+| `custom`     | `options`, `multi`, `includeAll`, `allValue`, `allowCustomValue`, `default`                                                                         | The listed options, up to 200.                                     |
+| `constant`   | `value`                                                                                                                                             | The one value. It has no control.                                  |
+| `interval`   | `options`, `auto`, `autoSteps`, `autoMin`, `default`                                                                                                | Durations such as `1m` or `1h`, plus `$__auto` when `auto` is set. |
+| `textbox`    | `default`                                                                                                                                           | Free text up to 200 characters.                                    |
+| `datasource` | `datasourceType`, `regex`, `default`                                                                                                                | The uids of the configured datasources of that type.               |
+| `adhoc`      | `datasource`, `applyToAll`, `default`, `baseFilters`, `keys`, `listedValuesOnly`                                                                    | Key, operator and value filters that the viewer adds.              |
+| `groupby`    | `datasource`, `default`, `keys`                                                                                                                     | Labels the viewer picks to group by.                               |
 
 A `query` variable on Prometheus uses `label_values(label)` or `label_values(selector, label)`.
 On ClickHouse it is one `SELECT`, and the first column gives the values.
@@ -47,6 +48,9 @@ On ClickHouse it is one `SELECT`, and the first column gives the values.
 - `alphaCaseInsensitive` and `alphaCaseInsensitiveDesc` compare by character after lowercasing, so `a` comes before `B`; values that differ only in case keep a fixed order, capitals first.
 - `num` and `numDesc` compare by the first number in each value, and values with no number come first in `num`.
 - `natural` and `naturalDesc` compare digit runs as numbers and other text by character, so `a9` comes before `a10`; with equal numbers, the longer run comes first, so `007` comes before `7`.
+
+`refresh: "never"` on a `query` variable runs no query and offers only its `staticOptions`.
+`staticOptions` (up to 50 `text` and `value` pairs) are offered next to the query results, before them by default, or after them or merged and sorted with `sort` when `staticOrder` is `after` or `sorted`; a value that the query also returns appears once.
 
 A `custom` variable's `options` are strings, or `{ "text": "Production", "value": "prod" }` objects that show `text` in the picker while the selection, the URL and the queries use `value`.
 The values list of a `query` variable carries the same texts when its regex captures them.
@@ -177,3 +181,7 @@ Without a `var-<name>` parameter the dashboard uses these filters, and a link th
 A filter with `condition: "or"` is written in the URL with a leading `|`, as `var-<name>=|key|op|value`.
 `baseFilters` take the same objects (up to 20) and are always applied, never shown and never in the URL, as one more group that the selected filters cannot loosen.
 An operator outside the six is a schema error when the Spec is saved, and a key that is not a label name (Prometheus) or a column name (ClickHouse) fails the save checks.
+
+An `adhoc` variable can set `keys` (up to 100), which the filter picker offers instead of asking the datasource.
+`listedValuesOnly: true` makes the picker accept a filter only when its key and value come from the lists it shows, and the value list comes from Prometheus label values.
+A `groupby` variable takes `keys` (up to 100 label names) for its label picker in the same way.

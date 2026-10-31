@@ -21,7 +21,11 @@ Type a prompt such as `checkout health by pod, last 6h` into the chat composer o
 It passes `SLASHOBSERVE_LLM_PROVIDER`, `SLASHOBSERVE_LLM_MODEL`, `SLASHOBSERVE_LLM_API_KEY` and `SLASHOBSERVE_LLM_BASE_URL` from your shell to the server container; the other LLM settings are not forwarded.
 Run `make demo` again after changing them.
 Without a provider the demo still starts, but prompts get `503 agent_unavailable`.
-Stop it with `make demo-down`, or drop its data as well with `make demo-reset`.
+Prometheus is on http://localhost:9090 and the shop's fault API on http://localhost:8081/fault.
+Stop the stack with `make demo-down`, or drop its data as well with `make demo-reset`.
+On first boot, and again after `make demo-reset`, Prometheus backfills 26 hours of synthetic request and latency history, so prompts that compare today with yesterday have data.
+
+To see the dashboards react to a failure, break the checkout service with `make demo-fault TYPE=errors PCT=50` (or `TYPE=latency`) and undo it with `make demo-fault-reset`.
 
 The demo's node-exporter enables the processes, TCP statistics and interrupts collectors and reports the root filesystem, so importing Grafana's Node Exporter Full finds data for those panels.
 A container cannot see some hardware and host services, so these Node Exporter Full panels stay empty on the demo:

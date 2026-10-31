@@ -17,8 +17,8 @@ Shift+Enter starts a new line, and pressing `/` anywhere on the page moves focus
 checkout health by pod, last 6h
 ```
 
-Under the box, a chip lists each healthy datasource the agent may use.
-In the demo these are `prom` (Prometheus) and `ch` (ClickHouse).
+Under the box, a chip lists each healthy datasource the agent may use, followed by the name of the model.
+In the demo the datasources are `prom` (Prometheus) and `ch` (ClickHouse).
 The buttons under "Example prompts" send a ready-made prompt at once, such as "Service health by pod, last 6h" or "Error logs by service from ClickHouse".
 
 Starting a dashboard from the chat needs Edit on a folder.
@@ -32,13 +32,13 @@ A prompt is 1 to 4000 characters.
 The page switches to a conversation that shows your prompt and, below it, "Building the dashboard" with a progress list.
 Each line is one step the server recorded, grouped by phase:
 
-| Phase            | What the agent is doing                                                               |
-| ---------------- | ------------------------------------------------------------------------------------- |
-| Discovering      | Listing datasources, metrics, labels, tables and schemas, and reading the Spec guide. |
-| Checking queries | Linting a draft query against its datasource, without running it.                     |
-| Running queries  | Running a query to see that it returns data.                                          |
-| Saving           | Saving the draft, which runs every panel query again.                                 |
-| Repairing        | Fixing a draft that the save rejected.                                                |
+| Phase            | What the agent is doing                                                                                                    |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Discovering      | Listing datasources, dashboards, metrics, labels, tables and schemas, sampling rows, and reading the dashboard it revises. |
+| Checking queries | Linting a draft query against its datasource, without running it.                                                          |
+| Running queries  | Running a query to see that it returns data.                                                                               |
+| Saving           | Saving the draft, which runs every panel query again.                                                                      |
+| Repairing        | Fixing a draft that the save rejected.                                                                                     |
 
 Repeated steps of one phase fold into a single line such as "3 times, latest: Listed 12 metrics on prom".
 A step that failed gets a warning icon and is read out as "needed a fix".
@@ -56,7 +56,8 @@ Below it a result card shows the dashboard title, how many panels it has and whi
 Choose **Open dashboard** on the result card.
 The dashboard opens in the same tab with the version button reading "Live · v1".
 
-A new dashboard goes into the folder you last created a dashboard in, or General if you have not created one.
+A new dashboard goes into the folder you last created a dashboard in.
+If you have not created one, or can no longer create there, it goes to General, and if you cannot create in General either, to the first folder where you can.
 The Dashboards page marks it as made by the agent, "Agent, for `<your name>`".
 See [Folders](../teams/folders.md).
 
@@ -94,6 +95,8 @@ If the dashboard has variables, a bar of selectors appears under the top row: a 
 The agent adds variables only when the prompt asks for a breakdown people will filter, so a dashboard from the prompt above may have none.
 
 The range, refresh interval and variable selections live in the page address (`from`, `to`, `refresh` and `var-<name>`), so you can share a link that carries them, and nothing is saved to the dashboard.
+The same holds for **Chart hover** in the **More** menu, which Cmd/Ctrl+O cycles through: "This chart only", "Shared crosshair" and "Shared tooltip" choose how hovering one time chart shows on the others.
+A choice that differs from the dashboard's saved `cursorSync` goes into the address as `cursor`.
 To change the saved default range for everyone, ask the agent in a follow-up, such as "make the default range the last 24 hours".
 
 ## Next steps

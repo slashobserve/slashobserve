@@ -61,5 +61,5 @@ A request whose person lost access or was deleted in between fails with a messag
 
 Over the API, a dashboard in a folder the caller cannot see answers `403 forbidden_role` and a folder answers `404 not_found`; MCP tools answer `not_found` for both.
 
-Before this release an entry never lifted a Viewer or Commenter.
-After upgrading, existing entries at Edit or Admin lift them, so review the lists of restricted folders.
+An entry used to give a Viewer or Commenter nothing beyond their role.
+Now an existing entry at Edit or Admin lifts them, so review the lists of restricted folders after you upgrade.

@@ -22,7 +22,7 @@ The panel starts with the first three words of the prompt as the name and the wh
 
 A name is 1 to 64 characters: letters, numbers, spaces, `-` and `_`, starting and ending with a letter or number.
 Runs of spaces collapse to one.
-The text is 1 to 4000 characters and cannot contain control characters other than newlines and tabs.
+The text is 1 to 4000 characters and cannot contain control characters other than newlines and tabs, or the bidirectional override characters.
 A name is unique among your own prompts and among shared prompts, ignoring case, so you cannot share a prompt whose name another shared prompt already has.
 A person can keep 100 prompts.
 
@@ -33,7 +33,7 @@ A service-account key cannot create, change or delete a prompt.
 ## Run a prompt
 
 On the chat home, saved prompts are listed under the example prompts: name, a preview of the text, and who can use it (**Only me**, **Everyone**, or **By** the owner's name for someone else's shared prompt).
-The list shows 5 and has a **Show all** button for the rest.
+The list shows 5 and has a **Show all** button, labelled with the total, for the rest.
 **Run** sends the prompt at once and opens the conversation.
 The list is hidden when you have no prompts or the agent is off.
 
