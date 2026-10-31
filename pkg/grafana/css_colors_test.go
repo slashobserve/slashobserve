@@ -93,13 +93,13 @@ func TestTextColorImportsAsTheSemanticTextColorInThresholdsFixedColorsAndMapping
 	}
 }
 
-func TestActionColorStaysAHexColorBecauseTheActionButtonDrawsItAsWritten(t *testing.T) {
+func TestActionColorImportsTheThemeTextColorLikeEveryOtherColor(t *testing.T) {
 	cases := []struct {
 		color, want string
 		reported    bool
 	}{
 		{"gray", "#808080", false},
-		{"text", "", true},
+		{"text", "text", false},
 	}
 	for _, tc := range cases {
 		panel, line := actionPanel(t, "stat", `"actions":[`+fieldActionEntry(`"style":{"backgroundColor":"`+tc.color+`"},`)+`]`, "")

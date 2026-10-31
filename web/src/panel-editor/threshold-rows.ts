@@ -1,6 +1,7 @@
 import type { Threshold } from "@/spec"
 
-export type ThresholdColor = "ok" | "info" | "warning" | "critical" | "custom"
+export type ThresholdColor =
+  "ok" | "info" | "warning" | "critical" | "text" | "custom"
 
 export type ThresholdRow = {
   key: string
@@ -23,12 +24,14 @@ export const thresholdWords: Record<ThresholdColor, string> = {
   info: "Info",
   warning: "Warning",
   critical: "Critical",
+  text: "Text",
   custom: "Custom color",
 }
 
 export const thresholdColors = Object.keys(thresholdWords) as ThresholdColor[]
 
 const addOrder = ["warning", "critical", "info", "ok"] as const
+const semanticColors = [...addOrder, "text"] as const
 const decimalPattern = /^-?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i
 const hexPattern = /^#[0-9a-fA-F]{6}$/
 
@@ -39,8 +42,8 @@ function newKey(): string {
   return `threshold-${rowCount}`
 }
 
-function isSemantic(color: string): color is (typeof addOrder)[number] {
-  return (addOrder as readonly string[]).includes(color)
+function isSemantic(color: string): color is (typeof semanticColors)[number] {
+  return (semanticColors as readonly string[]).includes(color)
 }
 
 function parseValue(text: string): number | null {
