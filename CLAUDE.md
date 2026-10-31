@@ -101,6 +101,7 @@ Directories are created when their phase starts; this is where things go.
   - field props `insertNulls: true` (the query interval) and `neutral` (B3, B8), signed off on 2026-10-31.
   - display keys `graphStyle` and `percentSize` (stat), `sort` (pie chart), `lineFields`, `showAttributes` and `timePrecision` (logs), `perPage` (state timeline and status history) and `flatColor` (candlestick) (B7, B9, B10, B11, B13), signed off on 2026-10-31; the logs list key is `lineFields` and not `fields` because `fields` is already the stat and gauge string key and `Display` is one flat struct.
   - data panel `hideTimeOverride` (B9), signed off on 2026-10-31.
+  - data panel `timezone` (B5), signed off on 2026-10-31.
   - heatmap `xBucketScale`, `xBucketLogBase`, `rowsValue`, transform `xScale`, `xLogBase`, ordinal `yScale` and `calculateField` `include` (B12, B17), signed off on 2026-10-31.
   - ad hoc variable `baseFilters` and, on ad hoc filters, `keyLabel`, `valueLabel`, `condition` and the `<` and `>` operators (B23), signed off on 2026-10-31.
   - geomap layer `fillOpacity`, `symbolAlign`, `symbolVerticalAlign`, `weight`, `weightMin`, `weightMax`, `edgeColor`, `nightAt`, `crop` and `shadow` (B19), signed off on 2026-10-31.

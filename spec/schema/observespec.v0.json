@@ -6622,6 +6622,12 @@
           "type": "string",
           "pattern": "^[1-9][0-9]*[smhdwMy]$"
         },
+        "timezone": {
+          "x-omitFromPrompt": true,
+          "description": "browser, utc or an IANA zone such as Asia/Kolkata. The times this panel draws are shown in this zone instead of the dashboard's.",
+          "type": "string",
+          "pattern": "^(browser|utc|[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){0,2})$"
+        },
         "hideTimeOverride": {
           "x-omitFromPrompt": true,
           "description": "Do not show the time override note (from timeFrom and timeShift) in the panel header. The override still applies to the queries. Absent means shown.",
