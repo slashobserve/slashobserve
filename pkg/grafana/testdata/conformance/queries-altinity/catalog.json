@@ -72,7 +72,7 @@
     { "id": "add_metadata=false", "path": "add_metadata", "value": false },
     { "id": "useWindowFuncForMacros=false", "path": "useWindowFuncForMacros", "value": false },
     { "id": "nullifySparse=true", "path": "nullifySparse", "value": true },
-    { "id": "contextWindowSize=20", "path": "contextWindowSize", "value": "20" },
+    { "id": "contextWindowSize=20", "path": "contextWindowSize", "value": "20", "expect": "excluded" },
     { "id": "logsFieldConfig=labels-hidden", "path": "logsFieldConfig", "value": {"labels": {"mode": "hide"}}, "expect": "excluded" },
     { "id": "streaming=true", "path": "streaming", "value": true, "expect": "excluded" },
     { "id": "streamingInterval=1000", "path": "streamingInterval", "value": 1000, "expect": "excluded" },

@@ -69,7 +69,7 @@ var targetSilent = map[string]bool{
 	"datetimeLoading": true, "tableLoading": true, "initialized": true, "expand": true,
 	"metric": true, "key": true, "requestId": true, "hide": true, "step": true,
 	"queryType": true, "builderOptions": true, "editorType": true, "format": true,
-	"skip_comments": true, "add_metadata": true, "contextWindowSize": true,
+	"skip_comments": true, "add_metadata": true,
 	"useWindowFuncForMacros": true, "nullifySparse": true, "database": true, "table": true,
 	"dateColDataType": true, "dateTimeColDataType": true, "dateTimeType": true,
 	"useBackend": true, "disableTextWrap": true, "fullMetaSearch": true, "includeNullMetadata": true,
@@ -78,7 +78,7 @@ var targetSilent = map[string]bool{
 
 var targetDefaults = map[string]any{
 	"intervalFactor": 1, "exemplar": false, "instant": false, "range": true,
-	"round": "0s",
+	"round": "0s", "contextWindowSize": "10",
 }
 
 func (c *converter) declaredVariables() map[string]bool {
