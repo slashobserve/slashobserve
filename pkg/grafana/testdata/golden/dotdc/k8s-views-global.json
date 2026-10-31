@@ -823,7 +823,7 @@
       {
         "subject": "annotations",
         "status": "partial",
-        "reason": "Annotation queries are not supported yet.",
+        "reason": "Annotations are not part of SlashObserve.",
         "paths": [
           "annotations.list[1]",
           "annotations.list[2]"

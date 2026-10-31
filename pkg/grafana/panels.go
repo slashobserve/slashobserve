@@ -16,7 +16,6 @@ const (
 	maxTextContent      = 20000
 	maxPanelPaths       = 100
 	noQueriesReason     = "None of this panel's queries can be imported."
-	livePanelReason     = "Grafana's live panels have no SlashObserve equivalent."
 	debugPanelReason    = "Grafana's debug panel showed raw query results; it is shown as a table."
 	docsURL             = "https://github.com/slashobserve/slashobserve/blob/main/docs/"
 )
@@ -40,8 +39,8 @@ var convertiblePanelTypes = map[spec.PanelType]bool{
 }
 
 var placeholderReasons = map[string]string{
-	"annolist":    "SlashObserve has no annotations yet, so an annotation list has nothing to show.",
-	"live":        livePanelReason,
+	"annolist":    decisionAnnotations.reason,
+	"live":        decisionLive.reason,
 	"alertGroups": "Alertmanager is not supported yet.",
 }
 
@@ -63,12 +62,13 @@ type issueLog struct {
 	dropped   map[string]bool
 	reasonSet map[string]bool
 	limit     int
+	excluded  func(path string) (decision, bool)
 }
 
 type issueMark struct{ paths, omitted, reasons int }
 
-func newIssueLog() *issueLog {
-	return &issueLog{listed: map[string]bool{}, dropped: map[string]bool{}, reasonSet: map[string]bool{}, limit: maxPanelPaths}
+func newIssueLog(excluded func(path string) (decision, bool)) *issueLog {
+	return &issueLog{listed: map[string]bool{}, dropped: map[string]bool{}, reasonSet: map[string]bool{}, limit: maxPanelPaths, excluded: excluded}
 }
 
 func (l *issueLog) add(path, reason string) {
@@ -83,6 +83,9 @@ func (l *issueLog) add(path, reason string) {
 	default:
 		l.listed[path] = true
 		l.paths = append(l.paths, path)
+	}
+	if decided, ok := l.excluded(path); ok {
+		reason = decided.reason
 	}
 	if !l.reasonSet[reason] {
 		l.reasonSet[reason] = true
@@ -195,7 +198,7 @@ func (c *converter) convertPanel(n *panelNode) *builtPanel {
 }
 
 func (c *converter) newPanelBuild(n *panelNode, typ spec.PanelType) *panelBuild {
-	b := &panelBuild{c: c, n: n, raw: n.raw, typ: typ, consumed: map[string]bool{}, refs: map[string]string{}, instantRefs: map[string]string{}, issues: newIssueLog()}
+	b := &panelBuild{c: c, n: n, raw: n.raw, typ: typ, consumed: map[string]bool{}, refs: map[string]string{}, instantRefs: map[string]string{}, issues: newIssueLog(func(path string) (decision, bool) { return c.exclusionAt(n.path + "." + path) })}
 	b.panel = spec.Panel{
 		ID:      n.id,
 		Type:    typ,

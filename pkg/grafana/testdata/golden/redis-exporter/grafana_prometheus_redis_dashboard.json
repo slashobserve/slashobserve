@@ -95,7 +95,8 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "Some Grafana options of this panel are not supported yet.",
+          "The gauge layout options are not part of SlashObserve."
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",

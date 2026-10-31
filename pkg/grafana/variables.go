@@ -64,7 +64,27 @@ func rewriteLegacyRefs(s string) (string, []string) {
 }
 
 func (c *converter) note(subject, reason string, paths ...string) {
-	c.notes = append(c.notes, Note{Subject: subject, Status: statusPartial, Reason: reason, Paths: append([]string{}, paths...)})
+	if len(paths) == 0 {
+		c.notes = append(c.notes, Note{Subject: subject, Status: statusPartial, Reason: reason, Paths: []string{}})
+		return
+	}
+	var order []string
+	groups := map[string][]string{}
+	reasons := map[string]string{}
+	for _, path := range paths {
+		key, groupReason := "", reason
+		if excluded, ok := c.exclusionAt(path); ok {
+			key, groupReason = excluded.id, excluded.reason
+		}
+		if _, seen := groups[key]; !seen {
+			order = append(order, key)
+			reasons[key] = groupReason
+		}
+		groups[key] = append(groups[key], path)
+	}
+	for _, key := range order {
+		c.notes = append(c.notes, Note{Subject: subject, Status: statusPartial, Reason: reasons[key], Paths: groups[key]})
+	}
 }
 
 func (c *converter) convertVariables() {

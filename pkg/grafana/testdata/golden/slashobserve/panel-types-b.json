@@ -185,7 +185,7 @@
         "row": null,
         "status": "placeholder",
         "reasons": [
-          "Legacy Grafana alerts are not available in SlashObserve."
+          "Alert rules are not part of SlashObserve."
         ],
         "paths": [],
         "queries": []
@@ -200,7 +200,7 @@
         "row": null,
         "status": "placeholder",
         "reasons": [
-          "Grafana-managed alerts are not available; SlashObserve lists Prometheus rule alerts."
+          "Alert rules are not part of SlashObserve."
         ],
         "paths": [],
         "queries": []
@@ -636,7 +636,7 @@
           "w": 12,
           "h": 8
         },
-        "reason": "Legacy Grafana alerts are not available in SlashObserve.",
+        "reason": "Alert rules are not part of SlashObserve.",
         "sourceType": "alertlist"
       },
       {
@@ -649,7 +649,7 @@
           "w": 12,
           "h": 8
         },
-        "reason": "Grafana-managed alerts are not available; SlashObserve lists Prometheus rule alerts.",
+        "reason": "Alert rules are not part of SlashObserve.",
         "sourceType": "alertlist"
       },
       {

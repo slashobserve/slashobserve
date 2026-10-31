@@ -45,7 +45,7 @@
         "row": "Quick CPU / Mem / Disk",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "The gauge layout options are not part of SlashObserve."
         ],
         "paths": [
           "options.orientation"
@@ -70,7 +70,7 @@
         "row": "Quick CPU / Mem / Disk",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "The gauge layout options are not part of SlashObserve."
         ],
         "paths": [
           "options.orientation"
@@ -95,7 +95,7 @@
         "row": "Quick CPU / Mem / Disk",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "The gauge layout options are not part of SlashObserve."
         ],
         "paths": [
           "options.orientation"
@@ -120,7 +120,7 @@
         "row": "Quick CPU / Mem / Disk",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "The gauge layout options are not part of SlashObserve."
         ],
         "paths": [
           "options.orientation"
@@ -145,7 +145,7 @@
         "row": "Quick CPU / Mem / Disk",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "The gauge layout options are not part of SlashObserve."
         ],
         "paths": [
           "options.orientation"
@@ -170,7 +170,7 @@
         "row": "Quick CPU / Mem / Disk",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "The gauge layout options are not part of SlashObserve."
         ],
         "paths": [
           "options.orientation"

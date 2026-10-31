@@ -129,7 +129,7 @@ func TestLogsOptionsWithoutASpecKeyAreStillReported(t *testing.T) {
 
 func TestLogsInfiniteScrollingIsReportedWithItsOwnReason(t *testing.T) {
 	d, line := logsPanel(t, `{"enableInfiniteScrolling":true}`)
-	requireReported(t, line, "options.enableInfiniteScrolling", "Infinite scrolling of logs is not supported yet.")
+	requireReported(t, line, "options.enableInfiniteScrolling", decisionLogScrolling.reason)
 	if line.Status != statusPartial {
 		t.Fatalf("display = %+v, status %s", d, line.Status)
 	}

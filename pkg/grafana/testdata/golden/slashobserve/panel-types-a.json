@@ -345,7 +345,7 @@
         "row": null,
         "status": "placeholder",
         "reasons": [
-          "SlashObserve has no annotations yet, so an annotation list has nothing to show."
+          "Annotations are not part of SlashObserve."
         ],
         "paths": [],
         "queries": []
@@ -418,7 +418,7 @@
         "row": null,
         "status": "placeholder",
         "reasons": [
-          "Grafana's live panels have no SlashObserve equivalent."
+          "Grafana Live streaming is not part of SlashObserve."
         ],
         "paths": [],
         "queries": []
@@ -851,7 +851,7 @@
           "w": 6,
           "h": 4
         },
-        "reason": "SlashObserve has no annotations yet, so an annotation list has nothing to show.",
+        "reason": "Annotations are not part of SlashObserve.",
         "sourceType": "annolist"
       },
       {
@@ -914,7 +914,7 @@
           "w": 6,
           "h": 4
         },
-        "reason": "Grafana's live panels have no SlashObserve equivalent.",
+        "reason": "Grafana Live streaming is not part of SlashObserve.",
         "sourceType": "live"
       },
       {

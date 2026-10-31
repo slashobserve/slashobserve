@@ -271,7 +271,7 @@
       {
         "subject": "dashboard options",
         "status": "partial",
-        "reason": "Read-only dashboards are not supported; anyone with Edit access to the folder can change this dashboard.",
+        "reason": "Read-only dashboards are not part of SlashObserve.",
         "paths": [
           "editable"
         ]

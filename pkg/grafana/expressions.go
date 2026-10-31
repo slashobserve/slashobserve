@@ -11,8 +11,6 @@ import (
 )
 
 const (
-	classicConditionsReason = "Classic conditions belong to alert rules, which SlashObserve does not import."
-	sqlExpressionReason     = "SQL expressions are not supported."
 	noExpressionInputReason = "This expression uses no query."
 	expressionCycleReason   = "This expression depends on itself through its inputs."
 	unreadableMathReason    = "The math expression holds a reference SlashObserve cannot read."
@@ -75,9 +73,9 @@ func (tb *targetBuild) expression() (spec.Query, string) {
 	case spec.ExpressionThreshold:
 		pending, reason = tb.thresholdExpression()
 	case "classic_conditions":
-		reason = classicConditionsReason
+		reason = decisionAlertRules.reason
 	case "sql":
-		reason = sqlExpressionReason
+		reason = decisionSQLExpressions.reason
 	default:
 		reason = unsupportedValueReason("expression type", kind)
 	}

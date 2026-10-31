@@ -955,7 +955,7 @@
       {
         "subject": "dashboard links",
         "status": "partial",
-        "reason": "Link icons are not supported; the link is shown without its icon.",
+        "reason": "Link icons and link placement in the controls menu are not part of SlashObserve.",
         "paths": [
           "links[0].icon",
           "links[1].icon",
@@ -967,7 +967,7 @@
       {
         "subject": "annotations",
         "status": "partial",
-        "reason": "Annotation queries are not supported yet.",
+        "reason": "Annotations are not part of SlashObserve.",
         "paths": [
           "annotations.list[1]",
           "annotations.list[2]"

@@ -187,7 +187,7 @@
       {
         "subject": "dashboard links",
         "status": "partial",
-        "reason": "Link icons are not supported; the link is shown without its icon.",
+        "reason": "Link icons and link placement in the controls menu are not part of SlashObserve.",
         "paths": [
           "links[0].icon",
           "links[1].icon",

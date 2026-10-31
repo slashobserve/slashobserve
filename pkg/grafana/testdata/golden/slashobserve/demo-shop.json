@@ -567,7 +567,7 @@
         "row": "Lists and text",
         "status": "placeholder",
         "reasons": [
-          "SlashObserve has no annotations yet, so an annotation list has nothing to show."
+          "Annotations are not part of SlashObserve."
         ],
         "paths": [],
         "queries": []
@@ -1588,7 +1588,7 @@
               "w": 12,
               "h": 6
             },
-            "reason": "SlashObserve has no annotations yet, so an annotation list has nothing to show.",
+            "reason": "Annotations are not part of SlashObserve.",
             "sourceType": "annolist"
           },
           {
