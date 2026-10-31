@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 20,
-      "imported": 0,
-      "partial": 20,
+      "imported": 20,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Instant Query",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -68,13 +64,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Instant Query",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -93,13 +85,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Instant Query",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -118,13 +106,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Range Query",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -143,13 +127,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Range Query",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -168,13 +148,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Range Query",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -193,13 +169,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Store",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -218,13 +190,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Store",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -243,13 +211,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Store",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -268,13 +232,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Sidecar",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -293,13 +253,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Sidecar",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -318,13 +274,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Sidecar",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -343,13 +295,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Receive",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -368,13 +316,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Receive",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -393,13 +337,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Receive",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -418,13 +358,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Rule",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -443,13 +379,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Rule",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -468,13 +400,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Rule",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -493,13 +421,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Compact",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -518,13 +442,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Compact",
-        "status": "partial",
-        "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept."
-        ],
-        "paths": [
-          "links[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -540,26 +460,26 @@
   },
   "blocks": [
     "dashboard mapped=7 bookkeeping=6",
-    "panel rows[0].panels[0] mapped=48 reported=1 default=4 bookkeeping=2 query:1",
-    "panel rows[0].panels[1] mapped=38 reported=1 default=4 bookkeeping=2 query:1",
-    "panel rows[0].panels[2] mapped=43 reported=1 default=5 bookkeeping=2 query:1",
-    "panel rows[1].panels[0] mapped=48 reported=1 default=4 bookkeeping=2 query:1",
-    "panel rows[1].panels[1] mapped=38 reported=1 default=4 bookkeeping=2 query:1",
-    "panel rows[1].panels[2] mapped=43 reported=1 default=5 bookkeeping=2 query:1",
-    "panel rows[2].panels[0] mapped=74 reported=1 default=4 bookkeeping=2 query:1",
-    "panel rows[2].panels[1] mapped=38 reported=1 default=4 bookkeeping=2 query:1",
-    "panel rows[2].panels[2] mapped=43 reported=1 default=5 bookkeeping=2 query:1",
-    "panel rows[3].panels[0] mapped=74 reported=1 default=4 bookkeeping=2 query:1",
-    "panel rows[3].panels[1] mapped=38 reported=1 default=4 bookkeeping=2 query:1",
-    "panel rows[3].panels[2] mapped=43 reported=1 default=5 bookkeeping=2 query:1",
-    "panel rows[4].panels[0] mapped=48 reported=1 default=4 bookkeeping=2 query:1",
-    "panel rows[4].panels[1] mapped=38 reported=1 default=4 bookkeeping=2 query:1",
-    "panel rows[4].panels[2] mapped=43 reported=1 default=5 bookkeeping=2 query:1",
-    "panel rows[5].panels[0] mapped=38 reported=1 default=4 bookkeeping=2 query:1",
-    "panel rows[5].panels[1] mapped=39 reported=1 default=4 bookkeeping=2 query:1",
-    "panel rows[5].panels[2] mapped=43 reported=1 default=5 bookkeeping=2 query:1",
-    "panel rows[6].panels[0] mapped=38 reported=1 default=4 bookkeeping=2 query:1",
-    "panel rows[6].panels[1] mapped=39 reported=1 default=4 bookkeeping=2 query:1"
+    "panel rows[0].panels[0] mapped=48 default=4 bookkeeping=2 query:1",
+    "panel rows[0].panels[1] mapped=38 default=4 bookkeeping=2 query:1",
+    "panel rows[0].panels[2] mapped=43 default=5 bookkeeping=2 query:1",
+    "panel rows[1].panels[0] mapped=48 default=4 bookkeeping=2 query:1",
+    "panel rows[1].panels[1] mapped=38 default=4 bookkeeping=2 query:1",
+    "panel rows[1].panels[2] mapped=43 default=5 bookkeeping=2 query:1",
+    "panel rows[2].panels[0] mapped=74 default=4 bookkeeping=2 query:1",
+    "panel rows[2].panels[1] mapped=38 default=4 bookkeeping=2 query:1",
+    "panel rows[2].panels[2] mapped=43 default=5 bookkeeping=2 query:1",
+    "panel rows[3].panels[0] mapped=74 default=4 bookkeeping=2 query:1",
+    "panel rows[3].panels[1] mapped=38 default=4 bookkeeping=2 query:1",
+    "panel rows[3].panels[2] mapped=43 default=5 bookkeeping=2 query:1",
+    "panel rows[4].panels[0] mapped=48 default=4 bookkeeping=2 query:1",
+    "panel rows[4].panels[1] mapped=38 default=4 bookkeeping=2 query:1",
+    "panel rows[4].panels[2] mapped=43 default=5 bookkeeping=2 query:1",
+    "panel rows[5].panels[0] mapped=38 default=4 bookkeeping=2 query:1",
+    "panel rows[5].panels[1] mapped=39 default=4 bookkeeping=2 query:1",
+    "panel rows[5].panels[2] mapped=43 default=5 bookkeeping=2 query:1",
+    "panel rows[6].panels[0] mapped=38 default=4 bookkeeping=2 query:1",
+    "panel rows[6].panels[1] mapped=39 default=4 bookkeeping=2 query:1"
   ],
   "spec": {
     "specVersion": "0",
@@ -632,6 +552,12 @@
             ],
             "unit": "short",
             "min": 0,
+            "links": [
+              {
+                "title": "Thanos / Query",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Query&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",
@@ -690,6 +616,12 @@
             ],
             "unit": "percentunit",
             "min": 0,
+            "links": [
+              {
+                "title": "Thanos / Query",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Query&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",
@@ -735,6 +667,12 @@
                 "color": "critical"
               }
             ],
+            "links": [
+              {
+                "title": "Thanos / Query",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Query&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 10,
             "nullAsZero": true,
             "thresholdsStyle": "line+area"
@@ -774,6 +712,12 @@
             ],
             "unit": "short",
             "min": 0,
+            "links": [
+              {
+                "title": "Thanos / Query",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Query&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",
@@ -832,6 +776,12 @@
             ],
             "unit": "percentunit",
             "min": 0,
+            "links": [
+              {
+                "title": "Thanos / Query",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Query&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",
@@ -877,6 +827,12 @@
                 "color": "critical"
               }
             ],
+            "links": [
+              {
+                "title": "Thanos / Query",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Query&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 10,
             "nullAsZero": true,
             "thresholdsStyle": "line+area"
@@ -916,6 +872,12 @@
             ],
             "unit": "short",
             "min": 0,
+            "links": [
+              {
+                "title": "Thanos / Store",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Store&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",
@@ -1052,6 +1014,12 @@
             ],
             "unit": "percentunit",
             "min": 0,
+            "links": [
+              {
+                "title": "Thanos / Store",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Store&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",
@@ -1097,6 +1065,12 @@
                 "color": "critical"
               }
             ],
+            "links": [
+              {
+                "title": "Thanos / Store",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Store&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 10,
             "nullAsZero": true,
             "thresholdsStyle": "line+area"
@@ -1136,6 +1110,12 @@
             ],
             "unit": "short",
             "min": 0,
+            "links": [
+              {
+                "title": "Thanos / Sidecar",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Sidecar&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",
@@ -1272,6 +1252,12 @@
             ],
             "unit": "percentunit",
             "min": 0,
+            "links": [
+              {
+                "title": "Thanos / Sidecar",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Sidecar&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",
@@ -1317,6 +1303,12 @@
                 "color": "critical"
               }
             ],
+            "links": [
+              {
+                "title": "Thanos / Sidecar",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Sidecar&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 10,
             "nullAsZero": true,
             "thresholdsStyle": "line+area"
@@ -1356,6 +1348,12 @@
             ],
             "unit": "short",
             "min": 0,
+            "links": [
+              {
+                "title": "Thanos / Receive",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Receive&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",
@@ -1414,6 +1412,12 @@
             ],
             "unit": "percentunit",
             "min": 0,
+            "links": [
+              {
+                "title": "Thanos / Receive",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Receive&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",
@@ -1459,6 +1463,12 @@
                 "color": "critical"
               }
             ],
+            "links": [
+              {
+                "title": "Thanos / Receive",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Receive&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 10,
             "nullAsZero": true,
             "thresholdsStyle": "line+area"
@@ -1499,6 +1509,12 @@
             ],
             "unit": "short",
             "min": 0,
+            "links": [
+              {
+                "title": "Thanos / Rule",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Rule&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",
@@ -1526,6 +1542,12 @@
             ],
             "unit": "percentunit",
             "min": 0,
+            "links": [
+              {
+                "title": "Thanos / Rule",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Rule&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",
@@ -1571,6 +1593,12 @@
                 "color": "critical"
               }
             ],
+            "links": [
+              {
+                "title": "Thanos / Rule",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Rule&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 10,
             "nullAsZero": true,
             "thresholdsStyle": "line+area"
@@ -1611,6 +1639,12 @@
             ],
             "unit": "short",
             "min": 0,
+            "links": [
+              {
+                "title": "Thanos / Compact",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Compact&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",
@@ -1638,6 +1672,12 @@
             ],
             "unit": "percentunit",
             "min": 0,
+            "links": [
+              {
+                "title": "Thanos / Compact",
+                "url": "/dashboards/by-title?title=Thanos+%2F+Compact&${__url_time_range}&${__all_variables}"
+              }
+            ],
             "fill": 100,
             "lineWidth": 0,
             "stack": "normal",

@@ -4219,6 +4219,38 @@
     ]
    }
   },
+  "links[]": {
+   "fields": [
+    "links[].title",
+    "links[].url"
+   ],
+   "values": {
+    "type:dashboard": [
+     "links[].title",
+     "links[].url"
+    ]
+   }
+  },
+  "links[].includeVars": {
+   "fields": [
+    "links[].url"
+   ],
+   "values": {
+    "b:true": [
+     "links[].url"
+    ]
+   }
+  },
+  "links[].keepTime": {
+   "fields": [
+    "links[].url"
+   ],
+   "values": {
+    "b:true": [
+     "links[].url"
+    ]
+   }
+  },
   "nullPointMode": {
    "fields": [
     "nullAsZero",
@@ -10094,6 +10126,36 @@
     "links[].title",
     "links[].url"
    ]
+  },
+  "links[].includeVars": {
+   "fields": [
+    "links[].url"
+   ],
+   "values": {
+    "b:true": [
+     "links[].url"
+    ]
+   }
+  },
+  "links[].keepTime": {
+   "fields": [
+    "links[].url"
+   ],
+   "values": {
+    "b:true": [
+     "links[].url"
+    ]
+   }
+  },
+  "links[].targetBlank": {
+   "fields": [
+    "links[].newTab"
+   ],
+   "values": {
+    "b:true": [
+     "links[].newTab"
+    ]
+   }
   },
   "maxDataPoints": {
    "fields": [

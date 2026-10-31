@@ -1,5 +1,0 @@
-links[].dashboard type:dashboard
-links[].includeVars type:dashboard
-links[].keepTime type:dashboard
-links[].title type:dashboard
-links[].type

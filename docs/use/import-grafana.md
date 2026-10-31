@@ -157,6 +157,10 @@ A table that already has a `fieldConfig` keeps the Angular keys it was saved wit
 A field's `fieldMinMax` imports on gauges and bar gauges, where fields otherwise share one range, and is left out silently elsewhere, where every field already has its own range.
 A display name keeps `${__field.name}`, `${__field.displayName}`, `${__series.name}`, `${__data.refId}`, `${__field.labels.<label>}` and dashboard variables in all four syntaxes; other `__` tokens, such as `${__data.fields[0]}`, are reported.
 A data link's `oneClick` imports on stat, gauge, bar gauge and table panels and is reported on every other type, where the link stays a panel link.
+A panel link to another dashboard, named by its title, imports as a link that opens that dashboard when it is clicked; imported dashboards get new ids, so the title is looked up at click time.
+When several dashboards you can see share the title, or none does, the link opens the dashboards list filtered by the title instead.
+The link carries the time range when Grafana's keep-time option was on and the variable selections when include-variables was on, and a panel link to an address keeps both options the same way, as the link tokens `${__url_time_range}` and `${__all_variables}`.
+A panel link to a dashboard without a title, with a title over 200 characters or of any other type is reported and not kept.
 A logs panel imports its unique and common labels, log details and where they open (`detailsMode`), prettified JSON, deduplication, controls bar, font size and syntax highlighting; the displayed fields (at most 20, shown as the line instead of the message), the log attributes switch (turning it off hides the per-line labels) and the nanosecond timestamp resolution import too; infinite scrolling, the field selector and the context toggle are still reported.
 A candlestick imports its up, down and flat candle colors; a flat candle, whose open equals its close, otherwise takes the up color.
 Transformations import in order, up to 20 per panel, and a disabled one is skipped.

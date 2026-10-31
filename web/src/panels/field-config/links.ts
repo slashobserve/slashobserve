@@ -122,6 +122,10 @@ function valuesOf(name: string, scope: LinkScope): string[] | null {
   return null
 }
 
+function queryParams(name: string, values: string[], encode: Encode): string[] {
+  return values.map((value) => `var-${name}=${encode(value)}`)
+}
+
 function tokenValue(
   inner: string,
   scope: LinkScope,
@@ -132,13 +136,18 @@ function tokenValue(
     if (scope.from === undefined || scope.to === undefined) return null
     return `from=${encode(scope.from)}&to=${encode(scope.to)}`
   }
+  if (written === "__all_variables") {
+    return Object.entries(scope.vars)
+      .flatMap(([name, values]) => queryParams(name, values, encode))
+      .join("&")
+  }
   const suffix = formatSuffix.exec(written)
   const name = suffix ? suffix[1] : written
   const format = suffix?.[2] as VariableFormat | undefined
   if (format === "queryparam") {
     const selected = plainVar.test(name) ? selectionOf(scope, name) : null
     if (!selected) return null
-    return selected.map((value) => `var-${name}=${encode(value)}`).join("&")
+    return queryParams(name, selected, encode).join("&")
   }
   const values = valuesOf(name, scope)
   return values && formatValues(values, format, encode)

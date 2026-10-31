@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"math"
+	"net/url"
 	"regexp"
 	"slices"
 	"strconv"
@@ -1440,19 +1441,9 @@ func (b *panelBuild) linkList(items []any, path func(int) string) []spec.Link {
 			b.partial(path(i), "A panel holds at most 20 links.")
 		default:
 			links = append(links, link)
-			b.noteLinkOptions(item, path(i))
 		}
 	}
 	return links
-}
-
-func (b *panelBuild) noteLinkOptions(item any, path string) {
-	l, _ := asObject(item)
-	for _, key := range []string{"keepTime", "includeVars"} {
-		if truthy(l[key]) {
-			b.partial(path+"."+key, "Links do not carry the time range or variable selections along.")
-		}
-	}
 }
 
 var linkScheme = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*:`)
@@ -1468,30 +1459,77 @@ func hasForeignScheme(url string) bool {
 	return scheme != "" && scheme != "http:" && scheme != "https:" && scheme != "mailto:"
 }
 
+const (
+	linkTimeRange    = "${__url_time_range}"
+	linkAllVariables = "${__all_variables}"
+	maxLinkTitle     = 200
+	maxLinkURL       = 2000
+	dashboardByTitle = "/dashboards/by-title?title="
+)
+
+func withQueryTokens(address string, tokens ...string) string {
+	base, fragment, hasFragment := strings.Cut(address, "#")
+	for _, token := range tokens {
+		switch {
+		case !strings.Contains(base, "?"):
+			base += "?"
+		case !strings.HasSuffix(base, "?") && !strings.HasSuffix(base, "&"):
+			base += "&"
+		}
+		base += token
+	}
+	if hasFragment {
+		base += "#" + fragment
+	}
+	return base
+}
+
 func linkOf(item any) (spec.Link, string) {
 	l, ok := asObject(item)
 	if !ok {
 		return spec.Link{}, "This link is not supported yet."
 	}
-	if kind := asString(l["type"]); kind != "" && kind != "link" {
-		return spec.Link{}, "Only plain links are supported; links to other dashboards are not kept."
+	var carried []string
+	if truthy(l["keepTime"]) {
+		carried = append(carried, linkTimeRange)
 	}
-	url := strings.TrimSpace(asString(l["url"]))
-	if url == "" {
-		return spec.Link{}, "A link without an address is not kept."
+	if truthy(l["includeVars"]) {
+		carried = append(carried, linkAllVariables)
 	}
-	if _, tooLong := cutRunes(url, 2000); tooLong {
+	var address, fallbackTitle string
+	switch kind := asString(l["type"]); kind {
+	case "", "link":
+		address = strings.TrimSpace(asString(l["url"]))
+		if address == "" {
+			return spec.Link{}, "A link without an address is not kept."
+		}
+		if hasForeignScheme(address) {
+			return spec.Link{}, "A link whose address does not start with http, https or mailto is not kept."
+		}
+		fallbackTitle = address
+	case "dashboard":
+		target := strings.TrimSpace(asString(l["dashboard"]))
+		if target == "" {
+			return spec.Link{}, "A link to a dashboard without its title is not kept."
+		}
+		if _, tooLong := cutRunes(target, maxLinkTitle); tooLong {
+			return spec.Link{}, "A link to a dashboard whose title is longer than 200 characters is not kept."
+		}
+		address = dashboardByTitle + url.QueryEscape(target)
+		fallbackTitle = target
+	default:
+		return spec.Link{}, "Only plain links and links to a dashboard are supported; other link types are not kept."
+	}
+	address = withQueryTokens(address, carried...)
+	if _, tooLong := cutRunes(address, maxLinkURL); tooLong {
 		return spec.Link{}, "A link address longer than 2000 characters is not kept."
-	}
-	if hasForeignScheme(url) {
-		return spec.Link{}, "A link whose address does not start with http, https or mailto is not kept."
 	}
 	title := strings.TrimSpace(asString(l["title"]))
 	if title == "" {
-		title = url
+		title = fallbackTitle
 	}
-	title, _ = cutRunes(title, 200)
-	return spec.Link{Title: title, URL: url, NewTab: truthy(l["targetBlank"]), OneClick: truthy(l["oneClick"])}, ""
+	title, _ = cutRunes(title, maxLinkTitle)
+	return spec.Link{Title: title, URL: address, NewTab: truthy(l["targetBlank"]), OneClick: truthy(l["oneClick"])}, ""
 }
 
 func propMappings(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
