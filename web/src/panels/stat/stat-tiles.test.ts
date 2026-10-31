@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest"
 
+import { fieldActions } from "@/panels/actions/field-actions"
 import { createFieldResolver } from "@/panels/field-config"
 import type { WireField } from "@/panels/frames"
 import type { PreparedFrame } from "@/panels/transforms"
 import type { DataPanel } from "@/spec"
 
-import { changeTone, percentChange, statTiles } from "./stat-tiles"
+import { changeTone, percentChange, statScope, statTiles } from "./stat-tiles"
 
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
   return {
@@ -175,6 +176,49 @@ describe("statTiles value options", () => {
     )
     expect(tile.text).toBe("up")
     expect(tile.value).toBeNull()
+  })
+})
+
+describe("stat tile scope and actions", () => {
+  const restart = {
+    title: "Restart",
+    url: "https://ops.example.com/${__data.fields.pod}/restart",
+  }
+  const podFrame: PreparedFrame = {
+    ref: "A",
+    labels: { job: "web" },
+    fields: [
+      time,
+      { name: "pod", type: "string", values: ["a", "b", "c"] },
+      { name: "Value", type: "number", values: [4, 9, 2] },
+    ],
+  }
+
+  it("scopes a tile to its last row, value and series", () => {
+    const [tile] = tiles([podFrame], {}, { reduce: "max" })
+    const scope = statScope(tile, { vars: { env: ["prod"] } })
+    expect(scope).toMatchObject({
+      vars: { env: ["prod"] },
+      row: { index: 2 },
+      labels: { job: "web" },
+      fieldName: "Value",
+      value: 9,
+      valueText: tile.text,
+    })
+  })
+
+  it("gives the actions of the field's config their data fields", () => {
+    const [tile] = tiles([podFrame], { actions: [restart] })
+    expect(
+      fieldActions(tile.config, statScope(tile, { vars: {} }))
+    ).toMatchObject([
+      { title: "Restart", override: null, fields: { pod: "c" } },
+    ])
+  })
+
+  it("gives a tile no actions when its config has none", () => {
+    const [tile] = tiles([podFrame])
+    expect(fieldActions(tile.config, statScope(tile, { vars: {} }))).toEqual([])
   })
 })
 

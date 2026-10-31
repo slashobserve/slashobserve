@@ -5,6 +5,7 @@ import type { PreparedFrame } from "@/panels/transforms"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
 import {
+  barActions,
   barLimits,
   barLinks,
   barSizes,
@@ -397,6 +398,56 @@ describe("data links", () => {
     expect(
       barLinks(fields, first, reducerOf(display), { vars: {}, fields })
     ).toEqual([{ title: "Open", href: "/h/new?o=9&v=7", newTab: false }])
+  })
+})
+
+describe("bar field actions", () => {
+  const restart = {
+    title: "Restart",
+    url: "https://ops.example.com/${__data.fields.host}/restart",
+  }
+  const barFrame: PreparedFrame = {
+    ref: "A",
+    fields: [
+      { name: "Time", type: "time", values: [1, 2, 3] },
+      { name: "host", type: "string", values: ["old", "new", null] },
+      { name: "Value", type: "number", values: [4, 7, null] },
+      { name: "other", type: "number", values: [1, 9, null] },
+    ],
+  }
+
+  function actionsOf(extra: Partial<DataPanel>) {
+    const { fields, display, model } = build([barFrame], extra)
+    return model.bars.map((bar) =>
+      barActions(fields, bar, reducerOf(display), { vars: {}, fields })
+    )
+  }
+
+  it("carries the index of the override that set the actions", () => {
+    const [value, other] = actionsOf({
+      overrides: [
+        { match: { field: "Value" }, unit: "short" },
+        { match: { field: "other" }, actions: [restart] },
+      ],
+    })
+    expect(value).toEqual([])
+    expect(other).toMatchObject([
+      { title: "Restart", host: "ops.example.com", index: 0, override: 1 },
+    ])
+  })
+
+  it("marks the panel's own actions with no override", () => {
+    const [first] = actionsOf({ actions: [restart] })
+    expect(first).toMatchObject([{ title: "Restart", override: null }])
+  })
+
+  it("returns nothing when the config has no actions", () => {
+    expect(actionsOf({})).toEqual([[], []])
+  })
+
+  it("reads data fields from the reduced values of the frame", () => {
+    const [first] = actionsOf({ actions: [restart] })
+    expect(first[0].fields).toEqual({ host: "new" })
   })
 })
 

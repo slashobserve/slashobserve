@@ -3,6 +3,7 @@ import {
   ArrowDownIcon,
   ArrowUpIcon,
   CircleIcon,
+  EllipsisIcon,
   LinkIcon,
   MinusIcon,
 } from "lucide-react"
@@ -12,6 +13,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -22,8 +24,15 @@ import {
 import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
+import { useActionRunner } from "../actions/action-runner"
+import {
+  fieldActionRequest,
+  fieldActions,
+  oneClickTarget,
+  type FieldAction,
+} from "../actions/field-actions"
 import { resolveColor } from "../colors"
-import { isDataLink, resolveLink } from "../field-config"
+import { isDataLink, resolveLink, type LinkScope } from "../field-config"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
 import { cssColorToRgb, readableText } from "../contrast"
@@ -32,6 +41,7 @@ import { sparklineHasArea, sparklinePoints } from "./sparkline-points"
 import { isWideTile, tileGap, tilesAcross, tileSize } from "./stat-grid"
 import {
   changeTone,
+  statScope,
   statTiles,
   type ChangeDirection,
   type ChangeTone,
@@ -79,11 +89,13 @@ const StatPanel: PanelRenderer = ({
   fields,
   display: rawDisplay,
   zone,
+  meta,
   width,
   height,
   links,
 }) => {
   const { resolved: theme } = useTheme()
+  const runner = useActionRunner()
   const display = rawDisplay as StatDisplay
   const tiles = useMemo(
     () => statTiles(frames, fields, display, panel.unit, zone),
@@ -133,240 +145,288 @@ const StatPanel: PanelRenderer = ({
     ? { fontSize: display.valueSize }
     : undefined
 
+  function runAction(action: FieldAction, scope: LinkScope) {
+    if (runner.context === null) return
+    runner.open(
+      action,
+      fieldActionRequest({
+        context: runner.context,
+        panelId: panel.id,
+        action,
+        scope,
+        fromMs: Date.parse(meta.from),
+        toMs: Date.parse(meta.to),
+      })
+    )
+  }
+
   return (
-    <div
-      className={cn("grid gap-2 overflow-auto", anyFilled && "p-2 pt-0")}
-      style={{ width, height, ...gridFor(display.orientation, across) }}
-    >
-      {tiles.map((tile, index) => {
-        const filled = background && tile.color !== null
-        const aria = tiles.length > 1 ? tile.name : panel.title
-        const line = lines[index]
-        const drawn = line.length > 0
-        const primary = nameAsValue ? tile.name : tile.amount
-        const unit = nameAsValue ? "" : tile.unit
-        const dataLinks = tile.links.flatMap(
-          (link) =>
-            (isDataLink(link)
-              ? resolveLink(link, {
-                  ...links,
-                  labels: tile.labels,
-                  seriesName: tile.seriesName,
-                  fieldName: tile.fieldName,
-                  value: tile.value,
-                  valueText: tile.text,
-                })
-              : null) ?? []
-        )
-        const linkedPrimary = showText ? dataLinks[0] : undefined
-        const menuLinks = showText ? dataLinks.slice(1) : dataLinks
-        const thresholdColor = display.colorMode === "value" ? tile.color : null
-        const Icon =
-          tile.threshold.level !== "base"
-            ? thresholdIcons[tile.threshold.level]
-            : thresholdColor
-              ? CircleIcon
-              : null
-        const change = display.percentChange && showText ? tile.change : null
-        const ChangeIcon = changeIcons[change?.direction ?? "flat"]
-        const tone = change
-          ? changeTone(
-              change.direction,
-              display.percentChangeColor ?? "standard"
-            )
-          : "none"
-        const changeColor = filled
-          ? undefined
-          : tone === "value"
-            ? (tile.color ?? undefined)
-            : tone === "none"
-              ? undefined
-              : changeColors[tone]
-        const sparkStroke = filled
-          ? "currentColor"
-          : (thresholdColor ?? "var(--series-1)")
-        return (
-          <div
-            key={tile.key}
-            role="group"
-            aria-label={`${aria}: ${tile.text}${tile.threshold.level !== "base" ? `, ${tile.threshold.label}` : ""}`}
-            data-stat-tile=""
-            {...oneClickProps(showText ? dataLinks : [])}
-            data-color-mode={display.colorMode}
-            data-graph={String(drawn)}
-            data-threshold={tile.threshold.level}
-            className={cn(
-              "relative flex min-h-0 flex-col overflow-hidden rounded-md text-foreground data-one-click:cursor-pointer",
-              filled && "pt-2"
-            )}
-            style={
-              filled
-                ? {
-                    backgroundColor: tile.color ?? undefined,
-                    color: filledText[index],
-                  }
-                : undefined
-            }
-          >
+    <>
+      <div
+        className={cn("grid gap-2 overflow-auto", anyFilled && "p-2 pt-0")}
+        style={{ width, height, ...gridFor(display.orientation, across) }}
+      >
+        {tiles.map((tile, index) => {
+          const filled = background && tile.color !== null
+          const aria = tiles.length > 1 ? tile.name : panel.title
+          const line = lines[index]
+          const drawn = line.length > 0
+          const primary = nameAsValue ? tile.name : tile.amount
+          const unit = nameAsValue ? "" : tile.unit
+          const scope = statScope(tile, links)
+          const dataLinks = tile.config.links
+            .filter(isDataLink)
+            .flatMap((link) => resolveLink(link, scope) ?? [])
+          const actions = fieldActions(tile.config, scope)
+          const linkedPrimary = showText ? dataLinks[0] : undefined
+          const menuLinks = showText ? dataLinks.slice(1) : dataLinks
+          const target = oneClickTarget(
+            showText ? dataLinks : [],
+            showText ? actions : []
+          )
+          const oneClick =
+            target === null
+              ? {}
+              : target.kind === "link"
+                ? oneClickProps(dataLinks)
+                : runner.reason === null
+                  ? oneClickProps([], () => runAction(target.action, scope))
+                  : {}
+          const thresholdColor =
+            display.colorMode === "value" ? tile.color : null
+          const Icon =
+            tile.threshold.level !== "base"
+              ? thresholdIcons[tile.threshold.level]
+              : thresholdColor
+                ? CircleIcon
+                : null
+          const change = display.percentChange && showText ? tile.change : null
+          const ChangeIcon = changeIcons[change?.direction ?? "flat"]
+          const tone = change
+            ? changeTone(
+                change.direction,
+                display.percentChangeColor ?? "standard"
+              )
+            : "none"
+          const changeColor = filled
+            ? undefined
+            : tone === "value"
+              ? (tile.color ?? undefined)
+              : tone === "none"
+                ? undefined
+                : changeColors[tone]
+          const sparkStroke = filled
+            ? "currentColor"
+            : (thresholdColor ?? "var(--series-1)")
+          return (
             <div
+              key={tile.key}
+              role="group"
+              aria-label={`${aria}: ${tile.text}${tile.threshold.level !== "base" ? `, ${tile.threshold.label}` : ""}`}
+              data-stat-tile=""
+              {...oneClick}
+              data-color-mode={display.colorMode}
+              data-graph={String(drawn)}
+              data-threshold={tile.threshold.level}
               className={cn(
-                "flex shrink-0 flex-col",
-                sideBySide &&
-                  "flex-row items-baseline justify-between gap-3 px-3",
-                sideBySide && centered && "justify-center"
+                "relative flex min-h-0 flex-col overflow-hidden rounded-md text-foreground data-one-click:cursor-pointer",
+                filled && "pt-2"
               )}
+              style={
+                filled
+                  ? {
+                      backgroundColor: tile.color ?? undefined,
+                      color: filledText[index],
+                    }
+                  : undefined
+              }
             >
-              {showName ? (
+              <div
+                className={cn(
+                  "flex shrink-0 flex-col",
+                  sideBySide &&
+                    "flex-row items-baseline justify-between gap-3 px-3",
+                  sideBySide && centered && "justify-center"
+                )}
+              >
+                {showName ? (
+                  <span
+                    title={tile.name}
+                    style={
+                      display.titleSize
+                        ? { fontSize: display.titleSize }
+                        : undefined
+                    }
+                    className={cn(
+                      "shrink-0 truncate text-[13px] font-medium",
+                      sideBySide ? "min-w-0 shrink" : "px-3",
+                      centered && !sideBySide && "text-center",
+                      !filled && "text-muted-foreground"
+                    )}
+                  >
+                    {tile.name}
+                  </span>
+                ) : null}
+                {showText ? (
+                  <div
+                    className={cn(
+                      "flex shrink-0 items-baseline gap-1.5 leading-none",
+                      pad,
+                      centered && !sideBySide && "justify-center"
+                    )}
+                  >
+                    {linkedPrimary ? (
+                      <a
+                        {...anchorProps(linkedPrimary)}
+                        data-stat-value=""
+                        title={linkedPrimary.title}
+                        aria-label={`${primary}${unit ? ` ${unit}` : ""}: ${linkedPrimary.title}${linkedPrimary.newTab ? " (opens in new tab)" : ""}`}
+                        style={valueStyle}
+                        className={cn(
+                          valueClass,
+                          "-mx-1 rounded-sm px-1 underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset"
+                        )}
+                      >
+                        {primary}
+                        {linkedPrimary.newTab ? <NewTabMark /> : null}
+                      </a>
+                    ) : (
+                      <span
+                        data-stat-value=""
+                        style={valueStyle}
+                        className={valueClass}
+                      >
+                        {primary}
+                      </span>
+                    )}
+                    {unit ? (
+                      <span
+                        data-stat-unit=""
+                        className={cn(
+                          "shrink-0 text-[13px]",
+                          !filled && "text-muted-foreground"
+                        )}
+                      >
+                        {unit}
+                      </span>
+                    ) : null}
+                    {change ? (
+                      <span
+                        data-stat-change=""
+                        data-direction={change.direction}
+                        style={
+                          display.percentSize
+                            ? { fontSize: display.percentSize }
+                            : undefined
+                        }
+                        className={cn(
+                          "flex shrink-0 items-center gap-0.5 text-[13px]",
+                          !filled && "text-muted-foreground"
+                        )}
+                      >
+                        <ChangeIcon
+                          className="size-[13px]"
+                          strokeWidth={2.4}
+                          aria-hidden="true"
+                          style={{ color: changeColor }}
+                        />
+                        <span className="sr-only">{change.word} </span>
+                        {change.text}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+              {Icon && showText ? (
                 <span
-                  title={tile.name}
-                  style={
-                    display.titleSize
-                      ? { fontSize: display.titleSize }
-                      : undefined
-                  }
                   className={cn(
-                    "shrink-0 truncate text-[13px] font-medium",
-                    sideBySide ? "min-w-0 shrink" : "px-3",
-                    centered && !sideBySide && "text-center",
+                    "flex shrink-0 items-center gap-1.5 px-3 text-[12px]",
+                    centered && "justify-center",
                     !filled && "text-muted-foreground"
                   )}
                 >
-                  {tile.name}
+                  <Icon
+                    className="size-[13px]"
+                    strokeWidth={2.4}
+                    fill={
+                      tile.threshold.level === "base" ? "currentColor" : "none"
+                    }
+                    aria-hidden="true"
+                    data-stat-icon=""
+                    style={{ color: thresholdColor ?? undefined }}
+                  />
+                  {tile.threshold.label}
                 </span>
               ) : null}
-              {showText ? (
-                <div
-                  className={cn(
-                    "flex shrink-0 items-baseline gap-1.5 leading-none",
-                    pad,
-                    centered && !sideBySide && "justify-center"
-                  )}
-                >
-                  {linkedPrimary ? (
-                    <a
-                      {...anchorProps(linkedPrimary)}
-                      data-stat-value=""
-                      title={linkedPrimary.title}
-                      aria-label={`${primary}${unit ? ` ${unit}` : ""}: ${linkedPrimary.title}${linkedPrimary.newTab ? " (opens in new tab)" : ""}`}
-                      style={valueStyle}
-                      className={cn(
-                        valueClass,
-                        "-mx-1 rounded-sm px-1 underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset"
-                      )}
-                    >
-                      {primary}
-                      {linkedPrimary.newTab ? <NewTabMark /> : null}
-                    </a>
-                  ) : (
-                    <span
-                      data-stat-value=""
-                      style={valueStyle}
-                      className={valueClass}
-                    >
-                      {primary}
-                    </span>
-                  )}
-                  {unit ? (
-                    <span
-                      data-stat-unit=""
-                      className={cn(
-                        "shrink-0 text-[13px]",
-                        !filled && "text-muted-foreground"
-                      )}
-                    >
-                      {unit}
-                    </span>
-                  ) : null}
-                  {change ? (
-                    <span
-                      data-stat-change=""
-                      data-direction={change.direction}
-                      style={
-                        display.percentSize
-                          ? { fontSize: display.percentSize }
-                          : undefined
-                      }
-                      className={cn(
-                        "flex shrink-0 items-center gap-0.5 text-[13px]",
-                        !filled && "text-muted-foreground"
-                      )}
-                    >
-                      <ChangeIcon
-                        className="size-[13px]"
-                        strokeWidth={2.4}
-                        aria-hidden="true"
-                        style={{ color: changeColor }}
-                      />
-                      <span className="sr-only">{change.word} </span>
-                      {change.text}
-                    </span>
-                  ) : null}
+              {drawn ? (
+                <div className="mt-auto h-8 min-h-0 shrink">
+                  <Sparkline
+                    line={line}
+                    stroke={sparkStroke}
+                    strokeOpacity={filled ? 0.5 : 1}
+                    area={sparklineHasArea(filled, display.graphStyle)}
+                  />
                 </div>
               ) : null}
+              {menuLinks.length > 0 || actions.length > 0 ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="absolute top-1 right-1 text-current"
+                        aria-label={`${actions.length > 0 ? "More links and actions" : "More links"} for ${tile.name}`}
+                      />
+                    }
+                  >
+                    {actions.length > 0 ? (
+                      <EllipsisIcon aria-hidden="true" />
+                    ) : (
+                      <LinkIcon aria-hidden="true" />
+                    )}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-max">
+                    {menuLinks.map((link, linkIndex) => (
+                      <DropdownMenuItem
+                        key={`${linkIndex}:${link.href}`}
+                        render={<a {...anchorProps(link)} />}
+                        className="justify-between gap-3"
+                      >
+                        {link.title}
+                        {link.newTab ? <NewTabMark /> : null}
+                      </DropdownMenuItem>
+                    ))}
+                    {menuLinks.length > 0 && actions.length > 0 ? (
+                      <DropdownMenuSeparator />
+                    ) : null}
+                    {actions.map((action) => (
+                      <DropdownMenuItem
+                        key={`${action.override ?? "panel"}:${action.index}`}
+                        disabled={runner.reason !== null}
+                        title={runner.reason ?? undefined}
+                        onClick={() => runAction(action, scope)}
+                        className="gap-2"
+                      >
+                        {action.color === null ? null : (
+                          <span
+                            aria-hidden="true"
+                            className="size-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: action.color }}
+                          />
+                        )}
+                        {action.title}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
             </div>
-            {Icon && showText ? (
-              <span
-                className={cn(
-                  "flex shrink-0 items-center gap-1.5 px-3 text-[12px]",
-                  centered && "justify-center",
-                  !filled && "text-muted-foreground"
-                )}
-              >
-                <Icon
-                  className="size-[13px]"
-                  strokeWidth={2.4}
-                  fill={
-                    tile.threshold.level === "base" ? "currentColor" : "none"
-                  }
-                  aria-hidden="true"
-                  data-stat-icon=""
-                  style={{ color: thresholdColor ?? undefined }}
-                />
-                {tile.threshold.label}
-              </span>
-            ) : null}
-            {drawn ? (
-              <div className="mt-auto h-8 min-h-0 shrink">
-                <Sparkline
-                  line={line}
-                  stroke={sparkStroke}
-                  strokeOpacity={filled ? 0.5 : 1}
-                  area={sparklineHasArea(filled, display.graphStyle)}
-                />
-              </div>
-            ) : null}
-            {menuLinks.length > 0 ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      className="absolute top-1 right-1 text-current"
-                      aria-label={`More links for ${tile.name}`}
-                    />
-                  }
-                >
-                  <LinkIcon aria-hidden="true" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-max">
-                  {menuLinks.map((link, linkIndex) => (
-                    <DropdownMenuItem
-                      key={`${linkIndex}:${link.href}`}
-                      render={<a {...anchorProps(link)} />}
-                      className="justify-between gap-3"
-                    >
-                      {link.title}
-                      {link.newTab ? <NewTabMark /> : null}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
-          </div>
-        )
-      })}
-    </div>
+          )
+        })}
+      </div>
+      {runner.dialog}
+    </>
   )
 }
 

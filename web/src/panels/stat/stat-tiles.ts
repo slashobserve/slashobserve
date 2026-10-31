@@ -4,12 +4,14 @@ import {
   displayValue,
   fieldRange,
   type DisplayValue,
+  type FieldConfig,
   type FieldResolver,
+  type LinkScope,
 } from "@/panels/field-config"
 import { reduceItems, reduceOptionsOf } from "@/panels/reduce-items"
 import type { ThresholdState } from "@/panels/thresholds"
 import type { PreparedFrame } from "@/panels/transforms"
-import type { Link, Reducer } from "@/spec"
+import type { Reducer } from "@/spec"
 
 type ColorMode = "value" | "background" | "none"
 type TextMode = "value" | "name" | "valueAndName" | "none"
@@ -58,7 +60,9 @@ export type StatTile = {
   threshold: ThresholdState
   points: [number, number][]
   change: PercentChange | null
-  links: Link[]
+  config: FieldConfig
+  frame: PreparedFrame
+  row: number
 }
 
 export function percentChange(
@@ -160,8 +164,27 @@ export function statTiles(
         threshold: shown.threshold,
         points,
         change: percentChange(points),
-        links: config.links,
+        config,
+        frame,
+        row: row ?? field.values.length - 1,
       }
     }
   )
+}
+
+type BaseScope = Omit<
+  LinkScope,
+  "row" | "seriesName" | "fieldName" | "value" | "valueText"
+>
+
+export function statScope(tile: StatTile, scope: BaseScope): LinkScope {
+  return {
+    ...scope,
+    row: { frame: tile.frame, index: tile.row },
+    labels: tile.labels,
+    seriesName: tile.seriesName,
+    fieldName: tile.fieldName,
+    value: tile.value,
+    valueText: tile.text,
+  }
 }
