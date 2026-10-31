@@ -381,6 +381,11 @@ type FieldProps struct {
 	Style             string      `json:"style,omitempty"`
 	Fill              *int        `json:"fill,omitempty"`
 	LineStyle         string      `json:"lineStyle,omitempty"`
+	LineDash          []int       `json:"lineDash,omitempty"`
+	LineColor         string      `json:"lineColor,omitempty"`
+	FillColor         string      `json:"fillColor,omitempty"`
+	PointColor        string      `json:"pointColor,omitempty"`
+	ShowValues        *bool       `json:"showValues,omitempty"`
 	LineInterpolation string      `json:"lineInterpolation,omitempty"`
 	LineWidth         *int        `json:"lineWidth,omitempty"`
 	Points            string      `json:"points,omitempty"`

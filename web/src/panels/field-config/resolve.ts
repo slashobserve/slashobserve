@@ -37,7 +37,12 @@ export type FieldConfig = {
   links: Link[]
   style: "line" | "bars" | "points"
   fill: number
-  lineStyle: "solid" | "dashed" | "dotted"
+  lineStyle: "solid" | "dashed" | "dotted" | "square"
+  lineDash?: [number, number]
+  lineColor?: string
+  fillColor?: string
+  pointColor?: string
+  showValues?: boolean
   lineInterpolation: "linear" | "smooth" | "stepBefore" | "stepAfter"
   lineWidth: number
   points: "auto" | "always" | "never"
@@ -109,6 +114,11 @@ const fieldPropKeyFlags: Record<keyof FieldProps, true> = {
   style: true,
   fill: true,
   lineStyle: true,
+  lineDash: true,
+  lineColor: true,
+  fillColor: true,
+  pointColor: true,
+  showValues: true,
   lineInterpolation: true,
   lineWidth: true,
   points: true,

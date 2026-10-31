@@ -345,6 +345,18 @@ export type Mapping =
       text?: string;
       color?: Color;
     };
+/**
+ * A semantic color (ok, info, warning, critical) or a #rrggbb hex color.
+ */
+export type Color1 = string;
+/**
+ * A semantic color (ok, info, warning, critical) or a #rrggbb hex color.
+ */
+export type Color2 = string;
+/**
+ * A semantic color (ok, info, warning, critical) or a #rrggbb hex color.
+ */
+export type Color3 = string;
 export type QueryRef = string;
 /**
  * A minimum step such as 30s, or ${name} naming an interval variable; queries then use the step selected in that variable.
@@ -1483,11 +1495,31 @@ export interface FieldProps {
   links?: Link[];
   style?: "line" | "bars" | "points";
   fill?: number;
-  lineStyle?: "solid" | "dashed" | "dotted";
+  /**
+   * The pattern of a line: dashed, dotted (round dots) or square (square dots).
+   */
+  lineStyle?: "solid" | "dashed" | "dotted" | "square";
+  /**
+   * The dash and gap lengths in pixels when lineStyle is dashed.
+   *
+   * @minItems 2
+   * @maxItems 2
+   */
+  lineDash?: number[];
+  lineColor?: Color1;
+  fillColor?: Color2;
+  pointColor?: Color3;
+  /**
+   * Print each point's formatted value above it.
+   */
+  showValues?: boolean;
   lineInterpolation?: "linear" | "smooth" | "stepBefore" | "stepAfter";
   lineWidth?: number;
   points?: "auto" | "always" | "never";
   pointSize?: number;
+  /**
+   * The shape of the points on every panel that draws points.
+   */
   pointShape?: "circle" | "square";
   pointStrokeWidth?: number;
   spanNulls?: boolean | number;

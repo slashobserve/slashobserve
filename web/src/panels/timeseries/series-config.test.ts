@@ -10,6 +10,8 @@ import {
   fillStyle,
   firstStackMode,
   formatTogether,
+  linePattern,
+  partColors,
   seriesStyles,
   timeseriesDisplay,
 } from "./series-config"
@@ -568,5 +570,114 @@ describe("timeseriesDisplay", () => {
       tooltipMaxHeight: 200,
       xAxis: "hidden",
     })
+  })
+})
+
+describe("linePattern", () => {
+  const patterns = { dashed: [6, 4], dotted: [2, 3] }
+
+  it("has no pattern for a solid line", () => {
+    expect(
+      linePattern({ lineStyle: "solid", lineWidth: 2 }, patterns)
+    ).toBeUndefined()
+  })
+
+  it("uses the default dashed and dotted patterns", () => {
+    expect(
+      linePattern({ lineStyle: "dashed", lineWidth: 2 }, patterns)
+    ).toEqual([6, 4])
+    expect(
+      linePattern({ lineStyle: "dotted", lineWidth: 2 }, patterns)
+    ).toEqual([2, 3])
+  })
+
+  it("replaces the dashed pattern with a written lineDash", () => {
+    expect(
+      linePattern(
+        { lineStyle: "dashed", lineDash: [10, 15], lineWidth: 2 },
+        patterns
+      )
+    ).toEqual([10, 15])
+  })
+
+  it("ignores lineDash on a line that is not dashed", () => {
+    expect(
+      linePattern(
+        { lineStyle: "dotted", lineDash: [10, 15], lineWidth: 2 },
+        patterns
+      )
+    ).toEqual([2, 3])
+  })
+
+  it("draws square dots as long as the line is wide", () => {
+    expect(
+      linePattern({ lineStyle: "square", lineWidth: 4 }, patterns)
+    ).toEqual([4, 4])
+    expect(
+      linePattern({ lineStyle: "square", lineWidth: 0 }, patterns)
+    ).toEqual([1, 1])
+  })
+})
+
+describe("partColors", () => {
+  it("falls back to the series color for every part", () => {
+    expect(partColors("var(--series-2)", {})).toEqual({
+      lineColor: "var(--series-2)",
+      fillColor: "var(--series-2)",
+      pointColor: "var(--series-2)",
+    })
+  })
+
+  it("lets each fixed color replace only its own part", () => {
+    expect(
+      partColors("var(--series-2)", {
+        lineColor: "#ff0000",
+        pointColor: "critical",
+      })
+    ).toEqual({
+      lineColor: "#ff0000",
+      fillColor: "var(--series-2)",
+      pointColor: "var(--threshold-critical)",
+    })
+  })
+})
+
+describe("seriesStyles with fixed parts", () => {
+  it("keeps the legend color while the parts take their fixed colors", () => {
+    const [style] = seriesStyles(
+      aligned,
+      [
+        config({
+          lineColor: "#ff0000",
+          fillColor: "#00ff00",
+          pointColor: "#0000ff",
+        }),
+      ],
+      new Map([["a", 1]])
+    )
+    expect(style).toMatchObject({
+      color: "var(--series-2)",
+      lineColor: "#ff0000",
+      fillColor: "#00ff00",
+      pointColor: "#0000ff",
+    })
+  })
+
+  it("carries the square dot pattern and a swatch that reads as dots", () => {
+    const [style] = seriesStyles(
+      aligned,
+      [config({ lineStyle: "square", lineWidth: 3 })],
+      new Map()
+    )
+    expect(style).toMatchObject({ dash: [3, 3], line: "dotted" })
+  })
+
+  it("draws square points when the config asks for them", () => {
+    const [circle, square] = seriesStyles(
+      [aligned[0], { key: "b", label: "b", values: [1, 2] }],
+      [config(), config({ pointShape: "square" })],
+      new Map()
+    )
+    expect([circle.pointShape, square.pointShape]).toEqual(["circle", "square"])
   })
 })

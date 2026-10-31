@@ -493,6 +493,34 @@ describe("series drawing", () => {
     })
   })
 
+  it("draws square dots as a dash as long as the line is wide", () => {
+    expect(
+      build(frames, { lineStyle: "square" } as Partial<DataPanel>).series[0]
+        .dash
+    ).toEqual([1.5, 1.5])
+    expect(
+      build(frames, {
+        lineStyle: "square",
+        lineWidth: 3,
+      } as Partial<DataPanel>).series[0].dash
+    ).toEqual([3, 3])
+  })
+
+  it("replaces the dashed pattern with a written lineDash", () => {
+    expect(
+      build(frames, {
+        lineStyle: "dashed",
+        lineDash: [6, 3],
+      } as Partial<DataPanel>).series[0].dash
+    ).toEqual([6, 3])
+    expect(
+      build(frames, {
+        lineStyle: "dotted",
+        lineDash: [6, 3],
+      } as Partial<DataPanel>).series[0].dash
+    ).not.toEqual([6, 3])
+  })
+
   it("takes both axes from the first visible series", () => {
     const model = build(frames, {
       axis: "right",

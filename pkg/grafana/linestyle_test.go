@@ -1,6 +1,7 @@
 package grafana
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -201,14 +202,22 @@ func TestLineStyleFillAndDash(t *testing.T) {
 	cases := []struct {
 		name, lineStyle string
 		want            string
+		wantDash        []int
 		path, reason    string
 	}{
-		{"dash with Grafana's own pattern", `{"fill":"dash","dash":[10,10]}`, "dashed", "", ""},
-		{"dash without a pattern", `{"fill":"dash"}`, "dashed", "", ""},
-		{"dash with another pattern", `{"fill":"dash","dash":[10,15]}`, "dashed", "fieldConfig.defaults.custom.lineStyle.dash", "one pattern"},
-		{"dot", `{"fill":"dot"}`, "dotted", "", ""},
-		{"solid is the Spec default and ignores a pattern", `{"fill":"solid","dash":[10,15]}`, "", "", ""},
-		{"square", `{"fill":"square"}`, "", "fieldConfig.defaults.custom.lineStyle.fill", "The line style square is not supported yet."},
+		{"dash with Grafana's own pattern", `{"fill":"dash","dash":[10,10]}`, "dashed", nil, "", ""},
+		{"dash without a pattern", `{"fill":"dash"}`, "dashed", nil, "", ""},
+		{"dash with another pattern", `{"fill":"dash","dash":[10,15]}`, "dashed", []int{10, 15}, "", ""},
+		{"dash pattern at the limits", `{"fill":"dash","dash":[1,100]}`, "dashed", []int{1, 100}, "", ""},
+		{"dash pattern above the limit", `{"fill":"dash","dash":[10,101]}`, "dashed", nil, "fieldConfig.defaults.custom.lineStyle.dash", "one dash length and one gap length"},
+		{"dash pattern below the limit", `{"fill":"dash","dash":[0,5]}`, "dashed", nil, "fieldConfig.defaults.custom.lineStyle.dash", "one dash length and one gap length"},
+		{"dash pattern of three lengths", `{"fill":"dash","dash":[10,5,2]}`, "dashed", nil, "fieldConfig.defaults.custom.lineStyle.dash", "one dash length and one gap length"},
+		{"dash pattern with a fraction", `{"fill":"dash","dash":[10,2.5]}`, "dashed", nil, "fieldConfig.defaults.custom.lineStyle.dash", "one dash length and one gap length"},
+		{"dot", `{"fill":"dot"}`, "dotted", nil, "", ""},
+		{"solid is the Spec default and ignores a pattern", `{"fill":"solid","dash":[10,15]}`, "", nil, "", ""},
+		{"square", `{"fill":"square"}`, "square", nil, "", ""},
+		{"square ignores a pattern", `{"fill":"square","dash":[10,15]}`, "square", nil, "", ""},
+		{"unknown fill", `{"fill":"wavy"}`, "", nil, "fieldConfig.defaults.custom.lineStyle.fill", "The line style wavy is not supported yet."},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -216,12 +225,29 @@ func TestLineStyleFillAndDash(t *testing.T) {
 			if panel.LineStyle != tc.want {
 				t.Fatalf("line style = %q, want %q", panel.LineStyle, tc.want)
 			}
+			if !slices.Equal(panel.LineDash, tc.wantDash) {
+				t.Fatalf("line dash = %v, want %v", panel.LineDash, tc.wantDash)
+			}
 			if tc.path == "" {
 				requireImported(t, line)
 				return
 			}
 			requireReported(t, line, tc.path, tc.reason)
 		})
+	}
+}
+
+func TestLineDashOverrideResetsThePanelsPattern(t *testing.T) {
+	override := overrideOf(`{"id":"custom.lineStyle","value":{"fill":"dash","dash":[10,10]}}`)
+	panel, line := customPanel(t, `{"lineStyle":{"fill":"dash","dash":[10,15]}}`, override)
+	requireImported(t, line)
+	if !slices.Equal(firstOverrideProps(t, panel).LineDash, []int{10, 10}) {
+		t.Fatalf("override props = %+v", firstOverrideProps(t, panel))
+	}
+	panel, line = customPanel(t, `{}`, override)
+	requireImported(t, line)
+	if firstOverrideProps(t, panel).LineDash != nil {
+		t.Fatalf("override props = %+v", firstOverrideProps(t, panel))
 	}
 }
 

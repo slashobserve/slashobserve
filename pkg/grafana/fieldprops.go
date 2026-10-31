@@ -67,6 +67,7 @@ var propOrder = []string{
 	"unit", "decimals", "min", "max", "fieldMinMax", "displayName", "displayNameFromDS", "noValue", "thresholds", "mappings", "links",
 	"color", "custom.drawStyle", "custom.fillOpacity", "custom.lineStyle",
 	"custom.lineInterpolation", "custom.lineWidth", "custom.showPoints", "custom.pointSize", "custom.pointShape", "custom.pointStrokeWidth", "custom.spanNulls",
+	"custom.lineColor", "custom.fillColor", "custom.pointColor", "custom.pointSymbol", "custom.showValues",
 	"custom.stacking", "custom.axisPlacement", "custom.hideFrom",
 	"custom.axisLabel", "custom.axisSoftMin", "custom.axisSoftMax", "custom.scaleDistribution",
 	"custom.axisCenteredZero", "custom.axisWidth", "custom.axisGridShow", "custom.axisBorderShow", "custom.axisColorMode",
@@ -99,6 +100,11 @@ var propHandlers = map[string]propHandler{
 	"custom.pointShape":        propPointShape,
 	"custom.pointStrokeWidth":  propPointStrokeWidth,
 	"custom.spanNulls":         propSpanNulls,
+	"custom.lineColor":         seriesColorHandler("line", func(p *spec.FieldProps) *string { return &p.LineColor }),
+	"custom.fillColor":         seriesColorHandler("fill", func(p *spec.FieldProps) *string { return &p.FillColor }),
+	"custom.pointColor":        seriesColorHandler("point", func(p *spec.FieldProps) *string { return &p.PointColor }),
+	"custom.pointSymbol":       propPointSymbol,
+	"custom.showValues":        propShowValues,
 	"custom.stacking":          propStacking,
 	"custom.axisPlacement":     propAxisPlacement,
 	"custom.hideFrom":          propHideFromUndrawn,
@@ -141,6 +147,8 @@ var axisPropIDs = map[string]bool{
 var plotDrawnPropIDs = map[string]bool{
 	"custom.insertNulls": true, "custom.barAlignment": true, "custom.barWidthFactor": true, "custom.barMaxWidth": true,
 }
+
+var seriesStylePropIDs = propIDs("custom.lineColor", "custom.fillColor", "custom.pointColor", "custom.pointSymbol", "custom.showValues")
 
 var seriesDrawingPropIDs = map[string]bool{"custom.transform": true, "custom.fillBelowTo": true}
 
@@ -238,6 +246,7 @@ var propGates = []propGate{
 	{ids: propIDs("fieldMinMax"), types: rangeSharingTypes, outside: true, skip: true},
 	{ids: tableColumnProps, types: tablePanelTypes, outside: true, skip: true},
 	{ids: seriesDrawingPropIDs, types: seriesDrawingTypes, outside: true, skip: true},
+	{ids: seriesStylePropIDs, types: plotPanelTypes, outside: true, skip: true},
 	{ids: xyPointPropIDs, types: xyPanelTypes, outside: true, skip: true},
 	{ids: propIDs("custom.lineWidth"), types: xyPanelTypes, handler: propXYLineWidth},
 	{ids: propIDs("custom.lineWidth"), types: union(timelinePanelTypes, barPanelTypes), handler: propBorderLineWidth},
@@ -745,11 +754,11 @@ func propLineStyle(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	switch fill := asString(cfg["fill"]); fill {
 	case "dash":
 		p.LineStyle = "dashed"
-		if dash, set := cfg["dash"]; set && dash != nil && !sameJSON(dash, defaultDash) {
-			b.partial(s.at(".dash"), "A dashed line is drawn with one pattern, not this dash pattern.")
-		}
+		b.applyLineDash(p, cfg["dash"], s)
 	case "dot":
 		p.LineStyle = "dotted"
+	case "square":
+		p.LineStyle = "square"
 	case "solid":
 		p.LineStyle = "solid"
 	case "":
@@ -758,8 +767,89 @@ func propLineStyle(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	}
 }
 
+func (b *panelBuild) applyLineDash(p *spec.FieldProps, dash any, s propSite) {
+	if dash == nil {
+		return
+	}
+	if sameJSON(dash, defaultDash) {
+		if s.whole && b.panel.LineDash != nil {
+			p.LineDash = []int{grafanaDashLength, grafanaDashLength}
+		}
+		return
+	}
+	pair, ok := dashPair(dash)
+	if !ok {
+		b.partial(s.at(".dash"), "A dash pattern is drawn as one dash length and one gap length, each from 1 to 100 pixels.")
+		return
+	}
+	p.LineDash = pair
+}
+
+func dashPair(v any) ([]int, bool) {
+	items, ok := asArray(v)
+	if !ok || len(items) != 2 {
+		return nil, false
+	}
+	pair := make([]int, 2)
+	for i, item := range items {
+		f, isNumber := numberValue(item)
+		if !isNumber || f != math.Trunc(f) || f < minLineDash || f > maxLineDash {
+			return nil, false
+		}
+		pair[i] = int(f)
+	}
+	return pair, true
+}
+
+func seriesColorHandler(part string, target func(*spec.FieldProps) *string) propHandler {
+	return func(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+		b.consume(s.value)
+		color, ok := seriesColor(asString(v))
+		if !ok {
+			b.partial(s.at(""), fmt.Sprintf("This %s color is not supported yet.", part))
+			return
+		}
+		*target(p) = color
+	}
+}
+
+func propShowValues(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	show, ok := v.(bool)
+	if !ok {
+		return
+	}
+	panelShows := b.panel.ShowValues != nil && *b.panel.ShowValues
+	if show || (s.whole && panelShows) {
+		p.ShowValues = &show
+	}
+}
+
+func pointSymbolShape(symbol string) (string, bool) {
+	for _, shape := range []string{"circle", "square"} {
+		if symbol == shape || strings.HasSuffix(symbol, "/"+shape+".svg") {
+			return shape, true
+		}
+	}
+	return "", false
+}
+
+func propPointSymbol(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	symbol := asString(v)
+	shape, ok := pointSymbolShape(symbol)
+	if !ok {
+		b.partial(s.at(""), fmt.Sprintf("The point symbol %s is not supported yet.", symbol))
+		return
+	}
+	p.PointShape = shape
+}
+
 const (
 	maxLineWidth        = 10
+	minLineDash         = 1
+	grafanaDashLength   = 10
+	maxLineDash         = 100
 	canvasLineWidth     = 2
 	grafanaLineWidth    = 1
 	grafanaPointSize    = 5

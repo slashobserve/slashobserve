@@ -2,10 +2,11 @@ import uPlot from "uplot"
 
 import type { Threshold } from "@/spec"
 
-import { resolveColor, type LineStyle } from "../colors"
+import { readChartColors, resolveColor, type LineStyle } from "../colors"
 import type { FieldConfig } from "../field-config"
 import type { CursorMember } from "../shared-cursor"
 import { exemplarAt, type ExemplarPoint } from "./exemplars"
+import { labelsClearOfEachOther } from "./points"
 import {
   bandBase,
   nearestSpan,
@@ -33,6 +34,9 @@ const tooltipGap = 12
 const tooltipEdge = 4
 const markerSize = 7
 const hitRadius = 6
+const valueLabelFontSize = 11
+const valueLabelLift = 6
+const valueLabelGap = 6
 
 export type TooltipSeries = {
   label: string
@@ -204,6 +208,71 @@ export function exemplarsPlugin(
           ctx.fill()
           ctx.stroke()
         }
+        ctx.restore()
+      },
+    },
+  }
+}
+
+export function valueLabelsPlugin(
+  first: number,
+  series: () => TooltipSeries[],
+  painted: () => number
+): uPlot.Plugin {
+  return {
+    hooks: {
+      draw: (u) => {
+        const ratio = uPlot.pxRatio
+        const { left, top, width, height } = u.bbox
+        const xs = u.data[0]
+        const [from, to] = u.series[0].idxs ?? [0, xs.length - 1]
+        const { ctx } = u
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(left, top, width, height)
+        ctx.clip()
+        ctx.font = `${valueLabelFontSize * ratio}px ${readChartColors().font}`
+        ctx.fillStyle = resolveColor("var(--foreground)")
+        ctx.textAlign = "center"
+        ctx.textBaseline = "bottom"
+        series().forEach((entry, index) => {
+          const drawn = u.series[first + index]
+          if (!entry.config.showValues || index < painted() || !drawn?.show) {
+            return
+          }
+          const plotted = u.data[first + index]
+          const indices: number[] = []
+          for (let at = from ?? 0; at <= (to ?? xs.length - 1); at++) {
+            if (
+              typeof plotted[at] === "number" &&
+              typeof entry.values[at] === "number"
+            ) {
+              indices.push(at)
+            }
+          }
+          const texts = formatTogether(
+            indices.map((at) => ({
+              value: entry.values[at] as number,
+              config: entry.config,
+            }))
+          )
+          const centers = indices.map(
+            (at) => left + u.valToPos(xs[at], "x", true)
+          )
+          const kept = labelsClearOfEachOther(
+            texts.map((text, at) => ({
+              x: centers[at],
+              width: ctx.measureText(text).width,
+            })),
+            valueLabelGap * ratio
+          )
+          for (const at of kept) {
+            const y =
+              top +
+              u.valToPos(plotted[indices[at]] as number, drawn.scale!, true)
+            ctx.fillText(texts[at], centers[at], y - valueLabelLift * ratio)
+          }
+        })
         ctx.restore()
       },
     },
