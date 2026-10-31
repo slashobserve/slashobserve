@@ -12,7 +12,7 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-const ImporterVersion = 1
+const ImporterVersion = 2
 
 type Format string
 

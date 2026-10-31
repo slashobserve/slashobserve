@@ -19,7 +19,6 @@ const (
 	geomapGazetteerReason    = "Only the bundled country and state gazetteers are available."
 	geomapGeojsonReason      = "Only the bundled country and state maps and https addresses are available."
 	geomapSymbolReason       = "This marker symbol is not supported yet."
-	geomapPhotoKindReason    = "Photos are drawn as plain squares."
 	geomapQueryRefReason     = "A layer can only be fed by one of the panel queries."
 	geomapRuleReason         = "This GeoJSON rule is not supported yet."
 	geomapTileURLReason      = "A tile address must be an https address written out in full with {z}, {x} and {y}."
@@ -583,7 +582,7 @@ func (b *panelBuild) photosConfig(layer *spec.GeomapLayer, config string) {
 		layer.Shape = kind
 		b.consume(config + ".kind")
 	case "anchored", "folio":
-		b.partial(config+".kind", geomapPhotoKindReason)
+		b.partial(config+".kind", "")
 	}
 	if border, ok := b.boundedWhole(config+".border", 0, maxPhotoBorder); ok {
 		layer.Border = &border

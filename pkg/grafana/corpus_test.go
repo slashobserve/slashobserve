@@ -109,7 +109,29 @@ type goldenResult struct {
 	Summary     grafana.Summary            `json:"summary"`
 	Datasources []grafana.SourceDatasource `json:"datasources"`
 	Report      grafana.Report             `json:"report"`
+	Blocks      []blockSummary             `json:"blocks"`
 	Spec        *spec.Dashboard            `json:"spec"`
+}
+
+type blockSummary struct {
+	Kind    grafana.BlockKind       `json:"kind"`
+	Path    string                  `json:"path"`
+	Outcome *grafana.Outcome        `json:"outcome"`
+	Counts  map[grafana.Outcome]int `json:"counts"`
+	Omitted int                     `json:"omitted"`
+	Blocks  []blockSummary          `json:"blocks"`
+}
+
+func summarizeBlocks(blocks []grafana.Block) []blockSummary {
+	out := make([]blockSummary, len(blocks))
+	for i, b := range blocks {
+		counts := map[grafana.Outcome]int{}
+		for _, line := range b.Options {
+			counts[line.Outcome]++
+		}
+		out[i] = blockSummary{Kind: b.Kind, Path: b.Path, Outcome: b.Outcome, Counts: counts, Omitted: b.Omitted, Blocks: summarizeBlocks(b.Blocks)}
+	}
+	return out
 }
 
 var importerVersion = regexp.MustCompile(`"importer_version": \d+`)
@@ -118,7 +140,9 @@ func goldenBytes(t *testing.T, o outcome) []byte {
 	t.Helper()
 	var doc any = goldenFailure{InputError: o.inputCode}
 	if o.res != nil {
-		doc = goldenResult{Summary: o.res.Summary, Datasources: o.res.Datasources, Report: o.res.Report, Spec: o.res.Spec}
+		report := o.res.Report
+		report.Blocks = nil
+		doc = goldenResult{Summary: o.res.Summary, Datasources: o.res.Datasources, Report: report, Blocks: summarizeBlocks(o.res.Report.Blocks), Spec: o.res.Spec}
 	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -596,6 +620,36 @@ func checkUnits(t *testing.T, res *grafana.Result) {
 		for _, o := range entry.Panel.Overrides {
 			check(entry.Panel.ID, o.Unit)
 		}
+	}
+}
+
+func listedOptions(blocks []grafana.Block) int {
+	n := 0
+	for _, b := range blocks {
+		n += len(b.Options) + listedOptions(b.Blocks)
+	}
+	return n
+}
+
+func TestCorpusBlockReportsFitTheLimits(t *testing.T) {
+	const maxListed, maxBytes = 10_000, 2 << 20
+	for _, f := range corpusFiles(t) {
+		t.Run(f.id(), func(t *testing.T) {
+			res := convertFile(t, f).res
+			if res == nil {
+				t.Skip("the file does not convert")
+			}
+			if n := listedOptions(res.Report.Blocks); n > maxListed {
+				t.Errorf("%d options listed, want at most %d", n, maxListed)
+			}
+			encoded, err := json.Marshal(res.Report.Blocks)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(encoded) > maxBytes {
+				t.Errorf("blocks encode to %d bytes, want at most %d", len(encoded), maxBytes)
+			}
+		})
 	}
 }
 

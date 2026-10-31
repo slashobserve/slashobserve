@@ -490,7 +490,7 @@ func calculateTransform(b *panelBuild, opts map[string]any, path string) (spec.T
 
 func (b *panelBuild) reportRowCalculationOptions(opts map[string]any, mode, path string) {
 	if joined, ok := opts["timeSeries"].(bool); ok && !joined {
-		b.partial(path+".options.timeSeries", "Calculating on each series without joining them by time first is not supported yet.")
+		b.partial(path+".options.timeSeries", "")
 	}
 	if mode == "reduceRow" {
 		return
@@ -521,7 +521,7 @@ func reduceRowMode(b *panelBuild, t *spec.Transform, opts map[string]any, path s
 	t.ReduceRow = reducer
 	t.Include = rowIncludeNames(b, reduce["include"], path+".options.reduce.include")
 	if present(reduce["nullValueMode"]) {
-		b.partial(path+".options.reduce.nullValueMode", "Choosing how a row calculation treats null values is not supported yet.")
+		b.partial(path+".options.reduce.nullValueMode", "")
 	}
 	return reducerDisplayName(reducer)
 }

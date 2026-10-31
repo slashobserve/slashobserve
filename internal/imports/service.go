@@ -193,7 +193,7 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 	var inserted dbsqlc.InsertImportRow
 	hook := func(ctx context.Context, q *dbsqlc.Queries, dash dashboards.Dashboard, ver dashboards.Version, issues []spec.Issue) error {
 		result.Verify(issues)
-		replaceNULInReasons(&result.Report)
+		replaceNULInReport(&result.Report)
 		params, err := insertParams(req, cols, result.Report, dash, ver, by)
 		if err != nil {
 			return err
@@ -438,7 +438,7 @@ func encodeColumns(req Request, result *grafana.Result) (columns, error) {
 	return cols, nil
 }
 
-func replaceNULInReasons(report *grafana.Report) {
+func replaceNULInReport(report *grafana.Report) {
 	clean := func(s string) string { return strings.ReplaceAll(s, "\x00", "\uFFFD") }
 	for i := range report.Panels {
 		for j, reason := range report.Panels[i].Reasons {
@@ -447,6 +447,27 @@ func replaceNULInReasons(report *grafana.Report) {
 	}
 	for i := range report.Notes {
 		report.Notes[i].Reason = clean(report.Notes[i].Reason)
+	}
+	cleanBlocks(report.Blocks, clean)
+}
+
+func cleanOptional(s *string, clean func(string) string) {
+	if s != nil {
+		*s = clean(*s)
+	}
+}
+
+func cleanBlocks(blocks []grafana.Block, clean func(string) string) {
+	for i := range blocks {
+		b := &blocks[i]
+		b.Title, b.Path = clean(b.Title), clean(b.Path)
+		cleanOptional(b.Reason, clean)
+		for j := range b.Options {
+			line := &b.Options[j]
+			line.Path = clean(line.Path)
+			cleanOptional(line.Reason, clean)
+		}
+		cleanBlocks(b.Blocks, clean)
 	}
 }
 

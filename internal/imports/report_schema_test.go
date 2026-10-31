@@ -2,9 +2,11 @@ package imports_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/api"
+	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
 )
 
@@ -134,5 +136,58 @@ func TestReportSchemaRefusesValuesOutsideTheEnums(t *testing.T) {
 				t.Fatal("the schema accepted the report")
 			}
 		})
+	}
+}
+
+func TestReportSchemaAcceptsTheReportOfAConvertedDashboard(t *testing.T) {
+	body := []byte(`{"title":"Shop","uid":"abc","schemaVersion":39,"panels":[
+		{"id":1,"type":"timeseries","title":"Requests","gridPos":{"x":0,"y":0,"w":12,"h":8},
+		 "datasource":{"type":"prometheus","uid":"prom"},
+		 "targets":[{"refId":"A","expr":"up","legendFormat":"{{pod}}"}],
+		 "fieldConfig":{"defaults":{"unit":"short"},"overrides":[{"matcher":{"id":"byName","options":"up"},"properties":[{"id":"unit","value":"percent"}]}]}}]}`)
+	res, err := grafana.Convert(body, grafana.Options{Datasources: []grafana.Datasource{{UID: "prom", Type: "prometheus"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded := reportBody(t, res.Report)
+	if blocks, _ := decoded["blocks"].([]any); len(blocks) == 0 {
+		t.Fatalf("the converted report has no blocks: %v", decoded)
+	}
+	if err := validateReport(t, decoded); err != nil {
+		t.Fatalf("the report breaks ImportReport: %v", err)
+	}
+}
+
+func TestReplaceNULInReportCleansEveryBlockText(t *testing.T) {
+	report := emptyReport()
+	report.Blocks = []grafana.Block{{
+		Kind:  grafana.BlockKind("panel"),
+		Path:  "panels[0]",
+		Title: "a\x00b",
+		Options: []grafana.OptionLine{
+			{Path: "options.k\x00ey", Outcome: grafana.Outcome("reported"), Spec: []string{}, Reason: ptr("why\x00")},
+		},
+		Reason: ptr("block\x00reason"),
+		Blocks: []grafana.Block{{
+			Kind:    grafana.BlockKind("query"),
+			Path:    "panels[0].targets[\x000]",
+			Title:   "A\x00",
+			Options: []grafana.OptionLine{{Path: "e\x00xpr", Outcome: grafana.Outcome("mapped"), Spec: []string{}}},
+			Blocks:  []grafana.Block{},
+		}},
+	}}
+	imports.ReplaceNULInReport(&report)
+	raw, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), `\u0000`) {
+		t.Fatalf("a NUL is left in the report: %s", raw)
+	}
+	if got := report.Blocks[0].Blocks[0].Title; got != "A\uFFFD" {
+		t.Fatalf("nested block title = %q, want it cleaned", got)
+	}
+	if got := *report.Blocks[0].Options[0].Reason; got != "why\uFFFD" {
+		t.Fatalf("option reason = %q, want it cleaned", got)
 	}
 }

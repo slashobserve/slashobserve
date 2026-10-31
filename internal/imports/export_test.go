@@ -6,6 +6,8 @@ var RespondImported = respondImported
 
 var ListParamsOf = listParamsOf
 
+var ReplaceNULInReport = replaceNULInReport
+
 func (s *Service) HoldPreviewSlot(by auth.Principal) (release func(), held bool) {
 	return s.previewSlots.acquire(principalKey(by))
 }

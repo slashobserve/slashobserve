@@ -54,10 +54,19 @@ var silentPanelKeys = map[string]bool{
 	"span": true, "height": true, "error": true, "editable": true,
 }
 
+type issueEntry struct{ path, reason string }
+
+type issueGroup struct {
+	path    string
+	reasons []string
+}
+
 type issueLog struct {
 	paths     []string
 	omitted   []string
 	reasons   []string
+	all       []issueEntry
+	entered   map[string]int
 	listed    map[string]bool
 	dropped   map[string]bool
 	reasonSet map[string]bool
@@ -65,13 +74,18 @@ type issueLog struct {
 	excluded  func(path string) (decision, bool)
 }
 
-type issueMark struct{ paths, omitted, reasons int }
+type issueMark struct{ paths, omitted, reasons, all int }
 
 func newIssueLog(excluded func(path string) (decision, bool)) *issueLog {
-	return &issueLog{listed: map[string]bool{}, dropped: map[string]bool{}, reasonSet: map[string]bool{}, limit: maxPanelPaths, excluded: excluded}
+	return &issueLog{entered: map[string]int{}, listed: map[string]bool{}, dropped: map[string]bool{}, reasonSet: map[string]bool{}, limit: maxPanelPaths, excluded: excluded}
 }
 
 func (l *issueLog) add(path, reason string) {
+	if decided, ok := l.excluded(path); ok {
+		reason = decided.reason
+	}
+	l.all = append(l.all, issueEntry{path: path, reason: reason})
+	l.entered[path]++
 	switch {
 	case l.listed[path]:
 	case l.dropped[path]:
@@ -84,9 +98,6 @@ func (l *issueLog) add(path, reason string) {
 		l.listed[path] = true
 		l.paths = append(l.paths, path)
 	}
-	if decided, ok := l.excluded(path); ok {
-		reason = decided.reason
-	}
 	if !l.reasonSet[reason] {
 		l.reasonSet[reason] = true
 		l.reasons = append(l.reasons, reason)
@@ -94,14 +105,38 @@ func (l *issueLog) add(path, reason string) {
 }
 
 func (l *issueLog) mark() issueMark {
-	return issueMark{paths: len(l.paths), omitted: len(l.omitted), reasons: len(l.reasons)}
+	return issueMark{paths: len(l.paths), omitted: len(l.omitted), reasons: len(l.reasons), all: len(l.all)}
 }
 
 func (l *issueLog) rollBack(m issueMark) {
 	for _, reason := range l.reasons[m.reasons:] {
 		delete(l.reasonSet, reason)
 	}
-	l.paths, l.omitted, l.reasons = l.paths[:m.paths], l.omitted[:m.omitted], l.reasons[:m.reasons]
+	for _, e := range l.all[m.all:] {
+		l.entered[e.path]--
+	}
+	l.paths, l.omitted, l.reasons, l.all = l.paths[:m.paths], l.omitted[:m.omitted], l.reasons[:m.reasons], l.all[:m.all]
+}
+
+func (l *issueLog) covers(path string) bool {
+	return coveredBy(path, func(ancestor string) bool { return l.entered[ancestor] > 0 })
+}
+
+func (l *issueLog) entries() []issueGroup {
+	var groups []issueGroup
+	at := map[string]int{}
+	for _, e := range l.all {
+		i, seen := at[e.path]
+		if !seen {
+			i = len(groups)
+			at[e.path] = i
+			groups = append(groups, issueGroup{path: e.path})
+		}
+		if !slices.Contains(groups[i].reasons, e.reason) {
+			groups[i].reasons = append(groups[i].reasons, e.reason)
+		}
+	}
+	return groups
 }
 
 func (l *issueLog) any() bool {
@@ -133,6 +168,7 @@ type builtPanel struct {
 	queries     []*builtQuery
 	refs        map[string]string
 	instantRefs map[string]string
+	options     []optionEntry
 }
 
 func (bp *builtPanel) isRow() bool {
@@ -158,6 +194,8 @@ type panelBuild struct {
 	instantRefs      map[string]string
 	thresholdsMatter bool
 	display          *spec.Display
+	options          []optionEntry
+	recorded         map[string]bool
 }
 
 func (c *converter) convertPanel(n *panelNode) *builtPanel {
@@ -198,7 +236,7 @@ func (c *converter) convertPanel(n *panelNode) *builtPanel {
 }
 
 func (c *converter) newPanelBuild(n *panelNode, typ spec.PanelType) *panelBuild {
-	b := &panelBuild{c: c, n: n, raw: n.raw, typ: typ, consumed: map[string]bool{}, refs: map[string]string{}, instantRefs: map[string]string{}, issues: newIssueLog(func(path string) (decision, bool) { return c.exclusionAt(n.path + "." + path) })}
+	b := &panelBuild{c: c, n: n, raw: n.raw, typ: typ, consumed: map[string]bool{}, recorded: map[string]bool{}, refs: map[string]string{}, instantRefs: map[string]string{}, issues: newIssueLog(func(path string) (decision, bool) { return c.exclusionAt(n.path + "." + path) })}
 	b.panel = spec.Panel{
 		ID:      n.id,
 		Type:    typ,
@@ -383,6 +421,7 @@ func (b *panelBuild) partial(path, reason string) {
 
 func (b *panelBuild) reportUnconsumed() {
 	b.walk("", b.raw)
+	b.recordSilentKeys()
 }
 
 func (b *panelBuild) walk(prefix string, v any) {
@@ -436,10 +475,21 @@ func (b *panelBuild) leaf(path string, v any) {
 			return
 		}
 	}
-	if b.isConsumed(path) || isGrafanaDefault(b.typ, path, v) || isIgnoredOption(b.typ, path) || isCosmeticOn(b.typ, path, v) {
+	if b.issues.covers(path) {
 		return
 	}
-	b.partial(path, "")
+	switch {
+	case b.isConsumed(path):
+		if b.consumedByName(path) || strings.HasPrefix(path, "transformations[") {
+			b.record(path, outcomeMapped)
+		}
+	case isGrafanaDefault(b.typ, path, v):
+		b.recordImplicit(path, outcomeDefault)
+	case isIgnoredOption(b.typ, path), isCosmeticOn(b.typ, path, v):
+		b.recordImplicit(path, outcomeNoEffect)
+	default:
+		b.partial(path, "")
+	}
 }
 
 func (b *panelBuild) title() string {
@@ -695,7 +745,7 @@ func (b *panelBuild) finish() *builtPanel {
 		Queries:     queries,
 	}
 	b.panel.Display = b.display
-	return &builtPanel{node: n, panel: b.panel, line: line, queries: b.built, refs: b.refs, instantRefs: b.instantRefs}
+	return &builtPanel{node: n, panel: b.panel, line: line, queries: b.built, refs: b.refs, instantRefs: b.instantRefs, options: b.optionEntries()}
 }
 
 func inlineLibraryPanels(dash map[string]any) {
