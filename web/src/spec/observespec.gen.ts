@@ -1802,6 +1802,10 @@ export interface DataPanel1 {
   timeFrom?: string;
   timeShift?: string;
   /**
+   * browser, utc or an IANA zone such as Asia/Kolkata. The times this panel draws are shown in this zone instead of the dashboard's.
+   */
+  timezone?: string;
+  /**
    * Do not show the time override note (from timeFrom and timeShift) in the panel header. The override still applies to the queries. Absent means shown.
    */
   hideTimeOverride?: boolean;

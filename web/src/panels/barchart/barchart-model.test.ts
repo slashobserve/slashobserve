@@ -63,10 +63,16 @@ function build(
   extra: Partial<DataPanel> = {},
   display: Record<string, unknown> = {},
   size = wide,
-  hidden: ReadonlySet<string> = new Set()
+  hidden: ReadonlySet<string> = new Set(),
+  zone: string | undefined = undefined
 ) {
   const merged = displayWithDefaults("barchart", display)
-  const source = barSource(frames, createFieldResolver(panel(extra)), merged)
+  const source = barSource(
+    frames,
+    createFieldResolver(panel(extra)),
+    merged,
+    zone
+  )
   return barchartModel(source, merged, size, hidden)
 }
 
@@ -117,6 +123,27 @@ describe("barchartModel categories", () => {
     expect(model.categories[0].title).toMatch(/^\d{4}-\d{2}-\d{2} /)
     expect(model.categories[0].label).toMatch(/^\d{2}:\d{2}:\d{2}$/)
     expect(model.series.map((series) => series.name)).toEqual(["v"])
+  })
+
+  it("labels time categories in the given zone", () => {
+    const model = build(
+      [
+        frame([
+          { name: "Time", type: "time", values: [0, 60000] },
+          numbers("v", [1, 2]),
+        ]),
+      ],
+      {},
+      {},
+      wide,
+      new Set(),
+      "Asia/Kolkata"
+    )
+    expect(model.categories.map((category) => category.title)).toEqual([
+      "1970-01-01 05:30:00",
+      "1970-01-01 05:31:00",
+    ])
+    expect(model.categories[0].label).toBe("05:30:00")
   })
 
   it("prefers xField, matched by field name, over the text field", () => {

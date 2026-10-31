@@ -319,6 +319,7 @@ type Panel struct {
 	MaxPerRow        int         `json:"maxPerRow,omitempty"`
 	TimeFrom         string      `json:"timeFrom,omitempty"`
 	TimeShift        string      `json:"timeShift,omitempty"`
+	Timezone         string      `json:"timezone,omitempty"`
 	HideTimeOverride bool        `json:"hideTimeOverride,omitempty"`
 	Interval         string      `json:"interval,omitempty"`
 	MaxDataPoints    int         `json:"maxDataPoints,omitempty"`

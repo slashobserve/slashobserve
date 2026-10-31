@@ -54,20 +54,54 @@ function pad(value: number): string {
   return String(value).padStart(2, "0")
 }
 
-export function formatDateTime(value: string | number | Date): string {
+export function zonedDateTime(
+  value: string | number | Date,
+  zone: string | undefined
+): string {
   const date = value instanceof Date ? value : new Date(value)
   if (Number.isNaN(date.getTime())) return String(value)
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+  if (zone === undefined) {
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+  }
+  const at = zoneFields(date.getTime(), zone)
+  return `${at.year}-${pad(at.month)}-${pad(at.day)} ${pad(at.hour)}:${pad(at.minute)}:${pad(at.second)}`
+}
+
+export function zonedDateTimeMs(
+  value: string | number | Date,
+  zone: string | undefined
+): string {
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return `${zonedDateTime(date, zone)}.${String(date.getMilliseconds()).padStart(3, "0")}`
+}
+
+export function zonedTimeValue(
+  value: string,
+  zone: string | undefined
+): string {
+  return epochMillis.test(value) ? zonedDateTime(Number(value), zone) : value
+}
+
+export function formatDateTime(value: string | number | Date): string {
+  return zonedDateTime(value, undefined)
 }
 
 export function formatDateTimeMs(value: string | number | Date): string {
-  const date = value instanceof Date ? value : new Date(value)
-  if (Number.isNaN(date.getTime())) return String(value)
-  return `${formatDateTime(date)}.${String(date.getMilliseconds()).padStart(3, "0")}`
+  return zonedDateTimeMs(value, undefined)
 }
 
 export function formatTimeValue(value: string): string {
-  return epochMillis.test(value) ? formatDateTime(Number(value)) : value
+  return zonedTimeValue(value, undefined)
+}
+
+export function displayZone(
+  panelZone: string | undefined,
+  dashboardZone: string | undefined
+): string | undefined {
+  const zone = panelZone ?? dashboardZone
+  if (zone === undefined || zone === "browser") return undefined
+  return zone === "utc" ? "UTC" : knownZone(zone)
 }
 
 type TimeUnit = "s" | "m" | "h" | "d" | "w" | "M" | "y"
@@ -207,17 +241,29 @@ function zoneFormat(zone: string): Intl.DateTimeFormat {
   return format
 }
 
-function zoneOffsetMs(utcMs: number, zone: string): number {
+function zoneFields(utcMs: number, zone: string) {
   const parts = zoneFormat(zone).formatToParts(new Date(utcMs))
   const part = (type: string) =>
     Number(parts.find((candidate) => candidate.type === type)?.value)
+  return {
+    year: part("year"),
+    month: part("month"),
+    day: part("day"),
+    hour: part("hour"),
+    minute: part("minute"),
+    second: part("second"),
+  }
+}
+
+export function zoneOffsetMs(utcMs: number, zone: string): number {
+  const at = zoneFields(utcMs, zone)
   const localAsUtc = Date.UTC(
-    part("year"),
-    part("month") - 1,
-    part("day"),
-    part("hour"),
-    part("minute"),
-    part("second")
+    at.year,
+    at.month - 1,
+    at.day,
+    at.hour,
+    at.minute,
+    at.second
   )
   return localAsUtc - Math.floor(utcMs / 1000) * 1000
 }

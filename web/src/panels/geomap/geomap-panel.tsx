@@ -351,6 +351,7 @@ const GeomapPanel: PanelRenderer = ({
   frames,
   fields,
   display,
+  zone,
   meta,
   width,
   height,
@@ -378,6 +379,7 @@ const GeomapPanel: PanelRenderer = ({
         remote,
         time: Number.isNaN(rangeEnd) ? undefined : rangeEnd,
         from: Number.isNaN(rangeStart) ? undefined : rangeStart,
+        zone,
       }),
     [
       frames,
@@ -389,6 +391,7 @@ const GeomapPanel: PanelRenderer = ({
       remote,
       rangeStart,
       rangeEnd,
+      zone,
     ]
   )
   const basemap = useMemo(() => basemapOf(display, theme), [display, theme])

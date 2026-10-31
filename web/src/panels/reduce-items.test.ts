@@ -38,15 +38,21 @@ function frame(fields: WireField[]) {
 function items(
   frames: PreparedFrame[],
   options: Partial<ReduceOptions> = {},
-  extra: Partial<DataPanel> = {}
+  extra: Partial<DataPanel> = {},
+  zone: string | undefined = undefined
 ) {
   const resolver = createFieldResolver(panel(extra))
-  return reduceItems(frames, resolver, {
-    reduce: "lastNotNull",
-    allValues: false,
-    limit: 5000,
-    ...options,
-  })
+  return reduceItems(
+    frames,
+    resolver,
+    {
+      reduce: "lastNotNull",
+      allValues: false,
+      limit: 5000,
+      ...options,
+    },
+    zone
+  )
 }
 
 const cpu: WireField = { name: "cpu", type: "number", values: [1, 2, 3] }
@@ -135,6 +141,21 @@ describe("reduceItems", () => {
         "2025-01-02 03:05:05",
         "2025-01-02 03:06:05",
       ])
+    })
+
+    it("labels a row by its time in the given zone", () => {
+      const fixed: WireField = {
+        name: "Time",
+        type: "time",
+        values: [Date.UTC(2025, 0, 2, 3, 4, 5)],
+      }
+      const result = items(
+        [frame([fixed, cpu])],
+        { allValues: true },
+        {},
+        "Asia/Kolkata"
+      )
+      expect(result[0].label).toBe("2025-01-02 08:34:05")
     })
 
     it("labels a row by its number when there is neither", () => {

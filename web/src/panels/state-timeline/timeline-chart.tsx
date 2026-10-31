@@ -10,7 +10,7 @@ import {
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { formatDateTime } from "@/lib/time"
+import { zonedDateTime } from "@/lib/time"
 import { timeTicks } from "@/lib/time-ticks"
 import { useTheme } from "@/lib/theme"
 import { formatValue } from "@/lib/units"
@@ -122,10 +122,12 @@ function TimeLabels({
   from,
   to,
   width,
+  zone,
 }: {
   from: number
   to: number
   width: number
+  zone: string | undefined
 }) {
   const ticks = useMemo(() => {
     const count = Math.max(2, Math.round(width))
@@ -133,12 +135,12 @@ function TimeLabels({
       { length: count },
       (_, index) => from + ((to - from) * index) / (count - 1)
     )
-    return timeTicks(xs, Math.floor(width / tickSpacing))
+    return timeTicks(xs, Math.floor(width / tickSpacing), zone)
       .map((tick) => ({ ...tick, left: (tick.index / (count - 1)) * width }))
       .filter(
         (tick) => tick.left >= tickEdgeGap && tick.left <= width - tickEdgeGap
       )
-  }, [from, to, width])
+  }, [from, to, width, zone])
   return (
     <div
       aria-hidden="true"
@@ -214,6 +216,7 @@ function Tooltip({
   name,
   entries,
   at,
+  zone,
   hovered,
   x,
   y,
@@ -226,6 +229,7 @@ function Tooltip({
   name: string
   entries: TooltipEntry[] | null
   at: number
+  zone: string | undefined
   hovered: number
   x: number
   y: number
@@ -254,7 +258,7 @@ function Tooltip({
       {entries ? (
         <>
           <div className="mb-1 text-muted-foreground tabular-nums">
-            {formatDateTime(at)}
+            {zonedDateTime(at, zone)}
           </div>
           {entries.map((entry) => (
             <div
@@ -280,7 +284,8 @@ function Tooltip({
             <span className="min-w-0 truncate">{segment.text}</span>
           </div>
           <div className="mt-1 text-muted-foreground tabular-nums">
-            {formatDateTime(segment.from)} to {formatDateTime(segment.to)}
+            {zonedDateTime(segment.from, zone)} to{" "}
+            {zonedDateTime(segment.to, zone)}
           </div>
           <div className="tabular-nums">
             {formatValue(segment.to - segment.from, "dtdurationms")}
@@ -301,6 +306,7 @@ export function TimelineChart({
   variant,
   cursor,
   stateKey,
+  zone,
 }: {
   model: TimelineModel
   display: Record<string, unknown>
@@ -311,6 +317,7 @@ export function TimelineChart({
   variant: TimelineVariant
   cursor: SharedCursor
   stateKey: string
+  zone: string | undefined
 }) {
   const { resolved: theme } = useTheme()
   const [hover, setHover] = useState<Hover | null>(null)
@@ -550,6 +557,7 @@ export function TimelineChart({
                     segment={singleTooltipSegment(hovered, hover.at)}
                     entries={hoveredEntries}
                     at={hover.at}
+                    zone={zone}
                     hovered={hover.row}
                     x={hover.x}
                     y={hover.y}
@@ -562,7 +570,7 @@ export function TimelineChart({
               </div>
             </div>
             <div style={{ marginLeft: labels }}>
-              <TimeLabels from={from} to={to} width={plotWidth} />
+              <TimeLabels from={from} to={to} width={plotWidth} zone={zone} />
             </div>
             {pager ? (
               <Pager

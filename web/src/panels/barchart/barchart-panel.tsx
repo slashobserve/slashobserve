@@ -755,14 +755,15 @@ const BarchartPanel: PanelRenderer = ({
   frames,
   fields,
   display,
+  zone,
   width,
   height,
   stateScope,
 }) => {
   const options = useMemo(() => barOptions(display), [display])
   const source = useMemo(
-    () => barSource(frames, fields, display),
-    [frames, fields, display]
+    () => barSource(frames, fields, display, zone),
+    [frames, fields, display, zone]
   )
   const entries = useMemo(() => legendEntries(source), [source])
   const legend = useSeriesLegend({

@@ -1,4 +1,4 @@
-import { formatDateTime } from "@/lib/time"
+import { zonedDateTime } from "@/lib/time"
 import {
   axisDecimals,
   commonDecimals,
@@ -955,7 +955,11 @@ export function cellCenter(
   return { x: box.left + box.width / 2, y: box.top + box.height / 2 }
 }
 
-function timeRange(xs: number[], col: number): string {
+function timeRange(
+  xs: number[],
+  col: number,
+  zone: string | undefined
+): string {
   const start = xs[col]
   const next =
     col + 1 < xs.length
@@ -964,19 +968,20 @@ function timeRange(xs: number[], col: number): string {
         ? start + (start - xs[col - 1])
         : null
   return next === null
-    ? formatDateTime(start)
-    : `${formatDateTime(start)} to ${formatDateTime(next)}`
+    ? zonedDateTime(start, zone)
+    : `${zonedDateTime(start, zone)} to ${zonedDateTime(next, zone)}`
 }
 
 export function cellText(
   model: HeatmapModel,
   cell: HeatmapCell,
-  format: (value: number) => string
+  format: (value: number) => string,
+  zone: string | undefined
 ): string {
   const value = model.cells[cell.row][cell.col]
   const text = value === null ? "-" : format(value)
   const row = model.rows[cell.row].range
-  const range = timeRange(model.xs, cell.col)
+  const range = timeRange(model.xs, cell.col, zone)
   return model.mode === "ordinal"
     ? `${range}, series ${row}, value ${text}`
     : `${range}, bucket ${row}, count ${text}`

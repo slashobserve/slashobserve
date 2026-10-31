@@ -376,6 +376,7 @@ const PanelContainer = memo(function PanelContainer({
             cursor={cursor}
             onTimeRangeSelect={onTimeRangeSelect}
             vars={selections}
+            timezone={timezone}
             from={rangeFrom}
             to={rangeTo}
             asTable={tableView}

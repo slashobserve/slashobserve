@@ -1,4 +1,4 @@
-import { formatDateTime } from "@/lib/time"
+import { zonedDateTime } from "@/lib/time"
 import {
   compileNamePattern,
   displayWithDefaults,
@@ -91,7 +91,11 @@ function reducedRaw(field: PreparedField, reducer: Reducer): ReducedValue {
   return null
 }
 
-function rowLabel(frame: PreparedFrame, row: number): string {
+function rowLabel(
+  frame: PreparedFrame,
+  row: number,
+  zone: string | undefined
+): string {
   for (const field of frame.fields) {
     const value = field.values[row]
     if (field.type === "string" && typeof value === "string" && value !== "") {
@@ -100,7 +104,7 @@ function rowLabel(frame: PreparedFrame, row: number): string {
   }
   const time = frame.fields.find((field) => field.type === "time")
   const at = time?.values[row]
-  return typeof at === "number" ? formatDateTime(at) : String(row + 1)
+  return typeof at === "number" ? zonedDateTime(at, zone) : String(row + 1)
 }
 
 function numeric(raw: ReducedValue): number | null {
@@ -110,7 +114,8 @@ function numeric(raw: ReducedValue): number | null {
 export function reduceItems(
   frames: PreparedFrame[],
   resolver: FieldResolver,
-  options: ReduceOptions
+  options: ReduceOptions,
+  zone: string | undefined
 ): ReduceItem[] {
   const selected = selectorFor(options.fields)
   const seen = new Map<string, number>()
@@ -139,7 +144,7 @@ export function reduceItems(
         const raw = plain(field.values[row])
         items.push({
           key: uniqueKey(seen, `${base}@${row}`),
-          label: rowLabel(frame, row),
+          label: rowLabel(frame, row, zone),
           value: numeric(raw),
           raw,
           config,

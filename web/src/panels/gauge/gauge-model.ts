@@ -208,9 +208,15 @@ export function gaugeSizes(display: Record<string, unknown>): GaugeSizes {
 export function gaugeModel(
   frames: PreparedFrame[],
   fields: FieldResolver,
-  display: Record<string, unknown>
+  display: Record<string, unknown>,
+  zone: string | undefined
 ): Gauge[] {
-  const sources = reduceItems(frames, fields, reduceOptionsOf("gauge", display))
+  const sources = reduceItems(
+    frames,
+    fields,
+    reduceOptionsOf("gauge", display),
+    zone
+  )
   const withMarkers = display.thresholdMarkers === true
   const withLabels = display.thresholdLabels === true
   const data = dataRange(sources)

@@ -8,6 +8,7 @@ const StateTimelinePanel: PanelRenderer = ({
   frames,
   fields,
   display,
+  zone,
   meta,
   width,
   height,
@@ -32,6 +33,7 @@ const StateTimelinePanel: PanelRenderer = ({
       variant="segments"
       cursor={cursor}
       stateKey={`${stateScope}:${panel.id}`}
+      zone={zone}
     />
   )
 }

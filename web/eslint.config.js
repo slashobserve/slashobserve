@@ -57,6 +57,29 @@ export default defineConfig([
     },
   },
   {
+    files: ["src/panels/**/*.{ts,tsx}"],
+    ignores: ["src/panels/**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/lib/time",
+              importNames: [
+                "formatDateTime",
+                "formatDateTimeMs",
+                "formatTimeValue",
+              ],
+              message:
+                "Panels format times with zonedDateTime and the panel's zone.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["src/components/ui/**"],
     rules: { "no-restricted-syntax": ["error", ...rawHtmlSelectors] },
   },

@@ -289,6 +289,7 @@ const fieldLabels: { [K in FieldKey]: string } = {
   timeFrom: "relative time",
   timeShift: "time shift",
   hideTimeOverride: "time override note",
+  timezone: "time zone",
   interval: "minimum interval",
   maxDataPoints: "max data points",
   gridPos: "position",

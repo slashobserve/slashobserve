@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 
-import { formatDateTimeMs } from "@/lib/time"
+import { zonedDateTimeMs } from "@/lib/time"
 import { cn } from "@/lib/utils"
 
 import { styleForSlot } from "../colors"
@@ -20,6 +20,7 @@ const ErrorIcon = thresholdIcons.critical
 type TraceProps = {
   model: Extract<ReturnType<typeof traceModel>, { reason: null }>
   filters: SpanFilters
+  zone: string | undefined
   width: number
   height: number
 }
@@ -136,7 +137,7 @@ function SpanRow({
   )
 }
 
-function Trace({ model, filters, width, height }: TraceProps) {
+function Trace({ model, filters, zone, width, height }: TraceProps) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
   const [openId, setOpenId] = useState<string | null>(null)
   const [scrollTop, setScrollTop] = useState(0)
@@ -195,7 +196,7 @@ function Trace({ model, filters, width, height }: TraceProps) {
             Trace <span className="font-mono">{model.traceId || "-"}</span>
           </span>
           <time dateTime={new Date(model.start).toISOString()}>
-            {formatDateTimeMs(model.start)}
+            {zonedDateTimeMs(model.start, zone)}
           </time>
           <span className="tabular-nums">
             {model.formatDuration(model.duration)}
@@ -302,6 +303,7 @@ const TracesPanel: PanelRenderer = ({
   frames,
   fields,
   display,
+  zone,
   width,
   height,
 }) => {
@@ -317,7 +319,15 @@ const TracesPanel: PanelRenderer = ({
       </div>
     )
   }
-  return <Trace model={model} filters={filters} width={width} height={height} />
+  return (
+    <Trace
+      model={model}
+      filters={filters}
+      zone={zone}
+      width={width}
+      height={height}
+    />
+  )
 }
 
 export default TracesPanel

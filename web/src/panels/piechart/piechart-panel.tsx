@@ -269,6 +269,7 @@ const PiechartPanel: PanelRenderer = ({
   frames,
   fields,
   display,
+  zone,
   width,
   height,
   stateScope,
@@ -276,8 +277,8 @@ const PiechartPanel: PanelRenderer = ({
   const { resolved: theme } = useTheme()
   const options = useMemo(() => pieOptions(display), [display])
   const entries = useMemo(
-    () => pieEntries(frames, fields, display),
-    [frames, fields, display]
+    () => pieEntries(frames, fields, display, zone),
+    [frames, fields, display, zone]
   )
   const keys = useMemo(() => entries.map(({ key }) => key), [entries])
   const stateKey = `${stateScope}:${panel.id}`

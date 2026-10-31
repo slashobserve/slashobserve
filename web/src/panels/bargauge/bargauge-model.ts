@@ -152,12 +152,14 @@ function clamp(fraction: number): number {
 export function bargaugeModel(
   frames: PreparedFrame[],
   fields: FieldResolver,
-  display: Record<string, unknown>
+  display: Record<string, unknown>,
+  zone: string | undefined
 ): BargaugeModel {
   const entries = reduceItems(
     frames,
     fields,
-    reduceOptionsOf("bargauge", display)
+    reduceOptionsOf("bargauge", display),
+    zone
   )
   const shared = sharedRange(entries)
   const decimals = decimalsByUnit(

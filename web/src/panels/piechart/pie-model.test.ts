@@ -56,7 +56,8 @@ function entriesOf(
   return pieEntries(
     frames,
     createFieldResolver(panel(extra)),
-    displayWithDefaults("piechart", display)
+    displayWithDefaults("piechart", display),
+    undefined
   )
 }
 

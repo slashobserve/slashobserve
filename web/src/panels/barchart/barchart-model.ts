@@ -1,4 +1,4 @@
-import { formatDateTime } from "@/lib/time"
+import { zonedDateTime } from "@/lib/time"
 import { timeLabel } from "@/lib/time-ticks"
 import { decimalsByUnit } from "@/lib/units"
 import { displayWithDefaults, type Reducer, type Threshold } from "@/spec"
@@ -220,14 +220,15 @@ function categoryKindOf(
 function categoryOf(
   field: PreparedField,
   value: unknown,
-  spanMs: number
+  spanMs: number,
+  zone: string | undefined
 ): Category {
   const key = String(value)
   if (field.type === "time" && typeof value === "number") {
     return {
       key,
-      label: timeLabel(value, spanMs),
-      title: formatDateTime(value),
+      label: timeLabel(value, spanMs, zone),
+      title: zonedDateTime(value, zone),
     }
   }
   return { key, label: key, title: key }
@@ -296,7 +297,8 @@ function colorsFrom(
 export function barSource(
   frames: PreparedFrame[],
   fields: FieldResolver,
-  display: Record<string, unknown>
+  display: Record<string, unknown>,
+  zone: string | undefined
 ): BarSource {
   const xField = typeof display.xField === "string" ? display.xField : undefined
   const colorByField =
@@ -326,7 +328,7 @@ export function barSource(
         }
         index = categories.length
         indexByKey.set(key, index)
-        categories.push(categoryOf(x, value, spanMs))
+        categories.push(categoryOf(x, value, spanMs, zone))
       }
       rows.set(row, index)
     })

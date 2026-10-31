@@ -114,12 +114,14 @@ function isDrawn(value: number | null): value is number {
 export function pieEntries(
   frames: PreparedFrame[],
   fields: FieldResolver,
-  display: Record<string, unknown>
+  display: Record<string, unknown>,
+  zone: string | undefined
 ): PieEntry[] {
   const items = reduceItems(
     frames,
     fields,
-    reduceOptionsOf("piechart", display)
+    reduceOptionsOf("piechart", display),
+    zone
   )
   const decimals = decimalsByUnit(
     items.map(({ config, value }) => ({

@@ -305,6 +305,27 @@ describe("tooltip details", () => {
     expect(paris?.details[0].text).toBe("Paris")
     expect(paris?.details[1].text).toContain("1")
   })
+
+  it("writes a time field in the zone of the panel", () => {
+    const frames = [
+      cities([
+        {
+          name: "seen",
+          type: "time",
+          values: [Date.UTC(2026, 0, 5, 0, 0, 0), 0, 0],
+        },
+      ]),
+    ]
+    const model = geoModel(
+      frames,
+      createFieldResolver(panel()),
+      displayWithDefaults("geomap", {}),
+      "light",
+      { zone: "Asia/Kolkata" }
+    )
+    const paris = model.markers.find((m) => m.label === "48.850, 2.350")
+    expect(paris?.details.map((d) => d.text)).toEqual(["2026-01-05 05:30:00"])
+  })
 })
 
 describe("viewOptions", () => {
