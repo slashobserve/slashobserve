@@ -307,7 +307,7 @@ export type Unit =
       | "gallons"
     );
 /**
- * A semantic color (ok, info, warning, critical) or a #rrggbb hex color.
+ * A semantic color (ok, info, warning, critical, or text, the theme's text color) or a #rrggbb hex color.
  */
 export type Color = string;
 /**
@@ -350,19 +350,19 @@ export type Mapping =
  */
 export type HttpsUrl = string;
 /**
- * A semantic color (ok, info, warning, critical) or a #rrggbb hex color.
+ * A semantic color (ok, info, warning, critical, or text, the theme's text color) or a #rrggbb hex color.
  */
 export type Color1 = string;
 /**
- * A semantic color (ok, info, warning, critical) or a #rrggbb hex color.
+ * A semantic color (ok, info, warning, critical, or text, the theme's text color) or a #rrggbb hex color.
  */
 export type Color2 = string;
 /**
- * A semantic color (ok, info, warning, critical) or a #rrggbb hex color.
+ * A semantic color (ok, info, warning, critical, or text, the theme's text color) or a #rrggbb hex color.
  */
 export type Color3 = string;
 /**
- * A semantic color (ok, info, warning, critical) or a #rrggbb hex color.
+ * A semantic color (ok, info, warning, critical, or text, the theme's text color) or a #rrggbb hex color.
  */
 export type Color4 = string;
 /**

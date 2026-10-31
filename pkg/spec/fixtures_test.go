@@ -353,7 +353,7 @@ func TestExclusiveMemberValueIssues(t *testing.T) {
 		message string
 	}{
 		{"match with a bad query reference", `"overrides": [{"match": {"query": "1x"}, "color": "ok"}],`, "/panels/0/overrides/0/match/query", `'1x' does not match pattern '^[A-Za-z][A-Za-z0-9_]{0,19}$'`},
-		{"mapping with a bad color", `"mappings": [{"value": "1", "color": "red"}],`, "/panels/0/mappings/0/color", `'red' does not match pattern '^(ok|info|warning|critical|#[0-9a-fA-F]{6})$'`},
+		{"mapping with a bad color", `"mappings": [{"value": "1", "color": "red"}],`, "/panels/0/mappings/0/color", `'red' does not match pattern '^(ok|info|warning|critical|text|#[0-9a-fA-F]{6})$'`},
 		{"match with one key and an unknown member", `"overrides": [{"match": {"query": "A", "bogus": 1}, "color": "ok"}],`, "/panels/0/overrides/0/match", `additional properties 'bogus' not allowed`},
 	}
 	for _, c := range cases {

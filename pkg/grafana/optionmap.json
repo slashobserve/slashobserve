@@ -1761,6 +1761,9 @@
     "display.elements[].fill"
    ],
    "values": {
+    "s:gray": [
+     "display.elements[].fill"
+    ],
     "s:red": [
      "display.elements[].fill"
     ]
@@ -1914,6 +1917,9 @@
    ],
    "values": {
     "s:red": [
+     "display.elements[].textColor"
+    ],
+    "s:text": [
      "display.elements[].textColor"
     ]
    }
@@ -6919,6 +6925,9 @@
     "display.titleSize"
    ],
    "values": {
+    "n:2": [
+     "display.titleSize"
+    ],
     "n:20": [
      "display.titleSize"
     ]
@@ -6929,6 +6938,9 @@
     "display.valueSize"
    ],
    "values": {
+    "n:1": [
+     "display.valueSize"
+    ],
     "n:40": [
      "display.valueSize"
     ]
@@ -8268,7 +8280,13 @@
     "s:dark-red": [
      "color"
     ],
+    "s:gray": [
+     "color"
+    ],
     "s:rgb(10, 120, 200)": [
+     "color"
+    ],
+    "s:text": [
      "color"
     ]
    }

@@ -211,11 +211,11 @@ When `fields` is absent the panel shows the number fields.
 Time fields are never shown as values.
 A `stat` panel has more optional `display` keys.
 `justify: center` centers the name and the value in each tile.
-`titleSize` and `valueSize` set the font size of the name and the value in pixels (6 to 200), where the tile otherwise uses 13 and 28.
+`titleSize` and `valueSize` set the font size of the name and the value in pixels (1 to 200), where the tile otherwise uses 13 and 28.
 `percentChange: true` shows the change between the first and last value of the range next to the value, with an arrow and, for screen readers, the words "up" or "down".
 `percentChangeColor` colors only the arrow: `standard` (up is green, down is red), `inverted` (the reverse) or `value` (the color of the value).
 `wideLayout: true` puts the name and the value on one row when a tile is at least 200px wide and twice as wide as it is tall; when it is absent or `false` the name sits above the value.
-`percentSize` sets the font size of the percent change in pixels (6 to 200), and `graphStyle: line` draws the sparkline as a line without the area under it (`area` by default).
+`percentSize` sets the font size of the percent change in pixels (1 to 200), and `graphStyle: line` draws the sparkline as a line without the area under it (`area` by default).
 A `piechart` panel has more optional `display` keys.
 `sliceLabels` is a list of `name`, `value` and `percent` written on the slices that are big enough, with `titleSize` for the name and `valueSize` for the rest (1 to 200 pixels, 12 by default).
 Its legend takes `legend` (`bottom`, `right` or `hidden`), `legendMode` (`list` or `table`), `legendShow` (a list of `value` and `percent`, both by default), `legendSortBy` (`name` or `value`), `legendSortDesc` and `legendWidth`, and clicking an entry hides its slice.
@@ -411,7 +411,7 @@ A column with `width` has exactly that width, the other columns share what is le
 Time series and trend panels draw every `colorMode`, while stat, gauge, bar gauge, table cells with colored values, bar chart and XY chart draw `scheme`; stat, gauge, bar gauge, table, bar chart, pie chart and XY chart already color values by their thresholds.
 Only `timeseries`, `trend` and `candlestick` panels draw the line style and axis options, so other panel types ignore them and a Grafana import reports them there.
 Thresholds ascend, and the first step may leave out `value` to act as the base color.
-A color is `ok`, `info`, `warning`, `critical` or a `#rrggbb` hex value.
+A color is `ok`, `info`, `warning`, `critical`, `text` (the theme's text color, which follows the light and dark themes) or a `#rrggbb` hex value.
 A unit is any Grafana unit id such as `reqps`, `s`, `bytes`, `percentunit` or `radbq`, or custom `suffix:`, `prefix:`, `time:`, `si:`, `count:` or `currency:` text.
 The text after `time:` is a date format, `si:` a symbol that scales by 1000 with SI prefixes (`si:mF` starts at milli), `count:` text after a K, Mil or Bil scaled number, and `currency:` a symbol before a scaled number.
 The agent prompt lists only the common ids and `suffix:` and `prefix:`, but a Spec may use any of them.

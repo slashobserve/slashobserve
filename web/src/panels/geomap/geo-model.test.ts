@@ -427,6 +427,21 @@ describe("layers", () => {
     expect(model.markers).toHaveLength(2)
   })
 
+  it("draws a markers layer in the foreground token for text", () => {
+    const model = build(
+      [paris],
+      {},
+      {
+        layers: [
+          { type: "markers", name: "Cities", query: "A", color: "text" },
+        ],
+      }
+    )
+    const [layer] = model.layers
+    if (layer.kind !== "markers") throw new Error("expected markers")
+    expect(layer.markers[0].color).toBe("var(--foreground)")
+  })
+
   it("keeps a layer with no query on every frame", () => {
     const model = build([paris, tokyo], {}, { layers: [{ type: "markers" }] })
     expect(model.markers).toHaveLength(2)

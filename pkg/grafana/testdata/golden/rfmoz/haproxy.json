@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 103,
-      "imported": 102,
-      "partial": 1,
+      "imported": 103,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,14 +43,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Basic General Info",
-        "status": "partial",
-        "reasons": [
-          "This fixed color is not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[7].properties[4]",
-          "fieldConfig.overrides[8].properties[4]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2621,7 +2616,7 @@
   },
   "blocks": [
     "dashboard mapped=9 bookkeeping=7",
-    "panel panels[1] mapped=77 reported=2 default=2 no_effect=2 bookkeeping=10 field_config:1 override:9 query:4",
+    "panel panels[1] mapped=79 default=2 no_effect=2 bookkeeping=10 field_config:1 override:9 query:4",
     "panel panels[2] mapped=45 default=2 no_effect=1 bookkeeping=6 field_config:1 override:1 query:2",
     "panel panels[3] mapped=45 default=2 no_effect=1 bookkeeping=6 field_config:1 override:1 query:2",
     "panel panels[4] mapped=45 default=2 no_effect=1 bookkeeping=6 field_config:1 override:1 query:2",
@@ -2928,6 +2923,7 @@
                 "match": {
                   "series": "Front requests"
                 },
+                "color": "text",
                 "fill": 0,
                 "lineStyle": "solid",
                 "lineWidth": 2,
@@ -2937,6 +2933,7 @@
                 "match": {
                   "series": "Back requests"
                 },
+                "color": "text",
                 "fill": 0,
                 "lineStyle": "solid",
                 "lineWidth": 2,

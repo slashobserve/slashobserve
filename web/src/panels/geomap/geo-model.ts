@@ -7,7 +7,7 @@ import {
   type FieldResolver,
 } from "../field-config"
 import { isNumber } from "../reducers"
-import { thresholdColor, type ThresholdLevel } from "../thresholds"
+import { isSpecColor, thresholdColor, type ThresholdLevel } from "../thresholds"
 import {
   matchesName,
   type PreparedField,
@@ -609,12 +609,8 @@ function detailsOf(
   })
 }
 
-const fixedColorPattern = /^(?:ok|info|warning|critical|#[0-9a-fA-F]{6})$/
-
 function fixedColorOf(color: unknown): string | undefined {
-  return typeof color === "string" && fixedColorPattern.test(color)
-    ? thresholdColor(color)
-    : undefined
+  return isSpecColor(color) ? thresholdColor(color) : undefined
 }
 
 function colorOf(

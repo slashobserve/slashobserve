@@ -191,9 +191,9 @@
     },
     "color": {
       "title": "Color",
-      "description": "A semantic color (ok, info, warning, critical) or a #rrggbb hex color.",
+      "description": "A semantic color (ok, info, warning, critical, or text, the theme's text color) or a #rrggbb hex color.",
       "type": "string",
-      "pattern": "^(ok|info|warning|critical|#[0-9a-fA-F]{6})$"
+      "pattern": "^(ok|info|warning|critical|text|#[0-9a-fA-F]{6})$"
     },
     "unit": {
       "title": "Unit",
@@ -4274,19 +4274,19 @@
                   },
                   "titleSize": {
                     "type": "integer",
-                    "minimum": 6,
+                    "minimum": 1,
                     "maximum": 200,
                     "x-omitFromPrompt": true
                   },
                   "valueSize": {
                     "type": "integer",
-                    "minimum": 6,
+                    "minimum": 1,
                     "maximum": 200,
                     "x-omitFromPrompt": true
                   },
                   "percentSize": {
                     "type": "integer",
-                    "minimum": 6,
+                    "minimum": 1,
                     "maximum": 200,
                     "x-omitFromPrompt": true
                   },
