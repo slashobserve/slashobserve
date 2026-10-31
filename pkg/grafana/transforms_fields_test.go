@@ -65,6 +65,16 @@ func TestFieldTransformsConvert(t *testing.T) {
 			`[{"type":"formatTime","field":"Time","format":"HH:mm","utc":true}]`,
 		},
 		{
+			"formatTime in UTC by its own time zone",
+			`{"id":"formatTime","options":{"timeField":"Time","outputFormat":"HH:mm","timezone":"utc"}}`,
+			`[{"type":"formatTime","field":"Time","format":"HH:mm","utc":true}]`,
+		},
+		{
+			"formatTime in the browser time zone",
+			`{"id":"formatTime","options":{"timeField":"Time","outputFormat":"HH:mm","timezone":"browser"}}`,
+			`[{"type":"formatTime","field":"Time","format":"HH:mm"}]`,
+		},
+		{
 			"renameByRegex",
 			`{"id":"renameByRegex","options":{"regex":"(.*) requests","renamePattern":"$1"}}`,
 			`[{"type":"renameByRegex","regex":"(.*) requests","renameTo":"$1"}]`,
@@ -85,6 +95,26 @@ func TestFieldTransformsConvert(t *testing.T) {
 				{"fieldName":"load","config":{"id":"lower","options":{"value":"3"}}},
 				{"fieldName":"load","config":{"id":"equal","options":{"value":0}}}]}}`,
 			`[{"type":"filterByValue","keep":"exclude","match":"all","filters":[{"field":"load","op":"range","from":1,"to":9},{"field":"host","op":"regex","value":"a.*"},{"field":"load","op":"lt","value":3},{"field":"load","op":"eq","value":0}]}]`,
+		},
+		{
+			"filterByValue between is a range",
+			`{"id":"filterByValue","options":{"filters":[{"fieldName":"load","config":{"id":"between","options":{"from":1,"to":5}}}]}}`,
+			`[{"type":"filterByValue","filters":[{"field":"load","op":"range","from":1,"to":5}]}]`,
+		},
+		{
+			"filterByValue substring is an escaped regex",
+			`{"id":"filterByValue","options":{"filters":[{"fieldName":"host","config":{"id":"substring","options":{"value":"a.b(c)"}}}]}}`,
+			`[{"type":"filterByValue","filters":[{"field":"host","op":"regex","value":"a\\.b\\(c\\)"}]}]`,
+		},
+		{
+			"filterByValue notSubstring alone flips include to exclude",
+			`{"id":"filterByValue","options":{"type":"include","filters":[{"fieldName":"host","config":{"id":"notSubstring","options":{"value":"err"}}}]}}`,
+			`[{"type":"filterByValue","keep":"exclude","filters":[{"field":"host","op":"regex","value":"err"}]}]`,
+		},
+		{
+			"filterByValue notSubstring alone flips exclude to include",
+			`{"id":"filterByValue","options":{"type":"exclude","filters":[{"fieldName":"host","config":{"id":"notSubstring","options":{"value":"err"}}}]}}`,
+			`[{"type":"filterByValue","filters":[{"field":"host","op":"regex","value":"err"}]}]`,
 		},
 		{
 			"filterByRefId",
@@ -132,9 +162,13 @@ func TestFieldTransformsReport(t *testing.T) {
 		kept                       int
 	}{
 		{"unknown output format", `{"id":"formatString","options":{"stringField":"s","outputFormat":"Reverse"}}`, "transformations[0].options.outputFormat", 0},
-		{"unknown filter id", `{"id":"filterByValue","options":{"filters":[{"fieldName":"load","config":{"id":"between","options":{}}}]}}`, "transformations[0].options.filters[0].config.id", 0},
-		{"one unknown filter id among others", `{"id":"filterByValue","options":{"filters":[{"fieldName":"load","config":{"id":"between"}},{"fieldName":"load","config":{"id":"isNull"}}]}}`, "transformations[0].options.filters[0].config.id", 1},
+		{"unknown filter id", `{"id":"filterByValue","options":{"filters":[{"fieldName":"load","config":{"id":"unknownId","options":{}}}]}}`, "transformations[0].options.filters[0].config.id", 0},
+		{"one unknown filter id among others", `{"id":"filterByValue","options":{"filters":[{"fieldName":"load","config":{"id":"unknownId"}},{"fieldName":"load","config":{"id":"isNull"}}]}}`, "transformations[0].options.filters[0].config.id", 1},
 		{"filter without a number", `{"id":"filterByValue","options":{"filters":[{"fieldName":"load","config":{"id":"greater","options":{"value":"many"}}}]}}`, "transformations[0].options.filters[0].config.options", 0},
+		{"between without bounds", `{"id":"filterByValue","options":{"filters":[{"fieldName":"load","config":{"id":"between","options":{}}}]}}`, "transformations[0].options.filters[0].config.options", 0},
+		{"substring without text", `{"id":"filterByValue","options":{"filters":[{"fieldName":"host","config":{"id":"substring","options":{}}}]}}`, "transformations[0].options.filters[0].config.options", 0},
+		{"notSubstring next to another filter", `{"id":"filterByValue","options":{"filters":[{"fieldName":"host","config":{"id":"notSubstring","options":{"value":"err"}}},{"fieldName":"load","config":{"id":"isNull"}}]}}`, "transformations[0].options.filters[0].config.id", 1},
+		{"time zone that is not UTC or the browser", `{"id":"formatTime","options":{"timeField":"Time","outputFormat":"HH:mm","timezone":"Europe/Berlin"}}`, "transformations[0].options.timezone", 1},
 		{"range without bounds", `{"id":"filterByValue","options":{"filters":[{"fieldName":"load","config":{"id":"range","options":{}}}]}}`, "transformations[0].options.filters[0].config.options", 0},
 		{"refId the panel does not have", `{"id":"filterByRefId","options":{"include":"Z"}}`, "transformations[0].options.include", 0},
 		{"time format with moment words", `{"id":"formatTime","options":{"timeField":"Time","outputFormat":"dddd MMM Do"}}`, "transformations[0].options.outputFormat", 0},

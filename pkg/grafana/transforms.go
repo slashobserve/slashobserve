@@ -31,6 +31,7 @@ var (
 	unaryFunctions   = []string{"abs", "exp", "ln", "floor", "ceil", "round"}
 	windowFunctions  = []string{"mean", "stdDev", "variance"}
 	windowAlignments = []string{"trailing", "centered"}
+	frameFilterIDs   = []string{"byRefId", "byFrameRefID"}
 	binaryOperators  = []string{"+", "-", "*", "/", "%", "^"}
 	varReference     = regexp.MustCompile(`^\$(?:([A-Za-z][A-Za-z0-9_]{0,39})|\{([A-Za-z][A-Za-z0-9_]{0,39})\})$`)
 )
@@ -59,10 +60,10 @@ var transformSpecs = map[string]transformSpec{
 	"limit":              {handled: []string{"limitField"}, build: limitTransform},
 	"convertFieldType":   {handled: []string{"conversions", "fields"}, build: convertFieldTypeTransform},
 	"formatString":       {handled: []string{"stringField", "outputFormat", "substringStart", "substringEnd"}, build: formatStringTransform},
-	"formatTime":         {handled: []string{"timeField", "outputFormat", "useTimezone"}, build: formatTimeTransform},
+	"formatTime":         {handled: []string{"timeField", "outputFormat", "useTimezone", "timezone"}, build: formatTimeTransform},
 	"renameByRegex":      {handled: []string{"regex", "renamePattern"}, build: renameByRegexTransform},
 	"filterByValue":      {handled: []string{"type", "match", "filters"}, build: filterByValueTransform},
-	"filterByRefId":      {handled: []string{"include"}, build: filterByRefIDTransform},
+	"filterByRefId":      {handled: []string{"include", "exclude"}, build: filterByRefIDTransform},
 	"extractFields":      {handled: []string{"source", "format", "replace", "keepTime", "jsonPaths", "delimiter", "regExp"}, build: extractFieldsTransform},
 	"labelsToFields":     {handled: []string{"mode", "keepLabels", "valueLabel"}, build: labelsToFieldsTransform},
 	"joinByLabels":       {handled: []string{"value", "join"}, build: joinByLabelsTransform},
@@ -160,7 +161,7 @@ func (b *panelBuild) transformQueries(t map[string]any, path string) []string {
 		return nil
 	}
 	filter, _ := asObject(t["filter"])
-	if asString(filter["id"]) != "byRefId" {
+	if !slices.Contains(frameFilterIDs, asString(filter["id"])) {
 		b.partial(path+".filter", "")
 		return nil
 	}
@@ -199,11 +200,15 @@ func (b *panelBuild) mappedRefIDs(candidates []string) ([]string, bool) {
 	return ids, complete
 }
 
-func (b *panelBuild) refIDsMatching(pattern, flags string) ([]string, bool) {
+func refIDRegexp(pattern, flags string) (*regexp.Regexp, error) {
 	if strings.Contains(flags, "i") {
 		pattern = "(?i)" + pattern
 	}
-	re, err := regexp.Compile(pattern)
+	return regexp.Compile(pattern)
+}
+
+func (b *panelBuild) refIDsMatching(pattern, flags string) ([]string, bool) {
+	re, err := refIDRegexp(pattern, flags)
 	if err != nil {
 		return nil, false
 	}

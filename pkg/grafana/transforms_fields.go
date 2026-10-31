@@ -4,6 +4,8 @@ import (
 	"cmp"
 	"fmt"
 	"iter"
+	"maps"
+	"regexp"
 	"slices"
 	"strings"
 	"unicode"
@@ -37,7 +39,7 @@ var conversionTypes = []string{"number", "string", "time", "boolean", "enum", "o
 var valueFilterOps = map[string]string{
 	"greater": "gt", "greaterOrEqual": "gte", "lower": "lt", "lowerOrEqual": "lte",
 	"equal": "eq", "notEqual": "neq", "isNull": "null", "isNotNull": "notNull",
-	"regex": "regex", "range": "range",
+	"regex": "regex", "range": "range", "between": "range", "substring": "regex", "notSubstring": "regex",
 }
 
 var extractFormats = []string{"auto", "json", "kvp", "delimiter", "regexp"}
@@ -189,11 +191,15 @@ func formatTimeTransform(b *panelBuild, opts map[string]any, path string) (spec.
 		return spec.Transform{}, false
 	}
 	useZone, set := opts["useTimezone"].(bool)
-	dashboardUTC := b.c.head.Timezone == "utc"
-	return spec.Transform{
-		Type: "formatTime", Field: field, Format: format,
-		UTC: (set && !useZone) || dashboardUTC,
-	}, true
+	utc := (set && !useZone) || b.c.head.Timezone == "utc"
+	switch zone := asString(opts["timezone"]); zone {
+	case "utc":
+		utc = true
+	case "", "browser":
+	default:
+		b.partial(path+".options.timezone", "")
+	}
+	return spec.Transform{Type: "formatTime", Field: field, Format: format, UTC: utc}, true
 }
 
 func renameByRegexTransform(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool) {
@@ -232,8 +238,13 @@ func filterByValueTransform(b *panelBuild, opts map[string]any, path string) (sp
 			b.partial(itemPath, fmt.Sprintf("A transformation keeps at most %d filters.", maxValueFilters))
 			continue
 		}
-		if filter, ok := b.valueFilter(item, itemPath); ok {
-			t.Filters = append(t.Filters, filter)
+		filter, negated, ok := b.valueFilter(item, itemPath, len(items) == 1)
+		if !ok {
+			continue
+		}
+		t.Filters = append(t.Filters, filter)
+		if negated {
+			t.Keep = flippedKeep(t.Keep)
 		}
 	}
 	if len(t.Filters) == 0 {
@@ -242,25 +253,36 @@ func filterByValueTransform(b *panelBuild, opts map[string]any, path string) (sp
 	return t, true
 }
 
-func (b *panelBuild) valueFilter(item any, path string) (spec.ValueFilter, bool) {
+func flippedKeep(keep string) string {
+	if keep == "exclude" {
+		return ""
+	}
+	return "exclude"
+}
+
+func (b *panelBuild) valueFilter(item any, path string, alone bool) (filter spec.ValueFilter, negated, ok bool) {
 	obj, _ := asObject(item)
 	field, fieldOK := nameOption(obj, "fieldName")
 	config, _ := asObject(obj["config"])
 	if !fieldOK {
 		b.partial(path, "")
-		return spec.ValueFilter{}, false
+		return spec.ValueFilter{}, false, false
 	}
-	op, known := valueFilterOps[asString(config["id"])]
-	if !known {
+	id := asString(config["id"])
+	op, known := valueFilterOps[id]
+	switch {
+	case !known:
 		b.partial(path+".config.id", "")
-		return spec.ValueFilter{}, false
+		return spec.ValueFilter{}, false, false
+	case id == "notSubstring" && !alone:
+		b.partial(path+".config.id", "A filter for text a value lacks is supported only as the single filter of a transformation.")
+		return spec.ValueFilter{}, false, false
 	}
 	b.reportOtherKeys(obj, []string{"fieldName", "config"}, path)
 	b.reportOtherKeys(config, []string{"id", "options"}, path+".config")
 	options, _ := asObject(config["options"])
-	filter := spec.ValueFilter{Field: field, Op: op}
+	filter = spec.ValueFilter{Field: field, Op: op}
 	optionPath := path + ".config.options"
-	var ok bool
 	switch op {
 	case "gt", "gte", "lt", "lte":
 		var number float64
@@ -270,6 +292,9 @@ func (b *panelBuild) valueFilter(item any, path string) (spec.ValueFilter, bool)
 		filter.Value, ok = comparedFilterValue(options["value"])
 	case "regex":
 		pattern := asString(options["value"])
+		if id == "substring" || id == "notSubstring" {
+			pattern = regexp.QuoteMeta(pattern)
+		}
 		filter.Value, ok = pattern, validLength(pattern, maxPattern)
 	case "range":
 		filter.From, filter.To, ok = filterRange(options)
@@ -278,9 +303,9 @@ func (b *panelBuild) valueFilter(item any, path string) (spec.ValueFilter, bool)
 	}
 	if !ok {
 		b.partial(optionPath, "")
-		return spec.ValueFilter{}, false
+		return spec.ValueFilter{}, false, false
 	}
-	return filter, true
+	return filter, id == "notSubstring", true
 }
 
 func comparedFilterValue(v any) (any, bool) {
@@ -309,21 +334,59 @@ func filterRange(options map[string]any) (from, to *float64, ok bool) {
 
 func filterByRefIDTransform(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool) {
 	t := spec.Transform{Type: "filterByRefId"}
-	for _, id := range strings.Split(asString(opts["include"]), "|") {
-		id = strings.TrimSpace(id)
-		ref, mapped := b.refs[id]
-		switch {
-		case id == "":
-		case !refPattern.MatchString(id) || !mapped:
-			b.partial(path+".options.include", "")
-		default:
-			t.Include = b.includeRef(t.Include, ref)
+	ids := b.includedRefIDs(asString(opts["include"]), path+".options.include")
+	if present(opts["exclude"]) {
+		if !present(opts["include"]) {
+			ids = slices.Sorted(maps.Keys(b.refs))
 		}
+		excluded, ok := b.excludedRefIDs(asString(opts["exclude"]))
+		if !ok {
+			b.partial(path+".options.exclude", "")
+			return b.dropTransform(path)
+		}
+		ids = slices.DeleteFunc(ids, func(id string) bool { return excluded[id] })
+	}
+	for _, id := range ids {
+		t.Include = b.includeRef(t.Include, b.refs[id])
 	}
 	if len(t.Include) == 0 {
 		return b.dropTransform(path)
 	}
 	return t, true
+}
+
+func (b *panelBuild) includedRefIDs(text, path string) []string {
+	var ids []string
+	for _, id := range strings.Split(text, "|") {
+		id = strings.TrimSpace(id)
+		_, mapped := b.refs[id]
+		switch {
+		case id == "":
+		case !refPattern.MatchString(id) || !mapped:
+			b.partial(path, "")
+		case !slices.Contains(ids, id):
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+func (b *panelBuild) excludedRefIDs(text string) (map[string]bool, bool) {
+	excluded := map[string]bool{}
+	if last := strings.LastIndex(text, "/"); strings.HasPrefix(text, "/") && last > 0 {
+		re, err := refIDRegexp(text[1:last], text[last+1:])
+		if err != nil {
+			return nil, false
+		}
+		for id := range b.refs {
+			excluded[id] = re.MatchString(id)
+		}
+		return excluded, true
+	}
+	for id := range strings.SplitSeq(text, "|") {
+		excluded[strings.TrimSpace(id)] = true
+	}
+	return excluded, true
 }
 
 func (b *panelBuild) includeRef(include []string, ref string) []string {
