@@ -1,18 +1,10 @@
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  type CSSProperties,
-} from "react"
+import { memo, useMemo, type CSSProperties } from "react"
 import { ZapIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -23,17 +15,13 @@ import {
 import { cn } from "@/lib/utils"
 import type { Reducer } from "@/spec"
 
-import { useActionRunner } from "../actions/action-runner"
-import type {
-  ActionContext,
-  PendingRequest,
-  RunnableAction,
-} from "../actions/actions"
+import { ActionMenuItems } from "../actions/action-menu-items"
 import {
-  fieldActionRequest,
-  oneClickTarget,
-  type FieldAction,
-} from "../actions/field-actions"
+  runFieldAction,
+  useStableActionRunner,
+  type StableActionRunner,
+} from "../actions/action-runner"
+import { oneClickTarget, type FieldAction } from "../actions/field-actions"
 import type { FieldResolver, LinkScope } from "../field-config"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
@@ -66,15 +54,6 @@ const bodyInsetX = 24
 const bodyInsetY = 90
 const leftNameShare = 0.5
 
-type BarRunner = {
-  context: ActionContext | null
-  reason: string | null
-  open: (action: RunnableAction, request: PendingRequest) => void
-  panelId: string
-  fromMs: number
-  toMs: number
-}
-
 type BarProps = {
   bar: Bar
   orientation: Orientation
@@ -88,7 +67,7 @@ type BarProps = {
   cells: number
   limits: BarLimits
   sizes: BarSizes
-  runner: BarRunner
+  runner: StableActionRunner
 }
 
 function textSize(size: number | undefined): CSSProperties | undefined {
@@ -99,18 +78,7 @@ function runBarAction(
   { bar, fields, reducer, scope, runner }: BarProps,
   action: FieldAction
 ) {
-  if (runner.context === null) return
-  runner.open(
-    action,
-    fieldActionRequest({
-      context: runner.context,
-      panelId: runner.panelId,
-      action,
-      scope: barScope(fields, bar, reducer, scope),
-      fromMs: runner.fromMs,
-      toMs: runner.toMs,
-    })
-  )
+  runFieldAction(runner, action, barScope(fields, bar, reducer, scope))
 }
 
 function oneClickOf(props: BarProps) {
@@ -150,24 +118,11 @@ function BarActions({
         <ZapIcon aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-max">
-        {actions.map((action) => (
-          <DropdownMenuItem
-            key={`${action.override ?? "panel"}:${action.index}`}
-            disabled={reason !== null}
-            title={reason ?? undefined}
-            onClick={() => onAction(action)}
-            className="gap-2"
-          >
-            {action.color === null ? null : (
-              <span
-                aria-hidden="true"
-                className="size-2 shrink-0 rounded-full"
-                style={{ backgroundColor: action.color }}
-              />
-            )}
-            {action.title}
-          </DropdownMenuItem>
-        ))}
+        <ActionMenuItems
+          actions={actions}
+          reason={reason}
+          onAction={onAction}
+        />
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -406,30 +361,6 @@ const VerticalColumn = memo(function VerticalColumn(props: BarProps) {
   )
 })
 
-function useStableRunner(panelId: string, from: string, to: string) {
-  const { context, reason, open, dialog } = useActionRunner()
-  const latestOpen = useRef(open)
-  useEffect(() => {
-    latestOpen.current = open
-  })
-  const stableOpen = useCallback<BarRunner["open"]>(
-    (action, request) => latestOpen.current(action, request),
-    []
-  )
-  const runner = useMemo<BarRunner>(
-    () => ({
-      context,
-      reason,
-      open: stableOpen,
-      panelId,
-      fromMs: Date.parse(from),
-      toMs: Date.parse(to),
-    }),
-    [context, reason, stableOpen, panelId, from, to]
-  )
-  return { runner, dialog }
-}
-
 const BargaugePanel: PanelRenderer = ({
   panel,
   frames,
@@ -441,7 +372,7 @@ const BargaugePanel: PanelRenderer = ({
   width,
   height,
 }) => {
-  const { runner, dialog } = useStableRunner(panel.id, meta.from, meta.to)
+  const { runner, dialog } = useStableActionRunner(panel.id, meta)
   const model = useMemo(
     () => bargaugeModel(frames, fields, display, zone),
     [frames, fields, display, zone]

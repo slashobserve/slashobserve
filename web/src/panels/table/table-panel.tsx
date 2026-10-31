@@ -1,10 +1,8 @@
 import {
   memo,
   useCallback,
-  useEffect,
   useId,
   useMemo,
-  useRef,
   useState,
   type CSSProperties,
   type ReactElement,
@@ -36,21 +34,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import type { PanelDataMeta } from "@/dashboards/queries"
 import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
+import { oneClickTarget, type FieldAction } from "../actions/field-actions"
 import {
-  fieldActionRequest,
-  oneClickTarget,
-  type FieldAction,
-} from "../actions/field-actions"
-import { useActionRunner } from "../actions/action-runner"
-import type {
-  ActionContext,
-  PendingRequest,
-  RunnableAction,
-} from "../actions/actions"
+  runFieldAction,
+  useStableActionRunner,
+  type StableActionRunner,
+} from "../actions/action-runner"
 import { resolveColor } from "../colors"
 import { cssColorToRgb } from "../contrast"
 import type { FieldResolver, LinkScope, ResolvedLink } from "../field-config"
@@ -168,19 +160,10 @@ type CellProps = {
   scope: LinkScope
 }
 
-type RowRunner = {
-  context: ActionContext | null
-  reason: string | null
-  open: (action: RunnableAction, request: PendingRequest) => void
-  panelId: string
-  fromMs: number
-  toMs: number
-}
-
 type RowShared = CellProps & {
   display: Record<string, unknown>
   fixed: boolean
-  runner: RowRunner
+  runner: StableActionRunner
 }
 
 type CellFrame = { fill: string | null; text: string | undefined }
@@ -289,18 +272,7 @@ function BodyCell({
   const links = cellLinks(fields, column, row, cell, scope)
   const actions = cellActions(fields, column, row, cell, scope)
   function runAction(action: FieldAction) {
-    if (runner.context === null) return
-    runner.open(
-      action,
-      fieldActionRequest({
-        context: runner.context,
-        panelId: runner.panelId,
-        action,
-        scope: cellScope(fields, column, row, cell, scope),
-        fromMs: runner.fromMs,
-        toMs: runner.toMs,
-      })
-    )
+    runFieldAction(runner, action, cellScope(fields, column, row, cell, scope))
   }
   const target = oneClickTarget(links, actions)
   const oneClick =
@@ -637,34 +609,6 @@ function HeaderCell({
 
 const noKept: ReadonlySet<string> = new Set()
 
-function useRowRunner(
-  panelId: string,
-  meta: PanelDataMeta
-): { runner: RowRunner; dialog: ReactElement | null } {
-  const { context, reason, open, dialog } = useActionRunner()
-  const latestOpen = useRef(open)
-  useEffect(() => {
-    latestOpen.current = open
-  })
-  const stableOpen = useCallback<RowRunner["open"]>(
-    (action, request) => latestOpen.current(action, request),
-    []
-  )
-  const { from, to } = meta
-  const runner = useMemo(
-    () => ({
-      context,
-      reason,
-      open: stableOpen,
-      panelId,
-      fromMs: Date.parse(from),
-      toMs: Date.parse(to),
-    }),
-    [context, reason, stableOpen, panelId, from, to]
-  )
-  return { runner, dialog }
-}
-
 const TablePanel: PanelRenderer = ({
   panel,
   frames,
@@ -690,7 +634,7 @@ const TablePanel: PanelRenderer = ({
   const [filters, setFilters] = useState<ColumnFilters>(new Map())
   const [requestedPage, setPage] = useState(0)
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
-  const { runner, dialog } = useRowRunner(panel.id, meta)
+  const { runner, dialog } = useStableActionRunner(panel.id, meta)
   const baseId = useId()
   const expandable = useMemo(
     () => model.rows.some((row) => row.nested !== null),

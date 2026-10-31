@@ -24,15 +24,11 @@ import {
 import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
-import { useActionRunner } from "../actions/action-runner"
-import {
-  fieldActionRequest,
-  fieldActions,
-  oneClickTarget,
-  type FieldAction,
-} from "../actions/field-actions"
+import { ActionMenuItems } from "../actions/action-menu-items"
+import { runFieldAction, useStableActionRunner } from "../actions/action-runner"
+import { fieldActions, oneClickTarget } from "../actions/field-actions"
 import { resolveColor } from "../colors"
-import { isDataLink, resolveLink, type LinkScope } from "../field-config"
+import { isDataLink, resolveLink } from "../field-config"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
 import { cssColorToRgb, readableText } from "../contrast"
@@ -95,7 +91,7 @@ const StatPanel: PanelRenderer = ({
   links,
 }) => {
   const { resolved: theme } = useTheme()
-  const runner = useActionRunner()
+  const { runner, dialog } = useStableActionRunner(panel.id, meta)
   const display = rawDisplay as StatDisplay
   const tiles = useMemo(
     () => statTiles(frames, fields, display, panel.unit, zone),
@@ -145,21 +141,6 @@ const StatPanel: PanelRenderer = ({
     ? { fontSize: display.valueSize }
     : undefined
 
-  function runAction(action: FieldAction, scope: LinkScope) {
-    if (runner.context === null) return
-    runner.open(
-      action,
-      fieldActionRequest({
-        context: runner.context,
-        panelId: panel.id,
-        action,
-        scope,
-        fromMs: Date.parse(meta.from),
-        toMs: Date.parse(meta.to),
-      })
-    )
-  }
-
   return (
     <>
       <div
@@ -190,7 +171,9 @@ const StatPanel: PanelRenderer = ({
               : target.kind === "link"
                 ? oneClickProps(dataLinks)
                 : runner.reason === null
-                  ? oneClickProps([], () => runAction(target.action, scope))
+                  ? oneClickProps([], () =>
+                      runFieldAction(runner, target.action, scope)
+                    )
                   : {}
           const thresholdColor =
             display.colorMode === "value" ? tile.color : null
@@ -400,24 +383,13 @@ const StatPanel: PanelRenderer = ({
                     {menuLinks.length > 0 && actions.length > 0 ? (
                       <DropdownMenuSeparator />
                     ) : null}
-                    {actions.map((action) => (
-                      <DropdownMenuItem
-                        key={`${action.override ?? "panel"}:${action.index}`}
-                        disabled={runner.reason !== null}
-                        title={runner.reason ?? undefined}
-                        onClick={() => runAction(action, scope)}
-                        className="gap-2"
-                      >
-                        {action.color === null ? null : (
-                          <span
-                            aria-hidden="true"
-                            className="size-2 shrink-0 rounded-full"
-                            style={{ backgroundColor: action.color }}
-                          />
-                        )}
-                        {action.title}
-                      </DropdownMenuItem>
-                    ))}
+                    <ActionMenuItems
+                      actions={actions}
+                      reason={runner.reason}
+                      onAction={(action) =>
+                        runFieldAction(runner, action, scope)
+                      }
+                    />
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : null}
@@ -425,7 +397,7 @@ const StatPanel: PanelRenderer = ({
           )
         })}
       </div>
-      {runner.dialog}
+      {dialog}
     </>
   )
 }
