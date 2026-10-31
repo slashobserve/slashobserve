@@ -27,6 +27,12 @@ const semanticLabels = {
   critical: "Critical",
 } as const
 
+const textColor = "text"
+const hexColorSource = "#[0-9a-fA-F]{6}"
+const specColorPattern = new RegExp(
+  `^(?:${[...Object.keys(semanticLabels), textColor, hexColorSource].join("|")})$`
+)
+
 export const thresholdIcons: Record<
   Exclude<ThresholdLevel, "base">,
   LucideIcon
@@ -44,7 +50,12 @@ function isSemantic(color: string): color is keyof typeof semanticLabels {
   return Object.hasOwn(semanticLabels, color)
 }
 
+export function isSpecColor(value: unknown): value is string {
+  return typeof value === "string" && specColorPattern.test(value)
+}
+
 export function thresholdColor(color: string): string {
+  if (color === textColor) return "var(--foreground)"
   return isSemantic(color) ? `var(--threshold-${color})` : color
 }
 
@@ -76,7 +87,12 @@ function stateOf(
     threshold.value === undefined
       ? "Base"
       : `At or above ${formatValue(threshold.value, unit, labelDecimals(threshold.value, unit, decimals))}`
-  return { level: "custom", color: threshold.color, label, threshold }
+  return {
+    level: "custom",
+    color: thresholdColor(threshold.color),
+    label,
+    threshold,
+  }
 }
 
 export function thresholdFor(

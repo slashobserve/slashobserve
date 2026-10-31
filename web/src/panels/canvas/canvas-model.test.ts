@@ -411,6 +411,18 @@ describe("canvasModel connections", () => {
     })
   })
 
+  it("draws a connection and an element text in the foreground token for text", () => {
+    const { lines, elements } = build([], {
+      elements: [
+        rect("a", 40, 0, { textColor: "text", text: "A" }),
+        rect("b", 40, 60),
+      ],
+      connections: [{ from: "a", to: "b", width: 5, color: "text" }],
+    })
+    expect(lines[0].color).toBe(foregroundColor)
+    expect(elements[0].textColor).toBe(foregroundColor)
+  })
+
   it("drops connections with a missing end or no length", () => {
     const { lines } = build([], {
       elements: [rect("a", 0, 0), rect("b", 0, 0)],

@@ -119,6 +119,15 @@ describe("value mappings", () => {
     expect(show("a", [{ regex: "(", text: "x" }]).mapped).toBe(false)
   })
 
+  it("colors a mapping with the foreground token for text", () => {
+    expect(
+      show("1", [{ value: "1", text: "Up", color: "text" }])
+    ).toMatchObject({
+      text: "Up",
+      color: "var(--foreground)",
+    })
+  })
+
   it("keeps the value text for a regex mapping that has only a color", () => {
     expect(show("err", [{ regex: "err", color: "critical" }])).toMatchObject({
       text: "err",

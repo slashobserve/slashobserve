@@ -16,7 +16,7 @@ import {
   type LinkScope,
 } from "../field-config"
 import { reduce } from "../reducers"
-import { thresholdColor, type ThresholdLevel } from "../thresholds"
+import { isSpecColor, thresholdColor, type ThresholdLevel } from "../thresholds"
 import type { PreparedField, PreparedFrame } from "../transforms"
 import {
   parseActions,
@@ -154,8 +154,7 @@ const lineStyles = ["solid", "dashed", "dotted"] as const
 const arrows = ["none", "forward", "reverse", "both"] as const
 const defaultImageSize: ImageSize = "contain"
 const safeColor =
-  /^(?:#[0-9a-fA-F]{6}|var\(--(?:threshold-(?:ok|info|warning|critical)|series-[1-8])\))$/
-const specColor = /^(?:ok|info|warning|critical|#[0-9a-fA-F]{6})$/
+  /^(?:#[0-9a-fA-F]{6}|var\(--(?:threshold-(?:ok|info|warning|critical)|series-[1-8]|foreground)\))$/
 
 type Entry = {
   frame: PreparedFrame
@@ -226,7 +225,7 @@ function imageRef(raw: unknown): ImageRef | null {
 
 function colorRef(value: unknown): ColorRef {
   if (value === "field") return "field"
-  return typeof value === "string" && specColor.test(value) ? value : null
+  return isSpecColor(value) ? value : null
 }
 
 function cssColor(ref: ColorRef, bound: Bound | null): string | null {
@@ -465,9 +464,7 @@ function textOn(
 }
 
 function rootColor(value: unknown): string | null {
-  return typeof value === "string" && specColor.test(value)
-    ? thresholdColor(value)
-    : null
+  return isSpecColor(value) ? thresholdColor(value) : null
 }
 
 function lastText(

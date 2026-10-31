@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { commonDecimals } from "@/lib/units"
 import type { Unit } from "@/spec"
 
-import { thresholdFor } from "./thresholds"
+import { isSpecColor, thresholdColor, thresholdFor } from "./thresholds"
 
 describe("thresholdFor labels", () => {
   const label = (
@@ -72,5 +72,35 @@ describe("thresholdFor base step", () => {
 
   it("labels a custom base step as the base", () => {
     expect(thresholdFor(1, [{ color: "#336699" }]).label).toBe("Base")
+  })
+})
+
+describe("the text color", () => {
+  it("resolves to the foreground token and the others to their threshold tokens", () => {
+    expect(thresholdColor("text")).toBe("var(--foreground)")
+    expect(thresholdColor("critical")).toBe("var(--threshold-critical)")
+    expect(thresholdColor("#112233")).toBe("#112233")
+  })
+
+  it("colors a threshold step with the foreground token", () => {
+    expect(
+      thresholdFor(5, [{ color: "ok" }, { value: 1, color: "text" }])
+    ).toMatchObject({ level: "custom", color: "var(--foreground)" })
+  })
+
+  it("accepts the semantic colors, text and six digit hex only", () => {
+    for (const color of [
+      "ok",
+      "info",
+      "warning",
+      "critical",
+      "text",
+      "#0a1B2c",
+    ]) {
+      expect(isSpecColor(color)).toBe(true)
+    }
+    for (const color of ["gray", "Text", "#fff", "field", "", 3, null]) {
+      expect(isSpecColor(color)).toBe(false)
+    }
   })
 })
