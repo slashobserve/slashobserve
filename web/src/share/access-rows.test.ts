@@ -49,6 +49,7 @@ function folder(createdBy: Folder["created_by"]): Folder {
     grantee_count: 0,
     created_by: createdBy,
     permissions: { comment: true, edit: true, manage: true, create: true },
+    level: "admin",
   }
 }
 

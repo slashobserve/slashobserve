@@ -23,6 +23,7 @@ function folder(
       manage: false,
       create: overrides.create ?? true,
     },
+    level: (overrides.create ?? true) ? "edit" : "comment",
   }
 }
 

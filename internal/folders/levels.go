@@ -46,7 +46,7 @@ type Facts struct {
 	Creator    bool
 }
 
-func roleLevels(role auth.Role) (floor, ceiling Level) {
+func roleLevels(role auth.Role) (base, creator Level) {
 	switch role {
 	case auth.RoleViewer:
 		return LevelView, LevelView
@@ -62,18 +62,18 @@ func LevelFor(role auth.Role, f Facts) Level {
 	if role == auth.RoleAdmin {
 		return LevelAdmin
 	}
-	floor, ceiling := roleLevels(role)
-	if ceiling == LevelNone || f.Restricted && len(f.Grants) == 0 && !f.Creator {
+	base, creator := roleLevels(role)
+	if base == LevelNone || f.Restricted && len(f.Grants) == 0 && !f.Creator {
 		return LevelNone
 	}
-	level := floor
+	level := base
 	for _, g := range f.Grants {
 		level = max(level, g)
 	}
 	if f.Creator {
-		level = LevelAdmin
+		level = max(level, creator)
 	}
-	return min(level, ceiling)
+	return level
 }
 
 type Abilities struct {
@@ -88,6 +88,20 @@ func AbilitiesFor(l Level) Abilities {
 		Manage:  l == LevelAdmin,
 		Create:  l >= LevelEdit,
 	}
+}
+
+func (a Abilities) Level() Level {
+	switch {
+	case a.Manage:
+		return LevelAdmin
+	case a.Edit:
+		return LevelEdit
+	case a.Comment:
+		return LevelComment
+	case a.View:
+		return LevelView
+	}
+	return LevelNone
 }
 
 type Need int

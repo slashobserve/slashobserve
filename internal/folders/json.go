@@ -29,6 +29,7 @@ type folderJSON struct {
 	GranteeCount   int          `json:"grantee_count"`
 	CreatedBy      *creatorJSON `json:"created_by"`
 	Permissions    Permissions  `json:"permissions"`
+	Level          string       `json:"level"`
 }
 
 func folderBody(f Folder, a Abilities, d dbsqlc.ListFolderDetailsRow) folderJSON {
@@ -41,6 +42,7 @@ func folderBody(f Folder, a Abilities, d dbsqlc.ListFolderDetailsRow) folderJSON
 		Grantees:       d.Grantees,
 		GranteeCount:   int(d.GranteeCount),
 		Permissions:    PermissionsJSON(a),
+		Level:          a.Level().String(),
 	}
 	if body.Grantees == nil {
 		body.Grantees = []string{}
