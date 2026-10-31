@@ -1,3 +1,4 @@
+import { levelLabels } from "@/folders/grants"
 import type { Folder } from "@/folders/queries"
 
 import type { DashboardSummary } from "./dashboard-columns"
@@ -48,6 +49,10 @@ export function accessSummary(folder: Folder): string {
   return more > 0
     ? `Restricted: ${names}, and ${more} more`
     : `Restricted: ${names}`
+}
+
+export function yourAccessText(folder: Folder): string | null {
+  return folder.restricted ? `Your access: ${levelLabels[folder.level]}` : null
 }
 
 function plural(n: number, noun: string): string {

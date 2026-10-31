@@ -18,6 +18,7 @@ import { loadProblemText } from "@/service-accounts/queries"
 
 import { DeleteFolderCard } from "./delete-folder-card"
 import { FolderAccessCard } from "./folder-access-card"
+import { levelLabels } from "./grants"
 import { folderQuery, useRenameFolder, type Folder } from "./queries"
 
 const maxTitleLength = 100
@@ -84,7 +85,7 @@ export function FolderSettings({ folderId }: { folderId: string }) {
         <>
           {canManage ? null : (
             <RoleNote className="mb-4">
-              Only folder Admins can change this folder.
+              {`Your access to this folder is ${levelLabels[folder.level]}. Only folder Admins can change it.`}
             </RoleNote>
           )}
           {canManage ? <NameCard folder={folder} /> : null}

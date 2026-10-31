@@ -1,10 +1,10 @@
-import { useNavigate, useRouteContext } from "@tanstack/react-router"
+import { useNavigate } from "@tanstack/react-router"
 
 import { Button } from "@/components/ui/button"
 import { useDatasources } from "@/datasources/queries"
+import { useCanCreateDashboards } from "@/folders/create-access"
 import { useAgentInfo } from "@/observe/queries"
 import type { ObserveRequest } from "@/observe/queries"
-import { canDriveAgent } from "@/prompts/access"
 import { SavedPrompts } from "@/prompts/saved-prompts"
 
 import { ChatComposer, useSendExample } from "./chat-composer"
@@ -13,7 +13,7 @@ import { RecentChats } from "./recent-chats"
 
 export function ChatHome() {
   const navigate = useNavigate()
-  const { principal } = useRouteContext({ from: "/_authed" })
+  const canCreate = useCanCreateDashboards()
   const agent = useAgentInfo()
   const datasources = useDatasources()
   const { send, pending } = useSendExample()
@@ -35,7 +35,7 @@ export function ChatHome() {
       <h1 className="mb-1.5 text-center text-[26px] font-semibold tracking-[-0.01em]">
         What do you want to see?
       </h1>
-      {canDriveAgent(principal) ? (
+      {canCreate === true ? (
         <>
           <div className="w-full max-w-[720px]">
             <ChatComposer
@@ -67,12 +67,12 @@ export function ChatHome() {
             </div>
           )}
         </>
-      ) : (
+      ) : canCreate === false ? (
         <p className="max-w-[720px] text-center text-[13px] text-muted-foreground">
-          Starting dashboards needs the Editor role. Ask an Admin if you need
+          Starting a dashboard needs Edit on a folder. Ask an Admin if you need
           it.
         </p>
-      )}
+      ) : null}
       <SavedPrompts />
       <RecentChats />
     </div>

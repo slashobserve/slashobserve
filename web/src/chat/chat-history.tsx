@@ -13,7 +13,7 @@ import {
   useMyRequests,
   type RequestSummary,
 } from "@/observe/queries"
-import { canDriveAgent } from "@/prompts/access"
+import { canSavePrompts } from "@/prompts/access"
 import { usePromptPanel } from "@/prompts/prompt-panel-store"
 import { SidePanel } from "@/shell/side-panel"
 import { TopRowActions } from "@/shell/top-row-actions"
@@ -111,7 +111,7 @@ function HistoryList({
 }) {
   const navigate = useNavigate()
   const { principal } = useRouteContext({ from: "/_authed" })
-  const canSave = canDriveAgent(principal)
+  const canSave = canSavePrompts(principal)
   const openPanel = usePromptPanel((state) => state.openPanel)
   const { requests, query } = useMyRequests("all", pageSize)
   const loadMoreFailed = query.isFetchNextPageError

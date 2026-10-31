@@ -221,9 +221,10 @@ function AccessCard({
       {readOnly ? null : (
         <p className="px-4 pb-3.5 text-xs text-muted-foreground">
           Groups come from the <span className="font-mono">groups</span> claim
-          of your identity provider. Access never goes above a person&apos;s
-          role: a Viewer given Edit still only views, and a Commenter given Edit
-          only comments.
+          of your identity provider. A person gets the higher of their
+          role&apos;s level and their highest entry, so an entry can give a
+          Viewer or Commenter more but never gives anyone less. Admins manage
+          every folder.
         </p>
       )}
       <AlertDialog open={confirmingClear} onOpenChange={changeClearOpen}>
