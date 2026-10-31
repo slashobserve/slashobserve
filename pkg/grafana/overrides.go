@@ -14,6 +14,8 @@ const (
 	maxOverrides  = 50
 	maxNameMatch  = 200
 	maxRegexMatch = 500
+
+	neverMatchID = "neverMatch"
 )
 
 var overrideFieldTypes = []string{"number", "string", "time", "boolean"}
@@ -68,6 +70,10 @@ func (b *panelBuild) convertOverride(item any, path string) []spec.Override {
 		return nil
 	}
 	matcher, _ := asObject(raw["matcher"])
+	if asString(matcher["id"]) == neverMatchID {
+		b.consume(path)
+		return nil
+	}
 	matches, ok := b.matchesFor(matcher)
 	if !ok {
 		b.partial(path, "")

@@ -263,6 +263,11 @@ var plotOnlyOptions = []struct {
 
 var timelineDrawnOptions = map[string]bool{"line width": true, "span nulls": true}
 
+var valueAxisOptions = map[string]bool{
+	"axis label": true, "soft minimum": true, "soft maximum": true, "log scale": true, "centered zero": true,
+	"axis width": true, "hidden grid": true, "axis border": true, "series axis color": true,
+}
+
 var axisDrawnOptions = map[string]bool{
 	"axis label": true, "soft minimum": true, "soft maximum": true, "log scale": true, "centered zero": true,
 	"axis width": true, "hidden grid": true, "axis border": true, "series axis color": true, "line width": true,
@@ -271,7 +276,7 @@ var axisDrawnOptions = map[string]bool{
 func TestAxisAndLineStyleOptionsAreReportedOnPanelsThatDrawNeither(t *testing.T) {
 	for _, typ := range []string{"barchart", "histogram", "state-timeline", "status-history", "xychart"} {
 		for _, tc := range plotOnlyOptions {
-			if timelineDrawnOptions[tc.name] && (typ == "state-timeline" || typ == "status-history") {
+			if (timelineDrawnOptions[tc.name] || valueAxisOptions[tc.name]) && (typ == "state-timeline" || typ == "status-history") {
 				continue
 			}
 			if axisDrawnOptions[tc.name] && (typ == "barchart" || typ == "histogram" || typ == "xychart") {
@@ -287,6 +292,31 @@ func TestAxisAndLineStyleOptionsAreReportedOnPanelsThatDrawNeither(t *testing.T)
 				}
 			})
 		}
+	}
+}
+
+func TestTimelinesIgnoreTheValueAxisOptionsTheyDoNotDraw(t *testing.T) {
+	override := `{"matcher":{"id":"byName","options":"a"},"properties":[{"id":"custom.axisLabel","value":"text"},{"id":"custom.scaleDistribution","value":{"type":"log","log":2}}]}`
+	for _, typ := range []string{"state-timeline", "status-history"} {
+		for _, tc := range plotOnlyOptions {
+			if !valueAxisOptions[tc.name] {
+				continue
+			}
+			t.Run(typ+" "+tc.name, func(t *testing.T) {
+				panel, line := customPanelOf(t, typ, tc.custom, "")
+				requireImported(t, line)
+				if !fieldPropsEmpty(panel.FieldProps) {
+					t.Fatalf("field props = %+v", panel.FieldProps)
+				}
+			})
+		}
+		t.Run(typ+" override", func(t *testing.T) {
+			panel, line := customPanelOf(t, typ, `{}`, override)
+			requireImported(t, line)
+			if len(panel.Overrides) != 0 {
+				t.Fatalf("overrides = %+v", panel.Overrides)
+			}
+		})
 	}
 }
 

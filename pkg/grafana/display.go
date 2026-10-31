@@ -518,8 +518,11 @@ func (b *panelBuild) pieLegend(d *spec.Display) {
 	if table {
 		d.LegendMode = "table"
 	}
-	if v, ok := b.take("options.legend.sortBy"); ok {
-		b.legendSortBy(d, "options.legend.sortBy", v, pieSortKey)
+	if v, ok := b.value("options.legend.sortBy"); ok {
+		if key, known := pieSortKey(asString(v)); known {
+			d.LegendSortBy = key
+			b.consume("options.legend.sortBy")
+		}
 	}
 	b.legendSortDesc(d, "options.legend.sortDesc")
 	b.legendWidth(d, "options.legend.width")

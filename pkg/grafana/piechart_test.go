@@ -110,11 +110,9 @@ func TestPieLegendListStaysTheDefault(t *testing.T) {
 	}
 }
 
-func TestPieLegendSortByACalculationIsReported(t *testing.T) {
-	panel, line := pieOptions(t, `{"legend":{"sortBy":"Mean"}}`)
-	if line.Status != statusPartial || !slices.Contains(line.Paths, "options.legend.sortBy") {
-		t.Fatalf("status %s, paths %v", line.Status, line.Paths)
-	}
+func TestPieLegendSortByACalculationIsIgnored(t *testing.T) {
+	panel, line := pieOptions(t, `{"legend":{"sortBy":"Mean","calcs":["mean"]},"orientation":"horizontal"}`)
+	requireImported(t, line)
 	if got := displayOf(t, panel).LegendSortBy; got != "" {
 		t.Fatalf("legendSortBy = %q", got)
 	}
@@ -193,7 +191,7 @@ func TestPieDoesNotDrawTheOtherSeriesProps(t *testing.T) {
 }
 
 func TestOtherTypesStillReportHidingFromTheLegend(t *testing.T) {
-	_, line := convertedPanel(t, panelDoc("state-timeline", upTarget+`,"fieldConfig":{"defaults":{"custom":{"hideFrom":{"legend":true}}},"overrides":[]}`))
+	_, line := convertedPanel(t, panelDoc("stat", upTarget+`,"fieldConfig":{"defaults":{"custom":{"hideFrom":{"legend":true}}},"overrides":[]}`))
 	if line.Status != statusPartial || !slices.Contains(line.Paths, "fieldConfig.defaults.custom.hideFrom.legend") {
 		t.Fatalf("status %s, paths %v", line.Status, line.Paths)
 	}

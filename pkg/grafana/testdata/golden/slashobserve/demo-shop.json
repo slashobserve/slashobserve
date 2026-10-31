@@ -41,8 +41,8 @@
     "verified": false,
     "counts": {
       "total": 27,
-      "imported": 24,
-      "partial": 1,
+      "imported": 25,
+      "partial": 0,
       "placeholder": 2,
       "unverified": 0
     },
@@ -125,13 +125,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": "Traffic",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.showLegend"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",

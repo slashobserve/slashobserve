@@ -79,9 +79,6 @@ func partitionByValuesTransform(b *panelBuild, opts map[string]any, path string)
 	asLabels, set := naming["asLabels"].(bool)
 	switch appended := truthy(naming["append"]); {
 	case !set || asLabels:
-		if appended {
-			b.partial(path+".options.naming.append", "")
-		}
 	case appended:
 		t.Naming = "append"
 	default:

@@ -1670,3 +1670,88 @@ func TestStatusHistoryColoredByThresholdsIsNotReported(t *testing.T) {
 		t.Fatalf("paths = %v, reasons = %v", line.Paths, line.Reasons)
 	}
 }
+
+func TestIgnoredOptionsAreSilentOnlyOnTheirPanelType(t *testing.T) {
+	cases := []struct {
+		name, typ, options string
+		silent             bool
+	}{
+		{"pie orientation", "piechart", `{"orientation":"horizontal"}`, true},
+		{"pie legend calculations", "piechart", `{"legend":{"calcs":["mean","max"]}}`, true},
+		{"pie legend sorted by a calculation", "piechart", `{"legend":{"sortBy":"Mean"}}`, true},
+		{"bar chart title size", "barchart", `{"text":{"titleSize":12}}`, true},
+		{"bar chart percent size", "barchart", `{"text":{"percentSize":14}}`, true},
+		{"state timeline legend calculations", "state-timeline", `{"legend":{"calcs":["min"]}}`, true},
+		{"status history legend sort", "status-history", `{"legend":{"sortBy":"Mean","sortDesc":true}}`, true},
+		{"stat legend calculations", "stat", `{"legend":{"calcs":["mean"]}}`, false},
+		{"table title size", "table", `{"text":{"titleSize":12}}`, false},
+		{"table orientation", "table", `{"orientation":"horizontal"}`, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, line := convertedPanel(t, panelDoc(tc.typ, upTarget+`,"options":`+tc.options))
+			if tc.silent != clean(line) {
+				t.Fatalf("status = %s, paths %v, want silent = %v", line.Status, line.Paths, tc.silent)
+			}
+		})
+	}
+}
+
+func TestIgnoredOptionsListOnlyTheirOwnTypesAndPaths(t *testing.T) {
+	cases := []struct {
+		typ  spec.PanelType
+		path string
+		want bool
+	}{
+		{spec.PieChart, "options.orientation", true},
+		{spec.PieChart, "options.legend.sortBy", true},
+		{spec.BarChart, "options.orientation", false},
+		{spec.Timeseries, "options.legend.sortBy", false},
+		{spec.StateTimeline, "options.legend.calcs", true},
+		{spec.StatusHistory, "options.legend.sortDesc", true},
+		{spec.Heatmap, "options.legend.sortDesc", false},
+	}
+	for _, tc := range cases {
+		if got := isIgnoredOption(tc.typ, tc.path); got != tc.want {
+			t.Errorf("isIgnoredOption(%s, %s) = %v, want %v", tc.typ, tc.path, got, tc.want)
+		}
+	}
+}
+
+func TestQueryEditorStateKeysAreConsumedSilently(t *testing.T) {
+	prometheus := `"targets":[{"refId":"A","expr":"up","showHelp":true,"adhocFilters":[{"key":"job","operator":"=","value":"api"}],"groupByKeys":["job"]}]`
+	_, line := convertedPanel(t, panelDoc("timeseries", prometheus))
+	if !clean(line) {
+		t.Fatalf("prometheus line = %+v", line)
+	}
+	_, line = altinityPanel(t, "SELECT 1", `,"adHocFilters":[{"key":"status","operator":"=","value":"200"}],"showHelp":true`)
+	if !clean(line) {
+		t.Fatalf("altinity line = %+v", line)
+	}
+	_, line = altinityPanel(t, "SELECT 1", `,"adHocValuesQuery":"SELECT DISTINCT status FROM t"`)
+	if line.Status != statusPartial || !slices.Contains(line.Paths, "targets[0].adHocValuesQuery") {
+		t.Fatalf("adHocValuesQuery: status = %s, paths %v", line.Status, line.Paths)
+	}
+}
+
+func TestCosmeticOptionsListedForPanelTypesStayReportedElsewhere(t *testing.T) {
+	cases := []struct {
+		name, typ, options string
+		silent             bool
+	}{
+		{"bar gauge hidden legend", "bargauge", `{"legend":{"showLegend":false,"displayMode":"hidden"}}`, true},
+		{"dashboard list search", "dashlist", `{"showSearch":true,"showStarred":false}`, true},
+		{"news images", "news", `{"showImage":false}`, true},
+		{"table search", "table", `{"showSearch":true}`, false},
+		{"table starred", "table", `{"showStarred":false}`, false},
+		{"stat hidden legend", "stat", `{"legend":{"showLegend":false}}`, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, line := convertedPanel(t, panelDoc(tc.typ, upTarget+`,"options":`+tc.options))
+			if tc.silent != clean(line) {
+				t.Fatalf("status = %s, paths %v, want silent = %v", line.Status, line.Paths, tc.silent)
+			}
+		})
+	}
+}

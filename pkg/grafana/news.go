@@ -18,7 +18,7 @@ func (b *panelBuild) buildNews() *builtPanel {
 	b.panel.Title = b.title()
 	b.panel.Description = b.description()
 	b.disp().FeedURL = b.newsFeedURL()
-	b.consume("options.showImage", "options.useProxy")
+	b.consume("options.useProxy")
 	if asString(b.raw["repeat"]) != "" {
 		b.partial("repeat", newsRepeat)
 	}

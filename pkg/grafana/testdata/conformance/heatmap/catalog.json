@@ -66,8 +66,8 @@
     { "id": "fieldConfig.defaults.custom.scaleDistribution.type=symlog", "path": "fieldConfig.defaults.custom.scaleDistribution.type", "value": "symlog" },
     { "id": "fieldConfig.defaults.custom.scaleDistribution.log=10", "path": "fieldConfig.defaults.custom.scaleDistribution.log", "value": 10, "with": {"fieldConfig.defaults.custom.scaleDistribution.type": "log", "options.calculate": true} },
     { "id": "fieldConfig.defaults.custom.scaleDistribution.log=2", "path": "fieldConfig.defaults.custom.scaleDistribution.log", "value": 2, "with": {"fieldConfig.defaults.custom.scaleDistribution.type": "log"}, "expect": "bookkeeping" },
-    { "id": "fieldConfig.defaults.custom.hideFrom.legend=true", "path": "fieldConfig.defaults.custom.hideFrom.legend", "value": true },
-    { "id": "fieldConfig.defaults.custom.hideFrom.tooltip=true", "path": "fieldConfig.defaults.custom.hideFrom.tooltip", "value": true },
+    { "id": "fieldConfig.defaults.custom.hideFrom.legend=true", "path": "fieldConfig.defaults.custom.hideFrom.legend", "value": true, "expect": "bookkeeping" },
+    { "id": "fieldConfig.defaults.custom.hideFrom.tooltip=true", "path": "fieldConfig.defaults.custom.hideFrom.tooltip", "value": true, "expect": "bookkeeping" },
     { "id": "fieldConfig.defaults.custom.hideFrom.viz=true", "path": "fieldConfig.defaults.custom.hideFrom.viz", "value": true }
   ]
 }

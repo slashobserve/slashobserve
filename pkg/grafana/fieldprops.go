@@ -64,7 +64,7 @@ func (s propSite) at(suffix string) string {
 type propHandler func(b *panelBuild, p *spec.FieldProps, v any, s propSite)
 
 var propOrder = []string{
-	"unit", "decimals", "min", "max", "fieldMinMax", "displayName", "displayNameFromDS", "noValue", "description", "thresholds", "mappings", "links", "actions",
+	"unit", "decimals", "min", "max", "fieldMinMax", "displayName", "displayNameFromDS", "noValue", "description", "thresholds", "mappings", "links", "actions", "filterable", "path",
 	"color", "custom.drawStyle", "custom.fillOpacity", "custom.lineStyle",
 	"custom.lineInterpolation", "custom.lineWidth", "custom.showPoints", "custom.pointSize", "custom.pointShape", "custom.pointStrokeWidth", "custom.spanNulls",
 	"custom.lineColor", "custom.fillColor", "custom.pointColor", "custom.pointSymbol", "custom.showValues",
@@ -92,6 +92,7 @@ var propHandlers = map[string]propHandler{
 	"mappings":                 propMappings,
 	"links":                    propLinks,
 	"actions":                  propActions,
+	"path":                     propNotDrawn,
 	"color":                    propColor,
 	"custom.drawStyle":         propDrawStyle,
 	"custom.fillOpacity":       propFillOpacity,
@@ -180,6 +181,8 @@ var lineStyleDrawnOnlyByGrafana = map[spec.PanelType]bool{
 	spec.StateTimeline: true, spec.StatusHistory: true, spec.XYChart: true,
 }
 
+var heatmapPanelTypes = map[spec.PanelType]bool{spec.Heatmap: true}
+
 var timelinePanelTypes = map[spec.PanelType]bool{spec.StateTimeline: true, spec.StatusHistory: true}
 
 var barPanelTypes = map[spec.PanelType]bool{spec.BarChart: true, spec.Histogram: true}
@@ -248,13 +251,14 @@ func propXYLineWidth(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	}
 }
 
-func propLineStyleUnused(b *panelBuild, _ *spec.FieldProps, _ any, s propSite) {
+func propNotDrawn(b *panelBuild, _ *spec.FieldProps, _ any, s propSite) {
 	b.consume(s.value)
 }
 
 var propGates = []propGate{
 	{ids: propIDs("fieldMinMax"), types: rangeSharingTypes, outside: true, skip: true},
 	{ids: propIDs("actions"), types: dataLinkTypes, outside: true, skip: true},
+	{ids: propIDs("filterable"), types: tablePanelTypes, outside: true, handler: propNotDrawn},
 	{ids: tableColumnProps, types: tablePanelTypes, outside: true, skip: true},
 	{ids: seriesDrawingPropIDs, types: seriesDrawingTypes, outside: true, skip: true},
 	{ids: seriesStylePropIDs, types: plotPanelTypes, outside: true, skip: true},
@@ -266,13 +270,15 @@ var propGates = []propGate{
 	{ids: propIDs("custom.stacking"), types: histogramPanelTypes, handler: propHistogramStacking},
 	{ids: propIDs("custom.hideFrom"), types: legendTooltipHidingTypes, handler: propHideFromLegendAndTooltip},
 	{ids: propIDs("custom.hideFrom"), types: timelinePanelTypes, handler: propHideFromTooltipOnly},
+	{ids: propIDs("custom.hideFrom"), types: heatmapPanelTypes, handler: propHideFromOneField},
 	{ids: propIDs("custom.thresholdsStyle"), types: thresholdsStyleTypes, outside: true, skip: true},
 	{ids: propIDs("custom.insertNulls"), types: insertNullsTypes, outside: true, skip: true},
 	{ids: plotDrawnPropIDs, types: plotPanelTypes, outside: true, skip: true},
 	{ids: propIDs("custom.neutral"), types: gaugePanelTypes, outside: true, skip: true},
+	{ids: axisPropIDs, types: timelinePanelTypes, handler: propNotDrawn},
 	{ids: axisPropIDs, types: axisDrawnPanelTypes, outside: true, skip: true},
 	{ids: lineStylePropIDs, types: lineStyleDrawnOnlyByGrafana, skip: true},
-	{ids: lineStylePropIDs, types: plotOrBarPanelTypes, outside: true, handler: propLineStyleUnused},
+	{ids: lineStylePropIDs, types: plotOrBarPanelTypes, outside: true, handler: propNotDrawn},
 }
 
 func (b *panelBuild) propHandler(id string) (propHandler, bool) {
@@ -1304,7 +1310,7 @@ func propAxisColorMode(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	}
 }
 
-func hideFromHandler(drawn ...string) propHandler {
+func hideFromHandler(drawn, ignored []string) propHandler {
 	return func(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 		cfg, ok := asObject(v)
 		if !ok {
@@ -1320,6 +1326,7 @@ func hideFromHandler(drawn ...string) propHandler {
 		for _, key := range []string{"legend", "tooltip"} {
 			hide, isBool := cfg[key].(bool)
 			switch {
+			case slices.Contains(ignored, key):
 			case !slices.Contains(drawn, key):
 				if hide {
 					b.partial(s.at("."+key), hideFromReasons[key])
@@ -1338,9 +1345,10 @@ var hideFromReasons = map[string]string{
 }
 
 var (
-	propHideFromLegendAndTooltip = hideFromHandler("legend", "tooltip")
-	propHideFromTooltipOnly      = hideFromHandler("tooltip")
-	propHideFromUndrawn          = hideFromHandler()
+	propHideFromLegendAndTooltip = hideFromHandler([]string{"legend", "tooltip"}, nil)
+	propHideFromTooltipOnly      = hideFromHandler([]string{"tooltip"}, []string{"legend"})
+	propHideFromOneField         = hideFromHandler(nil, []string{"legend", "tooltip"})
+	propHideFromUndrawn          = hideFromHandler(nil, nil)
 )
 
 func propLinks(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
