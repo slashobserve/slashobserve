@@ -6577,6 +6577,18 @@
   }
  },
  "panel:state-timeline": {
+  "fieldConfig.defaults.color.mode": {
+   "fields": [
+    "colorMode",
+    "colorScheme"
+   ],
+   "values": {
+    "s:continuous-GrYlRd": [
+     "colorMode",
+     "colorScheme"
+    ]
+   }
+  },
   "fieldConfig.defaults.custom.axisPlacement": {
    "fields": [
     "axis"
@@ -6825,6 +6837,18 @@
   }
  },
  "panel:status-history": {
+  "fieldConfig.defaults.color.mode": {
+   "fields": [
+    "colorMode",
+    "colorScheme"
+   ],
+   "values": {
+    "s:continuous-GrYlRd": [
+     "colorMode",
+     "colorScheme"
+    ]
+   }
+  },
   "fieldConfig.defaults.custom.axisPlacement": {
    "fields": [
     "axis"

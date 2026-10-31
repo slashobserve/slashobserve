@@ -1,5 +1,5 @@
 import { styleForSlot } from "../colors"
-import { displayValue, type FieldResolver } from "../field-config"
+import { displayValue, fieldRange, type FieldResolver } from "../field-config"
 import { seriesKey, uniqueKey } from "../frames"
 import { isNumber } from "../reducers"
 import {
@@ -62,6 +62,7 @@ function samplesOf(
   const time = frame.fields.find((candidate) => candidate.type === "time")
   if (!time) return null
   const config = fields.configFor(frame, field)
+  const range = fieldRange(field)
   const samples: Sample[] = []
   time.values.forEach((at, index) => {
     if (!isNumber(at)) return
@@ -70,7 +71,10 @@ function samplesOf(
       samples.push({ at, text: null, color: null, value: null })
       return
     }
-    const shown = displayValue(value, config)
+    const shown = displayValue(value, config, {
+      fieldMin: range.min,
+      fieldMax: range.max,
+    })
     samples.push({
       at,
       text: shown.text,

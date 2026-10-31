@@ -90,7 +90,7 @@ func schemeNames(t *testing.T) []string {
 }
 
 func TestColorSchemesOnValuePanels(t *testing.T) {
-	for _, typ := range []string{"stat", "gauge", "bargauge", "barchart", "xychart"} {
+	for _, typ := range []string{"stat", "gauge", "bargauge", "barchart", "xychart", "state-timeline", "status-history"} {
 		t.Run(typ, func(t *testing.T) {
 			panel, line := colorPanel(t, typ, `{"mode":"continuous-RdYlGr"}`, "")
 			requireImported(t, line)
@@ -133,7 +133,7 @@ func TestColorModesTheRendererDoesNotDrawAreReported(t *testing.T) {
 		name, typ, color, reason string
 	}{
 		{"thresholds on a histogram", "histogram", `{"mode":"thresholds"}`, "The color mode thresholds is not drawn on histogram panels."},
-		{"scheme on a state timeline", "state-timeline", `{"mode":"continuous-GrYlRd"}`, "The color mode continuous-GrYlRd is not drawn on state-timeline panels."},
+		{"scheme on a histogram", "histogram", `{"mode":"continuous-GrYlRd"}`, "The color mode continuous-GrYlRd is not drawn on histogram panels."},
 		{"palette by name on a stat", "stat", `{"mode":"palette-classic-by-name"}`, "The color mode palette-classic-by-name is not drawn on stat panels."},
 		{"unknown mode", "timeseries", `{"mode":"rainbow"}`, "The color mode rainbow is not supported yet."},
 		{"fixed without a color", "timeseries", `{"mode":"fixed"}`, "This fixed color is not supported yet."},

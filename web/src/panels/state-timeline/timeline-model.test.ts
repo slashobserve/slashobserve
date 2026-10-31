@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 
+import { schemeColor } from "@/panels/color-scheme"
 import { createFieldResolver } from "@/panels/field-config"
 import type { PreparedFrame } from "@/panels/transforms"
 import { displayWithDefaults, type DataPanel } from "@/spec"
@@ -175,6 +176,68 @@ describe("timelineModel", () => {
     expect(rows[0].segments.map(({ color }) => color)).toEqual([
       "var(--threshold-ok)",
       "var(--threshold-critical)",
+    ])
+  })
+
+  it("colors numbers along the scheme between the data's lowest and highest value", () => {
+    const { rows } = build([series("a", [10, 20, 30])], {
+      colorMode: "scheme",
+      colorScheme: "greenYellowRed",
+    } as Partial<DataPanel>)
+    expect(rows[0].segments.map(({ color }) => color)).toEqual([
+      schemeColor("greenYellowRed", 0),
+      schemeColor("greenYellowRed", 0.5),
+      schemeColor("greenYellowRed", 1),
+    ])
+    expect(schemeColor("greenYellowRed", 0)).toBe("var(--threshold-ok)")
+    expect(schemeColor("greenYellowRed", 1)).toBe("var(--threshold-critical)")
+  })
+
+  it("colors along the scheme between the field's own min and max", () => {
+    const { rows } = build([series("a", [25, 50])], {
+      colorMode: "scheme",
+      colorScheme: "greenYellowRed",
+      min: 0,
+      max: 100,
+    } as Partial<DataPanel>)
+    expect(rows[0].segments.map(({ color }) => color)).toEqual([
+      schemeColor("greenYellowRed", 0.25),
+      schemeColor("greenYellowRed", 0.5),
+    ])
+  })
+
+  it("keeps a mapping color over the scheme and the palette for text states", () => {
+    const { rows } = build([series("a", [0, 5, 10])], {
+      colorMode: "scheme",
+      colorScheme: "greenYellowRed",
+      mappings: [{ value: "5", text: "Maintenance", color: "warning" }],
+    } as Partial<DataPanel>)
+    expect(rows[0].segments.map(({ color }) => color)).toEqual([
+      "var(--threshold-ok)",
+      "var(--threshold-warning)",
+      "var(--threshold-critical)",
+    ])
+    const text = build([series("b", ["up", "down"], "string")], {
+      colorMode: "scheme",
+      colorScheme: "greenYellowRed",
+    } as Partial<DataPanel>)
+    expect(text.rows[0].segments.map(({ color }) => color)).toEqual([
+      "var(--series-1)",
+      "var(--series-2)",
+    ])
+  })
+
+  it("colors status history cells along the scheme too", () => {
+    const { rows } = build(
+      [series("a", [1, 2])],
+      { colorMode: "scheme", colorScheme: "yellowRed" } as Partial<DataPanel>,
+      {},
+      range,
+      true
+    )
+    expect(rows[0].segments.map(({ color }) => color)).toEqual([
+      schemeColor("yellowRed", 0),
+      schemeColor("yellowRed", 1),
     ])
   })
 
