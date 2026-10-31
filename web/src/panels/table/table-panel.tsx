@@ -1,8 +1,10 @@
 import {
   memo,
   useCallback,
+  useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ReactElement,
@@ -34,14 +36,27 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import type { PanelDataMeta } from "@/dashboards/queries"
 import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
+import {
+  fieldActionRequest,
+  oneClickTarget,
+  type FieldAction,
+} from "../actions/field-actions"
+import { useActionRunner } from "../actions/action-runner"
+import type {
+  ActionContext,
+  PendingRequest,
+  RunnableAction,
+} from "../actions/actions"
 import { resolveColor } from "../colors"
 import { cssColorToRgb } from "../contrast"
 import type { FieldResolver, LinkScope, ResolvedLink } from "../field-config"
 import { oneClickProps } from "@/dashboards/dashboard-links"
 import type { PanelRenderer } from "../types"
+import { ActionsCell } from "./cells/actions"
 import { fillTextColor, type CellSpec } from "./cells/cell-model"
 import { GaugeCell } from "./cells/gauge"
 import { ImageCell } from "./cells/image"
@@ -77,8 +92,10 @@ import {
   type Sort,
 } from "./table-layout"
 import {
+  cellActions,
   cellLinks,
   cellOf,
+  cellScope,
   cellSpecAt,
   cellTooltipAt,
   footerRows,
@@ -151,9 +168,19 @@ type CellProps = {
   scope: LinkScope
 }
 
+type RowRunner = {
+  context: ActionContext | null
+  reason: string | null
+  open: (action: RunnableAction, request: PendingRequest) => void
+  panelId: string
+  fromMs: number
+  toMs: number
+}
+
 type RowShared = CellProps & {
   display: Record<string, unknown>
   fixed: boolean
+  runner: RowRunner
 }
 
 type CellFrame = { fill: string | null; text: string | undefined }
@@ -171,6 +198,9 @@ function CellContent({
   row,
   fields,
   links,
+  actions,
+  onAction,
+  reason,
   spec,
   cell,
   filled,
@@ -178,6 +208,9 @@ function CellContent({
 }: Pick<CellProps, "row" | "fields"> & {
   column: TableColumn
   links: ResolvedLink[]
+  actions: FieldAction[]
+  onAction: (action: FieldAction) => void
+  reason: string | null
   spec: CellSpec
   cell: Cell
   filled: boolean
@@ -216,11 +249,16 @@ function CellContent({
       return <PillCell value={value} />
     case "markdown":
       return <MarkdownCell value={value} grows={grows} />
+    case "actions":
+      return <ActionsCell cell={cell} actions={actions} onAction={onAction} />
   }
   return (
     <TextCell
       cell={cell}
       links={links}
+      actions={actions}
+      onAction={onAction}
+      reason={reason}
       tinted={!filled && spec.type !== "background"}
     />
   )
@@ -234,6 +272,7 @@ function BodyCell({
   rowColor,
   display,
   fixed,
+  runner,
 }: RowShared & {
   view: ColumnView
   rowColor: string | null
@@ -248,12 +287,39 @@ function BodyCell({
   const frame = useFrame(rowColor ?? ownFill)
   const filled = frame.fill !== null
   const links = cellLinks(fields, column, row, cell, scope)
+  const actions = cellActions(fields, column, row, cell, scope)
+  function runAction(action: FieldAction) {
+    if (runner.context === null) return
+    runner.open(
+      action,
+      fieldActionRequest({
+        context: runner.context,
+        panelId: runner.panelId,
+        action,
+        scope: cellScope(fields, column, row, cell, scope),
+        fromMs: runner.fromMs,
+        toMs: runner.toMs,
+      })
+    )
+  }
+  const target = oneClickTarget(links, actions)
+  const oneClick =
+    spec.type === "links" || spec.type === "actions" || target === null
+      ? {}
+      : target.kind === "link"
+        ? oneClickProps(links)
+        : runner.reason === null
+          ? oneClickProps(links, () => runAction(target.action))
+          : {}
   const content = (
     <CellContent
       column={column}
       row={row}
       fields={fields}
       links={links}
+      actions={actions}
+      onAction={runAction}
+      reason={runner.reason}
       spec={spec}
       cell={cell}
       filled={filled}
@@ -272,7 +338,7 @@ function BodyCell({
     <TableCell
       data-column={column.label}
       data-cell={spec.type}
-      {...(spec.type === "links" ? {} : oneClickProps(links))}
+      {...oneClick}
       data-threshold={cell.level ?? undefined}
       title={cell.word || undefined}
       style={{
@@ -571,12 +637,41 @@ function HeaderCell({
 
 const noKept: ReadonlySet<string> = new Set()
 
+function useRowRunner(
+  panelId: string,
+  meta: PanelDataMeta
+): { runner: RowRunner; dialog: ReactElement | null } {
+  const { context, reason, open, dialog } = useActionRunner()
+  const latestOpen = useRef(open)
+  useEffect(() => {
+    latestOpen.current = open
+  })
+  const stableOpen = useCallback<RowRunner["open"]>(
+    (action, request) => latestOpen.current(action, request),
+    []
+  )
+  const { from, to } = meta
+  const runner = useMemo(
+    () => ({
+      context,
+      reason,
+      open: stableOpen,
+      panelId,
+      fromMs: Date.parse(from),
+      toMs: Date.parse(to),
+    }),
+    [context, reason, stableOpen, panelId, from, to]
+  )
+  return { runner, dialog }
+}
+
 const TablePanel: PanelRenderer = ({
   panel,
   frames,
   fields,
   display,
   zone,
+  meta,
   links,
   width,
   height,
@@ -595,6 +690,7 @@ const TablePanel: PanelRenderer = ({
   const [filters, setFilters] = useState<ColumnFilters>(new Map())
   const [requestedPage, setPage] = useState(0)
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
+  const { runner, dialog } = useRowRunner(panel.id, meta)
   const baseId = useId()
   const expandable = useMemo(
     () => model.rows.some((row) => row.nested !== null),
@@ -774,6 +870,7 @@ const TablePanel: PanelRenderer = ({
                 scope={links}
                 display={display}
                 fixed={fixed}
+                runner={runner}
                 expandable={expandable}
                 zone={zone}
                 expanded={open.has(row.key)}
@@ -861,6 +958,7 @@ const TablePanel: PanelRenderer = ({
           </Button>
         </div>
       ) : null}
+      {dialog}
     </div>
   )
 }
