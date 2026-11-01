@@ -51,6 +51,7 @@ test: web-deps
 	go test -race ./...
 	cd $(SHOP_DIR) && go test -race ./...
 	cd web && bun run test
+	scripts/release-scripts-test.sh
 
 lint: web-deps
 	$(GOLANGCI_LINT) config verify
