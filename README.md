@@ -1,56 +1,97 @@
 # SlashObserve
 
-SlashObserve turns a prompt into a live, Grafana-style dashboard.
-Type `/observe checkout health by pod, last 6h`, get a dashboard backed by your Prometheus and ClickHouse data, and refine it in plain language.
+SlashObserve is an open-source, agentic Grafana replacement.
+Type `/observe checkout health by pod, last 6h`, get a live dashboard on your Prometheus and ClickHouse data, and refine it in plain language.
 
-This repository is the Community Edition: one Go binary with the web UI embedded, plus Postgres.
-It is at an early stage: the scaffold is in place and features land step by step.
-To run it on your own infrastructure, start with [installing it](docs/get-started/install.md); the [docs](docs/) cover connecting datasources, sign-in, teams and operations.
+Website and docs: https://slashobserve.com.
 
-## Run it locally
+## Quick start
 
-Requirements: Docker with Compose v2.20 or newer.
+You need Docker with Compose v2.20 or newer.
 
+    git clone https://github.com/slashobserve/slashobserve && cd slashobserve
+    export SLASHOBSERVE_LLM_PROVIDER=anthropic SLASHOBSERVE_LLM_API_KEY=<your Anthropic API key>
     make demo
 
-Open http://localhost:8080, and stop the stack with `make demo-down`.
-The agent answers prompts only when an LLM provider is configured, for example by exporting `SLASHOBSERVE_LLM_PROVIDER=anthropic` and `SLASHOBSERVE_LLM_API_KEY` before `make demo`; see [LLM providers](docs/connect/llm-providers.md).
+`make demo` pulls the published images, so nothing compiles on your machine.
+Without `make`, run `docker compose -f deploy/compose/compose.yaml up -d --wait`; it reads the same environment variables.
 
-## Demo stack
+Open http://localhost:8080, sign in as `admin@example.com` with the password `password`, and type a prompt such as `checkout health by pod, last 6h`.
+Stop the stack with `make demo-down`, or drop its data as well with `make demo-reset`.
+Without an LLM provider the demo still starts, but prompts answer `503 agent_unavailable`.
 
-`make demo` starts SlashObserve with Postgres, Dex, Prometheus, ClickHouse, an OpenTelemetry Collector, node-exporter, cAdvisor and a small demo shop with a load generator.
-The app is on http://localhost:8080, Prometheus on http://localhost:9090 and the shop fault API on http://localhost:8081/fault.
-Sign in as `admin@example.com` / `password`.
-Break the checkout service with `make demo-fault TYPE=errors PCT=50` (or `TYPE=latency`), and undo it with `make demo-fault-reset`.
-A fresh stack has no real history.
-Prometheus backfills 26 hours of synthetic `http_requests_total` and `http_request_duration_seconds` histograms on first boot so "today vs yesterday" prompts and latency quantile panels have history.
-Node and container metrics, logs and traces start when the stack starts.
-`make demo-reset` drops the volumes so the backfill replays.
+The demo is local only.
+It uses fixed logins (`admin@example.com`, `editor@example.com`, `commenter@example.com` and `viewer@example.com`, all with the password `password`), a fixed Postgres password and a fixed OIDC client secret.
+Every port it publishes binds to 127.0.0.1.
+Do not expose it to a network or run it on a cloud VM; for a real deployment, follow [Run your own deployment](docs/get-started/install.md).
 
-If ClickHouse stays unhealthy after an upgrade, an old demo volume predates the `slashobserve_ro` user or holds another password for it; run `make demo-reset` to recreate the volumes.
+Contributors build the demo from source with `make demo-build`.
+
+## What works today
+
+- Prompt to dashboard from the web chat, from the `observe` CLI, and from MCP clients such as Claude Code, OpenCode and Cursor.
+  A save runs every panel query and rejects a panel whose query fails or returns no data.
+- Follow-up prompts revise the same dashboard.
+  Every change is a saved version that you can compare and restore.
+- Comments on panels, which you can send to the agent as a revision request.
+- A panel editor for queries, settings and JSON, for changes that do not need the agent.
+- 21 data panel types, among them time series, stat, table, heatmap, logs, traces, geomap and canvas, plus text, dashboard list, news and rows.
+- Dashboard variables, including ad hoc filters and group-by.
+- Import of Grafana dashboard JSON, with a report of what carried over and what did not.
+- Sign-in through your OIDC provider, four roles, folders with access lists, and service-account keys for the CLI and MCP.
+
+The [known limitations](docs/get-started/known-limitations.md) list what is missing.
+
+## How it differs
+
+From Grafana.
+You describe a dashboard instead of assembling it panel by panel, and the result is one JSON document that the server validates against a schema before it saves it.
+SlashObserve is not a Grafana fork or plugin, and it reads Prometheus and ClickHouse only.
+Grafana supports many more datasources and has alerting, which SlashObserve does not.
+If you already have Grafana dashboards, import them as JSON.
+
+From chat-with-your-metrics tools.
+The answer is a saved dashboard and not a chat reply: it has an address, versions, comments and folder access, and it keeps refreshing from your datasources after the conversation ends.
+The agent can only save a dashboard definition, which the server checks before it keeps it.
+You can also bring your own agent: MCP clients use the same tools and the same checks.
+
+## LLM providers
+
+The agent needs a model provider, and the server runs without one with the agent off.
+`anthropic` is the default; `openai` works with OpenAI and with any server that implements the Chat Completions API with tool calling, including a local Ollama.
+The agent sends what its tools return, such as metric names, label values and sampled rows, to the provider, so pick one that fits your data.
+See [LLM providers](docs/connect/llm-providers.md) for the settings; the project does not vouch for any particular local model.
+
+## Privacy
+
+SlashObserve sends no telemetry and checks for no updates.
+The server calls only the datasources, identity provider and LLM provider you configure, plus the domains on an outbound allowlist that starts empty.
+The web app loads nothing from other sites.
+See the [security model](docs/operate/security-model.md).
 
 ## CLI
 
-`make cli` builds `bin/observe`, a thin client of the public API that uses a service-account key.
-An Admin creates a key on the web page `/keys` (**API keys** in the sidebar; a key is shown once), then you sign in once:
+The `observe` command is a thin client of the public API.
+Download it from the [releases page](https://github.com/slashobserve/slashobserve/releases) or build it with `make cli`.
+An Admin creates a service-account key on the **API keys** page; then:
 
-    bin/observe login --server http://localhost:8080 --with-token
+    observe login --server http://localhost:8080
+    observe "checkout p99 latency, last 6h"
 
-`login` reads the key from standard input with `--with-token`, or prompts for it on a terminal.
-Then give it a prompt and it prints the dashboard address:
+See [CLI](docs/use/cli.md) and [MCP](docs/use/mcp.md).
 
-    bin/observe "checkout p99 latency, last 6h"
-    bin/observe dashboards list
+## Stability
 
-Add `--json` to any command to get the API response as it is, and see `bin/observe --help` for the rest.
-Settings come from flags, then `OBSERVE_SERVER` and `OBSERVE_TOKEN`, then `~/.config/slashobserve/cli.json`.
-The saved key is sent only to the server it was saved for; for another server, pass `--token` or set `OBSERVE_TOKEN`.
-The same key connects Claude Code, OpenCode and Cursor to the server's MCP endpoint; see [MCP](docs/use/mcp.md).
+SlashObserve is pre-1.0.
+Between minor releases the ObserveSpec format (version `0`), the HTTP API under `/api/v1`, the settings and the database schema can change in ways that need action from you.
+[CHANGELOG.md](CHANGELOG.md) lists each release's changes.
+Back up Postgres before every upgrade; see [Upgrades and backups](docs/operate/upgrades-and-backups.md).
 
-## Develop
+## Contributing
 
-Requirements: Go 1.27.2 (a Go 1.21 or newer toolchain downloads it automatically), Bun 1.4.2, Docker.
-See [CLAUDE.md](CLAUDE.md) for commands, layout and conventions.
+Bug reports, feature requests and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
+Report a security problem privately, as [SECURITY.md](SECURITY.md) describes.
+This project follows a [code of conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
