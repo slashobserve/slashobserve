@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://slashobserve.com/schemas/observespec.v0.json",
   "title": "Dashboard",
-  "description": "ObserveSpec v0: one SlashObserve dashboard. Absent fields mean the default. Frozen for milestone 1 (Ishan, 2026-10-18).",
+  "description": "ObserveSpec v0: one SlashObserve dashboard. Absent fields mean the default.",
   "type": "object",
   "additionalProperties": false,
   "required": [

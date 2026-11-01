@@ -1213,7 +1213,7 @@ export type FieldName3 = string;
 export type TransformQueries32 = QueryRef[];
 
 /**
- * ObserveSpec v0: one SlashObserve dashboard. Absent fields mean the default. Frozen for milestone 1 (Ishan, 2026-10-18).
+ * ObserveSpec v0: one SlashObserve dashboard. Absent fields mean the default.
  */
 export interface Dashboard {
   specVersion: "0";
