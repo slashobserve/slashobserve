@@ -1,0 +1,33 @@
+name: Feature request
+description: Suggest a change or an addition.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the known limitations in the docs first: https://slashobserve.com/docs/get-started/known-limitations/
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and what stops you?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like
+      description: The behavior you want. Say how it would look in the web app, the CLI or the API if you can.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you tried
+      description: Workarounds, other tools, or other designs you considered.
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I would like to work on this.

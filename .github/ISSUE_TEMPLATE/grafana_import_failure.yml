@@ -1,0 +1,53 @@
+name: Grafana import failure
+description: A Grafana dashboard imports with errors, missing panels or wrong output.
+labels: ["grafana-import"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Attach the dashboard JSON so we can reproduce the import. Remove credentials, hostnames and private query text first.
+        Drag the file into the field below, or zip it if GitHub refuses the extension.
+  - type: input
+    id: version
+    attributes:
+      label: SlashObserve version
+      description: The image tag, or the `version` field of the `starting slashobserve-server` log line.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: grafana
+    attributes:
+      label: Grafana version and export format
+      description: The Grafana version, and whether the JSON is the classic model, an export for sharing externally, or the response of Grafana's dashboard API.
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: How did you import it?
+      options:
+        - Import from Grafana page
+        - observe import
+        - MCP import_grafana_dashboard tool
+    validations:
+      required: true
+  - type: textarea
+    id: json
+    attributes:
+      label: Dashboard JSON
+      description: Attach the file. Paste inline only if it is short.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What went wrong
+      description: Which panels, variables or options are missing or wrong, and what you expected. Paste the import report lines for them.
+    validations:
+      required: true
+  - type: textarea
+    id: datasources
+    attributes:
+      label: Datasources
+      description: The Grafana datasource types the dashboard uses, and the datasources file entries you matched them to (without addresses or secrets).

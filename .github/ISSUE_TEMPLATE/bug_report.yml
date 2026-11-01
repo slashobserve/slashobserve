@@ -1,0 +1,58 @@
+name: Bug report
+description: Something does not work as the docs say it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search existing issues first. Report security problems privately, as SECURITY.md describes.
+        For a Grafana dashboard that imports badly, use the "Grafana import failure" template.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The image tag, or the `version` field of the `starting slashobserve-server` log line. For the CLI, run `observe version`.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: How are you running it?
+      options:
+        - Demo stack (make demo or docker compose)
+        - Own deployment (container)
+        - Built from source
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Include the exact error text. For an agent request, include its id (`observe status <request-id>`).
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The shortest steps that show the problem, including the prompt if the agent was involved.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Datasource types and versions, LLM provider and model, identity provider, browser, and operating system.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server log lines
+      description: The server does not log secrets, prompt text or query text. Remove anything private before you paste.
+      render: text
