@@ -32,12 +32,34 @@ export function clientDisplayName(raw: string | null | undefined): string {
   return namedClient(raw) ?? unknownClient
 }
 
-export function madeByLabel(creator: Creator): string {
-  if (creator.via === "agent") return `Agent, for ${creator.author.name}`
-  if (creator.origin === "mcp") {
-    return `${clientDisplayName(creator.origin_client)}, ${creator.author.name}`
-  }
-  return creator.author.name
+const originNames = new Map<string, string>([
+  ["web", "Web"],
+  ["cli", "CLI"],
+  ["api", "API"],
+])
+
+const detailSeparator = " · "
+
+export function madeByChannel(creator: Creator): string | null {
+  const isMcp = creator.origin === "mcp"
+  const origin = isMcp
+    ? clientDisplayName(creator.origin_client)
+    : (originNames.get(creator.origin ?? "") ?? null)
+  if (creator.via !== "agent") return origin
+  return isMcp ? `Agent${detailSeparator}${origin}` : "Agent"
+}
+
+export function madeByDetail(creator: Creator): string {
+  const email = creator.author.email?.trim() ?? ""
+  const identity =
+    creator.author.kind === "service_account"
+      ? "service account"
+      : email === ""
+        ? null
+        : email
+  return [identity, madeByChannel(creator)]
+    .filter((part) => part !== null)
+    .join(detailSeparator)
 }
 
 export function madeByBreadcrumb(creator: Creator): string | null {

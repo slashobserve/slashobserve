@@ -76,6 +76,7 @@ export function MadeByMenu({ value, onChange }: MenuProps) {
                   value={`user:${user.id}`}
                 >
                   {user.name}
+                  <span className="text-muted-foreground">{user.email}</span>
                 </DropdownMenuRadioItem>
               ))}
             </>

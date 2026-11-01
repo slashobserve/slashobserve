@@ -10,7 +10,7 @@ import { ArrowUpRightIcon } from "lucide-react"
 
 import type { paths } from "@/api/schema.gen"
 import { RelativeTime } from "@/components/relative-time"
-import { madeByLabel } from "@/lib/origin"
+import { madeByDetail } from "@/lib/origin"
 
 import { DashboardRowMenu } from "./row-menu"
 
@@ -74,9 +74,27 @@ export const dashboardColumns = column.columns([
   column.display({
     id: "madeBy",
     header: "Made by",
-    cell: ({ row }) => madeByLabel(row.original.creator),
+    cell: ({ row }) => {
+      const { name } = row.original.creator.author
+      const detail = madeByDetail(row.original.creator)
+      return (
+        <>
+          <div title={name} className="max-w-56 truncate">
+            {name}
+          </div>
+          {detail === "" ? null : (
+            <div
+              title={detail}
+              className="max-w-56 truncate text-xs text-muted-foreground"
+            >
+              {detail}
+            </div>
+          )}
+        </>
+      )
+    },
     meta: {
-      cellClassName: "min-w-40 text-muted-foreground",
+      cellClassName: "min-w-40",
       skeletonClassName: "h-5 w-28",
     },
   }),

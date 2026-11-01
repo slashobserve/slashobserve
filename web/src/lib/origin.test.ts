@@ -5,7 +5,8 @@ import type { components } from "@/api/schema.gen"
 import {
   clientDisplayName,
   madeByBreadcrumb,
-  madeByLabel,
+  madeByChannel,
+  madeByDetail,
   versionActor,
 } from "./origin"
 
@@ -64,34 +65,99 @@ describe("clientDisplayName", () => {
   })
 })
 
-describe("madeByLabel", () => {
-  it("names the requester for an agent-made dashboard", () => {
-    expect(madeByLabel(creator({ via: "agent", origin: "mcp" }))).toBe(
-      "Agent, for Ada"
-    )
+describe("madeByChannel", () => {
+  it.each([
+    ["web", "Web"],
+    ["cli", "CLI"],
+    ["api", "API"],
+  ] as const)("names the %s origin", (origin, expected) => {
+    expect(madeByChannel(creator({ origin }))).toBe(expected)
   })
 
-  it("names the client for an MCP dashboard", () => {
+  it("has no channel for a dashboard created before origins were recorded", () => {
+    expect(madeByChannel(creator({ origin: null }))).toBeNull()
+  })
+
+  it("names the MCP client", () => {
     expect(
-      madeByLabel(creator({ origin: "mcp", origin_client: "claude-code" }))
-    ).toBe("Claude Code, Ada")
-    expect(madeByLabel(creator({ origin: "mcp" }))).toBe("MCP client, Ada")
+      madeByChannel(creator({ origin: "mcp", origin_client: "claude-code" }))
+    ).toBe("Claude Code")
+    expect(madeByChannel(creator({ origin: "mcp" }))).toBe("MCP client")
   })
 
   it("keeps an MCP client named like an object property", () => {
     expect(
-      madeByLabel(creator({ origin: "mcp", origin_client: "constructor" }))
-    ).toBe("constructor, Ada")
+      madeByChannel(creator({ origin: "mcp", origin_client: "constructor" }))
+    ).toBe("constructor")
     expect(
-      madeByLabel(creator({ origin: "mcp", origin_client: "__proto__" }))
-    ).toBe("__proto__, Ada")
+      madeByChannel(creator({ origin: "mcp", origin_client: "__proto__" }))
+    ).toBe("__proto__")
   })
 
-  it("names the author otherwise", () => {
-    expect(madeByLabel(creator({ origin: "web" }))).toBe("Ada")
-    expect(madeByLabel(creator({ origin: "cli" }))).toBe("Ada")
-    expect(madeByLabel(creator({ origin: "api" }))).toBe("Ada")
-    expect(madeByLabel(creator({ origin: null }))).toBe("Ada")
+  it("says Agent for an agent save, with the MCP client when there is one", () => {
+    expect(madeByChannel(creator({ via: "agent", origin: "web" }))).toBe(
+      "Agent"
+    )
+    expect(madeByChannel(creator({ via: "agent", origin: null }))).toBe("Agent")
+    expect(
+      madeByChannel(
+        creator({ via: "agent", origin: "mcp", origin_client: "claude-code" })
+      )
+    ).toBe("Agent · Claude Code")
+    expect(madeByChannel(creator({ via: "agent", origin: "mcp" }))).toBe(
+      "Agent · MCP client"
+    )
+  })
+})
+
+describe("madeByDetail", () => {
+  const withEmail = { ...author, email: "ada@example.com" }
+  const serviceAccount = {
+    kind: "service_account",
+    id: "k1",
+    name: "CI",
+  } as const
+
+  it("joins the email and the channel", () => {
+    expect(madeByDetail(creator({ author: withEmail }))).toBe(
+      "ada@example.com · Web"
+    )
+    expect(
+      madeByDetail(
+        creator({
+          author: withEmail,
+          origin: "mcp",
+          origin_client: "claude-code",
+        })
+      )
+    ).toBe("ada@example.com · Claude Code")
+    expect(
+      madeByDetail(
+        creator({
+          author: withEmail,
+          via: "agent",
+          origin: "mcp",
+          origin_client: "claude-code",
+        })
+      )
+    ).toBe("ada@example.com · Agent · Claude Code")
+  })
+
+  it("shows service account where a service account has no email", () => {
+    expect(
+      madeByDetail(creator({ author: serviceAccount, origin: "api" }))
+    ).toBe("service account · API")
+  })
+
+  it("leaves out whatever is missing", () => {
+    expect(madeByDetail(creator({ author: withEmail, origin: null }))).toBe(
+      "ada@example.com"
+    )
+    expect(madeByDetail(creator({ origin: "cli" }))).toBe("CLI")
+    expect(madeByDetail(creator({ author: { ...author, email: "  " } }))).toBe(
+      "Web"
+    )
+    expect(madeByDetail(creator({ origin: null }))).toBe("")
   })
 })
 
