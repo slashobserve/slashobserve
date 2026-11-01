@@ -277,6 +277,13 @@ func TestHugeNumbersOfTargetsKeepTheReportBounded(t *testing.T) {
 	hidden := func(n int) string { return strings.Repeat(`{"hide":true},`, n) }
 	const million = 1_000_000
 	const hundredThousand = 100_000
+	const calibration, attempts, slowdownBudget = 10_000, 3, 4
+	perTarget := time.Duration(math.MaxInt64)
+	for range attempts {
+		start := time.Now()
+		convertDoc(t, panelDoc("timeseries", `"targets":[`+unimportables(calibration-1)+unimportable+"]"))
+		perTarget = min(perTarget, time.Since(start)/calibration)
+	}
 	cases := []struct {
 		name, typ, list string
 		targets         int
@@ -295,8 +302,10 @@ func TestHugeNumbersOfTargetsKeepTheReportBounded(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			start := time.Now()
 			res := convertDoc(t, panelDoc(tc.typ, `"targets":`+tc.list))
-			if elapsed := time.Since(start); elapsed > 20*time.Second {
-				t.Fatalf("converting %d targets took %s", tc.targets, elapsed)
+			elapsed := time.Since(start)
+			if budget := slowdownBudget * perTarget * time.Duration(tc.targets); tc.targets >= hundredThousand && elapsed > budget {
+				t.Fatalf("converting %d targets took %s, over %s: %dx the per-target cost measured on %d targets, want linear growth",
+					tc.targets, elapsed, budget, slowdownBudget, calibration)
 			}
 			line := panelLine(t, res, "p1")
 			if len(line.Queries) > 100 {
