@@ -58,7 +58,7 @@ The dashboard opens in the same tab with the version button reading "Live · v1"
 
 A new dashboard goes into the folder you last created a dashboard in.
 If you have not created one, or can no longer create there, it goes to General, and if you cannot create in General either, to the first folder where you can.
-The Dashboards page marks it as made by the agent, "Agent, for `<your name>`".
+In the Dashboards page's **Made by** column it shows your name, then your email and "Agent".
 See [Folders](../teams/folders.md).
 
 Choose **Activity** at the top right to open the activity card.

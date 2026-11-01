@@ -34,7 +34,8 @@ Each version keeps a summary of 1 to 500 characters, the time, and who or what m
 The version menu in the dashboard header lists the five latest versions with their summaries.
 It shows "Agent" for a version the built-in agent saved, the MCP client's name for one saved over MCP, and the author's name for the rest.
 The History page also lists the author of each version, which for an agent save is the person who asked.
-The Dashboards page shows who made version 1, and the header names the client of a dashboard made over MCP.
+The Dashboards page's **Made by** column shows who made version 1: their name, then their email (or "service account") and the channel, which is Web, CLI, API, the MCP client's name such as Claude Code, or Agent; an agent save over MCP reads "Agent · Claude Code".
+The **Made by** filter lists each person with their email, and the dashboard header names the client of a dashboard made over MCP.
 
 A save names the version it builds on.
 If someone saved a newer version in the meantime, the save is refused with `409` and the code `version_conflict`, and the response gives `latest_version`.
