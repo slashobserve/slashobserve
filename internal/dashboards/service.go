@@ -312,6 +312,7 @@ type MadeBy struct {
 type ListParams struct {
 	Limit      int
 	Cursor     string
+	Offset     int
 	MadeBy     MadeBy
 	Datasource string
 	Query      string
@@ -406,7 +407,7 @@ func (s *Service) listByRecency(ctx context.Context, p ListParams, filter dbsqlc
 	if !ok {
 		return nil, ErrInvalidCursor
 	}
-	return s.store.list(ctx, after, p.Limit+1, filter)
+	return s.store.list(ctx, after, p.Limit+1, p.Offset, filter)
 }
 
 func (s *Service) listByFolder(ctx context.Context, p ListParams, filter dbsqlc.CountDashboardsParams) ([]ListItem, error) {
@@ -418,7 +419,7 @@ func (s *Service) listByFolder(ctx context.Context, p ListParams, filter dbsqlc.
 		}
 		after = &decoded
 	}
-	return s.store.listByFolder(ctx, after, p.Limit+1, filter)
+	return s.store.listByFolder(ctx, after, p.Limit+1, p.Offset, filter)
 }
 
 func nextCursor(last ListItem, byFolder bool) string {

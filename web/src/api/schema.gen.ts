@@ -448,7 +448,7 @@ export interface paths {
         };
         /**
          * List the dashboards the caller can see, most recently updated first or grouped by folder.
-         * @description Filters combine with AND; `total_count` counts all matches regardless of the cursor. Dashboards in folders the caller cannot see are never listed or counted. A `cursor` only works with the `order` it came from; a cursor from the other order is a 400.
+         * @description Filters combine with AND; `total_count` counts all matches regardless of the cursor. Dashboards in folders the caller cannot see are never listed or counted. A `cursor` only works with the `order` it came from; a cursor from the other order is a 400. `next_cursor` is also set on an `offset` page and continues after its last row.
          */
         get: operations["listDashboards"];
         put?: never;
@@ -3176,6 +3176,8 @@ export interface operations {
             query?: {
                 limit?: number;
                 cursor?: string;
+                /** @description Skip this many dashboards, for numbered pages; counted in the same order and over the same visible, filtered dashboards as `total_count`. Cannot be combined with `cursor` (400). */
+                offset?: number;
                 /** @description Who made the dashboard: `me` (the caller), `user:<uuid>`, `service_account:<uuid>`, `agent` (saved by the agent), `mcp` (any MCP client) or `mcp:<client>` (one MCP client by name). */
                 made_by?: string;
                 /** @description A datasource uid; only dashboards whose latest version uses it. */

@@ -35,7 +35,7 @@ function listedDashboardIds(): string[] {
   )
 }
 
-function focusAfterDelete(neighbour: string | null) {
+function focusNeighbour(neighbour: string | null) {
   const target =
     neighbour === null
       ? document.querySelector<HTMLElement>("main h1")
@@ -78,8 +78,19 @@ export function DashboardRowMenu({
     trigger.current?.focus()
   }, [current])
 
+  useEffect(
+    () => () => {
+      const active = document.activeElement
+      if (refocus.current && (active === null || active === document.body)) {
+        focusNeighbour(neighbour.current)
+      }
+    },
+    []
+  )
+
   function moveTo(target: Target) {
     refocus.current = true
+    neighbour.current = neighbourAfterDelete(listedDashboardIds(), dashboard.id)
     move.mutate(
       { id: dashboard.id, folderId: target.id },
       {
@@ -109,7 +120,7 @@ export function DashboardRowMenu({
         : `Deleted ${dashboard.title}`
     )
     setDeleting(false)
-    focusAfterDelete(neighbour.current)
+    focusNeighbour(neighbour.current)
   }
 
   if (!canEdit && !canDuplicate) return null

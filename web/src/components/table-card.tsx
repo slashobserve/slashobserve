@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from "react"
+import type { ComponentProps, ReactNode, Ref } from "react"
 import { cn } from "@/lib/utils"
 
 type TableCardName =
@@ -8,6 +8,7 @@ type TableCardProps = TableCardName & {
   minWidth: number | string
   children: ReactNode
   className?: string
+  ref?: Ref<HTMLDivElement>
 }
 
 export function TableCard({
@@ -16,9 +17,11 @@ export function TableCard({
   labelledBy,
   children,
   className,
+  ref,
 }: TableCardProps) {
   return (
     <div
+      ref={ref}
       role="region"
       tabIndex={0}
       aria-label={label}

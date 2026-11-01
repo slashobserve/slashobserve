@@ -30,6 +30,7 @@ const (
 	maxMoveBodyBytes = 1 << 10
 	defaultLimit     = 50
 	maxLimit         = 200
+	maxOffset        = 100_000
 
 	maxDatasourceRunes = 64
 	maxQueryRunes      = 200
@@ -95,8 +96,26 @@ func (s *Service) createDashboard(c *gin.Context) {
 	c.JSON(http.StatusCreated, NewDashboardVersionJSON(dash, ver))
 }
 
+func listPageParams(c *gin.Context) (limit, offset int, cursor string, ok bool) {
+	limit, ok = httpapi.LimitParam(c, defaultLimit, maxLimit)
+	if !ok {
+		return 0, 0, "", false
+	}
+	offset, ok = httpapi.OffsetParam(c, maxOffset)
+	if !ok {
+		return 0, 0, "", false
+	}
+	_, hasCursor := c.GetQuery("cursor")
+	_, hasOffset := c.GetQuery("offset")
+	if hasCursor && hasOffset {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "use cursor or offset, not both")
+		return 0, 0, "", false
+	}
+	return limit, offset, c.Query("cursor"), true
+}
+
 func (s *Service) listDashboards(c *gin.Context) {
-	limit, ok := httpapi.LimitParam(c, defaultLimit, maxLimit)
+	limit, offset, cursor, ok := listPageParams(c)
 	if !ok {
 		return
 	}
@@ -104,7 +123,7 @@ func (s *Service) listDashboards(c *gin.Context) {
 	if !ok {
 		return
 	}
-	params.Limit, params.Cursor = limit, c.Query("cursor")
+	params.Limit, params.Offset, params.Cursor = limit, offset, cursor
 	page, err := s.List(c.Request.Context(), httpapi.Caller(c), params)
 	if err != nil {
 		s.fail(c, "list dashboards", err)

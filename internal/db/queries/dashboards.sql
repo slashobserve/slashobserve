@@ -81,7 +81,7 @@ WHERE (sqlc.narg('cursor_updated_at')::timestamptz IS NULL
     OR strpos(lower(d.title), lower(sqlc.narg('q')::text)) > 0
     OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower(sqlc.narg('q')::text)) > 0)
 ORDER BY d.updated_at DESC, d.id DESC
-LIMIT @row_limit;
+LIMIT @row_limit OFFSET @row_offset;
 
 -- name: ListDashboardsByFolder :many
 SELECT sqlc.embed(d),
@@ -112,7 +112,7 @@ WHERE (sqlc.narg('c_folder')::uuid IS NULL
     OR strpos(lower(d.title), lower(sqlc.narg('q')::text)) > 0
     OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower(sqlc.narg('q')::text)) > 0)
 ORDER BY f.general, lower(f.title), f.id, d.updated_at DESC, d.id DESC
-LIMIT @row_limit;
+LIMIT @row_limit OFFSET @row_offset;
 
 -- name: CountDashboards :one
 SELECT count(*)
