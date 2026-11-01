@@ -41,5 +41,10 @@ Set `SLASHOBSERVE_ADMIN_EMAILS` before that first start; otherwise the earliest 
 The server runs migrations forward only; it never runs a migration's down section.
 To go back to an older version, restore the backup you took before upgrading rather than running the older image against a migrated database.
 
+Before 1.0, a release never edits a migration that an earlier release shipped, and the server applies every pending migration in order.
+So you can upgrade from any 0.x release directly to a later one without stopping at the releases between them.
+Going backward is the one jump that is not supported.
+The [changelog](https://github.com/slashobserve/slashobserve/blob/main/CHANGELOG.md) names a release whose migration rewrites existing data.
+
 On `SIGTERM` the server stops accepting requests, gives running requests 15 seconds, and hands a running agent request back to the queue without using up an attempt.
 A crash instead leaves the request's lease to expire, so the next process picks it up after the lease ends.
