@@ -378,7 +378,7 @@ func (st store) unverified(ctx context.Context, id pgtype.UUID, number int) (Unv
 	return decodeUnverified(raw)
 }
 
-func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit int, f dbsqlc.CountDashboardsParams) ([]ListItem, error) {
+func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit, offset int, f dbsqlc.CountDashboardsParams) ([]ListItem, error) {
 	params := dbsqlc.ListDashboardsParams{
 		Folders:     f.Folders,
 		Folder:      f.Folder,
@@ -391,6 +391,7 @@ func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit int, 
 		Q:           f.Q,
 		Tags:        f.Tags,
 		RowLimit:    httpapi.Int32(limit),
+		RowOffset:   httpapi.Int32(offset),
 	}
 	if after != nil {
 		params.CursorUpdatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
@@ -403,7 +404,7 @@ func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit int, 
 	return listItemsOf(rows), nil
 }
 
-func (st store) listByFolder(ctx context.Context, after *folderCursor, limit int, f dbsqlc.CountDashboardsParams) ([]ListItem, error) {
+func (st store) listByFolder(ctx context.Context, after *folderCursor, limit, offset int, f dbsqlc.CountDashboardsParams) ([]ListItem, error) {
 	params := dbsqlc.ListDashboardsByFolderParams{
 		Folders:     f.Folders,
 		Folder:      f.Folder,
@@ -416,6 +417,7 @@ func (st store) listByFolder(ctx context.Context, after *folderCursor, limit int
 		Q:           f.Q,
 		Tags:        f.Tags,
 		RowLimit:    httpapi.Int32(limit),
+		RowOffset:   httpapi.Int32(offset),
 	}
 	if after != nil {
 		params.CFolder = after.FolderID

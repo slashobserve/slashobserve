@@ -2,9 +2,13 @@ package httpapi
 
 import (
 	"encoding/base64"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 func TestDecodeTimeCursorRejectsMalformedValues(t *testing.T) {
@@ -43,5 +47,44 @@ func TestTimeCursorRoundTrip(t *testing.T) {
 	}
 	if empty, ok := DecodeTimeCursor(""); !ok || empty != nil {
 		t.Errorf("empty cursor gave %v, %v", empty, ok)
+	}
+}
+
+func TestOffsetParam(t *testing.T) {
+	cases := []struct {
+		name   string
+		query  string
+		want   int
+		status int
+	}{
+		{"absent", "", 0, http.StatusOK},
+		{"zero", "offset=0", 0, http.StatusOK},
+		{"fifty", "offset=50", 50, http.StatusOK},
+		{"at the ceiling", "offset=100", 100, http.StatusOK},
+		{"over the ceiling", "offset=101", 0, http.StatusBadRequest},
+		{"negative", "offset=-1", 0, http.StatusBadRequest},
+		{"leading zero", "offset=01", 0, http.StatusBadRequest},
+		{"plus sign", "offset=%2B5", 0, http.StatusBadRequest},
+		{"fraction", "offset=1.5", 0, http.StatusBadRequest},
+		{"letters", "offset=abc", 0, http.StatusBadRequest},
+		{"empty", "offset=", 0, http.StatusBadRequest},
+	}
+	gin.SetMode(gin.TestMode)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = httptest.NewRequest(http.MethodGet, "/x?"+tc.query, nil)
+			got, ok := OffsetParam(c, 100)
+			if (tc.status == http.StatusOK) != ok {
+				t.Fatalf("ok = %v, want status %d", ok, tc.status)
+			}
+			if ok && got != tc.want {
+				t.Fatalf("offset = %d, want %d", got, tc.want)
+			}
+			if !ok && rec.Code != tc.status {
+				t.Fatalf("status = %d, want %d", rec.Code, tc.status)
+			}
+		})
 	}
 }

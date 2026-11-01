@@ -27,6 +27,46 @@ func listFilterStatus(t *testing.T, rawQuery string) (int, ListParams) {
 	return rec.Code, params
 }
 
+func listPageStatus(t *testing.T, rawQuery string) (status int, limit, offset int, cursor string) {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/dashboards?"+rawQuery, nil)
+	limit, offset, cursor, ok := listPageParams(c)
+	if ok {
+		return http.StatusOK, limit, offset, cursor
+	}
+	return rec.Code, 0, 0, ""
+}
+
+func TestListPageParams(t *testing.T) {
+	tests := []struct {
+		name   string
+		query  string
+		status int
+		limit  int
+		offset int
+		cursor string
+	}{
+		{"defaults", "", http.StatusOK, 50, 0, ""},
+		{"limit and offset", "limit=10&offset=20", http.StatusOK, 10, 20, ""},
+		{"offset at the ceiling", "offset=100000", http.StatusOK, 50, 100000, ""},
+		{"offset over the ceiling", "offset=100001", http.StatusBadRequest, 0, 0, ""},
+		{"cursor with offset", "cursor=abc&offset=0", http.StatusBadRequest, 0, 0, ""},
+		{"offset with an empty cursor", "offset=0&cursor=", http.StatusBadRequest, 0, 0, ""},
+		{"cursor alone", "cursor=abc", http.StatusOK, 50, 0, "abc"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			status, limit, offset, cursor := listPageStatus(t, tt.query)
+			if status != tt.status || limit != tt.limit || offset != tt.offset || cursor != tt.cursor {
+				t.Errorf("got status %d limit %d offset %d cursor %q, want %d, %d, %d, %q", status, limit, offset, cursor, tt.status, tt.limit, tt.offset, tt.cursor)
+			}
+		})
+	}
+}
+
 func TestListFiltersRejectBadInput(t *testing.T) {
 	bad := map[string]string{
 		"q invalid UTF-8":              "q=%FF",

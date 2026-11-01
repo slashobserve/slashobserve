@@ -83,6 +83,31 @@ func (b boards) serve(by auth.Principal, method, path, body string) *httptest.Re
 	return rec
 }
 
+func TestOffsetNeverCountsHiddenDashboards(t *testing.T) {
+	b := seedBoards(t)
+	second := func(by auth.Principal, offset int) ListPage {
+		t.Helper()
+		page, err := b.rig.service.List(t.Context(), by, ListParams{ByFolder: true, Limit: 1, Offset: offset})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return page
+	}
+
+	blind := second(otherUser, 1)
+	if len(blind.Items) != 0 || blind.Total != 1 {
+		t.Errorf("caller without access: %d items and total %d, want 0 and 1", len(blind.Items), blind.Total)
+	}
+
+	first, next := second(adminUser, 0), second(adminUser, 1)
+	if len(first.Items) != 1 || len(next.Items) != 1 || first.Items[0].ID == next.Items[0].ID {
+		t.Errorf("admin pages repeat or miss a dashboard: %v then %v", itemIDs(first.Items), itemIDs(next.Items))
+	}
+	if first.Total != 2 || next.Total != 2 {
+		t.Errorf("admin totals = %d and %d, want 2", first.Total, next.Total)
+	}
+}
+
 func TestRestrictedFolderDashboardsNeverLeakIntoListings(t *testing.T) {
 	b := seedBoards(t)
 	callers := []struct {

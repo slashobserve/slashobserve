@@ -92,6 +92,19 @@ func LimitParam(c *gin.Context, fallback, ceiling int) (int, bool) {
 	return n, true
 }
 
+func OffsetParam(c *gin.Context, ceiling int) (int, bool) {
+	raw, present := c.GetQuery("offset")
+	if !present {
+		return 0, true
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 0 || n > ceiling || strconv.Itoa(n) != raw {
+		AbortError(c, http.StatusBadRequest, "invalid_request", "offset must be an integer from 0 to "+strconv.Itoa(ceiling))
+		return 0, false
+	}
+	return n, true
+}
+
 func FormatTime(t time.Time) string {
 	return t.UTC().Format(time.RFC3339Nano)
 }

@@ -590,7 +590,7 @@ WHERE ($1::timestamptz IS NULL
     OR strpos(lower(d.title), lower($12::text)) > 0
     OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($12::text)) > 0)
 ORDER BY d.updated_at DESC, d.id DESC
-LIMIT $13
+LIMIT $14 OFFSET $13
 `
 
 type ListDashboardsParams struct {
@@ -606,6 +606,7 @@ type ListDashboardsParams struct {
 	Datasource      pgtype.Text
 	Tags            []string
 	Q               pgtype.Text
+	RowOffset       int32
 	RowLimit        int32
 }
 
@@ -637,6 +638,7 @@ func (q *Queries) ListDashboards(ctx context.Context, arg ListDashboardsParams) 
 		arg.Datasource,
 		arg.Tags,
 		arg.Q,
+		arg.RowOffset,
 		arg.RowLimit,
 	)
 	if err != nil {
@@ -711,7 +713,7 @@ WHERE ($1::uuid IS NULL
     OR strpos(lower(d.title), lower($15::text)) > 0
     OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($15::text)) > 0)
 ORDER BY f.general, lower(f.title), f.id, d.updated_at DESC, d.id DESC
-LIMIT $16
+LIMIT $17 OFFSET $16
 `
 
 type ListDashboardsByFolderParams struct {
@@ -730,6 +732,7 @@ type ListDashboardsByFolderParams struct {
 	Datasource  pgtype.Text
 	Tags        []string
 	Q           pgtype.Text
+	RowOffset   int32
 	RowLimit    int32
 }
 
@@ -764,6 +767,7 @@ func (q *Queries) ListDashboardsByFolder(ctx context.Context, arg ListDashboards
 		arg.Datasource,
 		arg.Tags,
 		arg.Q,
+		arg.RowOffset,
 		arg.RowLimit,
 	)
 	if err != nil {

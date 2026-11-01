@@ -206,6 +206,48 @@ func TestListTotalCountIgnoresTheCursor(t *testing.T) {
 	}
 }
 
+func itemIDs(items []ListItem) []string {
+	ids := make([]string, len(items))
+	for i, item := range items {
+		ids[i] = item.ID
+	}
+	return ids
+}
+
+func TestListOffsetWalksTheSameOrder(t *testing.T) {
+	r := newRig(t, false)
+	r.seedList(t)
+	for _, byFolder := range []bool{false, true} {
+		t.Run(fmt.Sprintf("by folder %v", byFolder), func(t *testing.T) {
+			whole, err := r.service.List(t.Context(), testUser, ListParams{Limit: 5, ByFolder: byFolder})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var walked []string
+			for _, offset := range []int{0, 2, 4} {
+				page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Offset: offset, ByFolder: byFolder})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if page.Total != 5 {
+					t.Errorf("offset %d: total = %d, want 5", offset, page.Total)
+				}
+				walked = append(walked, itemIDs(page.Items)...)
+			}
+			if want := itemIDs(whole.Items); !slices.Equal(walked, want) {
+				t.Errorf("offset pages = %v, want %v", walked, want)
+			}
+			past, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Offset: 5, ByFolder: byFolder})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(past.Items) != 0 || past.Total != 5 {
+				t.Errorf("past the end: %d items and total %d, want 0 and 5", len(past.Items), past.Total)
+			}
+		})
+	}
+}
+
 func TestListReportsDatasourcesAndCreator(t *testing.T) {
 	r := newRig(t, false)
 	ids := r.seedList(t)
