@@ -26,7 +26,8 @@ Docker runs the database-backed tests through testcontainers, and the demo stack
 `make demo-build` builds the images from your working tree and starts the demo stack with them; `make demo` pulls the published images instead.
 The demo is for local use only; see the [quick start](docs/get-started/quick-start.md).
 
-[CLAUDE.md](CLAUDE.md) describes the layout, every command and the conventions in detail.
+[CLAUDE.md](CLAUDE.md) describes the layout, every command and the conventions that apply across the repository.
+The conventions for each area are in [internal/CLAUDE.md](internal/CLAUDE.md), [web/CLAUDE.md](web/CLAUDE.md) and [e2e/CLAUDE.md](e2e/CLAUDE.md).
 
 ## Check your change
 
