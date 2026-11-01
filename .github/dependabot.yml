@@ -1,0 +1,52 @@
+version: 2
+
+updates:
+  - package-ecosystem: gomod
+    directories:
+      - /
+      - /demo/shop
+      - /tools/sqlc
+      - /tools/golangci-lint
+      - /tools/govulncheck
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    groups:
+      go-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: bun
+    directory: /web
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    groups:
+      web-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directories:
+      - /
+      - /demo/shop
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    groups:
+      base-images:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: golang
+      - dependency-name: oven/bun

@@ -14,8 +14,10 @@ SHOP_DIR := demo/shop
 SHOP_LINT := go tool -modfile=../../tools/golangci-lint/go.mod golangci-lint
 TYPE ?= errors
 PCT ?= 30
+# zod 3 under the shadcn CLI, a dev-only tool that pins zod ^3 and ships in no build
+WEB_AUDIT_IGNORE := GHSA-mrhx-c7xc-m3w5
 
-.PHONY: build server cli web web-deps generate test lint ci demo demo-down demo-reset demo-fault demo-fault-reset e2e e2e-browser e2e-all evals golden tidy-check clean
+.PHONY: build server cli web web-deps generate test lint ci audit demo demo-down demo-reset demo-fault demo-fault-reset e2e e2e-browser e2e-all evals golden tidy-check clean
 
 build: web
 	$(MAKE) server cli
@@ -66,6 +68,12 @@ tidy-check:
 ci:
 	$(MAKE) lint test tidy-check
 	$(MAKE) build
+
+audit:
+	go tool -modfile=tools/govulncheck/go.mod govulncheck ./...
+	cd $(SHOP_DIR) && go tool -modfile=../../tools/govulncheck/go.mod govulncheck ./...
+	cd web && bun audit --prod
+	cd web && bun audit --audit-level=high $(addprefix --ignore=,$(WEB_AUDIT_IGNORE))
 
 demo:
 	SLASHOBSERVE_IMAGE=slashobserve-server:local SLASHOBSERVE_SHOP_IMAGE=slashobserve-demo-shop:local $(COMPOSE) up -d --build --wait --wait-timeout 300
