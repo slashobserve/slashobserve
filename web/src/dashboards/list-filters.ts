@@ -1,12 +1,15 @@
 import type { DashboardListFilters } from "@/api/keys"
 import { clientDisplayName } from "@/lib/origin"
 
+import { maxListPage } from "./list-pages"
+
 export type ListSearch = {
   q?: string
   made_by?: string
   datasource?: string
   tag?: string[]
   folder?: string
+  page?: number
 }
 
 const uuid =
@@ -20,6 +23,7 @@ const maxClientLength = 64
 const unsafeClientPattern = /[\p{Cc}\p{Cf}\p{Cs}]|^\s|\s$/u
 const datasourcePattern = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/
 const tagPattern = /^[a-z0-9][a-z0-9_.-]{0,39}$/
+const pagePattern = /^[1-9][0-9]{0,3}$/
 
 export const maxQueryLength = 200
 export const maxTags = 10
@@ -65,6 +69,7 @@ export function validateListSearch(raw: Record<string, unknown>): ListSearch {
     datasource: undefined,
     tag: undefined,
     folder: undefined,
+    page: undefined,
   }
   const q = firstString(raw.q)?.trim()
   if (
@@ -90,7 +95,20 @@ export function validateListSearch(raw: Record<string, unknown>): ListSearch {
   if (folder !== undefined && folderPattern.test(folder)) {
     search.folder = folder.toLowerCase()
   }
+  const page = firstString(raw.page)
+  if (page !== undefined && pagePattern.test(page)) {
+    const n = Number(page)
+    if (n >= 2 && n <= maxListPage) search.page = n
+  }
   return search
+}
+
+export function pageSearch(search: ListSearch, page: number): ListSearch {
+  return { ...search, page: page === 1 ? undefined : page }
+}
+
+export function withoutPage(search: ListSearch): ListSearch {
+  return { ...search, page: undefined }
 }
 
 export function toFilters(search: ListSearch): DashboardListFilters {

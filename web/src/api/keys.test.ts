@@ -59,10 +59,16 @@ describe("dashboardKeys", () => {
 describe("filtered dashboard lists", () => {
   test("every filtered list is under the list key", () => {
     expect(
-      isPrefix(dashboardKeys.list(), dashboardKeys.filtered({ q: "x" }))
+      isPrefix(dashboardKeys.list(), dashboardKeys.filtered({ q: "x" }, 1))
     ).toBe(true)
-    expect(isPrefix(dashboardKeys.list(), dashboardKeys.filtered({}))).toBe(
+    expect(isPrefix(dashboardKeys.list(), dashboardKeys.filtered({}, 3))).toBe(
       true
+    )
+  })
+
+  test("each page has its own key", () => {
+    expect(dashboardKeys.filtered({}, 1)).not.toEqual(
+      dashboardKeys.filtered({}, 2)
     )
   })
 })

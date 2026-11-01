@@ -6,7 +6,7 @@ import type { DashboardSummary } from "./dashboard-columns"
 import {
   accessSummary,
   dashboardCountText,
-  groupByFolder,
+  groupPage,
   listSummary,
   yourAccessText,
 } from "./folder-groups"
@@ -41,74 +41,179 @@ function row(id: string, inFolder: Folder) {
   } as DashboardSummary
 }
 
-const checkout = folder("c", "Checkout")
-const payments = folder("p", "Payments")
-const general = folder("g", "General", { general: true })
+const checkout = folder("c", "Checkout", { dashboard_count: 2 })
+const payments = folder("p", "Payments", { dashboard_count: 0 })
+const general = folder("g", "General", { general: true, dashboard_count: 1 })
 const folders = [checkout, payments, general]
+const everything = { offset: 0, total: 3, filtered: false }
 
-function summary(sections: ReturnType<typeof groupByFolder>) {
+function summary(sections: ReturnType<typeof groupPage>) {
   return sections.map((section) => [
     section.folder.title,
     section.rows.map((r) => r.id),
     section.empty,
+    section.continued,
   ])
 }
 
-describe("groupByFolder", () => {
+function rows(prefix: string, count: number, inFolder: Folder) {
+  return Array.from({ length: count }, (_, i) => row(`${prefix}${i}`, inFolder))
+}
+
+describe("groupPage", () => {
   it("keeps the folder order and each folder's rows in the order given", () => {
-    const rows = [
-      row("a", checkout),
-      row("b", checkout),
-      row("c", payments),
-      row("d", general),
-    ]
-    expect(summary(groupByFolder(folders, rows, false, false))).toEqual([
-      ["Checkout", ["a", "b"], false],
-      ["Payments", ["c"], false],
-      ["General", ["d"], false],
+    const list = [row("a", checkout), row("b", checkout), row("d", general)]
+    expect(summary(groupPage(folders, list, everything))).toEqual([
+      ["Checkout", ["a", "b"], false, false],
+      ["Payments", [], true, false],
+      ["General", ["d"], false, false],
     ])
   })
 
-  it("leaves out folders after the last loaded row while more pages exist", () => {
-    const rows = [row("a", checkout)]
-    expect(summary(groupByFolder(folders, rows, true, false))).toEqual([
-      ["Checkout", ["a"], false],
+  it("places empty folders before, between and after the loaded ones", () => {
+    const before = folder("e1", "Before", { dashboard_count: 0 })
+    const between = folder("e2", "Between", { dashboard_count: 0 })
+    const after = folder("e3", "After", { dashboard_count: 0 })
+    const a = folder("a", "A", { dashboard_count: 1 })
+    const b = folder("b", "B", { dashboard_count: 1 })
+    const list = [before, a, between, b, after]
+    const sections = groupPage(list, [row("x", a), row("y", b)], {
+      offset: 0,
+      total: 2,
+      filtered: false,
+    })
+    expect(sections.map((s) => [s.folder.title, s.empty])).toEqual([
+      ["Before", true],
+      ["A", false],
+      ["Between", true],
+      ["B", false],
+      ["After", true],
     ])
   })
 
-  it("keeps an empty folder before the last loaded row while more pages exist", () => {
-    const rows = [row("d", general)]
-    expect(summary(groupByFolder(folders, rows, true, false))).toEqual([
-      ["Checkout", [], true],
-      ["Payments", [], true],
-      ["General", ["d"], false],
+  it("leaves an empty folder to the page where its position falls", () => {
+    const big = folder("a", "Big", { dashboard_count: 50 })
+    const hole = folder("e", "Hole", { dashboard_count: 0 })
+    const small = folder("b", "Small", { dashboard_count: 10 })
+    const list = [big, hole, small]
+    const first = groupPage(list, rows("a", 50, big), {
+      offset: 0,
+      total: 60,
+      filtered: false,
+    })
+    expect(first.map((s) => s.folder.title)).toEqual(["Big"])
+    const second = groupPage(list, rows("b", 10, small), {
+      offset: 50,
+      total: 60,
+      filtered: false,
+    })
+    expect(second.map((s) => [s.folder.title, s.empty])).toEqual([
+      ["Hole", true],
+      ["Small", false],
     ])
   })
 
-  it("shows an empty folder when no filter is active", () => {
-    const rows = [row("a", checkout), row("d", general)]
-    expect(summary(groupByFolder(folders, rows, false, false))).toEqual([
-      ["Checkout", ["a"], false],
-      ["Payments", [], true],
-      ["General", ["d"], false],
+  it("shows trailing empty folders on the last page", () => {
+    const big = folder("a", "Big", { dashboard_count: 60 })
+    const tail = folder("e", "Tail", { dashboard_count: 0 })
+    const list = [big, tail]
+    const first = groupPage(list, rows("a", 50, big), {
+      offset: 0,
+      total: 60,
+      filtered: false,
+    })
+    expect(first.map((s) => s.folder.title)).toEqual(["Big"])
+    const last = groupPage(list, rows("a", 10, big), {
+      offset: 50,
+      total: 60,
+      filtered: false,
+    })
+    expect(last.map((s) => [s.folder.title, s.empty])).toEqual([
+      ["Big", false],
+      ["Tail", true],
     ])
   })
 
-  it("hides an empty folder when a filter is active", () => {
-    const rows = [row("a", checkout), row("d", general)]
-    expect(summary(groupByFolder(folders, rows, false, true))).toEqual([
-      ["Checkout", ["a"], false],
-      ["General", ["d"], false],
+  it("marks a folder that started on an earlier page as continued", () => {
+    const big = folder("a", "Big", { dashboard_count: 60 })
+    const small = folder("b", "Small", { dashboard_count: 5 })
+    const second = groupPage(
+      [big, small],
+      [...rows("a", 10, big), ...rows("b", 5, small)],
+      {
+        offset: 50,
+        total: 65,
+        filtered: false,
+      }
+    )
+    expect(second.map((s) => [s.folder.title, s.continued])).toEqual([
+      ["Big", true],
+      ["Small", false],
     ])
+  })
+
+  it("does not mark a folder that starts exactly at the page boundary", () => {
+    const big = folder("a", "Big", { dashboard_count: 50 })
+    const small = folder("b", "Small", { dashboard_count: 10 })
+    const second = groupPage([big, small], rows("b", 10, small), {
+      offset: 50,
+      total: 60,
+      filtered: false,
+    })
+    expect(summary(second).map((s) => s[3])).toEqual([false])
+  })
+
+  it("shows no empty folder and no continuation when filtered", () => {
+    const list = [row("a", checkout), row("d", general)]
+    expect(
+      summary(groupPage(folders, list, { offset: 0, total: 2, filtered: true }))
+    ).toEqual([
+      ["Checkout", ["a"], false, false],
+      ["General", ["d"], false, false],
+    ])
+    const big = folder("a", "Big", { dashboard_count: 60 })
+    const later = groupPage([big], rows("a", 10, big), {
+      offset: 50,
+      total: 60,
+      filtered: true,
+    })
+    expect(later[0].continued).toBe(false)
+  })
+
+  it("falls back to the filtered behaviour when folder counts disagree with the total", () => {
+    const big = folder("a", "Big", { dashboard_count: 60 })
+    const hole = folder("e", "Hole", { dashboard_count: 0 })
+    const sections = groupPage([big, hole], rows("a", 10, big), {
+      offset: 50,
+      total: 61,
+      filtered: false,
+    })
+    expect(sections.map((s) => [s.folder.title, s.empty, s.continued])).toEqual(
+      [["Big", false, false]]
+    )
   })
 
   it("gives no sections for a filter that matches nothing", () => {
-    expect(groupByFolder(folders, [], false, true)).toEqual([])
+    expect(
+      groupPage(folders, [], { offset: 0, total: 0, filtered: true })
+    ).toEqual([])
   })
 
   it("shows every folder empty for a new instance without a filter", () => {
-    expect(summary(groupByFolder([general], [], false, false))).toEqual([
-      ["General", [], true],
+    const empty = [
+      folder("a", "A"),
+      folder("b", "B"),
+      folder("g", "General", { general: true }),
+    ]
+    const sections = groupPage(empty, [], {
+      offset: 0,
+      total: 0,
+      filtered: false,
+    })
+    expect(sections.map((s) => [s.folder.title, s.empty])).toEqual([
+      ["A", true],
+      ["B", true],
+      ["General", true],
     ])
   })
 })
@@ -162,10 +267,18 @@ describe("yourAccessText", () => {
 
 describe("listSummary", () => {
   it("uses plural and singular forms", () => {
-    expect(listSummary(7, 3)).toBe("7 dashboards in 3 folders")
-    expect(listSummary(1, 1)).toBe("1 dashboard in 1 folder")
-    expect(listSummary(0, 0)).toBe("0 dashboards in 0 folders")
-    expect(listSummary(2, 1)).toBe("2 dashboards in 1 folder")
+    expect(listSummary(7, 3, 1)).toBe("7 dashboards in 3 folders")
+    expect(listSummary(1, 1, 1)).toBe("1 dashboard in 1 folder")
+    expect(listSummary(0, 0, 1)).toBe("0 dashboards in 0 folders")
+    expect(listSummary(2, 1, 1)).toBe("2 dashboards in 1 folder")
+    expect(listSummary(50, 2, 1)).toBe("50 dashboards in 2 folders")
+  })
+
+  it("names the page and the range when there are several pages", () => {
+    expect(listSummary(312, 4, 2)).toBe("Page 2 of 7, dashboards 51-100 of 312")
+    expect(listSummary(312, 4, 7)).toBe(
+      "Page 7 of 7, dashboards 301-312 of 312"
+    )
   })
 })
 

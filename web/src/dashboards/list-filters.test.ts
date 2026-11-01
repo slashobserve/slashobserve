@@ -7,9 +7,11 @@ import {
   madeByText,
   maxQueryLength,
   maxTags,
+  pageSearch,
   tagsText,
   toFilters,
   validateListSearch,
+  withoutPage,
 } from "./list-filters"
 
 const id = "0b6a1f3e-7c1d-4f0e-9a52-1d2c3b4a5e6f"
@@ -28,7 +30,7 @@ describe("validateListSearch", () => {
   it("names every filter so a dropped value overrides the raw URL", () => {
     expect(
       Object.keys(validateListSearch({ made_by: "bogus" })).sort()
-    ).toEqual(["datasource", "folder", "made_by", "q", "tag"])
+    ).toEqual(["datasource", "folder", "made_by", "page", "q", "tag"])
   })
 
   it("keeps a folder id in lower case and drops anything else", () => {
@@ -208,6 +210,40 @@ describe("validateListSearch tags", () => {
   })
 })
 
+describe("validateListSearch page", () => {
+  it("keeps a page from 2 to 2000", () => {
+    expect(validateListSearch({ page: "3" }).page).toBe(3)
+    expect(validateListSearch({ page: ["4", "5"] }).page).toBe(4)
+    expect(validateListSearch({ page: "2000" }).page).toBe(2000)
+  })
+
+  it("drops page 1 and anything that is not a plain page number", () => {
+    for (const value of ["1", "0", "01", "2001", "-2", "x", "", 3, null]) {
+      expect(validateListSearch({ page: value }).page).toBeUndefined()
+    }
+  })
+})
+
+describe("page in the search", () => {
+  it("pageSearch sets the page and drops it for page 1", () => {
+    expect(pageSearch({ q: "a" }, 3)).toEqual({ q: "a", page: 3 })
+    expect(pageSearch({ q: "a", page: 3 }, 1).page).toBeUndefined()
+  })
+
+  it("withoutPage keeps every filter", () => {
+    const search = {
+      q: "a",
+      made_by: "me",
+      datasource: "prom",
+      tag: ["x"],
+      folder: id,
+      page: 4,
+    }
+    expect(withoutPage(search)).toEqual({ ...search, page: undefined })
+    expect(withoutPage(search).page).toBeUndefined()
+  })
+})
+
 describe("tagsText", () => {
   it("describes the selection", () => {
     expect(tagsText(undefined)).toBe("any")
@@ -252,6 +288,7 @@ describe("toFilters and hasFilters", () => {
     expect(hasFilters({ tag: ["a"] })).toBe(true)
     expect(hasFilters({ folder: id })).toBe(true)
     expect(hasFilters({ tag: undefined })).toBe(false)
+    expect(hasFilters({ page: 3 })).toBe(false)
   })
 })
 

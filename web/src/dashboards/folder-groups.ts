@@ -2,11 +2,13 @@ import { levelLabels } from "@/folders/grants"
 import type { Folder } from "@/folders/queries"
 
 import type { DashboardSummary } from "./dashboard-columns"
+import { listPageSize, pageCountOf, pageRange } from "./list-pages"
 
 export type FolderSection = {
   folder: Folder
   rows: DashboardSummary[]
   empty: boolean
+  continued: boolean
 }
 
 function rowsByFolder(
@@ -21,24 +23,40 @@ function rowsByFolder(
   return byFolder
 }
 
-export function groupByFolder(
+export function groupPage(
   folders: Folder[],
   rows: DashboardSummary[],
-  hasMore: boolean,
-  filtered: boolean
+  page: { offset: number; total: number; filtered: boolean }
 ): FolderSection[] {
+  const { offset, total, filtered } = page
+  const counted = folders.reduce(
+    (sum, folder) => sum + folder.dashboard_count,
+    0
+  )
+  const exact = !filtered && counted === total
+  const pageEnd = offset + listPageSize
   const byFolder = rowsByFolder(rows)
-  const lastLoaded = folders.findLastIndex((folder) => byFolder.has(folder.id))
   const sections: FolderSection[] = []
-  folders.forEach((folder, index) => {
-    const loaded = byFolder.get(folder.id) ?? []
-    if (loaded.length > 0) {
-      sections.push({ folder, rows: loaded, empty: false })
-      return
+  let start = 0
+  for (const folder of folders) {
+    const onPage = byFolder.get(folder.id) ?? []
+    if (onPage.length > 0) {
+      sections.push({
+        folder,
+        rows: onPage,
+        empty: false,
+        continued: exact && start < offset,
+      })
+    } else if (
+      exact &&
+      folder.dashboard_count === 0 &&
+      start >= offset &&
+      (start < pageEnd || pageEnd >= total)
+    ) {
+      sections.push({ folder, rows: [], empty: true, continued: false })
     }
-    if (filtered || (hasMore && index > lastLoaded)) return
-    sections.push({ folder, rows: [], empty: true })
-  })
+    start += folder.dashboard_count
+  }
   return sections
 }
 
@@ -63,6 +81,15 @@ export function dashboardCountText(n: number): string {
   return plural(n, "dashboard")
 }
 
-export function listSummary(total: number, folderCount: number): string {
-  return `${plural(total, "dashboard")} in ${plural(folderCount, "folder")}`
+export function listSummary(
+  total: number,
+  folderCount: number,
+  page: number
+): string {
+  const pageCount = pageCountOf(total)
+  if (pageCount === 1) {
+    return `${plural(total, "dashboard")} in ${plural(folderCount, "folder")}`
+  }
+  const { first, last } = pageRange(page, total)
+  return `Page ${page} of ${pageCount}, dashboards ${first}-${last} of ${total}`
 }

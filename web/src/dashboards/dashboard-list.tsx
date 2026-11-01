@@ -1,8 +1,4 @@
-import {
-  keepPreviousData,
-  useInfiniteQuery,
-  useQuery,
-} from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { useTable } from "@tanstack/react-table"
 import {
@@ -13,8 +9,8 @@ import {
   UsersIcon,
 } from "lucide-react"
 import {
+  useCallback,
   useEffect,
-  useId,
   useMemo,
   useRef,
   useState,
@@ -42,7 +38,7 @@ import {
 import {
   accessSummary,
   dashboardCountText,
-  groupByFolder,
+  groupPage,
   listSummary,
   yourAccessText,
   type FolderSection,
@@ -56,29 +52,37 @@ import {
 import {
   clampQuery,
   hasFilters,
+  pageSearch,
   toFilters,
+  withoutPage,
   type ListSearch,
 } from "./list-filters"
+import { ListPagination } from "./list-pagination"
+import {
+  listOffset,
+  listPageSize,
+  pageCountOf,
+  pageOutOfRange,
+  pageRange,
+} from "./list-pages"
 
-const pageSize = 50
 const skeletonRows = 5
 const searchDelayMs = 250
 const emptyList: DashboardSummary[] = []
 const listColumns = [...dashboardColumns, actionsColumn]
 const dashboardRowId = (dashboard: DashboardSummary) => dashboard.id
 
-function useDashboardList(search: ListSearch) {
+function useDashboardList(search: ListSearch, page: number) {
   const filters = toFilters(search)
-  return useInfiniteQuery({
-    queryKey: dashboardKeys.filtered(filters),
-    initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam, signal }) =>
+  return useQuery({
+    queryKey: dashboardKeys.filtered(filters, page),
+    queryFn: ({ signal }) =>
       api
         .GET("/dashboards", {
           params: {
             query: {
-              limit: pageSize,
-              cursor: pageParam,
+              limit: listPageSize,
+              offset: listOffset(page),
               q: filters.q,
               made_by: filters.madeBy,
               datasource: filters.datasource,
@@ -90,9 +94,8 @@ function useDashboardList(search: ListSearch) {
           signal,
         })
         .then(unwrap),
-    getNextPageParam: (last) => last.next_cursor ?? undefined,
     staleTime: 15_000,
-    placeholderData: keepPreviousData,
+    placeholderData: (previous) => previous,
   })
 }
 
@@ -188,11 +191,13 @@ function FilterRow({ search, onSearchChange, summary }: FilterRowProps) {
 function FolderHeaderRow({
   folder,
   collapsed,
+  continued,
   columnCount,
   onToggle,
 }: {
   folder: Folder
   collapsed: boolean
+  continued: boolean
   columnCount: number
   onToggle: () => void
 }) {
@@ -223,6 +228,11 @@ function FolderHeaderRow({
           <span className="text-xs text-muted-foreground">
             {dashboardCountText(folder.dashboard_count)}
           </span>
+          {continued ? (
+            <span className="text-xs text-muted-foreground">
+              Continued from the previous page
+            </span>
+          ) : null}
           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <AccessIcon aria-hidden="true" className="size-3.5 flex-none" />
             {accessSummary(folder)}
@@ -262,6 +272,7 @@ function sectionRows(
         key={`folder:${section.folder.id}`}
         folder={section.folder}
         collapsed={isCollapsed}
+        continued={section.continued}
         columnCount={columnCount}
         onToggle={() => toggle(section.folder.id)}
       />
@@ -307,24 +318,27 @@ type Props = {
 
 export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
   const canCreate = useCanCreateDashboards()
-  const query = useDashboardList(search)
+  const page = search.page ?? 1
+  const query = useDashboardList(search, page)
   const folderResult = useQuery(foldersQuery())
-  const pages = query.data?.pages
-  const dashboards = useMemo(
-    () => pages?.flatMap((page) => page.dashboards) ?? emptyList,
-    [pages]
-  )
+  const dashboards = query.data?.dashboards ?? emptyList
+  const total = query.data?.total_count ?? 0
   const table = useListTable(dashboards)
   const folders = folderResult.data
   const filtered = hasFilters(search)
-  const hasNextPage = query.hasNextPage
   const loaded = query.data !== undefined
+  const settled = loaded && !query.isPlaceholderData
+  const clampTo = settled ? pageOutOfRange(page, total) : null
   const sections = useMemo(
     () =>
-      loaded && folders !== undefined
-        ? groupByFolder(folders, dashboards, hasNextPage, filtered)
+      loaded && folders !== undefined && clampTo === null
+        ? groupPage(folders, dashboards, {
+            offset: listOffset(page),
+            total,
+            filtered,
+          })
         : null,
-    [loaded, folders, dashboards, hasNextPage, filtered]
+    [loaded, folders, clampTo, dashboards, page, total, filtered]
   )
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
   const noDashboards =
@@ -333,55 +347,53 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
     dashboards.length === 0 &&
     !query.isPlaceholderData &&
     !filtered &&
+    clampTo === null &&
     folders.length <= 1
   const empty = sections !== null && (noDashboards || sections.length === 0)
   const [resetKey, setResetKey] = useState(0)
   const pending = query.isPending || folderResult.isPending
-  const showTable = pending || (sections !== null && !empty)
-  const loadMoreFailed = query.isFetchNextPageError
-  const failedQuery =
-    query.isError && !loadMoreFailed
-      ? query
-      : folderResult.isError
-        ? folderResult
-        : null
-  const loadMoreErrorId = useId()
-  const rows = useRef<HTMLTableSectionElement>(null)
-  const loadMoreButton = useRef<HTMLButtonElement>(null)
-  const focusFrom = useRef<number | null>(null)
-  const rowCount = dashboards.length
+  const showTable = pending || clampTo !== null || (sections !== null && !empty)
+  const failedQuery = query.isError
+    ? query
+    : folderResult.isError
+      ? folderResult
+      : null
+  const regionRef = useRef<HTMLDivElement>(null)
+  const retryRef = useRef<HTMLButtonElement>(null)
+  const focusIntent = useRef<number | null>(null)
 
   const { q, made_by: madeBy, datasource, folder } = search
   const tags = search.tag?.join(",")
   useEffect(() => {
-    focusFrom.current = null
+    focusIntent.current = null
   }, [q, madeBy, datasource, tags, folder])
 
-  const fetchingNextPage = query.isFetchingNextPage
   useEffect(() => {
-    const from = focusFrom.current
-    if (fetchingNextPage || from === null) return
-    focusFrom.current = null
-    const active = document.activeElement
-    const onBody = !active || active === document.body
-    const focusLink = (index: number) =>
-      rows.current
-        ?.querySelector<HTMLElement>(
-          `tr[data-dashboard-id="${dashboards[index]?.id}"] a`
-        )
-        ?.focus()
-    if (rowCount > from) {
-      if (!onBody && active !== loadMoreButton.current) return
-      focusLink(from)
-    } else if (onBody) {
-      focusLink(rowCount - 1)
-    }
-  }, [rowCount, fetchingNextPage, dashboards])
+    if (clampTo === null) return
+    focusIntent.current = null
+    onSearchChange(pageSearch(search, clampTo))
+  }, [clampTo, search, onSearchChange])
 
-  const loadMore = () => {
-    focusFrom.current = rowCount
-    void query.fetchNextPage()
+  const failed = query.isError
+  useEffect(() => {
+    if (focusIntent.current !== page) return
+    if (failed) {
+      focusIntent.current = null
+      retryRef.current?.focus()
+    } else if (settled && clampTo === null) {
+      focusIntent.current = null
+      regionRef.current?.focus({ preventScroll: true })
+      regionRef.current?.scrollIntoView({ block: "start" })
+    }
+  }, [page, failed, settled, clampTo])
+
+  const onNavigate = (target: number) => {
+    focusIntent.current = target
   }
+  const onFilterChange = useCallback(
+    (next: ListSearch) => onSearchChange(withoutPage(next)),
+    [onSearchChange]
+  )
 
   const toggleFolder = (folderId: string) =>
     setCollapsed((current) => {
@@ -390,21 +402,22 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
       return next
     })
 
+  const pageCount = pageCountOf(total)
+  const range = pageRange(page, total)
+  const summary = query.isPaused
+    ? "Offline. The list loads when you are back online."
+    : query.isPlaceholderData || sections === null
+      ? undefined
+      : listSummary(total, sections.length, page)
+
   return (
     <>
       {noDashboards ? null : (
         <FilterRow
           key={resetKey}
           search={search}
-          onSearchChange={onSearchChange}
-          summary={
-            query.isPlaceholderData || sections === null
-              ? undefined
-              : listSummary(
-                  query.data?.pages[0].total_count ?? 0,
-                  sections.length
-                )
-          }
+          onSearchChange={onFilterChange}
+          summary={summary}
         />
       )}
       {failedQuery === null ? null : (
@@ -418,6 +431,7 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
             detail={loadProblemText(failedQuery.error)}
             retrying={failedQuery.isFetching}
             onRetry={() => void failedQuery.refetch()}
+            retryRef={retryRef}
           />
         </div>
       )}
@@ -466,7 +480,7 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
       ) : null}
       {showTable ? (
         <>
-          <TableCard minWidth={820} labelledBy={labelledBy}>
+          <TableCard minWidth={820} labelledBy={labelledBy} ref={regionRef}>
             <thead>
               {table.getHeaderGroups().map((group) => (
                 <tr key={group.id}>
@@ -481,7 +495,9 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
                 </tr>
               ))}
             </thead>
-            <tbody ref={rows} aria-busy={pending || query.isPlaceholderData}>
+            <tbody
+              aria-busy={pending || query.isPlaceholderData || clampTo !== null}
+            >
               {sections === null ? (
                 <SkeletonRows table={table} />
               ) : (
@@ -489,29 +505,19 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
               )}
             </tbody>
           </TableCard>
-          {query.hasNextPage && !query.isPlaceholderData ? (
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
-              {loadMoreFailed ? (
-                <p
-                  id={loadMoreErrorId}
-                  role="alert"
-                  className="text-center text-sm text-destructive"
-                >
-                  Could not load more dashboards: {query.error?.message}
-                </p>
-              ) : null}
-              <Button
-                ref={loadMoreButton}
-                variant="outline"
-                className="text-foreground"
-                disabled={query.isFetchingNextPage}
-                focusableWhenDisabled
-                aria-busy={query.isFetchingNextPage}
-                aria-describedby={loadMoreFailed ? loadMoreErrorId : undefined}
-                onClick={loadMore}
-              >
-                Load more
-              </Button>
+          {loaded && pageCount > 1 && clampTo === null ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {query.isPlaceholderData
+                  ? null
+                  : `${range.first}-${range.last} of ${total}`}
+              </p>
+              <ListPagination
+                page={page}
+                pageCount={pageCount}
+                search={search}
+                onNavigate={onNavigate}
+              />
             </div>
           ) : null}
         </>
