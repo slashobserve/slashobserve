@@ -4,8 +4,7 @@ name: slashobserve
 x-dex-client-secret: &dex-client-secret slashobserve-dev-client-secret
 
 x-shop: &shop
-  image: ${SLASHOBSERVE_SHOP_IMAGE:-slashobserve-demo-shop:local}
-  pull_policy: never
+  image: ${SLASHOBSERVE_SHOP_IMAGE:-ghcr.io/slashobserve/demo-shop:latest}
   command: [serve]
   depends_on:
     otel-collector:
@@ -67,10 +66,7 @@ services:
           memory: 64M
 
   server:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
-    image: ${SLASHOBSERVE_IMAGE:-slashobserve-server:local}
+    image: ${SLASHOBSERVE_IMAGE:-ghcr.io/slashobserve/slashobserve:latest}
     environment:
       SLASHOBSERVE_DATABASE_URL: postgres://slashobserve:slashobserve@postgres:5432/slashobserve?sslmode=disable
       SLASHOBSERVE_LOG_LEVEL: ${SLASHOBSERVE_LOG_LEVEL:-info}
@@ -220,9 +216,6 @@ services:
 
   frontend-0:
     <<: *shop-server
-    build:
-      context: ../../demo/shop
-    pull_policy: build
     environment:
       SHOP_SERVICE: frontend
       SHOP_POD: frontend-0

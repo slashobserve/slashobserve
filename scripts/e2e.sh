@@ -43,10 +43,12 @@ fail() {
 
 if [[ -n "${SLASHOBSERVE_IMAGE:-}" ]]; then
   BUILD_FLAGS=(--no-build --pull missing)
+  COMPOSE_FILES=(-f "$ROOT/deploy/compose/compose.yaml")
 else
   export SLASHOBSERVE_IMAGE="slashobserve-e2e:local"
   export SLASHOBSERVE_SHOP_IMAGE="slashobserve-e2e-shop:local"
   BUILD_FLAGS=(--build)
+  COMPOSE_FILES=(-f "$ROOT/deploy/compose/compose.yaml" -f "$ROOT/deploy/compose/compose.build.yaml")
 fi
 
 usage() {
@@ -73,7 +75,7 @@ Requirements: docker with compose v2.20+, curl, perl; 'browser' also needs bun a
 EOF
 }
 
-COMPOSE_CMD=(docker compose -f "$ROOT/deploy/compose/compose.yaml" -p "$PROJECT")
+COMPOSE_CMD=(docker compose "${COMPOSE_FILES[@]}" -p "$PROJECT")
 
 read -r -d '' BOUNDED_PERL <<'PERL' || true
 my $secs = shift @ARGV;

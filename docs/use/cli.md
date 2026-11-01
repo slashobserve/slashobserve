@@ -1,16 +1,20 @@
 ---
 title: CLI
-description: Build and use the observe command line client.
+description: Install and use the observe command line client.
 ---
 
-Build the `observe` command, which needs only Go:
+Download the `observe` archive for your platform and `checksums.txt` from the [releases page](https://github.com/slashobserve/slashobserve/releases), then check the archive against the checksums:
 
 ```sh
-make cli
+sha256sum --check --ignore-missing checksums.txt
 ```
 
-It writes `bin/observe`.
-Sign in once; it prompts for the key without echoing it:
+On macOS, use `shasum -a 256 --check --ignore-missing checksums.txt`.
+Unpack the archive and put `observe` on your `PATH`.
+To build it yourself instead, which needs only Go, run `make cli`; it writes `bin/observe`.
+The examples below use `bin/observe`; with a downloaded binary, run `observe`.
+
+Sign in once; `login` prompts for the key without echoing it:
 
 ```sh
 bin/observe login --server https://observe.example.com

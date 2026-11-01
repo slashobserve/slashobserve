@@ -20,5 +20,5 @@ You also need:
 - Optionally, an LLM provider.
   Without one the server runs, but the built-in agent is off (see [LLM providers](../connect/llm-providers.md)).
 
-This repository does not reference a published container image.
-Build the image from the repository root (see [Run your own deployment](install.md)).
+The image is published as `ghcr.io/slashobserve/slashobserve`; see [Run your own deployment](install.md).
+To try it first on your own machine with sample data, use the [quick start](quick-start.md).

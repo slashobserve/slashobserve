@@ -28,7 +28,7 @@ Dumps contain session and key hashes and your dashboards, so protect them like t
 ## Upgrade
 
 1. Take a backup.
-2. Build or pull the new image and replace the container.
+2. Pull the new image tag (or build your own image) and replace the container.
 3. Watch the log: the server applies pending migrations at startup, each logged as `applied migration` with its version, and `/readyz` returns 200 once they are done.
 
 Migrations run under a Postgres lock, so starting several servers at once is safe: one migrates and the others wait.

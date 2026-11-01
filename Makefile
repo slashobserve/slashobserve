@@ -10,6 +10,7 @@ GO_LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)
 SQLC := go tool -modfile=tools/sqlc/go.mod sqlc
 GOLANGCI_LINT := go tool -modfile=tools/golangci-lint/go.mod golangci-lint
 COMPOSE := docker compose -f deploy/compose/compose.yaml
+COMPOSE_BUILD := $(COMPOSE) -f deploy/compose/compose.build.yaml
 SHOP_DIR := demo/shop
 SHOP_LINT := go tool -modfile=../../tools/golangci-lint/go.mod golangci-lint
 TYPE ?= errors
@@ -17,7 +18,14 @@ PCT ?= 30
 # zod 3 under the shadcn CLI, a dev-only tool that pins zod ^3 and ships in no build
 WEB_AUDIT_IGNORE := GHSA-mrhx-c7xc-m3w5
 
-.PHONY: build server cli web web-deps generate test lint ci audit demo demo-down demo-reset demo-fault demo-fault-reset e2e e2e-browser e2e-all evals golden tidy-check clean
+define DEMO_BANNER
+	@echo "SlashObserve is running at http://localhost:$${SLASHOBSERVE_HOST_PORT:-8080}"
+	@echo "Prometheus is running at http://localhost:$${SLASHOBSERVE_PROMETHEUS_HOST_PORT:-9090}"
+	@echo "Shop fault API is at http://localhost:$${SLASHOBSERVE_SHOP_HOST_PORT:-8081}/fault"
+	@echo "Sign in as admin@example.com / password (Dex, development only)"
+endef
+
+.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-down demo-reset demo-fault demo-fault-reset e2e e2e-browser e2e-all evals golden tidy-check clean
 
 build: web
 	$(MAKE) server cli
@@ -76,11 +84,12 @@ audit:
 	cd web && bun audit --audit-level=high $(addprefix --ignore=,$(WEB_AUDIT_IGNORE))
 
 demo:
-	SLASHOBSERVE_IMAGE=slashobserve-server:local SLASHOBSERVE_SHOP_IMAGE=slashobserve-demo-shop:local $(COMPOSE) up -d --build --wait --wait-timeout 300
-	@echo "SlashObserve is running at http://localhost:$${SLASHOBSERVE_HOST_PORT:-8080}"
-	@echo "Prometheus is running at http://localhost:$${SLASHOBSERVE_PROMETHEUS_HOST_PORT:-9090}"
-	@echo "Shop fault API is at http://localhost:$${SLASHOBSERVE_SHOP_HOST_PORT:-8081}/fault"
-	@echo "Sign in as admin@example.com / password (Dex, development only)"
+	$(COMPOSE) up -d --wait --wait-timeout 300
+	$(DEMO_BANNER)
+
+demo-build:
+	SLASHOBSERVE_IMAGE=slashobserve-server:local SLASHOBSERVE_SHOP_IMAGE=slashobserve-demo-shop:local $(COMPOSE_BUILD) up -d --build --wait --wait-timeout 300
+	$(DEMO_BANNER)
 
 demo-down:
 	$(COMPOSE) down
