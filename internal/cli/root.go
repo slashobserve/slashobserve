@@ -85,6 +85,8 @@ func (a *app) command() *cobra.Command {
 	root.SetErr(a.std.Err)
 	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return usageError{message: err.Error()} })
 	root.CompletionOptions.DisableDefaultCmd = true
+	root.Version = a.version
+	root.SetVersionTemplate("{{.Version}}\n")
 
 	flags := root.PersistentFlags()
 	flags.StringVar(&a.server, "server", "", "server address (env OBSERVE_SERVER)")

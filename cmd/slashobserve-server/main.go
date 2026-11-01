@@ -55,9 +55,15 @@ const (
 	shutdownTimeout   = 15 * time.Second
 )
 
+func versionLine() string { return version + " (" + commit + ")" }
+
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		os.Exit(healthcheck(os.LookupEnv))
+	}
+	if len(os.Args) > 1 && os.Args[1] == "--version" {
+		fmt.Println(versionLine())
+		return
 	}
 	if err := run(); err != nil {
 		slog.Error("server exiting", exitAttrs(err)...)

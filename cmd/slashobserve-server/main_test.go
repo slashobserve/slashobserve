@@ -158,3 +158,11 @@ func TestReportedEffortIsOnlyAnAnthropicSetting(t *testing.T) {
 		})
 	}
 }
+
+func TestVersionLineHasTheVersionAndTheCommit(t *testing.T) {
+	defer func(v, c string) { version, commit = v, c }(version, commit)
+	version, commit = "0.1.0", "abc1234"
+	if got := versionLine(); got != "0.1.0 (abc1234)" {
+		t.Fatalf("versionLine() = %q", got)
+	}
+}
