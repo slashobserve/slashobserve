@@ -53,3 +53,10 @@ export function pageOutOfRange(page: number, total: number): number | null {
 export function listOffset(page: number): number {
   return (page - 1) * listPageSize
 }
+
+export function withOffset<T extends object>(
+  list: T,
+  offset: number
+): T & { offset: number } {
+  return { ...list, offset }
+}

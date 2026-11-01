@@ -6,6 +6,7 @@ import {
   pageItems,
   pageOutOfRange,
   pageRange,
+  withOffset,
 } from "./list-pages"
 
 describe("pageCountOf", () => {
@@ -92,5 +93,13 @@ describe("pageOutOfRange", () => {
     expect(pageOutOfRange(3, 100)).toBe(2)
     expect(pageOutOfRange(2, 100)).toBeNull()
     expect(pageOutOfRange(5, 0)).toBe(1)
+  })
+})
+
+describe("withOffset", () => {
+  it("keeps the list and records the offset it was fetched at", () => {
+    const list = { dashboards: ["a"], total_count: 120 }
+    expect(withOffset(list, 0)).toEqual({ ...list, offset: 0 })
+    expect(withOffset(list, listOffset(3))).toEqual({ ...list, offset: 100 })
   })
 })

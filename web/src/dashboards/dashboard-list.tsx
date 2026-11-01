@@ -64,6 +64,7 @@ import {
   pageCountOf,
   pageOutOfRange,
   pageRange,
+  withOffset,
 } from "./list-pages"
 
 const skeletonRows = 5
@@ -74,6 +75,7 @@ const dashboardRowId = (dashboard: DashboardSummary) => dashboard.id
 
 function useDashboardList(search: ListSearch, page: number) {
   const filters = toFilters(search)
+  const offset = listOffset(page)
   return useQuery({
     queryKey: dashboardKeys.filtered(filters, page),
     queryFn: ({ signal }) =>
@@ -82,7 +84,7 @@ function useDashboardList(search: ListSearch, page: number) {
           params: {
             query: {
               limit: listPageSize,
-              offset: listOffset(page),
+              offset,
               q: filters.q,
               made_by: filters.madeBy,
               datasource: filters.datasource,
@@ -93,7 +95,8 @@ function useDashboardList(search: ListSearch, page: number) {
           },
           signal,
         })
-        .then(unwrap),
+        .then(unwrap)
+        .then((list) => withOffset(list, offset)),
     staleTime: 15_000,
     placeholderData: (previous) => previous,
   })
@@ -323,6 +326,7 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
   const folderResult = useQuery(foldersQuery())
   const dashboards = query.data?.dashboards ?? emptyList
   const total = query.data?.total_count ?? 0
+  const dataOffset = query.data?.offset ?? 0
   const table = useListTable(dashboards)
   const folders = folderResult.data
   const filtered = hasFilters(search)
@@ -333,12 +337,12 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
     () =>
       loaded && folders !== undefined && clampTo === null
         ? groupPage(folders, dashboards, {
-            offset: listOffset(page),
+            offset: dataOffset,
             total,
             filtered,
           })
         : null,
-    [loaded, folders, clampTo, dashboards, page, total, filtered]
+    [loaded, folders, clampTo, dashboards, dataOffset, total, filtered]
   )
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
   const noDashboards =
