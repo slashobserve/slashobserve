@@ -64,7 +64,7 @@ function HomeLink({ collapsed }: { collapsed: boolean }) {
         collapsed && "justify-center px-0"
       )}
     >
-      {collapsed ? <Mark size={20} variant="rail" /> : <Wordmark size={17} />}
+      {collapsed ? <Mark size={18} /> : <Wordmark size={17} />}
     </a>
   )
 }

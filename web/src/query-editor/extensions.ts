@@ -68,7 +68,8 @@ export const theme = EditorView.theme({
   ".cm-diagnosticSource": { display: "none" },
   "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection":
     {
-      backgroundColor: "color-mix(in oklch, var(--brand) 25%, transparent)",
+      backgroundColor:
+        "color-mix(in oklch, var(--foreground) 15%, transparent)",
     },
 })
 

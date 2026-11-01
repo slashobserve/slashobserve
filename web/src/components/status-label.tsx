@@ -56,7 +56,7 @@ export function StatusIcon({ tone }: { tone: StatusTone }) {
       return (
         <svg
           {...iconProps}
-          className="flex-none stroke-brand motion-safe:animate-spin"
+          className="flex-none stroke-foreground motion-safe:animate-spin"
           strokeWidth={2.4}
         >
           <path d="M21 12a9 9 0 1 1-6.2-8.6" />

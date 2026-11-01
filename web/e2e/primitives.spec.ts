@@ -38,7 +38,7 @@ async function expectFlatMenu(page: Page) {
   expect(style.borderTopWidth).toBe("1px")
 }
 
-test("menus are flat with a border and focus is a solid brand ring", async ({
+test("menus are flat with a border and focus is a solid ring", async ({
   page,
   request,
 }) => {
@@ -58,7 +58,7 @@ test("menus are flat with a border and focus is a solid brand ring", async ({
   await expect(menuButton).toBeFocused()
   await expect
     .poll(() => menuButton.evaluate((el) => getComputedStyle(el).boxShadow))
-    .toContain("42, 120, 214")
+    .toContain("10, 10, 10")
 })
 
 test("header buttons use the 6px radius and 13px text", async ({
@@ -90,7 +90,7 @@ test("menus stay flat in dark mode", async ({ page, request }) => {
   await expectFlatMenu(page)
 })
 
-test("a focused multi-value variable control has a 2px brand ring", async ({
+test("a focused multi-value variable control has a 2px ring", async ({
   page,
   request,
 }) => {
@@ -109,12 +109,12 @@ test("a focused multi-value variable control has a 2px brand ring", async ({
   await expect(input).toBeFocused()
   await expect
     .poll(() => chips.evaluate((el) => getComputedStyle(el).boxShadow))
-    .toContain("42, 120, 214")
+    .toContain("10, 10, 10")
   const shadow = await chips.evaluate((el) => getComputedStyle(el).boxShadow)
   expect(shadow).toContain("0px 0px 0px 2px")
 })
 
-test("a destructive button focused by keyboard shows the brand ring", async ({
+test("a destructive button focused by keyboard shows the ring", async ({
   page,
   request,
 }) => {
@@ -136,5 +136,5 @@ test("a destructive button focused by keyboard shows the brand ring", async ({
   await expect(revoke).toBeFocused()
   await expect
     .poll(() => revoke.evaluate((el) => getComputedStyle(el).boxShadow))
-    .toContain("42, 120, 214")
+    .toContain("10, 10, 10")
 })

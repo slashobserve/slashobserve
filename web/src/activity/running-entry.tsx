@@ -21,7 +21,7 @@ export function RunningLinkContent({ stepText }: { stepText: string }) {
         strokeWidth={2.4}
         strokeLinecap="round"
         aria-hidden="true"
-        className="flex-none stroke-brand motion-safe:animate-spin"
+        className="flex-none stroke-foreground motion-safe:animate-spin"
       >
         <path d="M21 12a9 9 0 1 1-6.2-8.6" />
       </svg>

@@ -113,7 +113,7 @@ export function PanelChrome({
         "relative flex size-full flex-col overflow-hidden rounded-card border text-card-foreground",
         transparent ? "border-transparent bg-transparent" : "bg-card",
         selected &&
-          "border-brand outline outline-1 -outline-offset-1 outline-brand"
+          "border-foreground outline outline-1 -outline-offset-1 outline-foreground"
       )}
     >
       <header
@@ -167,7 +167,7 @@ export function PanelChrome({
           </span>
         ) : null}
         {editing ? (
-          <span className="text-xs font-medium text-brand">Editing</span>
+          <span className="text-xs font-medium text-foreground">Editing</span>
         ) : null}
         <div className="ml-auto flex items-center gap-0.5">
           {refreshing ? (

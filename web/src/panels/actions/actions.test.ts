@@ -191,7 +191,9 @@ describe("parseActions", () => {
   it("reads the button color and one-click flag, defaulting to none and false", () => {
     expect(oneAction({}).color).toBeNull()
     expect(oneAction({ color: "" }).color).toBeNull()
-    expect(oneAction({ color: "var(--brand)" }).color).toBe("var(--brand)")
+    expect(oneAction({ color: "var(--series-1)" }).color).toBe(
+      "var(--series-1)"
+    )
     expect(oneAction({ color: "text" }).color).toBe("var(--foreground)")
     expect(oneAction({ color: "critical" }).color).toBe(
       "var(--threshold-critical)"

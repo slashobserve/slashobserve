@@ -389,7 +389,7 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
           <span id={newKeyLabelId} className="text-[13px] font-medium">
             Your new key
           </span>
-          <div className="flex items-center gap-2 rounded-[8px] border border-brand py-2.5 pr-2.5 pl-3">
+          <div className="flex items-center gap-2 rounded-[8px] border border-foreground py-2.5 pr-2.5 pl-3">
             <code className="min-w-0 flex-1 overflow-x-auto font-mono text-xs whitespace-nowrap">
               {token}
             </code>

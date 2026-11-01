@@ -43,7 +43,7 @@ test("uses the M1 tokens in both themes", async ({ page }) => {
       return {
         background: body.backgroundColor,
         color: body.color,
-        brand: root.getPropertyValue("--brand").trim(),
+        ring: root.getPropertyValue("--ring").trim(),
         series1: root.getPropertyValue("--series-1").trim(),
       }
     })
@@ -59,7 +59,7 @@ test("uses the M1 tokens in both themes", async ({ page }) => {
   expect(await readTokens()).toEqual({
     background: "rgb(255, 255, 255)",
     color: "rgb(10, 10, 10)",
-    brand: "#2a78d6",
+    ring: "#0a0a0a",
     series1: "#2a78d6",
   })
 
@@ -69,7 +69,7 @@ test("uses the M1 tokens in both themes", async ({ page }) => {
   expect(await readTokens()).toEqual({
     background: "rgb(17, 17, 19)",
     color: "rgb(250, 250, 250)",
-    brand: "#5598e7",
+    ring: "#fafafa",
     series1: "#3987e5",
   })
 })

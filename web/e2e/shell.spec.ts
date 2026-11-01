@@ -197,14 +197,14 @@ test("keeps the dashboard outside the shell", async ({ page, request }) => {
   await expect(page).toHaveURL(/\/keys$/)
 })
 
-test("shows focus in brand blue", async ({ page }) => {
+test("shows focus in a monochrome ring", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" })
   await page.goto("/settings")
   const datasources = sidebar(page).getByRole("link", { name: "Datasources" })
   await tabUntilFocused(page, datasources, 15)
   await expect
     .poll(() => datasources.evaluate((el) => getComputedStyle(el).boxShadow))
-    .toContain("42, 120, 214")
+    .toContain("10, 10, 10")
 })
 
 test("draws the shell in dark mode", async ({ page }) => {
