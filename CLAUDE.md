@@ -12,12 +12,14 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 | `make build` | Install web dependencies, build the Vite app into `internal/server/webdist`, then build `bin/slashobserve-server` with the UI embedded. |
 | `make server` | Build only the Go binary, embedding whatever is in `internal/server/webdist`. |
 | `make cli` | Build only `bin/observe`; `make build` builds it too. |
-| `make test` | `go test -race ./...` for the root module and `demo/shop`, then the web Vitest suite. |
+| `make test` | `go test -race ./...` for the root module and `demo/shop`, the web Vitest suite, then `scripts/release-scripts-test.sh` (the release tag and release notes scripts). |
 | `make lint` | golangci-lint (config verify, format diff, run), `sqlc diff`, web typecheck, Spec drift and fixture parity check, web API type drift check (`api:check`), ESLint, knip (unused web files, exports and dependencies), Prettier check. |
 | `make ci` | `lint`, `test`, `tidy-check` (`go mod tidy -diff` for the root module and `demo/shop`), `build`: what the CI `check` job runs. |
+| `make audit` | `govulncheck` for the root module and `demo/shop`, `bun audit --prod` and `bun audit --audit-level=high` for the web lockfile (minus the advisories in `WEB_AUDIT_IGNORE`): what the CI `audit` job runs. |
 | `make generate` | Regenerate sqlc code, the web Spec types/validator and the web API types (`web/src/api/schema.gen.ts`) after editing migrations, queries, the schema or `api/`. |
 | `make golden` | Rewrite the `pkg/grafana` corpus goldens and the generated option map (`optionmap.json`). |
-| `make demo` / `make demo-down` | Run the full demo stack in `deploy/compose` and stop it: the app on http://localhost:8080, Prometheus on http://localhost:9090 and the shop fault API on http://localhost:8081, with Dex, Postgres, ClickHouse, the OTel Collector, node-exporter, cAdvisor and the shop behind them. |
+| `make demo` / `make demo-down` | Run the full demo stack in `deploy/compose` from the published images `ghcr.io/slashobserve/slashobserve` and `ghcr.io/slashobserve/demo-shop` (tag `latest`, overridable with `SLASHOBSERVE_IMAGE` and `SLASHOBSERVE_SHOP_IMAGE`) with no compile, and stop it; it cannot pull until the first release tag is published, so use `make demo-build` until then. The stack: the app on http://localhost:8080, Prometheus on http://localhost:9090 and the shop fault API on http://localhost:8081, with Dex, Postgres, ClickHouse, the OTel Collector, node-exporter, cAdvisor and the shop behind them. |
+| `make demo-build` | The same stack built from this checkout (`deploy/compose/compose.build.yaml` on top of `compose.yaml`, images `slashobserve-server:local` and `slashobserve-demo-shop:local`); the path for contributors. |
 | `make demo-reset` | Stop the demo stack and drop its volumes, so the 26 hour request and latency backfill runs again on the next `make demo`. |
 | `make demo-fault TYPE=errors\|latency PCT=N` | Inject a fault into the `checkout-0` pod through the shop fault API. |
 | `make demo-fault-reset` | Clear the injected fault. |
@@ -222,11 +224,11 @@ Directories are created when their phase starts; this is where things go.
   It also holds a ceiling, `maximumOpenPlaceholders`, on placeholders that are not alert, annotation, live or library panels; it fails when the count is above or below the ceiling and prints the value to set, so a converter change that turns a placeholder into a panel lowers it in the same commit.
 - `api/`: the OpenAPI document for `/api/v1`: `openapi.yaml` holds the root, shared schemas and responses, and each feature adds `paths/<feature>.yaml` plus one `$ref` line in the root; `api.Load` embeds and validates it.
 - `web/`: React app (Bun); `web/src/routes` (TanStack Router files), `web/src/shell` (the sidebar shell), `web/src/components/ui` (shadcn), `web/e2e` (Playwright).
-- `deploy/compose/compose.yaml`: the one compose stack; `scripts/e2e.sh`: e2e stack lifecycle and API smoke suite.
+- `deploy/compose/compose.yaml`: the one compose stack, which pulls the published images; `deploy/compose/compose.build.yaml`: the override that builds the server and shop images from the checkout; `.goreleaser.yaml`: the `observe` CLI release (darwin, linux, windows on amd64 and arm64, `checksums.txt`); `.github/workflows/release.yml`: the `v*` tag release (multi-arch images scanned with Trivy, then GitHub Release); `scripts/release-tags.sh` and `scripts/release-notes.sh`: the image tags and the CHANGELOG section of a release tag; `scripts/e2e.sh`: e2e stack lifecycle and API smoke suite.
 - `docs/`: the operator guide, one page per topic under `get-started/`, `connect/`, `use/`, `teams/`, `concepts/`, `operate/` and `reference/`, each with `title` and `description` front matter and no `#` heading, linking other pages by relative `.md` path; the website orders the sidebar; update the page that covers a setting, default or behavior in the same change as the change.
 - `demo/shop/`: its own Go module (`github.com/slashobserve/slashobserve/demo/shop`) with the `serve`, `loadgen` and `healthcheck` commands; it emits the demo metrics, logs and traces.
 - `deploy/compose/{prometheus,clickhouse,otelcol}/`: the configs mounted into the demo stack's Prometheus, ClickHouse and OTel Collector.
-- `tools/<tool>/go.mod`: pinned Go dev tools (sqlc, golangci-lint).
+- `tools/<tool>/go.mod`: pinned Go dev tools (sqlc, golangci-lint, govulncheck).
 
 ## Backend conventions
 
@@ -646,7 +648,7 @@ Directories are created when their phase starts; this is where things go.
 - LLM SDKs: `anthropic-sdk-go` and `openai-go/v3` are the only model clients; adapters keep provider history append-only and pass Anthropic responses back with `Message.ToParam()` so thinking blocks stay intact.
   The OpenAI-compatible adapter rebuilds assistant history with its own helper instead of `ToParam`, so a tool call with a missing type still round-trips.
 - GitHub Actions are pinned to a commit SHA with the version in a trailing comment; Docker images are pinned by tag and digest.
-- Version bumps that must change together: Go toolchain in `go.mod` (`go` line), `demo/shop/go.mod`, and the `golang` image in `Dockerfile` and `demo/shop/Dockerfile`; the distroless image digest shared by both Dockerfiles; Bun in `web/package.json` (`packageManager`, read by CI) and the `oven/bun` image in `Dockerfile`; Postgres in `deploy/compose/compose.yaml` and in `internal/db/dbtest`; the `prom/prometheus` and `clickhouse/clickhouse-server` images in `deploy/compose/compose.yaml` and in the integration tests under `internal/datasource/{prometheus,clickhouse}`.
+- Version bumps that must change together: Go toolchain in `go.mod` (`go` line), `demo/shop/go.mod`, and the `golang` image in `Dockerfile` and `demo/shop/Dockerfile`; the distroless image digest shared by both Dockerfiles; Bun in `web/package.json` (`packageManager`, read by CI) and the `oven/bun` image in `Dockerfile`; Postgres in `deploy/compose/compose.yaml` and in `internal/db/dbtest`; the `prom/prometheus` and `clickhouse/clickhouse-server` images in `deploy/compose/compose.yaml` and in the integration tests under `internal/datasource/{prometheus,clickhouse}`. Dependabot ignores the `golang` and `oven/bun` images because they move with those pins.
 - Prefer boring, proven libraries; justify every new dependency in its PR.
 
 ## End-to-end tests
@@ -718,7 +720,7 @@ Directories are created when their phase starts; this is where things go.
   The runner exits 1 when the pass rate is below `--min-pass` (0.8) or, with all 10 `done_when` scenarios run, fewer than `--min-done-when` (8, or the number of `done_when` scenarios in a custom folder when fewer) pass, and 2 on a usage or setup error.
   Observe fixtures cover the brief's broken-query repair path (`observe-red-metrics.json` saves a query with an unbalanced parenthesis, gets `query_invalid`, and repairs it).
 - Compose: add new services (Dex, Prometheus, ClickHouse, OTel Collector, demo/shop) to `deploy/compose/compose.yaml`; publish host ports only for what a browser or developer must reach, bound to 127.0.0.1 with a `${...}` override.
-  Only `frontend-0` builds the shop image (`pull_policy: build`), so a plain `docker compose up` rebuilds the image named by `SLASHOBSERVE_SHOP_IMAGE` even when it is prebuilt; pass `--no-build` to keep it.
+  `compose.yaml` has no `build:` sections, so a plain `docker compose up` pulls the published images; `compose.build.yaml` adds the builds (the server, and `frontend-0` for the shop image shared by the other shop services, which are `pull_policy: never`), and `make demo-build` and `scripts/e2e.sh` (unless `SLASHOBSERVE_IMAGE` names a prebuilt image) use it.
 
 ## Product rules
 
