@@ -34,6 +34,7 @@ An entry can give a Viewer or Commenter more and never gives anyone less:
 | Admin   | Also rename the folder, delete it and change its list.                                                                                                                                             |
 
 Restricted folders on the Dashboards page show `Your access: <level>` in their header.
+The Dashboards page shows 50 dashboards per page; a folder that runs onto the next page repeats its header there, marked "Continued from the previous page".
 Folder settings tells a person who cannot manage the folder `Your access to this folder is <level>. Only folder Admins can change it.`
 
 Some rules that follow:
