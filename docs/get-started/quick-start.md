@@ -4,7 +4,7 @@ description: Run the demo stack with Docker Compose and send your first prompt.
 ---
 
 Requirements: Docker with Compose v2.20 or newer, and git.
-You do not need Go or Bun, and the images are pulled, not built.
+You do not need Go or Bun: the server image is pulled, and the demo shop is built inside Docker from the repository.
 
 Get the repository, which holds the Compose file and the configs it mounts, and run the demo stack with an Anthropic key so the agent can answer prompts:
 
@@ -15,18 +15,18 @@ export SLASHOBSERVE_LLM_API_KEY=<your Anthropic API key>
 make demo
 ```
 
-Without `make`, run the same stack with `docker compose -f deploy/compose/compose.yaml up -d --wait`.
+Without `make`, run the same stack with `docker compose -f deploy/compose/compose.yaml up -d --build --wait`.
 
 Open http://localhost:8080 and sign in as `admin@example.com` / `password`.
 The demo's Dex also has `editor@example.com`, `commenter@example.com` and `viewer@example.com` with the same password; they start as Editors, and an Admin sets their roles on the People page.
 Type a prompt such as `checkout health by pod, last 6h` into the chat composer on the home page.
 
-`make demo` pulls the server and demo shop images and starts them with Postgres, Dex, Prometheus, ClickHouse, an OpenTelemetry Collector, node-exporter, cAdvisor and the shop, and waits until they are healthy.
-The first run downloads about 0.7 GB of images, which take about 2.7 GB on disk, and took about a minute on a fast connection.
+`make demo` pulls the server image, builds the demo shop image from `demo/shop`, starts them with Postgres, Dex, Prometheus, ClickHouse, an OpenTelemetry Collector, node-exporter, cAdvisor and the shop, and waits until they are healthy.
+The first run downloads about 0.7 GB of images, which take about 2.7 GB on disk, plus the Go build image for the shop.
 It passes `SLASHOBSERVE_LLM_PROVIDER`, `SLASHOBSERVE_LLM_MODEL`, `SLASHOBSERVE_LLM_API_KEY` and `SLASHOBSERVE_LLM_BASE_URL` from your shell to the server container; the other LLM settings are not forwarded.
 Run `make demo` again after changing them.
 Without a provider the demo still starts, but prompts get `503 agent_unavailable`.
-To build the server and shop images from your working tree instead of pulling them, which is for people changing the code, run `make demo-build`.
+To build the server image from your working tree as well instead of pulling it, which is for people changing the code, run `make demo-build`.
 Prometheus is on http://localhost:9090 and the shop's fault API on http://localhost:8081/fault.
 Stop the stack with `make demo-down`, or drop its data as well with `make demo-reset`.
 On first boot, and again after `make demo-reset`, Prometheus backfills 26 hours of synthetic request and latency history, so prompts that compare today with yesterday have data.

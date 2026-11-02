@@ -13,9 +13,9 @@ You need Docker with Compose v2.20 or newer.
     export SLASHOBSERVE_LLM_PROVIDER=anthropic SLASHOBSERVE_LLM_API_KEY=<your Anthropic API key>
     make demo
 
-`make demo` pulls the published images, so nothing compiles on your machine.
-The first run downloads about 0.7 GB of images, which take about 2.7 GB on disk, and took about a minute on a fast connection.
-Without `make`, run `docker compose -f deploy/compose/compose.yaml up -d --wait`; it reads the same environment variables.
+`make demo` pulls the published server image and builds the small demo shop from `demo/shop` in Docker, so you need no Go or Bun toolchain.
+The first run downloads about 0.7 GB of images, which take about 2.7 GB on disk, plus the Go build image for the shop.
+Without `make`, run `docker compose -f deploy/compose/compose.yaml up -d --build --wait`; it reads the same environment variables.
 
 Open http://localhost:8080, sign in as `admin@example.com` with the password `password`, and type a prompt such as `checkout health by pod, last 6h`.
 Stop the stack with `make demo-down`, or drop its data as well with `make demo-reset`.
@@ -26,7 +26,7 @@ It uses fixed logins (`admin@example.com`, `editor@example.com`, `commenter@exam
 Every port it publishes binds to 127.0.0.1.
 Do not expose it to a network or run it on a cloud VM; for a real deployment, follow [Run your own deployment](docs/get-started/install.md).
 
-Contributors build the demo from source with `make demo-build`.
+Contributors build the server from source as well with `make demo-build`.
 
 ## What works today
 

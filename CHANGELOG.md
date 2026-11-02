@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 SlashObserve is pre-1.0: the dashboard format, the HTTP API and the settings can change between minor releases.
 
+## [Unreleased]
+
+### Changed
+
+- The demo shop image is no longer published to GHCR.
+  `make demo` builds it from `demo/shop` in the clone and pulls only the server image.
+
 ## [0.1.0] - 2026-11-02
 
 First public release.

@@ -4,7 +4,8 @@ name: slashobserve
 x-dex-client-secret: &dex-client-secret slashobserve-dev-client-secret
 
 x-shop: &shop
-  image: ${SLASHOBSERVE_SHOP_IMAGE:-ghcr.io/slashobserve/demo-shop:latest}
+  image: ${SLASHOBSERVE_SHOP_IMAGE:-slashobserve-demo-shop:local}
+  pull_policy: never
   command: [serve]
   depends_on:
     otel-collector:
@@ -213,6 +214,9 @@ services:
 
   frontend-0:
     <<: *shop-server
+    build:
+      context: ../../demo/shop
+    pull_policy: missing
     environment:
       SHOP_SERVICE: frontend
       SHOP_POD: frontend-0

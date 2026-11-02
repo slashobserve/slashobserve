@@ -86,11 +86,11 @@ audit:
 	cd web && bun audit --audit-level=high $(addprefix --ignore=,$(WEB_AUDIT_IGNORE))
 
 demo:
-	$(COMPOSE) up -d --wait --wait-timeout 300
+	$(COMPOSE) up -d --build --wait --wait-timeout 300
 	$(DEMO_BANNER)
 
 demo-build:
-	SLASHOBSERVE_IMAGE=slashobserve-server:local SLASHOBSERVE_SHOP_IMAGE=slashobserve-demo-shop:local $(COMPOSE_BUILD) up -d --build --wait --wait-timeout 300
+	SLASHOBSERVE_IMAGE=slashobserve-server:local $(COMPOSE_BUILD) up -d --build --wait --wait-timeout 300
 	$(DEMO_BANNER)
 
 demo-down:

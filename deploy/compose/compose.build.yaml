@@ -4,20 +4,3 @@ services:
       context: ../..
       dockerfile: Dockerfile
     pull_policy: build
-
-  frontend-0:
-    build:
-      context: ../../demo/shop
-    pull_policy: build
-
-  checkout-0:
-    pull_policy: never
-
-  checkout-1:
-    pull_policy: never
-
-  payments-0:
-    pull_policy: never
-
-  loadgen:
-    pull_policy: never

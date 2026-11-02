@@ -18,8 +18,8 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 | `make audit` | `govulncheck` for the root module and `demo/shop`, `bun audit --prod` and `bun audit --audit-level=high` for the web lockfile (minus the advisories in `WEB_AUDIT_IGNORE`): what the CI `audit` job runs. |
 | `make generate` | Regenerate sqlc code, the web Spec types/validator and the web API types (`web/src/api/schema.gen.ts`) after editing migrations, queries, the schema or `api/`. |
 | `make golden` | Rewrite the `pkg/grafana` corpus goldens and the generated option map (`optionmap.json`). |
-| `make demo` / `make demo-down` | Run the full demo stack in `deploy/compose` from the published images `ghcr.io/slashobserve/slashobserve` and `ghcr.io/slashobserve/demo-shop` (tag `latest`, overridable with `SLASHOBSERVE_IMAGE` and `SLASHOBSERVE_SHOP_IMAGE`) with no compile, and stop it; it cannot pull until the first release tag is published, so use `make demo-build` until then. The stack: the app on http://localhost:8080, Prometheus on http://localhost:9090 and the shop fault API on http://localhost:8081, with Dex, Postgres, ClickHouse, the OTel Collector, node-exporter, cAdvisor and the shop behind them. |
-| `make demo-build` | The same stack built from this checkout (`deploy/compose/compose.build.yaml` on top of `compose.yaml`, images `slashobserve-server:local` and `slashobserve-demo-shop:local`); the path for contributors. |
+| `make demo` / `make demo-down` | Run the full demo stack in `deploy/compose` from the published server image `ghcr.io/slashobserve/slashobserve` (tag `latest`, overridable with `SLASHOBSERVE_IMAGE`) and a demo shop image built from `demo/shop` (`slashobserve-demo-shop:local`, overridable with `SLASHOBSERVE_SHOP_IMAGE`), and stop it. The shop is never published, so the demo and evals run from a clone. The stack: the app on http://localhost:8080, Prometheus on http://localhost:9090 and the shop fault API on http://localhost:8081, with Dex, Postgres, ClickHouse, the OTel Collector, node-exporter, cAdvisor and the shop behind them. |
+| `make demo-build` | The same stack built from this checkout (`deploy/compose/compose.build.yaml` on top of `compose.yaml`, which adds the server build, image `slashobserve-server:local`); the path for contributors. |
 | `make demo-reset` | Stop the demo stack and drop its volumes, so the 26 hour request and latency backfill runs again on the next `make demo`. |
 | `make demo-fault TYPE=errors\|latency PCT=N` | Inject a fault into the `checkout-0` pod through the shop fault API. |
 | `make demo-fault-reset` | Clear the injected fault. |
@@ -53,7 +53,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 - `e2e/`: `fixtures/api/` request bodies and `fixtures/llm/` replay fixtures.
 - `install.sh`: the one-line `observe` CLI installer; `scripts/install-test.sh` tests it offline through `OBSERVE_RELEASES_URL`.
 - `scripts/`: `e2e.sh` (e2e stack lifecycle and API smoke suite) and the release tag and notes scripts.
-- `deploy/compose/`: `compose.yaml` (the one stack), `compose.build.yaml` (the override that builds images from the checkout) and the configs mounted into the stack's services.
+- `deploy/compose/`: `compose.yaml` (the one stack), `compose.build.yaml` (the override that builds the server image from the checkout) and the configs mounted into the stack's services.
 - `demo/shop/`: its own Go module (`github.com/slashobserve/slashobserve/demo/shop`) with the `serve`, `loadgen` and `healthcheck` commands.
 - `evals/`: eval scenarios, pricing and the runner.
 - `tools/<tool>/go.mod`: pinned Go dev tools.
@@ -69,7 +69,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 - Prefer deep modules (small interface, real behavior behind it), accept dependencies instead of creating them, and add a seam only when two adapters exist.
 - Write no docstrings or comments unless they state a constraint the code cannot show.
 - Compose: add new services to `deploy/compose/compose.yaml` and publish host ports only for what a browser or developer must reach, bound to 127.0.0.1 with a `${...}` override.
-  `compose.yaml` has no `build:` sections; builds belong in `compose.build.yaml`.
+  The only `build:` in `compose.yaml` is the demo shop on `frontend-0`, which the other shop services reuse with `pull_policy: never`; the server build belongs in `compose.build.yaml`.
 
 ## pkg conventions
 

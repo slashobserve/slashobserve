@@ -52,11 +52,6 @@ jobs:
             context: .
             title: SlashObserve
             description: Agentic Grafana replacement - describe a dashboard in plain language and get a live one.
-          - name: demo-shop
-            repository: ghcr.io/slashobserve/demo-shop
-            context: demo/shop
-            title: SlashObserve demo shop
-            description: Demo shop that emits the metrics, logs and traces of the SlashObserve demo stack.
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -65,8 +60,6 @@ jobs:
 
       - name: Release metadata
         id: meta
-        env:
-          IMAGE_NAME: ${{ matrix.image.name }}
         run: |
           version="$(scripts/release-tags.sh "$GITHUB_REF_NAME" | head -n 1)"
           {
@@ -74,10 +67,8 @@ jobs:
             echo "staging=sha-${GITHUB_SHA::12}"
             echo "created=$(git log -1 --format=%cI)"
             echo "build_args<<BUILD_ARGS_END"
-            if [[ "$IMAGE_NAME" == slashobserve ]]; then
-              echo "VERSION=$version"
-              echo "COMMIT=$GITHUB_SHA"
-            fi
+            echo "VERSION=$version"
+            echo "COMMIT=$GITHUB_SHA"
             echo "BUILD_ARGS_END"
           } >> "$GITHUB_OUTPUT"
 
@@ -143,8 +134,6 @@ jobs:
         image:
           - name: slashobserve
             repository: ghcr.io/slashobserve/slashobserve
-          - name: demo-shop
-            repository: ghcr.io/slashobserve/demo-shop
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

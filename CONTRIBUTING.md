@@ -23,7 +23,7 @@ Docker runs the database-backed tests through testcontainers, and the demo stack
     make demo-build
 
 `make build` installs the web dependencies and builds `bin/slashobserve-server` and `bin/observe`.
-`make demo-build` builds the images from your working tree and starts the demo stack with them; `make demo` pulls the published images instead.
+`make demo-build` builds the server and demo shop images from your working tree and starts the demo stack with them; `make demo` pulls the published server image instead and builds only the shop.
 The demo is for local use only; see the [quick start](docs/get-started/quick-start.md).
 
 [CLAUDE.md](CLAUDE.md) describes the layout, every command and the conventions that apply across the repository.
