@@ -73,7 +73,10 @@ See the [security model](docs/operate/security-model.md).
 ## CLI
 
 The `observe` command is a thin client of the public API.
-Download it from the [releases page](https://github.com/slashobserve/slashobserve/releases) or build it with `make cli`.
+Install it with the script below, download it from the [releases page](https://github.com/slashobserve/slashobserve/releases) or build it with `make cli`.
+
+    curl -fsSL https://raw.githubusercontent.com/slashobserve/slashobserve/main/install.sh | sh
+
 An Admin creates a service-account key on the **API keys** page; then:
 
     observe login --server http://localhost:8080

@@ -3,7 +3,21 @@ title: CLI
 description: Install and use the observe command line client.
 ---
 
-Download the `observe` archive for your platform and `checksums.txt` from the [releases page](https://github.com/slashobserve/slashobserve/releases), then check the archive against the checksums:
+Install the latest `observe` on macOS or Linux (amd64 or arm64) with one line:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/slashobserve/slashobserve/main/install.sh | sh
+```
+
+The script downloads the archive for your platform from the [releases page](https://github.com/slashobserve/slashobserve/releases), checks its SHA-256 against `checksums.txt`, and refuses to install on a mismatch.
+It installs into `/usr/local/bin` when you can write there and into `~/.local/bin` otherwise, and it never uses `sudo`.
+Set `OBSERVE_INSTALL_DIR` to choose the directory and `OBSERVE_VERSION` (for example `v0.1.0`) to install a specific release:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/slashobserve/slashobserve/main/install.sh | OBSERVE_VERSION=v0.1.0 OBSERVE_INSTALL_DIR="$HOME/bin" sh
+```
+
+On Windows, or to install by hand, download the `observe` archive for your platform and `checksums.txt` from the releases page, then check the archive against the checksums:
 
 ```sh
 sha256sum --check --ignore-missing checksums.txt
@@ -12,7 +26,7 @@ sha256sum --check --ignore-missing checksums.txt
 On macOS, use `shasum -a 256 --check --ignore-missing checksums.txt`.
 Unpack the archive and put `observe` on your `PATH`.
 To build it yourself instead, which needs only Go, run `make cli`; it writes `bin/observe`.
-The examples below use `bin/observe`; with a downloaded binary, run `observe`.
+The examples below use `bin/observe`; with an installed binary, run `observe`.
 
 Sign in once; `login` prompts for the key without echoing it:
 

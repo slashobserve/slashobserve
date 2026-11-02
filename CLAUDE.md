@@ -12,7 +12,7 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 | `make build` | Install web dependencies, build the Vite app into `internal/server/webdist`, then build `bin/slashobserve-server` with the UI embedded. |
 | `make server` | Build only the Go binary, embedding whatever is in `internal/server/webdist`. |
 | `make cli` | Build only `bin/observe`; `make build` builds it too. |
-| `make test` | `go test -race ./...` for the root module and `demo/shop`, the web Vitest suite, then `scripts/release-scripts-test.sh` (the release tag and release notes scripts). |
+| `make test` | `go test -race ./...` for the root module and `demo/shop`, the web Vitest suite, then `scripts/release-scripts-test.sh` (the release tag and release notes scripts) and `scripts/install-test.sh` (the root `install.sh`, against fake release assets). |
 | `make lint` | golangci-lint (config verify, format diff, run), `sqlc diff`, web typecheck, Spec drift and fixture parity check, web API type drift check (`api:check`), ESLint, knip (unused web files, exports and dependencies), Prettier check. |
 | `make ci` | `lint`, `test`, `tidy-check` (`go mod tidy -diff` for the root module and `demo/shop`), `build`: what the CI `check` job runs. |
 | `make audit` | `govulncheck` for the root module and `demo/shop`, `bun audit --prod` and `bun audit --audit-level=high` for the web lockfile (minus the advisories in `WEB_AUDIT_IGNORE`): what the CI `audit` job runs. |
@@ -51,6 +51,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 - `api/`: the OpenAPI document for `/api/v1`; each feature adds `paths/<feature>.yaml` plus one `$ref` line in `openapi.yaml`.
 - `web/`: the React app (Bun) with `src/routes`, `src/shell`, `src/components/ui` (shadcn) and `e2e` (Playwright).
 - `e2e/`: `fixtures/api/` request bodies and `fixtures/llm/` replay fixtures.
+- `install.sh`: the one-line `observe` CLI installer; `scripts/install-test.sh` tests it offline through `OBSERVE_RELEASES_URL`.
 - `scripts/`: `e2e.sh` (e2e stack lifecycle and API smoke suite) and the release tag and notes scripts.
 - `deploy/compose/`: `compose.yaml` (the one stack), `compose.build.yaml` (the override that builds images from the checkout) and the configs mounted into the stack's services.
 - `demo/shop/`: its own Go module (`github.com/slashobserve/slashobserve/demo/shop`) with the `serve`, `loadgen` and `healthcheck` commands.
