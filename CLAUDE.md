@@ -1,6 +1,6 @@
 # SlashObserve
 
-SlashObserve is an agentic Grafana replacement: an engineer types `/observe checkout health by pod, last 6h` and gets a live, Grafana-style dashboard, then refines it in plain language.
+SlashObserve is an agentic Grafana replacement: an engineer types `/observe checkout health by pod, last 6h` and gets a live dashboard, then refines it in plain language.
 Every change is a saved version.
 This repository is the Community Edition monorepo (Apache-2.0), Go module `github.com/slashobserve/slashobserve`.
 The product brief lives outside this repository, at `../docs/BRIEF.md` in the SlashObserve workspace; read it for background, but this file and the area files below carry every convention needed to work here.

@@ -3,7 +3,7 @@ title: What is SlashObserve
 description: What SlashObserve does and what you run to host it.
 ---
 
-SlashObserve turns a prompt into a live, Grafana-style dashboard.
+SlashObserve turns a prompt into a live dashboard.
 Type `/observe checkout health by pod, last 6h`, get a dashboard backed by your Prometheus and ClickHouse data, and refine it in plain language.
 
 ## What you run

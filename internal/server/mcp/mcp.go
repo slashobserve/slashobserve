@@ -32,7 +32,7 @@ const (
 	maxTotalInFlight = 32
 	internalErrorMsg = "internal error"
 
-	instructions = "SlashObserve builds Grafana-style dashboards as ObserveSpec JSON. " +
+	instructions = "SlashObserve builds dashboards as ObserveSpec JSON." +
 		"Call get_spec_guide before your first create_dashboard. " +
 		"Discover metric, label, table and column names with the list_* and get_schema tools, " +
 		"check queries with lint_query and query_range, then save with create_dashboard or update_dashboard; " +
