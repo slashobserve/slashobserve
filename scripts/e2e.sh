@@ -180,9 +180,8 @@ prom_scalar() {
 
 ch() {
   local rc=0
-  compose_exec clickhouse sh -c \
-    'exec clickhouse-client --connect_timeout=5 --receive_timeout=10 --user slashobserve_ro --password "$SLASHOBSERVE_RO_PASSWORD" -q "$1"' \
-    sh "$1" || rc=$?
+  compose_exec clickhouse /usr/bin/clickhouse client --connect_timeout=5 --receive_timeout=10 \
+    --user slashobserve_ro --password slashobserve --query "$1" || rc=$?
   if ((rc == TIMED_OUT)); then echo "docker compose exec clickhouse timed out after ${EXEC_TIMEOUT}s" >&2; fi
   return "$rc"
 }

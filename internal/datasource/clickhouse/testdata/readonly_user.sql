@@ -5,7 +5,7 @@ CREATE SETTINGS PROFILE IF NOT EXISTS slashobserve_ro_profile SETTINGS
     max_result_bytes = 104857600 MIN 1 MAX 1073741824,
     result_overflow_mode = 'throw' CONST;
 
-CREATE USER IF NOT EXISTS slashobserve_ro IDENTIFIED WITH sha256_password BY '__PASSWORD__'
+CREATE USER IF NOT EXISTS slashobserve_ro IDENTIFIED WITH sha256_password BY 'slashobserve'
     SETTINGS PROFILE 'slashobserve_ro_profile';
 
 GRANT SELECT ON otel.* TO slashobserve_ro;

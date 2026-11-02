@@ -19,7 +19,7 @@ A ClickHouse entry takes the fields common to every datasource, described in the
 
 SlashObserve queries ClickHouse only as a user with `readonly = 2`, and it refuses a user that is not read-only.
 `readonly = 2` rather than `1` is required because the server sets per-query limits.
-The demo defines such a user with a settings profile; use `internal/datasource/clickhouse/testdata/readonly_user.sql` as the template, replacing `__PASSWORD__`:
+The demo defines such a user with a settings profile in `internal/datasource/clickhouse/testdata/readonly_user.sql`, with the development password `slashobserve`; use the same statements with your own password:
 
 ```sql
 CREATE SETTINGS PROFILE IF NOT EXISTS slashobserve_ro_profile SETTINGS
@@ -29,7 +29,7 @@ CREATE SETTINGS PROFILE IF NOT EXISTS slashobserve_ro_profile SETTINGS
     max_result_bytes = 104857600 MIN 1 MAX 1073741824,
     result_overflow_mode = 'throw' CONST;
 
-CREATE USER IF NOT EXISTS slashobserve_ro IDENTIFIED WITH sha256_password BY '__PASSWORD__'
+CREATE USER IF NOT EXISTS slashobserve_ro IDENTIFIED WITH sha256_password BY '<password>'
     SETTINGS PROFILE 'slashobserve_ro_profile';
 
 GRANT SELECT ON otel.* TO slashobserve_ro;

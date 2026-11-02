@@ -110,7 +110,7 @@ This lists only the packages whose purpose the name does not make obvious.
   The health `message` is a fixed string chosen by error kind, never the error's own text.
   Datasources never gate `/readyz`.
 - ClickHouse is queried only as a `readonly = 2` user with `SELECT` on the OTel database, and the server refuses a user that is not read-only.
-  The compose user `slashobserve_ro` is created by `deploy/compose/clickhouse/initdb/10-readonly-user.sh` from `internal/datasource/clickhouse/testdata/readonly_user.sql`, the same definition the integration tests use.
+  The compose user `slashobserve_ro` is created on first boot by the distroless image's `docker-init` from `internal/datasource/clickhouse/testdata/readonly_user.sql`, mounted into `/docker-entrypoint-initdb.d`: the same definition, with the same fixed development password, the integration tests use.
 - Any feature that fetches a URL taken from user content goes through `egress.Client`, never its own `http.Client`.
 - A rule that lives only in a schema description belongs in the authoring guide, because the model reads `prompts.Schema()`, which strips the annotations.
 

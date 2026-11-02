@@ -27,8 +27,9 @@ import (
 )
 
 const (
-	image       = "clickhouse/clickhouse-server:26.8.15.10@sha256:9716a352d25f538bd19d868b001141e7a60e4d035bc9b823658c6a071660aa61"
+	image       = "clickhouse/clickhouse-server:26.8.15.10-distroless@sha256:4c918ac7ccad3c9f4b0d53e9abc939ff5f4cc101cb5a53f1832a6bcb884961b4"
 	roUser      = "slashobserve_ro"
+	roPass      = "slashobserve"
 	ro1User     = "slashobserve_ro1"
 	ipUser      = "slashobserve_ip"
 	capUser     = "slashobserve_cap"
@@ -54,7 +55,6 @@ var deadClusterXML string
 var (
 	host         string
 	adminPass    string
-	roPass       string
 	testsSkipped bool
 )
 
@@ -70,7 +70,6 @@ func run(m *testing.M) int {
 	}
 	ctx := context.Background()
 	adminPass = randomHex()
-	roPass = randomHex()
 	container, err := tctest.Retry(ctx, func() (*tcclickhouse.ClickHouseContainer, error) {
 		return tcclickhouse.Run(ctx, image,
 			tcclickhouse.WithUsername("admin"),
@@ -168,7 +167,7 @@ func provision(ctx context.Context) error {
 		return err
 	}
 	defer func() { _ = admin.Close() }()
-	script := schemaSQL + "\n" + strings.ReplaceAll(readonlyUserSQL, "__PASSWORD__", roPass)
+	script := schemaSQL + "\n" + readonlyUserSQL
 	script += "\n" + extraUsersSQL(roPass)
 	for _, stmt := range statements(script) {
 		if err := admin.Exec(ctx, stmt); err != nil {
