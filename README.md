@@ -14,7 +14,7 @@ You need Docker with Compose v2.20 or newer.
     make demo
 
 `make demo` pulls the published images, so nothing compiles on your machine.
-The first run downloads about 2.8 GB of unpacked images and took about a minute on a fast connection.
+The first run downloads about 0.7 GB of images, which take about 2.7 GB on disk, and took about a minute on a fast connection.
 Without `make`, run `docker compose -f deploy/compose/compose.yaml up -d --wait`; it reads the same environment variables.
 
 Open http://localhost:8080, sign in as `admin@example.com` with the password `password`, and type a prompt such as `checkout health by pod, last 6h`.
