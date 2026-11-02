@@ -22,6 +22,7 @@ The demo's Dex also has `editor@example.com`, `commenter@example.com` and `viewe
 Type a prompt such as `checkout health by pod, last 6h` into the chat composer on the home page.
 
 `make demo` pulls the server and demo shop images and starts them with Postgres, Dex, Prometheus, ClickHouse, an OpenTelemetry Collector, node-exporter, cAdvisor and the shop, and waits until they are healthy.
+The first run downloads about 2.8 GB of unpacked images and took about a minute on a fast connection.
 It passes `SLASHOBSERVE_LLM_PROVIDER`, `SLASHOBSERVE_LLM_MODEL`, `SLASHOBSERVE_LLM_API_KEY` and `SLASHOBSERVE_LLM_BASE_URL` from your shell to the server container; the other LLM settings are not forwarded.
 Run `make demo` again after changing them.
 Without a provider the demo still starts, but prompts get `503 agent_unavailable`.
