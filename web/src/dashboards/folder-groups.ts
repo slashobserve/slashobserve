@@ -1,4 +1,5 @@
 import { levelLabels } from "@/folders/grants"
+import { isOrphanedPersonal } from "@/folders/personal"
 import type { Folder } from "@/folders/queries"
 
 import type { DashboardSummary } from "./dashboard-columns"
@@ -60,7 +61,11 @@ export function groupPage(
   return sections
 }
 
-export function accessSummary(folder: Folder): string {
+export function accessSummary(folder: Folder, principalId: string): string {
+  if (isOrphanedPersonal(folder, principalId)) {
+    return "Only Admins: the owner's account was deleted"
+  }
+  if (folder.personal) return "Only you"
   if (!folder.restricted) return "Everyone, by role"
   const names = folder.grantees.join(", ")
   const more = folder.grantee_count - folder.grantees.length
@@ -70,7 +75,9 @@ export function accessSummary(folder: Folder): string {
 }
 
 export function yourAccessText(folder: Folder): string | null {
-  return folder.restricted ? `Your access: ${levelLabels[folder.level]}` : null
+  return folder.restricted && !folder.personal
+    ? `Your access: ${levelLabels[folder.level]}`
+    : null
 }
 
 function plural(n: number, noun: string): string {

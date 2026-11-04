@@ -6,7 +6,6 @@ import { LoaderCircleIcon, LockIcon, UsersIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useSendExample } from "@/chat/chat-composer"
-import { useCanCreateDashboards } from "@/folders/create-access"
 import { useCoarsePointer } from "@/lib/coarse-pointer"
 import { useAgentInfo } from "@/observe/queries"
 
@@ -25,8 +24,7 @@ export function SavedPrompts() {
   const { send, pending } = useSendExample()
   const [runningId, setRunningId] = useState<string | null>(null)
   const [showAll, setShowAll] = useState(false)
-  const canCreate = useCanCreateDashboards()
-  const enabled = canCreate === true && agent.data?.available !== false
+  const enabled = agent.data?.available !== false
   const query = useQuery({ ...promptsQuery(), enabled })
 
   if (!enabled) return null

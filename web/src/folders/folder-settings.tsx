@@ -1,5 +1,5 @@
 import { useId, useState, type FormEvent } from "react"
-import { Link } from "@tanstack/react-router"
+import { Link, useRouteContext } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -19,6 +19,7 @@ import { loadProblemText } from "@/service-accounts/queries"
 import { DeleteFolderCard } from "./delete-folder-card"
 import { FolderAccessCard } from "./folder-access-card"
 import { levelLabels } from "./grants"
+import { isOrphanedPersonal } from "./personal"
 import { folderQuery, useRenameFolder, type Folder } from "./queries"
 
 const maxTitleLength = 100
@@ -44,6 +45,7 @@ function isMissing(error: unknown): boolean {
 }
 
 export function FolderSettings({ folderId }: { folderId: string }) {
+  const { principal } = useRouteContext({ from: "/_authed" })
   const query = useQuery(folderQuery(folderId))
   const folder = query.data
   useDocumentTitle(
@@ -81,6 +83,11 @@ export function FolderSettings({ folderId }: { folderId: string }) {
           General holds dashboards that are in no other folder. Everyone sees it
           by role.
         </RoleNote>
+      ) : folder.personal ? (
+        <PersonalFolderSettings
+          folder={folder}
+          orphaned={isOrphanedPersonal(folder, principal.id)}
+        />
       ) : (
         <>
           {canManage ? null : (
@@ -93,6 +100,32 @@ export function FolderSettings({ folderId }: { folderId: string }) {
           {canManage ? <DeleteFolderCard folder={folder} /> : null}
         </>
       )}
+    </>
+  )
+}
+
+function PersonalFolderSettings({
+  folder,
+  orphaned,
+}: {
+  folder: Folder
+  orphaned: boolean
+}) {
+  if (!orphaned) {
+    return (
+      <RoleNote className="py-2">
+        Only you can see My Dashboards, and Admins cannot. It cannot be renamed,
+        shared or deleted. To share a dashboard, move it to a folder where you
+        have Edit.
+      </RoleNote>
+    )
+  }
+  return (
+    <>
+      <RoleNote className="mb-4">
+        {`This was ${folder.created_by?.name ?? "someone"}'s My Dashboards. Their account was deleted, so only Admins see it. Move its dashboards to another folder, then delete it.`}
+      </RoleNote>
+      {folder.permissions.manage ? <DeleteFolderCard folder={folder} /> : null}
     </>
   )
 }

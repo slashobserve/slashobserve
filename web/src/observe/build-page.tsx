@@ -16,6 +16,7 @@ import type { PanelSource } from "@/dashboards/panel-source"
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { useVariables } from "@/dashboards/use-variables"
 import { useDocumentTitle } from "@/lib/document-title"
+import { roleAtLeast } from "@/lib/roles"
 import { cn } from "@/lib/utils"
 import { createSharedCursor } from "@/panels/shared-cursor"
 import { ThemeSwitch } from "@/shell/theme-switch"
@@ -27,6 +28,8 @@ import {
   canSaveBuild,
   newPanelIds,
   saveBuildErrorText,
+  saveBuildMinRole,
+  saveBuildNeedsRoleText,
   useSaveBuild,
 } from "./build"
 import { buildPageNotice, buildPageTitle } from "./build-page-model"
@@ -185,21 +188,25 @@ function StoppedStrip({ request }: { request: ObserveRequest }) {
       ) : null}
       {mayRetry && request.continued_by === null ? (
         <div className="flex flex-wrap items-start gap-3">
-          <Button
-            disabled={save.isPending}
-            aria-busy={save.isPending}
-            onClick={() =>
-              save.mutate(undefined, {
-                onSuccess: (saved) =>
-                  void navigate({
-                    to: "/dashboards/$dashboardId",
-                    params: { dashboardId: saved.dashboard_id },
-                  }),
-              })
-            }
-          >
-            {save.isPending ? "Saving" : "Save what was built"}
-          </Button>
+          {roleAtLeast(principal.role, saveBuildMinRole) ? (
+            <Button
+              disabled={save.isPending}
+              aria-busy={save.isPending}
+              onClick={() =>
+                save.mutate(undefined, {
+                  onSuccess: (saved) =>
+                    void navigate({
+                      to: "/dashboards/$dashboardId",
+                      params: { dashboardId: saved.dashboard_id },
+                    }),
+                })
+              }
+            >
+              {save.isPending ? "Saving" : "Save what was built"}
+            </Button>
+          ) : (
+            <p className="text-muted-foreground">{saveBuildNeedsRoleText}</p>
+          )}
           <ContinueBuildButton
             request={request}
             isRequester={isRequester}

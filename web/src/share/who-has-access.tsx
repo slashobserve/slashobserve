@@ -12,7 +12,12 @@ import { loadProblemText } from "@/service-accounts/queries"
 import { accessRows, canManageAccess, type AccessRow } from "./access-rows"
 
 type Props = {
-  folder: { id: string; title: string; general: boolean }
+  folder: {
+    id: string
+    title: string
+    general: boolean
+    personal: boolean
+  }
   canManage: boolean
   headingId: string
 }

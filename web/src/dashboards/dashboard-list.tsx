@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
+import { Link, useRouteContext } from "@tanstack/react-router"
 import { useTable } from "@tanstack/react-table"
 import {
   ChevronDownIcon,
   ChevronRightIcon,
+  FolderLockIcon,
   LockIcon,
   SearchIcon,
   UsersIcon,
@@ -24,7 +25,6 @@ import { LoadProblem } from "@/components/load-problem"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useCanCreateDashboards } from "@/folders/create-access"
 import { foldersQuery, type Folder } from "@/folders/queries"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
@@ -204,7 +204,12 @@ function FolderHeaderRow({
   columnCount: number
   onToggle: () => void
 }) {
-  const AccessIcon = folder.restricted ? LockIcon : UsersIcon
+  const { principal } = useRouteContext({ from: "/_authed" })
+  const AccessIcon = folder.personal
+    ? FolderLockIcon
+    : folder.restricted
+      ? LockIcon
+      : UsersIcon
   const yourAccess = yourAccessText(folder)
   return (
     <tr>
@@ -238,7 +243,7 @@ function FolderHeaderRow({
           ) : null}
           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <AccessIcon aria-hidden="true" className="size-3.5 flex-none" />
-            {accessSummary(folder)}
+            {accessSummary(folder, principal.id)}
           </span>
           {yourAccess === null ? null : (
             <span className="text-xs text-muted-foreground">{yourAccess}</span>
@@ -320,7 +325,6 @@ type Props = {
 }
 
 export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
-  const canCreate = useCanCreateDashboards()
   const page = search.page ?? 1
   const query = useDashboardList(search, page)
   const folderResult = useQuery(foldersQuery())
@@ -454,14 +458,12 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
                 >
                   Open the chat
                 </Link>
-                {canCreate === true ? (
-                  <Link
-                    to="/import"
-                    className={cn(buttonVariants({ variant: "outline" }))}
-                  >
-                    Import from Grafana
-                  </Link>
-                ) : null}
+                <Link
+                  to="/import"
+                  className={cn(buttonVariants({ variant: "outline" }))}
+                >
+                  Import from Grafana
+                </Link>
               </div>
             </>
           ) : (

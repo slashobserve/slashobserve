@@ -219,6 +219,13 @@ describe("groupPage", () => {
   })
 })
 
+const me = { kind: "user", id: "u-me", name: "Me" } as const
+const someoneElse = { kind: "user", id: "u-x", name: "Xi" } as const
+
+function myDashboards(owner: typeof me | typeof someoneElse) {
+  return folder("m", "My Dashboards", { personal: true, created_by: owner })
+}
+
 describe("accessSummary", () => {
   it("lists the grantees of a restricted folder", () => {
     expect(
@@ -227,7 +234,8 @@ describe("accessSummary", () => {
           restricted: true,
           grantees: ["Ishan", "sre", "Priya"],
           grantee_count: 3,
-        })
+        }),
+        "u-me"
       )
     ).toBe("Restricted: Ishan, sre, Priya")
   })
@@ -239,14 +247,25 @@ describe("accessSummary", () => {
           restricted: true,
           grantees: ["a", "b", "c", "d", "e"],
           grantee_count: 8,
-        })
+        }),
+        "u-me"
       )
     ).toBe("Restricted: a, b, c, d, e, and 3 more")
   })
 
   it("says everyone by role for an open folder", () => {
-    expect(accessSummary(payments)).toBe("Everyone, by role")
-    expect(accessSummary(general)).toBe("Everyone, by role")
+    expect(accessSummary(payments, "u-me")).toBe("Everyone, by role")
+    expect(accessSummary(general, "u-me")).toBe("Everyone, by role")
+  })
+
+  it("says only you for the caller's own My Dashboards", () => {
+    expect(accessSummary(myDashboards(me), "u-me")).toBe("Only you")
+  })
+
+  it("says only Admins for My Dashboards whose owner is gone", () => {
+    expect(accessSummary(myDashboards(someoneElse), "u-me")).toBe(
+      "Only Admins: the owner's account was deleted"
+    )
   })
 })
 
@@ -254,6 +273,11 @@ describe("yourAccessText", () => {
   it("says nothing for an open folder", () => {
     expect(yourAccessText(payments)).toBeNull()
     expect(yourAccessText(general)).toBeNull()
+  })
+
+  it("says nothing for a personal folder", () => {
+    expect(yourAccessText(myDashboards(me))).toBeNull()
+    expect(yourAccessText(myDashboards(someoneElse))).toBeNull()
   })
 
   it.each([

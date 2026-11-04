@@ -21,7 +21,12 @@ type Props = {
   dashboardId: string
   spec: Dashboard
   search: DashboardSearch
-  folder: { id: string; title: string; general: boolean }
+  folder: {
+    id: string
+    title: string
+    general: boolean
+    personal: boolean
+  }
   canManage: boolean
 }
 

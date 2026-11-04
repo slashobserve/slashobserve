@@ -38,3 +38,15 @@ export function isNavItemActive(to: NavPath, pathname: string): boolean {
   }
   return pathname === to || pathname.startsWith(`${to}/`)
 }
+
+export function myDashboardsActive(
+  pathname: string,
+  folder: string | undefined,
+  personalId: string | undefined
+): boolean {
+  return (
+    pathname === "/dashboards" &&
+    personalId !== undefined &&
+    folder === personalId
+  )
+}

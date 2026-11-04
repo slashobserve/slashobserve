@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
+import { Link, useRouteContext } from "@tanstack/react-router"
 
 import { ApiError } from "@/api/errors"
 import { StatusIcon } from "@/components/status-label"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { asDashboardSpec } from "@/dashboards/queries"
+import { roleAtLeast } from "@/lib/roles"
 import { cn } from "@/lib/utils"
 import {
   buildQuery,
@@ -13,6 +14,8 @@ import {
   canContinueBuild,
   newPanelIds,
   saveBuildErrorText,
+  saveBuildMinRole,
+  saveBuildNeedsRoleText,
   useSaveBuild,
   type BuildProgress,
 } from "@/observe/build"
@@ -158,9 +161,14 @@ function BuildActions({
   isRequester: boolean
   onContinued: (next: ObserveRequest) => void
 }) {
+  const { principal } = useRouteContext({ from: "/_authed" })
   return (
     <div className="flex flex-wrap items-start gap-x-3 gap-y-2 border-t px-3.5 py-2.5 text-[13px]">
-      <SaveBuild request={request} />
+      {roleAtLeast(principal.role, saveBuildMinRole) ? (
+        <SaveBuild request={request} />
+      ) : (
+        <p className="text-muted-foreground">{saveBuildNeedsRoleText}</p>
+      )}
       <ContinueBuildButton
         request={{ ...request, build }}
         isRequester={isRequester}

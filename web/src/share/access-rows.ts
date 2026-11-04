@@ -1,5 +1,6 @@
 import { levelLabels, type Entry } from "@/folders/grants"
 import type { components } from "@/api/schema.gen"
+import { isOrphanedPersonal } from "@/folders/personal"
 import type { Folder, FolderPermissions } from "@/folders/queries"
 
 type Author = components["schemas"]["Author"]
@@ -69,6 +70,16 @@ function creatorRow(creator: Author, meId: string): AccessRow {
   }
 }
 
+function ownerRow(owner: Author | null): AccessRow {
+  return {
+    key: "owner",
+    name: owner?.name ?? "",
+    detail: "Owner, you",
+    level: levelLabels.edit,
+    person: true,
+  }
+}
+
 function isListed(entries: Entry[], creator: Author): boolean {
   return (
     creator.kind === "user" &&
@@ -82,6 +93,11 @@ export function accessRows(
   me: { id: string },
   providerName: string | null
 ): AccessRow[] {
+  if (folder.personal) {
+    return isOrphanedPersonal(folder, me.id)
+      ? [instanceAdmins]
+      : [ownerRow(folder.created_by)]
+  }
   if (!permissions.restricted) return [everyone, instanceAdmins]
   const rows = permissions.entries.map((entry) =>
     entryRow(entry, me.id, providerName)
@@ -95,8 +111,8 @@ export function accessRows(
 }
 
 export function canManageAccess(
-  folder: { general: boolean },
+  folder: { general: boolean; personal: boolean },
   canManage: boolean
 ): boolean {
-  return canManage && !folder.general
+  return canManage && !folder.general && !folder.personal
 }

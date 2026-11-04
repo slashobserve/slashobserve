@@ -31,6 +31,8 @@ A Viewer or Commenter can do all of this there, and nowhere else without a grant
 An agent run in My Dashboards spends model tokens and queries every configured datasource for that person.
 
 My Dashboards has no list and cannot be renamed, shared or deleted, and it lists first on the Dashboards page.
+In the sidebar, **My Dashboards** opens the Dashboards page filtered to it, and its row there reads "Only you".
+Its settings page cannot rename, share or delete it, and **Who has access** shows only you.
 A service-account key has no My Dashboards folder.
 When a person's account is deleted, their My Dashboards becomes visible to Admins only, who can move its dashboards out and delete the folder once it is empty.
 
@@ -39,6 +41,7 @@ When a person's account is deleted, their My Dashboards becomes visible to Admin
 You can move a dashboard into your My Dashboards only if you created it and you have Edit on the folder it is in.
 Dashboards the agent made for you count as yours.
 To keep someone else's dashboard, duplicate it into My Dashboards instead, because the copy is yours.
+In a dashboard's **Move to folder** menu, My Dashboards is greyed out with "Only dashboards you created" for a dashboard someone else created.
 Moving a dashboard out needs Edit on the target folder, like any move.
 Moving your dashboard in hides it from everyone else, and their queued agent requests on it then fail with the "no longer has access" message.
 A move the rule refuses answers `403 not_dashboard_creator`.
