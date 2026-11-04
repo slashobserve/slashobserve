@@ -61,6 +61,7 @@ func newContract(ctx context.Context, logger *slog.Logger) (*contract, error) {
 		options: &openapi3filter.Options{
 			AuthenticationFunc:    openapi3filter.NoopAuthenticationFunc,
 			IncludeResponseStatus: true,
+			SkipSettingDefaults:   true,
 		},
 	}, nil
 }
