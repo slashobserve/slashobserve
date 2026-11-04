@@ -257,8 +257,7 @@ func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildS
 		StartedAt:    formatOptionalTime(optionalTime(row.StartedAt)),
 		FinishedAt:   formatOptionalTime(optionalTime(row.FinishedAt)),
 
-		FailureCode: httpapi.OptionalString(row.FailureCode.String),
-		// ListMine returns only the caller's own requests, so the build title is the requester's to see
+		FailureCode:  httpapi.OptionalString(row.FailureCode.String),
 		Build:        state.build,
 		BuildSavedAt: formatOptionalTime(optionalTime(row.BuildSavedAt)),
 		ContinuesID:  optionalUUID(row.ContinuesID),
