@@ -7,7 +7,7 @@ import (
 
 type wording struct{ replacer *strings.Replacer }
 
-func newWording(readGuide, guideRef, folderChoice, folderProp, updateTarget, readTarget, buildProps, buildGuidance, rowProp, upsertMax, specGuideDesc string) wording {
+func newWording(readGuide, guideRef, folderChoice, folderProp, updateTarget, readTarget, buildProps, buildGuidance, rowProp, upsertMax, layoutGridPos, buildPositions, readBuild, specGuideDesc string) wording {
 	return wording{strings.NewReplacer(
 		"{read_guide}", readGuide,
 		"{guide_ref}", guideRef,
@@ -19,6 +19,9 @@ func newWording(readGuide, guideRef, folderChoice, folderProp, updateTarget, rea
 		"{build_guidance}", buildGuidance,
 		"{row_prop}", rowProp,
 		"{upsert_max}", upsertMax,
+		"{layout_gridpos}", layoutGridPos,
+		"{build_positions}", buildPositions,
+		"{read_build}", readBuild,
 		"{spec_guide_desc}", specGuideDesc,
 	)}
 }
@@ -30,9 +33,16 @@ const (
 
 	agentBuildProps = `,"finish":{"type":"boolean","description":"Set on your last save. The build then becomes the dashboard's version."},"planned_panels":{"type":"integer","minimum":1,"maximum":200,"description":"How many panels you expect the finished dashboard to have, rows not counted. Send it with the first save of a new dashboard; resend it to change it."}`
 
-	agentRowProp = `,"row":{"type":"object","additionalProperties":false,"required":["id","title"],"properties":{"id":{"type":"string","description":"Id of the row the new panel belongs to; a new id creates the row at the end of the dashboard."},"title":{"type":"string","minLength":1,"maxLength":200,"description":"Title for a new row; an existing row keeps its title."}},"description":"The row of the new panel: the panel in upsert, or the only panel in spec when you create the dashboard. Omit it for a panel above the first row."}`
+	agentRowProp = `,"row":{"type":"object","additionalProperties":false,"required":["id","title"],"properties":{"id":{"type":"string","description":"Id of the row; a new id creates the row at the end of the dashboard."},"title":{"type":"string","minLength":1,"maxLength":200,"description":"Title for a new row; an existing row keeps its title."}},"description":"The row of the panel in upsert, or of the only panel in spec when you create the dashboard: a new panel is placed at the first free spot of that row, and an existing panel in another row moves there. Omit it for a panel above the first row."}`
 
-	agentBuildGuidance = " In this run every save goes to a build that people watch while you work, and the build becomes one version when you finish. Each save adds or changes exactly one panel. Make the first save of a new dashboard `create_dashboard` with the title, time, variables and only the first panel, with `row` naming its row, and send `planned_panels`. Add every other panel with its own `update_panels` call: the panel alone in `upsert`, with `row` naming its row; a new row is created with its first panel, and the server places each new panel at the end of its row. Set `finish: true` on your last save."
+	mcpLayoutGridPos   = "New position, with x, y, w and h."
+	agentLayoutGridPos = "Size w and h, and the x and y you would like inside the panel's row; the server uses that spot only when it is free."
+
+	agentReadBuild = " Leave out dashboard_id to read the panels of your build."
+
+	agentBuildPositions = " To resize a panel send it with its new w and h; to move it to another row name that row in row; a panel you resend otherwise stays where it is."
+
+	agentBuildGuidance = " In this run every save goes to a build that people watch while you work, and the build becomes one version when you finish. Until then the dashboard has no id, so leave out dashboard_id. Each save adds or changes exactly one panel. Make the first save of a new dashboard `create_dashboard` with the title, time, variables and only the first panel, with `row` naming its row, and send `planned_panels`. Add every other panel with its own `update_panels` call: the panel alone in `upsert`, with `row` naming its row; a new row is created with its first panel. The server sets every panel's position and reads only w and h from a gridPos you send. Set `finish: true` on your last save."
 )
 
 var (
@@ -47,6 +57,9 @@ var (
 		"",
 		"",
 		"50",
+		mcpLayoutGridPos,
+		"",
+		"",
 		mcpSpecGuideDesc,
 	)
 	agentWording = newWording(
@@ -60,6 +73,9 @@ var (
 		agentBuildGuidance,
 		agentRowProp,
 		"1",
+		agentLayoutGridPos,
+		agentBuildPositions,
+		agentReadBuild,
 		agentSpecGuideDesc,
 	)
 )

@@ -188,3 +188,22 @@ func TestASaveFailureStepNamesTheFirstIssuePath(t *testing.T) {
 		})
 	}
 }
+
+func TestGetDashboardInABuildRunPointsAtGetPanels(t *testing.T) {
+	rig := newPanelsRig(t)
+	run := rig.createRun(t)
+	res, _ := run.run(t, nameGetDashboard, `{"dashboard_id":"build"}`)
+	want := "dashboard_id must be a UUID from list_dashboards; your build has no id until you finish, so read its panels with get_panels without dashboard_id"
+	if got := refusal(t, res); got != want {
+		t.Errorf("message = %q, want %q", got, want)
+	}
+
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	outside, err := call(t, r, nameGetDashboard, `{"dashboard_id":"build"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := refusal(t, outside), "dashboard_id must be a UUID from list_dashboards or create_dashboard"; got != want {
+		t.Errorf("message outside a run = %q, want %q", got, want)
+	}
+}

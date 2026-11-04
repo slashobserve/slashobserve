@@ -23,19 +23,24 @@ const (
 	maxChangedPanels = 50
 	maxListedIDs     = 5
 
-	defaultPanelW = 12
-	defaultPanelH = 8
 	maxPanelW     = spec.GridColumns
 	maxPanelH     = 100
+	maxPreferredY = 1 << 20
+
+	maxLayoutBytes  = 1536
+	maxLayoutPanels = 24
+	maxLayoutGaps   = 8
 
 	noBuildYet            = "this run has no build yet; call create_dashboard first with the title, time, variables and the first panel"
 	agentOnlyBuildFields  = "finish, planned_panels and row are only for the built-in agent"
 	importInBuildRun      = "this run is building a dashboard; continue with update_panels"
 	hasBuildAlready       = "this run already has a build; add panels with update_panels"
+	buildHasNoID          = "dashboard_id must be a UUID from list_dashboards; your build has no id until you finish, so read its panels with get_panels without dashboard_id"
 	rowNeedsPanel         = "name the row in row with its first panel"
-	rowNeedsNewPanel      = "row places the new panel in upsert; move an existing panel with layout"
 	rowNeedsFirstPanel    = "row places the first panel of a new dashboard; send exactly one panel in spec"
-	serverPlacesPanel     = "the server places a new panel; move it in a later save"
+	rowsStayInPlace       = "rows keep their place in a build; move a panel with row, or resize it with its w and h"
+	newPanelRowOnce       = "name the new panel's row once, in row"
+	newRowNeedsItsPanel   = "a new row in update_dashboard needs its first panel and nothing else; add rows with update_panels"
 	allPanelsBuiltMessage = "Every planned panel is built. Set finish: true on a final save, or answer with one short sentence and no tool call."
 	loweredPlanFormat     = "You lowered planned_panels from %d to %d. Keep it at the number of panels the request needs; if the request needs more than you have built, raise it and add the next panel, else set finish: true."
 )
@@ -48,7 +53,20 @@ type buildFields struct {
 type buildOut struct {
 	Build         buildStateOut `json:"build"`
 	ChangedPanels []panelOut    `json:"changed_panels"`
+	Layout        *layoutOut    `json:"layout,omitempty"`
 	Message       string        `json:"message"`
+}
+
+type layoutOut struct {
+	Rows      []string      `json:"rows"`
+	Row       *rowLayoutOut `json:"row,omitempty"`
+	Gaps      []string      `json:"gaps,omitempty"`
+	Truncated bool          `json:"truncated,omitempty"`
+}
+
+type rowLayoutOut struct {
+	ID     string   `json:"id"`
+	Panels []string `json:"panels"`
 }
 
 type buildStateOut struct {
@@ -58,6 +76,7 @@ type buildStateOut struct {
 }
 
 type addedPanel struct {
+	ID    string
 	Title string
 	Row   string
 }
@@ -67,6 +86,7 @@ type panelChanges struct {
 	count  int
 	added  *addedPanel
 	edited int
+	moved  []string
 	edits  Edits
 }
 
@@ -159,13 +179,15 @@ func (r *Registry) saveToBuild(ctx context.Context, in buildSave) (Result, error
 		return saveFailure(err)
 	}
 	progress := build.Progress()
-	step, message := buildMessage(progress, in.changes, in.plannedBefore)
+	holes := gaps(build.Spec)
+	step, message := buildMessage(progress, in.changes, in.plannedBefore, len(holes))
 	if in.finish {
 		return r.commitBuild(ctx, in, step)
 	}
 	res := success(step, buildOut{
 		Build:         buildStateOut{Saves: build.Saves, Panels: progress.Panels, PlannedPanels: progress.PlannedPanels},
 		ChangedPanels: in.changes.shown,
+		Layout:        layoutOf(build.Spec, in.changes.focus(), holes),
 		Message:       message,
 	})
 	res.Edits = in.changes.edits
@@ -228,7 +250,7 @@ func changesOf(prev, next *spec.Dashboard) panelChanges {
 		case !isNew:
 			changes.edited++
 		case changes.added == nil:
-			changes.added = &addedPanel{Title: e.Panel.Title}
+			changes.added = &addedPanel{ID: e.Panel.ID, Title: e.Panel.Title}
 			if e.Row != nil {
 				changes.added.Row = e.Row.Title
 			}
@@ -284,7 +306,7 @@ func sameJSON(a, b any) bool {
 	return errA == nil && errB == nil && bytes.Equal(x, y)
 }
 
-func buildMessage(p dashboards.BuildProgress, c panelChanges, plannedBefore int) (step, message string) {
+func buildMessage(p dashboards.BuildProgress, c panelChanges, plannedBefore, gapCount int) (step, message string) {
 	planned := p.PlannedPanels > 0 && p.Panels <= p.PlannedPanels
 	switch {
 	case c.added != nil:
@@ -298,6 +320,8 @@ func buildMessage(p dashboards.BuildProgress, c panelChanges, plannedBefore int)
 		}
 	case c.edited > 0:
 		step = fmt.Sprintf("Changed %s in the build (%d in all)", plural(c.edited, "panel", "panels"), p.Panels)
+	case len(c.moved) > 0:
+		step = fmt.Sprintf("Moved %s in the build (%d in all)", plural(len(c.moved), "panel", "panels"), p.Panels)
 	default:
 		step = fmt.Sprintf("Saved the build (%s)", plural(p.Panels, "panel", "panels"))
 	}
@@ -308,11 +332,113 @@ func buildMessage(p dashboards.BuildProgress, c panelChanges, plannedBefore int)
 	case plannedBefore > 0 && p.PlannedPanels < plannedBefore:
 		return step, fmt.Sprintf(loweredPlanFormat, plannedBefore, p.PlannedPanels)
 	case p.PlannedPanels > 0 && p.Panels >= p.PlannedPanels:
-		return step, allPanelsBuiltMessage
+		return step, allPanelsBuiltMessage + gapSentence(gapCount)
 	case p.PlannedPanels > 0:
 		return step, fmt.Sprintf("Panel %d of %d saved to the build. Next: add one panel with update_panels, alone in upsert, with row naming its row, and check its queries in the same call. Set finish: true on your last save.", p.Panels, p.PlannedPanels)
 	}
 	return step, fmt.Sprintf("The build holds %s. Add the next one with update_panels, one panel per save, and set finish: true on your last save, or answer with one short sentence and no tool call.", plural(p.Panels, "panel", "panels"))
+}
+
+func gapSentence(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return fmt.Sprintf(" The layout has %s, listed in layout.gaps; you can close one by resending a panel beside it with a larger w or h.", plural(n, "gap", "gaps"))
+}
+
+func (c panelChanges) focus() string {
+	switch {
+	case c.added != nil:
+		return c.added.ID
+	case len(c.moved) > 0:
+		return c.moved[len(c.moved)-1]
+	}
+	for _, p := range c.shown {
+		if p.Type != spec.Row {
+			return p.ID
+		}
+	}
+	return ""
+}
+
+func layoutOf(d *spec.Dashboard, focus string, holes []gap) *layoutOut {
+	out := &layoutOut{Rows: sectionSummaries(d)}
+	if e, found := d.FindPanel(focus); found {
+		out.Row = &rowLayoutOut{ID: sectionOf(e), Panels: sectionPanels(d, sectionOf(e))}
+	}
+	for _, g := range holes[:min(len(holes), maxLayoutGaps)] {
+		out.Gaps = append(out.Gaps, fmt.Sprintf("%s %s", sectionName(g.Row), positionText(g.Pos)))
+	}
+	out.fit()
+	return out
+}
+
+func sectionName(rowID string) string {
+	if rowID == "" {
+		return "(top level)"
+	}
+	return rowID
+}
+
+func positionText(g spec.GridPos) string {
+	return fmt.Sprintf("x%d y%d w%d h%d", g.X, g.Y, g.W, g.H)
+}
+
+func sectionSummaries(d *spec.Dashboard) []string {
+	rows := []string{}
+	loose := 0
+	for _, p := range d.Panels {
+		if p.Type != spec.Row {
+			loose++
+		}
+	}
+	if loose > 0 {
+		rows = append(rows, fmt.Sprintf("%s %d", sectionName(""), loose))
+	}
+	for _, p := range d.Panels {
+		if p.Type == spec.Row {
+			rows = append(rows, fmt.Sprintf("%s %q %d", p.ID, p.Title, len(p.Panels)))
+		}
+	}
+	return rows
+}
+
+func sectionPanels(d *spec.Dashboard, rowID string) []string {
+	var members []spec.Panel
+	for _, p := range d.Panels {
+		switch {
+		case rowID == "" && p.Type != spec.Row:
+			members = append(members, p)
+		case rowID != "" && p.ID == rowID:
+			members = p.Panels
+		}
+	}
+	panels := []string{}
+	for _, p := range members[:min(len(members), maxLayoutPanels)] {
+		panels = append(panels, p.ID+" "+positionText(p.GridPos))
+	}
+	return panels
+}
+
+func (l *layoutOut) fit() {
+	for layoutSize(l) > maxLayoutBytes {
+		l.Truncated = true
+		switch {
+		case len(l.Rows) > 0:
+			l.Rows = l.Rows[:len(l.Rows)-1]
+		case len(l.Gaps) > 0:
+			l.Gaps = l.Gaps[:len(l.Gaps)-1]
+		case l.Row != nil && len(l.Row.Panels) > 0:
+			l.Row.Panels = l.Row.Panels[:len(l.Row.Panels)-1]
+		default:
+			return
+		}
+	}
+}
+
+func layoutSize(l *layoutOut) int {
+	raw, _ := json.Marshal(l)
+	return len(raw)
 }
 
 func (r *Registry) readBuildPanels(ctx context.Context, run Run, scoped bool, in getPanelsInput) (Result, bool, error) {
@@ -370,13 +496,9 @@ func (r *Registry) buildCreate(ctx context.Context, principal auth.Principal, ru
 	if prev != nil {
 		return invalid("%s", hasBuildAlready), nil
 	}
-	raw := in.Spec
-	if in.Row != nil {
-		placed, res, err := placeFirstPanel(in.Spec, in.Row)
-		if placed == nil {
-			return res, err
-		}
-		raw = placed
+	raw, res, err := placeFirstPanel(in.Spec, in.Row)
+	if raw == nil {
+		return res, err
 	}
 	save := buildSave{
 		principal: principal, run: run, requestID: requestID, plannedBefore: plannedBefore,
@@ -400,19 +522,41 @@ func placeFirstPanel(raw json.RawMessage, row *rowRef) (json.RawMessage, Result,
 		return raw, Result{}, nil
 	}
 	if json.Unmarshal(doc["panels"], &panels) != nil || len(panels) != 1 {
-		return nil, invalid("%s", rowNeedsFirstPanel), nil
-	}
-	empty := &spec.Dashboard{}
-	np, res, ok := newPanelIn(empty, spec.PanelPatch{Upsert: panels}, row)
-	if !ok {
-		return nil, res, nil
-	}
-	if np == nil {
+		if row != nil {
+			return nil, invalid("%s", rowNeedsFirstPanel), nil
+		}
 		return raw, Result{}, nil
 	}
-	doc["panels"], _ = json.Marshal(placeNewPanel(empty, *np, row).Upsert)
-	placed, err := json.Marshal(doc)
-	return placed, Result{}, err
+	np, ok := decodeNewPanel(panels[0])
+	if !ok {
+		return raw, Result{}, nil
+	}
+	if np.head.Type == spec.Row {
+		if row != nil {
+			return nil, invalid("%s", rowNeedsPanel), nil
+		}
+		if np, row, ok = onlyChildOfRow(np); !ok {
+			return raw, Result{}, nil
+		}
+	}
+	placed := placement(&spec.Dashboard{}, []slot{np.slot(row, nil)}, np, row)
+	doc["panels"], _ = json.Marshal(placed.patch.Upsert)
+	out, err := json.Marshal(doc)
+	return out, Result{}, err
+}
+
+func onlyChildOfRow(row *newPanel) (*newPanel, *rowRef, bool) {
+	var children []json.RawMessage
+	var title string
+	if json.Unmarshal(row.body["panels"], &children) != nil || len(children) != 1 {
+		return nil, nil, false
+	}
+	_ = json.Unmarshal(row.body["title"], &title)
+	child, ok := decodeNewPanel(children[0])
+	if !ok || child.head.Type == spec.Row {
+		return nil, nil, false
+	}
+	return child, &rowRef{ID: row.head.ID, Title: title}, true
 }
 
 func (r *Registry) buildUpdate(ctx context.Context, principal auth.Principal, run Run, target saveTarget, in saveInput) (Result, error) {
@@ -427,12 +571,19 @@ func (r *Registry) buildUpdate(ctx context.Context, principal auth.Principal, ru
 	if base == nil {
 		return invalid("%s", noBuildYet), nil
 	}
+	raw, parsed, res, ok, err := stageUpdate(base, in.Spec)
+	if err != nil {
+		return Result{}, err
+	}
+	if !ok {
+		return res, nil
+	}
 	save := buildSave{
 		principal: principal, run: run, requestID: requestID, dashboardID: target.id, plannedBefore: plannedBefore,
-		raw: in.Spec, summary: summaryOr(in.Summary, defaultUpdateSummary),
+		raw: raw, summary: summaryOr(in.Summary, defaultUpdateSummary),
 		planned: in.PlannedPanels, finish: in.Finish,
 	}
-	if parsed, err := spec.Parse(in.Spec); err == nil {
+	if parsed != nil {
 		if issues := importOnlyIssues(parsed, base); len(issues) > 0 {
 			return importOnlyFailure(issues), nil
 		}
@@ -443,6 +594,136 @@ func (r *Registry) buildUpdate(ctx context.Context, principal auth.Principal, ru
 		}
 	}
 	return r.saveToBuild(ctx, save)
+}
+
+func stageUpdate(base *spec.Dashboard, raw json.RawMessage) (json.RawMessage, *spec.Dashboard, Result, bool, error) {
+	kept, added, row, res, ok := keepBuildPositions(base, raw)
+	if !ok {
+		return nil, nil, res, false, nil
+	}
+	parsed, err := spec.Parse(kept)
+	if err != nil {
+		return kept, nil, Result{}, true, nil
+	}
+	if added == nil {
+		return kept, parsed, Result{}, true, nil
+	}
+	placed := placement(parsed, []slot{added.slot(row, nil)}, added, row)
+	merged, res, err := applyBuildPatch(parsed, placed.patch)
+	if merged == nil {
+		return nil, nil, res, false, err
+	}
+	out, err := json.Marshal(merged)
+	if err != nil {
+		return nil, nil, Result{}, false, err
+	}
+	return out, merged, Result{}, true, nil
+}
+
+type positionKeeper struct {
+	base  *spec.Dashboard
+	added []*newPanel
+	row   *rowRef
+}
+
+func (k *positionKeeper) keep(panel map[string]json.RawMessage) (known bool) {
+	var id string
+	_ = json.Unmarshal(panel["id"], &id)
+	e, found := k.base.FindPanel(id)
+	if found {
+		panel["gridPos"], _ = json.Marshal(e.Panel.GridPos)
+	}
+	return found
+}
+
+func (k *positionKeeper) collect(panel map[string]json.RawMessage, row *rowRef) bool {
+	raw, _ := json.Marshal(panel)
+	np, ok := decodeNewPanel(raw)
+	if ok {
+		k.added = append(k.added, np)
+		k.row = row
+	}
+	return ok
+}
+
+func keepBuildPositions(base *spec.Dashboard, raw json.RawMessage) (json.RawMessage, *newPanel, *rowRef, Result, bool) {
+	var doc map[string]json.RawMessage
+	var panels []map[string]json.RawMessage
+	if json.Unmarshal(raw, &doc) != nil || json.Unmarshal(doc["panels"], &panels) != nil {
+		return raw, nil, nil, Result{}, true
+	}
+	k := &positionKeeper{base: base}
+	kept := make([]map[string]json.RawMessage, 0, len(panels))
+	for _, p := range panels {
+		stays, res, ok := k.visit(p)
+		if !ok {
+			return nil, nil, nil, res, false
+		}
+		if stays {
+			kept = append(kept, p)
+		}
+	}
+	if len(k.added) > 1 {
+		ids := make([]string, len(k.added))
+		for i, np := range k.added {
+			ids[i] = np.head.ID
+		}
+		return nil, nil, nil, tooManyPanels(len(ids), ids), false
+	}
+	doc["panels"], _ = json.Marshal(kept)
+	out, _ := json.Marshal(doc)
+	if len(k.added) == 0 {
+		return out, nil, nil, Result{}, true
+	}
+	return out, k.added[0], k.row, Result{}, true
+}
+
+func (k *positionKeeper) visit(p map[string]json.RawMessage) (stays bool, res Result, ok bool) {
+	known := k.keep(p)
+	if !isRowBody(p) {
+		return known || !k.collect(p, nil), Result{}, true
+	}
+	row, children, split := splitRow(p)
+	switch {
+	case !split:
+		return true, Result{}, true
+	case !known:
+		res, ok := k.collectNewRow(row, children)
+		return false, res, ok
+	}
+	remaining := make([]map[string]json.RawMessage, 0, len(children))
+	for _, c := range children {
+		if !k.keep(c) && !isRowBody(c) && k.collect(c, row) {
+			continue
+		}
+		remaining = append(remaining, c)
+	}
+	p["panels"], _ = json.Marshal(remaining)
+	return true, Result{}, true
+}
+
+func (k *positionKeeper) collectNewRow(row *rowRef, children []map[string]json.RawMessage) (Result, bool) {
+	if len(children) != 1 || isRowBody(children[0]) || k.keep(children[0]) || !k.collect(children[0], row) {
+		return invalid("%s", newRowNeedsItsPanel), false
+	}
+	return Result{}, true
+}
+
+func isRowBody(panel map[string]json.RawMessage) bool {
+	var panelType spec.PanelType
+	_ = json.Unmarshal(panel["type"], &panelType)
+	return panelType == spec.Row
+}
+
+func splitRow(row map[string]json.RawMessage) (*rowRef, []map[string]json.RawMessage, bool) {
+	var ref rowRef
+	var children []map[string]json.RawMessage
+	_ = json.Unmarshal(row["id"], &ref.ID)
+	_ = json.Unmarshal(row["title"], &ref.Title)
+	if raw, ok := row["panels"]; ok && json.Unmarshal(raw, &children) != nil {
+		return nil, nil, false
+	}
+	return &ref, children, true
 }
 
 func (r *Registry) buildPatch(ctx context.Context, principal auth.Principal, run Run, target saveTarget, in updatePanelsInput) (Result, error) {
@@ -457,7 +738,7 @@ func (r *Registry) buildPatch(ctx context.Context, principal auth.Principal, run
 	if base == nil {
 		return invalid("%s", noBuildYet), nil
 	}
-	merged, res, err := mergePatch(base, in.PanelPatch, in.Row)
+	merged, moved, res, err := mergePatch(base, in.PanelPatch, in.Row)
 	if merged == nil {
 		return res, err
 	}
@@ -465,6 +746,7 @@ func (r *Registry) buildPatch(ctx context.Context, principal auth.Principal, run
 		return buildRejected(issues, panelIDsOf(merged)), nil
 	}
 	changes := changesOf(base, merged)
+	changes.moved = moved
 	if res, ok := onePanelPerSave(changes); !ok {
 		return res, nil
 	}
@@ -509,68 +791,246 @@ type newPanel struct {
 	body map[string]json.RawMessage
 }
 
-func newPanelIn(base *spec.Dashboard, p spec.PanelPatch, row *rowRef) (*newPanel, Result, bool) {
-	if len(p.Upsert) > 1 {
-		return nil, tooManyPanels(len(p.Upsert), upsertIDs(p.Upsert)), false
+func decodeNewPanel(raw json.RawMessage) (*newPanel, bool) {
+	var np newPanel
+	if json.Unmarshal(raw, &np.head) != nil || json.Unmarshal(raw, &np.body) != nil {
+		return nil, false
 	}
-	var panel newPanel
-	isNew := len(p.Upsert) == 1 &&
-		json.Unmarshal(p.Upsert[0], &panel.head) == nil && json.Unmarshal(p.Upsert[0], &panel.body) == nil &&
-		!panelExists(base, panel.head.ID)
-	switch {
-	case isNew && panel.head.Type == spec.Row:
-		return nil, invalid("%s", rowNeedsPanel), false
-	case !isNew && row != nil:
-		return nil, invalid("%s", rowNeedsNewPanel), false
-	case !isNew:
-		return nil, Result{}, true
-	}
-	if res, ok := placementAllowed(base, p.Layout, panel.head.ID, row); !ok {
-		return nil, res, false
-	}
-	return &panel, Result{}, true
+	return &np, true
 }
 
-func placeNewPanel(staged *spec.Dashboard, np newPanel, row *rowRef) spec.PanelPatch {
-	rowID := ""
+func (np *newPanel) slot(row *rowRef, prefer *spec.GridPos) slot {
+	s := slot{ID: np.head.ID, Prefer: prefer}
 	if row != nil {
-		rowID = row.ID
+		s.Row, s.RowTitle = row.ID, row.Title
 	}
-	w, h := panelSize(np.body)
-	pl := place(staged, rowID, w, h)
-	panel := withGridPos(np.body, pl.Panel)
-	var placed spec.PanelPatch
-	switch {
-	case pl.Row != nil:
-		placed.Upsert = []json.RawMessage{newRowUpsert(row, *pl.Row, panel)}
-	default:
-		placed.Upsert = []json.RawMessage{panel}
-		if rowID != "" {
-			placed.Layout = append(placed.Layout, spec.PanelPlacement{ID: np.head.ID, Row: &rowID})
+	s.W, s.H = sizeOf(np.body["gridPos"], defaultSize(np.head.Type))
+	return s
+}
+
+type buildPlan struct {
+	rest     spec.PanelPatch
+	layout   []spec.PanelPlacement
+	row      *rowRef
+	added    *newPanel
+	resent   *newPanel
+	resentAt spec.PanelEntry
+}
+
+func buildPatchPlan(base *spec.Dashboard, p spec.PanelPatch, row *rowRef) (buildPlan, Result, bool) {
+	if len(p.Upsert) > 1 {
+		return buildPlan{}, tooManyPanels(len(p.Upsert), upsertIDs(p.Upsert)), false
+	}
+	if row != nil {
+		if e, found := base.FindPanel(row.ID); found && (e.Row != nil || e.Panel.Type != spec.Row) {
+			return buildPlan{}, invalid("panel %q is not a row", row.ID), false
 		}
 	}
-	placed.Layout = append(placed.Layout, pl.Shifts...)
+	plan := buildPlan{rest: p, layout: p.Layout, row: row}
+	plan.rest.Layout = nil
+	if len(p.Upsert) == 0 {
+		return plan, Result{}, true
+	}
+	np, ok := decodeNewPanel(p.Upsert[0])
+	if !ok || np.head.ID == "" {
+		return plan, Result{}, true
+	}
+	e, exists := base.FindPanel(np.head.ID)
+	switch {
+	case !exists && np.head.Type == spec.Row:
+		return buildPlan{}, invalid("%s", rowNeedsPanel), false
+	case !exists:
+		plan.added = np
+		plan.rest.Upsert = nil
+	case e.Panel.Type == spec.Row && row != nil:
+		return buildPlan{}, invalid("%s", rowsStayInPlace), false
+	default:
+		plan.resent, plan.resentAt = np, e
+		plan.rest.Upsert = []json.RawMessage{withGridPos(np.body, e.Panel.GridPos)}
+	}
+	return plan, Result{}, true
+}
+
+func (b buildPlan) rowID() string {
+	return rowIDOf(b.row)
+}
+
+func (b buildPlan) rowTitle(id string) string {
+	if b.row != nil && b.row.ID == id {
+		return b.row.Title
+	}
+	return ""
+}
+
+func sectionOf(e spec.PanelEntry) string {
+	if e.Row == nil {
+		return ""
+	}
+	return e.Row.ID
+}
+
+func (b buildPlan) slots(staged *spec.Dashboard) ([]slot, Result, bool) {
+	var slots []slot
+	named := map[string]bool{}
+	var wanted *spec.GridPos
+	for _, l := range b.layout {
+		if named[l.ID] {
+			return nil, invalid("panel %q appears more than once in layout", l.ID), false
+		}
+		named[l.ID] = true
+		if b.added != nil && l.ID == b.added.head.ID {
+			if l.Row != nil && *l.Row != b.rowID() {
+				return nil, invalid("%s", newPanelRowOnce), false
+			}
+			wanted = preferredSpot(l.GridPos)
+			continue
+		}
+		s, res, ok := b.layoutSlot(staged, l)
+		if !ok {
+			return nil, res, false
+		}
+		slots = append(slots, s)
+	}
+	if b.resent != nil && !named[b.resent.head.ID] {
+		if s, ok := b.resentSlot(); ok {
+			slots = append(slots, s)
+		}
+	}
+	if b.added != nil {
+		slots = append(slots, b.added.slot(b.row, wanted))
+	}
+	return slots, Result{}, true
+}
+
+func (b buildPlan) layoutSlot(staged *spec.Dashboard, l spec.PanelPlacement) (slot, Result, bool) {
+	e, found := staged.FindPanel(l.ID)
+	switch {
+	case !found:
+		return slot{}, invalid("no panel with id %q to place", l.ID), false
+	case e.Panel.Type == spec.Row:
+		return slot{}, invalid("%s", rowsStayInPlace), false
+	}
+	section := sectionOf(e)
+	target := section
+	if l.Row != nil {
+		target = *l.Row
+		if res, ok := b.rowTarget(staged, target); !ok {
+			return slot{}, res, false
+		}
+	}
+	stored := e.Panel.GridPos
+	w, h := sizeOf(l.GridPos, stored)
+	prefer := preferredSpot(l.GridPos)
+	if prefer == nil && target == section {
+		prefer = &spec.GridPos{X: stored.X, Y: stored.Y}
+	}
+	return slot{ID: l.ID, Row: target, RowTitle: b.rowTitle(target), W: w, H: h, Prefer: prefer}, Result{}, true
+}
+
+func (b buildPlan) rowTarget(staged *spec.Dashboard, id string) (Result, bool) {
+	if id == "" {
+		return Result{}, true
+	}
+	e, found := staged.FindPanel(id)
+	switch {
+	case found && (e.Row != nil || e.Panel.Type != spec.Row):
+		return invalid("panel %q is not a row", id), false
+	case !found && b.rowID() != id:
+		return invalid("no row with id %q to place the panel in; name a new row in row", id), false
+	}
+	return Result{}, true
+}
+
+func (b buildPlan) resentSlot() (slot, bool) {
+	stored := b.resentAt.Panel.GridPos
+	if b.resentAt.Panel.Type == spec.Row {
+		return slot{}, false
+	}
+	section := sectionOf(b.resentAt)
+	w, h := sizeOf(b.resent.body["gridPos"], stored)
+	switch {
+	case b.row != nil && b.row.ID != section:
+		return slot{ID: b.resent.head.ID, Row: b.row.ID, RowTitle: b.row.Title, W: w, H: h}, true
+	case w != stored.W || h != stored.H:
+		return slot{ID: b.resent.head.ID, Row: section, W: w, H: h, Prefer: &spec.GridPos{X: stored.X, Y: stored.Y}}, true
+	}
+	return slot{}, false
+}
+
+type placedPatch struct {
+	patch spec.PanelPatch
+	moved []string
+}
+
+func placement(staged *spec.Dashboard, slots []slot, added *newPanel, row *rowRef) placedPatch {
+	plan := place(staged, slots)
+	var placed placedPatch
+	slotted := map[string]bool{}
+	carried := false
+	created := map[string]bool{}
+	for _, s := range slots {
+		slotted[s.ID] = true
+		pos, isNew := plan.NewRows[s.Row]
+		if !isNew || created[s.Row] {
+			continue
+		}
+		created[s.Row] = true
+		var panel json.RawMessage
+		if added != nil && s.ID == added.head.ID {
+			panel = withGridPos(added.body, plan.Positions[s.ID])
+			carried = true
+		}
+		placed.patch.Upsert = append(placed.patch.Upsert, rowUpsert(s.Row, s.RowTitle, pos, panel))
+	}
+	if added != nil && !carried {
+		placed.patch.Upsert = append(placed.patch.Upsert, withGridPos(added.body, plan.Positions[added.head.ID]))
+		if rowID := rowIDOf(row); rowID != "" {
+			placed.patch.Layout = append(placed.patch.Layout, spec.PanelPlacement{ID: added.head.ID, Row: &rowID})
+		}
+	}
+	placed.patch.Layout = append(placed.patch.Layout, plan.Moves...)
+	for _, m := range plan.Moves {
+		if slotted[m.ID] {
+			placed.moved = append(placed.moved, m.ID)
+		}
+	}
 	return placed
 }
 
-func mergePatch(base *spec.Dashboard, p spec.PanelPatch, row *rowRef) (*spec.Dashboard, Result, error) {
-	np, res, ok := newPanelIn(base, p, row)
+func rowIDOf(row *rowRef) string {
+	if row == nil {
+		return ""
+	}
+	return row.ID
+}
+
+func mergePatch(base *spec.Dashboard, p spec.PanelPatch, row *rowRef) (*spec.Dashboard, []string, Result, error) {
+	plan, res, ok := buildPatchPlan(base, p, row)
 	if !ok {
-		return nil, res, nil
+		return nil, nil, res, nil
 	}
-	if np == nil {
-		return applyBuildPatch(base, p)
-	}
-	rest := p
-	rest.Upsert = nil
 	staged := base
-	if changesAnything(rest) {
+	restChanges := changesAnything(plan.rest)
+	if restChanges {
 		var err error
-		if staged, res, err = applyBuildPatch(base, rest); staged == nil {
-			return nil, res, err
+		if staged, res, err = applyBuildPatch(base, plan.rest); staged == nil {
+			return nil, nil, res, err
 		}
 	}
-	return applyBuildPatch(staged, placeNewPanel(staged, *np, row))
+	slots, res, ok := plan.slots(staged)
+	if !ok {
+		return nil, nil, res, nil
+	}
+	if len(slots) == 0 && restChanges {
+		return staged, nil, Result{}, nil
+	}
+	if len(slots) == 0 {
+		merged, res, err := applyBuildPatch(base, plan.rest)
+		return merged, nil, res, err
+	}
+	placed := placement(staged, slots, plan.added, row)
+	merged, res, err := applyBuildPatch(staged, placed.patch)
+	return merged, placed.moved, res, err
 }
 
 func applyBuildPatch(d *spec.Dashboard, p spec.PanelPatch) (*spec.Dashboard, Result, error) {
@@ -587,26 +1047,8 @@ func applyBuildPatch(d *spec.Dashboard, p spec.PanelPatch) (*spec.Dashboard, Res
 
 func changesAnything(p spec.PanelPatch) bool {
 	d := p.Dashboard
-	return len(p.Delete) > 0 || len(p.Layout) > 0 || len(p.Variables) > 0 ||
+	return len(p.Upsert) > 0 || len(p.Delete) > 0 || len(p.Variables) > 0 ||
 		d != nil && (len(d.Time) > 0 || len(d.Title) > 0 || len(d.Tags) > 0 || len(d.Links) > 0)
-}
-
-func placementAllowed(base *spec.Dashboard, layout []spec.PanelPlacement, panelID string, row *rowRef) (Result, bool) {
-	if slices.ContainsFunc(layout, func(l spec.PanelPlacement) bool { return l.ID == panelID }) {
-		return invalid("%s", serverPlacesPanel), false
-	}
-	if row == nil {
-		return Result{}, true
-	}
-	if e, found := base.FindPanel(row.ID); found && (e.Row != nil || e.Panel.Type != spec.Row) {
-		return invalid("panel %q is not a row", row.ID), false
-	}
-	return Result{}, true
-}
-
-func panelExists(d *spec.Dashboard, id string) bool {
-	_, found := d.FindPanel(id)
-	return found
 }
 
 func upsertIDs(items []json.RawMessage) []string {
@@ -619,24 +1061,40 @@ func upsertIDs(items []json.RawMessage) []string {
 	return ids
 }
 
-func panelSize(body map[string]json.RawMessage) (w, h int) {
+func sizeOf(gridPos json.RawMessage, fallback spec.GridPos) (w, h int) {
 	var pos struct {
 		W *float64 `json:"w"`
 		H *float64 `json:"h"`
 	}
-	if json.Unmarshal(body["gridPos"], &pos) != nil {
-		return defaultPanelW, defaultPanelH
+	if json.Unmarshal(gridPos, &pos) != nil {
+		return fallback.W, fallback.H
 	}
-	w, wOK := wholeWithin(pos.W, maxPanelW)
-	h, hOK := wholeWithin(pos.H, maxPanelH)
+	w, wOK := wholeWithin(pos.W, 1, maxPanelW)
+	h, hOK := wholeWithin(pos.H, 1, maxPanelH)
 	if !wOK || !hOK {
-		return defaultPanelW, defaultPanelH
+		return fallback.W, fallback.H
 	}
 	return w, h
 }
 
-func wholeWithin(v *float64, limit int) (int, bool) {
-	if v == nil || *v != math.Trunc(*v) || *v < 1 || *v > float64(limit) {
+func preferredSpot(gridPos json.RawMessage) *spec.GridPos {
+	var pos struct {
+		X *float64 `json:"x"`
+		Y *float64 `json:"y"`
+	}
+	if json.Unmarshal(gridPos, &pos) != nil {
+		return nil
+	}
+	x, xOK := wholeWithin(pos.X, 0, spec.GridColumns)
+	y, yOK := wholeWithin(pos.Y, 0, maxPreferredY)
+	if !xOK || !yOK {
+		return nil
+	}
+	return &spec.GridPos{X: x, Y: y}
+}
+
+func wholeWithin(v *float64, lowest, highest int) (int, bool) {
+	if v == nil || *v != math.Trunc(*v) || *v < float64(lowest) || *v > float64(highest) {
 		return 0, false
 	}
 	return int(*v), true
@@ -649,13 +1107,11 @@ func withGridPos(body map[string]json.RawMessage, pos spec.GridPos) json.RawMess
 	return raw
 }
 
-func newRowUpsert(row *rowRef, pos spec.GridPos, panel json.RawMessage) json.RawMessage {
-	raw, _ := json.Marshal(map[string]any{
-		"id":      row.ID,
-		"type":    spec.Row,
-		"title":   row.Title,
-		"gridPos": pos,
-		"panels":  []json.RawMessage{panel},
-	})
+func rowUpsert(id, title string, pos spec.GridPos, panel json.RawMessage) json.RawMessage {
+	row := map[string]any{"id": id, "type": spec.Row, "title": title, "gridPos": pos}
+	if panel != nil {
+		row["panels"] = []json.RawMessage{panel}
+	}
+	raw, _ := json.Marshal(row)
 	return raw
 }

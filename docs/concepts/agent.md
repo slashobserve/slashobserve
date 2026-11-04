@@ -49,10 +49,15 @@ The build becomes one version when the agent finishes, either with `finish` set 
 Nothing shows in the dashboard list, a folder or the history before that, and an intermediate panel never becomes a version.
 
 The agent builds every dashboard panel by panel.
+A new dashboard has no id until the build commits, so the model saves and reads its build without a `dashboard_id`.
 The first save is `create_dashboard` with the title, time range, variables and one panel, with `row` naming the row it belongs to, plus `planned_panels`, the number of panels the model expects the finished dashboard to have.
 Every other panel is its own `update_panels` call, with the panel alone in `upsert` and `row` naming the row it belongs to; a new row is created with its first panel.
 A save that adds or changes more than one panel is rejected.
 The server places each new panel at the first free spot of its row, scanning from the row's top line left to right, and moves what is below only when the row grows.
+In a build the server owns every position: it reads only `w` and `h` from a panel the agent sends, keeps a panel the agent sends again where it is, and places a panel again only when its size or row changes, at the spot a `layout` entry asks for when that spot is free, else at the first free spot of its row.
+Rows keep the place the server gave them.
+`update_dashboard` in a build keeps the build's position for every panel it already holds and places a new panel the same way.
+Each accepted save tells the model the rows of the build, the positions in the row it saved into and any gaps, within 1.5 KiB, so it never needs a read to know what exists.
 A revision changes one panel per `update_panels` call, so a change to many existing panels takes one call each; deletes, moves, variables and dashboard fields may go with the panel.
 Each save checks only the panel it adds or changes, so a build of 100 panels does not rerun the queries of the panels already built.
 `planned_panels`, `finish` and `row` exist only for the built-in agent; MCP clients keep one version per accepted save.

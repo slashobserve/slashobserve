@@ -293,17 +293,41 @@ func TestARejectedPatchStepNamesTheFirstIssuePath(t *testing.T) {
 }
 
 func TestABuildRejectionTellsTheAgentHowToRepairIt(t *testing.T) {
-	issues := []spec.Issue{{Path: "/panels/0/display", Code: spec.CodeSchema, Message: "bad"}}
-	out := rejected(t, buildRejected(issues, map[string]string{"/panels/0": "p1"}))
-	for _, want := range []string{
-		"Fix only the panels in failing_panels and save again.",
-		"query_range on a failing query",
-		"If an issue names a field you do not know, call get_spec_guide for the JSON Schema.",
-	} {
-		if !strings.Contains(out.Message, want) {
-			t.Errorf("message lacks %q: %s", want, out.Message)
-		}
+	const (
+		lead   = "Fix only the panels in failing_panels and save again."
+		layout = "In this run the server sets positions: resend the panel with only the w and h it needs."
+		query  = "The next call may run query_range or query_instant on the failing query to see why."
+		schema = "If an issue names a field you do not know, call get_spec_guide for the JSON Schema."
+	)
+	issue := func(code spec.IssueCode) spec.Issue { return spec.Issue{Path: "/panels/0", Code: code, Message: "bad"} }
+	tests := []struct {
+		name   string
+		issues []spec.Issue
+		want   string
+	}{
+		{"an overlap", []spec.Issue{issue(spec.CodeGridOverlap)}, lead + " " + layout},
+		{"an overflow", []spec.Issue{issue(spec.CodeGridOverflow)}, lead + " " + layout},
+		{"a failing query", []spec.Issue{issue(queryproxy.CodeQueryInvalid)}, lead + " " + query},
+		{"an empty result", []spec.Issue{issue(queryproxy.CodeQueryEmpty)}, lead + " " + query},
+		{"a datasource that is down", []spec.Issue{issue(queryproxy.CodeDatasourceDown)}, lead + " " + query},
+		{"a schema issue", []spec.Issue{issue(spec.CodeSchema)}, lead + " " + schema},
+		{"a duplicate id", []spec.Issue{issue(spec.CodeDuplicatePanelID)}, lead + " " + schema},
+		{
+			"all three families, a repeat and a first appearance order",
+			[]spec.Issue{issue(queryproxy.CodeQueryInvalid), issue(spec.CodeSchema), issue(queryproxy.CodeQueryTimeout), issue(spec.CodeGridOverlap), issue(spec.CodeGridOverflow), issue(spec.CodeUnknownMacro)},
+			lead + " " + query + " " + schema + " " + layout,
+		},
+		{"no issue", nil, lead},
 	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out := rejected(t, buildRejected(tt.issues, map[string]string{"/panels/0": "p1"}))
+			if out.Message != tt.want {
+				t.Errorf("message = %q, want %q", out.Message, tt.want)
+			}
+		})
+	}
+	issues := []spec.Issue{issue(spec.CodeSchema)}
 	if mcp := rejected(t, patchRejected(issues, nil)); mcp.Message != "" {
 		t.Errorf("an MCP rejection has the message %q", mcp.Message)
 	}

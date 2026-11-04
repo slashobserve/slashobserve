@@ -287,3 +287,34 @@ func TestTheAgentAndMCPDescribeGetSpecGuideDifferently(t *testing.T) {
 		t.Error("the agent and MCP descriptions are the same")
 	}
 }
+
+const agentToolTextBudget = 19609
+
+func TestAgentToolTextStaysWithinBudget(t *testing.T) {
+	total := 0
+	for _, tool := range New(Deps{}).List() {
+		if tool.MCPOnly {
+			continue
+		}
+		offered := tool.ForAgent()
+		total += len(offered.Description) + len(offered.InputSchema)
+	}
+	if total > agentToolTextBudget {
+		t.Errorf("agent tool text is %d bytes, over the %d byte budget; raise the budget deliberately and say why in the commit body", total, agentToolTextBudget)
+	}
+}
+
+func TestOnlyTheBuiltInAgentIsToldToReadItsBuildWithoutADashboardID(t *testing.T) {
+	var getPanels Tool
+	for _, tool := range New(Deps{}).List() {
+		if tool.Name == nameGetPanels {
+			getPanels = tool
+		}
+	}
+	if !strings.Contains(getPanels.ForAgent().Description, "Leave out dashboard_id") {
+		t.Errorf("agent description = %q", getPanels.ForAgent().Description)
+	}
+	if strings.Contains(getPanels.Description, "Leave out dashboard_id") {
+		t.Errorf("MCP description = %q", getPanels.Description)
+	}
+}

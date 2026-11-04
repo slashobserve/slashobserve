@@ -14,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -25,8 +26,17 @@ const (
 	panelsBudget    = 60 << 10
 	panelsHeadroom  = 2 << 10
 
-	repairMessage = "Fix only the panels in failing_panels and save again. The next call may also run reads, such as query_range on a failing query, to see why. If an issue names a field you do not know, call get_spec_guide for the JSON Schema."
+	repairLead   = "Fix only the panels in failing_panels and save again."
+	repairLayout = "In this run the server sets positions: resend the panel with only the w and h it needs."
+	repairQuery  = "The next call may run query_range or query_instant on the failing query to see why."
+	repairSchema = "If an issue names a field you do not know, call get_spec_guide for the JSON Schema."
 )
+
+var queryIssueCodes = []spec.IssueCode{
+	queryproxy.CodeQueryInvalid, queryproxy.CodeQueryEmpty, queryproxy.CodeQueryTimeout, queryproxy.CodeQueryForbidden,
+	queryproxy.CodeLimitExceeded, queryproxy.CodeExpressionFailed, queryproxy.CodeVariableFailed, queryproxy.CodeVariableEmpty,
+	queryproxy.CodeVariableUnresolved, queryproxy.CodeDatasourceDown, queryproxy.CodeUnknownDatasource,
+}
 
 func (r *Registry) panelEntries() []entry {
 	return []entry{
@@ -328,8 +338,28 @@ func patchRejected(issues []spec.Issue, panelIDs map[string]string) Result {
 
 func buildRejected(issues []spec.Issue, panelIDs map[string]string) Result {
 	out := rejectionOf(issues, panelIDs)
-	out.Message = repairMessage
+	out.Message = repairMessage(issues)
 	return failure(saveRejectedStep(issues), out)
+}
+
+func repairMessage(issues []spec.Issue) string {
+	parts := []string{repairLead}
+	for _, issue := range issues {
+		if hint := repairHint(issue.Code); !slices.Contains(parts, hint) {
+			parts = append(parts, hint)
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
+func repairHint(code spec.IssueCode) string {
+	switch {
+	case code == spec.CodeGridOverlap || code == spec.CodeGridOverflow:
+		return repairLayout
+	case slices.Contains(queryIssueCodes, code):
+		return repairQuery
+	}
+	return repairSchema
 }
 
 func rejectionOf(issues []spec.Issue, panelIDs map[string]string) patchRejectedOut {

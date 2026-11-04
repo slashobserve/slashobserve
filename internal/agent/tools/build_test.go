@@ -159,27 +159,27 @@ func TestChangesOfCountsNewAndEditedPanelsAndNeverRows(t *testing.T) {
 			name:      "a new panel in a row names it and its row",
 			prev:      prev,
 			next:      parseBoard(t, buildRow("r1", "One", 0, suggestStat("a", "A", "up", 1), suggestStat("b", "B", "up", 5)), suggestStat("top", "Top", "up", 10)),
-			wantAdded: &addedPanel{Title: "B", Row: "One"},
+			wantAdded: &addedPanel{ID: "b", Title: "B", Row: "One"},
 			wantCount: 1,
 		},
 		{
 			name:      "a new panel above every row has no row",
 			prev:      prev,
 			next:      parseBoard(t, buildRow("r1", "One", 0, suggestStat("a", "A", "up", 1)), suggestStat("top", "Top", "up", 5), suggestStat("c", "C", "up", 9)),
-			wantAdded: &addedPanel{Title: "C"},
+			wantAdded: &addedPanel{ID: "c", Title: "C"},
 			wantCount: 1,
 		},
 		{
 			name:      "the first save of a build adds its panel",
 			next:      parseBoard(t, buildRow("r1", "One", 0, suggestStat("a", "A", "up", 1))),
-			wantAdded: &addedPanel{Title: "A", Row: "One"},
+			wantAdded: &addedPanel{ID: "a", Title: "A", Row: "One"},
 			wantCount: 1,
 		},
 		{
 			name:      "a new row with one child counts only the child",
 			prev:      prev,
 			next:      parseBoard(t, buildRow("r1", "One", 0, suggestStat("a", "A", "up", 1)), suggestStat("top", "Top", "up", 5), buildRow("r2", "Two", 9, suggestStat("n", "N", "up", 10))),
-			wantAdded: &addedPanel{Title: "N", Row: "Two"},
+			wantAdded: &addedPanel{ID: "n", Title: "N", Row: "Two"},
 			wantCount: 1,
 		},
 		{
@@ -208,7 +208,7 @@ func TestChangesOfCountsNewAndEditedPanelsAndNeverRows(t *testing.T) {
 			name:      "two new panels name the first and count both",
 			prev:      prev,
 			next:      parseBoard(t, buildRow("r1", "One", 0, suggestStat("a", "A", "up", 1), suggestStat("x", "X", "up", 5), suggestStat("y", "Y", "up", 9)), suggestStat("top", "Top", "up", 13)),
-			wantAdded: &addedPanel{Title: "X", Row: "One"},
+			wantAdded: &addedPanel{ID: "x", Title: "X", Row: "One"},
 			wantCount: 2,
 		},
 	}
@@ -231,6 +231,7 @@ func TestBuildMessage(t *testing.T) {
 		name        string
 		progress    dashboards.BuildProgress
 		changes     panelChanges
+		gaps        int
 		wantStep    string
 		wantMessage string
 	}{
@@ -270,10 +271,41 @@ func TestBuildMessage(t *testing.T) {
 			wantMessage: allPanelsBuiltMessage,
 		},
 		{
+			name:        "the last planned panel with one gap",
+			progress:    dashboards.BuildProgress{Panels: 5, PlannedPanels: 5},
+			changes:     panelChanges{added: &addedPanel{Title: "Last"}},
+			gaps:        1,
+			wantStep:    "Saved panel 5 of 5: Last",
+			wantMessage: allPanelsBuiltMessage + " The layout has 1 gap, listed in layout.gaps; you can close one by resending a panel beside it with a larger w or h.",
+		},
+		{
+			name:        "the last planned panel with two gaps",
+			progress:    dashboards.BuildProgress{Panels: 5, PlannedPanels: 5},
+			changes:     panelChanges{added: &addedPanel{Title: "Last"}},
+			gaps:        2,
+			wantStep:    "Saved panel 5 of 5: Last",
+			wantMessage: allPanelsBuiltMessage + " The layout has 2 gaps, listed in layout.gaps; you can close one by resending a panel beside it with a larger w or h.",
+		},
+		{
+			name:        "gaps are not mentioned while panels are missing",
+			progress:    dashboards.BuildProgress{Panels: 3, PlannedPanels: 5},
+			changes:     panelChanges{added: &addedPanel{Title: "Up"}},
+			gaps:        2,
+			wantStep:    "Saved panel 3 of 5: Up",
+			wantMessage: "Panel 3 of 5 saved to the build. " + nextPlanned,
+		},
+		{
 			name:        "a changed panel",
 			progress:    dashboards.BuildProgress{Panels: 114, PlannedPanels: 114},
 			changes:     panelChanges{edited: 1},
 			wantStep:    "Changed 1 panel in the build (114 in all)",
+			wantMessage: allPanelsBuiltMessage,
+		},
+		{
+			name:        "a save that only moved panels",
+			progress:    dashboards.BuildProgress{Panels: 114, PlannedPanels: 114},
+			changes:     panelChanges{moved: []string{"a", "b"}},
+			wantStep:    "Moved 2 panels in the build (114 in all)",
 			wantMessage: allPanelsBuiltMessage,
 		},
 		{
@@ -292,7 +324,7 @@ func TestBuildMessage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			step, message := buildMessage(tt.progress, tt.changes, 0)
+			step, message := buildMessage(tt.progress, tt.changes, 0, tt.gaps)
 			if step != tt.wantStep {
 				t.Errorf("step = %q, want %q", step, tt.wantStep)
 			}
@@ -306,7 +338,7 @@ func TestBuildMessage(t *testing.T) {
 func TestASaveThatLowersThePlanSaysSoAndDoesNotSayDone(t *testing.T) {
 	progress := dashboards.BuildProgress{Panels: 69, PlannedPanels: 69}
 	changes := panelChanges{added: &addedPanel{Title: "Extra", Row: "Memory"}}
-	step, message := buildMessage(progress, changes, 80)
+	step, message := buildMessage(progress, changes, 80, 0)
 	if want := "Saved panel 69 of 69: Extra (row Memory) (planned 80 -> 69)"; step != want {
 		t.Errorf("step = %q, want %q", step, want)
 	}
@@ -318,7 +350,7 @@ func TestASaveThatLowersThePlanSaysSoAndDoesNotSayDone(t *testing.T) {
 
 func TestASaveThatRaisesThePlanNamesTheChange(t *testing.T) {
 	progress := dashboards.BuildProgress{Panels: 61, PlannedPanels: 80}
-	step, message := buildMessage(progress, panelChanges{added: &addedPanel{Title: "Fans"}}, 60)
+	step, message := buildMessage(progress, panelChanges{added: &addedPanel{Title: "Fans"}}, 60, 0)
 	if want := "Saved panel 61 of 80: Fans (planned 60 -> 80)"; step != want {
 		t.Errorf("step = %q, want %q", step, want)
 	}
@@ -342,7 +374,7 @@ func TestAnUnchangedPlanKeepsTodaysMessages(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			step, message := buildMessage(tt.progress, panelChanges{added: &addedPanel{Title: "Up"}}, tt.plannedBefore)
+			step, message := buildMessage(tt.progress, panelChanges{added: &addedPanel{Title: "Up"}}, tt.plannedBefore, 0)
 			if step != tt.wantStep || !strings.HasPrefix(message, tt.wantMessage) {
 				t.Errorf("step = %q message = %q, want %q and a message starting %q", step, message, tt.wantStep, tt.wantMessage)
 			}
@@ -422,7 +454,7 @@ func TestUpdateTargetInABuildRunOfACreate(t *testing.T) {
 		t.Fatalf("target = %+v ok = %v err = %v", target, ok, err)
 	}
 	_, res, ok, err := updateTarget(saveInput{DashboardID: dashA}, run, true)
-	if err != nil || ok || !strings.Contains(res.Content.(errorBody).Message, "omit dashboard_id") {
+	if err != nil || ok || !strings.Contains(res.Content.(errorBody).Message, "this run creates a new dashboard, which has no id until you finish; leave out dashboard_id") {
 		t.Fatalf("ok = %v err = %v res = %#v", ok, err, res.Content)
 	}
 }
@@ -445,11 +477,15 @@ func upsertOf(items ...string) spec.PanelPatch {
 
 func placedBy(t *testing.T, base *spec.Dashboard, patch spec.PanelPatch, row *rowRef) (spec.PanelPatch, *spec.Dashboard) {
 	t.Helper()
-	np, res, ok := newPanelIn(base, patch, row)
-	if !ok || np == nil {
+	plan, res, ok := buildPatchPlan(base, patch, row)
+	if !ok || plan.added == nil {
 		t.Fatalf("not a placed new panel: ok = %v, res = %#v", ok, res.Content)
 	}
-	placed := placeNewPanel(base, *np, row)
+	slots, res, ok := plan.slots(base)
+	if !ok {
+		t.Fatalf("slots refused: %#v", res.Content)
+	}
+	placed := placement(base, slots, plan.added, row).patch
 	merged, err := spec.ApplyPanelPatch(base, placed)
 	if err != nil {
 		t.Fatalf("placed patch does not merge: %v", err)
@@ -529,13 +565,13 @@ func TestPlaceNewPanelKeepsTheSizeOnlyWhenBothAreValid(t *testing.T) {
 	}{
 		{"valid size", `{"x":0,"y":0,"w":6,"h":4}`, 6, 4},
 		{"largest size", `{"w":24,"h":100}`, 24, 100},
-		{"no size", `{"x":0,"y":0}`, 12, 8},
-		{"width too large", `{"w":25,"h":4}`, 12, 8},
-		{"height too large", `{"w":6,"h":101}`, 12, 8},
-		{"zero height", `{"w":6,"h":0}`, 12, 8},
-		{"fractional width", `{"w":6.5,"h":4}`, 12, 8},
-		{"text width", `{"w":"6","h":4}`, 12, 8},
-		{"one side only", `{"w":6}`, 12, 8},
+		{"no size", `{"x":0,"y":0}`, 6, 4},
+		{"width too large", `{"w":25,"h":4}`, 6, 4},
+		{"height too large", `{"w":6,"h":101}`, 6, 4},
+		{"zero height", `{"w":6,"h":0}`, 6, 4},
+		{"fractional width", `{"w":6.5,"h":4}`, 6, 4},
+		{"text width", `{"w":"6","h":4}`, 6, 4},
+		{"one side only", `{"w":6}`, 6, 4},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -550,33 +586,50 @@ func TestPlaceNewPanelKeepsTheSizeOnlyWhenBothAreValid(t *testing.T) {
 
 func TestPlaceNewPanelLeavesASaveWithoutANewPanelAlone(t *testing.T) {
 	base := parseBoard(t, placeRow("r1", 0, false, placeStat("a", 0, 1, 12, 8)))
-	for name, patch := range map[string]spec.PanelPatch{
-		"only a delete":          {Delete: []string{"a"}},
-		"an edit of a panel":     upsertOf(placeStat("a", 3, 3, 6, 4)),
-		"no upsert, only layout": {Layout: []spec.PanelPlacement{{ID: "a", GridPos: json.RawMessage(`{"x":0,"y":1,"w":6,"h":4}`)}}},
-	} {
-		t.Run(name, func(t *testing.T) {
-			np, _, ok := newPanelIn(base, patch, nil)
-			if !ok || np != nil {
-				t.Errorf("ok = %v, new panel = %+v, want the patch left alone", ok, np)
-			}
-			merged, res, err := mergePatch(base, patch, nil)
-			if err != nil || merged == nil {
-				t.Fatalf("merge refused: %#v, %v", res.Content, err)
-			}
-			want, err := spec.ApplyPanelPatch(base, patch)
-			if err != nil || !reflect.DeepEqual(merged, want) {
-				t.Errorf("merged = %+v, want the plain patch result %+v (%v)", merged, want, err)
-			}
-		})
-	}
+	t.Run("only a delete", func(t *testing.T) {
+		patch := spec.PanelPatch{Delete: []string{"a"}}
+		merged, moved, res, err := mergePatch(base, patch, nil)
+		if err != nil || merged == nil {
+			t.Fatalf("merge refused: %#v, %v", res.Content, err)
+		}
+		want, err := spec.ApplyPanelPatch(base, patch)
+		if err != nil || !reflect.DeepEqual(merged, want) || len(moved) != 0 {
+			t.Errorf("merged = %+v moved = %v, want the plain patch result %+v (%v)", merged, moved, want, err)
+		}
+	})
+	t.Run("an edit of a panel", func(t *testing.T) {
+		merged, moved, res, err := mergePatch(base, upsertOf(placeStat("a", 3, 3, 12, 8)), nil)
+		if err != nil || merged == nil {
+			t.Fatalf("merge refused: %#v, %v", res.Content, err)
+		}
+		if e, _ := merged.FindPanel("a"); e.Panel.GridPos != (spec.GridPos{X: 0, Y: 1, W: 12, H: 8}) || len(moved) != 0 {
+			t.Errorf("a = %+v moved = %v, want it kept at its stored position", e.Panel.GridPos, moved)
+		}
+	})
+	t.Run("no upsert, only layout", func(t *testing.T) {
+		patch := spec.PanelPatch{Layout: []spec.PanelPlacement{{ID: "a", GridPos: json.RawMessage(`{"x":0,"y":1,"w":6,"h":4}`)}}}
+		merged, moved, res, err := mergePatch(base, patch, nil)
+		if err != nil || merged == nil {
+			t.Fatalf("merge refused: %#v, %v", res.Content, err)
+		}
+		if e, _ := merged.FindPanel("a"); e.Panel.GridPos != (spec.GridPos{X: 0, Y: 1, W: 6, H: 4}) || !reflect.DeepEqual(moved, []string{"a"}) {
+			t.Errorf("a = %+v moved = %v, want it resized in place", e.Panel.GridPos, moved)
+		}
+	})
+	t.Run("an empty patch", func(t *testing.T) {
+		merged, _, res, err := mergePatch(base, spec.PanelPatch{}, nil)
+		if err != nil || merged != nil {
+			t.Fatalf("merged = %v, err = %v, want the empty patch rejected", merged, err)
+		}
+		if out, ok := res.Content.(patchRejectedOut); !ok || len(out.Issues) == 0 {
+			t.Errorf("res = %#v, want a rejection", res.Content)
+		}
+	})
 }
 
 func TestPlaceNewPanelRefusals(t *testing.T) {
 	base := parseBoard(t, placeStat("t", 0, 0, 12, 8), placeRow("r1", 8, false, placeStat("a", 0, 9, 12, 8)))
 	row := &rowRef{ID: "r1", Title: "One"}
-	newWithLayout := upsertOf(placeStat("n", 0, 0, 6, 4))
-	newWithLayout.Layout = []spec.PanelPlacement{{ID: "n", GridPos: json.RawMessage(`{"x":0,"y":0,"w":6,"h":4}`)}}
 	tests := []struct {
 		name  string
 		patch spec.PanelPatch
@@ -586,17 +639,15 @@ func TestPlaceNewPanelRefusals(t *testing.T) {
 		{"two panels", upsertOf(placeStat("n1", 0, 0, 6, 4), placeStat("n2", 6, 0, 6, 4)), row, "one panel per save: this save adds or changes 2 panels (n1, n2); save them one at a time"},
 		{"a new row in upsert", upsertOf(placeRow("r9", 30, false)), nil, rowNeedsPanel},
 		{"a new row in upsert with row", upsertOf(placeRow("r9", 30, false)), row, rowNeedsPanel},
-		{"row with only a delete", spec.PanelPatch{Delete: []string{"a"}}, row, rowNeedsNewPanel},
-		{"row with an existing panel", upsertOf(placeStat("a", 0, 9, 6, 4)), row, rowNeedsNewPanel},
-		{"a layout entry for the new panel", newWithLayout, row, serverPlacesPanel},
 		{"row naming a child panel", upsertOf(placeStat("n", 0, 0, 6, 4)), &rowRef{ID: "a", Title: "A"}, `panel "a" is not a row`},
 		{"row naming a top level panel", upsertOf(placeStat("n", 0, 0, 6, 4)), &rowRef{ID: "t", Title: "T"}, `panel "t" is not a row`},
+		{"row with an existing row", upsertOf(placeRow("r1", 8, false)), row, rowsStayInPlace},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, res, ok := newPanelIn(base, tt.patch, tt.row)
-			if ok {
-				t.Fatal("the save was accepted")
+			merged, _, res, err := mergePatch(base, tt.patch, tt.row)
+			if err != nil || merged != nil {
+				t.Fatalf("merged = %v, err = %v, want a refusal", merged, err)
 			}
 			if got := refusal(t, res); got != tt.want {
 				t.Errorf("message = %q, want %q", got, tt.want)
@@ -606,6 +657,205 @@ func TestPlaceNewPanelRefusals(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestALayoutEntryForARowIsRefused(t *testing.T) {
+	base := parseBoard(t, placeStat("t", 0, 0, 12, 8), placeRow("r1", 8, false, placeStat("a", 0, 9, 12, 8)))
+	patch := spec.PanelPatch{Layout: []spec.PanelPlacement{{ID: "r1", GridPos: json.RawMessage(`{"x":0,"y":0,"w":24,"h":1}`)}}}
+	merged, _, res, err := mergePatch(base, patch, nil)
+	if err != nil || merged != nil {
+		t.Fatalf("merged = %v, err = %v, want a refusal", merged, err)
+	}
+	if got := refusal(t, res); got != rowsStayInPlace {
+		t.Errorf("message = %q, want %q", got, rowsStayInPlace)
+	}
+}
+
+func TestLayoutEntriesNamingNothingUsableAreRefused(t *testing.T) {
+	base := parseBoard(t, placeStat("t", 0, 0, 12, 8), placeRow("r1", 8, false, placeStat("a", 0, 9, 12, 8)))
+	r9, empty := "r9", ""
+	tests := []struct {
+		name   string
+		layout []spec.PanelPlacement
+		want   string
+	}{
+		{"a panel that does not exist", []spec.PanelPlacement{{ID: "ghost", Row: &empty}}, `no panel with id "ghost" to place`},
+		{"a row that does not exist", []spec.PanelPlacement{{ID: "a", Row: &r9}}, `no row with id "r9" to place the panel in; name a new row in row`},
+		{"a panel named twice", []spec.PanelPlacement{{ID: "a", Row: &empty}, {ID: "a", Row: &empty}}, `panel "a" appears more than once in layout`},
+		{"a panel as the row", []spec.PanelPlacement{{ID: "a", Row: ptr("t")}}, `panel "t" is not a row`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			merged, _, res, err := mergePatch(base, spec.PanelPatch{Layout: tt.layout}, nil)
+			if err != nil || merged != nil {
+				t.Fatalf("merged = %v, err = %v, want a refusal", merged, err)
+			}
+			if got := refusal(t, res); got != tt.want {
+				t.Errorf("message = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func ptr[T any](v T) *T { return &v }
+
+func systemBoard() []string {
+	var rows []string
+	for i := range 5 {
+		y := i * 11
+		id := fmt.Sprintf("r%d", i+1)
+		rows = append(rows, placeRow(id, y, false, placeStat(id+"a", 0, y+1, 12, 8), placeStat(id+"b", 12, y+1, 12, 8)))
+	}
+	return append(rows, placeRow("row_sys", 53, false, placeStat("uptime", 0, 54, 6, 4), placeStat("cs", 6, 54, 10, 4), placeStat("fd", 16, 54, 8, 4)))
+}
+
+func assertOthersKept(t *testing.T, before, after *spec.Dashboard, except string) {
+	t.Helper()
+	for _, e := range before.AllPanels() {
+		if e.Panel.ID == except {
+			continue
+		}
+		got, ok := after.FindPanel(e.Panel.ID)
+		if !ok || got.Panel.GridPos != e.Panel.GridPos {
+			t.Errorf("panel %q is at %+v, want %+v", e.Panel.ID, got.Panel.GridPos, e.Panel.GridPos)
+		}
+	}
+}
+
+func TestAResentPanelKeepsItsPositionWhateverGridPosItCarries(t *testing.T) {
+	base := parseBoard(t, systemBoard()...)
+	tests := []struct {
+		name  string
+		panel string
+		row   *rowRef
+		want  spec.GridPos
+	}{
+		{"with its row", placeStat("cs", 0, 0, 10, 4), &rowRef{ID: "row_sys"}, spec.GridPos{X: 6, Y: 54, W: 10, H: 4}},
+		{"without a row", placeStat("fd", 0, 0, 8, 4), nil, spec.GridPos{X: 16, Y: 54, W: 8, H: 4}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			merged, moved, res, err := mergePatch(base, upsertOf(tt.panel), tt.row)
+			if err != nil || merged == nil {
+				t.Fatalf("refused: %#v, %v", res.Content, err)
+			}
+			var head upsertHead
+			_ = json.Unmarshal([]byte(tt.panel), &head)
+			if e, _ := merged.FindPanel(head.ID); e.Panel.GridPos != tt.want {
+				t.Errorf("%s at %+v, want %+v", head.ID, e.Panel.GridPos, tt.want)
+			}
+			if len(moved) != 0 {
+				t.Errorf("moved = %v, want none", moved)
+			}
+			assertOthersKept(t, base, merged, head.ID)
+		})
+	}
+}
+
+func TestAResentPanelInCaseCKeepsItsPosition(t *testing.T) {
+	base := parseBoard(t, caseCBoard()...)
+	merged, _, res, err := mergePatch(base, upsertOf(placeStat("p_mem_busy", 0, 0, 6, 5)), nil)
+	if err != nil || merged == nil {
+		t.Fatalf("refused: %#v, %v", res.Content, err)
+	}
+	if e, _ := merged.FindPanel("p_mem_busy"); e.Panel.GridPos != (spec.GridPos{X: 0, Y: 6, W: 6, H: 5}) {
+		t.Errorf("p_mem_busy at %+v, want it unchanged", e.Panel.GridPos)
+	}
+	assertOthersKept(t, base, merged, "p_mem_busy")
+}
+
+func TestAResizedPanelThatNoLongerFitsIsPlacedAgain(t *testing.T) {
+	base := parseBoard(t, systemBoard()...)
+	merged, moved, res, err := mergePatch(base, upsertOf(placeStat("cs", 0, 0, 12, 4)), &rowRef{ID: "row_sys"})
+	if err != nil || merged == nil {
+		t.Fatalf("refused: %#v, %v", res.Content, err)
+	}
+	if e, _ := merged.FindPanel("cs"); e.Panel.GridPos != (spec.GridPos{X: 0, Y: 58, W: 12, H: 4}) {
+		t.Errorf("cs at %+v, want a new line under the row's panels", e.Panel.GridPos)
+	}
+	if !reflect.DeepEqual(moved, []string{"cs"}) {
+		t.Errorf("moved = %v, want cs", moved)
+	}
+	assertOthersKept(t, base, merged, "cs")
+}
+
+func TestRowOnAnExistingPanelMovesIt(t *testing.T) {
+	base := parseBoard(t, caseCBoard()...)
+	t.Run("to an existing row", func(t *testing.T) {
+		merged, moved, res, err := mergePatch(base, upsertOf(placeStat("p_cpu_busy", 0, 0, 4, 5)), &rowRef{ID: "r_quick", Title: "ignored"})
+		if err != nil || merged == nil {
+			t.Fatalf("refused: %#v, %v", res.Content, err)
+		}
+		e, _ := merged.FindPanel("p_cpu_busy")
+		if e.Row == nil || e.Row.ID != "r_quick" || e.Panel.GridPos != (spec.GridPos{X: 6, Y: 6, W: 4, H: 5}) {
+			t.Errorf("p_cpu_busy = %+v in %+v, want (6,6,4,5) in r_quick", e.Panel.GridPos, e.Row)
+		}
+		if !reflect.DeepEqual(moved, []string{"p_cpu_busy"}) {
+			t.Errorf("moved = %v, want p_cpu_busy", moved)
+		}
+	})
+	t.Run("to a new row", func(t *testing.T) {
+		merged, _, res, err := mergePatch(base, upsertOf(placeStat("p_cpu_busy", 0, 0, 4, 5)), &rowRef{ID: "r_new", Title: "New"})
+		if err != nil || merged == nil {
+			t.Fatalf("refused: %#v, %v", res.Content, err)
+		}
+		e, _ := merged.FindPanel("p_cpu_busy")
+		if e.Row == nil || e.Row.ID != "r_new" || e.Row.Title != "New" {
+			t.Fatalf("p_cpu_busy in %+v, want the new row r_new", e.Row)
+		}
+		if e.Row.GridPos != (spec.GridPos{X: 0, Y: 11, W: 24, H: 1}) || e.Panel.GridPos != (spec.GridPos{X: 0, Y: 12, W: 4, H: 5}) {
+			t.Errorf("row at %+v and panel at %+v, want the row at the bottom with the panel under it", e.Row.GridPos, e.Panel.GridPos)
+		}
+	})
+}
+
+func TestALayoutEntryForTheNewPanelGivesItsSpot(t *testing.T) {
+	tests := []struct {
+		name   string
+		board  []string
+		panel  string
+		layout spec.PanelPlacement
+		want   spec.GridPos
+	}{
+		{
+			name:   "beside a wide panel",
+			board:  []string{placeRow("r1", 0, false, placeStat("a", 0, 1, 12, 8))},
+			panel:  placeStat("n", 0, 0, 12, 8),
+			layout: spec.PanelPlacement{ID: "n", GridPos: json.RawMessage(`{"x":12,"y":1,"w":12,"h":8}`)},
+			want:   spec.GridPos{X: 12, Y: 1, W: 12, H: 8},
+		},
+		{
+			name:   "past the first free spot",
+			board:  []string{placeRow("r1", 0, false, placeStat("a", 0, 1, 6, 8))},
+			panel:  placeStat("n", 0, 0, 6, 8),
+			layout: spec.PanelPlacement{ID: "n", GridPos: json.RawMessage(`{"x":12,"y":1,"w":6,"h":8}`)},
+			want:   spec.GridPos{X: 12, Y: 1, W: 6, H: 8},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			patch := upsertOf(tt.panel)
+			patch.Layout = []spec.PanelPlacement{tt.layout}
+			merged, _, res, err := mergePatch(parseBoard(t, tt.board...), patch, &rowRef{ID: "r1"})
+			if err != nil || merged == nil {
+				t.Fatalf("refused: %#v, %v", res.Content, err)
+			}
+			if e, _ := merged.FindPanel("n"); e.Panel.GridPos != tt.want {
+				t.Errorf("n at %+v, want %+v", e.Panel.GridPos, tt.want)
+			}
+		})
+	}
+	t.Run("naming another row is refused", func(t *testing.T) {
+		patch := upsertOf(placeStat("n", 0, 0, 12, 8))
+		patch.Layout = []spec.PanelPlacement{{ID: "n", Row: ptr("r2")}}
+		merged, _, res, err := mergePatch(parseBoard(t, placeRow("r1", 0, false, placeStat("a", 0, 1, 12, 8))), patch, &rowRef{ID: "r1"})
+		if err != nil || merged != nil {
+			t.Fatalf("merged = %v, err = %v, want a refusal", merged, err)
+		}
+		if got := refusal(t, res); got != newPanelRowOnce {
+			t.Errorf("message = %q, want %q", got, newPanelRowOnce)
+		}
+	})
 }
 
 func TestOnePanelPerSave(t *testing.T) {
@@ -685,7 +935,7 @@ func TestANewPanelBesideAMoveOfAPanelBelowItIsAccepted(t *testing.T) {
 	patch := newPanelPatch()
 	patch.Layout = []spec.PanelPlacement{{ID: "b", GridPos: json.RawMessage(`{"x":12,"y":9,"w":12,"h":8}`)}}
 
-	merged, res, err := mergePatch(base, patch, nil)
+	merged, _, res, err := mergePatch(base, patch, nil)
 	if err != nil || merged == nil {
 		t.Fatalf("refused: %#v, %v", res.Content, err)
 	}
@@ -704,7 +954,7 @@ func TestANewPanelBesideADeleteOfAPanelBelowItIsAccepted(t *testing.T) {
 	patch := newPanelPatch()
 	patch.Delete = []string{"b"}
 
-	merged, res, err := mergePatch(base, patch, nil)
+	merged, _, res, err := mergePatch(base, patch, nil)
 	if err != nil || merged == nil {
 		t.Fatalf("refused: %#v, %v", res.Content, err)
 	}
@@ -721,7 +971,7 @@ func TestARejectedRestOfThePatchNamesTheModelsIndex(t *testing.T) {
 	patch := newPanelPatch()
 	patch.Delete = []string{"ghost"}
 
-	merged, res, err := mergePatch(base, patch, nil)
+	merged, _, res, err := mergePatch(base, patch, nil)
 	if err != nil || merged != nil {
 		t.Fatalf("merged = %v, err = %v, want a rejection", merged, err)
 	}
@@ -736,7 +986,7 @@ func TestANewPanelWithAnEmptyDashboardObjectIsPlacedAsBefore(t *testing.T) {
 	patch := newPanelPatch()
 	patch.Dashboard = &spec.DashboardFields{}
 
-	merged, res, err := mergePatch(base, patch, nil)
+	merged, _, res, err := mergePatch(base, patch, nil)
 	if err != nil || merged == nil {
 		t.Fatalf("refused: %#v, %v", res.Content, err)
 	}
@@ -744,12 +994,12 @@ func TestANewPanelWithAnEmptyDashboardObjectIsPlacedAsBefore(t *testing.T) {
 
 func TestABuildPatchRejectionCarriesTheRepairMessage(t *testing.T) {
 	base := parseBoard(t, placeStat("a", 0, 0, 12, 8))
-	merged, res, err := mergePatch(base, spec.PanelPatch{Delete: []string{"ghost"}}, nil)
+	merged, _, res, err := mergePatch(base, spec.PanelPatch{Delete: []string{"ghost"}}, nil)
 	if err != nil || merged != nil {
 		t.Fatalf("merged = %v, err = %v, want a rejection", merged, err)
 	}
 	out, ok := res.Content.(patchRejectedOut)
-	if !ok || out.Message != repairMessage || !strings.Contains(out.Message, "failing_panels") {
+	if want := "Fix only the panels in failing_panels and save again. If an issue names a field you do not know, call get_spec_guide for the JSON Schema."; !ok || out.Message != want {
 		t.Fatalf("res = %#v, want the repair message", res.Content)
 	}
 }
@@ -760,8 +1010,8 @@ func TestABuildCreateRejectionListsFailingPanelsAndTheRepair(t *testing.T) {
 
 	res, _ := run.run(t, nameCreateDashboard, buildCreateJSON(suggestStat("p1", "One", "broken", 0), ""))
 	out := rejected(t, res)
-	if !reflect.DeepEqual(out.FailingPanels, []string{"p1"}) || out.Message != repairMessage {
-		t.Fatalf("out = %+v, want failing panel p1 and the repair message", out)
+	if want := "Fix only the panels in failing_panels and save again. The next call may run query_range or query_instant on the failing query to see why."; !reflect.DeepEqual(out.FailingPanels, []string{"p1"}) || out.Message != want {
+		t.Fatalf("out = %+v, want failing panel p1 and the query repair message", out)
 	}
 	if !strings.HasPrefix(res.Step, "Save rejected: 1 issue") {
 		t.Errorf("step = %q", res.Step)
@@ -886,6 +1136,10 @@ func TestACreateSaveWithARowSavesItsPanelInTheRowAndNamesIt(t *testing.T) {
 	if res.IsError || res.Step != "Saved panel 1 of 4: cpu (row CPU)" {
 		t.Fatalf("step = %q, res = %#v", res.Step, res.Content)
 	}
+	if out, ok := res.Content.(buildOut); !ok || out.Layout == nil || !reflect.DeepEqual(out.Layout.Rows, []string{`r1 "CPU" 1`}) ||
+		out.Layout.Row == nil || out.Layout.Row.ID != "r1" || !reflect.DeepEqual(out.Layout.Row.Panels, []string{"cpu x0 y1 w6 h5"}) || len(out.Layout.Gaps) != 0 {
+		t.Fatalf("layout = %+v, want the one row and its panel", out.Layout)
+	}
 	res, _ = run.run(t, nameUpdatePanels, `{"summary":"s","upsert":[`+placeStat("mem", 0, 0, 6, 5)+`],"row":{"id":"r2","title":"Memory"}}`)
 	if res.IsError || res.Step != "Saved panel 2 of 4: mem (row Memory)" {
 		t.Fatalf("step = %q, res = %#v", res.Step, res.Content)
@@ -935,5 +1189,183 @@ func TestANewPanelAfterALoosePanelAboveTheFirstRowNeverOverlaps(t *testing.T) {
 				t.Fatal("no merged dashboard")
 			}
 		})
+	}
+}
+
+func TestACreateWithoutARowPlacesItsOnlyPanel(t *testing.T) {
+	t.Run("a top level panel goes to the origin", func(t *testing.T) {
+		placed, res, err := placeFirstPanel(firstPanelSpec(placeStat("p", 5, 7, 6, 4)), nil)
+		if err != nil || placed == nil {
+			t.Fatalf("refused: %#v, %v", res.Content, err)
+		}
+		d, err := spec.Parse(placed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if e, _ := d.FindPanel("p"); e.Row != nil || e.Panel.GridPos != (spec.GridPos{X: 0, Y: 0, W: 6, H: 4}) {
+			t.Errorf("p = %+v in %+v, want (0,0,6,4) at the top level", e.Panel.GridPos, e.Row)
+		}
+	})
+	t.Run("a row holding the panel is placed like the row form", func(t *testing.T) {
+		placed, res, err := placeFirstPanel(firstPanelSpec(buildRow("r", "CPU", 3, placeStat("p", 0, 0, 12, 8))), nil)
+		if err != nil || placed == nil {
+			t.Fatalf("refused: %#v, %v", res.Content, err)
+		}
+		d, err := spec.Parse(placed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		e, _ := d.FindPanel("p")
+		if e.Row == nil || e.Row.ID != "r" || e.Row.Title != "CPU" || e.Row.GridPos != (spec.GridPos{X: 0, Y: 0, W: 24, H: 1}) || e.Panel.GridPos != (spec.GridPos{X: 0, Y: 1, W: 12, H: 8}) {
+			t.Errorf("p = %+v in %+v, want (0,1,12,8) in a row at (0,0,24,1)", e.Panel.GridPos, e.Row)
+		}
+	})
+	for name, doc := range map[string]json.RawMessage{
+		"two rows and one panel": firstPanelSpec(buildRow("r1", "A", 0, placeStat("a", 0, 1, 6, 4)), buildRow("r2", "B", 5, placeStat("b", 0, 6, 6, 4)), placeStat("c", 0, 11, 6, 4)),
+		"an empty row":           firstPanelSpec(buildRow("r", "A", 0)),
+		"a row with two panels":  firstPanelSpec(buildRow("r", "A", 0, placeStat("a", 0, 1, 6, 4), placeStat("b", 6, 1, 6, 4))),
+		"two panels":             firstPanelSpec(placeStat("a", 0, 0, 6, 4), placeStat("b", 6, 0, 6, 4)),
+	} {
+		t.Run(name+" is saved as sent", func(t *testing.T) {
+			placed, _, err := placeFirstPanel(doc, nil)
+			if err != nil || string(placed) != string(doc) {
+				t.Errorf("placed = %s, err = %v, want the document untouched", placed, err)
+			}
+		})
+	}
+}
+
+func TestUpdateDashboardKeepsBuildPositions(t *testing.T) {
+	base := parseBoard(t, placeStat("a", 0, 0, 12, 8), placeStat("b", 12, 0, 12, 8))
+	t.Run("positions the model sends are ignored", func(t *testing.T) {
+		doc := boardSpecOf(placeStat("a", 0, 40, 12, 8), placeStat("b", 0, 0, 12, 8))
+		_, merged, res, ok, err := stageUpdate(base, json.RawMessage(doc))
+		if err != nil || !ok {
+			t.Fatalf("refused: %#v, %v", res.Content, err)
+		}
+		for id, want := range map[string]spec.GridPos{"a": {X: 0, Y: 0, W: 12, H: 8}, "b": {X: 12, Y: 0, W: 12, H: 8}} {
+			if e, _ := merged.FindPanel(id); e.Panel.GridPos != want {
+				t.Errorf("%s at %+v, want %+v", id, e.Panel.GridPos, want)
+			}
+		}
+	})
+	t.Run("a new panel is placed by the server", func(t *testing.T) {
+		doc := boardSpecOf(placeStat("a", 0, 40, 12, 8), placeStat("b", 0, 0, 12, 8), placeStat("c", 0, 0, 12, 8))
+		raw, merged, res, ok, err := stageUpdate(base, json.RawMessage(doc))
+		if err != nil || !ok {
+			t.Fatalf("refused: %#v, %v", res.Content, err)
+		}
+		if e, _ := merged.FindPanel("c"); e.Panel.GridPos != (spec.GridPos{X: 0, Y: 8, W: 12, H: 8}) {
+			t.Errorf("c at %+v, want (0,8,12,8)", e.Panel.GridPos)
+		}
+		if saved, err := spec.Parse(raw); err != nil || !reflect.DeepEqual(saved, merged) {
+			t.Errorf("the saved document differs from the merged one (%v)", err)
+		}
+		assertOthersKept(t, base, merged, "c")
+	})
+	t.Run("a new panel in an existing row", func(t *testing.T) {
+		rowBase := parseBoard(t, placeRow("r1", 0, false, placeStat("a", 0, 1, 12, 8)))
+		doc := boardSpecOf(placeRow("r1", 0, false, placeStat("a", 5, 5, 12, 8), placeStat("n", 0, 0, 12, 8)))
+		_, merged, res, ok, err := stageUpdate(rowBase, json.RawMessage(doc))
+		if err != nil || !ok {
+			t.Fatalf("refused: %#v, %v", res.Content, err)
+		}
+		e, _ := merged.FindPanel("n")
+		if e.Row == nil || e.Row.ID != "r1" || e.Panel.GridPos != (spec.GridPos{X: 12, Y: 1, W: 12, H: 8}) {
+			t.Errorf("n = %+v in %+v, want (12,1,12,8) in r1", e.Panel.GridPos, e.Row)
+		}
+		assertOthersKept(t, rowBase, merged, "n")
+	})
+	t.Run("a new row holding only the new panel", func(t *testing.T) {
+		doc := boardSpecOf(placeStat("a", 0, 0, 12, 8), placeStat("b", 0, 0, 12, 8), buildRow("r9", "More", 99, placeStat("n", 0, 0, 6, 4)))
+		_, merged, res, ok, err := stageUpdate(base, json.RawMessage(doc))
+		if err != nil || !ok {
+			t.Fatalf("refused: %#v, %v", res.Content, err)
+		}
+		e, _ := merged.FindPanel("n")
+		if e.Row == nil || e.Row.ID != "r9" || e.Row.Title != "More" || e.Row.GridPos != (spec.GridPos{X: 0, Y: 8, W: 24, H: 1}) || e.Panel.GridPos != (spec.GridPos{X: 0, Y: 9, W: 6, H: 4}) {
+			t.Errorf("n = %+v in %+v, want (0,9,6,4) in a row at (0,8,24,1)", e.Panel.GridPos, e.Row)
+		}
+	})
+}
+
+func TestUpdateDashboardRefusesAnEmptyNewRow(t *testing.T) {
+	base := parseBoard(t, placeStat("a", 0, 0, 12, 8))
+	tests := []struct {
+		name string
+		doc  string
+		want string
+	}{
+		{"an empty new row", boardSpecOf(placeStat("a", 0, 0, 12, 8), buildRow("r9", "More", 8)), newRowNeedsItsPanel},
+		{"a new row with an existing panel", boardSpecOf(buildRow("r9", "More", 0, placeStat("a", 0, 1, 12, 8))), newRowNeedsItsPanel},
+		{"a new row with two new panels", boardSpecOf(placeStat("a", 0, 0, 12, 8), buildRow("r9", "More", 8, placeStat("n", 0, 9, 6, 4), placeStat("m", 6, 9, 6, 4))), newRowNeedsItsPanel},
+		{"two new panels", boardSpecOf(placeStat("a", 0, 0, 12, 8), placeStat("n", 12, 0, 6, 4), placeStat("m", 18, 0, 6, 4)), "one panel per save: this save adds or changes 2 panels (n, m); save them one at a time"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, res, ok, err := stageUpdate(base, json.RawMessage(tt.doc))
+			if err != nil || ok {
+				t.Fatalf("ok = %v, err = %v, want a refusal", ok, err)
+			}
+			if got := refusal(t, res); got != tt.want {
+				t.Errorf("message = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func manyRows(t *testing.T, rows, perRow int) *spec.Dashboard {
+	var panels []string
+	y := 0
+	for r := range rows {
+		var children []string
+		for c := range perRow {
+			children = append(children, placeStat(fmt.Sprintf("r%dp%d", r, c), (c%2)*12, y+1+(c/2)*8, 12, 8))
+		}
+		height := 1 + ((perRow+1)/2)*8
+		panels = append(panels, fmt.Sprintf(`{"id":"r%d","type":"row","title":%q,"gridPos":{"x":0,"y":%d,"w":24,"h":1},"panels":[%s]}`, r, fmt.Sprintf("Row number %d with a rather long descriptive title about what the panels below it show and why", r), y, strings.Join(children, ",")))
+		y += height
+	}
+	return parseBoard(t, panels...)
+}
+
+func TestLayoutOutFitsItsBudget(t *testing.T) {
+	big := manyRows(t, 16, 8)
+	out := layoutOf(big, "r0p0", gaps(big))
+	if raw, _ := json.Marshal(out); len(raw) > maxLayoutBytes || !out.Truncated || len(out.Rows) == 0 || len(out.Rows) >= 16 {
+		t.Errorf("layout of 16 rows = %d bytes, truncated %v, %d rows listed; want at most %d bytes, truncated, some rows dropped", len(raw), out.Truncated, len(out.Rows), maxLayoutBytes)
+	}
+
+	small := parseBoard(t, buildRow("r1", "One", 0, placeStat("a", 0, 1, 12, 8)), buildRow("r2", "Two", 9, placeStat("b", 0, 10, 12, 8)), placeStat("t", 0, 20, 12, 8))
+	out = layoutOf(small, "b", gaps(small))
+	if out.Truncated || len(out.Rows) != 3 || out.Row == nil || out.Row.ID != "r2" {
+		t.Errorf("layout of 3 panels = %+v, want every section listed, not truncated, and the row of b", out)
+	}
+	if want := []string{"(top level) 1", `r1 "One" 1`, `r2 "Two" 1`}; !reflect.DeepEqual(out.Rows, want) {
+		t.Errorf("rows = %q, want %q", out.Rows, want)
+	}
+}
+
+func TestLayoutOutFocusesTheSectionOfTheLastPlacedPanel(t *testing.T) {
+	d := parseBoard(t, buildRow("r1", "One", 0, placeStat("a", 0, 1, 12, 8)), buildRow("r2", "Two", 9, placeStat("b", 0, 10, 12, 8)))
+	tests := []struct {
+		name    string
+		changes panelChanges
+		want    string
+	}{
+		{"an added panel", panelChanges{added: &addedPanel{ID: "a"}, moved: []string{"b"}}, "r1"},
+		{"the last moved panel", panelChanges{moved: []string{"a", "b"}}, "r2"},
+		{"the first changed panel", panelChanges{shown: []panelOut{{ID: "r1", Type: spec.Row}, {ID: "b", Type: spec.Stat}}}, "r2"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out := layoutOf(d, tt.changes.focus(), nil)
+			if out.Row == nil || out.Row.ID != tt.want {
+				t.Errorf("row = %+v, want %s", out.Row, tt.want)
+			}
+		})
+	}
+	if out := layoutOf(d, panelChanges{}.focus(), nil); out.Row != nil {
+		t.Errorf("row = %+v, want none when the save changed no panel", out.Row)
 	}
 }

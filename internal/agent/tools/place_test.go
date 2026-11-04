@@ -3,6 +3,7 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -37,21 +38,22 @@ func parentsOf(d *spec.Dashboard) parentOf {
 	return parents
 }
 
-func applyPlacement(t *testing.T, d *spec.Dashboard, rowID string, pl placement) *spec.Dashboard {
+func applyPlacement(t *testing.T, d *spec.Dashboard, rowID string, plan layoutPlan) *spec.Dashboard {
 	t.Helper()
-	panel := placeStat(placedID, pl.Panel.X, pl.Panel.Y, pl.Panel.W, pl.Panel.H)
+	pos := plan.Positions[placedID]
+	panel := placeStat(placedID, pos.X, pos.Y, pos.W, pos.H)
 	existing := false
 	for _, p := range d.Panels {
 		existing = existing || (p.Type == spec.Row && p.ID == rowID)
 	}
-	patch := spec.PanelPatch{Layout: pl.Shifts}
-	switch {
-	case pl.Row != nil:
-		row := fmt.Sprintf(`{"id":%q,"type":"row","title":%q,"gridPos":{"x":%d,"y":%d,"w":%d,"h":%d},"panels":[%s]}`, rowID, rowID, pl.Row.X, pl.Row.Y, pl.Row.W, pl.Row.H, panel)
+	patch := spec.PanelPatch{Layout: plan.Moves}
+	switch rowPos, isNew := plan.NewRows[rowID]; {
+	case isNew:
+		row := fmt.Sprintf(`{"id":%q,"type":"row","title":%q,"gridPos":{"x":%d,"y":%d,"w":%d,"h":%d},"panels":[%s]}`, rowID, rowID, rowPos.X, rowPos.Y, rowPos.W, rowPos.H, panel)
 		patch.Upsert = []json.RawMessage{json.RawMessage(row)}
 	case existing:
 		patch.Upsert = []json.RawMessage{json.RawMessage(panel)}
-		patch.Layout = append([]spec.PanelPlacement{{ID: placedID, Row: &rowID}}, pl.Shifts...)
+		patch.Layout = append([]spec.PanelPlacement{{ID: placedID, Row: &rowID}}, plan.Moves...)
 	default:
 		patch.Upsert = []json.RawMessage{json.RawMessage(panel)}
 	}
@@ -437,22 +439,23 @@ func TestPlaceChoosesWhereAPanelGoes(t *testing.T) {
 			if len(c.panels) > 0 {
 				before = parseBoard(t, c.panels...)
 			}
-			pl := place(before, c.rowID, c.w, c.h)
+			plan := place(before, []slot{{ID: placedID, Row: c.rowID, RowTitle: c.rowID, W: c.w, H: c.h}})
 
-			if pl.Panel != c.wantPanel {
-				t.Errorf("panel = %+v, want %+v", pl.Panel, c.wantPanel)
+			if got := plan.Positions[placedID]; got != c.wantPanel {
+				t.Errorf("panel = %+v, want %+v", got, c.wantPanel)
 			}
+			gotRow, hasRow := plan.NewRows[c.rowID]
 			switch {
-			case c.wantRow == nil && pl.Row != nil:
-				t.Errorf("row = %+v, want none", *pl.Row)
-			case c.wantRow != nil && (pl.Row == nil || *pl.Row != *c.wantRow):
-				t.Errorf("row = %v, want %+v", pl.Row, *c.wantRow)
+			case c.wantRow == nil && hasRow:
+				t.Errorf("row = %+v, want none", gotRow)
+			case c.wantRow != nil && (!hasRow || gotRow != *c.wantRow):
+				t.Errorf("row = %+v, want %+v", gotRow, *c.wantRow)
 			}
-			if len(pl.Shifts) != len(c.wantShifts) {
-				t.Fatalf("shifts = %d, want %d: %+v", len(pl.Shifts), len(c.wantShifts), pl.Shifts)
+			if len(plan.Moves) != len(c.wantShifts) {
+				t.Fatalf("shifts = %d, want %d: %+v", len(plan.Moves), len(c.wantShifts), plan.Moves)
 			}
 			for i, want := range c.wantShifts {
-				got := pl.Shifts[i]
+				got := plan.Moves[i]
 				old, ok := before.FindPanel(want.id)
 				if !ok {
 					t.Fatalf("test names unknown panel %q", want.id)
@@ -467,7 +470,7 @@ func TestPlaceChoosesWhereAPanelGoes(t *testing.T) {
 			if len(c.panels) == 0 {
 				return
 			}
-			after := applyPlacement(t, before, c.rowID, pl)
+			after := applyPlacement(t, before, c.rowID, plan)
 			assertExistingPanelsKept(t, before, after, c.rowID)
 			placed, _ := after.FindPanel(placedID)
 			if placed.Panel.GridPos != c.wantPanel {
@@ -480,23 +483,23 @@ func TestPlaceChoosesWhereAPanelGoes(t *testing.T) {
 func TestPlaceBuildsCaseAInOrder(t *testing.T) {
 	board := []string{placeRow("row_cpu", 0, false, placeStat("usage", 0, 1, 12, 8))}
 	steps := []struct {
+		id   string
 		w, h int
 		want spec.GridPos
 	}{
-		{4, 4, spec.GridPos{X: 12, Y: 1, W: 4, H: 4}},
-		{8, 4, spec.GridPos{X: 16, Y: 1, W: 8, H: 4}},
+		{"cores", 4, 4, spec.GridPos{X: 12, Y: 1, W: 4, H: 4}},
+		{"load", 8, 4, spec.GridPos{X: 16, Y: 1, W: 8, H: 4}},
 	}
-	ids := []string{"cores", "load"}
 	for i, step := range steps {
 		before := parseBoard(t, board...)
-		pl := place(before, "row_cpu", step.w, step.h)
-		if pl.Panel != step.want {
-			t.Fatalf("step %d: panel = %+v, want %+v", i, pl.Panel, step.want)
+		plan := place(before, []slot{{ID: step.id, Row: "row_cpu", W: step.w, H: step.h}})
+		if got := plan.Positions[step.id]; got != step.want {
+			t.Fatalf("step %d: panel = %+v, want %+v", i, got, step.want)
 		}
-		if len(pl.Shifts) != 0 {
-			t.Fatalf("step %d: shifts = %+v, want none", i, pl.Shifts)
+		if len(plan.Moves) != 0 {
+			t.Fatalf("step %d: shifts = %+v, want none", i, plan.Moves)
 		}
-		board = []string{placeRow("row_cpu", 0, false, append(rowChildren(before, "row_cpu"), placeStat(ids[i], pl.Panel.X, pl.Panel.Y, pl.Panel.W, pl.Panel.H))...)}
+		board = []string{placeRow("row_cpu", 0, false, append(rowChildren(before, "row_cpu"), placeStat(step.id, step.want.X, step.want.Y, step.want.W, step.want.H))...)}
 	}
 }
 
@@ -517,22 +520,208 @@ func TestPlaceMovesNothingAboveTheInsertion(t *testing.T) {
 		placeRow("r1", 8, false, placeStat("c1", 0, 9, 12, 8), placeStat("c2", 12, 9, 12, 8)),
 		placeRow("r2", 17, false, placeStat("d1", 0, 18, 12, 8)),
 	)
-	pl := place(before, "r1", 12, 8)
-	for _, s := range pl.Shifts {
-		switch s.ID {
+	plan := place(before, []slot{{ID: placedID, Row: "r1", W: 12, H: 8}})
+	for _, m := range plan.Moves {
+		switch m.ID {
 		case "t", "r1", "c1", "c2":
-			t.Errorf("panel %q is above the insertion and must not move", s.ID)
+			t.Errorf("panel %q is above the insertion and must not move", m.ID)
 		}
 	}
-	if len(pl.Shifts) != 2 {
-		t.Errorf("shifts = %+v, want only r2 and d1", pl.Shifts)
+	if len(plan.Moves) != 2 {
+		t.Errorf("shifts = %+v, want only r2 and d1", plan.Moves)
 	}
 }
 
 func TestPlaceTreatsAnIdThatIsNotATopLevelRowAsANewRow(t *testing.T) {
 	before := parseBoard(t, placeRow("r1", 0, false, placeStat("c1", 0, 1, 12, 8)))
-	pl := place(before, "c1", 12, 8)
-	if pl.Row == nil || *pl.Row != (spec.GridPos{X: 0, Y: 9, W: 24, H: 1}) {
-		t.Fatalf("row = %v, want a new row at y 9", pl.Row)
+	plan := place(before, []slot{{ID: placedID, Row: "c1", W: 12, H: 8}})
+	if got := plan.NewRows["c1"]; got != (spec.GridPos{X: 0, Y: 9, W: 24, H: 1}) {
+		t.Fatalf("row = %+v, want a new row at y 9", got)
+	}
+}
+
+func TestPlaceSlots(t *testing.T) {
+	cases := []struct {
+		name      string
+		panels    []string
+		slots     []slot
+		wantPos   map[string]spec.GridPos
+		wantMoves []shiftTo
+		wantRows  map[string]spec.GridPos
+	}{
+		{
+			name:      "resize in place when it fits (case A)",
+			panels:    caseABoard(),
+			slots:     []slot{{ID: "cores", Row: "row_cpu", W: 4, H: 8, Prefer: &spec.GridPos{X: 12, Y: 1}}},
+			wantPos:   map[string]spec.GridPos{"cores": {X: 12, Y: 1, W: 4, H: 8}},
+			wantMoves: []shiftTo{{"cores", 1}},
+		},
+		{
+			name:      "resize closes B's gap",
+			panels:    caseBBoard(),
+			slots:     []slot{{ID: "b3", Row: "row_basic", W: 12, H: 4, Prefer: &spec.GridPos{X: 12, Y: 6}}},
+			wantPos:   map[string]spec.GridPos{"b3": {X: 12, Y: 6, W: 12, H: 4}},
+			wantMoves: []shiftTo{{"b3", 6}},
+		},
+		{
+			name: "resize that does not fit is placed again",
+			panels: []string{
+				placeRow("r1", 0, false, placeStat("a", 0, 1, 12, 8), placeStat("b", 12, 1, 12, 8)),
+				placeRow("r2", 9, false, placeStat("c", 0, 10, 12, 8)),
+			},
+			slots:     []slot{{ID: "a", Row: "r1", W: 16, H: 8, Prefer: &spec.GridPos{X: 0, Y: 1}}},
+			wantPos:   map[string]spec.GridPos{"a": {X: 0, Y: 9, W: 16, H: 8}},
+			wantMoves: []shiftTo{{"a", 9}, {"r2", 17}, {"c", 18}},
+		},
+		{
+			name:      "a wanted free spot is used",
+			panels:    []string{placeRow("r1", 0, false, placeStat("a", 0, 1, 12, 8))},
+			slots:     []slot{{ID: "a", Row: "r1", W: 12, H: 8, Prefer: &spec.GridPos{X: 12, Y: 1}}},
+			wantPos:   map[string]spec.GridPos{"a": {X: 12, Y: 1, W: 12, H: 8}},
+			wantMoves: []shiftTo{{"a", 1}},
+		},
+		{
+			name:    "a wanted occupied spot falls back to first free",
+			panels:  []string{placeRow("r1", 0, false, placeStat("a", 0, 1, 12, 8), placeStat("b", 12, 1, 12, 8))},
+			slots:   []slot{{ID: "n", Row: "r1", W: 12, H: 8, Prefer: &spec.GridPos{X: 0, Y: 1}}},
+			wantPos: map[string]spec.GridPos{"n": {X: 0, Y: 9, W: 12, H: 8}},
+		},
+		{
+			name:   "two slots swap",
+			panels: []string{placeRow("r1", 0, false, placeStat("a", 0, 1, 12, 8), placeStat("b", 12, 1, 12, 8))},
+			slots: []slot{
+				{ID: "a", Row: "r1", W: 12, H: 8, Prefer: &spec.GridPos{X: 12, Y: 1}},
+				{ID: "b", Row: "r1", W: 12, H: 8, Prefer: &spec.GridPos{X: 0, Y: 1}},
+			},
+			wantPos:   map[string]spec.GridPos{"a": {X: 12, Y: 1, W: 12, H: 8}, "b": {X: 0, Y: 1, W: 12, H: 8}},
+			wantMoves: []shiftTo{{"a", 1}, {"b", 1}},
+		},
+		{
+			name: "a wanted y outside the row is ignored",
+			panels: []string{
+				placeRow("r1", 0, false, placeStat("a", 0, 1, 12, 8)),
+				placeRow("r2", 9, false, placeStat("c", 0, 10, 12, 8)),
+			},
+			slots:   []slot{{ID: "a", Row: "r1", W: 12, H: 8, Prefer: &spec.GridPos{X: 0, Y: 30}}},
+			wantPos: map[string]spec.GridPos{"a": {X: 0, Y: 1, W: 12, H: 8}},
+		},
+		{
+			name:      "a move to another row",
+			panels:    caseCBoard(),
+			slots:     []slot{{ID: "p_cpu_busy", Row: "r_quick", W: 4, H: 5}},
+			wantPos:   map[string]spec.GridPos{"p_cpu_busy": {X: 6, Y: 6, W: 4, H: 5}},
+			wantMoves: []shiftTo{{"p_cpu_busy", 6}},
+		},
+		{
+			name:      "a move to a new row",
+			panels:    caseCBoard(),
+			slots:     []slot{{ID: "p_mem_busy", Row: "r_new", RowTitle: "New", W: 6, H: 5}},
+			wantPos:   map[string]spec.GridPos{"p_mem_busy": {X: 0, Y: 7, W: 6, H: 5}},
+			wantMoves: []shiftTo{{"p_mem_busy", 7}},
+			wantRows:  map[string]spec.GridPos{"r_new": {X: 0, Y: 6, W: 24, H: 1}},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			before := parseBoard(t, c.panels...)
+			plan := place(before, c.slots)
+
+			for id, pos := range c.wantPos {
+				if got := plan.Positions[id]; got != pos {
+					t.Errorf("%s = %+v, want %+v", id, got, pos)
+				}
+			}
+			if len(plan.Moves) != len(c.wantMoves) {
+				t.Fatalf("moves = %+v, want %d", plan.Moves, len(c.wantMoves))
+			}
+			for i, m := range c.wantMoves {
+				if got := plan.Moves[i]; got.ID != m.id {
+					t.Errorf("move %d = %s, want %s", i, got.ID, m.id)
+				}
+			}
+			if len(plan.NewRows) != len(c.wantRows) {
+				t.Errorf("new rows = %+v, want %+v", plan.NewRows, c.wantRows)
+			}
+			for id, pos := range c.wantRows {
+				if got := plan.NewRows[id]; got != pos {
+					t.Errorf("new row %s = %+v, want %+v", id, got, pos)
+				}
+			}
+			if hasNewSlot(before, c.slots) || len(plan.Moves) == 0 {
+				return
+			}
+			var patch spec.PanelPatch
+			for _, s := range c.slots {
+				if pos, ok := plan.NewRows[s.Row]; ok {
+					patch.Upsert = append(patch.Upsert, json.RawMessage(fmt.Sprintf(`{"id":%q,"type":"row","title":%q,"gridPos":{"x":%d,"y":%d,"w":%d,"h":%d}}`, s.Row, s.RowTitle, pos.X, pos.Y, pos.W, pos.H)))
+				}
+			}
+			patch.Layout = plan.Moves
+			after, err := spec.ApplyPanelPatch(before, patch)
+			if err != nil {
+				t.Fatalf("the moves do not merge: %v", err)
+			}
+			for id, pos := range c.wantPos {
+				if e, ok := after.FindPanel(id); !ok || e.Panel.GridPos != pos {
+					t.Errorf("merged %s = %+v, want %+v", id, e.Panel.GridPos, pos)
+				}
+			}
+		})
+	}
+}
+
+func hasNewSlot(d *spec.Dashboard, slots []slot) bool {
+	for _, s := range slots {
+		if _, ok := d.FindPanel(s.ID); !ok {
+			return true
+		}
+	}
+	return false
+}
+
+func TestGaps(t *testing.T) {
+	cases := []struct {
+		name   string
+		panels []string
+		want   []gap
+	}{
+		{"case A: the space under a short pair", caseABoard(), []gap{{"row_cpu", spec.GridPos{X: 12, Y: 5, W: 12, H: 4}}}},
+		{"case B: the end of a line left behind by a wrap", caseBBoard(placeStat("b4", 0, 10, 8, 4)), []gap{{"row_basic", spec.GridPos{X: 20, Y: 6, W: 4, H: 4}}}},
+		{"case B: still there after the line below fills", caseBBoard(placeStat("b4", 0, 10, 8, 4), placeStat("b5", 8, 10, 8, 4), placeStat("b6", 16, 10, 8, 4)), []gap{{"row_basic", spec.GridPos{X: 20, Y: 6, W: 4, H: 4}}}},
+		{"case B: the open end of the last line is no gap", caseBBoard(), nil},
+		{"case C: a loose panel beside nothing", caseCBoard(), nil},
+		{
+			name: "case D: a fifth stat under four",
+			panels: []string{
+				placeRow("row_quick", 0, false, placeStat("q1", 0, 1, 6, 4), placeStat("q2", 6, 1, 6, 4), placeStat("q3", 12, 1, 6, 4), placeStat("q4", 18, 1, 6, 4), placeStat("q5", 0, 5, 6, 4)),
+				placeRow("row_basic", 9, false, placeStat("b1", 0, 10, 6, 4)),
+			},
+		},
+		{
+			name:   "case B Meminfo: one panel on the second line",
+			panels: []string{placeRow("row_mem", 29, false, placeStat("m1", 0, 30, 12, 8), placeStat("m2", 12, 30, 6, 8), placeStat("m3", 18, 30, 6, 8), placeStat("m4", 0, 38, 6, 8))},
+		},
+		{
+			name:   "case B Filesystem: the open end of the last line",
+			panels: []string{placeRow("row_fs", 117, false, placeStat("f1", 0, 118, 12, 8), placeStat("f2", 12, 118, 6, 8), placeStat("f3", 18, 118, 6, 8), placeStat("f4", 0, 126, 12, 8))},
+		},
+		{
+			name: "case A Disk: a third panel on its own line",
+			panels: []string{
+				placeRow("row_disk", 18, false, placeStat("d1", 0, 19, 12, 8), placeStat("d2", 12, 19, 12, 8), placeStat("d3", 0, 27, 12, 8)),
+				placeRow("row_fs", 35, false, placeStat("f1", 0, 36, 12, 8)),
+			},
+		},
+		{"a collapsed row with a hole", []string{placeRow("r1", 0, true, placeStat("a", 0, 1, 12, 8), placeStat("b", 12, 1, 12, 4))}, nil},
+		{"a top level panel with an empty band above it", []string{placeStat("a", 0, 2, 12, 8)}, []gap{{"", spec.GridPos{X: 0, Y: 0, W: 24, H: 2}}}},
+		{"a top level panel under rows leaves no gap where the rows are", []string{placeRow("r1", 0, false, placeStat("a", 0, 1, 12, 8)), placeStat("t", 0, 9, 12, 8)}, nil},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := gaps(parseBoard(t, c.panels...))
+			if !reflect.DeepEqual(got, c.want) {
+				t.Errorf("gaps = %+v, want %+v", got, c.want)
+			}
+		})
 	}
 }

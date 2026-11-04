@@ -200,6 +200,9 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	}
 	id, res, ok := parseDashboardID(in.DashboardID)
 	if !ok {
+		if run, scoped := RunFrom(ctx); inBuildRun(run, scoped) {
+			return invalid("%s", buildHasNoID), nil
+		}
 		return res, nil
 	}
 	version, res, ok := boundedInt(in.Version, 0, 1, math.MaxInt32, "version")
@@ -540,7 +543,7 @@ func createRunTarget(in saveInput, building bool) (Result, bool) {
 	case !building:
 		return invalid("this run creates a new dashboard; call create_dashboard"), false
 	case in.DashboardID != "":
-		return invalid("this run creates a new dashboard; omit dashboard_id"), false
+		return invalid("this run creates a new dashboard, which has no id until you finish; leave out dashboard_id"), false
 	}
 	return Result{}, true
 }
