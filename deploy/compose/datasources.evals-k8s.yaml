@@ -1,0 +1,21 @@
+datasources:
+  - uid: prom
+    type: prometheus
+    name: Prometheus
+    prometheus:
+      url: http://prometheus:9090
+      scrapeInterval: 15s
+  - uid: ch
+    type: clickhouse
+    name: ClickHouse
+    clickhouse:
+      addr: clickhouse:9000
+      database: otel
+      username: slashobserve_ro
+      passwordEnv: SLASHOBSERVE_CLICKHOUSE_PASSWORD
+  - uid: prom_k8s
+    type: prometheus
+    name: Prometheus (Kubernetes)
+    prometheus:
+      url: http://slashobserve-demo-control-plane:30090
+      scrapeInterval: 15s

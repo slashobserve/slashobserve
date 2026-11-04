@@ -14,6 +14,9 @@ COMPOSE_BUILD := $(COMPOSE) -f deploy/compose/compose.build.yaml
 SHOP_DIR := demo
 SHOP_LINT := go tool -modfile=../tools/golangci-lint/go.mod golangci-lint
 TYPE ?= errors
+EVALS_STACK_MODE ?= replay
+EVALS_MATRIX ?= evals/matrix.yaml
+EVALS_REPORT_DIR ?= evals/reports/live
 PCT ?= 30
 # zod 3 under the shadcn CLI, a dev-only tool that pins zod ^3 and ships in no build
 WEB_AUDIT_IGNORE := GHSA-mrhx-c7xc-m3w5
@@ -25,7 +28,7 @@ define DEMO_BANNER
 	@echo "Sign in as admin@example.com / password (Dex, development only)"
 endef
 
-.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down e2e e2e-browser e2e-all evals golden tidy-check clean
+.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down e2e e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live golden tidy-check clean
 
 build: web
 	$(MAKE) server cli
@@ -123,6 +126,19 @@ e2e-all:
 
 evals:
 	go run ./evals/runner $(EVALS_ARGS)
+
+evals-stack-up:
+	scripts/evals-stack.sh up $(EVALS_STACK_MODE)
+
+evals-stack-down:
+	scripts/evals-stack.sh down
+
+evals-replay:
+	scripts/evals-stack.sh up replay
+	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --suite replay --bootstrap-dex --min-pass 1
+
+evals-live:
+	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --suite live --matrix $(EVALS_MATRIX) --bootstrap-dex --out $(EVALS_REPORT_DIR)
 
 clean:
 	rm -rf bin web/dist web/playwright-report web/test-results

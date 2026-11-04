@@ -1,0 +1,37 @@
+services:
+  server:
+    environment:
+      SLASHOBSERVE_LLM_MAX_TOKENS: ${SLASHOBSERVE_LLM_MAX_TOKENS:-}
+      SLASHOBSERVE_LLM_REQUEST_TIMEOUT: ${SLASHOBSERVE_LLM_REQUEST_TIMEOUT:-}
+      SLASHOBSERVE_LLM_IDLE_TIMEOUT: ${SLASHOBSERVE_LLM_IDLE_TIMEOUT:-}
+      SLASHOBSERVE_AGENT_RUN_TIMEOUT: ${SLASHOBSERVE_AGENT_RUN_TIMEOUT:-120m}
+      SLASHOBSERVE_AGENT_SESSION_RENEW_KIB: ${SLASHOBSERVE_AGENT_SESSION_RENEW_KIB:-}
+      SLASHOBSERVE_LLM_EFFORT: ${SLASHOBSERVE_LLM_EFFORT:-}
+    volumes:
+      - ${SLASHOBSERVE_EVALS_RUNTIME_DIR}/llm:/etc/slashobserve/llm-fixtures:ro
+
+  prometheus:
+    volumes:
+      - ./evals/scrape.d:/etc/prometheus/scrape.d:ro
+
+  checkout-1:
+    ports:
+      - "127.0.0.1:${SLASHOBSERVE_EVALS_SHOP1_PORT:-28082}:8080"
+
+  synth:
+    image: ${SLASHOBSERVE_SHOP_IMAGE}
+    pull_policy: never
+    command: [synth]
+    environment:
+      SYNTH_FILE: /etc/synth/series.json
+    volumes:
+      - ${SLASHOBSERVE_EVALS_RUNTIME_DIR}/synth:/etc/synth:ro
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/shop", "healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    deploy:
+      resources:
+        limits:
+          memory: 64M
