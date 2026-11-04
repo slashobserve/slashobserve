@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"strconv"
 )
 
 type PanelPlacement struct {
-	ID      string   `json:"id"`
-	GridPos *GridPos `json:"gridPos,omitempty"`
-	Row     *string  `json:"row,omitempty"`
+	ID      string          `json:"id"`
+	GridPos json.RawMessage `json:"gridPos,omitempty"`
+	Row     *string         `json:"row,omitempty"`
 }
 
 type DashboardFields struct {
@@ -46,7 +47,11 @@ type panelEdit struct {
 
 func ApplyPanelPatch(d *Dashboard, patch PanelPatch) (*Dashboard, error) {
 	edits, issues := patchShape(patch)
-	if len(issues) > 0 {
+	grids, gridIssues, err := decodeGridPositions(patch.Layout)
+	if err != nil {
+		return nil, err
+	}
+	if issues = append(issues, gridIssues...); len(issues) > 0 {
 		return nil, newPatchError(issues, nil)
 	}
 	root, ok := decodeTree(d).(map[string]any)
@@ -57,7 +62,7 @@ func ApplyPanelPatch(d *Dashboard, patch PanelPatch) (*Dashboard, error) {
 	phases := []func() []Issue{
 		func() []Issue { return t.deletePanels(patch.Delete) },
 		func() []Issue { return t.upsertPanels(edits) },
-		func() []Issue { return t.placePanels(patch.Layout) },
+		func() []Issue { return t.placePanels(patch.Layout, grids) },
 		func() []Issue { return t.setVariables(patch.Variables) },
 		func() []Issue { return t.setDashboardFields(patch.Dashboard) },
 	}
@@ -136,6 +141,38 @@ func patchShape(p PanelPatch) ([]panelEdit, []Issue) {
 		}
 	}
 	return edits, issues
+}
+
+func decodeGridPositions(layout []PanelPlacement) (map[int]any, []Issue, error) {
+	grids := map[int]any{}
+	var issues []Issue
+	for i, pl := range layout {
+		if len(pl.GridPos) == 0 {
+			continue
+		}
+		path := "/layout/" + strconv.Itoa(i) + "/gridPos"
+		value, decodeIssues := decodeFragment(pl.GridPos, path)
+		if len(decodeIssues) == 0 {
+			compiled, err := compiledGridPos()
+			if err != nil {
+				return nil, nil, fmt.Errorf("spec: %w", err)
+			}
+			schemaIssues, err := validateAgainst(compiled, pl.GridPos, reflect.TypeFor[GridPos]())
+			if err != nil {
+				return nil, nil, err
+			}
+			for _, issue := range schemaIssues {
+				issue.Path = path + issue.Path
+				decodeIssues = append(decodeIssues, issue)
+			}
+		}
+		if len(decodeIssues) > 0 {
+			issues = append(issues, decodeIssues...)
+			continue
+		}
+		grids[i] = value
+	}
+	return grids, issues, nil
 }
 
 func duplicateIDs(base string, ids []string) []Issue {
@@ -327,7 +364,7 @@ func (t *panelTree) upsertPanels(edits []panelEdit) []Issue {
 	return issues
 }
 
-func (t *panelTree) placePanels(layout []PanelPlacement) []Issue {
+func (t *panelTree) placePanels(layout []PanelPlacement, grids map[int]any) []Issue {
 	var issues []Issue
 	for i, pl := range layout {
 		path := "/layout/" + strconv.Itoa(i)
@@ -336,8 +373,8 @@ func (t *panelTree) placePanels(layout []PanelPlacement) []Issue {
 			issues = append(issues, patchIssue(path, "no panel with id %q to place", pl.ID))
 			continue
 		}
-		if pl.GridPos != nil {
-			t.at(l)["gridPos"] = map[string]any{"x": pl.GridPos.X, "y": pl.GridPos.Y, "w": pl.GridPos.W, "h": pl.GridPos.H}
+		if grid, ok := grids[i]; ok {
+			t.at(l)["gridPos"] = grid
 		}
 		if pl.Row != nil {
 			issues = append(issues, t.move(path+"/row", l, *pl.Row)...)

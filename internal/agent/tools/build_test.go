@@ -494,7 +494,11 @@ func TestPlaceNewPanelPutsAnExistingRowsPanelBesideThenBelowAndShiftsTheRowsAfte
 	shifted := map[string]int{}
 	for _, l := range second.Layout {
 		if l.GridPos != nil {
-			shifted[l.ID] = l.GridPos.Y
+			var pos spec.GridPos
+			if err := json.Unmarshal(l.GridPos, &pos); err != nil {
+				t.Fatal(err)
+			}
+			shifted[l.ID] = pos.Y
 		}
 	}
 	if len(shifted) != 2 || shifted["r2"] != 17 || shifted["b"] != 18 {
@@ -546,7 +550,7 @@ func TestPlaceNewPanelLeavesASaveWithoutANewPanelAlone(t *testing.T) {
 	for name, patch := range map[string]spec.PanelPatch{
 		"only a delete":          {Delete: []string{"a"}},
 		"an edit of a panel":     upsertOf(placeStat("a", 3, 3, 6, 4)),
-		"no upsert, only layout": {Layout: []spec.PanelPlacement{{ID: "a", GridPos: &spec.GridPos{X: 0, Y: 1, W: 6, H: 4}}}},
+		"no upsert, only layout": {Layout: []spec.PanelPlacement{{ID: "a", GridPos: json.RawMessage(`{"x":0,"y":1,"w":6,"h":4}`)}}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			np, _, ok := newPanelIn(base, patch, nil)
@@ -569,7 +573,7 @@ func TestPlaceNewPanelRefusals(t *testing.T) {
 	base := parseBoard(t, placeStat("t", 0, 0, 12, 8), placeRow("r1", 8, false, placeStat("a", 0, 9, 12, 8)))
 	row := &rowRef{ID: "r1", Title: "One"}
 	newWithLayout := upsertOf(placeStat("n", 0, 0, 6, 4))
-	newWithLayout.Layout = []spec.PanelPlacement{{ID: "n", GridPos: &spec.GridPos{W: 6, H: 4}}}
+	newWithLayout.Layout = []spec.PanelPlacement{{ID: "n", GridPos: json.RawMessage(`{"x":0,"y":0,"w":6,"h":4}`)}}
 	tests := []struct {
 		name  string
 		patch spec.PanelPatch
@@ -676,7 +680,7 @@ func newPanelPatch() spec.PanelPatch {
 func TestANewPanelBesideAMoveOfAPanelBelowItIsAccepted(t *testing.T) {
 	base := parseBoard(t, placeStat("a", 0, 0, 12, 8), placeRow("r1", 8, false, placeStat("b", 0, 9, 12, 8)))
 	patch := newPanelPatch()
-	patch.Layout = []spec.PanelPlacement{{ID: "b", GridPos: &spec.GridPos{X: 12, Y: 9, W: 12, H: 8}}}
+	patch.Layout = []spec.PanelPlacement{{ID: "b", GridPos: json.RawMessage(`{"x":12,"y":9,"w":12,"h":8}`)}}
 
 	merged, res, err := mergePatch(base, patch, nil)
 	if err != nil || merged == nil {

@@ -27,7 +27,7 @@ const (
 	maxJSONDepth = 100
 )
 
-var compiledSchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
+func compileSchemaAt(fragment string) (*jsonschema.Schema, error) {
 	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(schema.ObserveSpecV0))
 	if err != nil {
 		return nil, fmt.Errorf("parse embedded schema: %w", err)
@@ -37,12 +37,17 @@ var compiledSchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
 	if err := c.AddResource(schemaID, doc); err != nil {
 		return nil, fmt.Errorf("add embedded schema: %w", err)
 	}
-	s, err := c.Compile(schemaID)
+	s, err := c.Compile(schemaID + fragment)
 	if err != nil {
 		return nil, fmt.Errorf("compile embedded schema: %w", err)
 	}
 	return s, nil
-})
+}
+
+var (
+	compiledSchema  = sync.OnceValues(func() (*jsonschema.Schema, error) { return compileSchemaAt("") })
+	compiledGridPos = sync.OnceValues(func() (*jsonschema.Schema, error) { return compileSchemaAt("#/$defs/gridPos") })
+)
 
 func Parse(data []byte) (*Dashboard, error) {
 	if len(data) > MaxBytes {
@@ -226,13 +231,17 @@ func validateSchema(data []byte) ([]Issue, error) {
 	if err != nil {
 		return nil, fmt.Errorf("spec: %w", err)
 	}
+	return validateAgainst(compiled, data, reflect.TypeFor[Dashboard]())
+}
+
+func validateAgainst(compiled *jsonschema.Schema, data []byte, shape reflect.Type) ([]Issue, error) {
 	instance, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("spec: reparse validated document: %w", err)
 	}
 	err = compiled.Validate(instance)
 	if err == nil {
-		return numberIssues(instance, reflect.TypeFor[Dashboard](), nil), nil
+		return numberIssues(instance, shape, nil), nil
 	}
 	var ve *jsonschema.ValidationError
 	if !errors.As(err, &ve) {

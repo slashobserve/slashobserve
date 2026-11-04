@@ -82,6 +82,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 - `spec.Parse` is the only validation entry point and accepts only the evolved Spec shape.
   `spec.Upgrade` is the pure rewrite of the legacy v0 shape; use it for stored versions and fixtures.
 - `spec.ApplyPanelPatch` is the only merge of a panel patch into a dashboard, and it ends in `Parse`, so a patch adds no second copy of a format rule.
+  A placement's `gridPos` stays raw JSON and is checked against the schema's `gridPos` before the merge, so a missing field is reported as required at `/layout/N/gridPos`.
 - `pkg/grafana` is pure: no network, no database.
   A Grafana option is handled in this order: converted when the Spec has the field; else silent only when it equals a Grafana default (`grafanaDefaults`) or is listed in `cosmeticOptions` with the renderer behaviour that makes it invisible; else reported as a path.
   There are no silent drops.

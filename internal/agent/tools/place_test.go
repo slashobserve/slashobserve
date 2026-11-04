@@ -275,7 +275,7 @@ func TestPlaceChoosesWhereAPanelGoes(t *testing.T) {
 				}
 				wantPos := old.Panel.GridPos
 				wantPos.Y = want.y
-				if got.ID != want.id || got.GridPos == nil || *got.GridPos != wantPos || got.Row != nil {
+				if got.ID != want.id || string(got.GridPos) != string(gridPosJSON(wantPos)) || got.Row != nil {
 					t.Errorf("shift %d = %+v, want %s at %+v", i, got, want.id, wantPos)
 				}
 			}

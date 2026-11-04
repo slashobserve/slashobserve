@@ -1,6 +1,10 @@
 package tools
 
-import "github.com/slashobserve/slashobserve/pkg/spec"
+import (
+	"encoding/json"
+
+	"github.com/slashobserve/slashobserve/pkg/spec"
+)
 
 type placement struct {
 	Panel  spec.GridPos
@@ -94,7 +98,7 @@ func placeInSection(entries []spec.PanelEntry, inSection func(spec.PanelEntry) b
 		}
 		g := e.Panel.GridPos
 		g.Y += delta
-		shifts = append(shifts, spec.PanelPlacement{ID: e.Panel.ID, GridPos: &g})
+		shifts = append(shifts, spec.PanelPlacement{ID: e.Panel.ID, GridPos: gridPosJSON(g)})
 	}
 	return placement{Panel: candidate, Shifts: shifts}
 }
@@ -123,4 +127,9 @@ func above(items []spec.GridPos, bottom int) []spec.GridPos {
 		}
 	}
 	return out
+}
+
+func gridPosJSON(g spec.GridPos) json.RawMessage {
+	raw, _ := json.Marshal(g)
+	return raw
 }

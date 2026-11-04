@@ -217,7 +217,7 @@ func TestPatchAddsAPanelAtTheTopLevelAndIntoARow(t *testing.T) {
 	body := strings.Replace(statJSON("n", 12, 6, 12, 4), `,"gridPos":{"x":12,"y":6,"w":12,"h":4}`, "", 1)
 	inRow := apply(t, parent, spec.PanelPatch{
 		Upsert: raws(body),
-		Layout: []spec.PanelPlacement{{ID: "n", Row: strPtr("r2"), GridPos: &spec.GridPos{X: 12, Y: 6, W: 12, H: 4}}},
+		Layout: []spec.PanelPlacement{{ID: "n", Row: strPtr("r2"), GridPos: json.RawMessage(`{"x":12,"y":6,"w":12,"h":4}`)}},
 	})
 	if parentRowID(t, inRow, "n") != "r2" {
 		t.Errorf("n row = %q, want r2", parentRowID(t, inRow, "n"))
@@ -360,7 +360,7 @@ func TestPatchMovesAPanelAcrossRows(t *testing.T) {
 	parent := patchBase(t)
 
 	toRow := apply(t, parent, spec.PanelPatch{Layout: []spec.PanelPlacement{
-		{ID: "a", Row: strPtr("r2"), GridPos: &spec.GridPos{X: 12, Y: 6, W: 12, H: 4}},
+		{ID: "a", Row: strPtr("r2"), GridPos: json.RawMessage(`{"x":12,"y":6,"w":12,"h":4}`)},
 	}})
 	if parentRowID(t, toRow, "a") != "r2" {
 		t.Errorf("a row = %q, want r2", parentRowID(t, toRow, "a"))
@@ -370,20 +370,20 @@ func TestPatchMovesAPanelAcrossRows(t *testing.T) {
 	}
 
 	toTop := apply(t, parent, spec.PanelPatch{Layout: []spec.PanelPlacement{
-		{ID: "a", Row: strPtr(""), GridPos: &spec.GridPos{X: 12, Y: 11, W: 12, H: 4}},
+		{ID: "a", Row: strPtr(""), GridPos: json.RawMessage(`{"x":12,"y":11,"w":12,"h":4}`)},
 	}})
 	if _, ok := toTop.FindPanel("a"); !ok || parentRowID(t, toTop, "a") != "" {
 		t.Errorf("a should be top level, row %q", parentRowID(t, toTop, "a"))
 	}
 
 	keep := apply(t, parent, spec.PanelPatch{Layout: []spec.PanelPlacement{
-		{ID: "t", GridPos: &spec.GridPos{X: 12, Y: 11, W: 12, H: 4}},
+		{ID: "t", GridPos: json.RawMessage(`{"x":12,"y":11,"w":12,"h":4}`)},
 	}})
 	if got, _ := keep.FindPanel("t"); got.Panel.GridPos.X != 12 || parentRowID(t, keep, "t") != "" {
 		t.Errorf("t = %+v in row %q", got.Panel.GridPos, parentRowID(t, keep, "t"))
 	}
 	keepRow := apply(t, parent, spec.PanelPatch{Layout: []spec.PanelPlacement{
-		{ID: "b", GridPos: &spec.GridPos{X: 12, Y: 1, W: 6, H: 4}},
+		{ID: "b", GridPos: json.RawMessage(`{"x":12,"y":1,"w":6,"h":4}`)},
 	}})
 	if parentRowID(t, keepRow, "b") != "r1" {
 		t.Errorf("b row = %q, want r1 kept", parentRowID(t, keepRow, "b"))
@@ -407,6 +407,34 @@ func TestPatchRejectsBadPlacements(t *testing.T) {
 			pe := rejected(t, parent, spec.PanelPatch{Layout: []spec.PanelPlacement{tt.layout}})
 			if pe.Issues[0].Path != tt.path || pe.Issues[0].Code != spec.CodeSchema {
 				t.Errorf("issue = %+v, want a schema issue at %s", pe.Issues[0], tt.path)
+			}
+		})
+	}
+}
+
+func TestPatchValidatesAPlacementGridPosLikeAnUpsertedOne(t *testing.T) {
+	parent := patchBase(t)
+	tests := []struct {
+		name    string
+		gridPos string
+		path    string
+		message string
+	}{
+		{"x missing", `{"y":8,"w":12,"h":6}`, "/layout/0/gridPos", "missing property 'x'"},
+		{"w and h missing", `{"x":0,"y":8}`, "/layout/0/gridPos", "missing properties 'w', 'h'"},
+		{"empty object", `{}`, "/layout/0/gridPos", "missing properties 'x', 'y', 'w', 'h'"},
+		{"w below the minimum", `{"x":0,"y":8,"w":0,"h":6}`, "/layout/0/gridPos/w", "minimum"},
+		{"a fraction", `{"x":0,"y":8.5,"w":12,"h":6}`, "/layout/0/gridPos/y", "integer"},
+		{"an unknown key", `{"x":0,"y":8,"w":12,"h":6,"z":1}`, "/layout/0/gridPos", "z"},
+		{"null", `null`, "/layout/0/gridPos", "object"},
+		{"not an object", `[1]`, "/layout/0/gridPos", "object"},
+		{"a duplicate key", `{"x":0,"x":1,"y":8,"w":12,"h":6}`, "/layout/0/gridPos/x", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pe := rejected(t, parent, spec.PanelPatch{Layout: []spec.PanelPlacement{{ID: "t", GridPos: json.RawMessage(tt.gridPos)}}})
+			if got := pe.Issues[0]; got.Path != tt.path || !strings.Contains(got.Message, tt.message) {
+				t.Errorf("issue = %+v, want %q at %s", got, tt.message, tt.path)
 			}
 		})
 	}
@@ -493,7 +521,7 @@ func TestPatchDoesNotMutateTheInput(t *testing.T) {
 	apply(t, parent, spec.PanelPatch{
 		Upsert:    raws(panelWith(t, parent, "a", func(m map[string]any) { m["title"] = "X" }), statJSON("n", 12, 11, 12, 4)),
 		Delete:    []string{"c"},
-		Layout:    []spec.PanelPlacement{{ID: "b", Row: strPtr("r2"), GridPos: &spec.GridPos{X: 12, Y: 6, W: 12, H: 4}}},
+		Layout:    []spec.PanelPlacement{{ID: "b", Row: strPtr("r2"), GridPos: json.RawMessage(`{"x":12,"y":6,"w":12,"h":4}`)}},
 		Variables: json.RawMessage(`[]`),
 		Dashboard: fields(`{"from":"now-6h","to":"now"}`, `"New"`, `["x"]`, `[{"title":"T","url":"https://example.com"}]`),
 	})
