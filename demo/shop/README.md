@@ -9,6 +9,7 @@ It is a separate Go module so the OpenTelemetry SDK and the Prometheus client st
 | --- | --- |
 | `shop serve` | Runs one service, chosen by `SHOP_SERVICE`. |
 | `shop loadgen` | Sends fixed-rate, seeded traffic to the frontend. |
+| `shop synth` | Serves the series listed in `SYNTH_FILE` on `/metrics`, for the evals stack. |
 | `shop healthcheck` | Exits 0 when `http://127.0.0.1<SHOP_ADDR>/healthz` returns 200. |
 
 ## Topology
@@ -27,7 +28,8 @@ The frontend round-robins the checkout pods, and checkout calls payments.
 | --- | --- | --- |
 | `SHOP_SERVICE` | serve | `frontend`, `checkout` or `payments` (required). |
 | `SHOP_POD` | serve | Pod name, for example `checkout-0` (required); also seeds the pod's random source. |
-| `SHOP_ADDR` | serve, healthcheck | Listen address, default `:8080`. |
+| `SHOP_ADDR` | serve, synth, healthcheck | Listen address, default `:8080`. |
+| `SYNTH_FILE` | synth | Path to a JSON list of `{"name","kind","labels"}` (required); see Synthetic series. |
 | `SHOP_CHECKOUT_URLS` | frontend | Comma-separated checkout base URLs (required). |
 | `SHOP_PAYMENTS_URL` | checkout | Payments base URL (required). |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | serve | OTLP/HTTP endpoint, for example `http://otel-collector:4318`; without it only stdout logging runs. |
@@ -51,3 +53,10 @@ Every pod keeps its own fault state, so a fault affects one pod.
 
 `pct` is an integer from 0 to 100 and defaults to 30.
 A bad `type` or `pct` returns 400 with `{"error":"..."}`.
+
+## Synthetic series
+
+`shop synth` reads `SYNTH_FILE`, a JSON list of `{"name","kind","labels"}`, and serves the text exposition format on `/metrics` and liveness on `/healthz`.
+`kind` is `counter` or `gauge`, and `labels` is a list of label maps, one series each; an empty list gives one series with no labels.
+A counter grows by 1 per second since the process started, so `rate()` is a stable 1; a gauge is always 1.
+Unknown fields, a bad kind, a bad name and duplicate metric names are rejected at start.
