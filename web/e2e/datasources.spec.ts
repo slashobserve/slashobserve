@@ -56,7 +56,7 @@ test("never shows connection details", async ({ page }) => {
   const body = await (await listed).text()
   await page.evaluate(() => {
     document
-      .querySelector('a[href$="#datasources-file"]')
+      .querySelector('a[href$="/datasources-file.md"]')
       ?.removeAttribute("href")
     for (const element of document.querySelectorAll("[xmlns]")) {
       element.removeAttribute("xmlns")
@@ -178,7 +178,7 @@ test("links to the operator guide", async ({ page }) => {
     name: "How to add a datasource (opens in a new tab)",
   })
   await expect(link).toHaveAttribute("target", "_blank")
-  await expect(link).toHaveAttribute("href", /#datasources-file$/)
+  await expect(link).toHaveAttribute("href", /\/datasources-file\.md$/)
 })
 
 test("draws both themes", async ({ page }) => {

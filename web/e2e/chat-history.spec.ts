@@ -29,7 +29,9 @@ function panel(page: Page) {
 }
 
 function rowsOf(aside: Locator) {
-  return aside.getByRole("list").getByRole("button")
+  return aside
+    .getByRole("listitem")
+    .locator("button:not([aria-label='Save prompt'])")
 }
 
 async function openHistory(page: Page, path = "/") {

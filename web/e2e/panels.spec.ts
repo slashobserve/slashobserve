@@ -142,8 +142,16 @@ test("shows the hovered time on other charts only in a shared cursor mode", asyn
 
   await openDashboard(page, id, "?cursor=crosshair")
   await expectPanelsReady(page)
-  await hovered().locator(".u-over").hover()
-  await expect.poll(() => cursorLineShown(other())).toBe(true)
+  let step = 0
+  await expect
+    .poll(async () => {
+      step += 1
+      await hovered()
+        .locator(".u-over")
+        .hover({ position: { x: 40 + (step % 2) * 20, y: 40 } })
+      return cursorLineShown(other())
+    })
+    .toBe(true)
 })
 
 test("keeps the tooltip inside a short panel with many series", async ({

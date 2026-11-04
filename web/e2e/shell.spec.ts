@@ -82,8 +82,8 @@ test("shows only the mark when collapsed", async ({ page }) => {
   const mark = home.locator("svg")
   await expect(mark).toHaveCount(1)
   const markBox = await rect(mark)
-  expect(markBox.width).toBe(20)
-  expect(markBox.height).toBe(20)
+  expect(markBox.width).toBe(18)
+  expect(markBox.height).toBe(18)
   const icon = await rect(
     sidebar(page).getByRole("link", { name: "Datasources" }).locator("svg")
   )

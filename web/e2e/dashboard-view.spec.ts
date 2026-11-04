@@ -146,6 +146,7 @@ function dependentVariablesSpec() {
       name: "service",
       label: "Service",
       type: "query",
+      refresh: "timeRange",
       datasource,
       query: "label_values(http_requests_total, service)",
     },
@@ -153,6 +154,7 @@ function dependentVariablesSpec() {
       name: "route",
       label: "Route",
       type: "query",
+      refresh: "timeRange",
       datasource,
       query: 'label_values(http_requests_total{service="$service"}, route)',
     },
@@ -160,6 +162,7 @@ function dependentVariablesSpec() {
       name: "pod",
       label: "Pod",
       type: "query",
+      refresh: "timeRange",
       multi: true,
       datasource,
       query: 'label_values(http_requests_total{service="$service"}, pod)',
@@ -250,9 +253,11 @@ test("dependent variables stay in place while they reload", async ({
     }
   }
   await expect(route).toBeDisabled()
-  await expect(pod).toBeDisabled()
+  await expect(
+    page.getByRole("button", { name: "Pod, loading" })
+  ).toBeDisabled()
   await expect(route).toContainText("Loading...")
-  await expect(page.getByPlaceholder("Loading...")).toBeVisible()
+  expect(await labelPositions(page)).toEqual(idle)
   await release()
   await expect(route).toBeEnabled()
   await expect(pod).toBeEnabled()

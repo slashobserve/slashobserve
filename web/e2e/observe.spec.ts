@@ -37,9 +37,10 @@ test("creates a dashboard from a prompt", async ({ page }) => {
   await expect(page).toHaveURL(requestPath)
   const conversationUrl = page.url()
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(redPrompt)
+  await expect(page.getByText("Queued, position 1")).toBeVisible()
   await expect(
     page.getByRole("list", { name: "Progress" }).getByText("Working")
-  ).toBeVisible()
+  ).toHaveCount(0)
   openGate()
 
   const open = page.getByRole("link", openLink)

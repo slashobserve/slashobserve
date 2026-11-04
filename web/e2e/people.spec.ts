@@ -105,8 +105,8 @@ test("lists the signed-in user as online", async ({ page }) => {
   const admin = row(page, "admin@example.com")
   await expect(admin.locator('[data-status="ok"]')).toHaveText("Online now")
   const cells = admin.locator("td")
-  await expect(cells.nth(2)).toHaveText(/^\d+$/)
   await expect(cells.nth(3)).toHaveText(/^\d+$/)
+  await expect(cells.nth(4)).toHaveText(/^\d+$/)
 })
 
 test("states who can sign in", async ({ page }) => {
