@@ -89,6 +89,8 @@ type Result struct {
 
 type Edits struct {
 	Panels   []string
+	Added    []string
+	Deleted  []string
 	Settings bool
 }
 

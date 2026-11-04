@@ -246,9 +246,20 @@ func editsOf(prev, next *spec.Dashboard) Edits {
 		was[e.Panel.ID] = e.Panel
 	}
 	var edits Edits
+	kept := map[string]bool{}
 	for _, e := range next.AllPanels() {
-		if old, ok := was[e.Panel.ID]; !ok || !sameJSON(ownFields(old), ownFields(e.Panel)) {
+		kept[e.Panel.ID] = true
+		old, ok := was[e.Panel.ID]
+		if !ok {
+			edits.Added = append(edits.Added, e.Panel.ID)
+		}
+		if !ok || !sameJSON(ownFields(old), ownFields(e.Panel)) {
 			edits.Panels = append(edits.Panels, e.Panel.ID)
+		}
+	}
+	for _, e := range prev.AllPanels() {
+		if !kept[e.Panel.ID] {
+			edits.Deleted = append(edits.Deleted, e.Panel.ID)
 		}
 	}
 	edits.Settings = !sameJSON(withoutPanels(prev), withoutPanels(next))

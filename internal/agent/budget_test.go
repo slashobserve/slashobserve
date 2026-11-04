@@ -214,3 +214,40 @@ func TestChurnCountsSettingsAndVariablesAsProgressUntilTheLimit(t *testing.T) {
 		t.Fatalf("settings save past the limit = %q, %v", note, stop)
 	}
 }
+
+func TestChurnDoesNotCountAPanelAddedByASaveThatDeletesOneAsProgress(t *testing.T) {
+	swap := func(id, gone string) tools.Edits {
+		return tools.Edits{Panels: []string{id}, Added: []string{id}, Deleted: []string{gone}}
+	}
+
+	var once churn
+	note, stop := once.note(swap("b", "a"))
+	if !strings.Contains(note, "deleted a panel and added another") || stop || once.inRow != 1 {
+		t.Fatalf("one replacement = %q, %v, inRow %d", note, stop, once.inRow)
+	}
+	if note, stop := once.note(tools.Edits{Panels: []string{"c"}, Added: []string{"c"}}); note != "" || stop || once.inRow != 0 {
+		t.Fatalf("a plain new panel after a replacement = %q, %v, inRow %d", note, stop, once.inRow)
+	}
+
+	var swaps churn
+	for i := range maxChurnedSavesInRow {
+		if _, stop := swaps.note(swap(fmt.Sprint("n", i), fmt.Sprint("o", i))); stop {
+			t.Fatalf("swap %d stopped before the limit", i+1)
+		}
+	}
+	note, stop = swaps.note(swap("n9", "o9"))
+	if !stop || !strings.Contains(note, "deleted a panel and added another") {
+		t.Fatalf("swap past the limit = %q, %v", note, stop)
+	}
+	if swaps.changes["n0"] != 1 {
+		t.Fatalf("a replacement still counts toward its panel's changes: %v", swaps.changes)
+	}
+}
+
+func TestChurnStillCountsAnEditOfAnExistingPanelInASaveThatDeletes(t *testing.T) {
+	var c churn
+	edits := tools.Edits{Panels: []string{"a"}, Deleted: []string{"z"}}
+	if note, stop := c.note(edits); note != "" || stop {
+		t.Fatalf("edit beside a delete = %q, %v", note, stop)
+	}
+}

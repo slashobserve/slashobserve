@@ -118,6 +118,9 @@ func TestEditsOfSeparatesPanelsSettingsAndNoChange(t *testing.T) {
 		{name: "a row retitled but not its children", next: strings.Replace(base, `"title":"Row"`, `"title":"Row2"`, 1), want: Edits{Panels: []string{"r1"}}},
 		{name: "a dashboard title edit", next: strings.Replace(base, `"title":"Board"`, `"title":"Board2"`, 1), want: Edits{Settings: true}},
 		{name: "a variable edit", next: strings.Replace(base, `"options":["a","b"]`, `"options":["a","c"]`, 1), want: Edits{Settings: true}},
+		{name: "a deleted panel", next: boardSpecOf(buildRow("r1", "Row", 0, suggestStat("a", "A", "up", 1))), want: Edits{Deleted: []string{"top"}}},
+		{name: "a panel replaced by a new id", next: boardSpecOf(buildRow("r1", "Row", 0, suggestStat("a", "A", "up", 1)), suggestStat("top2", "Top", "up", 5)), want: Edits{Panels: []string{"top2"}, Added: []string{"top2"}, Deleted: []string{"top"}}},
+		{name: "a row deleted with its child", next: boardSpecOf(suggestStat("top", "Top", "up", 5)), want: Edits{Deleted: []string{"r1", "a"}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -127,8 +130,8 @@ func TestEditsOfSeparatesPanelsSettingsAndNoChange(t *testing.T) {
 		})
 	}
 	first := editsOf(nil, prev)
-	if want := []string{"r1", "a", "top"}; !reflect.DeepEqual(first.Panels, want) || !first.Settings {
-		t.Fatalf("first save edits = %+v, want panels %v and settings", first, want)
+	if want := []string{"r1", "a", "top"}; !reflect.DeepEqual(first.Panels, want) || !reflect.DeepEqual(first.Added, want) || len(first.Deleted) > 0 || !first.Settings {
+		t.Fatalf("first save edits = %+v, want panels %v all added, and settings", first, want)
 	}
 }
 

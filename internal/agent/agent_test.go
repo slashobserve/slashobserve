@@ -2820,6 +2820,31 @@ func TestEndlessEditsOfOnePanelEndWithNoProgress(t *testing.T) {
 	}
 }
 
+func TestEndlessPanelSwapsEndWithNoProgress(t *testing.T) {
+	turns := make([]scriptedTurn, 9)
+	fns := make([]func() tools.Result, 9)
+	for i := range turns {
+		turns[i] = toolTurn(call(fmt.Sprint("c", i), "update_panels", fmt.Sprintf(`{"n":%d}`, i)))
+		added := fmt.Sprint("p", i)
+		fns[i] = changedSave(i+1, tools.Edits{Panels: []string{added}, Added: []string{added}, Deleted: []string{fmt.Sprint("p", i-1)}})
+	}
+	s := session(turns...)
+	r := newRig(t, s)
+	r.buildSaves(t, fns...)
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if !errors.Is(err, agent.ErrNoProgress) || out.BuildSaves != 4 || s.modelCalls() != 4 {
+		t.Fatalf("outcome = %+v, err %v, model calls %d", out, err, s.modelCalls())
+	}
+	if got := s.results(1)[0].Content; !strings.Contains(got, "<note>This save deleted a panel and added another, which is not progress.") {
+		t.Fatalf("first swap result = %s", got)
+	}
+	steps := r.recordedSteps()
+	if stop := steps[len(steps)-1]; stop.Message != "Stopped: 4 saves in a row changed nothing new" {
+		t.Fatalf("stop step = %+v", stop)
+	}
+}
+
 func TestASaveThatChangesNothingCarriesTheChurnNoteAndASettingsSaveDoesNot(t *testing.T) {
 	s := session(
 		toolTurn(call("c1", "update_panels", `{"n":1}`)),

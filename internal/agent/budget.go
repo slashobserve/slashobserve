@@ -68,7 +68,8 @@ var (
 )
 
 const (
-	messageReplayed = "This is the result of the same earlier call. A third identical call is refused."
+	messageReplacement = "This save deleted a panel and added another, which is not progress. Keep the panels you have, save the next panel, or set finish: true when every planned panel is built."
+	messageReplayed    = "This is the result of the same earlier call. A third identical call is refused."
 
 	messageSaveNext    = "Save the next panel in your next call. From then on, reads run only in the same call as a save."
 	messageProposeNext = "Propose the panel in your next call. From then on, reads run only in the same call as a proposal."
@@ -120,16 +121,21 @@ func (c *churn) note(edits tools.Edits) (note string, stop bool) {
 	if edits.Settings {
 		subjects = append(subjects, settingsSubject)
 	}
+	replaced := len(edits.Deleted) > 0
 	progressed := false
 	for _, id := range subjects {
 		c.changes[id]++
-		progressed = progressed || c.changes[id] <= maxChangesPerPanel
+		isReplacement := replaced && slices.Contains(edits.Added, id)
+		progressed = progressed || c.changes[id] <= maxChangesPerPanel && !isReplacement
 	}
 	if progressed {
 		c.inRow = 0
 		return "", false
 	}
 	c.inRow++
+	if replaced && len(edits.Added) > 0 {
+		return messageReplacement, c.inRow > maxChurnedSavesInRow
+	}
 	subject := "the build"
 	if len(subjects) > 0 {
 		subject = subjects[0]
