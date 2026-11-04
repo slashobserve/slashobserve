@@ -370,9 +370,7 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 		if err != nil {
 			return fmt.Errorf("fail exhausted agent requests: %w", err)
 		}
-		if _, err := q.DeleteExpiredAgentRequestBuilds(ctx, BuildRetentionDays); err != nil {
-			return fmt.Errorf("delete expired agent request builds: %w", err)
-		}
+		s.deleteExpiredBuilds(ctx, savepoint)
 		for _, row := range exhausted {
 			if err := notifyRevision(ctx, q, row); err != nil {
 				return err
@@ -397,6 +395,16 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 		return dbsqlc.AgentRequest{}, false, nil
 	}
 	return claimed, found, err
+}
+
+func (s *Service) deleteExpiredBuilds(ctx context.Context, savepoint db.Savepoint) {
+	err := savepoint(func(q *dbsqlc.Queries) error {
+		_, err := q.DeleteExpiredAgentRequestBuilds(ctx, BuildRetentionDays)
+		return err
+	})
+	if err != nil {
+		s.logger.WarnContext(ctx, "delete expired agent request builds", logattrs.Failure("agent_request_build_cleanup_failed", err)...)
+	}
 }
 
 func (s *Service) renewLease(ctx context.Context, claimed dbsqlc.AgentRequest) (canceled bool, err error) {
