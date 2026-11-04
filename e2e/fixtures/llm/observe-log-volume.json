@@ -33,6 +33,7 @@
           "name": "create_dashboard",
           "input": {
             "summary": "Create log volume by service",
+            "planned_panels": 2,
             "spec": {
               "specVersion": "0",
               "title": "Log volume by service",
@@ -50,21 +51,34 @@
                       "query": "SELECT $__timeGroup(Timestamp) AS t, ServiceName AS service, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY t, service ORDER BY t"
                     }
                   ]
-                },
-                {
-                  "id": "log_services",
-                  "type": "table",
-                  "title": "Log rows by service",
-                  "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
-                  "datasource": "ch",
-                  "queries": [
-                    {
-                      "query": "SELECT ServiceName AS service, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY service ORDER BY n DESC LIMIT 20"
-                    }
-                  ]
                 }
               ]
             }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add log rows by service",
+            "upsert": [
+              {
+                "id": "log_services",
+                "type": "table",
+                "title": "Log rows by service",
+                "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+                "datasource": "ch",
+                "queries": [
+                  {
+                    "query": "SELECT ServiceName AS service, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY service ORDER BY n DESC LIMIT 20"
+                  }
+                ]
+              }
+            ],
+            "finish": true
           }
         }
       ]

@@ -48,7 +48,7 @@
           "input": {
             "datasource": "prom",
             "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))",
-            "from": "now-6h",
+            "from": "now-5h",
             "to": "now"
           }
         },
@@ -57,7 +57,7 @@
           "input": {
             "datasource": "prom",
             "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))",
-            "from": "now-6h",
+            "from": "now-5h",
             "to": "now"
           }
         },
@@ -66,7 +66,7 @@
           "input": {
             "datasource": "prom",
             "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
-            "from": "now-6h",
+            "from": "now-5h",
             "to": "now"
           }
         },
@@ -75,7 +75,7 @@
           "input": {
             "datasource": "prom",
             "query": "sum by (pod) (rate(http_requests_total[$__rate_interval]))",
-            "from": "now-6h",
+            "from": "now-5h",
             "to": "now"
           }
         }
@@ -88,7 +88,7 @@
           "input": {
             "datasource": "prom",
             "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))",
-            "from": "now-6h",
+            "from": "now-4h",
             "to": "now"
           }
         },
@@ -97,7 +97,7 @@
           "input": {
             "datasource": "prom",
             "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))",
-            "from": "now-6h",
+            "from": "now-4h",
             "to": "now"
           }
         },
@@ -106,7 +106,7 @@
           "input": {
             "datasource": "prom",
             "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
-            "from": "now-6h",
+            "from": "now-4h",
             "to": "now"
           }
         },
@@ -115,7 +115,7 @@
           "input": {
             "datasource": "prom",
             "query": "sum by (pod) (rate(http_requests_total[$__rate_interval]))",
-            "from": "now-6h",
+            "from": "now-4h",
             "to": "now"
           }
         }
@@ -128,7 +128,7 @@
           "input": {
             "datasource": "prom",
             "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))",
-            "from": "now-6h",
+            "from": "now-3h",
             "to": "now"
           }
         },
@@ -137,7 +137,7 @@
           "input": {
             "datasource": "prom",
             "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))",
-            "from": "now-6h",
+            "from": "now-3h",
             "to": "now"
           }
         },
@@ -146,7 +146,7 @@
           "input": {
             "datasource": "prom",
             "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
-            "from": "now-6h",
+            "from": "now-3h",
             "to": "now"
           }
         },
@@ -155,7 +155,7 @@
           "input": {
             "datasource": "prom",
             "query": "sum by (pod) (rate(http_requests_total[$__rate_interval]))",
-            "from": "now-6h",
+            "from": "now-3h",
             "to": "now"
           }
         }
@@ -168,7 +168,7 @@
           "input": {
             "datasource": "prom",
             "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))",
-            "from": "now-6h",
+            "from": "now-2h",
             "to": "now"
           }
         },
@@ -177,7 +177,7 @@
           "input": {
             "datasource": "prom",
             "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))",
-            "from": "now-6h",
+            "from": "now-2h",
             "to": "now"
           }
         },
@@ -186,7 +186,7 @@
           "input": {
             "datasource": "prom",
             "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
-            "from": "now-6h",
+            "from": "now-2h",
             "to": "now"
           }
         },
@@ -195,7 +195,7 @@
           "input": {
             "datasource": "prom",
             "query": "sum by (pod) (rate(http_requests_total[$__rate_interval]))",
-            "from": "now-6h",
+            "from": "now-2h",
             "to": "now"
           }
         }

@@ -44,6 +44,7 @@
           "name": "create_dashboard",
           "input": {
             "summary": "Create demo shop RED metrics",
+            "planned_panels": 3,
             "spec": {
               "specVersion": "0",
               "title": "Demo shop RED metrics",
@@ -62,32 +63,6 @@
                     }
                   ],
                   "unit": "reqps"
-                },
-                {
-                  "id": "req_status",
-                  "type": "timeseries",
-                  "title": "Requests by status",
-                  "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
-                  "datasource": "prom",
-                  "queries": [
-                    {
-                      "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))"
-                    }
-                  ],
-                  "unit": "reqps"
-                },
-                {
-                  "id": "p99_latency",
-                  "type": "timeseries",
-                  "title": "p99 latency by route",
-                  "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
-                  "datasource": "prom",
-                  "queries": [
-                    {
-                      "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))"
-                    }
-                  ],
-                  "unit": "s"
                 }
               ]
             }
@@ -101,6 +76,7 @@
           "name": "create_dashboard",
           "input": {
             "summary": "Create demo shop RED metrics",
+            "planned_panels": 3,
             "spec": {
               "specVersion": "0",
               "title": "Demo shop RED metrics",
@@ -119,40 +95,63 @@
                     }
                   ],
                   "unit": "reqps"
-                },
-                {
-                  "id": "req_status",
-                  "type": "timeseries",
-                  "title": "Requests by status",
-                  "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
-                  "datasource": "prom",
-                  "queries": [
-                    {
-                      "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))"
-                    }
-                  ],
-                  "unit": "reqps"
-                },
-                {
-                  "id": "p99_latency",
-                  "type": "timeseries",
-                  "title": "p99 latency by route",
-                  "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
-                  "datasource": "prom",
-                  "queries": [
-                    {
-                      "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))"
-                    }
-                  ],
-                  "unit": "s"
                 }
               ]
             }
           }
         }
       ],
-      "expect": [
-        { "is_error": true, "contains": "query_invalid" }
+      "expect": [{ "is_error": true, "contains": "query_invalid" }]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add requests by status",
+            "upsert": [
+              {
+                "id": "req_status",
+                "type": "timeseries",
+                "title": "Requests by status",
+                "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))"
+                  }
+                ],
+                "unit": "reqps"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add p99 latency by route",
+            "upsert": [
+              {
+                "id": "p99_latency",
+                "type": "timeseries",
+                "title": "p99 latency by route",
+                "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))"
+                  }
+                ],
+                "unit": "s"
+              }
+            ],
+            "finish": true
+          }
+        }
       ]
     }
   ]

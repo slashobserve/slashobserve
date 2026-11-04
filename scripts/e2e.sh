@@ -325,9 +325,19 @@ logs_and_traces_present() {
   ch_is "SELECT (SELECT count() FROM otel.otel_logs) > 0 AND (SELECT count() FROM otel.otel_traces) > 0" 1
 }
 
+# A 24h panel steps 87s (internal/queryproxy StepFor) and a 1m rate needs a minute of samples, so a shorter history can leave no grid point with data.
+NODE_SCRAPE_SECONDS=15
+PROMETHEUS_HISTORY_MINUTES=3
+
+prometheus_history_held() {
+  prom_is "count_over_time(up{job=\"node\"}[${PROMETHEUS_HISTORY_MINUTES}m]) >= bool $((PROMETHEUS_HISTORY_MINUTES * 60 / NODE_SCRAPE_SECONDS))" 1
+}
+
 wait_for_data() {
   poll 180 "Prometheus scraped all targets" targets_scraped
   pass "Prometheus scraped all targets"
+  poll 240 "Prometheus holds ${PROMETHEUS_HISTORY_MINUTES} minutes of history" prometheus_history_held
+  pass "Prometheus holds ${PROMETHEUS_HISTORY_MINUTES} minutes of history"
   poll 180 "ClickHouse has log and trace rows" logs_and_traces_present
   pass "ClickHouse has log and trace rows"
 }
@@ -2096,7 +2106,7 @@ observe_suite() {
   [[ -n "$did" ]] || fail "the finished observe request has no dashboard ($(cat "$TMP/api.body"))"
   observe_expect "the finished observe request" '"status":"succeeded"' '"result_version":1' '"attempts":1' '"error":null' "\"url\":\"$BASE_URL/dashboards/$did\"" \
     '"phase":"save","tool":"create_dashboard","status":"error"' '"phase":"repair","tool":"create_dashboard","status":"ok"' \
-    '"provider":"replay"' '"model_calls":4' '"repair_rounds":1'
+    '"provider":"replay"' '"model_calls":6' '"repair_rounds":1'
   pass "a new dashboard request repairs its broken query and finishes with steps, usage and the dashboard address"
 
   out="$(api GET "/dashboards/$did")"

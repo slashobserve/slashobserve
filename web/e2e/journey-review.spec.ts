@@ -156,7 +156,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         await page.getByRole("link", { name: "Back to dashboard" }).click()
         await expect(page).toHaveURL(new RegExp(`/dashboards/${id}(\\?|$)`))
         await expect(card(page)).toBeVisible()
-        await expect(panel(page, firstPanelTitle + " by route")).toBeVisible()
+        await expect(panel(page, firstPanelTitle)).toBeVisible()
         await expect(panel(page, "p99 latency")).toBeVisible()
       })
     })
