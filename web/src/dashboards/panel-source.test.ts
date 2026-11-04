@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest"
 
+import type { DataPanel } from "@/spec"
+import { reusePanel } from "@/panels/transforms/reuse-panel"
+
 import {
   keepsPreviousData,
   panelDataKey,
@@ -41,6 +44,27 @@ describe("panelFingerprint", () => {
   it("keeps array order significant", () => {
     expect(panelFingerprint({ q: [1, 2] })).not.toBe(
       panelFingerprint({ q: [2, 1] })
+    )
+  })
+
+  it("changes for a reusing panel when the panel it reuses changes its query", () => {
+    const grid = { x: 0, y: 0, w: 6, h: 4 }
+    const reusing = {
+      id: "b",
+      type: "table",
+      gridPos: grid,
+      queries: [{ ref: "R", source: { panel: "a", withTransforms: false } }],
+    } as DataPanel
+    const sourceWith = (query: string) =>
+      ({
+        id: "a",
+        type: "timeseries",
+        gridPos: grid,
+        datasource: "prom",
+        queries: [{ ref: "A", query }],
+      }) as DataPanel
+    expect(panelFingerprint(reusePanel(reusing, sourceWith("up")))).not.toBe(
+      panelFingerprint(reusePanel(reusing, sourceWith("rate(up[5m])")))
     )
   })
 })

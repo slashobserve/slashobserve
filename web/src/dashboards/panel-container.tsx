@@ -144,7 +144,7 @@ export const PanelContainer = memo(function PanelContainer({
 
   const query = usePanelData({
     source,
-    panel,
+    panel: dataPanel ?? panel,
     from,
     to,
     timezone,
