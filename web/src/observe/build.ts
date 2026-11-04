@@ -204,6 +204,9 @@ export function useSaveBuild(requestId: string) {
       void queryClient.invalidateQueries({
         queryKey: dashboardKeys.latest(saved.dashboard_id),
       })
+      void queryClient.invalidateQueries({
+        queryKey: dashboardKeys.revisions(saved.dashboard_id),
+      })
     },
   })
 }
