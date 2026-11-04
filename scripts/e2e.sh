@@ -639,7 +639,7 @@ suite() {
   pass "key listings never expose secrets"
 
   out="$(curl -sS -o "$TMP/escalate.json" -w '%{http_code}' -X POST -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -d '{"name":"escalate"}' "$BASE_URL/api/v1/service-accounts")"
-  if [[ "$out" != 403 ]] || ! grep -q '"code":"forbidden"' "$TMP/escalate.json"; then
+  if [[ "$out" != 403 ]] || ! grep -q '"code":"forbidden_role"' "$TMP/escalate.json"; then
     fail "service account creating a service account ($out: $(cat "$TMP/escalate.json"))"
   fi
   pass "service accounts cannot mint keys"
@@ -3276,7 +3276,7 @@ people_suite() {
   out="$(curl -sS -o "$TMP/people.body" -w '%{http_code}' "$BASE_URL/api/v1/users")"
   [[ "$out" == 401 ]] || fail "list people without credentials ($out: $(cat "$TMP/people.body"))"
   out="$(api GET /users)"
-  if [[ "$out" != 403 ]] || ! grep -q '"code":"forbidden"' "$TMP/api.body"; then
+  if [[ "$out" != 403 ]] || ! grep -q '"code":"forbidden_role"' "$TMP/api.body"; then
     fail "a service account lists people ($out: $(cat "$TMP/api.body"))"
   fi
   pass "listing people needs a signed-in user, not a key"
@@ -3307,7 +3307,7 @@ people_suite() {
     fail "a cross-origin sign out ($out: $(cat "$TMP/people.body"))"
   fi
   out="$(api DELETE "/users/$admin_id/sessions")"
-  if [[ "$out" != 403 ]] || ! grep -q '"code":"forbidden"' "$TMP/api.body"; then
+  if [[ "$out" != 403 ]] || ! grep -q '"code":"forbidden_role"' "$TMP/api.body"; then
     fail "a service account signs a person out ($out: $(cat "$TMP/api.body"))"
   fi
   out="$(curl -sS -b "$TMP/people-jar" -o "$TMP/people.body" -w '%{http_code}' -X DELETE -H "Origin: $BASE_URL" "$BASE_URL/api/v1/users/$nil_id/sessions")"
