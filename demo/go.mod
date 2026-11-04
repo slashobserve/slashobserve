@@ -1,4 +1,4 @@
-module github.com/slashobserve/slashobserve/demo/shop
+module github.com/slashobserve/slashobserve/demo
 
 go 1.27.3
 

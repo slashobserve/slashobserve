@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/slashobserve/slashobserve/demo/shop/internal/loadgen"
-	"github.com/slashobserve/slashobserve/demo/shop/internal/shopapp"
-	"github.com/slashobserve/slashobserve/demo/shop/internal/synth"
+	"github.com/slashobserve/slashobserve/demo/internal/loadgen"
+	"github.com/slashobserve/slashobserve/demo/internal/shopapp"
+	"github.com/slashobserve/slashobserve/demo/internal/synth"
 )
 
 func main() {

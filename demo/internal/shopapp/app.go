@@ -12,9 +12,9 @@ import (
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
-	"github.com/slashobserve/slashobserve/demo/shop/internal/fault"
-	"github.com/slashobserve/slashobserve/demo/shop/internal/metrics"
-	"github.com/slashobserve/slashobserve/demo/shop/internal/prng"
+	"github.com/slashobserve/slashobserve/demo/internal/fault"
+	"github.com/slashobserve/slashobserve/demo/internal/metrics"
+	"github.com/slashobserve/slashobserve/demo/internal/prng"
 )
 
 const (

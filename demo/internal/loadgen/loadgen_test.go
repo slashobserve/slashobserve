@@ -9,7 +9,7 @@ import (
 )
 
 func TestStartLeadCoversEntrypointCap(t *testing.T) {
-	script, err := os.ReadFile("../../../../deploy/compose/prometheus/entrypoint.sh")
+	script, err := os.ReadFile("../../../deploy/compose/prometheus/entrypoint.sh")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/slashobserve/slashobserve/demo/shop/internal/fault"
+	"github.com/slashobserve/slashobserve/demo/internal/fault"
 )
 
 type faultState struct {

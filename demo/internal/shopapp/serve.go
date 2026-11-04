@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/slashobserve/slashobserve/demo/shop/internal/telemetry"
+	"github.com/slashobserve/slashobserve/demo/internal/telemetry"
 )
 
 const shutdownTimeout = 5 * time.Second

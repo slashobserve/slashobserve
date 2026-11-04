@@ -11,8 +11,8 @@ SQLC := go tool -modfile=tools/sqlc/go.mod sqlc
 GOLANGCI_LINT := go tool -modfile=tools/golangci-lint/go.mod golangci-lint
 COMPOSE := docker compose -f deploy/compose/compose.yaml
 COMPOSE_BUILD := $(COMPOSE) -f deploy/compose/compose.build.yaml
-SHOP_DIR := demo/shop
-SHOP_LINT := go tool -modfile=../../tools/golangci-lint/go.mod golangci-lint
+SHOP_DIR := demo
+SHOP_LINT := go tool -modfile=../tools/golangci-lint/go.mod golangci-lint
 TYPE ?= errors
 PCT ?= 30
 # zod 3 under the shadcn CLI, a dev-only tool that pins zod ^3 and ships in no build
@@ -58,8 +58,8 @@ lint: web-deps
 	$(GOLANGCI_LINT) config verify
 	$(GOLANGCI_LINT) fmt --diff
 	$(GOLANGCI_LINT) run ./...
-	cd $(SHOP_DIR) && $(SHOP_LINT) fmt --config ../../.golangci.yaml --diff
-	cd $(SHOP_DIR) && $(SHOP_LINT) run --config ../../.golangci.yaml ./...
+	cd $(SHOP_DIR) && $(SHOP_LINT) fmt --config ../.golangci.yaml --diff
+	cd $(SHOP_DIR) && $(SHOP_LINT) run --config ../.golangci.yaml ./...
 	$(SQLC) diff
 	cd web && bun run typecheck
 	cd web && bun run spec:check
@@ -81,7 +81,7 @@ ci:
 
 audit:
 	go tool -modfile=tools/govulncheck/go.mod govulncheck ./...
-	cd $(SHOP_DIR) && go tool -modfile=../../tools/govulncheck/go.mod govulncheck ./...
+	cd $(SHOP_DIR) && go tool -modfile=../tools/govulncheck/go.mod govulncheck ./...
 	cd web && bun audit --prod
 	cd web && bun audit --audit-level=high $(addprefix --ignore=,$(WEB_AUDIT_IGNORE))
 
