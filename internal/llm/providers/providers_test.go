@@ -1770,6 +1770,43 @@ func TestCompactAtTheFirstCallKeepsOnlyTheNewMessage(t *testing.T) {
 	}
 }
 
+func TestCompactAfterAPlainAnswerDropsTheAnswerSoTheNextCallDoesNotEndOnTheAssistant(t *testing.T) {
+	for _, f := range flavors {
+		t.Run(f.name, func(t *testing.T) {
+			up := newUpstream(t, replies(
+				f.toolCalls(fakeCall{"call_1", "query", `{"limit":1}`}),
+				f.endTurn("ALLDONE"),
+				f.endTurn("continuing"),
+			))
+			p, _ := newProvider(t, f, up, options{})
+			session, _ := startNext(t, p, request(queryTool()))
+			if _, err := session.Next(context.Background(), []llm.ToolResult{{CallID: "call_1", Content: "result"}}); err != nil {
+				t.Fatal(err)
+			}
+			if err := session.Compact(llm.Compaction{Message: "SHORTENED", TailTurns: 4, TailBytes: 1 << 20, ResultBytes: 100}); err != nil {
+				t.Fatalf("Compact: %v", err)
+			}
+			if _, err := session.Next(context.Background(), nil); err != nil {
+				t.Fatalf("Next after Compact: %v", err)
+			}
+
+			body := up.requests()[2].Body
+			messages := sentMessages(t, body)
+			lastRole := messages[len(messages)-1]["role"]
+			wantLast := "user"
+			if f.name == config.LLMProviderOpenAI {
+				wantLast = "tool"
+			}
+			if lastRole != wantLast || bytes.Contains(body, []byte("ALLDONE")) || !bytes.Contains(body, []byte("SHORTENED")) {
+				t.Fatalf("last role = %v, want %s, with the plain answer dropped:\n%s", lastRole, wantLast, body)
+			}
+			if f.name == config.LLMProviderAnthropic && bytes.Count(body, []byte("sig-abc==")) != 1 {
+				t.Fatalf("the last assistant turn must keep its thinking although a user turn follows it:\n%s", body)
+			}
+		})
+	}
+}
+
 func sentResults(t *testing.T, f flavor, body []byte) []string {
 	t.Helper()
 	var out []string

@@ -140,7 +140,7 @@ func TestUsageDecodesFromAnOlderServerAsZeros(t *testing.T) {
 		t.Fatal(err)
 	}
 	u := req.Usage
-	if u.ModelCalls != 3 || u.BuildSaves != 0 || u.Reseeds != 0 || u.Renewals != 0 || u.SaveNowRefusals != 0 || u.StalledTurns != 0 || u.OnePanelRefusals != 0 || req.Steps != nil {
+	if u.ModelCalls != 3 || u.BuildSaves != 0 || u.Renewals != 0 || u.SaveNowRefusals != 0 || u.StalledTurns != 0 || u.OnePanelRefusals != 0 || req.Steps != nil {
 		t.Errorf("decoded %+v", u)
 	}
 }

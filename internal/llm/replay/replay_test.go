@@ -129,9 +129,36 @@ func TestPastTheLastTurnOfAResumeSegmentEndsTheTurn(t *testing.T) {
 	if _, err := s.Next(t.Context(), nil); err != nil {
 		t.Fatal(err)
 	}
+	if err := s.Compact(llm.Compaction{Message: "shortened", TailTurns: 4, TailBytes: 1 << 20, ResultBytes: 100}); err != nil {
+		t.Fatalf("Compact: %v", err)
+	}
 	end, err := s.Next(t.Context(), nil)
 	if err != nil || end.Stop != llm.StopEndTurn || len(end.ToolCalls) != 0 {
 		t.Fatalf("past the segment's end = %+v, %v, want an end turn", end, err)
+	}
+}
+
+const nudgeFixture = `{"prompt":"p","turns":[{"tool_calls":[{"name":"save"}]},{"text":"that is all"},{"tool_calls":[{"name":"save"}]}]}`
+
+func TestNextAfterATurnWithoutToolCallsNeedsACompactionFirst(t *testing.T) {
+	s := newSession(t, 0, nudgeFixture)
+	first, err := s.Next(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	answer, err := s.Next(t.Context(), []llm.ToolResult{{CallID: first.ToolCalls[0].ID}})
+	if err != nil || answer.Text != "that is all" || len(answer.ToolCalls) != 0 {
+		t.Fatalf("answer = %+v, %v", answer, err)
+	}
+	if _, err := s.Next(t.Context(), nil); err == nil || !strings.Contains(err.Error(), "the session has ended") {
+		t.Fatalf("Next after the answer: error = %v, want the session has ended", err)
+	}
+	if err := s.Compact(llm.Compaction{Message: "shortened", TailTurns: 4, TailBytes: 1 << 20, ResultBytes: 100}); err != nil {
+		t.Fatalf("Compact: %v", err)
+	}
+	third, err := s.Next(t.Context(), nil)
+	if err != nil || len(third.ToolCalls) != 1 || third.Stop != llm.StopToolUse {
+		t.Fatalf("turn after the compaction = %+v, %v, want the fixture's next turn", third, err)
 	}
 }
 

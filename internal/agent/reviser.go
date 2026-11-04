@@ -53,7 +53,6 @@ func (r *Reviser) Revise(ctx context.Context, req revisions.Request) (revisions.
 			ModelCalls:       out.Usage.Calls,
 			RepairRounds:     out.RepairRounds,
 			BuildSaves:       out.BuildSaves,
-			Reseeds:          out.Reseeds,
 			Renewals:         out.Renewals,
 			Compactions:      out.Compactions,
 			Nudges:           out.Nudges,

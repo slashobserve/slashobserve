@@ -180,7 +180,6 @@ type Usage struct {
 	ToolMS              int64 `json:"tool_ms"`
 	MaxSaveOutputTokens int64 `json:"max_save_output_tokens"`
 	BuildSaves          int   `json:"build_saves"`
-	Reseeds             int   `json:"reseeds"`
 	Renewals            int   `json:"renewals"`
 	Compactions         int   `json:"compactions"`
 	Nudges              int   `json:"nudges"`

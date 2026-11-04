@@ -31,7 +31,7 @@ var seedSentences = map[seedReason]string{
 }
 
 func (r seedReason) shortensConversation() bool {
-	return r == seedRenewed || r == seedOutputLimit || r == seedCallTimeout
+	return r == seedRenewed || r == seedOutputLimit || r == seedCallTimeout || r == seedPending
 }
 
 func (r seedReason) heading() string {

@@ -2367,7 +2367,7 @@ func TestThreeBuildSavesWithFinishOnTheThirdMakeOneVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out.Version != 1 || out.DashboardID != dashID || out.BuildSaves != 3 || out.Reseeds != 0 || s.modelCalls() != 3 {
+	if out.Version != 1 || out.DashboardID != dashID || out.BuildSaves != 3 || s.modelCalls() != 3 {
 		t.Fatalf("outcome = %+v, model calls %d", out, s.modelCalls())
 	}
 	if r.builds.commits != 0 {
@@ -2401,28 +2401,44 @@ func TestTwoBuildSavesThenNoToolCallCommitOnce(t *testing.T) {
 	}
 }
 
-func TestNoToolCallWithFewerPanelsThanPlannedReseedsOnceThenCommits(t *testing.T) {
+func TestNoToolCallWithFewerPanelsThanPlannedCompactsOnceThenCommits(t *testing.T) {
 	plan := planOf("r1", "r2", "r3")
-	r := newRig(t,
-		session(toolTurn(call("c1", "create_dashboard", `{"n":1}`)), stopTurn(llm.StopEndTurn)),
-		session(stopTurn(llm.StopEndTurn)),
-	)
+	s := session(toolTurn(call("c1", "create_dashboard", `{"n":1}`)), stopTurn(llm.StopEndTurn), stopTurn(llm.StopEndTurn))
+	r := newRig(t, s)
 	r.buildSaves(t, r.rows(t, plan, "r1"))
 
 	out, err := r.agent.Run(context.Background(), r.task())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out.Version != 1 || out.Reseeds != 1 || out.BuildSaves != 1 || r.builds.commits != 1 {
+	if out.Version != 1 || out.Compactions != 1 || out.Renewals != 0 || out.BuildSaves != 1 || r.builds.commits != 1 {
 		t.Fatalf("outcome = %+v, commits %d", out, r.builds.commits)
 	}
-	started := r.provider.started()
-	if len(started) != 2 || started[0].BuildSaves != 0 || started[1].BuildSaves != 1 {
-		t.Fatalf("requests = %+v", started)
+	if got := len(r.provider.started()); got != 1 {
+		t.Fatalf("sessions = %d, want the same session continued", got)
 	}
-	if !strings.Contains(started[1].Context, "You answered without a tool call, but the build has fewer panels than you planned.") ||
-		!strings.Contains(started[1].Context, "Panels built: 1 of 3.") {
-		t.Fatalf("second context = %s", started[1].Context)
+	if len(s.compactions) != 1 {
+		t.Fatalf("compactions = %+v", s.compactions)
+	}
+	message := s.compactions[0].Message
+	if !strings.Contains(message, "Why your conversation was shortened: You answered without a tool call, but the build has fewer panels than you planned.") ||
+		!strings.Contains(message, "Panels built: 1 of 3.") {
+		t.Fatalf("compaction message = %s", message)
+	}
+	if s.modelCalls() != 3 || len(s.results(2)) != 0 {
+		t.Fatalf("model calls = %d, results after the compaction = %+v", s.modelCalls(), s.results(2))
+	}
+}
+
+func TestNoToolCallWithFewerPanelsThanPlannedIsNudgedOnlyOncePerRun(t *testing.T) {
+	plan := planOf("r1", "r2", "r3")
+	s := session(toolTurn(call("c1", "create_dashboard", `{"n":1}`)), stopTurn(llm.StopEndTurn), stopTurn(llm.StopEndTurn), stopTurn(llm.StopEndTurn))
+	r := newRig(t, s)
+	r.buildSaves(t, r.rows(t, plan, "r1"))
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil || out.Version != 1 || len(s.compactions) != 1 || s.modelCalls() != 3 {
+		t.Fatalf("outcome = %+v, err %v, compactions %d, model calls %d", out, err, len(s.compactions), s.modelCalls())
 	}
 }
 
@@ -2433,7 +2449,7 @@ func TestMaxTokensOnceCompactsWithTheOutputLimitNoteAndTwiceInARowEndsTheRun(t *
 		r := newRig(t, s)
 		r.tools.onSave("create_dashboard", savedResult(dashID, 1))
 		out, err := r.agent.Run(context.Background(), r.task())
-		if err != nil || out.Version != 1 || out.Reseeds != 0 {
+		if err != nil || out.Version != 1 {
 			t.Fatalf("outcome = %+v, err %v", out, err)
 		}
 		started := r.provider.started()
@@ -2448,7 +2464,7 @@ func TestMaxTokensOnceCompactsWithTheOutputLimitNoteAndTwiceInARowEndsTheRun(t *
 		s := session(stopTurn(llm.StopMaxTokens), stopTurn(llm.StopMaxTokens))
 		r := newRig(t, s)
 		out, err := r.agent.Run(context.Background(), r.task())
-		if !strings.Contains(fmt.Sprint(err), "after reaching max tokens") || out.Reseeds != 0 || len(s.compactions) != 1 {
+		if !strings.Contains(fmt.Sprint(err), "after reaching max tokens") || len(s.compactions) != 1 {
 			t.Fatalf("outcome = %+v, err %v, compactions %d", out, err, len(s.compactions))
 		}
 	})
@@ -2462,7 +2478,7 @@ func TestMaxTokensOnceCompactsWithTheOutputLimitNoteAndTwiceInARowEndsTheRun(t *
 		r := newRig(t, s)
 		r.buildSaves(t, r.rows(t, plan, "r1"), saved(1))
 		out, err := r.agent.Run(context.Background(), r.task())
-		if err != nil || out.Version != 1 || out.Reseeds != 0 || len(s.compactions) != 2 {
+		if err != nil || out.Version != 1 || len(s.compactions) != 2 {
 			t.Fatalf("outcome = %+v, err %v, compactions %d", out, err, len(s.compactions))
 		}
 	})
@@ -2907,7 +2923,7 @@ func TestMoreThanSixCompactionsDoNotEndTheRunWhenEachFollowsAnAcceptedSave(t *te
 	r.buildSaves(t, fns...)
 
 	out, err := r.agent.Run(context.Background(), r.task())
-	if err != nil || out.Version != 1 || out.Reseeds != 0 || out.BuildSaves != 8 || len(s.compactions) != 8 || len(r.provider.started()) != 1 {
+	if err != nil || out.Version != 1 || out.BuildSaves != 8 || len(s.compactions) != 8 || len(r.provider.started()) != 1 {
 		t.Fatalf("outcome = %+v, err %v, compactions %d", out, err, len(s.compactions))
 	}
 }
@@ -3028,7 +3044,7 @@ func TestACompactionStartsAFreshSaveWindow(t *testing.T) {
 	r.buildSaves(t, r.rows(t, 1, "r1"))
 
 	out, err := r.agent.Run(context.Background(), r.task())
-	if err != nil || out.Version != 1 || out.Reseeds != 0 || len(s.compactions) != 1 {
+	if err != nil || out.Version != 1 || len(s.compactions) != 1 {
 		t.Fatalf("outcome = %+v, err %v, compactions %d", out, err, len(s.compactions))
 	}
 	if got := len(r.tools.names()); got != 5+5+1 {
@@ -3113,7 +3129,7 @@ func TestASessionRenewsAfterTheNextAcceptedSaveOncePastItsBudget(t *testing.T) {
 				t.Fatalf("outcome = %+v, err %v", out, err)
 			}
 			started := r.provider.started()
-			if out.Reseeds != 0 || len(started) != 1 || out.BuildSaves != 2 {
+			if len(started) != 1 || out.BuildSaves != 2 {
 				t.Fatalf("outcome = %+v, sessions %d", out, len(started))
 			}
 			if !c.renews {
@@ -3151,7 +3167,7 @@ func TestARenewalDoesNotHideASaveRepeatedAcrossIt(t *testing.T) {
 	r.buildSaves(t, r.rows(t, 2, "r1"))
 
 	out, err := r.agent.Run(context.Background(), r.task())
-	if !errors.Is(err, agent.ErrNoProgress) || out.Reseeds != 0 {
+	if !errors.Is(err, agent.ErrNoProgress) {
 		t.Fatalf("outcome = %+v, err %v", out, err)
 	}
 }
@@ -3212,8 +3228,8 @@ func TestAResumedBuildOnAnOlderVersionRestartsFromTheLatest(t *testing.T) {
 	if len(started) != 1 || !strings.Contains(started[0].Context, conflictSeedSentence) || !strings.Contains(started[0].Context, "version 3") || strings.Contains(started[0].Context, "<build>") {
 		t.Fatalf("started = %+v", started)
 	}
-	if r.builds.discards != 1 || out.Reseeds != 0 {
-		t.Fatalf("discards = %d, reseeds = %d", r.builds.discards, out.Reseeds)
+	if r.builds.discards != 1 {
+		t.Fatalf("discards = %d", r.builds.discards)
 	}
 }
 
@@ -3297,7 +3313,7 @@ func TestACallTimeoutCompactsOnce(t *testing.T) {
 	r.tools.onSave("create_dashboard", savedResult(dashID, 1))
 
 	out, err := r.agent.Run(context.Background(), r.task())
-	if err != nil || out.Version != 1 || out.Reseeds != 0 {
+	if err != nil || out.Version != 1 {
 		t.Fatalf("outcome = %+v, err %v", out, err)
 	}
 	started := r.provider.started()
@@ -3363,7 +3379,7 @@ func TestAnOutputLimitAfterACallTimeoutEndsTheRunAndSaysWhy(t *testing.T) {
 	r := newRig(t, session(timedOut(), stopTurn(llm.StopMaxTokens)))
 
 	out, err := r.agent.Run(context.Background(), r.task())
-	if !strings.Contains(fmt.Sprint(err), "after reaching max tokens") || out.Reseeds != 0 {
+	if !strings.Contains(fmt.Sprint(err), "after reaching max tokens") {
 		t.Fatalf("outcome = %+v, err %v", out, err)
 	}
 	steps := r.recordedSteps()
@@ -3416,7 +3432,7 @@ func (p *sessionsProvider) Start(context.Context, llm.Request) (llm.Session, err
 	return p.only, nil
 }
 
-func TestACanceledRunIsNotReseededOnACallTimeout(t *testing.T) {
+func TestACanceledRunIsNotCompactedOnACallTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	r := newRig(t)
@@ -3429,7 +3445,7 @@ func TestACanceledRunIsNotReseededOnACallTimeout(t *testing.T) {
 	})
 
 	out, err := r.agent.Run(ctx, r.task())
-	if !errors.Is(err, context.Canceled) || out.Reseeds != 0 {
+	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("outcome = %+v, err %v", out, err)
 	}
 }

@@ -7,4 +7,4 @@ expect:
   datasources: [prometheus]
   min_panels: 3
   max_panels: 3
-  usage: {build_saves: 3, reseeds: 0}
+  usage: {build_saves: 3, compactions: 0}

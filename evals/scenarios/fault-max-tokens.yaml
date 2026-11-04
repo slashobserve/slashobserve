@@ -6,4 +6,4 @@ suites: [replay]
 expect:
   datasources: [prometheus]
   failure_code: output_limit
-  usage: {compactions: 1, reseeds: 0, renewals: 0}
+  usage: {compactions: 1, renewals: 0}

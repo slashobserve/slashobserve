@@ -1585,7 +1585,6 @@ components:
         - tool_ms
         - max_save_output_tokens
         - build_saves
-        - reseeds
         - renewals
         - compactions
         - nudges
@@ -1643,10 +1642,6 @@ components:
           type: integer
           minimum: 0
           description: Accepted saves into the request's build during the run, counted across every session of the run.
-        reseeds:
-          type: integer
-          minimum: 0
-          description: Times the run ended its model session and started a new one that carried the build because the model answered without a tool call while the build held fewer panels than planned (`pending`). A compaction keeps its session, and a restart after a conflict starts a new session without counting here.
         renewals:
           type: integer
           minimum: 0
@@ -1654,7 +1649,7 @@ components:
         compactions:
           type: integer
           minimum: 0
-          description: Times the run compacted its session history (on renewal, or on the first cut-off answer).
+          description: Times the run compacted its session history (on renewal, on the first cut-off answer, or when the model answered without a tool call while the build held fewer panels than planned).
         nudges:
           type: integer
           minimum: 0

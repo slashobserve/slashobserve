@@ -107,6 +107,7 @@ type session struct {
 	history  []sdk.MessageParam
 	calls    int
 	pending  []string
+	ended    bool
 
 	buildSaves int
 	pruner     *llm.Pruner
@@ -116,7 +117,7 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 	if err := ctx.Err(); err != nil {
 		return llm.Turn{}, err
 	}
-	if err := llm.CheckResults(name, s.calls > 0, s.pending, results); err != nil {
+	if err := llm.CheckResults(name, s.ended, s.pending, results); err != nil {
 		return llm.Turn{}, err
 	}
 
@@ -153,23 +154,41 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 	s.history = messages
 	s.calls++
 	s.pending = llm.PendingIDs(turn.ToolCalls)
+	s.ended = len(s.pending) == 0
 	return turn, nil
+}
+
+func endsInPlainAnswer(history []sdk.MessageParam) bool {
+	if len(history) == 0 || history[len(history)-1].Role != sdk.MessageParamRoleAssistant {
+		return false
+	}
+	return !slices.ContainsFunc(history[len(history)-1].Content, func(b sdk.ContentBlockParamUnion) bool { return b.OfToolUse != nil })
 }
 
 func (s *session) Compact(c llm.Compaction) error {
 	rest := s.history[1:]
+	if endsInPlainAnswer(rest) {
+		rest = rest[:len(rest)-1]
+		s.ended = false
+	}
 	weighed := make([]llm.Weighed, len(rest))
 	for i, m := range rest {
 		weighed[i] = llm.Weighed{Assistant: m.Role == sdk.MessageParamRoleAssistant, Bytes: messageBytes(m, c.ResultBytes)}
 	}
 	kept := rest[llm.TailStart(weighed, c.TailTurns, c.TailBytes):]
+	lastAssistant := -1
+	for i, m := range kept {
+		if m.Role == sdk.MessageParamRoleAssistant {
+			lastAssistant = i
+		}
+	}
 	history := make([]sdk.MessageParam, 0, 1+len(kept))
 	history = append(history, sdk.NewUserMessage(sdk.NewTextBlock(c.Message)))
 	for i, m := range kept {
 		switch {
 		case m.Role == sdk.MessageParamRoleUser:
 			m = cutToolResults(m, c.ResultBytes)
-		case i < len(kept)-1:
+		case i != lastAssistant:
 			m = withoutThinking(m)
 		}
 		history = append(history, m)

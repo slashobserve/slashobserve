@@ -100,6 +100,7 @@ type Provider interface {
 // result per tool call of the previous turn, in order, with matching CallIDs,
 // and a session returns an error rather than panicking when that does not hold.
 // Compact keeps the pending tool calls, so the next Next passes the results it would have passed.
+// After a turn without tool calls it drops that answer and reopens the session for a Next with no results.
 type Session interface {
 	Next(ctx context.Context, results []ToolResult) (Turn, error)
 	Compact(c Compaction) error

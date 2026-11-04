@@ -29,7 +29,7 @@ func TestWriteBuildStatesProgressAndTheReasonForEachNewSession(t *testing.T) {
 	sentences := map[seedReason]string{
 		seedRestart:     "Why this is a new session: The server restarted while you worked.\n",
 		seedOutputLimit: "Why your conversation was shortened: Your last answer was cut off at the output limit. Save one panel per call, and check only what that panel needs.\n",
-		seedPending:     "Why this is a new session: You answered without a tool call, but the build has fewer panels than you planned. Add the rest one per save, or resend planned_panels with the number you built, then finish.\n",
+		seedPending:     "Why your conversation was shortened: You answered without a tool call, but the build has fewer panels than you planned. Add the rest one per save, or resend planned_panels with the number you built, then finish.\n",
 		seedContinue:    "Why this is a new session: Your earlier run stopped before it finished, and the person asked you to continue it from the build above.\n",
 		seedRenewed:     "Why your conversation was shortened: Your session was renewed to keep it short; the build above holds every panel you saved.\n",
 		seedCallTimeout: "Why your conversation was shortened: Your last call ran past the time limit for one model call. Keep each answer short: save one panel per call, and check only what that panel needs.\n",

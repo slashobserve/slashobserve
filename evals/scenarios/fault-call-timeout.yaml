@@ -5,4 +5,4 @@ kind: create
 suites: [replay]
 expect:
   datasources: [prometheus]
-  usage: {compactions: 1, reseeds: 0, renewals: 0}
+  usage: {compactions: 1, renewals: 0}

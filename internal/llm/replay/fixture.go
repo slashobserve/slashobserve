@@ -164,9 +164,6 @@ func validateTurns(label string, turns []turn) error {
 		previousCalls := 0
 		if i > 0 {
 			previousCalls = len(turns[i-1].ToolCalls)
-			if previousCalls == 0 {
-				return fmt.Errorf("%s: turn %d: unreachable because turn %d has no tool_calls and ends the run", label, i, i-1)
-			}
 		}
 		if err := turns[i].validate(i, previousCalls); err != nil {
 			return fmt.Errorf("%s: turn %d: %w", label, i, err)

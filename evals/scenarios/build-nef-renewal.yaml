@@ -8,4 +8,4 @@ expect:
   min_panels: 136
   max_panels: 136
   max_seconds: 300
-  usage: {renewals: 1, compactions: 1, reseeds: 0}
+  usage: {renewals: 1, compactions: 1}

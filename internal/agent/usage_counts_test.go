@@ -14,12 +14,12 @@ import (
 )
 
 type counts struct {
-	BuildSaves, Reseeds, Renewals, Compactions, Nudges, SaveNowRefusals, StalledTurns, OnePanelRefusals, Retries int
+	BuildSaves, Renewals, Compactions, Nudges, SaveNowRefusals, StalledTurns, OnePanelRefusals, Retries int
 }
 
 func countsOf(out agent.Outcome) counts {
 	return counts{
-		BuildSaves: out.BuildSaves, Reseeds: out.Reseeds, Renewals: out.Renewals, Compactions: out.Compactions,
+		BuildSaves: out.BuildSaves, Renewals: out.Renewals, Compactions: out.Compactions,
 		Nudges: out.Nudges, SaveNowRefusals: out.SaveNowRefusals, StalledTurns: out.StalledTurns,
 		OnePanelRefusals: out.OnePanelRefusals, Retries: out.Retries,
 	}
@@ -84,7 +84,7 @@ func TestUsageCountersOfEachDecisionPoint(t *testing.T) {
 			want: counts{BuildSaves: 3, OnePanelRefusals: 1},
 		},
 		{
-			name:       "a renewal is one compaction and one renewal, and no reseed",
+			name:       "a renewal is one compaction and one renewal",
 			renewBytes: 64 << 10,
 			sessions: func() []*scriptedSession {
 				return []*scriptedSession{session(toolTurn(readOf("big", 1)), toolTurn(call("s1", "update_panels", `{"n":1}`)), toolTurn(call("s2", "update_panels", `{"n":2,"finish":true}`)))}
@@ -102,15 +102,12 @@ func TestUsageCountersOfEachDecisionPoint(t *testing.T) {
 			want:  counts{BuildSaves: 1, Compactions: 1},
 		},
 		{
-			name: "an early stop with panels still planned is a reseed and no compaction",
+			name: "an early stop with panels still planned is one compaction and no renewal",
 			sessions: func() []*scriptedSession {
-				return []*scriptedSession{
-					session(toolTurn(call("s1", "create_dashboard", `{"n":1}`)), stopTurn(llm.StopEndTurn)),
-					session(stopTurn(llm.StopEndTurn)),
-				}
+				return []*scriptedSession{session(toolTurn(call("s1", "create_dashboard", `{"n":1}`)), stopTurn(llm.StopEndTurn), stopTurn(llm.StopEndTurn))}
 			},
 			saves: func(r *rig) []func() tools.Result { return []func() tools.Result{r.rows(t, 2, "r1")} },
-			want:  counts{BuildSaves: 1, Reseeds: 1},
+			want:  counts{BuildSaves: 1, Compactions: 1},
 		},
 	}
 	for _, c := range cases {

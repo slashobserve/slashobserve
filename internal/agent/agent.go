@@ -133,7 +133,6 @@ type Outcome struct {
 	ToolTime            time.Duration
 	MaxSaveOutputTokens int64
 	BuildSaves          int
-	Reseeds             int
 	Renewals            int
 	Compactions         int
 	Nudges              int
@@ -249,7 +248,6 @@ type runner struct {
 }
 
 type sessionEnd struct {
-	reseed   seedReason
 	compact  seedReason
 	conflict bool
 	chat     llm.Session
@@ -331,9 +329,6 @@ func (r *runner) loop(ctx context.Context) error {
 			reason = seedConflict
 		case end.compact != seedFresh:
 			carry, reason = &end, end.compact
-		case end.reseed != seedFresh:
-			r.out.Reseeds++
-			reason = end.reseed
 		default:
 			return nil
 		}
@@ -588,10 +583,7 @@ func (r *runner) session(ctx context.Context, current *revision, build *dashboar
 		}
 		r.out.Usage = r.out.Usage.Add(turn.Usage)
 		r.state.noteSavingTurn(turn)
-		if end, done, err := r.endOfTurn(ctx, turn); done || err != nil {
-			if end.compact != seedFresh {
-				end.chat, end.results = chat, results
-			}
+		if end, done, err := r.endOfTurn(ctx, turn, chat, results); done || err != nil {
 			return end, err
 		}
 		var outcome turnOutcome
@@ -645,7 +637,7 @@ func (r *runner) cutOff(what string) (final bool) {
 	return false
 }
 
-func (r *runner) endOfTurn(ctx context.Context, turn llm.Turn) (sessionEnd, bool, error) {
+func (r *runner) endOfTurn(ctx context.Context, turn llm.Turn, chat llm.Session, results []llm.ToolResult) (sessionEnd, bool, error) {
 	switch {
 	case turn.Stop == llm.StopRefusal:
 		return sessionEnd{}, true, ErrRefused
@@ -653,9 +645,9 @@ func (r *runner) endOfTurn(ctx context.Context, turn llm.Turn) (sessionEnd, bool
 		if r.cutOff("the model's answer was cut off at the output limit") {
 			return sessionEnd{}, true, &outputLimitError{base: noResultError(r.mode)}
 		}
-		return sessionEnd{compact: seedOutputLimit}, true, nil
+		return compaction(seedOutputLimit, chat, results), true, nil
 	case len(turn.ToolCalls) == 0:
-		end, err := r.finishWithoutCall(ctx, noResultError(r.mode))
+		end, err := r.finishWithoutCall(ctx, chat, noResultError(r.mode))
 		return end, true, err
 	}
 	return sessionEnd{}, false, nil
@@ -689,7 +681,7 @@ func rejectedThing(mode tools.Mode) string {
 	return "saves"
 }
 
-func (r *runner) finishWithoutCall(ctx context.Context, noResult error) (sessionEnd, error) {
+func (r *runner) finishWithoutCall(ctx context.Context, chat llm.Session, noResult error) (sessionEnd, error) {
 	if r.mode == tools.ModeSuggest {
 		return sessionEnd{}, noResult
 	}
@@ -704,7 +696,7 @@ func (r *runner) finishWithoutCall(ctx context.Context, noResult error) (session
 	}
 	if build.Progress().Pending() > 0 && !r.state.pendingNudged {
 		r.state.pendingNudged = true
-		return sessionEnd{reseed: seedPending}, nil
+		return compaction(seedPending, chat, nil), nil
 	}
 	dash, ver, replayed, err := r.agent.builds.CommitBuild(ctx, r.task.Principal, r.requestID, r.task.Attempt)
 	var conflict *dashboards.ConflictError
@@ -792,7 +784,6 @@ func (a *Agent) logFinish(ctx context.Context, mode tools.Mode, requestID string
 		slog.Int("model_calls", out.Usage.Calls),
 		slog.Int("repair_rounds", out.RepairRounds),
 		slog.Int("build_saves", out.BuildSaves),
-		slog.Int("reseeds", out.Reseeds),
 		slog.Int("renewals", out.Renewals),
 		slog.Int("compactions", out.Compactions),
 		slog.Int("nudges", out.Nudges),

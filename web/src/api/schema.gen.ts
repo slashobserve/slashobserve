@@ -2003,11 +2003,9 @@ export interface components {
             max_save_output_tokens: number;
             /** @description Accepted saves into the request's build during the run, counted across every session of the run. */
             build_saves: number;
-            /** @description Times the run ended its model session and started a new one that carried the build because the model answered without a tool call while the build held fewer panels than planned (`pending`). A compaction keeps its session, and a restart after a conflict starts a new session without counting here. */
-            reseeds: number;
             /** @description Compactions made because the session's history passed the renewal size after an accepted save; also counted in `compactions`. */
             renewals: number;
-            /** @description Times the run compacted its session history (on renewal, or on the first cut-off answer). */
+            /** @description Times the run compacted its session history (on renewal, on the first cut-off answer, or when the model answered without a tool call while the build held fewer panels than planned). */
             compactions: number;
             /** @description Steering messages sent one call before the save-now rule refuses reads. */
             nudges: number;

@@ -12,7 +12,7 @@ func TestUsagePinsAreValidatedAgainstTheCounterNames(t *testing.T) {
 		pins string
 		want string
 	}{
-		"every counter":  {"{build_saves: 3, reseeds: 0, renewals: 1, compactions: 1, nudges: 0, retries: 0, save_now_refusals: 1, stalled_turns: 1, one_panel_refusals: 1}", ""},
+		"every counter":  {"{build_saves: 3, renewals: 1, compactions: 1, nudges: 0, retries: 0, save_now_refusals: 1, stalled_turns: 1, one_panel_refusals: 1}", ""},
 		"unknown key":    {"{panels: 3}", `expect.usage key "panels" must be one of`},
 		"negative value": {"{nudges: -1}", "expect.usage.nudges must not be negative"},
 	}
@@ -30,7 +30,7 @@ func TestUsagePinsAreValidatedAgainstTheCounterNames(t *testing.T) {
 }
 
 func TestUsageCheckComparesEveryPinnedCounterExactly(t *testing.T) {
-	usage := &Usage{BuildSaves: 3, Reseeds: 1, Renewals: 2, Compactions: 2, Nudges: 1, Retries: 4, SaveNowRefusals: 1, StalledTurns: 2, OnePanelRefusals: 1}
+	usage := &Usage{BuildSaves: 3, Renewals: 2, Compactions: 2, Nudges: 1, Retries: 4, SaveNowRefusals: 1, StalledTurns: 2, OnePanelRefusals: 1}
 	cases := map[string]struct {
 		pins   map[string]int
 		usage  *Usage
@@ -38,10 +38,10 @@ func TestUsageCheckComparesEveryPinnedCounterExactly(t *testing.T) {
 		detail string
 	}{
 		"all match": {
-			pins:  map[string]int{"build_saves": 3, "reseeds": 1, "renewals": 2, "compactions": 2, "nudges": 1, "retries": 4, "save_now_refusals": 1, "stalled_turns": 2, "one_panel_refusals": 1},
+			pins:  map[string]int{"build_saves": 3, "renewals": 2, "compactions": 2, "nudges": 1, "retries": 4, "save_now_refusals": 1, "stalled_turns": 2, "one_panel_refusals": 1},
 			usage: usage, want: true,
 		},
-		"zero is a real pin": {pins: map[string]int{"reseeds": 0}, usage: usage, detail: "reseeds 1, expected 0"},
+		"zero is a real pin": {pins: map[string]int{"compactions": 0}, usage: usage, detail: "compactions 2, expected 0"},
 		"too low":            {pins: map[string]int{"build_saves": 4}, usage: usage, detail: "build_saves 3, expected 4"},
 		"two wrong ones": {
 			pins: map[string]int{"nudges": 0, "renewals": 1}, usage: usage,

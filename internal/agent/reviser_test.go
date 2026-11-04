@@ -240,13 +240,13 @@ func TestReviserLeavesTheFailureCodeEmptyOnSuccess(t *testing.T) {
 	}
 }
 
-func TestReviserReportsBuildSavesAndNoReseedForACompactionInTheUsage(t *testing.T) {
+func TestReviserReportsBuildSavesForACompactionInTheUsage(t *testing.T) {
 	plan := planOf("r1", "r2")
 	r := newRig(t, session(toolTurn(call("c1", "update_panels", `{"n":1}`)), stopTurn(llm.StopMaxTokens), toolTurn(call("c2", "update_panels", `{"n":2,"finish":true}`))))
 	r.buildSaves(t, r.rows(t, plan, "r1"), saved(4))
 
 	result, err := agent.NewReviser(r.agent, nil).Revise(context.Background(), revisionRequest())
-	if err != nil || result.Version != 4 || result.Usage == nil || result.Usage.BuildSaves != 2 || result.Usage.Reseeds != 0 {
+	if err != nil || result.Version != 4 || result.Usage == nil || result.Usage.BuildSaves != 2 {
 		t.Fatalf("result = %+v (usage %+v), err %v", result, result.Usage, err)
 	}
 }

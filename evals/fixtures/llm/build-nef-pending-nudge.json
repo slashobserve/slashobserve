@@ -89,47 +89,41 @@
     },
     {
       "text": "That is everything."
-    }
-  ],
-  "resumes": {
-    "2": {
-      "turns": [
+    },
+    {
+      "tool_calls": [
         {
-          "tool_calls": [
-            {
-              "name": "update_panels",
-              "input": {
-                "summary": "Add Memory Available",
-                "upsert": [
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Memory Available",
+            "upsert": [
+              {
+                "id": "mem_available",
+                "type": "timeseries",
+                "title": "Memory Available",
+                "gridPos": {
+                  "x": 0,
+                  "y": 0,
+                  "w": 12,
+                  "h": 8
+                },
+                "datasource": "prom",
+                "queries": [
                   {
-                    "id": "mem_available",
-                    "type": "timeseries",
-                    "title": "Memory Available",
-                    "gridPos": {
-                      "x": 0,
-                      "y": 0,
-                      "w": 12,
-                      "h": 8
-                    },
-                    "datasource": "prom",
-                    "queries": [
-                      {
-                        "query": "node_memory_MemAvailable_bytes"
-                      }
-                    ],
-                    "unit": "bytes"
+                    "query": "node_memory_MemAvailable_bytes"
                   }
                 ],
-                "row": {
-                  "id": "row_memory",
-                  "title": "Memory"
-                },
-                "finish": true
+                "unit": "bytes"
               }
-            }
-          ]
+            ],
+            "row": {
+              "id": "row_memory",
+              "title": "Memory"
+            },
+            "finish": true
+          }
         }
       ]
     }
-  }
+  ]
 }

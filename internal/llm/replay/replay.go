@@ -106,19 +106,27 @@ type session struct {
 	next       int
 	previous   []llm.ToolCall
 	faultSpent bool
+	ended      bool
 }
 
-func (s *session) Compact(llm.Compaction) error { return nil }
+func (s *session) Compact(llm.Compaction) error {
+	s.ended = false
+	return nil
+}
 
 func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn, error) {
 	if err := ctx.Err(); err != nil {
 		return llm.Turn{}, err
+	}
+	if s.ended {
+		return llm.Turn{}, fmt.Errorf("replay fixture %s: the previous turn made no tool calls, so the session has ended", s.fixture.File)
 	}
 	index := s.next
 	if err := s.checkResults(ctx, index, results); err != nil {
 		return llm.Turn{}, err
 	}
 	if index >= len(s.turns) {
+		s.ended = true
 		return llm.Turn{Stop: llm.StopEndTurn, Usage: llm.Usage{Calls: 1}}, nil
 	}
 
@@ -146,6 +154,7 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 	s.next = index + 1
 	s.faultSpent = false
 	s.previous = out.ToolCalls
+	s.ended = len(out.ToolCalls) == 0
 	return out, nil
 }
 

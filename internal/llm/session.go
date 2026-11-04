@@ -23,8 +23,8 @@ func CallContext(ctx context.Context, timeout time.Duration) (context.Context, c
 	return context.WithTimeout(ctx, timeout)
 }
 
-func CheckResults(provider string, started bool, pending []string, results []ToolResult) error {
-	if started && len(pending) == 0 {
+func CheckResults(provider string, ended bool, pending []string, results []ToolResult) error {
+	if ended {
 		return fmt.Errorf("%s session: the previous turn made no tool calls, so the session has ended", provider)
 	}
 	if len(results) != len(pending) {

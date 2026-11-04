@@ -13,10 +13,10 @@ import (
 	"github.com/slashobserve/slashobserve/internal/llm"
 )
 
-func TestFixtureRejectsTurnsAfterATurnWithoutToolCalls(t *testing.T) {
-	_, err := parseFixture("f.json", []byte(`{"prompt":"p","turns":[{"text":"done"},{"text":"never reached"}]}`))
-	if err == nil || !strings.Contains(err.Error(), "turn 1: unreachable") {
-		t.Fatalf("expected an unreachable turn error, got %v", err)
+func TestFixtureAllowsTurnsAfterATurnWithoutToolCalls(t *testing.T) {
+	content := `{"prompt":"p","turns":[{"tool_calls":[{"name":"t"}]},{"text":"done"},{"tool_calls":[{"name":"t"}]}]}`
+	if _, err := parseFixture("f.json", []byte(content)); err != nil {
+		t.Fatalf("parseFixture: %v", err)
 	}
 }
 
@@ -71,7 +71,7 @@ func TestFixtureResumeSegmentValidation(t *testing.T) {
 		{"padded key", `{"prompt":"p",` + turns + `,"resumes":{"01":{"turns":[{"text":"a"}]}}}`, `key "01" is not a positive integer`},
 		{"word key", `{"prompt":"p",` + turns + `,"resumes":{"one":{"turns":[{"text":"a"}]}}}`, `key "one" is not a positive integer`},
 		{"empty segment", `{"prompt":"p",` + turns + `,"resumes":{"1":{"turns":[]}}}`, `resumes."1".turns needs at least one turn`},
-		{"unreachable turn in segment", `{"prompt":"p",` + turns + `,"resumes":{"2":{"turns":[{"text":"a"},{"text":"b"}]}}}`, `resumes."2".turns: turn 1: unreachable`},
+		{"turn after a text turn in segment", `{"prompt":"p",` + turns + `,"resumes":{"2":{"turns":[{"text":"a"},{"text":"b"}]}}}`, ""},
 		{"empty turn in segment", `{"prompt":"p",` + turns + `,"resumes":{"1":{"turns":[{}]}}}`, "needs text or tool_calls"},
 		{"unknown segment field", `{"prompt":"p",` + turns + `,"resumes":{"1":{"turns":[{"text":"a"}],"extra":1}}}`, "unknown field"},
 		{"turns stay required", `{"prompt":"p","resumes":{"1":{"turns":[{"text":"a"}]}}}`, "turns needs at least one turn"},

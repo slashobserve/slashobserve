@@ -27,7 +27,6 @@ const (
 
 var usageCounters = map[string]func(*Usage) int{
 	"build_saves":        func(u *Usage) int { return u.BuildSaves },
-	"reseeds":            func(u *Usage) int { return u.Reseeds },
 	"renewals":           func(u *Usage) int { return u.Renewals },
 	"compactions":        func(u *Usage) int { return u.Compactions },
 	"nudges":             func(u *Usage) int { return u.Nudges },

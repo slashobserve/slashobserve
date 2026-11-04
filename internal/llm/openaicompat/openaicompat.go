@@ -101,6 +101,7 @@ type session struct {
 	history  []openai.ChatCompletionMessageParamUnion
 	calls    int
 	pending  []string
+	ended    bool
 
 	buildSaves int
 	pruner     *llm.Pruner
@@ -110,7 +111,7 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 	if err := ctx.Err(); err != nil {
 		return llm.Turn{}, err
 	}
-	if err := llm.CheckResults(name, s.calls > 0, s.pending, results); err != nil {
+	if err := llm.CheckResults(name, s.ended, s.pending, results); err != nil {
 		return llm.Turn{}, err
 	}
 
@@ -147,7 +148,16 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 	s.history = messages
 	s.calls++
 	s.pending = llm.PendingIDs(turn.ToolCalls)
+	s.ended = len(s.pending) == 0
 	return turn, nil
+}
+
+func endsInPlainAnswer(history []openai.ChatCompletionMessageParamUnion) bool {
+	if len(history) == 0 {
+		return false
+	}
+	last := history[len(history)-1].OfAssistant
+	return last != nil && len(last.ToolCalls) == 0
 }
 
 func (s *session) Compact(c llm.Compaction) error {
@@ -156,6 +166,10 @@ func (s *session) Compact(c llm.Compaction) error {
 		lead = 2
 	}
 	rest := s.history[lead:]
+	if endsInPlainAnswer(rest) {
+		rest = rest[:len(rest)-1]
+		s.ended = false
+	}
 	weighed := make([]llm.Weighed, len(rest))
 	for i, m := range rest {
 		weighed[i] = llm.Weighed{Assistant: m.OfAssistant != nil, Bytes: messageBytes(m, c.ResultBytes)}
