@@ -475,11 +475,54 @@ func TestPatchThatOverlapsNamesThePanel(t *testing.T) {
 	if overlap == nil {
 		t.Fatalf("issues = %+v, want a grid_overlap", pe.Issues)
 	}
-	if got := ownerOf(pe, overlap.Path); got != "t" && got != "c" {
-		t.Errorf("owner of %s = %q, want t or c", overlap.Path, got)
+	if got := ownerOf(pe, overlap.Path); got != "t" {
+		t.Errorf("owner of %s = %q, want t", overlap.Path, got)
+	}
+	if want := `panel "t" at x0 y6 w12 h4 overlaps panel "c" at x0 y6 w12 h4`; !strings.Contains(overlap.Message, want) {
+		t.Errorf("message = %q, want it to contain %q", overlap.Message, want)
 	}
 	if pe.PanelIDs["/panels/2"] != "t" || pe.PanelIDs["/panels/1/panels/0"] != "c" || pe.PanelIDs["/panels/0"] != "r1" {
 		t.Errorf("PanelIDs = %v", pe.PanelIDs)
+	}
+}
+
+func TestPatchBlamesTheMovedPanelEvenWhenItComesFirst(t *testing.T) {
+	parent := patchBase(t)
+
+	pe := rejected(t, parent, spec.PanelPatch{Layout: []spec.PanelPlacement{
+		{ID: "a", GridPos: json.RawMessage(`{"x":0,"y":6,"w":12,"h":4}`)},
+	}})
+
+	var paths []string
+	for _, issue := range pe.Issues {
+		if issue.Code == spec.CodeGridOverlap {
+			paths = append(paths, issue.Path)
+		}
+	}
+	if want := []string{"/panels/0/panels/0/gridPos"}; !reflect.DeepEqual(paths, want) {
+		t.Fatalf("overlap paths = %v, want %v", paths, want)
+	}
+	if got := ownerOf(pe, paths[0]); got != "a" {
+		t.Errorf("owner = %q, want a", got)
+	}
+}
+
+func TestPatchBlamesByDocumentOrderWhenBothWereTouched(t *testing.T) {
+	parent := patchBase(t)
+
+	pe := rejected(t, parent, spec.PanelPatch{Layout: []spec.PanelPlacement{
+		{ID: "b", GridPos: json.RawMessage(`{"x":0,"y":20,"w":12,"h":4}`)},
+		{ID: "a", GridPos: json.RawMessage(`{"x":0,"y":20,"w":12,"h":4}`)},
+	}})
+
+	var paths []string
+	for _, issue := range pe.Issues {
+		if issue.Code == spec.CodeGridOverlap {
+			paths = append(paths, issue.Path)
+		}
+	}
+	if want := []string{"/panels/0/panels/1/gridPos"}; !reflect.DeepEqual(paths, want) {
+		t.Fatalf("overlap paths = %v, want %v", paths, want)
 	}
 }
 

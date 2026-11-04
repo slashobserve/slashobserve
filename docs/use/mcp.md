@@ -48,6 +48,7 @@ This call changes only the default range:
 
 `update_panels` runs only the queries it changed, and every query when `time` changes to a different range, as described in [What a save checks](../concepts/agent.md#what-a-save-checks).
 A rejection lists `failing_panels`, so the client resends only those panels.
+An overlap is reported at the panel the patch upserted or moved, with both panels' positions in the message.
 `get_panels` reads the full JSON of up to 20 panels by `ids`, at the latest version or at `version`, together with the variables; ids it did not return are in `missing`, and `truncated` is true when the result was cut to fit.
 It returns at least one panel, and a panel too large to return is listed in `too_large`.
 `list_metrics`, `list_labels`, `list_label_values` and `get_schema` take an `offset` and answer `truncated`, `truncated_by` (`limit` or `bytes`) and `next_offset`, so a client pages through a long list by passing `next_offset` back as `offset`.

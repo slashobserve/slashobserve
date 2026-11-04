@@ -50,6 +50,10 @@ var (
 )
 
 func Parse(data []byte) (*Dashboard, error) {
+	return parse(data, nil)
+}
+
+func parse(data []byte, touched map[string]bool) (*Dashboard, error) {
 	if len(data) > MaxBytes {
 		return nil, newValidationError([]Issue{{
 			Code:    CodeTooLarge,
@@ -72,7 +76,7 @@ func Parse(data []byte) (*Dashboard, error) {
 	if err := dec.Decode(&d); err != nil {
 		return nil, fmt.Errorf("spec: decode validated document: %w", err)
 	}
-	if issues := checkSemantics(&d); len(issues) > 0 {
+	if issues := checkSemantics(&d, touched); len(issues) > 0 {
 		return nil, newValidationError(issues)
 	}
 	return &d, nil

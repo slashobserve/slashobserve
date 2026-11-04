@@ -77,7 +77,7 @@ func ApplyPanelPatch(d *Dashboard, patch PanelPatch) (*Dashboard, error) {
 	if err := enc.Encode(root); err != nil {
 		return nil, err
 	}
-	merged, err := Parse(out.Bytes())
+	merged, err := parse(out.Bytes(), touchedPanels(edits, patch.Layout))
 	if err != nil {
 		var ve *ValidationError
 		if errors.As(err, &ve) {
@@ -86,6 +86,17 @@ func ApplyPanelPatch(d *Dashboard, patch PanelPatch) (*Dashboard, error) {
 		return nil, err
 	}
 	return merged, nil
+}
+
+func touchedPanels(edits []panelEdit, layout []PanelPlacement) map[string]bool {
+	touched := make(map[string]bool, len(edits)+len(layout))
+	for _, e := range edits {
+		touched[e.id] = true
+	}
+	for _, pl := range layout {
+		touched[pl.ID] = true
+	}
+	return touched
 }
 
 func newPatchError(issues []Issue, ids map[string]string) *PatchError {
