@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { isOrphanedPersonal, mayMoveInto, ownPersonalFolder } from "./personal"
+import { isOrphanedPersonal, mayMoveInto } from "./personal"
 import type { Folder } from "./queries"
 
 const me = { kind: "user", id: "u-me", name: "Me" } as const
@@ -26,28 +26,6 @@ function folder(id: string, extra: Partial<Folder> = {}): Folder {
 const mine = folder("mine", { personal: true, created_by: me })
 const orphan = folder("orphan", { personal: true, created_by: other })
 const shared = folder("shared", { created_by: me })
-
-describe("ownPersonalFolder", () => {
-  it("finds the personal folder the principal owns", () => {
-    expect(ownPersonalFolder([shared, mine], "u-me")).toBe(mine)
-  })
-
-  it("does not return a personal folder owned by someone else", () => {
-    expect(ownPersonalFolder([orphan], "u-me")).toBeUndefined()
-  })
-
-  it("ignores shared folders even when the principal created them", () => {
-    expect(ownPersonalFolder([shared], "u-me")).toBeUndefined()
-  })
-
-  it("does not match a service account with the same id", () => {
-    const account = folder("sa", {
-      personal: true,
-      created_by: { kind: "service_account", id: "u-me", name: "Bot" },
-    })
-    expect(ownPersonalFolder([account], "u-me")).toBeUndefined()
-  })
-})
 
 describe("isOrphanedPersonal", () => {
   it("is false for the principal's own personal folder", () => {

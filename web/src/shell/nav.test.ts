@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest"
 
-import { isNavItemActive, myDashboardsActive, visibleNavItems } from "./nav"
+import { isNavItemActive, visibleNavItems } from "./nav"
 
 describe("isNavItemActive", () => {
   test("Observe covers the chat, the importer and requests", () => {
@@ -21,35 +21,6 @@ describe("isNavItemActive", () => {
     for (const item of visibleNavItems("admin")) {
       expect(isNavItemActive(item.to, "/login")).toBe(false)
     }
-  })
-})
-
-describe("myDashboardsActive", () => {
-  const id = "11111111-1111-4111-8111-111111111111"
-
-  test("is active on the Dashboards page filtered to the personal folder", () => {
-    expect(myDashboardsActive("/dashboards", id, id)).toBe(true)
-  })
-
-  test.each([
-    [
-      "another folder",
-      "/dashboards",
-      "22222222-2222-4222-8222-222222222222",
-      id,
-    ],
-    ["no folder filter", "/dashboards", undefined, id],
-    ["a dashboard page", "/dashboards/abc", id, id],
-    ["another page", "/keys", id, id],
-    ["folders not loaded yet", "/dashboards", id, undefined],
-    [
-      "no filter and folders not loaded yet",
-      "/dashboards",
-      undefined,
-      undefined,
-    ],
-  ])("is not active with %s", (_name, pathname, folder, personalId) => {
-    expect(myDashboardsActive(pathname, folder, personalId)).toBe(false)
   })
 })
 

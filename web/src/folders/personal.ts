@@ -4,18 +4,6 @@ import type { Folder } from "./queries"
 
 type Author = components["schemas"]["Author"]
 
-export function ownPersonalFolder(
-  folders: readonly Folder[],
-  principalId: string
-): Folder | undefined {
-  return folders.find(
-    (folder) =>
-      folder.personal &&
-      folder.created_by?.kind === "user" &&
-      folder.created_by.id === principalId
-  )
-}
-
 export function isOrphanedPersonal(
   folder: Pick<Folder, "personal" | "created_by">,
   principalId: string

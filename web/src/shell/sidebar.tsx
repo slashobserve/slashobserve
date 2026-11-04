@@ -1,5 +1,4 @@
 import { useEffect, useId, useRef, useState, type PointerEvent } from "react"
-import { useQuery } from "@tanstack/react-query"
 import {
   Link,
   useLinkProps,
@@ -8,7 +7,6 @@ import {
 } from "@tanstack/react-router"
 import {
   DatabaseIcon,
-  FolderLockIcon,
   KeyIcon,
   LayoutDashboardIcon,
   SettingsIcon,
@@ -24,15 +22,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { foldersQuery } from "@/folders/queries"
-import { ownPersonalFolder } from "@/folders/personal"
-import { validateListSearch } from "@/dashboards/list-filters"
 import { cn } from "@/lib/utils"
 
 import { AccountMenu } from "./account-menu"
 import {
   isNavItemActive,
-  myDashboardsActive,
   visibleNavItems,
   type NavItem,
   type NavPath,
@@ -76,23 +70,17 @@ function HomeLink({ collapsed }: { collapsed: boolean }) {
 }
 
 function NavLink({
-  to,
-  search,
-  label,
-  icon: Icon,
+  item,
   active,
   collapsed,
 }: {
-  to: NavPath
-  search?: { folder: string }
-  label: string
-  icon: LucideIcon
+  item: NavItem
   active: boolean
   collapsed: boolean
 }) {
+  const Icon = icons[item.to]
   const props = {
-    to,
-    search,
+    to: item.to,
     activeOptions: { exact: true },
     "aria-current": active ? ("page" as const) : undefined,
     className: cn(
@@ -104,7 +92,7 @@ function NavLink({
   const content = (
     <>
       <Icon aria-hidden="true" className="size-4 flex-none" strokeWidth={1.8} />
-      <span className={collapsed ? "sr-only" : "truncate"}>{label}</span>
+      <span className={collapsed ? "sr-only" : "truncate"}>{item.label}</span>
     </>
   )
   if (!collapsed) return <Link {...props}>{content}</Link>
@@ -112,7 +100,7 @@ function NavLink({
     <Tooltip>
       <TooltipTrigger render={<Link {...props} />}>{content}</TooltipTrigger>
       <TooltipContent side="right" role="tooltip">
-        {label}
+        {item.label}
       </TooltipContent>
     </Tooltip>
   )
@@ -223,18 +211,11 @@ export function Sidebar() {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
-  const folderFilter = useRouterState({
-    select: (state) => validateListSearch(state.location.search).folder,
-  })
   const [dragWidth, setDragWidth] = useState<number | null>(null)
   const workspaceId = useId()
   const shown = collapsed ? sidebarCollapsedWidth : (dragWidth ?? width)
   const { principal } = useRouteContext({ from: "/_authed" })
   const items = visibleNavItems(principal.role)
-  const personalId = ownPersonalFolder(
-    useQuery(foldersQuery()).data ?? [],
-    principal.id
-  )?.id
   const main = items.filter((item) => item.group === "main")
   const workspace = items.filter((item) => item.group === "workspace")
 
@@ -242,16 +223,8 @@ export function Sidebar() {
     return items.map((item) => (
       <NavLink
         key={item.to}
-        to={item.to}
-        label={item.label}
-        icon={icons[item.to]}
-        active={
-          isNavItemActive(item.to, pathname) &&
-          !(
-            item.to === "/dashboards" &&
-            myDashboardsActive(pathname, folderFilter, personalId)
-          )
-        }
+        item={item}
+        active={isNavItemActive(item.to, pathname)}
         collapsed={collapsed}
       />
     ))
@@ -267,16 +240,6 @@ export function Sidebar() {
       <HomeLink collapsed={collapsed} />
       <div className="-m-[3px] flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-[3px]">
         {renderItems(main)}
-        {personalId === undefined ? null : (
-          <NavLink
-            to="/dashboards"
-            search={{ folder: personalId }}
-            label="My Dashboards"
-            icon={FolderLockIcon}
-            active={myDashboardsActive(pathname, folderFilter, personalId)}
-            collapsed={collapsed}
-          />
-        )}
         {collapsed ? (
           <div
             role="group"

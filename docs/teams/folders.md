@@ -30,8 +30,8 @@ The person has Edit in it whatever their role: they create, edit, import and dup
 A Viewer or Commenter can do all of this there, and nowhere else without a grant.
 An agent run in My Dashboards spends model tokens and queries every configured datasource for that person.
 
-My Dashboards has no list and cannot be renamed, shared or deleted, and it lists first on the Dashboards page.
-In the sidebar, **My Dashboards** opens the Dashboards page filtered to it, and its row there reads "Only you".
+My Dashboards has no list and cannot be renamed, shared or deleted.
+It is the first folder on the Dashboards page, and its row there reads "Only you".
 Its settings page cannot rename, share or delete it, and **Who has access** shows only you.
 A service-account key has no My Dashboards folder.
 When a person's account is deleted, their My Dashboards becomes visible to Admins only, who can move its dashboards out and delete the folder once it is empty.
