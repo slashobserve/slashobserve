@@ -499,7 +499,7 @@ export interface paths {
         head?: never;
         /**
          * Move a dashboard to another folder.
-         * @description Needs Edit on the dashboard and on the target folder. A move creates no version, does not change `updated_at` and sends no event.
+         * @description Needs Edit on the dashboard and on the target folder. A personal folder (My Dashboards) takes only dashboards the caller created; any other answers 403 `not_dashboard_creator`. Moving out of a personal folder follows the same Edit rule as any folder. A move creates no version, does not change `updated_at` and sends no event.
          */
         patch: operations["moveDashboard"];
         trace?: never;
@@ -1450,6 +1450,8 @@ export interface components {
             title: string;
             /** @description True for the General folder, which holds dashboards without a folder of their own and is never restricted, renamed or deleted. */
             general: boolean;
+            /** @description True for a person's own My Dashboards folder, which only they see (Admins see one only after its owner's account is deleted), is never restricted, renamed or shared, and lists first. */
+            personal: boolean;
             /** @description True when the folder lists people or groups; false means open to everyone by instance role. */
             restricted: boolean;
             /** @description All dashboards in the folder, including ones the caller cannot see when the caller manages it. */
@@ -1458,10 +1460,10 @@ export interface components {
             grantees: string[];
             /** @description How many people and groups are listed. */
             grantee_count: number;
-            /** @description Null for General and for folders made before creators were recorded. */
+            /** @description Null for General and for folders made before creators were recorded. For a personal folder, its owner. */
             created_by: components["schemas"]["Author"] | null;
             permissions: components["schemas"]["Permissions"];
-            /** @description The caller's level on this folder and on every dashboard in it, the higher of what their role gives and their highest matching entry. Admins always have `admin`. */
+            /** @description The caller's level on this folder and on every dashboard in it, the higher of what their role gives and their highest matching entry. Admins have `admin` on every folder except other people's personal folders, and a personal folder's owner has `edit`. */
             level: components["schemas"]["FolderLevel"];
         };
         FolderPermissionEntry: {
@@ -1597,6 +1599,8 @@ export interface components {
             title: string;
             /** @description True for the General folder. */
             general: boolean;
+            /** @description True when the dashboard is in a personal folder. */
+            personal: boolean;
         };
         DashboardSummary: {
             /** Format: uuid */
@@ -3249,7 +3253,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description A folder with that title already exists (`folder_exists`), ignoring case. */
+            /** @description A folder with that title already exists (`folder_exists`), ignoring case, or the title is `My Dashboards`, which every person's personal folder uses. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3354,7 +3358,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Another folder has that title (`folder_exists`), or the folder is General (`general_folder`). */
+            /** @description Another folder has that title (`folder_exists`), or the folder is General (`general_folder`) or personal (`personal_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3430,7 +3434,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The folder is General (`general_folder`). */
+            /** @description The folder is General (`general_folder`) or personal (`personal_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3519,7 +3523,7 @@ export interface operations {
                     summary?: string;
                     /**
                      * Format: uuid
-                     * @description The folder to create the dashboard in. Missing means the caller's last used folder they can still create in, else General. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
+                     * @description The folder to create the dashboard in. Missing means the caller's last used folder they can still create in, else General, else their My Dashboards. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
                      */
                     folder_id?: string;
                 };
@@ -3837,7 +3841,7 @@ export interface operations {
                     title: string;
                     /**
                      * Format: uuid
-                     * @description The folder to create the dashboard in. Missing means the caller's last used folder they can still create in, else General. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
+                     * @description The folder to create the dashboard in. Missing means the caller's last used folder they can still create in, else General, else their My Dashboards. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
                      */
                     folder_id?: string;
                 };

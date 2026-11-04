@@ -18,6 +18,7 @@ function folder(id: string, title: string, extra: Partial<Folder> = {}) {
     id,
     title,
     general: false,
+    personal: false,
     restricted: false,
     dashboard_count: 0,
     grantees: [],

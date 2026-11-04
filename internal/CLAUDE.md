@@ -54,13 +54,19 @@ This lists only the packages whose purpose the name does not make obvious.
   Stored rows are never rewritten when a role changes.
 - Every dashboard lives in exactly one folder.
   `dashboards.folder_id` defaults to General through `general_folder_id()`, so raw inserts land there.
-- A folder with no permission rows is open, and each person gets the level of their role.
+- A shared folder with no permission rows is open, and each person gets the level of their role.
   A folder with rows is restricted and invisible to anyone with no row (by user or by `groups` name) who did not create it.
   A hidden folder hides its dashboards everywhere.
 - A grant lifts a Viewer or Commenter and never lowers anyone: the level is the higher of the role's level and the highest grant, so an Editor with a View grant still edits.
 - Service accounts match no grant, because rows hold users and groups.
   A key sees a restricted folder only as an Admin or as its creator (`created_by_kind`, `created_by_id`).
 - General is never restricted, renamed or deleted.
+- Every person has one personal folder (`folders.personal`, `owner_id`), made by the `users_personal_folder` trigger and backfilled by its migration; `LevelFor` reads it first: the owner has Edit whatever their role, nobody else sees it (Admins included), and an orphan (owner deleted, `owner_id` null) is Admin-only.
+  It has no permission rows, is never renamed or shared, and service accounts have none.
+- `folders.MayMoveInto` is the one rule for moves into a personal folder: only the dashboard's creator moves it in (Edit on both folders still applies), `dashboards.Service.move` is its only caller, and `ErrNotCreator` maps to `403 not_dashboard_creator`.
+  Moving out follows the normal rule.
+- `pickCreationFolder` is the one default folder: requested, else last used, else General, else the caller's personal folder, else the first creatable.
+- Folders sort by `(NOT personal, general, lower(title), id)` in `FolderFacts`, `ListFolderDetails`, `ListDashboardsByFolder` and `folderCursor`; change them together.
 - A dashboard in a folder the caller cannot see answers 403 `forbidden_role` with `forbidden.AccessMessage`, and a visible one with too low a level answers 403 with `forbidden.RoleMessage`.
   An invisible folder answers 404 `not_found`, and tools answer `not_found` for both.
 - Every HTTP route keyed by a dashboard id declares `RequireDashboard`.

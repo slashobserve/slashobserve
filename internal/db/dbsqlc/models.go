@@ -125,6 +125,8 @@ type Folder struct {
 	CreatedByName pgtype.Text
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
+	Personal      bool
+	OwnerID       pgtype.UUID
 }
 
 type FolderPermission struct {

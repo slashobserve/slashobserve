@@ -31,7 +31,7 @@ RETURNING *;
 SELECT latest_version FROM dashboards WHERE id = $1;
 
 -- name: GetDashboard :one
-SELECT sqlc.embed(d), sqlc.embed(v), f.title AS folder_title, f.general AS folder_general
+SELECT sqlc.embed(d), sqlc.embed(v), f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 JOIN folders f ON f.id = d.folder_id
@@ -41,7 +41,7 @@ WHERE d.id = $1;
 SELECT sqlc.embed(d), sqlc.embed(v),
   lv.author_kind AS updated_by_kind, lv.author_id AS updated_by_id,
   lv.author_name AS updated_by_name, lv.author_email AS updated_by_email,
-  f.title AS folder_title, f.general AS folder_general
+  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal
 FROM dashboards d
 JOIN folders f ON f.id = d.folder_id
 JOIN dashboard_versions lv ON lv.dashboard_id = d.id AND lv.version = d.latest_version
@@ -62,7 +62,7 @@ SELECT sqlc.embed(d),
   coalesce(v.spec ->> 'description', '')::text AS description,
   (SELECT count(*) FROM dashboard_comments c
     WHERE c.dashboard_id = d.id AND c.parent_id IS NULL AND c.status = 'open') AS open_comment_count,
-  f.title AS folder_title, f.general AS folder_general, lower(f.title)::text AS folder_sort_title
+  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 JOIN folders f ON f.id = d.folder_id
@@ -91,13 +91,13 @@ SELECT sqlc.embed(d),
   coalesce(v.spec ->> 'description', '')::text AS description,
   (SELECT count(*) FROM dashboard_comments c
     WHERE c.dashboard_id = d.id AND c.parent_id IS NULL AND c.status = 'open') AS open_comment_count,
-  f.title AS folder_title, f.general AS folder_general, lower(f.title)::text AS folder_sort_title
+  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 JOIN folders f ON f.id = d.folder_id
 WHERE (sqlc.narg('c_folder')::uuid IS NULL
-    OR (f.general, lower(f.title), f.id) > (sqlc.narg('c_general')::boolean, sqlc.narg('c_title')::text, sqlc.narg('c_folder')::uuid)
-    OR ((f.general, lower(f.title), f.id) = (sqlc.narg('c_general')::boolean, sqlc.narg('c_title')::text, sqlc.narg('c_folder')::uuid)
+    OR (NOT f.personal, f.general, lower(f.title), f.id) > (NOT sqlc.narg('c_personal')::boolean, sqlc.narg('c_general')::boolean, sqlc.narg('c_title')::text, sqlc.narg('c_folder')::uuid)
+    OR ((NOT f.personal, f.general, lower(f.title), f.id) = (NOT sqlc.narg('c_personal')::boolean, sqlc.narg('c_general')::boolean, sqlc.narg('c_title')::text, sqlc.narg('c_folder')::uuid)
       AND (d.updated_at, d.id) < (sqlc.narg('c_updated_at')::timestamptz, sqlc.narg('c_id')::uuid)))
   AND d.folder_id = ANY(@folders::uuid[])
   AND (sqlc.narg('folder')::uuid IS NULL OR d.folder_id = sqlc.narg('folder')::uuid)
@@ -111,7 +111,7 @@ WHERE (sqlc.narg('c_folder')::uuid IS NULL
   AND (sqlc.narg('q')::text IS NULL
     OR strpos(lower(d.title), lower(sqlc.narg('q')::text)) > 0
     OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower(sqlc.narg('q')::text)) > 0)
-ORDER BY f.general, lower(f.title), f.id, d.updated_at DESC, d.id DESC
+ORDER BY NOT f.personal, f.general, lower(f.title), f.id, d.updated_at DESC, d.id DESC
 LIMIT @row_limit OFFSET @row_offset;
 
 -- name: CountDashboards :one

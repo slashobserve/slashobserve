@@ -27,7 +27,7 @@ func (a *Access) CreationFolder(ctx context.Context, p auth.Principal, requested
 			return Folder{}, err
 		}
 	}
-	id, err := pickCreationFolder(levels.entries, lastUsed, requested)
+	id, err := pickCreationFolder(levels.entries, levels.personal, lastUsed, requested)
 	if err != nil {
 		return Folder{}, err
 	}
@@ -35,7 +35,10 @@ func (a *Access) CreationFolder(ctx context.Context, p auth.Principal, requested
 	return e.Folder, nil
 }
 
-func pickCreationFolder(levels []folderLevel, lastUsed, requested pgtype.UUID) (pgtype.UUID, error) {
+func pickCreationFolder(levels []folderLevel, personal, lastUsed, requested pgtype.UUID) (pgtype.UUID, error) {
+	if requested.Valid {
+		return requestedCreationFolder(levels, requested)
+	}
 	canCreate := func(id pgtype.UUID) bool {
 		for _, e := range levels {
 			if e.Folder.ID == id {
@@ -43,18 +46,6 @@ func pickCreationFolder(levels []folderLevel, lastUsed, requested pgtype.UUID) (
 			}
 		}
 		return false
-	}
-	if requested.Valid {
-		for _, e := range levels {
-			if e.Folder.ID != requested {
-				continue
-			}
-			if !e.Abilities.Create {
-				return pgtype.UUID{}, ErrForbidden
-			}
-			return requested, nil
-		}
-		return pgtype.UUID{}, ErrNotFound
 	}
 	if lastUsed.Valid && canCreate(lastUsed) {
 		return lastUsed, nil
@@ -64,10 +55,26 @@ func pickCreationFolder(levels []folderLevel, lastUsed, requested pgtype.UUID) (
 			return e.Folder.ID, nil
 		}
 	}
+	if personal.Valid && canCreate(personal) {
+		return personal, nil
+	}
 	for _, e := range levels {
 		if e.Abilities.Create {
 			return e.Folder.ID, nil
 		}
 	}
 	return pgtype.UUID{}, ErrForbidden
+}
+
+func requestedCreationFolder(levels []folderLevel, requested pgtype.UUID) (pgtype.UUID, error) {
+	for _, e := range levels {
+		if e.Folder.ID != requested {
+			continue
+		}
+		if !e.Abilities.Create {
+			return pgtype.UUID{}, ErrForbidden
+		}
+		return requested, nil
+	}
+	return pgtype.UUID{}, ErrNotFound
 }

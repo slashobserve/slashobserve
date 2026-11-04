@@ -8,6 +8,7 @@ function folder(create: boolean): Folder {
     id: "f",
     title: "Payments",
     general: false,
+    personal: false,
     restricted: false,
     dashboard_count: 0,
     grantees: [],

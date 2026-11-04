@@ -24,7 +24,7 @@ dashboards:
                 format: uuid
                 description: >-
                   The folder to create the dashboard in.
-                  Missing means the caller's last used folder they can still create in, else General.
+                  Missing means the caller's last used folder they can still create in, else General, else their My Dashboards.
                   404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
     responses:
       "201":
@@ -221,6 +221,8 @@ dashboards-id:
     summary: Move a dashboard to another folder.
     description: >-
       Needs Edit on the dashboard and on the target folder.
+      A personal folder (My Dashboards) takes only dashboards the caller created; any other answers 403 `not_dashboard_creator`.
+      Moving out of a personal folder follows the same Edit rule as any folder.
       A move creates no version, does not change `updated_at` and sends no event.
     requestBody:
       required: true
@@ -534,7 +536,7 @@ dashboards-id-duplicate:
                 format: uuid
                 description: >-
                   The folder to create the dashboard in.
-                  Missing means the caller's last used folder they can still create in, else General.
+                  Missing means the caller's last used folder they can still create in, else General, else their My Dashboards.
                   404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
     responses:
       "201":

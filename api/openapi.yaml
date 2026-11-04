@@ -501,7 +501,7 @@ components:
     Folder:
       type: object
       additionalProperties: false
-      required: [id, title, general, restricted, dashboard_count, grantees, grantee_count, created_by, permissions, level]
+      required: [id, title, general, personal, restricted, dashboard_count, grantees, grantee_count, created_by, permissions, level]
       properties:
         id:
           type: string
@@ -513,6 +513,9 @@ components:
         general:
           type: boolean
           description: True for the General folder, which holds dashboards without a folder of their own and is never restricted, renamed or deleted.
+        personal:
+          type: boolean
+          description: True for a person's own My Dashboards folder, which only they see (Admins see one only after its owner's account is deleted), is never restricted, renamed or shared, and lists first.
         restricted:
           type: boolean
           description: True when the folder lists people or groups; false means open to everyone by instance role.
@@ -530,13 +533,13 @@ components:
           description: How many people and groups are listed.
         created_by:
           nullable: true
-          description: Null for General and for folders made before creators were recorded.
+          description: Null for General and for folders made before creators were recorded. For a personal folder, its owner.
           allOf:
             - $ref: "#/components/schemas/Author"
         permissions:
           $ref: "#/components/schemas/Permissions"
         level:
-          description: The caller's level on this folder and on every dashboard in it, the higher of what their role gives and their highest matching entry. Admins always have `admin`.
+          description: The caller's level on this folder and on every dashboard in it, the higher of what their role gives and their highest matching entry. Admins have `admin` on every folder except other people's personal folders, and a personal folder's owner has `edit`.
           allOf:
             - $ref: "#/components/schemas/FolderLevel"
     FolderPermissionEntry:
@@ -785,7 +788,7 @@ components:
     DashboardFolder:
       type: object
       additionalProperties: false
-      required: [id, title, general]
+      required: [id, title, general, personal]
       properties:
         id:
           type: string
@@ -795,6 +798,9 @@ components:
         general:
           type: boolean
           description: True for the General folder.
+        personal:
+          type: boolean
+          description: True when the dashboard is in a personal folder.
     DashboardSummary:
       type: object
       additionalProperties: false

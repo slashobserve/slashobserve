@@ -43,6 +43,7 @@ function folder(createdBy: Folder["created_by"]): Folder {
     id: "f-1",
     title: "Checkout",
     general: false,
+    personal: false,
     restricted: true,
     dashboard_count: 3,
     grantees: [],

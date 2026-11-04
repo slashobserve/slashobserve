@@ -5,14 +5,17 @@ description: The four instance roles and how a person's role is decided.
 
 Every person and every service account has one of four instance roles, from the most to the least permitted: Admin, Editor, Commenter and Viewer.
 
-| Role      | May                                                                                                                                                                                 |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Admin     | Everything an Editor may, in every folder, plus the People and Datasources pages (change roles, sign people out), service accounts and keys, and the outbound allowlist.            |
-| Editor    | Create, edit, import, duplicate, restore and delete dashboards, run canvas actions, create folders, chat and send requests to the agent, comment, and keep their own saved prompts. |
-| Commenter | View dashboards and versions, and add comments. The role alone does not create, import or edit dashboards or send requests to the agent.                                            |
-| Viewer    | View dashboards and versions only.                                                                                                                                                  |
+| Role      | May                                                                                                                                                                                                          |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Admin     | Everything an Editor may, in every folder except other people's My Dashboards, plus the People and Datasources pages (change roles, sign people out), service accounts and keys, and the outbound allowlist. |
+| Editor    | Create, edit, import, duplicate, restore and delete dashboards, run canvas actions, create folders, chat and send requests to the agent, comment, and keep their own saved prompts.                          |
+| Commenter | View dashboards and versions, and add comments. The role alone creates and edits dashboards and sends requests to the agent only in their own My Dashboards.                                                 |
+| Viewer    | View dashboards and versions only. The role alone creates and edits dashboards and sends requests to the agent only in their own My Dashboards.                                                              |
 
 A restricted folder's list can give a person more than their role on that folder, and never less: Edit lets them change, create and start dashboards there, and Admin lets them manage the folder (see [Folders and access](folders.md)).
+Every person also has a private My Dashboards folder where they always have Edit, so a Viewer or Commenter can ask the agent for dashboards there.
+Those runs spend model tokens and let the agent query every configured datasource for them.
+Saving a stopped build with "Save what was built" still needs the Editor role.
 A key is never on a list, so a key has what its role gives.
 Creating folders, managing saved prompts and the Admin pages follow the role only.
 A request the role does not allow is refused with `403` and the code `forbidden_role`.

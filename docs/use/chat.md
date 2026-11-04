@@ -134,7 +134,7 @@ Open it to see every step.
 The result card shows the title, "N panels from `<datasources>`" and the footer "Saved as version 1".
 Choose **Open dashboard** to go to it.
 
-The dashboard lands in the folder you last created a dashboard in, or General when you have not created one; see [Folders](../teams/folders.md).
+The dashboard lands in the folder you last created a dashboard in, else General, else your My Dashboards; see [Folders](../teams/folders.md).
 A failed request shows "The dashboard could not be built" (or "The dashboard could not be updated" for a follow-up) with the reason the server stored, and **Try again** starts a new request with the same prompt.
 When the request already has a dashboard, an **Open dashboard** button is shown next to it.
 Every request has an id, shown as "Request" and its first eight characters at the bottom of the conversation, which you can quote when reporting a problem.

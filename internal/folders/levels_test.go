@@ -27,6 +27,10 @@ func TestLevelFor(t *testing.T) {
 		{"creator of an unrestricted folder", Facts{Creator: true}, want{LevelView, LevelComment, LevelAdmin, LevelAdmin}},
 		{"creator with a view row", Facts{Restricted: true, Creator: true, Grants: []Level{LevelView}}, want{LevelView, LevelComment, LevelAdmin, LevelAdmin}},
 		{"creator with an edit row", Facts{Restricted: true, Creator: true, Grants: []Level{LevelEdit}}, want{LevelEdit, LevelEdit, LevelAdmin, LevelAdmin}},
+		{"owner of a personal folder", Facts{Personal: true, Owner: true}, want{LevelEdit, LevelEdit, LevelEdit, LevelEdit}},
+		{"someone else's personal folder", Facts{Personal: true}, want{LevelNone, LevelNone, LevelNone, LevelNone}},
+		{"someone else's personal folder, creator and granted", Facts{Personal: true, Creator: true, Restricted: true, Grants: []Level{LevelAdmin}}, want{LevelNone, LevelNone, LevelNone, LevelNone}},
+		{"orphaned personal folder", Facts{Personal: true, Orphaned: true}, want{LevelNone, LevelNone, LevelNone, LevelAdmin}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -46,7 +50,7 @@ func TestLevelFor(t *testing.T) {
 }
 
 func TestLevelForRefusesAnUnknownRole(t *testing.T) {
-	facts := []Facts{{Creator: true}, {Restricted: true, Grants: []Level{LevelEdit}}}
+	facts := []Facts{{Creator: true}, {Restricted: true, Grants: []Level{LevelEdit}}, {Personal: true, Owner: true}, {Personal: true, Orphaned: true}}
 	for _, role := range []auth.Role{"", "owner"} {
 		for _, f := range facts {
 			if got := LevelFor(role, f); got != LevelNone {
@@ -189,5 +193,27 @@ func TestParseLevel(t *testing.T) {
 		if ok && got.String() != tc.in {
 			t.Errorf("String() of ParseLevel(%q) = %q", tc.in, got.String())
 		}
+	}
+}
+
+func TestMayMoveInto(t *testing.T) {
+	cases := []struct {
+		name         string
+		target       Folder
+		moverCreated bool
+		want         bool
+	}{
+		{"a shared folder takes anyone's dashboard", Folder{Title: "Checkout"}, false, true},
+		{"a shared folder takes the creator's dashboard", Folder{Title: "Checkout"}, true, true},
+		{"General takes anyone's dashboard", Folder{Title: "General", General: true}, false, true},
+		{"a personal folder refuses a dashboard the mover did not create", Folder{Title: "My Dashboards", Personal: true}, false, false},
+		{"a personal folder takes the creator's dashboard", Folder{Title: "My Dashboards", Personal: true}, true, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := MayMoveInto(tc.target, tc.moverCreated); got != tc.want {
+				t.Errorf("MayMoveInto = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }

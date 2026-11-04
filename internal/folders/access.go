@@ -17,12 +17,15 @@ var (
 	ErrNotFound  = errors.New("not found")
 	ErrNoAccess  = errors.New("no access")
 	ErrForbidden = errors.New("forbidden")
+
+	ErrNotCreator = errors.New("only dashboards you created can move into My Dashboards")
 )
 
 type Folder struct {
 	ID         pgtype.UUID
 	Title      string
 	General    bool
+	Personal   bool
 	Restricted bool
 }
 
@@ -32,7 +35,13 @@ type folderLevel struct {
 }
 
 type Levels struct {
-	entries []folderLevel
+	entries  []folderLevel
+	personal pgtype.UUID
+}
+
+func (l Levels) Personal() (Folder, bool) {
+	e, ok := l.find(l.personal)
+	return e.Folder, ok
 }
 
 func (l Levels) find(id pgtype.UUID) (folderLevel, bool) {
@@ -114,8 +123,9 @@ func (a *Access) Levels(ctx context.Context, p auth.Principal) (Levels, error) {
 		return Levels{}, err
 	}
 	entries := make([]folderLevel, 0, len(rows))
+	var personal pgtype.UUID
 	for _, r := range rows {
-		facts := Facts{Restricted: r.Restricted, Creator: r.Creator}
+		facts := Facts{Restricted: r.Restricted, Creator: r.Creator, Personal: r.Personal, Owner: r.Owner, Orphaned: r.Orphaned}
 		for _, g := range r.Grants {
 			if level, ok := ParseLevel(g); ok {
 				facts.Grants = append(facts.Grants, level)
@@ -125,12 +135,15 @@ func (a *Access) Levels(ctx context.Context, p auth.Principal) (Levels, error) {
 		if level < LevelView {
 			continue
 		}
+		if r.Owner {
+			personal = r.ID
+		}
 		entries = append(entries, folderLevel{
-			Folder:    Folder{ID: r.ID, Title: r.Title, General: r.General, Restricted: r.Restricted},
+			Folder:    Folder{ID: r.ID, Title: r.Title, General: r.General, Personal: r.Personal, Restricted: r.Restricted},
 			Abilities: AbilitiesFor(level),
 		})
 	}
-	return Levels{entries: entries}, nil
+	return Levels{entries: entries, personal: personal}, nil
 }
 
 func (a *Access) Dashboard(ctx context.Context, p auth.Principal, id pgtype.UUID) (DashboardAccess, error) {

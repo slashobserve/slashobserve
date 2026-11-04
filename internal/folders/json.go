@@ -23,6 +23,7 @@ type folderJSON struct {
 	ID             string       `json:"id"`
 	Title          string       `json:"title"`
 	General        bool         `json:"general"`
+	Personal       bool         `json:"personal"`
 	Restricted     bool         `json:"restricted"`
 	DashboardCount int          `json:"dashboard_count"`
 	Grantees       []string     `json:"grantees"`
@@ -37,6 +38,7 @@ func folderBody(f Folder, a Abilities, d dbsqlc.ListFolderDetailsRow) folderJSON
 		ID:             f.ID.String(),
 		Title:          f.Title,
 		General:        f.General,
+		Personal:       f.Personal,
 		Restricted:     f.Restricted,
 		DashboardCount: int(d.DashboardCount),
 		Grantees:       d.Grantees,

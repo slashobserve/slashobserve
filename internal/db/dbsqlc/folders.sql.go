@@ -25,7 +25,7 @@ func (q *Queries) CountFolderDashboards(ctx context.Context, id pgtype.UUID) (in
 const createFolder = `-- name: CreateFolder :one
 INSERT INTO folders (title, created_by_kind, created_by_id, created_by_name)
 VALUES ($1, $2, $3, $4)
-RETURNING id, title, general, created_by_kind, created_by_id, created_by_name, created_at, updated_at
+RETURNING id, title, general, created_by_kind, created_by_id, created_by_name, created_at, updated_at, personal, owner_id
 `
 
 type CreateFolderParams struct {
@@ -52,6 +52,8 @@ func (q *Queries) CreateFolder(ctx context.Context, arg CreateFolderParams) (Fol
 		&i.CreatedByName,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Personal,
+		&i.OwnerID,
 	)
 	return i, err
 }
@@ -90,7 +92,7 @@ func (q *Queries) DeleteFolderPermissions(ctx context.Context, folderID pgtype.U
 }
 
 const folderByTitle = `-- name: FolderByTitle :one
-SELECT id FROM folders WHERE lower(title) = lower($1)
+SELECT id FROM folders WHERE lower(title) = lower($1) AND NOT personal
 `
 
 func (q *Queries) FolderByTitle(ctx context.Context, title string) (pgtype.UUID, error) {
@@ -101,7 +103,9 @@ func (q *Queries) FolderByTitle(ctx context.Context, title string) (pgtype.UUID,
 }
 
 const folderFacts = `-- name: FolderFacts :many
-SELECT f.id, f.title, f.general,
+SELECT f.id, f.title, f.general, f.personal,
+  coalesce(f.owner_id = $1::uuid, false)::boolean AS owner,
+  (f.personal AND f.owner_id IS NULL)::boolean AS orphaned,
   EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id) AS restricted,
   ARRAY(
     SELECT p.level FROM folder_permissions p
@@ -109,7 +113,8 @@ SELECT f.id, f.title, f.general,
   )::text[] AS grants,
   coalesce(f.created_by_kind = $3::text AND f.created_by_id = $4::uuid, false)::boolean AS creator
 FROM folders f
-ORDER BY f.general, lower(f.title), f.id
+WHERE NOT f.personal OR f.owner_id IS NULL OR f.owner_id = $1::uuid
+ORDER BY NOT f.personal, f.general, lower(f.title), f.id
 `
 
 type FolderFactsParams struct {
@@ -123,6 +128,9 @@ type FolderFactsRow struct {
 	ID         pgtype.UUID
 	Title      string
 	General    bool
+	Personal   bool
+	Owner      bool
+	Orphaned   bool
 	Restricted bool
 	Grants     []string
 	Creator    bool
@@ -146,6 +154,9 @@ func (q *Queries) FolderFacts(ctx context.Context, arg FolderFactsParams) ([]Fol
 			&i.ID,
 			&i.Title,
 			&i.General,
+			&i.Personal,
+			&i.Owner,
+			&i.Orphaned,
 			&i.Restricted,
 			&i.Grants,
 			&i.Creator,
@@ -161,7 +172,7 @@ func (q *Queries) FolderFacts(ctx context.Context, arg FolderFactsParams) ([]Fol
 }
 
 const getFolder = `-- name: GetFolder :one
-SELECT id, title, general, created_by_kind, created_by_id, created_by_name, created_at, updated_at FROM folders WHERE id = $1
+SELECT id, title, general, created_by_kind, created_by_id, created_by_name, created_at, updated_at, personal, owner_id FROM folders WHERE id = $1
 `
 
 func (q *Queries) GetFolder(ctx context.Context, id pgtype.UUID) (Folder, error) {
@@ -176,6 +187,8 @@ func (q *Queries) GetFolder(ctx context.Context, id pgtype.UUID) (Folder, error)
 		&i.CreatedByName,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Personal,
+		&i.OwnerID,
 	)
 	return i, err
 }
@@ -241,7 +254,7 @@ SELECT f.id, f.title, f.general, f.created_by_kind, f.created_by_id, f.created_b
   )::text[] AS grantees
 FROM folders f
 WHERE f.id = ANY($1::uuid[])
-ORDER BY f.general, lower(f.title), f.id
+ORDER BY NOT f.personal, f.general, lower(f.title), f.id
 `
 
 type ListFolderDetailsRow struct {
@@ -339,7 +352,7 @@ func (q *Queries) ListFolderPermissions(ctx context.Context, folderID pgtype.UUI
 }
 
 const lockFolder = `-- name: LockFolder :one
-SELECT id, title, general, created_by_kind, created_by_id, created_by_name, created_at, updated_at FROM folders WHERE id = $1 FOR UPDATE
+SELECT id, title, general, created_by_kind, created_by_id, created_by_name, created_at, updated_at, personal, owner_id FROM folders WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockFolder(ctx context.Context, id pgtype.UUID) (Folder, error) {
@@ -354,14 +367,16 @@ func (q *Queries) LockFolder(ctx context.Context, id pgtype.UUID) (Folder, error
 		&i.CreatedByName,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Personal,
+		&i.OwnerID,
 	)
 	return i, err
 }
 
 const renameFolder = `-- name: RenameFolder :one
 UPDATE folders SET title = $1, updated_at = now()
-WHERE id = $2 AND NOT general
-RETURNING id, title, general, created_by_kind, created_by_id, created_by_name, created_at, updated_at
+WHERE id = $2 AND NOT general AND NOT personal
+RETURNING id, title, general, created_by_kind, created_by_id, created_by_name, created_at, updated_at, personal, owner_id
 `
 
 type RenameFolderParams struct {
@@ -381,6 +396,8 @@ func (q *Queries) RenameFolder(ctx context.Context, arg RenameFolderParams) (Fol
 		&i.CreatedByName,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Personal,
+		&i.OwnerID,
 	)
 	return i, err
 }

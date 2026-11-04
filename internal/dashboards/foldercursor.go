@@ -11,6 +11,7 @@ import (
 )
 
 type folderCursor struct {
+	Personal  bool
 	General   bool
 	Title     string
 	FolderID  pgtype.UUID
@@ -19,6 +20,7 @@ type folderCursor struct {
 }
 
 type folderCursorWire struct {
+	Personal  *bool   `json:"p"`
 	General   *bool   `json:"g"`
 	Title     *string `json:"t"`
 	FolderID  *string `json:"f"`
@@ -26,10 +28,10 @@ type folderCursorWire struct {
 	ID        *string `json:"i"`
 }
 
-func encodeFolderCursor(general bool, title string, folderID pgtype.UUID, updatedAt time.Time, id string) string {
+func encodeFolderCursor(personal, general bool, title string, folderID pgtype.UUID, updatedAt time.Time, id string) string {
 	micros := updatedAt.UnixMicro()
 	folder := folderID.String()
-	raw, _ := json.Marshal(folderCursorWire{General: &general, Title: &title, FolderID: &folder, UpdatedAt: &micros, ID: &id})
+	raw, _ := json.Marshal(folderCursorWire{Personal: &personal, General: &general, Title: &title, FolderID: &folder, UpdatedAt: &micros, ID: &id})
 	return base64.RawURLEncoding.EncodeToString(raw)
 }
 
@@ -42,7 +44,7 @@ func decodeFolderCursor(cursor string) (folderCursor, error) {
 	if err := json.Unmarshal(raw, &wire); err != nil {
 		return folderCursor{}, ErrInvalidCursor
 	}
-	if wire.General == nil || wire.Title == nil || wire.FolderID == nil || wire.UpdatedAt == nil || wire.ID == nil {
+	if wire.Personal == nil || wire.General == nil || wire.Title == nil || wire.FolderID == nil || wire.UpdatedAt == nil || wire.ID == nil {
 		return folderCursor{}, ErrInvalidCursor
 	}
 	folderID, err := db.ParseUUID(*wire.FolderID)
@@ -53,5 +55,5 @@ func decodeFolderCursor(cursor string) (folderCursor, error) {
 	if err != nil {
 		return folderCursor{}, ErrInvalidCursor
 	}
-	return folderCursor{General: *wire.General, Title: *wire.Title, FolderID: folderID, UpdatedAt: time.UnixMicro(*wire.UpdatedAt).UTC(), ID: id}, nil
+	return folderCursor{Personal: *wire.Personal, General: *wire.General, Title: *wire.Title, FolderID: folderID, UpdatedAt: time.UnixMicro(*wire.UpdatedAt).UTC(), ID: id}, nil
 }

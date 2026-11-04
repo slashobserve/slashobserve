@@ -10,11 +10,13 @@ description: What SlashObserve protects and what an operator should know.
 - **Roles.**
   Every person and service account has an instance role (see [Roles](../teams/roles.md)), and the server checks it on every API route.
   Only Admins see everyone who has signed in, sign people out, manage service accounts and keys, open the Datasources page, or change the outbound allowlist (unless `SLASHOBSERVE_OUTBOUND_DOMAINS` locks it).
+  Every person, Viewers included, can ask the agent for dashboards in their My Dashboards, which spends model tokens and lets the agent query every configured datasource for them.
   New people are Editors by default, so allow into SlashObserve only the people you would trust to create and change dashboards.
 - **Folders hide dashboards.**
   A restricted folder (see [Folders and access](../teams/folders.md)) is hidden from everyone who is not on its list, did not create it and is not an Admin, in lists, search, tags, datasource dashboard counts, panel data, comments, events, import records and the agent.
   The server filters lists by the folders the caller can see, so a failed lookup shows nothing rather than everything, and re-checks access on each request, including at every ping of an event stream.
   A key matches no folder entry, so only an Admin key reaches a restricted folder.
+  A My Dashboards folder is hidden from everyone but its owner, Admins included.
 - **Share links need sign-in.**
   The Share pane copies a dashboard or panel address with the time range and variable values, and grants nothing: someone without access to the folder sees "You don't have access to this dashboard" after they sign in.
 - **Datasource credentials stay on the server.**

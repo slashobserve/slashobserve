@@ -20,4 +20,5 @@ Only a signed-in Admin can create service accounts and keys, and only an Admin s
 A key acts with its service account's role, which starts as Editor for a new account.
 Choosing another role for an existing account in the Create key panel changes the role of every key of that account.
 Folder access applies to a key as it does to a person, except that a key matches no folder entry: a restricted folder is invisible to it unless its service account is an Admin or created the folder (see [Folders and access](../teams/folders.md)).
+A key has no My Dashboards folder.
 Beyond that, see [the security model](security-model.md) for what any key can do.
