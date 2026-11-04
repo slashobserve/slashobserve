@@ -32,4 +32,5 @@ type Event struct {
 	PanelID       string  `json:"panel_id,omitempty"`
 	Status        string  `json:"status,omitempty"`
 	ParentID      string  `json:"parent_id,omitempty"`
+	BuildSaves    int     `json:"build_saves,omitempty"`
 }

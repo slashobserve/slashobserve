@@ -145,6 +145,91 @@ func CarryUnverified(prev *spec.Dashboard, prevUnverified Unverified, next *spec
 	return carried, blocking
 }
 
+func ChangedSince(prev, next *spec.Dashboard) (panels, variables []string) {
+	for _, e := range next.DataPanels() {
+		if prev == nil || !panelUnchanged(prev, next, e.Panel.ID) {
+			panels = append(panels, e.Panel.ID)
+		}
+	}
+	for _, v := range next.Variables {
+		if prev == nil || !variableUnchanged(prev, next, v.Name) {
+			variables = append(variables, v.Name)
+		}
+	}
+	return panels, variables
+}
+
+func CarryUnchanged(prev *spec.Dashboard, prevUnverified Unverified, next *spec.Dashboard, changedPanels, changedVariables []string) Unverified {
+	var carried Unverified
+	if prev == nil {
+		return carried
+	}
+	for _, e := range next.DataPanels() {
+		was, listed := prevUnverified.Panel(e.Panel.ID)
+		if !listed || slices.Contains(changedPanels, e.Panel.ID) {
+			continue
+		}
+		from, ok := prev.FindPanel(e.Panel.ID)
+		if !ok {
+			continue
+		}
+		carried.Panels = append(carried.Panels, UnverifiedPanel{PanelID: was.PanelID, Issues: repointed(was.Issues, from.Pointer, e.Pointer)})
+	}
+	for i, v := range next.Variables {
+		was, listed := prevUnverified.Variable(v.Name)
+		if !listed || slices.Contains(changedVariables, v.Name) {
+			continue
+		}
+		from := slices.IndexFunc(prev.Variables, func(p spec.Variable) bool { return p.Name == v.Name })
+		if from < 0 {
+			continue
+		}
+		carried.Variables = append(carried.Variables, UnverifiedVariable{Name: was.Name, Issues: repointed(was.Issues, "/variables/"+strconv.Itoa(from), "/variables/"+strconv.Itoa(i))})
+	}
+	return carried
+}
+
+func repointed(issues []spec.Issue, from, to string) []spec.Issue {
+	out := make([]spec.Issue, len(issues))
+	for i, is := range issues {
+		if rest, ok := strings.CutPrefix(is.Path, from); ok && (rest == "" || strings.HasPrefix(rest, "/")) {
+			is.Path = to + rest
+		}
+		out[i] = is
+	}
+	return out
+}
+
+func needsFullCheck(prev, next *spec.Dashboard) bool {
+	if prev.Time != next.Time {
+		return true
+	}
+	return prev.Title != next.Title && usesDashboardMacro(next)
+}
+
+func usesDashboardMacro(d *spec.Dashboard) bool {
+	for _, e := range d.DataPanels() {
+		for _, q := range e.Panel.Queries {
+			if !q.IsExpression() && !q.IsDashboardSource() && referencesDashboardMacro(q.Query) {
+				return true
+			}
+		}
+	}
+	return slices.ContainsFunc(d.Variables, func(v spec.Variable) bool {
+		return referencesDashboardMacro(v.Query) || referencesDashboardMacro(v.Regex)
+	})
+}
+
+func referencesDashboardMacro(text string) bool {
+	refs, err := spec.ScanQuery(text)
+	if err != nil {
+		return false
+	}
+	return slices.ContainsFunc(spec.FlattenReferences(refs), func(ref spec.Reference) bool {
+		return ref.Kind == spec.MacroRef && ref.Name == "__dashboard"
+	})
+}
+
 func panelUnchanged(prev, next *spec.Dashboard, id string) bool {
 	was, ok := prev.FindDataPanel(id)
 	if !ok {
@@ -162,8 +247,20 @@ func panelUnchanged(prev, next *spec.Dashboard, id string) bool {
 	return !wasReuses || queriesUnchanged(prev, wasSource.Panel, next, nowSource.Panel)
 }
 
+type checkedPanelFields struct {
+	Type          spec.PanelType
+	TimeFrom      string
+	TimeShift     string
+	MaxDataPoints int
+	Interval      string
+}
+
+func checkedFieldsOf(p *spec.Panel) checkedPanelFields {
+	return checkedPanelFields{Type: p.Type, TimeFrom: p.TimeFrom, TimeShift: p.TimeShift, MaxDataPoints: p.MaxDataPoints, Interval: p.Interval}
+}
+
 func queriesUnchanged(prev *spec.Dashboard, was *spec.Panel, next *spec.Dashboard, now *spec.Panel) bool {
-	if len(was.Queries) != len(now.Queries) {
+	if checkedFieldsOf(was) != checkedFieldsOf(now) || len(was.Queries) != len(now.Queries) {
 		return false
 	}
 	for j := range was.Queries {

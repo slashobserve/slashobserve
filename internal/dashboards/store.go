@@ -207,6 +207,10 @@ func (st store) delete(ctx context.Context, id pgtype.UUID, by Author) error {
 }
 
 func (st store) addVersion(ctx context.Context, in newVersion) (Dashboard, Version, error) {
+	return st.addVersionWith(ctx, in, nil)
+}
+
+func (st store) addVersionWith(ctx context.Context, in newVersion, inTx func(q *dbsqlc.Queries, dash Dashboard, ver Version) error) (Dashboard, Version, error) {
 	var dash Dashboard
 	var ver Version
 	err := st.db.InTx(ctx, func(q *dbsqlc.Queries) error {
@@ -227,7 +231,10 @@ func (st store) addVersion(ctx context.Context, in newVersion) (Dashboard, Versi
 			return err
 		}
 		dash, ver = dashboardFromRow(row, in.author), Version{VersionMeta: meta, Spec: in.spec, Unverified: in.unverified}
-		return nil
+		if inTx == nil {
+			return nil
+		}
+		return inTx(q, dash, ver)
 	})
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == requestVersionConstraint {
