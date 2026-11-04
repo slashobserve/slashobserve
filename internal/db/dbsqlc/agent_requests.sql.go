@@ -939,16 +939,17 @@ SELECT r.id, r.source, r.prompt, r.dashboard_id, r.panel_id, r.status, r.result_
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   d.title AS dashboard_title
 FROM agent_requests r
-LEFT JOIN dashboards d ON d.id = r.dashboard_id
-WHERE r.requested_by_kind = $1 AND r.requested_by_id = $2 AND r.source <> 'suggest'
-  AND ($3::text IS NULL OR r.source = $3::text)
-  AND ($4::timestamptz IS NULL
-    OR (r.created_at, r.id) < ($4::timestamptz, $5::uuid))
+LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY($1::uuid[])
+WHERE r.requested_by_kind = $2 AND r.requested_by_id = $3 AND r.source <> 'suggest'
+  AND ($4::text IS NULL OR r.source = $4::text)
+  AND ($5::timestamptz IS NULL
+    OR (r.created_at, r.id) < ($5::timestamptz, $6::uuid))
 ORDER BY r.created_at DESC, r.id DESC
-LIMIT $6
+LIMIT $7
 `
 
 type ListAgentRequestsByParams struct {
+	Folders         []pgtype.UUID
 	RequestedByKind string
 	RequestedByID   pgtype.UUID
 	Source          pgtype.Text
@@ -980,6 +981,7 @@ type ListAgentRequestsByRow struct {
 
 func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequestsByParams) ([]ListAgentRequestsByRow, error) {
 	rows, err := q.db.Query(ctx, listAgentRequestsBy,
+		arg.Folders,
 		arg.RequestedByKind,
 		arg.RequestedByID,
 		arg.Source,

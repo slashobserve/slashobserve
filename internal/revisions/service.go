@@ -337,9 +337,17 @@ func (s *Service) ListMine(ctx context.Context, by auth.Principal, source string
 	if err != nil {
 		return nil, "", fmt.Errorf("requester id: %w", err)
 	}
+	levels, err := s.access.Levels(ctx, by)
+	switch {
+	case errors.Is(err, folders.ErrForbidden):
+		return nil, "", ErrForbidden
+	case err != nil:
+		return nil, "", fmt.Errorf("list agent requests of requester: %w", err)
+	}
 	params := dbsqlc.ListAgentRequestsByParams{
 		RequestedByKind: string(by.Kind),
 		RequestedByID:   requesterID,
+		Folders:         levels.Visible(),
 		Source:          pgtype.Text{String: source, Valid: source != ""},
 		RowLimit:        httpapi.Int32(limit + 1),
 	}

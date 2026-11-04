@@ -20,6 +20,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/logtest"
 )
 
@@ -63,7 +65,7 @@ func newRigWithLogger(t *testing.T, logger *slog.Logger) *rig {
 			c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), p))
 		}
 	})
-	NewHandler(database.DB, authService, logger).Register(auth.NewRoutes(api))
+	NewHandler(database.DB, authService, folders.NewAccess(database.DB), logger).Register(auth.NewRoutes(api))
 	return &rig{t: t, db: database, engine: engine}
 }
 
@@ -219,6 +221,52 @@ func countSessions(t *testing.T, r *rig, user pgtype.UUID) int {
 	}
 	t.Fatalf("user %s not listed", user)
 	return 0
+}
+
+func (r *rig) addDashboard(author pgtype.UUID, name string) pgtype.UUID {
+	r.t.Helper()
+	d, err := r.db.Queries().CreateDashboard(r.t.Context(), dbsqlc.CreateDashboardParams{
+		Title: name, Tags: []string{}, CreatedByKind: "user", CreatedByID: author, CreatedByName: name, CreatedVia: "direct",
+	})
+	if err != nil {
+		r.t.Fatal(err)
+	}
+	_, err = r.db.Queries().InsertDashboardVersion(r.t.Context(), dbsqlc.InsertDashboardVersionParams{
+		DashboardID: d.ID, Version: 1, Spec: []byte(`{}`), Summary: "s", AuthorKind: "user", AuthorID: author, AuthorName: name,
+	})
+	if err != nil {
+		r.t.Fatal(err)
+	}
+	return d.ID
+}
+
+func TestDashboardCountLeavesOutDashboardsInPersonalFolders(t *testing.T) {
+	r := newRig(t)
+	ada := r.addUser("ada", time.Now().Add(-time.Hour))
+	admin := r.addUser("root", time.Now())
+	r.addDashboard(ada, "shared")
+	private := r.addDashboard(ada, "private")
+	var personal pgtype.UUID
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), "SELECT id FROM folders WHERE owner_id = $1", ada).Scan(&personal); err != nil {
+		t.Fatal(err)
+	}
+	foldertest.Move(t, r.db, private, personal)
+
+	if got := r.dashboardCounts(userCaller(admin))["ada"]; got != 1 {
+		t.Fatalf("dashboard_count seen by another Admin = %d, want 1", got)
+	}
+	if got := r.dashboardCounts(userCaller(ada))["ada"]; got != 2 {
+		t.Fatalf("dashboard_count seen by the owner = %d, want 2", got)
+	}
+}
+
+func (r *rig) dashboardCounts(caller auth.Principal) map[string]int {
+	r.t.Helper()
+	counts := map[string]int{}
+	for _, u := range decodeList(r.t, r.do(http.MethodGet, "/api/v1/users", caller)).Users {
+		counts[u.Name] = u.DashboardCount
+	}
+	return counts
 }
 
 func TestSignOutValidatesTheTarget(t *testing.T) {

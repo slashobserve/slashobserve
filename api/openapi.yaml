@@ -415,7 +415,7 @@ components:
         dashboard_count:
           type: integer
           minimum: 0
-          description: Dashboards whose first version this person saved, either directly or through an agent request they sent. Dashboards created with a service-account key are not counted.
+          description: Dashboards whose first version this person saved, either directly or through an agent request they sent. Dashboards created with a service-account key are not counted. Only dashboards in folders you can see are counted, so another person's My Dashboards is left out.
         key_count:
           type: integer
           minimum: 0
@@ -1955,7 +1955,7 @@ components:
         dashboard_title:
           type: string
           nullable: true
-          description: The dashboard's current title; null when the request has no dashboard.
+          description: The dashboard's current title; null when the request has no dashboard or the dashboard is in a folder you cannot see.
         panel_id:
           type: string
           nullable: true

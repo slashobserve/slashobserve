@@ -308,7 +308,7 @@ func run() error {
 			revisionsService,
 			revisions.NewObserveHandler(revisionsService, observeOpts),
 			proxyHandler,
-			users.NewHandler(database, authService, logger),
+			users.NewHandler(database, authService, folderAccess, logger),
 			outbound,
 			prompts.NewHandler(database, logger),
 			news.NewHandler(egressClient, logger),

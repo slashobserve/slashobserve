@@ -1395,7 +1395,7 @@ export interface components {
              * @description Updated at most once a minute while a session is used; seen within the last 2 minutes means online now.
              */
             last_seen_at: string;
-            /** @description Dashboards whose first version this person saved, either directly or through an agent request they sent. Dashboards created with a service-account key are not counted. */
+            /** @description Dashboards whose first version this person saved, either directly or through an agent request they sent. Dashboards created with a service-account key are not counted. Only dashboards in folders you can see are counted, so another person's My Dashboards is left out. */
             dashboard_count: number;
             /** @description Unrevoked, unexpired service-account keys this person created. */
             key_count: number;
@@ -2148,7 +2148,7 @@ export interface components {
             status: "queued" | "running" | "succeeded" | "failed";
             /** Format: uuid */
             dashboard_id: string | null;
-            /** @description The dashboard's current title; null when the request has no dashboard. */
+            /** @description The dashboard's current title; null when the request has no dashboard or the dashboard is in a folder you cannot see. */
             dashboard_title: string | null;
             panel_id: string | null;
             result_version: number | null;

@@ -14,6 +14,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -29,10 +30,14 @@ var (
 )
 
 func observeRouterFor(svc *revisions.Service, who auth.Principal) *gin.Engine {
+	return observeRouterAs(svc, withRole(who))
+}
+
+func observeRouterAs(svc *revisions.Service, who auth.Principal) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	revisions.NewObserveHandler(svc, revisions.ObserveOptions{}).Register(auth.NewRoutes(r.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), withRole(who)))
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), who))
 	})))
 	return r
 }
@@ -206,6 +211,34 @@ func TestListObserveNamesTheDashboardOfASucceededRequest(t *testing.T) {
 		case failed:
 			if row.DashboardID != nil || row.DashboardTitle != nil {
 				t.Errorf("failed request = %+v", row)
+			}
+		}
+	}
+}
+
+func TestListObserveHidesTheTitleOfADashboardInAFolderTheCallerCannotSee(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	visible := seedDashboard(t, d, 2)
+	hidden := seedDashboard(t, d, 2)
+	foldertest.Move(t, d, hidden, foldertest.Restricted(t, d, "Private", "platform"))
+	onVisible := observeFor(t, svc, account, "visible")
+	onHidden := observeFor(t, svc, account, "hidden")
+	d.Exec(t, "UPDATE agent_requests SET status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, onVisible), visible)
+	d.Exec(t, "UPDATE agent_requests SET status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, onHidden), hidden)
+
+	rows := listObserve(t, observeRouterAs(svc, account), "").Requests
+	if len(rows) != 2 {
+		t.Fatalf("listed %d requests, want 2", len(rows))
+	}
+	for _, row := range rows {
+		switch row.ID {
+		case onVisible:
+			if row.DashboardID == nil || *row.DashboardID != visible.String() || row.DashboardTitle == nil || *row.DashboardTitle != "t" {
+				t.Errorf("request on a visible dashboard = %+v", row)
+			}
+		case onHidden:
+			if row.DashboardID == nil || *row.DashboardID != hidden.String() || row.DashboardTitle != nil {
+				t.Errorf("request on a hidden dashboard = %+v", row)
 			}
 		}
 	}

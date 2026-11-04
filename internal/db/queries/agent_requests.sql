@@ -185,7 +185,7 @@ SELECT r.id, r.source, r.prompt, r.dashboard_id, r.panel_id, r.status, r.result_
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   d.title AS dashboard_title
 FROM agent_requests r
-LEFT JOIN dashboards d ON d.id = r.dashboard_id
+LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY(@folders::uuid[])
 WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requested_by_id AND r.source <> 'suggest'
   AND (sqlc.narg('source')::text IS NULL OR r.source = sqlc.narg('source')::text)
   AND (sqlc.narg('cursor_created_at')::timestamptz IS NULL
