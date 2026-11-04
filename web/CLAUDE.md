@@ -33,6 +33,12 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   Never copy server data into a store: events from `useDashboardEvents` only invalidate query keys.
 - The router uses plain `URLSearchParams` serialization (`web/src/lib/search.ts`).
   Dashboard URL keys are parsed only by `web/src/dashboards/search.ts`.
+- Panel data and variable values go through a `PanelSource` (`web/src/dashboards/panel-source.ts`): a saved version or an agent build, so one panel component renders both.
+  Build keys use the `observe-build` prefix, and the build's Spec is fetched only when its `saves` count changes.
+- A build's panel fades in once, when it is new in that save (`newPanelIds`), and only through `motion-safe:` classes on the panel frame's opacity, never on a chart.
+- `web/src/observe/request-actions.tsx` is the only place Cancel and Continue render.
+  `can_cancel` comes from the server and is never recomputed in the browser.
+  A chat turn reads its build state (`failure_code`, `build`, `build_saved_at`, `continued_by`) from its summary, so a turn whose request is not loaded still shows its build card.
 - Panel data requests go through `panelRequestLimiter` (6 concurrent) because the proxy allows 8 in-flight requests per principal.
 - `maxQueuedRevisions` in `web/src/revisions/queries.ts` mirrors the server's cap of 5 queued or running revisions per dashboard.
 - Panel data requests always send an explicit `var-` selection for every declared variable, resolved by `web/src/dashboards/variables.ts`, so the panel and the variable list agree on defaults.

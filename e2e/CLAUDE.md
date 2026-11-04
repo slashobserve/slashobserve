@@ -24,6 +24,16 @@ A change adds no new check unless the owner asks for one (see Workflow in the ro
 - E2E tests never call a live model.
   They run the replay provider (`SLASHOBSERVE_LLM_PROVIDER=replay`) with fixtures in `e2e/fixtures/llm/`.
 - A fixture is one JSON file per prompt with `prompt` and `turns`; a tool error not declared in `expect` fails the run, and a prompt or comment with no fixture fails its revision.
+- A turn may carry `"fault": {"kind": "...", "delay_ms": N}`, and a turn with a fault needs no `text` or `tool_calls`.
+  `rate_limited`, `server_error` and `call_timeout` fail the model call once with status 429, 500 or none, then the same turn answers on the next call.
+  `max_tokens` and `refusal` end the turn with that stop reason.
+  `delay` waits `delay_ms` (honouring cancellation), then answers the turn.
+- A session that restarts mid-build resumes at `resumes."<k>"`, where k is the build's save count, and a missing segment fails the revision.
+  `"resume_after_saves": true` replaces the segments: a session started with k saves resumes after the k-th turn that holds a `create_dashboard`, `update_dashboard` or `update_panels` call, so a long build needs no segment per save.
+  Every save in such a fixture is assumed accepted, because the position is counted in saves and not in turns.
+  The fixture is refused with `resumes`, with more than one save call in a turn, and with `expect` on the turn after a save.
+- Replay reports `output_tokens` for each turn as the tool call input bytes divided by 3.2, rounded up.
+  A turn whose estimate exceeds `SLASHOBSERVE_LLM_MAX_TOKENS` ends as `max_tokens` and its tool calls do not run, so keep an e2e fixture's tool call input well under that limit (16,000 tokens is about 51 KB).
 - The scenarios tagged `replay-smoke` (`red-metrics-by-endpoint`, `log-volume-by-service`) run in `evals_smoke_suite`, so those two prompts need fixtures.
 
 ## Demo data
@@ -31,7 +41,7 @@ A change adds no new check unless the owner asks for one (see Workflow in the ro
 - The shop contract (pods, routes, metric labels) is shared by the Prometheus backfill and the e2e checks; change them together.
 - The p95 of every route that `backfill_joins_live` covers must sit in a well populated histogram bucket (at least 40% of the route's requests) whose upper edge is far above the slowest latency the route can produce.
   Otherwise CPU starvation (sleeps overshooting) moves the p95 across the bucket and out of the check's band.
-  Changing a sleep range in `demo/shop` changes that route's bucket, the buckets of the routes that call it and its profile in `deploy/compose/prometheus/backfill.awk`, so recalibrate them together.
+  Changing a sleep range in `demo` changes that route's bucket, the buckets of the routes that call it and its profile in `deploy/compose/prometheus/backfill.awk`, so recalibrate them together.
 - Backfill samples are spaced from 5 seconds at `end` to 30 seconds going back, with milliseconds on every timestamp, because whole-second spacing makes `rate()` extrapolation dip.
 - The cAdvisor job sets `honor_timestamps: false` because its `machine_*` series carry a fixed timestamp that falls before the backfill's end and would be dropped as out of bounds.
   cAdvisor runs with `--housekeeping_interval=5s` so `rate()` of `container_cpu_usage_seconds_total` does not step.

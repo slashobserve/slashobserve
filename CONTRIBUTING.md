@@ -41,6 +41,62 @@ The conventions for each area are in [internal/CLAUDE.md](internal/CLAUDE.md), [
 CI also runs `make generate` and fails when it changes any file, so commit generated files with their sources and never edit them by hand.
 A change to how the Grafana importer converts a dashboard needs `make golden`; read every changed golden file before you commit it.
 
+## Run the evals
+
+The eval runner measures the agent on create, revise, fix, suggest and paste-import tasks against an isolated `slashobserve-evals` stack that never touches the demo stack.
+The replay suite needs no model and no key, and CI runs it on every pull request.
+
+| Command | What it does |
+| --- | --- |
+| `make evals-replay` | Boots the replay stack and runs the replay suite against it; every scenario must meet its expectation. |
+| `make evals-stack-up` | Boots the stack alone on http://localhost:28080, in replay mode by default; `EVALS_STACK_MODE=<env-file>` boots it on the provider settings of that file instead; it returns once Prometheus serves the series the scenarios read. |
+| `make evals-stack-down` | Removes the stack and drops its volumes only. |
+| `make evals-live` | Runs the live suite once per model listed in `evals/matrix.yaml` (copy `evals/matrix.example.yaml`; the file is git-ignored) against a running stack. |
+
+The live suite spends tokens on your own provider account, so it runs by hand and CI never runs it.
+Keep each model's provider settings in a git-ignored env file; the runner never reads it.
+
+### Large dashboards
+
+The live suite centers on eight public dashboards, listed in `evals/corpus-sample.yaml` and in `largeDashboards` in `evals/runner/tasks.go`; a test keeps the two equal.
+They are Node Exporter Full (125 panels), HAProxy, Cilium, VictoriaMetrics, vmalert, Argo CD, the ClickHouse OpenTelemetry service dashboard and the demo shop.
+The replay suite keeps its `fix`, `add` and `paste` sweep over every corpus dashboard, and runs the other generators only on these eight.
+
+Every large dashboard gets one scenario per generator, except where the generator has no target or range the stack can serve (below), and each scenario is tagged with its generator, so `--tag rebuild` selects one kind.
+
+| Generator | Task | What it asks |
+| --- | --- | --- |
+| `rebuild` | create | Build the dashboard from a prompt that lists every panel title under its row, with the real panel and row counts. Replay builds it panel by panel through the real build path. |
+| `change` | revise | Show one panel as a stat panel, or as a time series when it already is a stat. |
+| `retime` | revise | Default the dashboard to the last 6 hours, or to a shorter range when the dashboard's query steps would outrun the few minutes of history the stack holds. |
+| `suggest` | suggest | Suggest a clearer title for one panel. |
+| `rowedit` | revise | Add a description to every panel in one row of 3 to 8 panels. |
+| `fix` | fix unverified | Fix the one panel the runner broke. |
+| `add` | revise | Add a panel for a metric or table the dashboard reads. |
+| `paste` | chat import | Import the dashboard from pasted JSON; every large dashboard is over the prompt cap, so this checks the `prompt_too_long` refusal. |
+
+The panel and the row a generator works on come from one function each (`pickWorkTarget`, `pickWorkRow`), so the replay fixture and the live seed name the same ones; both prefer panels whose metrics every host serves.
+The generators pick only panels the server verifies at import, using the measured gaps in `evals/runner/importgaps.go`, and emit no scenario for a dashboard that has none, because grading a model on a panel with no data tells nothing.
+A seed still fails when its chosen panel turns out unverified; remeasure the gaps from the import report of the evals stack when the corpus, the importer or the synthetic series change.
+
+A rebuild is the slow task: the evals stack lets a run take 120 minutes, and the whole live suite takes hours per model.
+The report starts with `Time to first panel`, the seconds from the request to its first accepted save, because that is what a person waits for on a large dashboard.
+
+### Kubernetes dashboards
+
+The public Kubernetes dashboards in the corpus verify against a local kind cluster instead of synthetic series.
+`make demo-k8s` creates the cluster `slashobserve-demo` beside the compose demo and never touches it; `make demo-k8s-down` deletes only that cluster.
+Kind runs as a pinned Go tool, so you need only Docker and Go.
+
+| Command | What it does |
+| --- | --- |
+| `scripts/evals-stack.sh up --k8s replay` | Boots the evals stack with the cluster's Prometheus as the `prom_k8s` datasource and no synthetic series; the cluster must be running first. |
+| `go run ./evals/runner --verify-k8s --server http://localhost:28080 --bootstrap-dex` | Imports the 29 Kubernetes dashboards and fails when a panel is unverified and not listed in `evals/k8s-gaps.yaml`, or when the listed gaps pass 15% of the data panels. A listed gap that verifies only prints a warning and the exit code stays 0. |
+| `scripts/evals-stack.sh down` | Removes the evals stack and drops its volumes only. |
+
+Add a panel to `evals/k8s-gaps.yaml` only after observing it fail, with a reason someone can check against the cluster's Prometheus.
+Give the cluster about ten minutes after `make demo-k8s` before you verify, because recording rules and 5 minute rates need data first.
+
 ## Conventions
 
 - Add a unit test for every change in behavior.

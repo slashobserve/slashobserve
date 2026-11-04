@@ -77,9 +77,22 @@ This lists only the packages whose purpose the name does not make obvious.
   A new SQL file takes the next number above both the highest file and every Go migration version, because a file reusing a Go migration's version stops the server at boot.
 - Versions are immutable and linear (`parent_version = version - 1`).
   A save validates with `spec.Parse`, then runs every panel query through `internal/queryproxy` outside any transaction.
+  `AddChangedVersion` (the `update_panels` save) runs only the changed panels and variables, as `ChangedSince` decides against the stored parent, never against what the caller claims, unless `needsFullCheck` says a `time` change or a title used by `$__dashboard` moved every result, and then it runs `checkSave`.
+  An unchanged panel that started failing stays verified until a full save runs.
   The conditional `latest_version` update is the concurrency check (409 `version_conflict`).
   Events go out with `pg_notify` inside the saving transaction.
-- `CarryUnverified` (`internal/dashboards/unverified.go`) is the only rule for `dashboard_versions.unverified`.
+- `agent_request_builds` holds one build per agent request: the canonical Spec, the carried `unverified` list, `planned_panels` and `panels`, so nothing parses the Spec to show progress.
+  Every build write is fenced by the attempt (`status = 'running' AND attempts = @attempt`), so a worker that lost its lease writes nothing.
+  Every build save with a parent is a partial check, as `ChangedSince` decides against the build, or against the base version for the first save of a revision, and placement moves change only `gridPos`, so they run no query.
+  `CommitBuild` is one transaction that writes the version and deletes the build, and it runs no query because every build save was already checked.
+  A conflict at commit, or a session about to start on a build whose base is older than the latest version, discards the build, and the run restarts once from the latest version.
+- A failed request keeps its build for `revisions.BuildRetentionDays`, and `claim` deletes the expired ones beside `FailExhaustedAgentRequests`.
+  A lost lease or a shutdown release keeps the build, and the next holder re-seeds from it.
+- `internal/revisions` cannot import `internal/dashboards`, so it takes the build through its `Builds` interface and `cmd/slashobserve-server/main.go` adapts the service with `buildStore`.
+- `finish`, `planned_panels` and `row` exist only in the agent's tool schemas, through the `agentWording` placeholders in `internal/agent/tools/wording.go`, and the agent's `update_panels` takes at most one item in `upsert`; a build save adds or changes at most one non-row panel (`onePanelPerSave`), and the server places each new panel (`place` in `internal/agent/tools/place.go`) through a panel patch, so `spec.ApplyPanelPatch` stays the only merge.
+  An MCP save that sends these fields is refused and keeps one version per accepted save.
+  `import_grafana_dashboard` stays a direct first save and is refused in a run that already has a build.
+- `CarryUnverified` (`internal/dashboards/unverified.go`) is the only rule for `dashboard_versions.unverified`; `CarryUnchanged` is its partial-check sibling, and `ChangedSince` reads the same `panelUnchanged` and `variableUnchanged`, which compare query text and datasource, the variables a panel reaches, and its `type`, `timeFrom`, `timeShift`, `maxDataPoints` and `interval`, so a title or `gridPos` edit is no change.
   Restore and duplicate copy the source version's list and run no query.
 - `dashboard_versions.datasource_uids` is a generated column from the SQL function `observespec_datasource_uids(spec)`.
   Whenever the Spec moves datasources, change that function with `CREATE OR REPLACE` in a new migration that then runs `UPDATE dashboard_versions SET spec = spec`.
@@ -87,8 +100,39 @@ This lists only the packages whose purpose the name does not make obvious.
 ## Events, revisions and comments
 
 - Event payloads carry ids and a capped author name, never comment text, so they stay below the 8000 byte `pg_notify` limit.
-- `dashboard_versions.agent_request_id` is unique, and the agent's `create_dashboard` and `update_dashboard` save through it, so a retried run returns the version it already created.
+- `dashboard_versions.agent_request_id` stays unique: an agent request commits at most one version, so a retried run or a second commit returns the version it already created.
+  The agent's `create_dashboard`, `update_dashboard` and `update_panels` change the build, never the history.
 - A saved version always wins: before a failure is recorded, and when the lease sweep exhausts a request, the request counts as succeeded with the version saved under its id.
+- A worker holds its request by a `LeaseTTL` lease (60 s) that it renews every 5 s while the run is in flight; a renewal that affects no row cancels the run and drops the attempt's work without finishing or releasing it, and a transient renewal error is retried at the next beat until it has lasted a full TTL.
+  The renewal returns `cancel_requested_at`, and the first beat that sees it cancels the run's context and keeps beating until the attempt is finished, so a cancel takes effect within about one beat plus the in-flight call.
+- Cancel is a flag, not a registry or a notification: `POST /api/v1/observe/{id}/cancel` sets `cancel_requested_at` and fails a queued request at once with code `canceled`, and a running one is finished `canceled` by its worker, build kept.
+  `settlementFor` never settles a crashed run as canceled, and the canceled outcome is recorded after the saved-version check, so a version saved before the cancel took effect still makes the request `succeeded`.
+- Only the requester may cancel or continue a request, not an editor and not an admin: `canCancel` in `internal/revisions/control.go` is the one rule, `requesterRow` answers anyone else 403 `forbidden` (404 for a new-dashboard request they cannot see), and `can_cancel` on `GET /observe/{id}` is computed from it.
+  A dashboard runs one non-suggest request at a time, so a stuck revision holds back every other editor's revisions on it, and they queue behind it up to `MaxActive`.
+  It ends only by its own limits, the requester's cancel, `SLASHOBSERVE_AGENT_RUN_TIMEOUT` when set, or the lease path after a crash; a graceful restart puts it back in the queue.
+  Add no way for anyone else to stop a run.
+- Continue (`POST /api/v1/observe/{id}/continue`) is a new request with `continues_id` set, and the stopped build moves to it with `MoveAgentRequestBuild` in the same transaction as the insert; the stopped request stays `failed`, so attempts only grow and every fenced write keeps working.
+  The build row is the token that keeps Continue and save exclusive: `MoveAgentRequestBuild` needs `build_saved_at IS NULL`, `SaveStoppedBuild` returns `ErrBuildNotSavable` unless its delete removes exactly one build row, and the loser answers 409 `not_continuable` for Continue after a save, or 404 for a save after Continue because the build moved.
+  A unique index on `continues_id` allows one continuation, and a revision whose dashboard has a newer version than the build's base answers 409 `version_conflict`.
+- The continue note is optional, validated by `CleanContinueNote` (the `CleanPrompt` rule), stored only in `continue_note` on the continuation, and written into every seed of the continued run (continue, restart and conflict) after the seed sentence.
+  The continue sentence (`seedContinue`) is used only on attempt 1 of a continuation, through `resumeReason`; a later attempt seeds as a restart.
+- `queue_position` is computed on read (1 plus the queued requests earlier in `(created_at, id)`, null unless queued), never stored.
+- `ListAgentRequestBuildState` is the only reader of build progress and `continued_by` for responses, one batch per page; the revisions list and the request list carry them for every row, and `buildState.progressFor` is the one place that nulls the build `title` for anyone but the requester.
+- `SLASHOBSERVE_AGENT_RUN_TIMEOUT` defaults to no limit, and a set value is at least `1m`; the evals stack sets `120m` so its failures stay coded.
+  `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` accepts `0` for no limit too, and the run limit is config's decision, so the worker has no default of its own.
+  A run has no model-call cap, and without a run limit it ends at a commit, a failure, shutdown or lease loss.
+  The progress guards steer first and stop after: 3 rejected saves in a row (an accepted save resets the count); reads refused from the sixth model call of a save window (12 in suggest mode), except beside a save and in the call after a rejected save, with a nudge one call before; `no_progress` after two turns in a row in which every call was refused; a repeated save and a third identical read are refused; errors and `query_range` or `query_instant` results are never replayed; and the churn rule, `maxChangesPerPanel` 4 and `maxChurnedSavesInRow` 3, which measures progress by content (`Result.Edits`, from `editsOf` in `agent/tools/build.go`: any panel JSON, variable or dashboard-level field that differs from the build before, so a description-only save is progress) and not by `ChangedSince`, which only decides re-verification.
+  A session is compacted, not renewed: after an accepted save past `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB`, and on the first cut-off (`max_tokens` or `call_timeout`), `llm.Session.Compact` keeps the last 4 turns within 32 KiB (results cut to 2 KiB, thinking kept only on the last assistant turn) behind a new first message with the build, the seed sentence and the discovery digest (`internal/agent/digest.go`, 4 KiB, never logged).
+  The renewal size is `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` (default 256, 32 to 4096), and its default lives only in `defaultSessionRenewBytes`.
+  A second cut-off with no accepted save in between ends the run with its code; a compaction is not a re-seed, and there is no re-seed count.
+  Request-side pruning replaces old read results with stubs in what is sent once older prunable results reach 64 KiB and keeps the last 4 assistant turns whole; the stored history keeps everything.
+  `dashboards.ErrBuildLost` is a lease loss: the reviser returns `revisions.ErrLeaseLost`, and the worker drops the attempt's work like a lost heartbeat.
+- A shutdown release keeps the steps, so the re-claim continues the same step list (the most recent `MaxSteps`, 1000, per attempt).
+- A stopped build is saved through `POST /api/v1/observe/{id}/build/save`, only by the requester.
+  The request stays `failed` with its failure code, and the same transaction sets `build_saved_at`, `result_version` and `dashboard_id`, so `succeeded` always means the agent finished.
+  A newer version on a revision answers 409 `version_conflict` and keeps the build; nothing rebases it.
+- `SLASHOBSERVE_LLM_EFFORT` is validated per provider in config and reaches an OpenAI-compatible provider only when set; `llm.Tuning.ForCall` raises it one step for the planning call and halves `max_tokens` (floor 8192) for the others.
+  `SLASHOBSERVE_LLM_IDLE_TIMEOUT` (default 180 s, `0` off) is the idle watch of every streamed call, and `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` covers `llm.Retry`'s attempts.
 - A request from a comment resolves the open thread in the same transaction.
   A resolution that errors runs in a savepoint and is logged as `agent_request_thread_resolve_failed`, so the request still records its success.
 - Without an LLM provider, comments do not enqueue, so turning an agent on later never replays old comments.
@@ -101,6 +145,7 @@ This lists only the packages whose purpose the name does not make obvious.
   The one exception is `POST /api/v1/datasources/{uid}/preview`, which places a signed-in user's draft panel into a saved version with `spec.WithPanel`, runs it with `DraftLimits` (which apply to every query whose text did not come from a saved Spec), never caches or coalesces it and refuses a bearer key (403 `user_session_required`).
 - The proxy's caches are shared by everyone, so a version whose queries reference `${__user.*}` is cached per principal.
   The runner that validates saves stays uncached.
+- The second exception is `GET /api/v1/observe/{id}/build/panels/{panel_id}/data` and `.../build/variables/{name}/values`: they load the requester's stored build on the server (`proxyhttp/build.go`), run under `DraftLimits`, never cache or coalesce, and refuse a bearer key (403 `user_session_required`).
 - `spec/examples/time/resolve-cases.json` keeps the Go and TS relative time resolution in step.
 - Variable values reach queries only through `internal/datasource/macros`.
 - A Spec names a datasource by uid or as `${name}` naming a datasource variable.
@@ -119,6 +164,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `log/slog`; request logs record the path, never the query string.
 - The server never logs secrets, prompt text, query text, variable values, tool results or MCP client names.
   The `asset fetch failed` and `action run` lines never hold URLs, paths, queries, bodies or action inputs.
+- The one exception to the provider-message rule is `SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS`: when on, `llm.CallError.ProviderMessage` (scrubbed of the key and control characters, capped at 1024 bytes, never in `Error()`) is logged as `provider_error_message` on a failed `llm call finished` line.
 - A failure is a fixed message plus `logattrs.Failure(code, err, ids...)` and the relevant ids, never `err.Error()`, and a panic is logged by its type only.
 - `sloglint` forbids the literal attribute keys `error` and `err` under `internal/`, `cmd/` and `pkg/`.
   It cannot see a key built through a variable or helper, or `err.Error()` under another key, so review those by hand.
