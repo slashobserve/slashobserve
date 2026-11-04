@@ -39,7 +39,7 @@ The schema leaves out rare, import-only and purely visual options; when a Spec y
 ## Layout
 - The grid is 24 columns wide; `x + w` may not exceed 24 and panels may not overlap.
 - Typical sizes: timeseries `w` 12 `h` 8, stat or gauge `w` 6 `h` 4, table `w` 24 `h` 8, row `w` 24 `h` 1; fill rows left to right, top to bottom.
-- Pick widths in a row that add up to 24, such as 6+6+12 or 8+8+8: the server puts a new panel beside the last one only when it fits, and otherwise starts a new line.
+- Pick widths in a row that add up to 24, such as 6+6+12 or 8+8+8, and give the panels of one line the same height: a gap narrower than the next panel, or under a short panel beside a tall one, stays empty.
 
 ## Field options
 - `unit` is a unit id from the schema: `reqps` for request rates, `s` or `ms` for durations, `percentunit` for 0-1 ratios, `percent` for 0-100, `bytes`, `short` for counts, or `suffix:<text>`.

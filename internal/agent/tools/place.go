@@ -2,6 +2,8 @@ package tools
 
 import (
 	"encoding/json"
+	"math"
+	"slices"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -50,50 +52,61 @@ func placeInNewRow(entries []spec.PanelEntry, w, h int) placement {
 type sectionScan struct {
 	members []spec.GridPos
 	outside []spec.GridPos
-	last    spec.GridPos
+	base    int
 	bottom  int
+	limit   int
 }
 
 func scanSection(entries []spec.PanelEntry, inSection func(spec.PanelEntry) bool, base int) sectionScan {
-	scan := sectionScan{bottom: base}
+	scan := sectionScan{base: base, bottom: base, limit: math.MaxInt}
 	for _, e := range entries {
 		g := e.Panel.GridPos
 		switch {
 		case inSection(e):
-			if len(scan.members) == 0 || g.Y > scan.last.Y || g.Y == scan.last.Y && g.X > scan.last.X {
-				scan.last = g
-			}
 			scan.members = append(scan.members, g)
 			scan.bottom = max(scan.bottom, g.Y+g.H)
 		case inLayout(e):
 			scan.outside = append(scan.outside, g)
 		}
 	}
+	for _, g := range scan.outside {
+		if g.Y >= scan.bottom {
+			scan.limit = min(scan.limit, g.Y)
+		}
+	}
 	return scan
 }
 
-func (s sectionScan) candidate(w, h int, collapsed bool) spec.GridPos {
-	wrapped := spec.GridPos{X: 0, Y: s.bottom, W: w, H: h}
-	if len(s.members) == 0 || s.last.X+s.last.W+w > spec.GridColumns {
-		return wrapped
+func firstFree(scan sectionScan, w, h int, collapsed bool) spec.GridPos {
+	blockers := scan.members
+	if !collapsed {
+		blockers = append(slices.Clone(blockers), above(scan.outside, scan.limit)...)
 	}
-	beside := spec.GridPos{X: s.last.X + s.last.W, Y: s.last.Y, W: w, H: h}
-	if overlapsAny(beside, s.members) || !collapsed && overlapsAny(beside, above(s.outside, s.bottom)) {
-		return wrapped
+	end := scan.bottom
+	for _, g := range blockers {
+		end = max(end, g.Y+g.H)
 	}
-	return beside
+	for y := scan.base; y < end; y++ {
+		for x := 0; x+w <= spec.GridColumns; x++ {
+			candidate := spec.GridPos{X: x, Y: y, W: w, H: h}
+			if !overlapsAny(candidate, blockers) {
+				return candidate
+			}
+		}
+	}
+	return spec.GridPos{X: 0, Y: end, W: w, H: h}
 }
 
 func placeInSection(entries []spec.PanelEntry, inSection func(spec.PanelEntry) bool, base int, collapsed bool, w, h int) placement {
 	scan := scanSection(entries, inSection, base)
-	candidate := scan.candidate(w, h, collapsed)
-	delta := candidate.Y + h - scan.bottom
+	candidate := firstFree(scan, w, h, collapsed)
+	delta := candidate.Y + h - scan.limit
 	if collapsed || delta <= 0 {
 		return placement{Panel: candidate}
 	}
 	var shifts []spec.PanelPlacement
 	for _, e := range entries {
-		if inSection(e) || !movesDown(e, scan.bottom) {
+		if inSection(e) || !movesDown(e, scan.limit) {
 			continue
 		}
 		g := e.Panel.GridPos
@@ -103,11 +116,11 @@ func placeInSection(entries []spec.PanelEntry, inSection func(spec.PanelEntry) b
 	return placement{Panel: candidate, Shifts: shifts}
 }
 
-func movesDown(e spec.PanelEntry, bottom int) bool {
+func movesDown(e spec.PanelEntry, limit int) bool {
 	if e.Row != nil && e.Row.Collapsed {
-		return e.Row.GridPos.Y >= bottom
+		return e.Row.GridPos.Y >= limit
 	}
-	return e.Panel.GridPos.Y >= bottom
+	return e.Panel.GridPos.Y >= limit
 }
 
 func overlapsAny(g spec.GridPos, others []spec.GridPos) bool {
@@ -119,10 +132,10 @@ func overlapsAny(g spec.GridPos, others []spec.GridPos) bool {
 	return false
 }
 
-func above(items []spec.GridPos, bottom int) []spec.GridPos {
+func above(items []spec.GridPos, limit int) []spec.GridPos {
 	var out []spec.GridPos
 	for _, g := range items {
-		if g.Y < bottom {
+		if g.Y < limit {
 			out = append(out, g)
 		}
 	}

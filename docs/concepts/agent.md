@@ -52,7 +52,7 @@ The agent builds every dashboard panel by panel.
 The first save is `create_dashboard` with the title, time range, variables and one panel, with `row` naming the row it belongs to, plus `planned_panels`, the number of panels the model expects the finished dashboard to have.
 Every other panel is its own `update_panels` call, with the panel alone in `upsert` and `row` naming the row it belongs to; a new row is created with its first panel.
 A save that adds or changes more than one panel is rejected.
-The server places each new panel at the end of its row and moves what is below it, whatever position the model sent.
+The server places each new panel at the first free spot of its row, scanning from the row's top line left to right, and moves what is below only when the row grows.
 A revision changes one panel per `update_panels` call, so a change to many existing panels takes one call each; deletes, moves, variables and dashboard fields may go with the panel.
 Each save checks only the panel it adds or changes, so a build of 100 panels does not rerun the queries of the panels already built.
 `planned_panels`, `finish` and `row` exist only for the built-in agent; MCP clients keep one version per accepted save.

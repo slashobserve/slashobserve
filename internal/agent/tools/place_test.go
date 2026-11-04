@@ -82,6 +82,33 @@ func assertExistingPanelsKept(t *testing.T, before, after *spec.Dashboard, rowID
 	}
 }
 
+func caseABoard() []string {
+	return []string{
+		placeRow("row_cpu", 0, false, placeStat("usage", 0, 1, 12, 8), placeStat("cores", 12, 1, 4, 4), placeStat("load", 16, 1, 8, 4)),
+		placeRow("row_mem", 9, false, placeStat("m1", 0, 10, 12, 8), placeStat("m2", 12, 10, 12, 8)),
+	}
+}
+
+func caseBBoard(extra ...string) []string {
+	basic := append([]string{placeStat("b1", 0, 6, 4, 4), placeStat("b2", 4, 6, 8, 4), placeStat("b3", 12, 6, 8, 4)}, extra...)
+	cmndY := 10
+	if len(extra) > 0 {
+		cmndY = 14
+	}
+	return []string{
+		placeRow("row_quick", 0, false, placeStat("q1", 0, 1, 6, 4), placeStat("q2", 6, 1, 6, 4), placeStat("q3", 12, 1, 6, 4), placeStat("q4", 18, 1, 6, 4)),
+		placeRow("row_basic", 5, false, basic...),
+		placeRow("row_cmnd", cmndY, false, placeStat("c1", 0, cmndY+1, 8, 7)),
+	}
+}
+
+func caseCBoard() []string {
+	return []string{
+		placeStat("p_cpu_busy", 0, 0, 4, 5),
+		placeRow("r_quick", 5, false, placeStat("p_mem_busy", 0, 6, 6, 5)),
+	}
+}
+
 func TestPlaceChoosesWhereAPanelGoes(t *testing.T) {
 	cases := []struct {
 		name       string
@@ -246,6 +273,163 @@ func TestPlaceChoosesWhereAPanelGoes(t *testing.T) {
 			wantPanel: spec.GridPos{X: 0, Y: 2, W: 12, H: 8},
 			wantRow:   &spec.GridPos{X: 0, Y: 1, W: 24, H: 1},
 		},
+		{
+			name:      "case A: a panel as short as its neighbours fills the space under them",
+			panels:    caseABoard(),
+			rowID:     "row_cpu",
+			w:         12,
+			h:         4,
+			wantPanel: spec.GridPos{X: 12, Y: 5, W: 12, H: 4},
+		},
+		{
+			name:      "case A: a narrower short panel fills the space from its left",
+			panels:    caseABoard(),
+			rowID:     "row_cpu",
+			w:         8,
+			h:         4,
+			wantPanel: spec.GridPos{X: 12, Y: 5, W: 8, H: 4},
+		},
+		{
+			name:       "case A: a panel taller than the space moves the next row by the overrun only",
+			panels:     caseABoard(),
+			rowID:      "row_cpu",
+			w:          12,
+			h:          8,
+			wantPanel:  spec.GridPos{X: 12, Y: 5, W: 12, H: 8},
+			wantShifts: []shiftTo{{"row_mem", 13}, {"m1", 14}, {"m2", 14}},
+		},
+		{
+			name:       "case A: a full-width panel starts a new line under the row",
+			panels:     caseABoard(),
+			rowID:      "row_cpu",
+			w:          24,
+			h:          8,
+			wantPanel:  spec.GridPos{X: 0, Y: 9, W: 24, H: 8},
+			wantShifts: []shiftTo{{"row_mem", 17}, {"m1", 18}, {"m2", 18}},
+		},
+		{
+			name:       "case B: a panel wider than the end of the line wraps and leaves the gap",
+			panels:     caseBBoard(),
+			rowID:      "row_basic",
+			w:          8,
+			h:          4,
+			wantPanel:  spec.GridPos{X: 0, Y: 10, W: 8, H: 4},
+			wantShifts: []shiftTo{{"row_cmnd", 14}, {"c1", 15}},
+		},
+		{
+			name:      "case B: a panel that fits the end of the line closes it",
+			panels:    caseBBoard(),
+			rowID:     "row_basic",
+			w:         4,
+			h:         4,
+			wantPanel: spec.GridPos{X: 20, Y: 6, W: 4, H: 4},
+		},
+		{
+			name:      "case B: after a wrap, a narrow panel goes back to the gap",
+			panels:    caseBBoard(placeStat("b4", 0, 10, 8, 4)),
+			rowID:     "row_basic",
+			w:         4,
+			h:         4,
+			wantPanel: spec.GridPos{X: 20, Y: 6, W: 4, H: 4},
+		},
+		{
+			name:      "case C: a panel into the row goes beside its first panel",
+			panels:    caseCBoard(),
+			rowID:     "r_quick",
+			w:         6,
+			h:         5,
+			wantPanel: spec.GridPos{X: 6, Y: 6, W: 6, H: 5},
+		},
+		{
+			name:      "case C: a top level panel goes beside the loose panel",
+			panels:    caseCBoard(),
+			rowID:     "",
+			w:         4,
+			h:         5,
+			wantPanel: spec.GridPos{X: 4, Y: 0, W: 4, H: 5},
+		},
+		{
+			name:       "case C: a taller top level panel moves the row down by the overrun",
+			panels:     caseCBoard(),
+			rowID:      "",
+			w:          4,
+			h:          6,
+			wantPanel:  spec.GridPos{X: 4, Y: 0, W: 4, H: 6},
+			wantShifts: []shiftTo{{"r_quick", 6}, {"p_mem_busy", 7}},
+		},
+		{
+			name:       "case C: a full-width top level panel goes under the loose one",
+			panels:     caseCBoard(),
+			rowID:      "",
+			w:          24,
+			h:          5,
+			wantPanel:  spec.GridPos{X: 0, Y: 5, W: 24, H: 5},
+			wantShifts: []shiftTo{{"r_quick", 10}, {"p_mem_busy", 11}},
+		},
+		{
+			name:      "case C: a new row goes below everything",
+			panels:    caseCBoard(),
+			rowID:     "r_basic",
+			w:         6,
+			h:         5,
+			wantPanel: spec.GridPos{X: 0, Y: 12, W: 6, H: 5},
+			wantRow:   &spec.GridPos{X: 0, Y: 11, W: 24, H: 1},
+		},
+		{
+			name: "case D: a fifth stat wraps under four",
+			panels: []string{
+				placeRow("row_quick", 0, false, placeStat("q1", 0, 1, 6, 4), placeStat("q2", 6, 1, 6, 4), placeStat("q3", 12, 1, 6, 4), placeStat("q4", 18, 1, 6, 4)),
+				placeRow("row_basic", 5, false, placeStat("b1", 0, 6, 6, 4), placeStat("b2", 6, 6, 6, 4), placeStat("b3", 12, 6, 6, 4), placeStat("b4", 18, 6, 6, 4)),
+			},
+			rowID:      "row_quick",
+			w:          6,
+			h:          4,
+			wantPanel:  spec.GridPos{X: 0, Y: 5, W: 6, H: 4},
+			wantShifts: []shiftTo{{"row_basic", 9}, {"b1", 10}, {"b2", 10}, {"b3", 10}, {"b4", 10}},
+		},
+		{
+			name: "case B Meminfo: a full line wraps in the last row",
+			panels: []string{
+				placeRow("row_mem", 29, false, placeStat("m1", 0, 30, 12, 8), placeStat("m2", 12, 30, 6, 8), placeStat("m3", 18, 30, 6, 8)),
+			},
+			rowID:     "row_mem",
+			w:         6,
+			h:         8,
+			wantPanel: spec.GridPos{X: 0, Y: 38, W: 6, H: 8},
+		},
+		{
+			name: "case B Filesystem: the open end of the last line takes the next panel",
+			panels: []string{
+				placeRow("row_fs", 117, false, placeStat("f1", 0, 118, 12, 8), placeStat("f2", 12, 118, 6, 8), placeStat("f3", 18, 118, 6, 8), placeStat("f4", 0, 126, 12, 8)),
+			},
+			rowID:     "row_fs",
+			w:         12,
+			h:         8,
+			wantPanel: spec.GridPos{X: 12, Y: 126, W: 12, H: 8},
+		},
+		{
+			name: "case A Disk: a third panel wraps and moves the rows below",
+			panels: []string{
+				placeRow("row_disk", 18, false, placeStat("d1", 0, 19, 12, 8), placeStat("d2", 12, 19, 12, 8)),
+				placeRow("row_fs", 27, false, placeStat("f1", 0, 28, 12, 8)),
+			},
+			rowID:      "row_disk",
+			w:          12,
+			h:          8,
+			wantPanel:  spec.GridPos{X: 0, Y: 27, W: 12, H: 8},
+			wantShifts: []shiftTo{{"row_fs", 35}, {"f1", 36}},
+		},
+		{
+			name: "a row whose panels end before the next row starts takes a taller panel without moving it",
+			panels: []string{
+				placeRow("r1", 0, false, placeStat("b", 12, 1, 12, 4)),
+				placeRow("r2", 9, false, placeStat("d1", 0, 10, 12, 8)),
+			},
+			rowID:     "r1",
+			w:         12,
+			h:         8,
+			wantPanel: spec.GridPos{X: 0, Y: 1, W: 12, H: 8},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -291,6 +475,40 @@ func TestPlaceChoosesWhereAPanelGoes(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPlaceBuildsCaseAInOrder(t *testing.T) {
+	board := []string{placeRow("row_cpu", 0, false, placeStat("usage", 0, 1, 12, 8))}
+	steps := []struct {
+		w, h int
+		want spec.GridPos
+	}{
+		{4, 4, spec.GridPos{X: 12, Y: 1, W: 4, H: 4}},
+		{8, 4, spec.GridPos{X: 16, Y: 1, W: 8, H: 4}},
+	}
+	ids := []string{"cores", "load"}
+	for i, step := range steps {
+		before := parseBoard(t, board...)
+		pl := place(before, "row_cpu", step.w, step.h)
+		if pl.Panel != step.want {
+			t.Fatalf("step %d: panel = %+v, want %+v", i, pl.Panel, step.want)
+		}
+		if len(pl.Shifts) != 0 {
+			t.Fatalf("step %d: shifts = %+v, want none", i, pl.Shifts)
+		}
+		board = []string{placeRow("row_cpu", 0, false, append(rowChildren(before, "row_cpu"), placeStat(ids[i], pl.Panel.X, pl.Panel.Y, pl.Panel.W, pl.Panel.H))...)}
+	}
+}
+
+func rowChildren(d *spec.Dashboard, rowID string) []string {
+	var out []string
+	for _, e := range d.AllPanels() {
+		if e.Row != nil && e.Row.ID == rowID {
+			g := e.Panel.GridPos
+			out = append(out, placeStat(e.Panel.ID, g.X, g.Y, g.W, g.H))
+		}
+	}
+	return out
 }
 
 func TestPlaceMovesNothingAboveTheInsertion(t *testing.T) {
