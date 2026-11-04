@@ -11,7 +11,7 @@ import (
 
 func (r *Registry) guideEntries() []entry {
 	return []entry{
-		{Tool{Name: nameGetSpecGuide, Description: descGetSpecGuide, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.getSpecGuide},
+		{Tool{Name: nameGetSpecGuide, Description: descGetSpecGuide, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MinRole: auth.RoleViewer}, r.getSpecGuide},
 	}
 }
 
@@ -21,10 +21,17 @@ type guideOut struct {
 	Example json.RawMessage `json:"example"`
 }
 
+type schemaOut struct {
+	Schema json.RawMessage `json:"schema"`
+}
+
 func (r *Registry) getSpecGuide(ctx context.Context, input json.RawMessage) (Result, error) {
 	var in struct{}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
+	}
+	if _, inRun := RunFrom(ctx); inRun {
+		return success("Read the Spec schema", schemaOut{Schema: json.RawMessage(prompts.Schema())}), nil
 	}
 	return success("Read the Spec guide", guideOut{
 		Guide:   prompts.SpecGuide(),

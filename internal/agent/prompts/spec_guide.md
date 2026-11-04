@@ -1,9 +1,9 @@
 # ObserveSpec authoring guide
 
-A dashboard is one ObserveSpec v0 JSON document; the JSON Schema is authoritative, the example shows the format only.
+A dashboard is one ObserveSpec v0 JSON document; the JSON Schema, which `get_spec_guide` returns, is authoritative; the example shows the format only.
 Discover metric, label, table and column names with the tools; never copy them from the example.
 Leave out every value that equals its default.
-The schema here leaves out rare, import-only and purely visual options; when a Spec you revise holds one, keep it unchanged.
+The schema leaves out rare, import-only and purely visual options; when a Spec you revise holds one, keep it unchanged.
 
 ## Panels
 - A data panel has `id`, `type`, `title`, `gridPos`, `datasource` (a datasource uid such as `prom`) and `queries`.
@@ -39,13 +39,14 @@ The schema here leaves out rare, import-only and purely visual options; when a S
 ## Layout
 - The grid is 24 columns wide; `x + w` may not exceed 24 and panels may not overlap.
 - Typical sizes: timeseries `w` 12 `h` 8, stat or gauge `w` 6 `h` 4, table `w` 24 `h` 8, row `w` 24 `h` 1; fill rows left to right, top to bottom.
+- Pick widths in a row that add up to 24, such as 6+6+12 or 8+8+8: the server puts a new panel beside the last one only when it fits, and otherwise starts a new line.
 
 ## Field options
 - `unit` is a unit id from the schema: `reqps` for request rates, `s` or `ms` for durations, `percentunit` for 0-1 ratios, `percent` for 0-100, `bytes`, `short` for counts, or `suffix:<text>`.
 - `thresholds` ascend; the first step may leave out `value` and is then the base color, for example `[{"color": "ok"}, {"value": 0.25, "color": "warning"}, {"value": 0.5, "color": "critical"}]`; colors are `ok`, `info`, `warning`, `critical`, `text` (the theme's text color) or a hex color.
 - `decimals`, `min`, `max`, `displayName`, `noValue` and `mappings` (each needs `text`, `color` or both) refine values.
 - `overrides` set the same options for matching series, for example `{"match": {"query": "B"}, "unit": "s"}`.
-- `display` holds the per-type options in the schema; set it only when the request asks for one.
+- `display` holds the per-type options; set it only when the request asks for one, after reading its type's options with `get_spec_guide`.
 - `transform` reshapes results in the browser; use it only when a query cannot return the shape.
 
 ## Prometheus (PromQL)

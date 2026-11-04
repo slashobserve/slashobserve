@@ -24,7 +24,7 @@ func newLoggedProvider(t *testing.T) (*Provider, *logtest.Capture) {
 		t.Fatal(err)
 	}
 	logger, logs := logtest.New()
-	p, err := New(dir, logger)
+	p, err := New(dir, 0, logger)
 	if err != nil {
 		t.Fatal(err)
 	}

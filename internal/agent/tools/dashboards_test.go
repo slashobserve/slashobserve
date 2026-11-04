@@ -9,7 +9,9 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
@@ -113,7 +115,7 @@ func TestSaveToolsRunScopeThroughCall(t *testing.T) {
 		if errorCode(t, res) != codeInvalidRequest || !strings.Contains(res.Content.(errorBody).Message, dashA) {
 			t.Fatalf("res = %#v", res.Content)
 		}
-		if res.Step != "Rejected create_dashboard input: invalid_request" {
+		if !strings.HasPrefix(res.Step, "Rejected create_dashboard input: this run revises dashboard") {
 			t.Fatalf("step = %q", res.Step)
 		}
 	})
@@ -164,4 +166,25 @@ func TestSaveToolsRunScopeThroughCall(t *testing.T) {
 			t.Fatalf("res = %#v err = %v", res, err)
 		}
 	})
+}
+
+func TestASaveFailureStepNamesTheFirstIssuePath(t *testing.T) {
+	long := "/panels/0/" + strings.Repeat("x", 200)
+	tests := []struct {
+		name   string
+		issues []spec.Issue
+		want   string
+	}{
+		{"a path", []spec.Issue{{Path: "/panels/0/fieldConfig/defaults/unit", Code: spec.CodeSchema}, {Path: "/title", Code: spec.CodeSchema}}, "Save rejected: 2 issues (schema) at /panels/0/fieldConfig/defaults/unit"},
+		{"no path", []spec.Issue{{Code: spec.CodeSchema}}, "Save rejected: 1 issue (schema)"},
+		{"a long path is clipped", []spec.Issue{{Path: long, Code: spec.CodeSchema}}, "Save rejected: 1 issue (schema) at " + long[:maxStepReasonBytes] + "..."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := saveFailure(&dashboards.InvalidSpecError{Issues: tt.issues})
+			if err != nil || res.Step != tt.want {
+				t.Fatalf("step = %q err = %v, want %q", res.Step, err, tt.want)
+			}
+		})
+	}
 }

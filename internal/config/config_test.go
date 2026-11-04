@@ -5,7 +5,48 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestLLMIdleTimeoutSetting(t *testing.T) {
+	tests := []struct {
+		name    string
+		set     string
+		want    time.Duration
+		wantErr string
+	}{
+		{name: "default is 180s", want: 180 * time.Second},
+		{name: "a set value", set: "45s", want: 45 * time.Second},
+		{name: "zero means none", set: "0", want: 0},
+		{name: "at the minimum", set: "10s", want: 10 * time.Second},
+		{name: "at the maximum", set: "60m", want: time.Hour},
+		{name: "below the minimum", set: "9s", wantErr: envLLMIdleTimeout + ": must be 0 or between 10s and 1h0m0s"},
+		{name: "above the maximum", set: "61m", wantErr: envLLMIdleTimeout + ": must be 0 or between 10s and 1h0m0s"},
+		{name: "negative", set: "-1m", wantErr: envLLMIdleTimeout + ": must be 0 or between"},
+		{name: "without a unit", set: "120", wantErr: envLLMIdleTimeout + ": "},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			extra := map[string]string{}
+			if tt.set != "" {
+				extra[envLLMIdleTimeout] = tt.set
+			}
+			cfg, err := Load(envOf(llmEnv(extra)))
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("Load error = %v, want it to contain %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.LLM.IdleTimeout != tt.want {
+				t.Fatalf("IdleTimeout = %s, want %s", cfg.LLM.IdleTimeout, tt.want)
+			}
+		})
+	}
+}
 
 func TestAdminEmailsSetting(t *testing.T) {
 	tests := []struct {

@@ -123,17 +123,8 @@ func (r *Registry) importGrafana(ctx context.Context, input json.RawMessage) (Re
 		return importFailure(codeTooLarge, fmt.Sprintf("json is larger than %d MiB", imports.MaxBodyBytes>>20)), nil
 	}
 	if scoped {
-		if run.Mode == ModeSuggest {
-			return invalid("this run proposes a panel change; importing is not available here"), nil
-		}
-		if _, err := validateRun(run); err != nil {
-			return Result{}, err
-		}
-		if run.Mode == ModeRevise {
-			return invalid("this run revises dashboard %s; importing creates a new dashboard and is not available here", run.DashboardID), nil
-		}
-		if text := strings.TrimSpace(in.JSON); text == "" || !strings.Contains(run.Prompt, text) {
-			return invalid("the request does not contain this Grafana JSON; build the dashboard with create_dashboard instead"), nil
+		if res, ok, err := r.importRunAllowed(ctx, run, in.JSON); err != nil || !ok {
+			return res, err
 		}
 	}
 	folder, res, ok := parseImportFolder(in.Folder)
@@ -156,6 +147,31 @@ func (r *Registry) importGrafana(ctx context.Context, input json.RawMessage) (Re
 		step = "Imported again"
 	}
 	return success(step, newImportedOut(r.deps.PublicURL, imported)), nil
+}
+
+func (r *Registry) importRunAllowed(ctx context.Context, run Run, jsonText string) (Result, bool, error) {
+	if run.Mode == ModeSuggest {
+		return invalid("this run proposes a panel change; importing is not available here"), false, nil
+	}
+	if _, err := validateRun(run); err != nil {
+		return Result{}, false, err
+	}
+	if run.Mode == ModeRevise {
+		return invalid("this run revises dashboard %s; importing creates a new dashboard and is not available here", run.DashboardID), false, nil
+	}
+	if run.Build {
+		found, err := r.hasBuild(ctx, run)
+		if err != nil {
+			return Result{}, false, err
+		}
+		if found {
+			return invalid("%s", importInBuildRun), false, nil
+		}
+	}
+	if text := strings.TrimSpace(jsonText); text == "" || !strings.Contains(run.Prompt, text) {
+		return invalid("the request does not contain this Grafana JSON; build the dashboard with create_dashboard instead"), false, nil
+	}
+	return Result{}, true, nil
 }
 
 func newImportedOut(publicURL *url.URL, imported imports.Imported) importedOut {

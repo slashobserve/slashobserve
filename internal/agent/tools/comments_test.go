@@ -42,7 +42,7 @@ func TestCommentToolsRejectAgentRuns(t *testing.T) {
 				if errorCode(t, res) != codeInvalidRequest || res.Content.(errorBody).Message != commentRejection {
 					t.Fatalf("res = %#v", res.Content)
 				}
-				if res.Step != "Rejected "+tool+" input: invalid_request" {
+				if res.Step != "Rejected "+tool+" input: "+commentRejection {
 					t.Fatalf("step = %q", res.Step)
 				}
 			})
@@ -57,7 +57,7 @@ func TestMCPOnlyTools(t *testing.T) {
 			got = append(got, tool.Name)
 		}
 	}
-	if strings.Join(got, ",") != "get_spec_guide,list_comments,list_folders,reply_to_comment,resolve_comment" {
+	if strings.Join(got, ",") != "list_comments,list_folders,reply_to_comment,resolve_comment" {
 		t.Fatalf("mcp-only tools = %v", got)
 	}
 }

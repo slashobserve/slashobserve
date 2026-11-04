@@ -7,9 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -20,7 +22,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/agent"
-	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -33,14 +34,18 @@ import (
 )
 
 const (
+	requestID = "0190b5c0-0000-7000-8000-0000000000bb"
 	dashID    = "0190b5c0-0000-7000-8000-000000000001"
 	panelID   = "p_p99"
 	panelName = "p99 latency"
+
+	latestVersion = 3
 )
 
 var (
 	_ agent.ToolSet          = (*tools.Registry)(nil)
 	_ agent.DashboardReader  = (*dashboards.Service)(nil)
+	_ agent.BuildStore       = (*dashboards.Service)(nil)
 	_ agent.DatasourceHealth = (*datasource.Registry)(nil)
 )
 
@@ -56,6 +61,15 @@ type scriptedSession struct {
 	script   []scriptedTurn
 	next     int
 	received [][]llm.ToolResult
+
+	compactions []llm.Compaction
+}
+
+func (s *scriptedSession) Compact(c llm.Compaction) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.compactions = append(s.compactions, c)
+	return nil
 }
 
 func (s *scriptedSession) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn, error) {
@@ -137,6 +151,8 @@ var fakeToolList = []tools.Tool{
 	{Name: "list_datasources", Description: "datasources", InputSchema: json.RawMessage(`{"type":"object"}`), ReadOnly: true},
 	{Name: "query_range", Description: "range", InputSchema: json.RawMessage(`{"type":"object"}`), ReadOnly: true},
 	{Name: "update_dashboard", Description: "update", InputSchema: json.RawMessage(`{"type":"object"}`)},
+	{Name: "update_panels", Description: "patch", InputSchema: json.RawMessage(`{"type":"object"}`)},
+	{Name: "get_panels", Description: "panels", InputSchema: json.RawMessage(`{"type":"object"}`), ReadOnly: true},
 }
 
 func (f *fakeTools) List() []tools.Tool { return fakeToolList }
@@ -297,6 +313,7 @@ type rig struct {
 	provider  *scriptedProvider
 	tools     *fakeTools
 	dash      *fakeDashboards
+	builds    *fakeBuilds
 	agent     *agent.Agent
 	logs      *bytes.Buffer
 	steps     []agent.Step
@@ -304,6 +321,11 @@ type rig struct {
 }
 
 func newRig(t *testing.T, sessions ...*scriptedSession) *rig {
+	t.Helper()
+	return newRigWithRenewBytes(t, 0, sessions...)
+}
+
+func newRigWithRenewBytes(t *testing.T, renewBytes int, sessions ...*scriptedSession) *rig {
 	t.Helper()
 	parsed, err := spec.Parse(examples.CheckoutServiceHealth)
 	if err != nil {
@@ -313,15 +335,18 @@ func newRig(t *testing.T, sessions ...*scriptedSession) *rig {
 		t:        t,
 		provider: &scriptedProvider{sessions: sessions},
 		tools:    &fakeTools{},
-		dash:     &fakeDashboards{number: 3, spec: parsed},
+		dash:     &fakeDashboards{number: latestVersion, spec: parsed},
+		builds:   &fakeBuilds{},
 		logs:     &bytes.Buffer{},
 	}
 	r.agent = agent.New(agent.Config{
-		Provider:    r.provider,
-		Tools:       r.tools,
-		Dashboards:  r.dash,
-		Datasources: fakeHealth{},
-		Logger:      slog.New(slog.NewJSONHandler(r.logs, nil)),
+		Provider:          r.provider,
+		Tools:             r.tools,
+		Dashboards:        r.dash,
+		Builds:            r.builds,
+		Datasources:       fakeHealth{},
+		Logger:            slog.New(slog.NewJSONHandler(r.logs, nil)),
+		SessionRenewBytes: renewBytes,
 	})
 	return r
 }
@@ -343,6 +368,8 @@ func session(turns ...scriptedTurn) *scriptedSession { return &scriptedSession{s
 func (r *rig) task() agent.Task {
 	return agent.Task{
 		Prompt:    "checkout health by pod",
+		RequestID: requestID,
+		Attempt:   1,
 		Principal: principal,
 		Progress: func(s agent.Step) {
 			r.stepsLock.Lock()
@@ -355,7 +382,7 @@ func (r *rig) task() agent.Task {
 func (r *rig) reviseTask() agent.Task {
 	task := r.task()
 	task.DashboardID = dashID
-	task.RequestID = "req-1"
+	task.RequestID = requestID
 	return task
 }
 
@@ -423,7 +450,7 @@ func TestCreateHappyPath(t *testing.T) {
 	}
 
 	for _, c := range r.tools.recorded() {
-		if !c.scoped || c.run.Mode != tools.ModeCreate || c.run.DashboardID != "" || c.run.ParentVersion != 0 || c.run.RequestID != "" {
+		if !c.scoped || c.run.Mode != tools.ModeCreate || c.run.DashboardID != "" || c.run.ParentVersion != 0 || c.run.RequestID != requestID || !c.run.Build || c.run.Attempt != 1 {
 			t.Fatalf("call %s run scope = %+v scoped=%v", c.name, c.run, c.scoped)
 		}
 		if !reflect.DeepEqual(c.principal, principal) {
@@ -463,22 +490,6 @@ func TestRequestCarriesStableSystemToolsPromptAndContext(t *testing.T) {
 	}
 	if reqs[0].System != reqs[1].System {
 		t.Fatal("system text differs between runs")
-	}
-	for _, want := range []string{
-		"You are SlashObserve's dashboard agent.",
-		"\n\n# Authoring guide\n",
-		"\n\n# ObserveSpec v0 JSON Schema\n```json\n",
-		"\n```\n\n# Example Spec (format only)\n```json\n",
-	} {
-		if !strings.Contains(reqs[0].System, want) {
-			t.Fatalf("system text lacks %q", want)
-		}
-	}
-	if !strings.Contains(reqs[0].System, "```json\n"+string(prompts.Schema())+"\n```") {
-		t.Fatal("system text does not carry the prompt schema")
-	}
-	if !strings.Contains(reqs[0].System, "- Never create a placeholder panel. Keep existing placeholders unchanged apart from their position, and delete one only when the request asks.") {
-		t.Fatal("system prompt lacks the placeholder rule")
 	}
 	if reqs[0].Prompt != "checkout health by pod" {
 		t.Fatalf("prompt = %q", reqs[0].Prompt)
@@ -529,35 +540,38 @@ func TestRepairAfterRejectedSave(t *testing.T) {
 	}
 }
 
-func TestRepairBudgetIsThreeRounds(t *testing.T) {
+func TestThreeRejectedSavesInARowEndTheRun(t *testing.T) {
 	s := session(
-		toolTurn(call("c1", "create_dashboard", `{}`)),
-		toolTurn(call("c2", "create_dashboard", `{}`)),
-		toolTurn(call("c3", "create_dashboard", `{}`)),
-		toolTurn(call("c4", "create_dashboard", `{}`)),
-		toolTurn(call("c5", "create_dashboard", `{}`)),
+		toolTurn(call("c1", "create_dashboard", `{"n":1}`)),
+		toolTurn(call("c2", "create_dashboard", `{"n":2}`)),
+		toolTurn(call("c3", "create_dashboard", `{"n":3}`)),
+		toolTurn(call("c4", "create_dashboard", `{"n":4}`)),
 	)
 	r := newRig(t, s)
-	r.tools.onSave("create_dashboard", invalidSpecResult("a_code"), invalidSpecResult("a_code"), invalidSpecResult("b_code", "c_code"), invalidSpecResult("d_code", "d_code", "e_code", "f_code", "g_code"), savedResult(dashID, 1))
+	r.tools.onSave("create_dashboard", invalidSpecResult("a_code"), invalidSpecResult("b_code", "c_code"), invalidSpecResult("d_code", "d_code", "e_code", "f_code", "g_code"), savedResult(dashID, 1))
 
 	out, err := r.agent.Run(context.Background(), r.task())
 	if !errors.Is(err, agent.ErrRepairExhausted) {
 		t.Fatalf("err = %v", err)
 	}
-	if got := s.modelCalls(); got != 4 {
-		t.Fatalf("model calls = %d, want 4 (first save plus three repairs)", got)
+	if got := s.modelCalls(); got != 3 {
+		t.Fatalf("model calls = %d, want 3 rejected saves", got)
 	}
-	if out.RepairRounds != 3 || out.Version != 0 || out.Usage.Calls != 4 || out.Provider != "fake" {
+	if out.RepairRounds != 2 || out.Version != 0 || out.Usage.Calls != 3 || out.Provider != "fake" {
 		t.Fatalf("outcome = %+v", out)
 	}
 	if !strings.Contains(err.Error(), "d_code, e_code, f_code") || strings.Contains(err.Error(), "g_code") || strings.Contains(err.Error(), "SECRET") {
 		t.Fatalf("error should list at most three issue codes and no messages: %q", err.Error())
 	}
-	if got := strings.Join(phases(r.recordedSteps()), ","); got != "save,repair,repair,repair" {
-		t.Fatalf("phases = %s", got)
+	steps := r.recordedSteps()
+	if got := strings.Join(phases(steps[:3]), ","); got != "save,repair,repair" || len(steps) != 4 {
+		t.Fatalf("phases = %s, steps = %+v", got, steps)
+	}
+	if stop := steps[3]; stop.Status != "error" || stop.Message != "Stopped: 3 saves in a row were rejected" {
+		t.Fatalf("stop step = %+v", stop)
 	}
 	fin := r.finishLog()
-	if fin["error_code"] != "repair_exhausted" || fin["error"] != nil || fin["repair_rounds"] != float64(3) {
+	if fin["error_code"] != "validation_exhausted" || fin["error"] != nil || fin["repair_rounds"] != float64(2) {
 		t.Fatalf("finish line = %v", fin)
 	}
 }
@@ -613,8 +627,8 @@ func TestReadOnlyCallsRunConcurrentlyUpToFour(t *testing.T) {
 	var inFlight, peak atomic.Int64
 	r := newRig(t, session(
 		toolTurn(
-			call("1", "query_range", `{}`), call("2", "query_range", `{}`), call("3", "query_range", `{}`),
-			call("4", "query_range", `{}`), call("5", "query_range", `{}`), call("6", "query_range", `{}`),
+			call("1", "query_range", `{"n":1}`), call("2", "query_range", `{"n":2}`), call("3", "query_range", `{"n":3}`),
+			call("4", "query_range", `{"n":4}`), call("5", "query_range", `{"n":5}`), call("6", "query_range", `{"n":6}`),
 		),
 		toolTurn(call("7", "create_dashboard", `{}`)),
 	))
@@ -667,7 +681,7 @@ func TestReviseHappyPath(t *testing.T) {
 		t.Fatalf("outcome = %+v", out)
 	}
 	for _, c := range r.tools.recorded() {
-		want := tools.Run{Mode: tools.ModeRevise, DashboardID: dashID, ParentVersion: 3, RequestID: "req-1"}
+		want := tools.Run{Mode: tools.ModeRevise, DashboardID: dashID, ParentVersion: 3, RequestID: requestID, Build: true, Attempt: 1}
 		if !c.scoped || c.run != want {
 			t.Fatalf("call %s run = %+v scoped=%v, want %+v", c.name, c.run, c.scoped, want)
 		}
@@ -807,12 +821,12 @@ func TestReviseConflictWithoutANewVersionGoesBackToTheModel(t *testing.T) {
 }
 
 func TestReviseRepeatedConflictWithoutANewVersionExhaustsRepairs(t *testing.T) {
-	turns := make([]scriptedTurn, 4)
+	turns := make([]scriptedTurn, 3)
 	for i := range turns {
-		turns[i] = toolTurn(call(fmt.Sprint("c", i), "update_dashboard", `{"parent_version":2}`))
+		turns[i] = toolTurn(call(fmt.Sprint("c", i), "update_dashboard", fmt.Sprintf(`{"parent_version":2,"n":%d}`, i)))
 	}
 	r := newRig(t, session(turns...))
-	r.tools.onSave("update_dashboard", conflictResult(3), conflictResult(3), conflictResult(3), conflictResult(3))
+	r.tools.onSave("update_dashboard", conflictResult(3), conflictResult(3), conflictResult(3))
 
 	_, err := r.agent.Run(context.Background(), r.reviseTask())
 	if !errors.Is(err, agent.ErrRepairExhausted) || !strings.Contains(err.Error(), "version_conflict") {
@@ -845,8 +859,8 @@ func TestReviseSecondConflictFails(t *testing.T) {
 
 func TestCreateConflictIsAnOrdinaryRejection(t *testing.T) {
 	r := newRig(t, session(
-		toolTurn(call("c1", "create_dashboard", `{}`)),
-		toolTurn(call("c2", "create_dashboard", `{}`)),
+		toolTurn(call("c1", "create_dashboard", `{"n":1}`)),
+		toolTurn(call("c2", "create_dashboard", `{"n":2}`)),
 	))
 	r.tools.onSave("create_dashboard", conflictResult(2), savedResult(dashID, 1))
 
@@ -891,7 +905,11 @@ func TestFinishingWithoutSavingFails(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			r := newRig(t, session(toolTurn(call("c1", "get_spec_guide", `{}`)), stopTurn(tc.stop)))
+			turns := []scriptedTurn{toolTurn(call("c1", "get_spec_guide", `{}`)), stopTurn(tc.stop)}
+			if tc.stop == llm.StopMaxTokens {
+				turns = append(turns, stopTurn(tc.stop))
+			}
+			r := newRig(t, session(turns...))
 			out, err := r.agent.Run(context.Background(), r.task())
 			if !errors.Is(err, agent.ErrNoSave) {
 				t.Fatalf("err = %v", err)
@@ -902,8 +920,8 @@ func TestFinishingWithoutSavingFails(t *testing.T) {
 			if tc.want == "" && err.Error() != agent.ErrNoSave.Error() {
 				t.Fatalf("err = %q", err)
 			}
-			if out.Usage.Calls != 2 {
-				t.Fatalf("usage = %+v", out.Usage)
+			if want := len(turns); out.Usage.Calls != want {
+				t.Fatalf("usage = %+v, want %d calls", out.Usage, want)
 			}
 		})
 	}
@@ -915,7 +933,7 @@ func TestMaxTokensWithToolCallsRunsNothing(t *testing.T) {
 		Stop:      llm.StopMaxTokens,
 		Usage:     usage(),
 	}}
-	r := newRig(t, session(truncated, toolTurn(call("never", "create_dashboard", `{}`))))
+	r := newRig(t, session(truncated, truncated))
 	r.tools.onSave("create_dashboard", savedResult(dashID, 1))
 
 	out, err := r.agent.Run(context.Background(), r.task())
@@ -925,66 +943,8 @@ func TestMaxTokensWithToolCallsRunsNothing(t *testing.T) {
 	if got := r.tools.names(); len(got) != 0 {
 		t.Fatalf("tools ran on a truncated turn: %v", got)
 	}
-	if out.Version != 0 || out.Usage.Calls != 1 {
+	if out.Version != 0 || out.Usage.Calls != 2 {
 		t.Fatalf("outcome = %+v", out)
-	}
-}
-
-func TestTurnLimit(t *testing.T) {
-	turns := make([]scriptedTurn, 25)
-	for i := range turns {
-		turns[i] = toolTurn(call(fmt.Sprint("c", i), "get_spec_guide", `{}`))
-	}
-	s := session(turns...)
-	r := newRig(t, s)
-
-	out, err := r.agent.Run(context.Background(), r.task())
-	if !errors.Is(err, agent.ErrTurnLimit) {
-		t.Fatalf("err = %v", err)
-	}
-	if s.modelCalls() != 20 || out.Usage.Calls != 20 || len(r.tools.names()) != 19 {
-		t.Fatalf("model calls = %d, usage = %+v, tool calls = %d", s.modelCalls(), out.Usage, len(r.tools.names()))
-	}
-}
-
-func TestTurnLimitStillAllowsASaveOnTheLastTurn(t *testing.T) {
-	turns := make([]scriptedTurn, 20)
-	for i := range turns {
-		turns[i] = toolTurn(call(fmt.Sprint("c", i), "get_spec_guide", `{}`))
-	}
-	turns[19] = toolTurn(call("last", "create_dashboard", `{}`))
-	r := newRig(t, session(turns...))
-	r.tools.onSave("create_dashboard", savedResult(dashID, 1))
-
-	if out, err := r.agent.Run(context.Background(), r.task()); err != nil || out.Version != 1 {
-		t.Fatalf("out = %+v err = %v", out, err)
-	}
-}
-
-func TestLastTurnRunsNoQueriesBesideASave(t *testing.T) {
-	turns := make([]scriptedTurn, 20)
-	for i := range turns {
-		turns[i] = toolTurn(call(fmt.Sprint("c", i), "get_spec_guide", `{}`))
-	}
-	turns[19] = toolTurn(call("q", "query_range", `{}`), call("last", "create_dashboard", `{}`))
-	r := newRig(t, session(turns...))
-	r.tools.onSave("create_dashboard", savedResult(dashID, 1))
-
-	if out, err := r.agent.Run(context.Background(), r.task()); err != nil || out.Version != 1 {
-		t.Fatalf("out = %+v err = %v", out, err)
-	}
-	for _, name := range r.tools.names() {
-		if name == "query_range" {
-			t.Fatal("a query ran on the last turn")
-		}
-	}
-	steps := r.recordedSteps()
-	skipped := steps[len(steps)-2]
-	if skipped.Tool != "query_range" || skipped.Status != "error" || !strings.Contains(skipped.Message, "turn limit reached; only a save can run") {
-		t.Fatalf("steps = %+v", steps[len(steps)-2:])
-	}
-	if last := steps[len(steps)-1]; last.Tool != "create_dashboard" || last.Status != "ok" {
-		t.Fatalf("steps = %+v", steps[len(steps)-2:])
 	}
 }
 
@@ -1074,7 +1034,7 @@ func TestInternalToolErrorAbortsWithASafeMessage(t *testing.T) {
 		return tools.Result{}, cause
 	})
 	task := r.task()
-	task.RequestID = "req-7"
+	task.RequestID = requestID
 
 	out, err := r.agent.Run(context.Background(), task)
 	if !errors.Is(err, cause) {
@@ -1097,7 +1057,7 @@ func TestInternalToolErrorAbortsWithASafeMessage(t *testing.T) {
 		}
 	}
 	failed := r.logEntry("agent tool failed")
-	if failed["tool"] != "create_dashboard" || failed["error_code"] != "tool_failed" || failed["agent_request_id"] != "req-7" ||
+	if failed["tool"] != "create_dashboard" || failed["error_code"] != "tool_failed" || failed["agent_request_id"] != requestID ||
 		failed["error_type"] != "*errors.errorString" || failed["error"] != nil || failed["request_id"] != nil {
 		t.Fatalf("tool failure log = %v", failed)
 	}
@@ -1153,7 +1113,7 @@ func TestToolFailureLogCarriesTheErrorCodeButNeverTheQueryText(t *testing.T) {
 				return tools.Result{}, tc.err
 			})
 			task := r.task()
-			task.RequestID = "req-9"
+			task.RequestID = requestID
 
 			if _, err := r.agent.Run(context.Background(), task); !errors.Is(err, tc.err) {
 				t.Fatalf("err = %v", err)
@@ -1165,11 +1125,11 @@ func TestToolFailureLogCarriesTheErrorCodeButNeverTheQueryText(t *testing.T) {
 				}
 			}
 			failed := r.logEntry("agent tool failed")
-			if failed["tool"] != tc.tool || failed["error_code"] != tc.code || failed["agent_request_id"] != "req-9" ||
+			if failed["tool"] != tc.tool || failed["error_code"] != tc.code || failed["agent_request_id"] != requestID ||
 				failed["error_type"] != tc.typ || failed["sqlstate"] != nilIfEmpty(tc.sqlstate) || failed["error"] != nil {
 				t.Fatalf("tool failure log = %v", failed)
 			}
-			if finish := r.finishLog(); finish["error_code"] != tc.code || finish["agent_request_id"] != "req-9" {
+			if finish := r.finishLog(); finish["error_code"] != tc.code || finish["agent_request_id"] != requestID {
 				t.Fatalf("finish line = %v", finish)
 			}
 		})
@@ -1296,21 +1256,114 @@ func TestPromptAtTheLimitIsAccepted(t *testing.T) {
 	}
 }
 
-func TestReviseOfATooLargeDashboardFailsBeforeAnyModelCall(t *testing.T) {
-	r := newRig(t, session(toolTurn(call("never", "update_dashboard", `{}`))))
-	big := *r.dash.spec
-	big.Title = strings.Repeat("x", 200<<10)
-	r.dash.spec = &big
+func nodeExporterFull(t *testing.T) *spec.Dashboard {
+	t.Helper()
+	data, err := os.ReadFile("../../pkg/grafana/testdata/golden/rfmoz/node-exporter-full.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var golden struct {
+		Spec json.RawMessage `json:"spec"`
+	}
+	if err := json.Unmarshal(data, &golden); err != nil {
+		t.Fatal(err)
+	}
+	d, err := spec.Parse(golden.Spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
+func TestReviseOfALargeDashboardStartsWithAnOutline(t *testing.T) {
+	r := newRig(t, session(toolTurn(call("c1", "update_panels", `{}`))))
+	r.dash.spec = nodeExporterFull(t)
+	r.tools.onSave("update_panels", savedResult(dashID, 4))
 
 	out, err := r.agent.Run(context.Background(), r.reviseTask())
-	if !errors.Is(err, agent.ErrTooLarge) || errors.Is(err, agent.ErrInvalidTask) {
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Version != 4 {
+		t.Fatalf("outcome = %+v", out)
+	}
+	reqs := r.provider.started()
+	if len(reqs) != 1 {
+		t.Fatalf("sessions = %d", len(reqs))
+	}
+	got := reqs[0].Context
+	if !strings.Contains(got, "so this is its outline") || strings.Contains(got, "```json\n{") {
+		t.Fatalf("context is not an outline: %.400s", got)
+	}
+}
+
+func TestUpdatePanelsRepairIsCountedAsARepairRound(t *testing.T) {
+	r := newRig(t, session(
+		toolTurn(call("c1", "update_panels", `{"upsert":[{}]}`)),
+		toolTurn(call("c2", "update_panels", `{"upsert":[{"id":"p"}]}`)),
+	))
+	r.tools.onSave("update_panels", invalidSpecResult("query_empty"), savedResult(dashID, 4))
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Version != 4 || out.RepairRounds != 1 {
+		t.Fatalf("outcome = %+v", out)
+	}
+	if got := strings.Join(phases(r.recordedSteps()), ","); got != "save,repair" {
+		t.Fatalf("phases = %s", got)
+	}
+}
+
+func TestUpdatePanelsConflictRestartsOnce(t *testing.T) {
+	r := newRig(t,
+		session(toolTurn(call("c1", "update_panels", `{}`))),
+		session(toolTurn(call("c2", "update_panels", `{}`))),
+	)
+	var saves atomic.Int64
+	r.tools.on("update_panels", func(context.Context, json.RawMessage) (tools.Result, error) {
+		if saves.Add(1) == 1 {
+			r.dash.setNumber(4)
+			return conflictResult(4), nil
+		}
+		return savedResult(dashID, 5), nil
+	})
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Version != 5 || out.RepairRounds != 0 || len(r.provider.started()) != 2 {
+		t.Fatalf("outcome = %+v, sessions = %d", out, len(r.provider.started()))
+	}
+}
+
+func TestUpdatePanelsSecondConflictFails(t *testing.T) {
+	r := newRig(t,
+		session(toolTurn(call("c1", "update_panels", `{}`))),
+		session(toolTurn(call("c2", "update_panels", `{}`))),
+	)
+	r.tools.onSave("update_panels", conflictResult(4), conflictResult(5))
+
+	if _, err := r.agent.Run(context.Background(), r.reviseTask()); !errors.Is(err, agent.ErrConflict) {
 		t.Fatalf("err = %v", err)
 	}
-	if len(r.provider.started()) != 0 || out.Usage.Calls != 0 {
-		t.Fatalf("a model call happened: sessions = %d, outcome = %+v", len(r.provider.started()), out)
+}
+
+func TestUpdatePanelsSaveOutputIsTheSavingTurnAlone(t *testing.T) {
+	r := newRig(t, session(
+		scriptedTurn{turn: llm.Turn{Stop: llm.StopToolUse, Usage: llm.Usage{OutputTokens: 900, Calls: 1}, ToolCalls: []llm.ToolCall{call("c1", "get_panels", `{"ids":["p1"]}`)}}},
+		scriptedTurn{turn: llm.Turn{Stop: llm.StopToolUse, Usage: llm.Usage{OutputTokens: 120, Calls: 1}, ToolCalls: []llm.ToolCall{call("c2", "update_panels", `{}`)}}},
+	))
+	r.tools.onSave("update_panels", savedResult(dashID, 4))
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil {
+		t.Fatal(err)
 	}
-	if strings.Contains(err.Error(), "xxxx") {
-		t.Fatalf("error carries spec content: %.200s", err)
+	if out.MaxSaveOutputTokens != 120 {
+		t.Fatalf("max save output tokens = %d, want 120", out.MaxSaveOutputTokens)
 	}
 }
 
@@ -1338,7 +1391,7 @@ func TestReviseLoadFailures(t *testing.T) {
 			t.Fatalf("log leaks the driver error: %s", r.logs.String())
 		}
 		failed := r.logEntry("agent could not load the dashboard")
-		if failed["error_code"] != "load_failed" || failed["agent_request_id"] != "req-1" || failed["error_type"] != "*errors.errorString" ||
+		if failed["error_code"] != "load_failed" || failed["agent_request_id"] != requestID || failed["error_type"] != "*errors.errorString" ||
 			failed["error"] != nil || failed["request_id"] != nil {
 			t.Fatalf("load failure log = %v", failed)
 		}
@@ -1348,10 +1401,15 @@ func TestReviseLoadFailures(t *testing.T) {
 func TestLogsCarryNeitherPromptNorToolData(t *testing.T) {
 	r := newRig(t, session(
 		toolTurn(call("c1", "get_spec_guide", `{"q":"UNIQUE-INPUT"}`)),
+		stopTurn(llm.StopMaxTokens),
 		toolTurn(call("c2", "create_dashboard", `{"spec":"UNIQUE-INPUT"}`)),
 	))
 	r.tools.on("get_spec_guide", func(context.Context, json.RawMessage) (tools.Result, error) {
-		return tools.Result{Content: map[string]any{"v": "UNIQUE-RESULT"}, Step: "Read"}, nil
+		return tools.Result{
+			Content:    map[string]any{"v": "UNIQUE-RESULT"},
+			Step:       "Read",
+			Discovered: &tools.Discovery{Datasource: "prom", Of: "metrics", Names: []string{"UNIQUE-METRIC"}},
+		}, nil
 	})
 	r.tools.onSave("create_dashboard", invalidSpecResult("x_code"))
 	task := r.task()
@@ -1361,7 +1419,7 @@ func TestLogsCarryNeitherPromptNorToolData(t *testing.T) {
 		t.Fatal("expected a failure")
 	}
 	logs := r.logs.String()
-	for _, secret := range []string{"UNIQUE-PROMPT", "UNIQUE-INPUT", "UNIQUE-RESULT", "SECRET"} {
+	for _, secret := range []string{"UNIQUE-PROMPT", "UNIQUE-INPUT", "UNIQUE-RESULT", "UNIQUE-METRIC", "SECRET"} {
 		if strings.Contains(logs, secret) {
 			t.Fatalf("log leaks %s: %s", secret, logs)
 		}
@@ -1434,21 +1492,21 @@ func TestRunFinishedLogNeverCarriesToolOrModelText(t *testing.T) {
 		},
 		{
 			name: "rejected saves exhaust the repair budget",
-			code: "repair_exhausted",
+			code: "validation_exhausted",
 			typ:  "",
 			rig: func(t *testing.T) *rig {
-				turns := make([]scriptedTurn, 4)
+				turns := make([]scriptedTurn, 3)
 				for i := range turns {
-					turns[i] = toolTurn(call(fmt.Sprint("c", i), "create_dashboard", `{"spec":"UNIQUE-INPUT"}`))
+					turns[i] = toolTurn(call(fmt.Sprint("c", i), "create_dashboard", fmt.Sprintf(`{"spec":"UNIQUE-INPUT","n":%d}`, i)))
 				}
 				r := newRig(t, session(turns...))
-				r.tools.onSave("create_dashboard", invalidSpecResult("a_code"), invalidSpecResult("a_code"), invalidSpecResult("a_code"), invalidSpecResult("a_code"))
+				r.tools.onSave("create_dashboard", invalidSpecResult("a_code"), invalidSpecResult("a_code"), invalidSpecResult("a_code"))
 				return r
 			},
 		},
 		{
 			name: "model ends without saving",
-			code: "no_save",
+			code: "no_tool_call",
 			typ:  "",
 			rig:  oneTurn(scriptedTurn{turn: llm.Turn{Text: "UNIQUE-MODEL words", Stop: llm.StopEndTurn, Usage: usage()}}),
 		},
@@ -1460,26 +1518,35 @@ func TestRunFinishedLogNeverCarriesToolOrModelText(t *testing.T) {
 		},
 		{
 			name: "model call fails",
-			code: "model_failed",
+			code: "provider_error",
 			typ:  "*errors.errorString",
 			rig:  oneTurn(scriptedTurn{err: llm.ErrProvider}),
 		},
 		{
 			name: "model call fails with unsanitized provider text",
-			code: "model_failed",
+			code: "provider_error",
 			typ:  "*errors.errorString",
 			rig:  oneTurn(scriptedTurn{err: errors.New("provider echoed UNIQUE-MODEL words and UNIQUE-PROMPT")}),
 		},
 		{
-			name: "turn limit",
-			code: "turn_limit",
+			name: "model call rate limited",
+			code: "rate_limited",
+			typ:  "*errors.errorString",
+			rig:  oneTurn(scriptedTurn{err: llm.NewCallError("fake", llm.RateLimited, 429)}),
+		},
+		{
+			name: "model call timed out",
+			code: "call_timeout",
+			typ:  "*errors.errorString",
+			rig:  func(t *testing.T) *rig { return newRig(t, session(timedOut(), timedOut())) },
+		},
+		{
+			name: "model hits the output limit",
+			code: "output_limit",
 			typ:  "",
 			rig: func(t *testing.T) *rig {
-				turns := make([]scriptedTurn, 25)
-				for i := range turns {
-					turns[i] = toolTurn(call(fmt.Sprint("c", i), "get_spec_guide", `{"q":"UNIQUE-INPUT"}`))
-				}
-				return newRig(t, session(turns...))
+				cut := scriptedTurn{turn: llm.Turn{Text: "UNIQUE-MODEL words", Stop: llm.StopMaxTokens, Usage: usage()}}
+				return newRig(t, session(cut, cut))
 			},
 		},
 		{
@@ -1506,19 +1573,6 @@ func TestRunFinishedLogNeverCarriesToolOrModelText(t *testing.T) {
 				task.PanelID = "p_1"
 				return task
 			},
-		},
-		{
-			name: "dashboard too large",
-			code: "too_large",
-			typ:  "",
-			rig: func(t *testing.T) *rig {
-				r := newRig(t, session())
-				big := *r.dash.spec
-				big.Title = strings.Repeat("x", 200<<10)
-				r.dash.spec = &big
-				return r
-			},
-			task: reviseTask,
 		},
 		{
 			name: "dashboard not found",
@@ -1555,7 +1609,7 @@ func TestRunFinishedLogNeverCarriesToolOrModelText(t *testing.T) {
 		},
 		{
 			name: "deadline exceeded",
-			code: "deadline_exceeded",
+			code: "run_timeout",
 			typ:  "",
 			rig:  func(t *testing.T) *rig { return newRig(t, session()) },
 			ctx: func() (context.Context, context.CancelFunc) {
@@ -1572,7 +1626,7 @@ func TestRunFinishedLogNeverCarriesToolOrModelText(t *testing.T) {
 			}
 			task.Prompt = "UNIQUE-PROMPT show me everything"
 			if task.RequestID == "" {
-				task.RequestID = "req-fin"
+				task.RequestID = requestID
 			}
 			ctx, cancel := context.Background(), context.CancelFunc(func() {})
 			if tc.ctx != nil {
@@ -1584,10 +1638,13 @@ func TestRunFinishedLogNeverCarriesToolOrModelText(t *testing.T) {
 			if runErr == nil {
 				t.Fatal("expected a failure")
 			}
-			if tc.code == "model_failed" && !strings.HasPrefix(runErr.Error(), "model call failed: ") {
+			if tc.code == "provider_error" && !strings.HasPrefix(runErr.Error(), "model call failed: ") {
 				t.Fatalf("the returned error changed: %q", runErr)
 			}
 			entry := r.finishLog()
+			if want := finishLevelFor(tc.code); entry["level"] != want {
+				t.Fatalf("finish line level = %v, want %s for %s", entry["level"], want, tc.code)
+			}
 			if entry["error_code"] != tc.code || entry["agent_request_id"] != task.RequestID || entry["error"] != nil {
 				t.Fatalf("finish line = %v, want error_code %q, agent_request_id %q and no error text", entry, tc.code, task.RequestID)
 			}
@@ -1610,6 +1667,146 @@ func TestRunFinishedLogNeverCarriesToolOrModelText(t *testing.T) {
 	}
 }
 
+func finishLevelFor(code string) string {
+	switch code {
+	case "canceled":
+		return "INFO"
+	case "tool_failed", "tool_panicked", "result_too_large", "malformed_result", "load_failed", "context_failed", "internal":
+		return "ERROR"
+	}
+	return "WARN"
+}
+
+func TestSuccessfulRunFinishesAtInfo(t *testing.T) {
+	r := newRig(t, session(toolTurn(call("c1", "create_dashboard", `{}`))))
+	r.tools.onSave("create_dashboard", savedResult(dashID, 1))
+	if _, err := r.agent.Run(context.Background(), r.task()); err != nil {
+		t.Fatal(err)
+	}
+	if level := r.finishLog()["level"]; level != "INFO" {
+		t.Fatalf("level = %v, want INFO", level)
+	}
+}
+
+func debugAgent(r *rig) {
+	r.agent = agent.New(agent.Config{
+		Provider:    r.provider,
+		Tools:       r.tools,
+		Dashboards:  r.dash,
+		Builds:      r.builds,
+		Datasources: fakeHealth{},
+		Logger:      slog.New(slog.NewJSONHandler(r.logs, &slog.HandlerOptions{Level: slog.LevelDebug})),
+	})
+}
+
+func TestToolCallFinishedLineHoldsNoInputOrResult(t *testing.T) {
+	for _, debug := range []bool{false, true} {
+		t.Run(fmt.Sprintf("debug=%v", debug), func(t *testing.T) {
+			r := newRig(t, session(
+				toolTurn(call("c1", "get_spec_guide", `{"q":"UNIQUE-INPUT"}`), call("c2", "UNIQUE-TOOLNAME", `{}`)),
+				toolTurn(call("c3", "create_dashboard", `{"spec":"UNIQUE-INPUT"}`)),
+			))
+			if debug {
+				debugAgent(r)
+			}
+			r.tools.on("get_spec_guide", func(context.Context, json.RawMessage) (tools.Result, error) {
+				return tools.Result{Content: map[string]any{"v": "UNIQUE-RESULT"}, Step: "Read"}, nil
+			})
+			r.tools.onSave("create_dashboard", savedResult(dashID, 1))
+			task := r.task()
+			task.RequestID = requestID
+			task.Prompt = "UNIQUE-PROMPT show me everything"
+			if _, err := r.agent.Run(context.Background(), task); err != nil {
+				t.Fatal(err)
+			}
+
+			var lines []map[string]any
+			for line := range strings.SplitSeq(r.logs.String(), "\n") {
+				var entry map[string]any
+				if json.Unmarshal([]byte(line), &entry) == nil && entry["msg"] == "tool call finished" {
+					lines = append(lines, entry)
+				}
+			}
+			if !debug {
+				if len(lines) != 0 {
+					t.Fatalf("tool call lines at INFO: %v", lines)
+				}
+				return
+			}
+			if len(lines) != 3 {
+				t.Fatalf("%d tool call lines, want 3: %s", len(lines), r.logs)
+			}
+			tools := map[string]bool{}
+			for _, line := range lines {
+				if line["level"] != "DEBUG" || line["agent_request_id"] != requestID || line["is_error"] != false {
+					t.Errorf("line = %v", line)
+				}
+				if _, ok := line["duration"]; !ok {
+					t.Errorf("line has no duration: %v", line)
+				}
+				if len(line) != 7 {
+					t.Errorf("line has unexpected attributes: %v", line)
+				}
+				tools[fmt.Sprint(line["tool"])] = true
+			}
+			if !tools["get_spec_guide"] || !tools["create_dashboard"] || !tools["unknown_tool"] {
+				t.Errorf("tools = %v", tools)
+			}
+			for _, secret := range []string{"UNIQUE-PROMPT", "UNIQUE-INPUT", "UNIQUE-RESULT", "UNIQUE-TOOLNAME"} {
+				if strings.Contains(r.logs.String(), secret) {
+					t.Fatalf("log leaks %s: %s", secret, r.logs)
+				}
+			}
+		})
+	}
+}
+
+func TestToolCallFinishedFlagsAnErroringCall(t *testing.T) {
+	r := newRig(t, session(toolTurn(call("c1", "create_dashboard", `{"spec":"UNIQUE-INPUT"}`))))
+	debugAgent(r)
+	r.tools.onSave("create_dashboard", invalidSpecResult("x_code"))
+	if _, err := r.agent.Run(context.Background(), r.task()); err == nil {
+		t.Fatal("expected a failure")
+	}
+	if line := r.logEntry("tool call finished"); line["is_error"] != true || line["tool"] != "create_dashboard" {
+		t.Fatalf("line = %v", line)
+	}
+}
+
+func TestProviderErrorMessageIsLoggedOnlyWhenPresent(t *testing.T) {
+	tests := []struct {
+		name    string
+		message string
+		want    any
+	}{
+		{"present", "provider says UNIQUE-ECHO", "provider says UNIQUE-ECHO"},
+		{"absent", "", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			callErr := llm.NewCallError("fake", llm.ProviderError, 400)
+			callErr.ProviderMessage = tt.message
+			r := newRig(t, session(scriptedTurn{err: callErr}))
+			task := r.task()
+			task.Prompt = "UNIQUE-PROMPT show me everything"
+			task.RequestID = requestID
+			if _, err := r.agent.Run(context.Background(), task); err == nil {
+				t.Fatal("expected a failure")
+			}
+			lines := r.llmCallLogs()
+			if len(lines) != 1 || lines[0]["level"] != "WARN" || lines[0]["provider_error_message"] != tt.want {
+				t.Fatalf("llm call lines = %v", lines)
+			}
+			if strings.Contains(r.logs.String(), "UNIQUE-PROMPT") {
+				t.Fatalf("log leaks the prompt: %s", r.logs)
+			}
+			if finish := r.finishLog(); finish["provider_error_message"] != nil || strings.Contains(fmt.Sprint(finish), "UNIQUE-ECHO") {
+				t.Fatalf("the run finished line carries the provider message: %v", finish)
+			}
+		})
+	}
+}
+
 func writeFixture(t *testing.T, dir, name string, fixture any) {
 	t.Helper()
 	body, err := json.Marshal(fixture)
@@ -1625,7 +1822,7 @@ func replayRig(t *testing.T, prompt string, turns []map[string]any) *rig {
 	t.Helper()
 	dir := t.TempDir()
 	writeFixture(t, dir, "run.json", map[string]any{"prompt": prompt, "turns": turns})
-	provider, err := replay.New(dir, slog.New(slog.DiscardHandler))
+	provider, err := replay.New(dir, 0, slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1634,6 +1831,7 @@ func replayRig(t *testing.T, prompt string, turns []map[string]any) *rig {
 		Provider:    provider,
 		Tools:       r.tools,
 		Dashboards:  r.dash,
+		Builds:      r.builds,
 		Datasources: fakeHealth{},
 		Logger:      slog.New(slog.NewJSONHandler(r.logs, nil)),
 	})
@@ -1710,10 +1908,11 @@ func TestAgentDoesNotOfferMCPOnlyTools(t *testing.T) {
 		Provider:    provider,
 		Tools:       registry,
 		Dashboards:  &fakeDashboards{number: 3},
+		Builds:      &fakeBuilds{},
 		Datasources: fakeHealth{},
 		Logger:      slog.New(slog.DiscardHandler),
 	})
-	if _, err := a.Run(context.Background(), agent.Task{Prompt: "checkout health by pod", Principal: principal}); !errors.Is(err, agent.ErrRefused) {
+	if _, err := a.Run(context.Background(), agent.Task{Prompt: "checkout health by pod", RequestID: requestID, Principal: principal}); !errors.Is(err, agent.ErrRefused) {
 		t.Fatalf("err = %v", err)
 	}
 	offered := map[string]bool{}
@@ -1734,12 +1933,1591 @@ func TestAgentDoesNotOfferMCPOnlyTools(t *testing.T) {
 			t.Errorf("%s: MCPOnly = %v, offered to the model = %v", tool.Name, tool.MCPOnly, offered[tool.Name])
 		}
 	}
-	for _, name := range []string{"get_spec_guide", "list_comments", "list_folders", "reply_to_comment", "resolve_comment"} {
+	for _, name := range []string{"list_comments", "list_folders", "reply_to_comment", "resolve_comment"} {
 		if offered[name] {
 			t.Errorf("%s is offered to the model", name)
 		}
 	}
-	if mcpOnly != 5 || len(offered) != len(registry.List())-5 {
+	if !offered["get_spec_guide"] || mcpOnly != 4 || len(offered) != len(registry.List())-4 {
 		t.Fatalf("mcp-only tools = %d, offered = %d of %d", mcpOnly, len(offered), len(registry.List()))
+	}
+}
+
+func (r *rig) llmCallLogs() []map[string]any {
+	r.t.Helper()
+	var out []map[string]any
+	for line := range strings.SplitSeq(r.logs.String(), "\n") {
+		var entry map[string]any
+		if json.Unmarshal([]byte(line), &entry) == nil && entry["msg"] == "llm call finished" {
+			out = append(out, entry)
+		}
+	}
+	return out
+}
+
+type attemptingSession struct {
+	statuses []int
+	turn     llm.Turn
+	err      error
+}
+
+func (s *attemptingSession) Compact(llm.Compaction) error { return nil }
+
+func (s *attemptingSession) Next(ctx context.Context, _ []llm.ToolResult) (llm.Turn, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://provider.invalid/v1", nil)
+	if err != nil {
+		return llm.Turn{}, err
+	}
+	for _, status := range s.statuses {
+		resp, err := llm.TraceAttempt(req, func(*http.Request) (*http.Response, error) {
+			header := http.Header{}
+			if status == http.StatusTooManyRequests {
+				header.Set("Retry-After", "2")
+			}
+			return &http.Response{StatusCode: status, Header: header, Body: http.NoBody}, nil
+		})
+		if err != nil {
+			return llm.Turn{}, err
+		}
+		_ = resp.Body.Close()
+	}
+	return s.turn, s.err
+}
+
+func TestEveryModelCallLogsOneLineWithItsOutcome(t *testing.T) {
+	r := newRig(t, session(
+		toolTurn(call("c1", "get_spec_guide", `{"q":"UNIQUE-INPUT"}`)),
+		toolTurn(call("c2", "create_dashboard", `{"spec":"UNIQUE-INPUT"}`)),
+	))
+	r.tools.onSave("create_dashboard", savedResult(dashID, 1))
+	task := r.task()
+	task.RequestID = requestID
+	task.Prompt = "UNIQUE-PROMPT show me everything"
+
+	if _, err := r.agent.Run(context.Background(), task); err != nil {
+		t.Fatal(err)
+	}
+	lines := r.llmCallLogs()
+	if len(lines) != 2 {
+		t.Fatalf("%d llm call lines, want one per model call: %s", len(lines), r.logs)
+	}
+	for _, line := range lines {
+		want := map[string]any{
+			"level": "INFO", "agent_request_id": requestID, "provider": "fake", "model": "fake-model",
+			"attempts": float64(0), "retries": float64(0), "status": float64(0),
+			"input_tokens": float64(100), "output_tokens": float64(10), "cache_read_tokens": float64(5), "cache_write_tokens": float64(2),
+			"stop_reason": "tool_use",
+		}
+		for key, value := range want {
+			if line[key] != value {
+				t.Errorf("%s = %v, want %v", key, line[key], value)
+			}
+		}
+		if _, ok := line["duration"]; !ok {
+			t.Errorf("line has no duration: %v", line)
+		}
+		if line["failure_code"] != nil {
+			t.Errorf("a successful call logged a failure code: %v", line)
+		}
+	}
+	for _, secret := range []string{"UNIQUE-PROMPT", "UNIQUE-INPUT"} {
+		if strings.Contains(r.logs.String(), secret) {
+			t.Fatalf("log leaks %s: %s", secret, r.logs)
+		}
+	}
+}
+
+func TestFailedFirstModelCallLogsItsFailureAndKeepsUsage(t *testing.T) {
+	callErr := llm.NewCallError("fake", llm.RateLimited, 429)
+	callErr.Type, callErr.Code, callErr.Param, callErr.RequestID = "rate_limit_error", "rate_limited", "model", "req_abc"
+	r := newRig(t, session(scriptedTurn{err: callErr}))
+	task := r.task()
+	task.RequestID = requestID
+	task.Prompt = "UNIQUE-PROMPT show me everything"
+
+	out, err := r.agent.Run(context.Background(), task)
+	if err == nil {
+		t.Fatal("expected a failure")
+	}
+	if out.FailedCalls != 1 || out.Usage.Calls != 0 {
+		t.Fatalf("outcome = %+v, want one failed call and no counted call", out)
+	}
+	lines := r.llmCallLogs()
+	if len(lines) != 1 {
+		t.Fatalf("%d llm call lines, want 1: %s", len(lines), r.logs)
+	}
+	want := map[string]any{
+		"level": "WARN", "agent_request_id": requestID, "failure_code": "rate_limited",
+		"provider_error_type": "rate_limit_error", "provider_error_code": "rate_limited", "provider_error_param": "model", "request_id": "req_abc",
+	}
+	for key, value := range want {
+		if lines[0][key] != value {
+			t.Errorf("%s = %v, want %v", key, lines[0][key], value)
+		}
+	}
+	for _, key := range []string{"input_tokens", "stop_reason"} {
+		if lines[0][key] != nil {
+			t.Errorf("a failed call logged %s", key)
+		}
+	}
+	if strings.Contains(r.logs.String(), "UNIQUE-PROMPT") {
+		t.Fatalf("log leaks the prompt: %s", r.logs)
+	}
+
+	result, err := agent.NewReviser(newRig(t, session(scriptedTurn{err: callErr})).agent, nil).Revise(context.Background(), revisionRequest())
+	if err == nil || result.FailureCode != revisions.FailureRateLimited {
+		t.Fatalf("result = %+v, err %v", result, err)
+	}
+	if result.Usage == nil || result.Usage.FailedCalls != 1 || result.Usage.ModelCalls != 0 {
+		t.Fatalf("usage = %+v, want a non-null usage with one failed call", result.Usage)
+	}
+}
+
+func TestProviderAttemptsAreCountedAsRetriesPerCall(t *testing.T) {
+	r := newRig(t)
+	provider := &sessionProvider{sessions: []llm.Session{
+		&attemptingSession{statuses: []int{429, 503, 200}, turn: llm.Turn{ToolCalls: []llm.ToolCall{call("c1", "create_dashboard", `{}`)}, Stop: llm.StopToolUse, Usage: usage()}},
+	}}
+	r.tools.onSave("create_dashboard", savedResult(dashID, 1))
+	ag := agent.New(agent.Config{Provider: provider, Tools: r.tools, Dashboards: r.dash, Builds: r.builds, Datasources: fakeHealth{}, Logger: slog.New(slog.NewJSONHandler(r.logs, nil))})
+
+	out, err := ag.Run(context.Background(), r.task())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Retries != 2 {
+		t.Fatalf("retries = %d, want 2", out.Retries)
+	}
+	lines := r.llmCallLogs()
+	if len(lines) != 1 || lines[0]["attempts"] != float64(3) || lines[0]["retries"] != float64(2) || lines[0]["status"] != float64(200) {
+		t.Fatalf("llm call lines = %v", lines)
+	}
+}
+
+func TestRetryAfterOfAFailedCallIsLogged(t *testing.T) {
+	r := newRig(t)
+	provider := &sessionProvider{sessions: []llm.Session{
+		&attemptingSession{statuses: []int{429, 429, 429}, err: llm.NewCallError("fake", llm.RateLimited, 429)},
+	}}
+	ag := agent.New(agent.Config{Provider: provider, Tools: r.tools, Dashboards: r.dash, Builds: r.builds, Datasources: fakeHealth{}, Logger: slog.New(slog.NewJSONHandler(r.logs, nil))})
+
+	out, err := ag.Run(context.Background(), r.task())
+	if err == nil || out.Retries != 2 || out.FailedCalls != 1 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	lines := r.llmCallLogs()
+	if len(lines) != 1 || lines[0]["retry_after"] != "2" || lines[0]["status"] != float64(429) || lines[0]["failure_code"] != "rate_limited" {
+		t.Fatalf("llm call lines = %v", lines)
+	}
+}
+
+type sessionProvider struct {
+	mu       sync.Mutex
+	sessions []llm.Session
+	started  int
+}
+
+func (p *sessionProvider) Name() string  { return "fake" }
+func (p *sessionProvider) Model() string { return "fake-model" }
+
+func (p *sessionProvider) Start(context.Context, llm.Request) (llm.Session, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.started++
+	return p.sessions[p.started-1], nil
+}
+
+func TestOutcomeSummarisesToolWorkAndTheLargestSavingTurn(t *testing.T) {
+	r := newRig(t, session(
+		scriptedTurn{turn: llm.Turn{Stop: llm.StopToolUse, Usage: llm.Usage{OutputTokens: 4000, Calls: 1}, ToolCalls: []llm.ToolCall{
+			call("c1", "get_spec_guide", `{}`), call("c2", "list_datasources", `{}`),
+		}}},
+		scriptedTurn{turn: llm.Turn{Stop: llm.StopToolUse, Usage: llm.Usage{OutputTokens: 700, Calls: 1}, ToolCalls: []llm.ToolCall{
+			call("c3", "create_dashboard", `{}`),
+		}}},
+	))
+	const readDuration = 150 * time.Millisecond
+	slowRead := func(context.Context, json.RawMessage) (tools.Result, error) {
+		time.Sleep(readDuration)
+		return tools.Result{Content: map[string]any{"ok": true}, Step: "Read"}, nil
+	}
+	r.tools.on("get_spec_guide", slowRead)
+	r.tools.on("list_datasources", slowRead)
+	r.tools.onSave("create_dashboard", savedResult(dashID, 1))
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.ToolCalls != 3 || out.MaxSaveOutputTokens != 700 || out.FailedCalls != 0 || out.Retries != 0 {
+		t.Fatalf("outcome = %+v, want 3 tool calls and a largest saving turn of 700 tokens", out)
+	}
+	if out.ToolTime < readDuration || out.ToolTime >= 2*readDuration {
+		t.Fatalf("tool time = %s, want one wall-clock read of %s, not the sum of the parallel reads", out.ToolTime, readDuration)
+	}
+}
+
+func TestOutcomeCountsATruncatedSavingTurn(t *testing.T) {
+	truncated := scriptedTurn{turn: llm.Turn{
+		Stop: llm.StopMaxTokens, Usage: llm.Usage{OutputTokens: 16000, Calls: 1}, ToolCalls: []llm.ToolCall{call("c1", "create_dashboard", `{}`)},
+	}}
+	r := newRig(t, session(truncated, truncated))
+	out, err := r.agent.Run(context.Background(), r.task())
+	if !errors.Is(err, agent.ErrNoSave) || !strings.HasSuffix(err.Error(), " after reaching max tokens") {
+		t.Fatalf("err = %v", err)
+	}
+	if out.MaxSaveOutputTokens != 16000 {
+		t.Fatalf("max save output tokens = %d, want 16000", out.MaxSaveOutputTokens)
+	}
+}
+
+func TestOutcomeTotalsSurviveAConflictRestart(t *testing.T) {
+	r := newRig(t,
+		session(scriptedTurn{turn: llm.Turn{Stop: llm.StopToolUse, Usage: llm.Usage{OutputTokens: 300, Calls: 1}, ToolCalls: []llm.ToolCall{call("c1", "update_dashboard", `{}`)}}}),
+		session(scriptedTurn{turn: llm.Turn{Stop: llm.StopToolUse, Usage: llm.Usage{OutputTokens: 200, Calls: 1}, ToolCalls: []llm.ToolCall{call("c2", "update_dashboard", `{}`)}}}),
+	)
+	r.tools.onSave("update_dashboard", conflictResult(4), savedResult(dashID, 5))
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.ToolCalls != 2 || out.MaxSaveOutputTokens != 300 || out.Usage.Calls != 2 {
+		t.Fatalf("outcome = %+v, want both sessions counted", out)
+	}
+}
+
+func TestFailureCodesOfToolFailuresAreInTheClosedSet(t *testing.T) {
+	for _, code := range []string{tools.FailureToolFailed, tools.FailureResultTooLarge, tools.FailurePanicked} {
+		if !slices.Contains([]revisions.FailureCode{revisions.FailureToolFailed, revisions.FailureResultTooLarge, revisions.FailureToolPanicked}, revisions.FailureCode(code)) {
+			t.Errorf("tool failure code %q is not a revisions.FailureCode", code)
+		}
+	}
+	for failure, code := range map[llm.CallFailure]revisions.FailureCode{
+		llm.CallTimeout: revisions.FailureCallTimeout, llm.RateLimited: revisions.FailureRateLimited, llm.ProviderError: revisions.FailureProviderError,
+	} {
+		if string(failure) != string(code) {
+			t.Errorf("llm failure %q does not match failure code %q", failure, code)
+		}
+	}
+}
+
+type fakeBuilds struct {
+	mu        sync.Mutex
+	build     *dashboards.Build
+	commitErr []error
+	commits   int
+	discards  int
+	attempts  []int
+}
+
+func (f *fakeBuilds) Build(context.Context, pgtype.UUID) (dashboards.Build, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.build == nil {
+		return dashboards.Build{}, false, nil
+	}
+	return *f.build, true, nil
+}
+
+func (f *fakeBuilds) CommitBuild(_ context.Context, _ auth.Principal, _ pgtype.UUID, attempt int) (dashboards.Dashboard, dashboards.Version, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.attempts = append(f.attempts, attempt)
+	if len(f.commitErr) > 0 {
+		err := f.commitErr[0]
+		f.commitErr = f.commitErr[1:]
+		if err != nil {
+			return dashboards.Dashboard{}, dashboards.Version{}, false, err
+		}
+	}
+	f.commits++
+	f.build = nil
+	return dashboards.Dashboard{ID: dashID}, dashboards.Version{VersionMeta: dashboards.VersionMeta{Number: 1}}, false, nil
+}
+
+func (f *fakeBuilds) DiscardBuild(_ context.Context, _ pgtype.UUID, attempt int) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.discards++
+	f.attempts = append(f.attempts, attempt)
+	f.build = nil
+	return nil
+}
+
+func (f *fakeBuilds) current() *dashboards.Build {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.build
+}
+
+func (f *fakeBuilds) seed(b dashboards.Build) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.build = &b
+}
+
+func buildSpec(t *testing.T, rowIDs ...string) *spec.Dashboard {
+	t.Helper()
+	rows := make([]string, len(rowIDs))
+	for i, id := range rowIDs {
+		rows[i] = fmt.Sprintf(`{"id":%q,"type":"row","title":"Row %s","gridPos":{"x":0,"y":%d,"w":24,"h":1},"panels":[{"id":"%s_p","type":"stat","title":"p","gridPos":{"x":0,"y":%d,"w":6,"h":4},"datasource":"prom","queries":[{"query":"up"}]}]}`, id, id, i*5, id, i*5+1)
+	}
+	raw := `{"specVersion":"0","title":"t","time":{"from":"now-15m","to":"now"},"panels":[` + strings.Join(rows, ",") + `]}`
+	d, err := spec.Parse([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
+func planOf(ids ...string) int {
+	return len(ids)
+}
+
+func (f *fakeBuilds) saveRows(t *testing.T, planned int, built ...string) tools.Result {
+	t.Helper()
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	saves := 1
+	if f.build != nil {
+		saves = f.build.Saves + 1
+	}
+	f.build = &dashboards.Build{Spec: buildSpec(t, built...), PlannedPanels: planned, Saves: saves, BaseVersion: latestVersion}
+	return tools.Result{
+		Content: map[string]any{
+			"build":   map[string]any{"saves": saves},
+			"message": "saved",
+		},
+		Step:  fmt.Sprintf("Saved %d rows to the build", len(built)),
+		Edits: tools.Edits{Panels: []string{fmt.Sprint("p", saves)}},
+	}
+}
+
+func sequence(fns ...func() tools.Result) handler {
+	var mu sync.Mutex
+	next := 0
+	return func(context.Context, json.RawMessage) (tools.Result, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if next >= len(fns) {
+			return tools.Result{}, errors.New("test script exhausted: unexpected save")
+		}
+		fn := fns[next]
+		next++
+		return fn(), nil
+	}
+}
+
+func (r *rig) buildSaves(t *testing.T, fns ...func() tools.Result) {
+	t.Helper()
+	seq := sequence(fns...)
+	r.tools.on("create_dashboard", seq)
+	r.tools.on("update_panels", seq)
+}
+
+func (r *rig) rows(t *testing.T, planned int, built ...string) func() tools.Result {
+	return func() tools.Result { return r.builds.saveRows(t, planned, built...) }
+}
+
+func saved(version int) func() tools.Result {
+	return func() tools.Result { return savedResult(dashID, version) }
+}
+
+func rejected() func() tools.Result {
+	return func() tools.Result { return invalidSpecResult("bad_query") }
+}
+
+func buildSavedResult(saves int) tools.Result {
+	return tools.Result{
+		Content: map[string]any{"build": map[string]any{"saves": saves}, "message": "saved"},
+		Step:    fmt.Sprintf("Saved panel %d", saves),
+	}
+}
+
+func (r *rig) savesUntilVersion(versionAt int) {
+	var mu sync.Mutex
+	saves := 0
+	save := func(context.Context, json.RawMessage) (tools.Result, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		saves++
+		if saves == versionAt {
+			return savedResult(dashID, 1), nil
+		}
+		res := buildSavedResult(saves)
+		res.Edits = tools.Edits{Panels: []string{fmt.Sprint("p", saves)}}
+		return res, nil
+	}
+	r.tools.on("create_dashboard", save)
+	r.tools.on("update_panels", save)
+}
+
+func TestThreeBuildSavesWithFinishOnTheThirdMakeOneVersion(t *testing.T) {
+	plan := planOf("r1", "r2", "r3")
+	s := session(
+		toolTurn(call("c1", "create_dashboard", `{"n":1}`)),
+		toolTurn(call("c2", "update_panels", `{"n":2}`)),
+		toolTurn(call("c3", "update_panels", `{"n":3,"finish":true}`)),
+	)
+	r := newRig(t, s)
+	r.buildSaves(t, r.rows(t, plan, "r1"), r.rows(t, plan, "r1", "r2"), saved(1))
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Version != 1 || out.DashboardID != dashID || out.BuildSaves != 3 || out.Reseeds != 0 || s.modelCalls() != 3 {
+		t.Fatalf("outcome = %+v, model calls %d", out, s.modelCalls())
+	}
+	if r.builds.commits != 0 {
+		t.Fatal("the loop committed a build the tool had already committed")
+	}
+	steps := r.recordedSteps()
+	if got := steps[0].Message; got != "Saved 1 rows to the build" {
+		t.Fatalf("first step = %q", got)
+	}
+}
+
+func TestTwoBuildSavesThenNoToolCallCommitOnce(t *testing.T) {
+	plan := planOf("r1", "r2")
+	s := session(
+		toolTurn(call("c1", "create_dashboard", `{"n":1}`)),
+		toolTurn(call("c2", "update_panels", `{"n":2}`)),
+		stopTurn(llm.StopEndTurn),
+	)
+	r := newRig(t, s)
+	r.buildSaves(t, r.rows(t, plan, "r1"), r.rows(t, plan, "r1", "r2"))
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Version != 1 || out.DashboardID != dashID || out.BuildSaves != 2 || r.builds.commits != 1 || !slices.Equal(r.builds.attempts, []int{1}) {
+		t.Fatalf("outcome = %+v, commits %d, attempts %v", out, r.builds.commits, r.builds.attempts)
+	}
+	if got := len(r.provider.started()); got != 1 {
+		t.Fatalf("sessions = %d", got)
+	}
+}
+
+func TestNoToolCallWithFewerPanelsThanPlannedReseedsOnceThenCommits(t *testing.T) {
+	plan := planOf("r1", "r2", "r3")
+	r := newRig(t,
+		session(toolTurn(call("c1", "create_dashboard", `{"n":1}`)), stopTurn(llm.StopEndTurn)),
+		session(stopTurn(llm.StopEndTurn)),
+	)
+	r.buildSaves(t, r.rows(t, plan, "r1"))
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Version != 1 || out.Reseeds != 1 || out.BuildSaves != 1 || r.builds.commits != 1 {
+		t.Fatalf("outcome = %+v, commits %d", out, r.builds.commits)
+	}
+	started := r.provider.started()
+	if len(started) != 2 || started[0].BuildSaves != 0 || started[1].BuildSaves != 1 {
+		t.Fatalf("requests = %+v", started)
+	}
+	if !strings.Contains(started[1].Context, "You answered without a tool call, but the build has fewer panels than you planned.") ||
+		!strings.Contains(started[1].Context, "Panels built: 1 of 3.") {
+		t.Fatalf("second context = %s", started[1].Context)
+	}
+}
+
+func TestMaxTokensOnceCompactsWithTheOutputLimitNoteAndTwiceInARowEndsTheRun(t *testing.T) {
+	const sentence = "Why your conversation was shortened: Your last answer was cut off at the output limit. Save one panel per call, and check only what that panel needs."
+	t.Run("recovers", func(t *testing.T) {
+		s := session(stopTurn(llm.StopMaxTokens), toolTurn(call("c1", "create_dashboard", `{}`)))
+		r := newRig(t, s)
+		r.tools.onSave("create_dashboard", savedResult(dashID, 1))
+		out, err := r.agent.Run(context.Background(), r.task())
+		if err != nil || out.Version != 1 || out.Reseeds != 0 {
+			t.Fatalf("outcome = %+v, err %v", out, err)
+		}
+		started := r.provider.started()
+		if len(started) != 1 || strings.Contains(started[0].Context, "output limit") {
+			t.Fatalf("contexts = %+v", started)
+		}
+		if len(s.compactions) != 1 || !strings.HasSuffix(s.compactions[0].Message, sentence+"\n\n<request>\n"+r.task().Prompt+"\n</request>") {
+			t.Fatalf("compactions = %+v", s.compactions)
+		}
+	})
+	t.Run("a second cut off in a row ends it", func(t *testing.T) {
+		s := session(stopTurn(llm.StopMaxTokens), stopTurn(llm.StopMaxTokens))
+		r := newRig(t, s)
+		out, err := r.agent.Run(context.Background(), r.task())
+		if !strings.Contains(fmt.Sprint(err), "after reaching max tokens") || out.Reseeds != 0 || len(s.compactions) != 1 {
+			t.Fatalf("outcome = %+v, err %v, compactions %d", out, err, len(s.compactions))
+		}
+	})
+	t.Run("progress in between resets the count", func(t *testing.T) {
+		plan := planOf("r1", "r2")
+		s := session(
+			stopTurn(llm.StopMaxTokens),
+			toolTurn(call("c1", "create_dashboard", `{"n":1}`)), stopTurn(llm.StopMaxTokens),
+			toolTurn(call("c2", "update_panels", `{"n":2,"finish":true}`)),
+		)
+		r := newRig(t, s)
+		r.buildSaves(t, r.rows(t, plan, "r1"), saved(1))
+		out, err := r.agent.Run(context.Background(), r.task())
+		if err != nil || out.Version != 1 || out.Reseeds != 0 || len(s.compactions) != 2 {
+			t.Fatalf("outcome = %+v, err %v, compactions %d", out, err, len(s.compactions))
+		}
+	})
+}
+
+func TestRejectedSavesCountInARowAndABuildSaveResetsTheCount(t *testing.T) {
+	plan := planOf("r1")
+	turns := make([]scriptedTurn, 6)
+	for i := range turns {
+		turns[i] = toolTurn(call(fmt.Sprint("c", i), "update_panels", fmt.Sprintf(`{"n":%d}`, i)))
+	}
+	r := newRig(t, session(turns...))
+	r.buildSaves(t, rejected(), rejected(), r.rows(t, plan, "r1"), rejected(), rejected(), saved(1))
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil || out.Version != 1 || out.RepairRounds != 4 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+}
+
+func TestThreeRejectedSavesInARowEndAnUnfinishedBuild(t *testing.T) {
+	plan := planOf("r1", "r2")
+	turns := make([]scriptedTurn, 4)
+	for i := range turns {
+		turns[i] = toolTurn(call(fmt.Sprint("c", i), "update_panels", fmt.Sprintf(`{"n":%d}`, i)))
+	}
+	r := newRig(t, session(turns...))
+	r.buildSaves(t, r.rows(t, plan, "r1"), rejected(), rejected(), rejected())
+
+	_, err := r.agent.Run(context.Background(), r.task())
+	if !errors.Is(err, agent.ErrRepairExhausted) {
+		t.Fatalf("err = %v", err)
+	}
+	if r.builds.current() == nil || r.builds.commits != 0 {
+		t.Fatal("a failed run must keep its build and commit nothing")
+	}
+}
+
+func TestARepeatedSaveIsRefusedAndTheRunGoesOn(t *testing.T) {
+	plan := planOf("r1", "r2")
+	s := session(
+		toolTurn(call("c1", "update_panels", `{"upsert":[{"id":"x"}]}`)),
+		toolTurn(call("c2", "update_panels", "{ \"upsert\": [ {\"id\": \"x\"} ] }")),
+		toolTurn(call("c3", "update_panels", `{"upsert":[{"id":"y"}],"finish":true}`)),
+	)
+	r := newRig(t, s)
+	r.buildSaves(t, r.rows(t, plan, "r1"), saved(1))
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil || out.Version != 1 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	if got := r.tools.names(); len(got) != 2 {
+		t.Fatalf("tool calls = %v, the repeated save must not run", got)
+	}
+	refused := s.results(2)
+	if len(refused) != 1 || !refused[0].IsError || !strings.Contains(refused[0].Content, "this save is identical to an earlier one and changes nothing") {
+		t.Fatalf("result of the repeated save = %+v", refused)
+	}
+	step := r.recordedSteps()[1]
+	if step.Status != "error" || step.Message != "Refused update_panels: the same save was sent again" {
+		t.Fatalf("refusal step = %+v", step)
+	}
+	if out.RepairRounds != 0 {
+		t.Fatalf("a refused repeated save counted as a repair: %+v", out)
+	}
+}
+
+func TestTheSecondIdenticalReadIsReplayedWithANoteAndTheThirdIsRefused(t *testing.T) {
+	plan := planOf("r1")
+	s := session(
+		toolTurn(call("c1", "get_spec_guide", `{"a":1}`)),
+		toolTurn(call("c2", "get_spec_guide", `{ "a": 1 }`)),
+		toolTurn(call("c3", "get_spec_guide", `{"a":1}`)),
+		toolTurn(call("c4", "create_dashboard", `{"n":1}`)),
+		stopTurn(llm.StopEndTurn),
+	)
+	r := newRig(t, s)
+	r.tools.on("get_spec_guide", func(context.Context, json.RawMessage) (tools.Result, error) {
+		return tools.Result{Content: map[string]any{"guide": "GUIDE"}, Step: "Read the guide"}, nil
+	})
+	r.buildSaves(t, r.rows(t, plan, "r1"))
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil || out.Version != 1 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	if got := r.tools.names(); len(got) != 2 {
+		t.Fatalf("tool calls = %v, only the first read and the save may run", got)
+	}
+	second := s.results(2)
+	wantSecond := `{"guide":"GUIDE"}` + "\n\n<note>This is the result of the same earlier call. A third identical call is refused.</note>"
+	if len(second) != 1 || second[0].Content != wantSecond || second[0].IsError {
+		t.Fatalf("replayed answer = %+v", second)
+	}
+	third := s.results(3)
+	if len(third) != 1 || !third[0].IsError || !strings.Contains(third[0].Content, "this exact call already ran 2 times; use its earlier result, change its input, or save") {
+		t.Fatalf("third answer = %+v", third)
+	}
+	steps := r.recordedSteps()
+	if steps[1].Message != "Reused the result of an identical call" || steps[1].Status != "ok" || steps[1].Tool != "get_spec_guide" {
+		t.Fatalf("replay step = %+v", steps[1])
+	}
+	if steps[2].Status != "error" || steps[2].Message != "Refused get_spec_guide: the same read was asked 3 times" {
+		t.Fatalf("refusal step = %+v", steps[2])
+	}
+}
+
+func TestAFailedReadIsRetriedLive(t *testing.T) {
+	s := session(
+		toolTurn(call("c1", "list_datasources", `{}`)),
+		toolTurn(call("c2", "list_datasources", `{}`)),
+		toolTurn(call("c3", "create_dashboard", `{"n":1}`)),
+		stopTurn(llm.StopEndTurn),
+	)
+	r := newRig(t, s)
+	var mu sync.Mutex
+	reads := 0
+	r.tools.on("list_datasources", func(context.Context, json.RawMessage) (tools.Result, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		reads++
+		if reads == 1 {
+			return tools.Result{IsError: true, Content: map[string]any{"code": "datasource_unavailable"}}, nil
+		}
+		return tools.Result{Content: map[string]any{"datasources": []string{"prom"}}}, nil
+	})
+	r.buildSaves(t, r.rows(t, 1, "r1"))
+
+	if _, err := r.agent.Run(context.Background(), r.task()); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.tools.names(); len(got) != 3 {
+		t.Fatalf("tool calls = %v, both reads must run", got)
+	}
+	second := s.results(2)
+	if len(second) != 1 || second[0].IsError || strings.Contains(second[0].Content, "<note>") {
+		t.Fatalf("second answer = %+v", second)
+	}
+}
+
+func TestThreeIdenticalReadTurnsThenAnotherEndWithNoProgress(t *testing.T) {
+	turns := make([]scriptedTurn, 4)
+	for i := range turns {
+		turns[i] = toolTurn(call(fmt.Sprint("c", i), "get_spec_guide", `{"a":1}`))
+	}
+	s := session(turns...)
+	r := newRig(t, s)
+
+	_, err := r.agent.Run(context.Background(), r.task())
+	if !errors.Is(err, agent.ErrNoProgress) {
+		t.Fatalf("err = %v", err)
+	}
+	if s.modelCalls() != 4 || len(r.tools.names()) != 1 {
+		t.Fatalf("model calls = %d, tools ran = %v", s.modelCalls(), r.tools.names())
+	}
+	steps := r.recordedSteps()
+	if stop := steps[len(steps)-1]; stop.Status != "error" || stop.Message != "Stopped: the same read was asked 3 times" {
+		t.Fatalf("stop step = %+v", stop)
+	}
+	if code := r.finishLog()["error_code"]; code != "no_progress" {
+		t.Fatalf("error_code = %v", code)
+	}
+}
+
+func TestTwoTurnsOfRepeatedSavesEndWithNoProgressAndSayWhy(t *testing.T) {
+	s := session(
+		toolTurn(call("c1", "update_panels", `{"n":1}`)),
+		toolTurn(call("c2", "update_panels", `{"n":1}`)),
+		toolTurn(call("c3", "update_panels", `{"n":1}`)),
+	)
+	r := newRig(t, s)
+	r.buildSaves(t, r.rows(t, planOf("r1", "r2"), "r1"))
+
+	_, err := r.agent.Run(context.Background(), r.task())
+	if !errors.Is(err, agent.ErrNoProgress) {
+		t.Fatalf("err = %v", err)
+	}
+	steps := r.recordedSteps()
+	if stop := steps[len(steps)-1]; stop.Message != "Stopped: the same save was sent again and again" {
+		t.Fatalf("stop step = %+v", stop)
+	}
+}
+
+func TestRepeatedReadsInOneTurnCountOnce(t *testing.T) {
+	s := session(
+		toolTurn(call("1", "query_range", `{}`), call("2", "query_range", `{}`), call("3", "query_range", `{}`)),
+		toolTurn(call("4", "create_dashboard", `{}`)),
+	)
+	r := newRig(t, s)
+	r.tools.onSave("create_dashboard", savedResult(dashID, 1))
+	if _, err := r.agent.Run(context.Background(), r.task()); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(r.tools.names(), ","); got != "query_range,create_dashboard" {
+		t.Fatalf("tool calls = %s", got)
+	}
+	results := s.results(1)
+	if len(results) != 3 || results[1] != (llm.ToolResult{CallID: "2", Content: results[0].Content, Prunable: true}) || results[2] != (llm.ToolResult{CallID: "3", Content: results[0].Content, Prunable: true}) {
+		t.Fatalf("results = %+v", results)
+	}
+}
+
+func TestABuildSaveMakesAnIdenticalReadRunAgain(t *testing.T) {
+	plan := planOf("r1", "r2")
+	r := newRig(t, session(
+		toolTurn(call("1", "get_panels", `{"ids":["a"]}`)),
+		toolTurn(call("2", "create_dashboard", `{"n":1}`)),
+		toolTurn(call("3", "get_panels", `{"ids":["a"]}`)),
+		toolTurn(call("4", "update_panels", `{"n":2,"finish":true}`)),
+	))
+	r.buildSaves(t, r.rows(t, plan, "r1"), saved(1))
+	if _, err := r.agent.Run(context.Background(), r.task()); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(r.tools.names(), ","); got != "get_panels,create_dashboard,get_panels,update_panels" {
+		t.Fatalf("calls = %s", got)
+	}
+}
+
+func TestACommitConflictDiscardsTheBuildAndRestartsOnce(t *testing.T) {
+	r := newRig(t,
+		session(stopTurn(llm.StopEndTurn)),
+		session(toolTurn(call("c1", "update_panels", `{}`))),
+	)
+	r.builds.seed(agentBuild(t, "r1"))
+	r.builds.commitErr = []error{&dashboards.ConflictError{Latest: 4}}
+	r.tools.onSave("update_panels", savedResult(dashID, 5))
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil || out.Version != 5 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	if r.builds.discards != 1 || r.builds.current() != nil {
+		t.Fatalf("discards = %d", r.builds.discards)
+	}
+	started := r.provider.started()
+	if len(started) != 2 || !strings.Contains(started[1].Context, "Someone saved a new version while you worked; your build was discarded. Make the change again on the dashboard above.") ||
+		strings.Contains(started[1].Context, "<build>") {
+		t.Fatalf("restart request = %+v", started)
+	}
+}
+
+func TestASecondConflictEndsTheRunAndDiscardsTheBuildAgain(t *testing.T) {
+	r := newRig(t,
+		session(stopTurn(llm.StopEndTurn)),
+		session(toolTurn(call("c1", "update_panels", `{}`))),
+	)
+	r.builds.seed(agentBuild(t, "r1"))
+	r.builds.commitErr = []error{&dashboards.ConflictError{Latest: 4}}
+	r.tools.onSave("update_panels", conflictResult(5))
+
+	_, err := r.agent.Run(context.Background(), r.reviseTask())
+	if !errors.Is(err, agent.ErrConflict) || r.builds.discards != 2 {
+		t.Fatalf("err = %v, discards %d", err, r.builds.discards)
+	}
+	steps := r.recordedSteps()
+	if stop := steps[len(steps)-1]; stop.Status != "error" || stop.Message != "Stopped: the dashboard changed twice while the agent was revising it" {
+		t.Fatalf("stop step = %+v", stop)
+	}
+}
+
+func TestARepeatedSaveAfterAConflictRestartIsNotNoProgress(t *testing.T) {
+	r := newRig(t,
+		session(toolTurn(call("c1", "update_panels", `{"upsert":[]}`))),
+		session(toolTurn(call("c2", "update_panels", `{"upsert":[]}`))),
+	)
+	r.tools.onSave("update_panels", conflictResult(5), savedResult(dashID, 6))
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil || out.Version != 6 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+}
+
+func agentBuild(t *testing.T, planned ...string) dashboards.Build {
+	t.Helper()
+	return dashboards.Build{Spec: buildSpec(t, "r1"), PlannedPanels: planOf(planned...), Saves: 4, BaseVersion: latestVersion}
+}
+
+func TestABuildPresentAtTheStartSeedsARestartAndTheProviderSeesItsSaves(t *testing.T) {
+	r := newRig(t, session(toolTurn(call("c1", "update_panels", `{}`))))
+	r.builds.seed(agentBuild(t, "r1", "r2"))
+	r.tools.onSave("update_panels", savedResult(dashID, 1))
+
+	if out, err := r.agent.Run(context.Background(), r.task()); err != nil || out.Version != 1 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	started := r.provider.started()
+	if len(started) != 1 || started[0].BuildSaves != 4 {
+		t.Fatalf("requests = %+v", started)
+	}
+	for _, want := range []string{
+		"This is your build of the new dashboard, not saved as a version yet.",
+		"Panels built: 1 of 2.",
+		"Why this is a new session: The server restarted while you worked.",
+	} {
+		if !strings.Contains(started[0].Context, want) {
+			t.Fatalf("context lacks %q:\n%s", want, started[0].Context)
+		}
+	}
+}
+
+func TestAHealthyRunPastFourHundredModelCallsFinishes(t *testing.T) {
+	turns := make([]scriptedTurn, 406)
+	for i := range turns {
+		turns[i] = toolTurn(call(fmt.Sprint("c", i), "update_panels", fmt.Sprintf(`{"n":%d}`, i)))
+	}
+	r := newRig(t, session(turns...))
+	r.savesUntilVersion(406)
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil || out.Version != 1 || out.Usage.Calls != 406 || out.BuildSaves != 406 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+}
+
+func changedSave(saves int, edits tools.Edits) func() tools.Result {
+	return func() tools.Result {
+		return tools.Result{
+			Content: map[string]any{"build": map[string]any{"saves": saves}},
+			Step:    fmt.Sprintf("Saved panel %d", saves),
+			Edits:   edits,
+		}
+	}
+}
+
+func TestEndlessEditsOfOnePanelEndWithNoProgress(t *testing.T) {
+	turns := make([]scriptedTurn, 9)
+	fns := make([]func() tools.Result, 9)
+	for i := range turns {
+		turns[i] = toolTurn(call(fmt.Sprint("c", i), "update_panels", fmt.Sprintf(`{"n":%d}`, i)))
+		fns[i] = changedSave(i+1, tools.Edits{Panels: []string{"p1"}})
+	}
+	s := session(turns...)
+	r := newRig(t, s)
+	r.buildSaves(t, fns...)
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if !errors.Is(err, agent.ErrNoProgress) || out.BuildSaves != 8 || s.modelCalls() != 8 {
+		t.Fatalf("outcome = %+v, err %v, model calls %d", out, err, s.modelCalls())
+	}
+	for save := 1; save <= 7; save++ {
+		got := s.results(save)[0].Content
+		if churned := strings.Contains(got, "<note>This save changed no panel that still needs work. Leave p1 as it is"); churned != (save >= 5) {
+			t.Fatalf("save %d: churn note = %v in %s", save, churned, got)
+		}
+	}
+	steps := r.recordedSteps()
+	if stop := steps[len(steps)-1]; stop.Status != "error" || stop.Message != "Stopped: 4 saves in a row changed nothing new" {
+		t.Fatalf("stop step = %+v", stop)
+	}
+	if code := r.finishLog()["error_code"]; code != "no_progress" {
+		t.Fatalf("error_code = %v", code)
+	}
+}
+
+func TestASaveThatChangesNothingCarriesTheChurnNoteAndASettingsSaveDoesNot(t *testing.T) {
+	s := session(
+		toolTurn(call("c1", "update_panels", `{"n":1}`)),
+		toolTurn(call("c2", "update_panels", `{"dashboard":{"title":"x"}}`)),
+		toolTurn(call("c3", "update_panels", `{"upsert":[{"id":"p1"}]}`)),
+		toolTurn(call("c4", "update_panels", `{"upsert":[{"id":"p2"}],"finish":true}`)),
+	)
+	r := newRig(t, s)
+	r.buildSaves(t, changedSave(1, tools.Edits{}), changedSave(2, tools.Edits{Settings: true}), changedSave(3, tools.Edits{Panels: []string{"p1"}}), saved(1))
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil || out.Version != 1 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	if got := s.results(1)[0].Content; !strings.HasSuffix(got, "Leave the build as it is, save the next panel, or set finish: true when every planned panel is built.</note>") {
+		t.Fatalf("no-op save result = %s", got)
+	}
+	for save := 2; save <= 3; save++ {
+		if got := s.results(save)[0].Content; strings.Contains(got, "<note>") {
+			t.Fatalf("save %d that changed something carries a note: %s", save, got)
+		}
+	}
+}
+
+func TestSixSavesEachChangingADifferentPanelAreAllAccepted(t *testing.T) {
+	turns := make([]scriptedTurn, 7)
+	fns := make([]func() tools.Result, 7)
+	for i := range 6 {
+		turns[i] = toolTurn(call(fmt.Sprint("c", i), "update_panels", fmt.Sprintf(`{"n":%d}`, i)))
+		fns[i] = changedSave(i+1, tools.Edits{Panels: []string{fmt.Sprint("p", i)}})
+	}
+	turns[6] = toolTurn(call("c6", "update_panels", `{"finish":true}`))
+	fns[6] = saved(1)
+	s := session(turns...)
+	r := newRig(t, s)
+	r.buildSaves(t, fns...)
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil || out.Version != 1 || out.BuildSaves != 7 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	for save := 1; save <= 6; save++ {
+		if got := s.results(save)[0].Content; strings.Contains(got, "<note>") {
+			t.Fatalf("save %d carries a churn note: %s", save, got)
+		}
+	}
+}
+
+func TestMoreThanSixCompactionsDoNotEndTheRunWhenEachFollowsAnAcceptedSave(t *testing.T) {
+	var turns []scriptedTurn
+	fns := make([]func() tools.Result, 0, 8)
+	r := newRig(t)
+	for i := range 8 {
+		turns = append(turns, toolTurn(call(fmt.Sprint("c", i), "update_panels", fmt.Sprintf(`{"n":%d}`, i))), stopTurn(llm.StopMaxTokens))
+		fns = append(fns, r.rows(t, 1, "r1"))
+	}
+	turns = append(turns, stopTurn(llm.StopEndTurn))
+	s := session(turns...)
+	r.provider.sessions = []*scriptedSession{s}
+	r.buildSaves(t, fns...)
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil || out.Version != 1 || out.Reseeds != 0 || out.BuildSaves != 8 || len(s.compactions) != 8 || len(r.provider.started()) != 1 {
+		t.Fatalf("outcome = %+v, err %v, compactions %d", out, err, len(s.compactions))
+	}
+}
+
+func readOf(id string, n int) llm.ToolCall {
+	return call(id, "get_spec_guide", fmt.Sprintf(`{"n":%d}`, n))
+}
+
+func readTurns(prefix string, n int) []scriptedTurn {
+	turns := make([]scriptedTurn, n)
+	for i := range turns {
+		turns[i] = toolTurn(readOf(fmt.Sprint(prefix, i), i))
+	}
+	return turns
+}
+
+func TestReadsBesideASaveRunPastTheSixthCall(t *testing.T) {
+	turns := readTurns("r", 5)
+	turns = append(turns, toolTurn(readOf("late", 99), call("s", "create_dashboard", `{"n":1}`)))
+	turns = append(turns, readTurns("after", 5)...)
+	turns = append(turns, stopTurn(llm.StopEndTurn))
+	s := session(turns...)
+	r := newRig(t, s)
+	r.buildSaves(t, r.rows(t, 1, "r1"))
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil || out.Version != 1 || out.BuildSaves != 1 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	beside := s.results(6)
+	if len(beside) != 2 || beside[0].IsError || beside[1].IsError {
+		t.Fatalf("results of the sixth call = %+v", beside)
+	}
+	if got := len(r.tools.names()); got != 5+2+5 {
+		t.Fatalf("tools ran = %v", r.tools.names())
+	}
+	if after := s.results(7); len(after) != 1 || after[0].IsError {
+		t.Fatalf("a read after the save = %+v", after)
+	}
+}
+
+const noteOpen = "<note>"
+
+func TestTheFifthCallWithoutASaveCarriesTheNudge(t *testing.T) {
+	turns := readTurns("r", 5)
+	turns = append(turns, toolTurn(call("s", "create_dashboard", `{"n":1}`)), stopTurn(llm.StopEndTurn))
+	s := session(turns...)
+	r := newRig(t, s)
+	r.buildSaves(t, r.rows(t, 1, "r1"))
+
+	if _, err := r.agent.Run(context.Background(), r.task()); err != nil {
+		t.Fatal(err)
+	}
+	for call := 1; call <= 4; call++ {
+		if got := s.results(call)[0].Content; strings.Contains(got, noteOpen) {
+			t.Fatalf("result of call %d carries a note: %s", call, got)
+		}
+	}
+	fifth := s.results(5)
+	want := "\n\n<note>Save the next panel in your next call. From then on, reads run only in the same call as a save.</note>"
+	if len(fifth) != 1 || !strings.HasSuffix(fifth[0].Content, want) || fifth[0].IsError {
+		t.Fatalf("result of the fifth call = %+v", fifth)
+	}
+}
+
+func TestTheTurnAfterARejectedSaveMayRead(t *testing.T) {
+	turns := readTurns("r", 5)
+	turns = append(turns,
+		toolTurn(call("bad", "create_dashboard", `{"n":1}`)),
+		toolTurn(call("diagnose", "query_range", `{"q":"up"}`)),
+		toolTurn(call("good", "create_dashboard", `{"n":2}`)),
+		stopTurn(llm.StopEndTurn),
+	)
+	s := session(turns...)
+	r := newRig(t, s)
+	r.buildSaves(t, rejected(), r.rows(t, 1, "r1"))
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil || out.Version != 1 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	if diagnosed := s.results(7); len(diagnosed) != 1 || diagnosed[0].IsError {
+		t.Fatalf("the read after the rejected save = %+v", diagnosed)
+	}
+	if got := r.tools.names(); !slices.Contains(got, "query_range") {
+		t.Fatalf("tools ran = %v", got)
+	}
+}
+
+func TestTheDiagnoseTurnIsOnlyTheNextOne(t *testing.T) {
+	turns := readTurns("r", 5)
+	turns = append(turns,
+		toolTurn(call("bad", "create_dashboard", `{"n":1}`)),
+		toolTurn(call("diagnose", "query_range", `{"q":"up"}`)),
+		toolTurn(readOf("again", 77)),
+		toolTurn(call("good", "create_dashboard", `{"n":2}`)),
+		stopTurn(llm.StopEndTurn),
+	)
+	s := session(turns...)
+	r := newRig(t, s)
+	r.buildSaves(t, rejected(), r.rows(t, 1, "r1"))
+
+	if _, err := r.agent.Run(context.Background(), r.task()); err != nil {
+		t.Fatal(err)
+	}
+	refused := s.results(8)
+	if len(refused) != 1 || !refused[0].IsError || !strings.Contains(refused[0].Content, "6 model calls without a save; only a save can run now") {
+		t.Fatalf("the second read after the rejected save = %+v", refused)
+	}
+}
+
+func TestACompactionStartsAFreshSaveWindow(t *testing.T) {
+	turns := append(readTurns("a", 5), stopTurn(llm.StopMaxTokens))
+	turns = append(turns, readTurns("b", 5)...)
+	turns = append(turns, toolTurn(call("s", "create_dashboard", `{"n":1}`)), stopTurn(llm.StopEndTurn))
+	s := session(turns...)
+	r := newRig(t, s)
+	r.buildSaves(t, r.rows(t, 1, "r1"))
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil || out.Version != 1 || out.Reseeds != 0 || len(s.compactions) != 1 {
+		t.Fatalf("outcome = %+v, err %v, compactions %d", out, err, len(s.compactions))
+	}
+	if got := len(r.tools.names()); got != 5+5+1 {
+		t.Fatalf("tools ran = %v", r.tools.names())
+	}
+}
+
+func TestSixReadOnlyTurnsThenASeventhEndWithNoProgress(t *testing.T) {
+	s := session(readTurns("r", 8)...)
+	r := newRig(t, s)
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if !errors.Is(err, agent.ErrNoProgress) {
+		t.Fatalf("err = %v", err)
+	}
+	if s.modelCalls() != 7 || out.Usage.Calls != 7 || len(r.tools.names()) != 5 {
+		t.Fatalf("model calls = %d, tools ran = %v", s.modelCalls(), r.tools.names())
+	}
+	steps := r.recordedSteps()
+	if refusal := steps[len(steps)-3]; refusal.Status != "error" || refusal.Message != "Refused get_spec_guide: 6 model calls passed without a save" {
+		t.Fatalf("refusal step = %+v", refusal)
+	}
+	if stop := steps[len(steps)-1]; stop.Status != "error" || stop.Message != "Stopped: the model kept reading after 6 calls without a save" {
+		t.Fatalf("stop step = %+v", stop)
+	}
+}
+
+func TestASuggestRunMayReadForAWhileBeforeProposing(t *testing.T) {
+	turns := readTurns("r", 9)
+	turns = append(turns, toolTurn(call("s", "update_dashboard", `{"spec":{}}`)))
+	r := newRig(t, session(turns...))
+	r.versionTwo(t)
+	r.tools.onSave("update_dashboard", suggestedResult(t, panelID))
+
+	out, err := r.agent.Run(context.Background(), r.suggestTask(t))
+	if err != nil || !strings.Contains(string(out.Suggestion), panelID) || len(r.tools.names()) != 10 {
+		t.Fatalf("outcome = %+v, err %v, tools ran %d", out, err, len(r.tools.names()))
+	}
+}
+
+func TestAHundredAndTwentyPanelSavesWithAReadBesideEachSucceed(t *testing.T) {
+	turns := make([]scriptedTurn, 120)
+	for i := range turns {
+		turns[i] = toolTurn(readOf(fmt.Sprint("r", i), i), call(fmt.Sprint("s", i), "update_panels", fmt.Sprintf(`{"n":%d}`, i)))
+	}
+	r := newRig(t, session(turns...))
+	r.savesUntilVersion(120)
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil || out.Version != 1 || out.BuildSaves != 120 || out.Usage.Calls != 120 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+}
+
+func TestASessionRenewsAfterTheNextAcceptedSaveOncePastItsBudget(t *testing.T) {
+	for _, c := range []struct {
+		name       string
+		renewBytes int
+		resultKiB  int
+		renews     bool
+	}{
+		{"default budget passed", 0, 300, true},
+		{"default budget not passed", 0, 200, false},
+		{"configured 64 KiB passed", 64 << 10, 70, true},
+		{"configured 64 KiB not passed", 64 << 10, 50, false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			s := session(
+				toolTurn(readOf("big", 1)),
+				toolTurn(call("s1", "update_panels", `{"n":1}`)),
+				toolTurn(call("s2", "update_panels", `{"n":2,"finish":true}`)),
+			)
+			r := newRigWithRenewBytes(t, c.renewBytes, s)
+			big := strings.Repeat("x", c.resultKiB<<10)
+			r.tools.on("get_spec_guide", func(context.Context, json.RawMessage) (tools.Result, error) {
+				return tools.Result{Content: map[string]any{"text": big}}, nil
+			})
+			r.buildSaves(t, r.rows(t, 2, "r1"), saved(1))
+
+			out, err := r.agent.Run(context.Background(), r.task())
+			if err != nil || out.Version != 1 {
+				t.Fatalf("outcome = %+v, err %v", out, err)
+			}
+			started := r.provider.started()
+			if out.Reseeds != 0 || len(started) != 1 || out.BuildSaves != 2 {
+				t.Fatalf("outcome = %+v, sessions %d", out, len(started))
+			}
+			if !c.renews {
+				if len(s.compactions) != 0 {
+					t.Fatalf("compactions = %d", len(s.compactions))
+				}
+				return
+			}
+			if len(s.compactions) != 1 {
+				t.Fatalf("compactions = %d", len(s.compactions))
+			}
+			for _, want := range []string{
+				"Why your conversation was shortened: Your session was renewed to keep it short; the build above holds every panel you saved.",
+				"Panels built: 1 of 2.",
+				"r1_p",
+			} {
+				if !strings.Contains(s.compactions[0].Message, want) {
+					t.Fatalf("compaction message lacks %q:\n%s", want, s.compactions[0].Message)
+				}
+			}
+		})
+	}
+}
+
+func TestARenewalDoesNotHideASaveRepeatedAcrossIt(t *testing.T) {
+	r := newRig(t, session(
+		toolTurn(readOf("big", 1)),
+		toolTurn(call("s1", "update_panels", `{"n":1}`)),
+		toolTurn(call("s2", "update_panels", `{"n":1}`)),
+		toolTurn(call("s3", "update_panels", `{"n":1}`)),
+	))
+	r.tools.on("get_spec_guide", func(context.Context, json.RawMessage) (tools.Result, error) {
+		return tools.Result{Content: map[string]any{"text": strings.Repeat("x", 300<<10)}}, nil
+	})
+	r.buildSaves(t, r.rows(t, 2, "r1"))
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if !errors.Is(err, agent.ErrNoProgress) || out.Reseeds != 0 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+}
+
+func TestALostBuildEndsTheRunAtOnce(t *testing.T) {
+	r := newRig(t, session(toolTurn(call("c1", "create_dashboard", `{}`))))
+	r.tools.on("create_dashboard", func(context.Context, json.RawMessage) (tools.Result, error) {
+		return tools.Result{}, fmt.Errorf("tool create_dashboard: %w", dashboards.ErrBuildLost)
+	})
+	_, err := r.agent.Run(context.Background(), r.task())
+	if !errors.Is(err, dashboards.ErrBuildLost) {
+		t.Fatalf("err = %v", err)
+	}
+	fin := r.finishLog()
+	if fin["error_code"] != "lease_expired" || fin["level"] != "WARN" {
+		t.Fatalf("finish line = %v", fin)
+	}
+}
+
+func TestACommitAfterALostLeaseEndsTheRun(t *testing.T) {
+	r := newRig(t, session(stopTurn(llm.StopEndTurn)))
+	r.builds.seed(agentBuild(t, "r1"))
+	r.builds.commitErr = []error{dashboards.ErrBuildLost}
+
+	_, err := r.agent.Run(context.Background(), r.task())
+	if !errors.Is(err, dashboards.ErrBuildLost) {
+		t.Fatalf("err = %v", err)
+	}
+	fin := r.finishLog()
+	if fin["error_code"] != "lease_expired" || fin["level"] != "WARN" {
+		t.Fatalf("finish line = %v", fin)
+	}
+}
+
+func TestATaskWithARequestIDThatIsNotAUUIDIsInvalid(t *testing.T) {
+	r := newRig(t, session())
+	task := r.task()
+	task.RequestID = "not-a-uuid"
+	if _, err := r.agent.Run(context.Background(), task); !errors.Is(err, agent.ErrInvalidTask) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+const conflictSeedSentence = "Someone saved a new version while you worked; your build was discarded. Make the change again on the dashboard above."
+
+func TestAResumedBuildOnAnOlderVersionRestartsFromTheLatest(t *testing.T) {
+	r := newRig(t, session(toolTurn(call("c1", "update_panels", `{}`))))
+	stale := agentBuild(t, "r1")
+	stale.BaseVersion = latestVersion - 1
+	r.builds.seed(stale)
+	r.tools.onSave("update_panels", savedResult(dashID, 4))
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil || out.Version != 4 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	started := r.provider.started()
+	if len(started) != 1 || !strings.Contains(started[0].Context, conflictSeedSentence) || !strings.Contains(started[0].Context, "version 3") || strings.Contains(started[0].Context, "<build>") {
+		t.Fatalf("started = %+v", started)
+	}
+	if r.builds.discards != 1 || out.Reseeds != 0 {
+		t.Fatalf("discards = %d, reseeds = %d", r.builds.discards, out.Reseeds)
+	}
+}
+
+func TestADashboardThatMovedBeforeARenewalRestartsAtTheRenewal(t *testing.T) {
+	r := newRigWithRenewBytes(t, 1,
+		session(toolTurn(call("s1", "update_panels", `{"n":1}`))),
+		session(toolTurn(call("s2", "update_panels", `{"n":2,"finish":true}`))),
+	)
+	rows := r.rows(t, 2, "r1")
+	r.tools.on("update_panels", sequence(
+		func() tools.Result {
+			res := rows()
+			r.dash.setNumber(latestVersion + 1)
+			return res
+		},
+		saved(5),
+	))
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil || out.Version != 5 || out.RepairRounds != 0 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	started := r.provider.started()
+	if len(started) != 2 || !strings.Contains(started[1].Context, conflictSeedSentence) || !strings.Contains(started[1].Context, "version 4") || strings.Contains(started[1].Context, "<build>") {
+		t.Fatalf("started = %+v", started)
+	}
+	if r.builds.discards != 1 {
+		t.Fatalf("discards = %d", r.builds.discards)
+	}
+}
+
+func TestACommitConflictMidSessionIsAConflictNotARejection(t *testing.T) {
+	r := newRig(t,
+		session(toolTurn(call("c1", "update_panels", `{"n":1,"finish":true}`))),
+		session(toolTurn(call("c2", "update_panels", `{"n":2,"finish":true}`))),
+	)
+	r.tools.onSave("update_panels", conflictResult(latestVersion+1), savedResult(dashID, 5))
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil || out.Version != 5 || out.RepairRounds != 0 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	if got := len(r.provider.started()); got != 2 {
+		t.Fatalf("sessions = %d, want one restart", got)
+	}
+}
+
+func TestARestartResetsRejectionsAndTheSaveWindow(t *testing.T) {
+	first := session(
+		toolTurn(call("a1", "update_panels", `{"n":1}`)),
+		toolTurn(call("a2", "update_panels", `{"n":2}`)),
+		toolTurn(call("a3", "update_panels", `{"n":3}`)),
+	)
+	turns := readTurns("w", 5)
+	turns = append(turns,
+		toolTurn(call("b1", "update_panels", `{"n":4}`)),
+		toolTurn(call("b2", "update_panels", `{"n":5}`)),
+		toolTurn(call("b3", "update_panels", `{"n":6}`)),
+	)
+	r := newRig(t, first, session(turns...))
+	r.buildSaves(t, rejected(), rejected(), func() tools.Result { return conflictResult(latestVersion + 1) }, rejected(), rejected(), saved(5))
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil || out.Version != 5 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	if got := len(r.tools.names()); got != 3+5+3 {
+		t.Fatalf("tools ran = %v", r.tools.names())
+	}
+}
+
+const callTimeoutSeedSentence = "Why your conversation was shortened: Your last call ran past the time limit for one model call. Keep each answer short: save one panel per call, and check only what that panel needs."
+
+func timedOut() scriptedTurn {
+	return scriptedTurn{err: llm.NewCallError("fake", llm.CallTimeout, 0)}
+}
+
+func TestACallTimeoutCompactsOnce(t *testing.T) {
+	s := session(toolTurn(readOf("r1", 1)), timedOut(), toolTurn(call("c1", "create_dashboard", `{}`)))
+	r := newRig(t, s)
+	r.tools.onSave("create_dashboard", savedResult(dashID, 1))
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if err != nil || out.Version != 1 || out.Reseeds != 0 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	started := r.provider.started()
+	if len(started) != 1 || strings.Contains(started[0].Context, "time limit") {
+		t.Fatalf("contexts = %+v", started)
+	}
+	if len(s.compactions) != 1 || !strings.Contains(s.compactions[0].Message, callTimeoutSeedSentence) {
+		t.Fatalf("compactions = %+v", s.compactions)
+	}
+}
+
+func TestACompactionCarriesTheCutCallsResults(t *testing.T) {
+	cases := map[string]scriptedTurn{
+		"output limit": stopTurn(llm.StopMaxTokens),
+		"call timeout": timedOut(),
+	}
+	for name, cut := range cases {
+		t.Run(name, func(t *testing.T) {
+			s := session(toolTurn(readOf("r1", 1), readOf("r2", 2)), cut, toolTurn(call("c1", "create_dashboard", `{}`)))
+			r := newRig(t, s)
+			r.tools.onSave("create_dashboard", savedResult(dashID, 1))
+
+			if _, err := r.agent.Run(context.Background(), r.task()); err != nil {
+				t.Fatal(err)
+			}
+			if s.modelCalls() != 3 || len(s.results(1)) != 2 || !reflect.DeepEqual(s.results(1), s.results(2)) {
+				t.Fatalf("results sent with the cut call %+v and the call after it %+v", s.results(1), s.results(2))
+			}
+		})
+	}
+}
+
+func TestARenewalCarriesTheResultsOfTheSavingTurn(t *testing.T) {
+	s := session(
+		toolTurn(readOf("big", 1)),
+		toolTurn(call("s1", "update_panels", `{"n":1}`)),
+		toolTurn(call("s2", "update_panels", `{"n":2,"finish":true}`)),
+	)
+	r := newRigWithRenewBytes(t, 64<<10, s)
+	r.tools.on("get_spec_guide", func(context.Context, json.RawMessage) (tools.Result, error) {
+		return tools.Result{Content: map[string]any{"text": strings.Repeat("x", 70<<10)}}, nil
+	})
+	r.buildSaves(t, r.rows(t, 2, "r1"), saved(1))
+
+	if _, err := r.agent.Run(context.Background(), r.task()); err != nil {
+		t.Fatal(err)
+	}
+	if len(s.compactions) != 1 || s.modelCalls() != 3 || len(s.results(2)) != 1 || s.results(2)[0].CallID != "s1" {
+		t.Fatalf("compactions %d, results of the call after the renewal %+v", len(s.compactions), s.results(2))
+	}
+}
+
+func TestTwoCutOffsInARowEndTheRunWithTheLastCode(t *testing.T) {
+	r := newRig(t, session(stopTurn(llm.StopMaxTokens), timedOut()))
+
+	result, err := agent.NewReviser(r.agent, nil).Revise(context.Background(), revisionRequest())
+	if err == nil || result.FailureCode != revisions.FailureCallTimeout {
+		t.Fatalf("result = %+v, err %v", result, err)
+	}
+}
+
+func TestAnOutputLimitAfterACallTimeoutEndsTheRunAndSaysWhy(t *testing.T) {
+	r := newRig(t, session(timedOut(), stopTurn(llm.StopMaxTokens)))
+
+	out, err := r.agent.Run(context.Background(), r.task())
+	if !strings.Contains(fmt.Sprint(err), "after reaching max tokens") || out.Reseeds != 0 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	steps := r.recordedSteps()
+	if stop := steps[len(steps)-1]; stop.Status != "error" || stop.Message != "Stopped: the model's answer was cut off at the output limit 2 times in a row" {
+		t.Fatalf("stop step = %+v", stop)
+	}
+}
+
+func TestTwoCallTimeoutsInARowSayWhyInAStep(t *testing.T) {
+	r := newRig(t, session(timedOut(), timedOut()))
+
+	if _, err := r.agent.Run(context.Background(), r.task()); err == nil {
+		t.Fatal("the run succeeded")
+	}
+	steps := r.recordedSteps()
+	if stop := steps[len(steps)-1]; stop.Message != "Stopped: a model call ran past the time limit 2 times in a row" || stop.Status != "error" {
+		t.Fatalf("stop step = %+v", stop)
+	}
+}
+
+func TestACallTimeoutInSuggestFailsAtOnce(t *testing.T) {
+	r := newRig(t, session(timedOut()))
+	r.versionTwo(t)
+
+	_, err := r.agent.Run(context.Background(), r.suggestTask(t))
+	var callErr *llm.CallError
+	if !errors.As(err, &callErr) || callErr.Failure != llm.CallTimeout || len(r.provider.started()) != 1 {
+		t.Fatalf("err = %v, sessions %d", err, len(r.provider.started()))
+	}
+	steps := r.recordedSteps()
+	if stop := steps[len(steps)-1]; stop.Message != "Stopped: a model call ran past the time limit" {
+		t.Fatalf("stop step = %+v", stop)
+	}
+}
+
+type funcSession func(ctx context.Context, results []llm.ToolResult) (llm.Turn, error)
+
+func (f funcSession) Compact(llm.Compaction) error { return nil }
+
+func (f funcSession) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn, error) {
+	return f(ctx, results)
+}
+
+type sessionsProvider struct {
+	scriptedProvider
+	only llm.Session
+}
+
+func (p *sessionsProvider) Start(context.Context, llm.Request) (llm.Session, error) {
+	return p.only, nil
+}
+
+func TestACanceledRunIsNotReseededOnACallTimeout(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	r := newRig(t)
+	r.agent = agent.New(agent.Config{
+		Provider: &sessionsProvider{only: funcSession(func(context.Context, []llm.ToolResult) (llm.Turn, error) {
+			cancel()
+			return llm.Turn{}, llm.NewCallError("fake", llm.CallTimeout, 0)
+		})},
+		Tools: r.tools, Dashboards: r.dash, Builds: r.builds, Datasources: fakeHealth{}, Logger: slog.New(slog.DiscardHandler),
+	})
+
+	out, err := r.agent.Run(ctx, r.task())
+	if !errors.Is(err, context.Canceled) || out.Reseeds != 0 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+}
+
+func discoveringRead(names ...string) handler {
+	return func(context.Context, json.RawMessage) (tools.Result, error) {
+		return tools.Result{
+			Content:    map[string]any{"ok": true},
+			Step:       "Read",
+			Discovered: &tools.Discovery{Datasource: "prom", Of: "metrics", Names: names},
+		}, nil
+	}
+}
+
+const discoveredLine = "- prom metrics: node_load1, node_cpu_seconds_total"
+
+func TestACompactionAfterAnOutputLimitCarriesTheDiscoveredNames(t *testing.T) {
+	s := session(toolTurn(readOf("d1", 1)), stopTurn(llm.StopMaxTokens), toolTurn(call("c1", "create_dashboard", `{}`)))
+	r := newRig(t, s)
+	r.tools.on("get_spec_guide", discoveringRead("node_load1", "node_cpu_seconds_total"))
+	r.tools.onSave("create_dashboard", savedResult(dashID, 1))
+
+	if _, err := r.agent.Run(context.Background(), r.task()); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.provider.started()[0].Context; strings.Contains(got, "<discovered>") {
+		t.Fatalf("the first session knows nothing yet: %s", got)
+	}
+	if len(s.compactions) != 1 {
+		t.Fatalf("compactions = %d", len(s.compactions))
+	}
+	message := s.compactions[0].Message
+	if !strings.Contains(message, "<discovered>") || !strings.Contains(message, discoveredLine) || !strings.Contains(message, "</discovered>\n\n<request>") {
+		t.Fatalf("compaction message lacks the digest before the request:\n%s", message)
+	}
+}
+
+func TestADiscoveryThatFailedIsNotInTheDigest(t *testing.T) {
+	s := session(toolTurn(readOf("d1", 1)), stopTurn(llm.StopMaxTokens), toolTurn(call("c1", "create_dashboard", `{}`)))
+	r := newRig(t, s)
+	r.tools.on("get_spec_guide", func(context.Context, json.RawMessage) (tools.Result, error) {
+		return tools.Result{
+			IsError:    true,
+			Content:    map[string]any{"code": "datasource_unavailable"},
+			Discovered: &tools.Discovery{Datasource: "prom", Of: "metrics", Names: []string{"FAILED-NAME"}},
+		}, nil
+	})
+	r.tools.onSave("create_dashboard", savedResult(dashID, 1))
+
+	if _, err := r.agent.Run(context.Background(), r.task()); err != nil {
+		t.Fatal(err)
+	}
+	if message := s.compactions[0].Message; strings.Contains(message, "FAILED-NAME") || strings.Contains(message, "<discovered>") {
+		t.Fatalf("compaction message carries a failed discovery:\n%s", message)
+	}
+}
+
+func TestARenewalCarriesTheDiscoveredNames(t *testing.T) {
+	s := session(
+		toolTurn(readOf("d1", 1)),
+		toolTurn(call("s1", "update_panels", `{"n":1}`)),
+		toolTurn(call("s2", "update_panels", `{"n":2,"finish":true}`)),
+	)
+	r := newRigWithRenewBytes(t, 1, s)
+	r.tools.on("get_spec_guide", discoveringRead("node_load1", "node_cpu_seconds_total"))
+	r.buildSaves(t, r.rows(t, 2, "r1"), saved(1))
+
+	if _, err := r.agent.Run(context.Background(), r.task()); err != nil {
+		t.Fatal(err)
+	}
+	if len(s.compactions) != 1 || !strings.Contains(s.compactions[0].Message, discoveredLine) {
+		t.Fatalf("compactions = %+v", s.compactions)
+	}
+}
+
+func TestAConflictRestartCarriesTheDiscoveredNames(t *testing.T) {
+	first := session(toolTurn(readOf("d1", 1)), toolTurn(call("c1", "update_dashboard", `{}`)))
+	second := session(toolTurn(call("c2", "update_dashboard", `{}`)))
+	r := newRig(t, first, second)
+	r.tools.on("get_spec_guide", discoveringRead("node_load1", "node_cpu_seconds_total"))
+	r.tools.on("update_dashboard", sequence(
+		func() tools.Result {
+			r.dash.setNumber(latestVersion + 1)
+			return conflictResult(latestVersion + 1)
+		},
+		saved(5),
+	))
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil || out.Version != 5 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	started := r.provider.started()
+	if len(started) != 2 || !strings.Contains(started[1].Context, discoveredLine) || strings.Contains(started[0].Context, "<discovered>") {
+		t.Fatalf("contexts = %+v", started)
+	}
+}
+
+func TestEverySessionAsksForRequestSidePruning(t *testing.T) {
+	r := newRig(t, session(toolTurn(call("c1", "create_dashboard", `{}`))), session(toolTurn(call("c2", "create_dashboard", `{}`))))
+	r.tools.onSave("create_dashboard", conflictResult(4), savedResult(dashID, 5))
+	r.dash.setNumber(3)
+
+	if _, err := r.agent.Run(context.Background(), r.reviseTask()); err != nil {
+		t.Fatal(err)
+	}
+	started := r.provider.started()
+	if len(started) != 2 {
+		t.Fatalf("sessions = %d", len(started))
+	}
+	for i, req := range started {
+		if req.Pruning != (llm.Pruning{KeepTurns: 4, StepBytes: 64 << 10}) {
+			t.Fatalf("session %d pruning = %+v", i, req.Pruning)
+		}
 	}
 }

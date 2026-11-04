@@ -74,6 +74,8 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"parent_version": json.RawMessage(`1`),
 		"spec":           json.RawMessage(validSpec),
 		"body":           json.RawMessage(`"done"`),
+		"ids":            json.RawMessage(`["p1"]`),
+		"summary":        json.RawMessage(`"Change a panel"`),
 		"json":           json.RawMessage(`"{\"title\":\"Imported\",\"schemaVersion\":39,\"panels\":[]}"`),
 	}
 

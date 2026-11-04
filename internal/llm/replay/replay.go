@@ -8,10 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/llm"
 )
@@ -20,14 +23,17 @@ const (
 	name              = "replay"
 	promptHashLength  = 12
 	fixtureFileSuffix = ".json"
+
+	replayBytesPerToken = 3.2
 )
 
 type Provider struct {
-	fixtures map[string]*fixture
-	logger   *slog.Logger
+	fixtures  map[string]*fixture
+	maxTokens int64
+	logger    *slog.Logger
 }
 
-func New(dir string, logger *slog.Logger) (*Provider, error) {
+func New(dir string, maxTokens int, logger *slog.Logger) (*Provider, error) {
 	if dir == "" {
 		return nil, errors.New("replay fixture directory is not set")
 	}
@@ -36,7 +42,7 @@ func New(dir string, logger *slog.Logger) (*Provider, error) {
 		return nil, fmt.Errorf("read replay fixture directory: %w", err)
 	}
 
-	p := &Provider{fixtures: map[string]*fixture{}, logger: logger}
+	p := &Provider{fixtures: map[string]*fixture{}, maxTokens: int64(maxTokens), logger: logger}
 	var errs []error
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), fixtureFileSuffix) {
@@ -84,29 +90,44 @@ func (p *Provider) Start(ctx context.Context, req llm.Request) (llm.Session, err
 		p.logger.DebugContext(ctx, "replay found no fixture for the prompt", slog.Int("prompt_length", len(req.Prompt)), slog.String("prompt_key_sha256", promptKeyHash(req.Prompt)))
 		return nil, llm.ErrNoFixture
 	}
-	return &session{fixture: f, logger: p.logger}, nil
+	turns, ok := f.turnsFor(req.BuildSaves)
+	if !ok {
+		p.logger.DebugContext(ctx, "replay found no resume segment for the build", slog.String("fixture", f.File), slog.Int("build_saves", req.BuildSaves))
+		return nil, llm.ErrNoFixture
+	}
+	return &session{fixture: f, turns: turns, maxTokens: p.maxTokens, logger: p.logger}, nil
 }
 
 type session struct {
-	fixture  *fixture
-	logger   *slog.Logger
-	next     int
-	previous []llm.ToolCall
+	fixture    *fixture
+	turns      []turn
+	maxTokens  int64
+	logger     *slog.Logger
+	next       int
+	previous   []llm.ToolCall
+	faultSpent bool
 }
+
+func (s *session) Compact(llm.Compaction) error { return nil }
 
 func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn, error) {
 	if err := ctx.Err(); err != nil {
 		return llm.Turn{}, err
 	}
 	index := s.next
-	if index >= len(s.fixture.Turns) {
-		return llm.Turn{}, fmt.Errorf("replay fixture %s: no turn %d", s.fixture.File, index)
-	}
 	if err := s.checkResults(ctx, index, results); err != nil {
 		return llm.Turn{}, err
 	}
+	if index >= len(s.turns) {
+		return llm.Turn{Stop: llm.StopEndTurn, Usage: llm.Usage{Calls: 1}}, nil
+	}
 
-	t := s.fixture.Turns[index]
+	t := s.turns[index]
+	if t.Fault != nil {
+		if turn, handled, err := s.inject(ctx, t.Fault); handled {
+			return turn, err
+		}
+	}
 	out := llm.Turn{Text: t.Text, Stop: llm.StopEndTurn, Usage: llm.Usage{Calls: 1}}
 	for i, c := range t.ToolCalls {
 		out.ToolCalls = append(out.ToolCalls, llm.ToolCall{
@@ -118,9 +139,52 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 	if len(out.ToolCalls) > 0 {
 		out.Stop = llm.StopToolUse
 	}
+	out.Usage.OutputTokens = estimateOutputTokens(out.ToolCalls)
+	if s.maxTokens > 0 && out.Usage.OutputTokens > s.maxTokens {
+		return llm.Turn{Stop: llm.StopMaxTokens, Usage: llm.Usage{Calls: 1, OutputTokens: s.maxTokens}}, nil
+	}
 	s.next = index + 1
+	s.faultSpent = false
 	s.previous = out.ToolCalls
 	return out, nil
+}
+
+func (s *session) inject(ctx context.Context, f *fault) (llm.Turn, bool, error) {
+	switch f.Kind {
+	case faultDelay:
+		timer := time.NewTimer(time.Duration(f.DelayMS) * time.Millisecond)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return llm.Turn{}, true, ctx.Err()
+		case <-timer.C:
+			return llm.Turn{}, false, nil
+		}
+	case faultMaxTokens:
+		return llm.Turn{Stop: llm.StopMaxTokens, Usage: llm.Usage{Calls: 1}}, true, nil
+	case faultRefusal:
+		return llm.Turn{Stop: llm.StopRefusal, Usage: llm.Usage{Calls: 1}}, true, nil
+	}
+	if s.faultSpent {
+		return llm.Turn{}, false, nil
+	}
+	s.faultSpent = true
+	switch f.Kind {
+	case faultRateLimited:
+		return llm.Turn{}, true, llm.NewCallError(name, llm.RateLimited, http.StatusTooManyRequests)
+	case faultServerError:
+		return llm.Turn{}, true, llm.NewCallError(name, llm.ProviderError, http.StatusInternalServerError)
+	default:
+		return llm.Turn{}, true, llm.NewCallError(name, llm.CallTimeout, 0)
+	}
+}
+
+func estimateOutputTokens(calls []llm.ToolCall) int64 {
+	bytes := 0
+	for _, c := range calls {
+		bytes += len(c.Input)
+	}
+	return int64(math.Ceil(float64(bytes) / replayBytesPerToken))
 }
 
 func (s *session) checkResults(ctx context.Context, index int, results []llm.ToolResult) error {
@@ -132,7 +196,10 @@ func (s *session) checkResults(ctx context.Context, index int, results []llm.Too
 			return fmt.Errorf("replay fixture %s: turn %d: tool result %d answers %q, want %q", s.fixture.File, index, i, r.CallID, s.previous[i].ID)
 		}
 	}
-	expect := s.fixture.Turns[index].Expect
+	var expect []expectation
+	if index < len(s.turns) {
+		expect = s.turns[index].Expect
+	}
 	for i, r := range results {
 		if err := s.checkResult(ctx, index, i, r, expect); err != nil {
 			return err

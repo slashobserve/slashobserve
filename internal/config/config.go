@@ -45,18 +45,29 @@ const (
 	LLMProviderReplay    = "replay"
 
 	defaultLLMModel          = "claude-sonnet-5-5"
-	defaultLLMEffort         = "medium"
 	defaultLLMMaxTokens      = 16000
 	minLLMMaxTokens          = 1024
 	maxLLMMaxTokens          = 64000
-	defaultLLMRequestTimeout = 120 * time.Second
+	defaultLLMRequestTimeout = 10 * time.Minute
 	minLLMRequestTimeout     = 10 * time.Second
-	maxLLMRequestTimeout     = 10 * time.Minute
+	maxLLMRequestTimeout     = 60 * time.Minute
+	defaultLLMIdleTimeout    = 180 * time.Second
+	minLLMIdleTimeout        = 10 * time.Second
+	maxLLMIdleTimeout        = 60 * time.Minute
+
+	defaultAgentRunTimeout = 0
+	minAgentRunTimeout     = time.Minute
+
+	minAgentSessionRenewKiB = 32
+	maxAgentSessionRenewKiB = 4096
 )
 
 var instanceRoles = []string{"admin", "editor", "commenter", "viewer"}
 
-var llmEfforts = []string{"low", "medium", "high", "xhigh", "max"}
+var llmEfforts = map[string][]string{
+	LLMProviderAnthropic: {"low", "medium", "high", "xhigh", "max"},
+	LLMProviderOpenAI:    {"none", "minimal", "low", "medium", "high", "xhigh"},
+}
 
 var emailDomainPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$`)
 
@@ -92,7 +103,13 @@ const (
 	envLLMEffort         = "SLASHOBSERVE_LLM_EFFORT"
 	envLLMMaxTokens      = "SLASHOBSERVE_LLM_MAX_TOKENS" //nolint:gosec // an environment variable name, not a credential
 	envLLMRequestTimeout = "SLASHOBSERVE_LLM_REQUEST_TIMEOUT"
+	envLLMIdleTimeout    = "SLASHOBSERVE_LLM_IDLE_TIMEOUT"
 	envLLMReplayDir      = "SLASHOBSERVE_LLM_REPLAY_DIR"
+
+	envLLMLogProviderErrors = "SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS"
+
+	envAgentRunTimeout      = "SLASHOBSERVE_AGENT_RUN_TIMEOUT"
+	envAgentSessionRenewKiB = "SLASHOBSERVE_AGENT_SESSION_RENEW_KIB"
 )
 
 var serverEnvNames = []string{
@@ -101,7 +118,8 @@ var serverEnvNames = []string{
 	envSessionTTL, envAllowedEmailDomain, envAuthProviderName, envDatasourcesFile, envAPIContractCheck, envOutboundDomains,
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
-	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMReplayDir,
+	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
+	envLLMLogProviderErrors, envAgentRunTimeout, envAgentSessionRenewKiB,
 }
 
 type GroupRoleSetting struct {
@@ -117,7 +135,15 @@ type LLM struct {
 	Effort         string
 	MaxTokens      int
 	RequestTimeout time.Duration
+	IdleTimeout    time.Duration
 	ReplayDir      string
+
+	LogProviderErrors bool
+}
+
+type Agent struct {
+	RunTimeout        time.Duration
+	SessionRenewBytes int
 }
 
 type Config struct {
@@ -143,6 +169,7 @@ type Config struct {
 
 	APIContractCheck bool
 	LLM              LLM
+	Agent            Agent
 
 	OutboundDomainsLocked bool
 	OutboundDomains       domains.List
@@ -195,16 +222,16 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		cfg.Datasources = datasources
 	}
 
-	if v := get(lookup, envAPIContractCheck); v != "" {
-		switch v {
-		case "true":
-			cfg.APIContractCheck = true
-		case "false":
-		default:
-			errs = append(errs, fmt.Errorf("%s: must be true or false, got %q", envAPIContractCheck, v))
-		}
+	cfg.APIContractCheck, err = loadBool(lookup, envAPIContractCheck)
+	if err != nil {
+		errs = append(errs, err)
 	}
 	errs = append(errs, loadLLM(lookup, &cfg)...)
+	cfg.LLM.LogProviderErrors, err = loadBool(lookup, envLLMLogProviderErrors)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	errs = append(errs, loadAgent(lookup, &cfg)...)
 	errs = append(errs, loadOutboundDomains(lookup, &cfg)...)
 
 	return cfg, errors.Join(errs...)
@@ -387,9 +414,9 @@ func loadGroupRoles(lookup func(string) (string, bool), cfg *Config) []error {
 
 func loadLLM(lookup func(string) (string, bool), cfg *Config) []error {
 	llm := LLM{
-		Effort:         defaultLLMEffort,
 		MaxTokens:      defaultLLMMaxTokens,
 		RequestTimeout: defaultLLMRequestTimeout,
+		IdleTimeout:    defaultLLMIdleTimeout,
 		Model:          get(lookup, envLLMModel),
 		ReplayDir:      get(lookup, envLLMReplayDir),
 	}
@@ -416,9 +443,9 @@ func loadLLM(lookup func(string) (string, bool), cfg *Config) []error {
 		}
 	}
 
-	if v := strings.ToLower(get(lookup, envLLMEffort)); v != "" {
-		if !slices.Contains(llmEfforts, v) {
-			errs = append(errs, fmt.Errorf("%s: must be one of %s, got %q", envLLMEffort, strings.Join(llmEfforts, ", "), v))
+	if v, allowed := strings.ToLower(get(lookup, envLLMEffort)), llmEfforts[llm.Provider]; v != "" && allowed != nil {
+		if !slices.Contains(allowed, v) {
+			errs = append(errs, fmt.Errorf("%s: for provider %s must be one of %s, got %q", envLLMEffort, llm.Provider, strings.Join(allowed, ", "), v))
 		} else {
 			llm.Effort = v
 		}
@@ -433,21 +460,58 @@ func loadLLM(lookup func(string) (string, bool), cfg *Config) []error {
 		}
 	}
 
-	if v := get(lookup, envLLMRequestTimeout); v != "" {
-		d, err := time.ParseDuration(v)
-		switch {
-		case err != nil:
-			errs = append(errs, fmt.Errorf("%s: %w", envLLMRequestTimeout, err))
-		case d < minLLMRequestTimeout || d > maxLLMRequestTimeout:
-			errs = append(errs, fmt.Errorf("%s: must be between %s and %s, got %q", envLLMRequestTimeout, minLLMRequestTimeout, maxLLMRequestTimeout, v))
-		default:
-			llm.RequestTimeout = d
-		}
+	timeout, err := loadTimeout(lookup, envLLMRequestTimeout, defaultLLMRequestTimeout, minLLMRequestTimeout, maxLLMRequestTimeout)
+	if err != nil {
+		errs = append(errs, err)
 	}
+	llm.RequestTimeout = timeout
+
+	idle, err := loadTimeout(lookup, envLLMIdleTimeout, defaultLLMIdleTimeout, minLLMIdleTimeout, maxLLMIdleTimeout)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	llm.IdleTimeout = idle
 
 	errs = append(errs, requireLLMSettings(&llm)...)
 	cfg.LLM = llm
 	return errs
+}
+
+func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
+	timeout, err := loadTimeout(lookup, envAgentRunTimeout, defaultAgentRunTimeout, minAgentRunTimeout, 0)
+	cfg.Agent.RunTimeout = timeout
+	var errs []error
+	if err != nil {
+		errs = append(errs, err)
+	}
+	if v := get(lookup, envAgentSessionRenewKiB); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < minAgentSessionRenewKiB || n > maxAgentSessionRenewKiB {
+			errs = append(errs, fmt.Errorf("%s: must be a number of KiB between %d and %d, got %q", envAgentSessionRenewKiB, minAgentSessionRenewKiB, maxAgentSessionRenewKiB, v))
+		} else {
+			cfg.Agent.SessionRenewBytes = n << 10
+		}
+	}
+	return errs
+}
+
+func loadTimeout(lookup func(string) (string, bool), name string, def, minimum, maximum time.Duration) (time.Duration, error) {
+	v := get(lookup, name)
+	if v == "" {
+		return def, nil
+	}
+	d, err := time.ParseDuration(v)
+	switch {
+	case err != nil:
+		return def, fmt.Errorf("%s: %w", name, err)
+	case d == 0:
+		return 0, nil
+	case maximum > 0 && (d < minimum || d > maximum):
+		return def, fmt.Errorf("%s: must be 0 or between %s and %s, got %q", name, minimum, maximum, v)
+	case d < minimum:
+		return def, fmt.Errorf("%s: must be 0 or at least %s, got %q", name, minimum, v)
+	}
+	return d, nil
 }
 
 func requireLLMSettings(llm *LLM) []error {
@@ -561,6 +625,17 @@ func HTTPAddr(lookup func(string) (string, bool)) (string, error) {
 		return addr, fmt.Errorf("%s: port must be a number between 1 and 65535, got %q", envHTTPAddr, port)
 	}
 	return addr, nil
+}
+
+func loadBool(lookup func(string) (string, bool), key string) (bool, error) {
+	switch v := get(lookup, key); v {
+	case "", "false":
+		return false, nil
+	case "true":
+		return true, nil
+	default:
+		return false, fmt.Errorf("%s: must be true or false, got %q", key, v)
+	}
 }
 
 func get(lookup func(string) (string, bool), key string) string {

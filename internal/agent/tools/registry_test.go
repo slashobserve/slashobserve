@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"slices"
 	"strings"
@@ -131,10 +132,76 @@ func TestCallRejectsLooseInputWithStep(t *testing.T) {
 			if errorCode(t, res) != codeInvalidRequest {
 				t.Fatalf("content = %#v", res.Content)
 			}
-			if want := "Rejected " + tt.tool + " input: invalid_request"; res.Step != want {
-				t.Fatalf("step = %q, want %q", res.Step, want)
+			if !strings.HasPrefix(res.Step, "Rejected "+tt.tool+" input: ") || res.Step == "Rejected "+tt.tool+" input: invalid_request" {
+				t.Fatalf("step = %q, want it to carry the message", res.Step)
 			}
 		})
+	}
+}
+
+func TestAnInvalidRequestStepCarriesItsClippedMessage(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	tests := []struct {
+		name   string
+		result Result
+		want   string
+	}{
+		{"a short message", invalid("limit must be between 1 and 500"), "Rejected list_metrics input: limit must be between 1 and 500"},
+		{"a long message is clipped", invalid("%s", strings.Repeat("x", 300)), "Rejected list_metrics input: " + strings.Repeat("x", maxStepReasonBytes) + "..."},
+		{"no message", toolError(codeInvalidRequest, ""), "Rejected list_metrics input: invalid_request"},
+		{"another code", toolError(codeNotFound, "gone"), "Could not run list_metrics: not_found"},
+		{"a step the handler set", Result{Content: errorBody{Code: codeInvalidRequest, Message: "m"}, IsError: true, Step: "Own step"}, "Own step"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r.entries[nameListMetrics] = entry{handle: func(context.Context, json.RawMessage) (Result, error) { return tt.result, nil }}
+			res, err := call(t, r, nameListMetrics, `{}`)
+			if err != nil || res.Step != tt.want {
+				t.Fatalf("step = %q err = %v, want %q", res.Step, err, tt.want)
+			}
+		})
+	}
+}
+
+func TestPageCutsByBytesAndSaysWhereToGoOn(t *testing.T) {
+	items := make([]string, 100)
+	for i := range items {
+		items[i] = fmt.Sprintf("%03d%s", i, strings.Repeat("x", 97))
+	}
+	kept, tr := page(items, 5, false, 1000)
+	if len(kept) == 0 || kept[0] != items[5] {
+		t.Fatalf("kept %d items starting %q, want a page starting at item 5", len(kept), kept[0])
+	}
+	if !tr.Truncated || tr.TruncatedBy != "bytes" || tr.NextOffset == nil || *tr.NextOffset != 5+len(kept) {
+		t.Fatalf("truncation = %+v, want bytes and next_offset %d", tr, 5+len(kept))
+	}
+	if last, _ := page(items, 5+len(kept), false, 1<<20); len(last) != 100-5-len(kept) {
+		t.Fatalf("the next page held %d items, want the rest", len(last))
+	}
+}
+
+func TestPageReportsAnUpstreamLimitCut(t *testing.T) {
+	items := []string{"a", "b", "c", "d"}
+	kept, tr := page(items, 1, true, 1<<20)
+	if !slices.Equal(kept, []string{"b", "c", "d"}) {
+		t.Fatalf("kept = %v", kept)
+	}
+	if !tr.Truncated || tr.TruncatedBy != "limit" || tr.NextOffset == nil || *tr.NextOffset != 4 {
+		t.Fatalf("truncation = %+v, want limit and next_offset 4", tr)
+	}
+	if _, tr := page(items, 0, false, 1<<20); tr != (truncation{}) {
+		t.Fatalf("an uncut page reports %+v", tr)
+	}
+}
+
+func TestPageGivesNoNextOffsetPastTheNamesLimit(t *testing.T) {
+	items := make([]string, 500)
+	kept, tr := page(items, 450, true, 1<<20)
+	if len(kept) != 50 || !tr.Truncated || tr.TruncatedBy != "limit" || tr.NextOffset != nil {
+		t.Fatalf("kept %d, truncation = %+v, want limit with no next_offset", len(kept), tr)
+	}
+	if kept, tr := page(items[:10], 20, false, 1<<20); len(kept) != 0 || tr != (truncation{}) {
+		t.Fatalf("an offset past the end gave %d items and %+v", len(kept), tr)
 	}
 }
 
@@ -263,9 +330,9 @@ func TestCallResultCaps(t *testing.T) {
 
 func TestListSchemas(t *testing.T) {
 	wantNames := []string{
-		"create_dashboard", "get_dashboard", "get_schema", "get_spec_guide", "import_grafana_dashboard", "lint_query",
+		"create_dashboard", "get_dashboard", "get_panels", "get_schema", "get_spec_guide", "import_grafana_dashboard", "lint_query",
 		"list_comments", "list_dashboards", "list_datasources", "list_folders", "list_label_values", "list_labels", "list_metrics",
-		"query_instant", "query_range", "reply_to_comment", "resolve_comment", "sample_rows", "update_dashboard",
+		"query_instant", "query_range", "reply_to_comment", "resolve_comment", "sample_rows", "update_dashboard", "update_panels",
 	}
 	first := New(Deps{}).List()
 	var names []string

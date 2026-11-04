@@ -60,7 +60,7 @@ func FailureCode(err error) string {
 	return FailureToolFailed
 }
 
-var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes, nameGetSpecGuide: 64 << 10, nameUpdateDashboard: maxSuggestResult}
+var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes, nameGetSpecGuide: 64 << 10, nameUpdateDashboard: maxSuggestResult, nameGetPanels: MaxModelSpecBytes, nameUpdatePanels: maxSuggestResult}
 
 type Tool struct {
 	Name        string
@@ -74,10 +74,28 @@ type Tool struct {
 	AgentInputSchema json.RawMessage
 }
 
+type Refusal string
+
+const RefusalOnePanel Refusal = "one_panel"
+
 type Result struct {
-	Content any
-	IsError bool
-	Step    string
+	Content    any
+	IsError    bool
+	Step       string
+	Discovered *Discovery
+	Refusal    Refusal
+	Edits      Edits
+}
+
+type Edits struct {
+	Panels   []string
+	Settings bool
+}
+
+type Discovery struct {
+	Datasource string
+	Of         string
+	Names      []string
 }
 
 type Deps struct {
@@ -107,6 +125,8 @@ type Run struct {
 	PanelID       string
 	Prompt        string
 	Base          *spec.Dashboard
+	Build         bool
+	Attempt       int
 }
 
 type runKey struct{}
@@ -149,6 +169,7 @@ func New(d Deps) *Registry {
 	all = append(all, r.discoveryEntries()...)
 	all = append(all, r.queryEntries()...)
 	all = append(all, r.dashboardEntries()...)
+	all = append(all, r.panelEntries()...)
 	all = append(all, r.commentEntries()...)
 	all = append(all, r.folderEntries()...)
 	all = append(all, r.importEntries()...)
@@ -215,7 +236,7 @@ func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage)
 		return Result{}, fmt.Errorf("tool %s: %w: %d bytes, over the %d byte limit", name, ErrResultTooLarge, len(body), limit)
 	}
 	if eb, ok := res.Content.(errorBody); ok && res.IsError && res.Step == "" {
-		res.Step = errorStep(name, eb.Code)
+		res.Step = callErrorStep(name, eb)
 	}
 	return res, nil
 }
@@ -229,6 +250,13 @@ func errorStep(tool, code string) string {
 		return "Rejected " + tool + " input: " + code
 	}
 	return "Could not run " + tool + ": " + code
+}
+
+func callErrorStep(tool string, eb errorBody) string {
+	if eb.Code == codeInvalidRequest && eb.Message != "" {
+		return "Rejected " + tool + " input: " + clip(eb.Message, maxStepReasonBytes)
+	}
+	return errorStep(tool, eb.Code)
 }
 
 type errorBody struct {
@@ -372,6 +400,33 @@ func fit[T any](items []T, budget int) ([]T, bool) {
 		}
 	}
 	return items, false
+}
+
+type truncation struct {
+	Truncated   bool   `json:"truncated"`
+	TruncatedBy string `json:"truncated_by,omitempty"`
+	NextOffset  *int   `json:"next_offset,omitempty"`
+}
+
+const (
+	truncatedByBytes = "bytes"
+	truncatedByLimit = "limit"
+)
+
+func page[T any](items []T, offset int, upstreamCut bool, budget int) ([]T, truncation) {
+	kept, cut := fit(items[min(offset, len(items)):], budget)
+	next := offset + len(kept)
+	switch {
+	case cut:
+		return kept, truncation{Truncated: true, TruncatedBy: truncatedByBytes, NextOffset: &next}
+	case upstreamCut:
+		t := truncation{Truncated: true, TruncatedBy: truncatedByLimit}
+		if next < queryproxy.MaxNamesLimit {
+			t.NextOffset = &next
+		}
+		return kept, t
+	}
+	return kept, truncation{}
 }
 
 func clip(s string, n int) string { return queryproxy.ClipBytes(s, n) }

@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"cmp"
 	"fmt"
 	"log/slog"
 
@@ -11,6 +12,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/llm/replay"
 )
 
+const anthropicDefaultEffort = "medium"
+
 func New(cfg config.LLM, logger *slog.Logger) (llm.Provider, error) {
 	switch cfg.Provider {
 	case "":
@@ -19,21 +22,28 @@ func New(cfg config.LLM, logger *slog.Logger) (llm.Provider, error) {
 		return anthropic.New(anthropic.Config{
 			APIKey:         cfg.APIKey,
 			Model:          cfg.Model,
-			Effort:         cfg.Effort,
+			Effort:         cmp.Or(cfg.Effort, anthropicDefaultEffort),
 			BaseURL:        cfg.BaseURL,
 			MaxTokens:      cfg.MaxTokens,
 			RequestTimeout: cfg.RequestTimeout,
-		}, logger), nil
+			IdleTimeout:    cfg.IdleTimeout,
+
+			LogProviderErrors: cfg.LogProviderErrors,
+		}), nil
 	case config.LLMProviderOpenAI:
 		return openaicompat.New(openaicompat.Config{
 			APIKey:         cfg.APIKey,
 			Model:          cfg.Model,
+			Effort:         cfg.Effort,
 			BaseURL:        cfg.BaseURL,
 			MaxTokens:      cfg.MaxTokens,
 			RequestTimeout: cfg.RequestTimeout,
+			IdleTimeout:    cfg.IdleTimeout,
+
+			LogProviderErrors: cfg.LogProviderErrors,
 		}, logger), nil
 	case config.LLMProviderReplay:
-		p, err := replay.New(cfg.ReplayDir, logger)
+		p, err := replay.New(cfg.ReplayDir, cfg.MaxTokens, logger)
 		if err != nil {
 			return nil, err
 		}

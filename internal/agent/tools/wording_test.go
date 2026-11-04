@@ -123,26 +123,167 @@ func TestMissingSpecErrorNamesOnlyWhatTheCallerHas(t *testing.T) {
 	}
 }
 
-func TestUpdateDashboardRequiredFieldsDifferForMCPAndAgent(t *testing.T) {
-	var update Tool
+func requiredOf(t *testing.T, schema json.RawMessage) []string {
+	t.Helper()
+	var parsed struct {
+		Required []string `json:"required"`
+	}
+	if err := json.Unmarshal(schema, &parsed); err != nil {
+		t.Fatal(err)
+	}
+	return parsed.Required
+}
+
+func TestSaveAndReadToolsRequireTheDashboardOnlyForMCP(t *testing.T) {
+	byName := map[string]Tool{}
 	for _, tool := range New(Deps{}).List() {
-		if tool.Name == nameUpdateDashboard {
-			update = tool
+		byName[tool.Name] = tool
+	}
+	for _, tc := range []struct{ tool, mcp, agent string }{
+		{nameUpdateDashboard, "[dashboard_id parent_version spec]", "[spec]"},
+		{nameGetPanels, "[dashboard_id ids]", "[ids]"},
+		{nameUpdatePanels, "[dashboard_id parent_version summary]", "[summary]"},
+	} {
+		tool := byName[tc.tool]
+		if got := fmt.Sprint(requiredOf(t, tool.InputSchema)); got != tc.mcp {
+			t.Errorf("%s MCP required = %s, want %s", tc.tool, got, tc.mcp)
+		}
+		if got := fmt.Sprint(requiredOf(t, tool.ForAgent().InputSchema)); got != tc.agent {
+			t.Errorf("%s agent required = %s, want %s", tc.tool, got, tc.agent)
 		}
 	}
-	requiredOf := func(schema json.RawMessage) []string {
-		var parsed struct {
-			Required []string `json:"required"`
+}
+
+func TestUpdateToolsSteerEachOtherByName(t *testing.T) {
+	byName := map[string]Tool{}
+	for _, tool := range New(Deps{}).List() {
+		byName[tool.Name] = tool
+	}
+	for _, tc := range []struct{ tool, want string }{
+		{nameUpdateDashboard, "use update_panels"},
+		{nameUpdatePanels, "or every query when the default time range changes"},
+		{nameGetPanels, "before changing it with update_panels"},
+	} {
+		if got := byName[tc.tool].ForAgent().Description; !strings.Contains(got, tc.want) {
+			t.Errorf("%s agent description lost %q: %s", tc.tool, tc.want, got)
 		}
-		if err := json.Unmarshal(schema, &parsed); err != nil {
+	}
+}
+
+func TestOnlyTheBuiltInAgentIsOfferedFinishAndPlannedPanels(t *testing.T) {
+	checked := 0
+	for _, tool := range New(Deps{}).List() {
+		switch tool.Name {
+		case nameCreateDashboard, nameUpdateDashboard, nameUpdatePanels:
+		default:
+			continue
+		}
+		checked++
+		var mcp, agent struct {
+			Properties map[string]json.RawMessage `json:"properties"`
+		}
+		if err := json.Unmarshal(tool.InputSchema, &mcp); err != nil {
 			t.Fatal(err)
 		}
-		return parsed.Required
+		if err := json.Unmarshal(tool.ForAgent().InputSchema, &agent); err != nil {
+			t.Fatal(err)
+		}
+		for _, field := range []string{"finish", "planned_panels"} {
+			if _, ok := mcp.Properties[field]; ok {
+				t.Errorf("%s: the MCP schema offers %s", tool.Name, field)
+			}
+			if _, ok := agent.Properties[field]; !ok {
+				t.Errorf("%s: the agent schema lacks %s", tool.Name, field)
+			}
+		}
+		for _, schema := range []json.RawMessage{tool.InputSchema, tool.ForAgent().InputSchema} {
+			if strings.Contains(string(schema), `"plan"`) {
+				t.Errorf("%s: a schema still has a plan property", tool.Name)
+			}
+		}
+		if strings.Contains(tool.Description, "build that people watch") {
+			t.Errorf("%s: the MCP description carries the agent's build guidance", tool.Name)
+		}
+		if !strings.Contains(tool.ForAgent().Description, "Each save adds or changes exactly one panel.") {
+			t.Errorf("%s: the agent description lacks the build guidance", tool.Name)
+		}
 	}
-	if got, want := fmt.Sprint(requiredOf(update.InputSchema)), "[dashboard_id parent_version spec]"; got != want {
-		t.Errorf("MCP required = %s, want %s", got, want)
+	if checked != 3 {
+		t.Fatalf("checked %d save tools, want 3", checked)
 	}
-	if got, want := fmt.Sprint(requiredOf(update.ForAgent().InputSchema)), "[spec]"; got != want {
-		t.Errorf("agent required = %s, want %s", got, want)
+}
+
+func schemaProperties(t *testing.T, schema json.RawMessage) map[string]json.RawMessage {
+	t.Helper()
+	var parsed struct {
+		Properties map[string]json.RawMessage `json:"properties"`
+	}
+	if err := json.Unmarshal(schema, &parsed); err != nil {
+		t.Fatal(err)
+	}
+	return parsed.Properties
+}
+
+func upsertMaxItems(t *testing.T, schema json.RawMessage) int {
+	t.Helper()
+	var upsert struct {
+		MaxItems int `json:"maxItems"`
+	}
+	if err := json.Unmarshal(schemaProperties(t, schema)["upsert"], &upsert); err != nil {
+		t.Fatal(err)
+	}
+	return upsert.MaxItems
+}
+
+func TestOnlyTheBuiltInSavesNameARowAndUpdatePanelsHoldsOnePanel(t *testing.T) {
+	byName := map[string]Tool{}
+	for _, tool := range New(Deps{}).List() {
+		byName[tool.Name] = tool
+	}
+	updatePanels := byName[nameUpdatePanels]
+	if _, ok := schemaProperties(t, updatePanels.InputSchema)["row"]; ok {
+		t.Error("the MCP update_panels schema offers row")
+	}
+	if got := upsertMaxItems(t, updatePanels.InputSchema); got != 50 {
+		t.Errorf("MCP upsert maxItems = %d, want 50", got)
+	}
+	if _, ok := schemaProperties(t, updatePanels.ForAgent().InputSchema)["row"]; !ok {
+		t.Error("the agent update_panels schema lacks row")
+	}
+	if got := upsertMaxItems(t, updatePanels.ForAgent().InputSchema); got != 1 {
+		t.Errorf("agent upsert maxItems = %d, want 1", got)
+	}
+	if _, ok := schemaProperties(t, byName[nameCreateDashboard].InputSchema)["row"]; ok {
+		t.Error("the MCP create_dashboard schema offers row")
+	}
+	if _, ok := schemaProperties(t, byName[nameCreateDashboard].ForAgent().InputSchema)["row"]; !ok {
+		t.Error("the agent create_dashboard schema lacks row")
+	}
+	if _, ok := schemaProperties(t, byName[nameUpdateDashboard].ForAgent().InputSchema)["row"]; ok {
+		t.Error("the agent update_dashboard schema offers row")
+	}
+}
+
+func TestTheAgentAndMCPDescribeGetSpecGuideDifferently(t *testing.T) {
+	var guide Tool
+	for _, tool := range New(Deps{}).List() {
+		if tool.Name == nameGetSpecGuide {
+			guide = tool
+		}
+	}
+	if guide.MCPOnly {
+		t.Fatal("the built-in agent is not offered get_spec_guide")
+	}
+	if !strings.Contains(guide.Description, "authoring guide, JSON Schema and an example") {
+		t.Errorf("MCP description = %q", guide.Description)
+	}
+	agent := guide.ForAgent().Description
+	for _, want := range []string{"ObserveSpec JSON Schema", "already in your instructions", "schema issue you cannot fix from the guide"} {
+		if !strings.Contains(agent, want) {
+			t.Errorf("agent description lacks %q: %s", want, agent)
+		}
+	}
+	if agent == guide.Description {
+		t.Error("the agent and MCP descriptions are the same")
 	}
 }

@@ -27,29 +27,24 @@ import (
 
 const (
 	maxPromptRunes  = 4000
-	maxRepairRounds = 3
-	maxModelCalls   = 20
 	maxRestarts     = 1
 	maxLoggedIssues = 20
 )
 
 var (
 	ErrNoSave          = errors.New("the model finished without saving a dashboard")
-	ErrRepairExhausted = fmt.Errorf("the dashboard still failed validation after %d repair rounds", maxRepairRounds)
-	ErrTurnLimit       = errors.New("the agent reached its turn limit without saving")
+	ErrRepairExhausted = fmt.Errorf("the dashboard still failed validation after %d rejected saves in a row", maxRejectionsInRow)
 	ErrRefused         = errors.New("the model declined the request")
 	ErrConflict        = errors.New("the dashboard changed twice while the agent was revising it")
 	ErrInvalidTask     = errors.New("invalid agent task")
-	ErrTooLarge        = errors.New("the dashboard is too large for the agent to revise")
 	ErrNoSuggestion    = errors.New("the model finished without proposing a panel")
 	ErrDraftInvalid    = errors.New("the draft panel is not valid")
 	errModelCall       = errors.New("model call failed")
 
 	ErrSuggestRepairExhausted error = &variantError{
-		message: fmt.Sprintf("the proposed panel still failed validation after %d repair rounds", maxRepairRounds),
+		message: fmt.Sprintf("the proposed panel still failed validation after %d rejected saves in a row", maxRejectionsInRow),
 		base:    ErrRepairExhausted,
 	}
-	ErrSuggestTurnLimit error = &variantError{message: "the agent stopped without proposing a panel", base: ErrTurnLimit}
 )
 
 type variantError struct {
@@ -80,26 +75,37 @@ type ImportReader interface {
 	ForDashboard(ctx context.Context, id pgtype.UUID) (imports.Record, error)
 }
 
+type BuildStore interface {
+	Build(ctx context.Context, requestID pgtype.UUID) (dashboards.Build, bool, error)
+	CommitBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (dashboards.Dashboard, dashboards.Version, bool, error)
+	DiscardBuild(ctx context.Context, requestID pgtype.UUID, attempt int) error
+}
+
 type Config struct {
-	Provider    llm.Provider
-	Tools       ToolSet
-	Dashboards  DashboardReader
-	Datasources DatasourceHealth
-	Imports     ImportReader
-	Logger      *slog.Logger
+	Provider          llm.Provider
+	Tools             ToolSet
+	Dashboards        DashboardReader
+	Builds            BuildStore
+	Datasources       DatasourceHealth
+	Imports           ImportReader
+	Logger            *slog.Logger
+	SessionRenewBytes int
 }
 
 type Task struct {
-	Prompt      string
-	DashboardID string
-	PanelID     string
-	Source      revisions.Source
-	RequestID   string
-	Principal   auth.Principal
-	Suggest     bool
-	BaseVersion int
-	Draft       json.RawMessage
-	Progress    func(Step)
+	Prompt       string
+	DashboardID  string
+	PanelID      string
+	Source       revisions.Source
+	RequestID    string
+	Attempt      int
+	Continues    bool
+	ContinueNote string
+	Principal    auth.Principal
+	Suggest      bool
+	BaseVersion  int
+	Draft        json.RawMessage
+	Progress     func(Step)
 }
 
 type Step struct {
@@ -112,25 +118,41 @@ type Step struct {
 }
 
 type Outcome struct {
-	DashboardID  string
-	Version      int
-	Suggestion   json.RawMessage
-	Replayed     bool
-	RepairRounds int
-	Usage        llm.Usage
-	Provider     string
-	Model        string
+	DashboardID         string
+	Version             int
+	Suggestion          json.RawMessage
+	Replayed            bool
+	RepairRounds        int
+	Usage               llm.Usage
+	Provider            string
+	Model               string
+	ToolCalls           int
+	FailedCalls         int
+	Retries             int
+	ModelTime           time.Duration
+	ToolTime            time.Duration
+	MaxSaveOutputTokens int64
+	BuildSaves          int
+	Reseeds             int
+	Renewals            int
+	Compactions         int
+	Nudges              int
+	SaveNowRefusals     int
+	StalledTurns        int
+	OnePanelRefusals    int
 }
 
 type Agent struct {
-	provider    llm.Provider
-	tools       ToolSet
-	dashboards  DashboardReader
-	datasources DatasourceHealth
-	imports     ImportReader
-	logger      *slog.Logger
-	system      string
-	toolSpecs   []llm.ToolSpec
+	provider          llm.Provider
+	tools             ToolSet
+	dashboards        DashboardReader
+	builds            BuildStore
+	datasources       DatasourceHealth
+	imports           ImportReader
+	logger            *slog.Logger
+	system            string
+	toolSpecs         []llm.ToolSpec
+	sessionRenewBytes int
 }
 
 func New(c Config) *Agent {
@@ -145,15 +167,20 @@ func New(c Config) *Agent {
 		t = t.ForAgent()
 		specs = append(specs, llm.ToolSpec{Name: t.Name, Description: t.Description, InputSchema: t.InputSchema})
 	}
+	if c.SessionRenewBytes <= 0 {
+		c.SessionRenewBytes = defaultSessionRenewBytes
+	}
 	return &Agent{
-		provider:    c.Provider,
-		tools:       c.Tools,
-		dashboards:  c.Dashboards,
-		datasources: c.Datasources,
-		imports:     c.Imports,
-		logger:      c.Logger,
-		system:      buildSystem(),
-		toolSpecs:   specs,
+		provider:          c.Provider,
+		tools:             c.Tools,
+		dashboards:        c.Dashboards,
+		builds:            c.Builds,
+		datasources:       c.Datasources,
+		imports:           c.Imports,
+		logger:            c.Logger,
+		system:            buildSystem(),
+		toolSpecs:         specs,
+		sessionRenewBytes: c.SessionRenewBytes,
 	}
 }
 
@@ -179,32 +206,62 @@ func incompleteSuggestion(t Task) bool {
 	return t.Suggest && (t.DashboardID == "" || t.PanelID == "" || t.BaseVersion < 1)
 }
 
-func validateTask(t Task) (prompt string, id pgtype.UUID, err error) {
+func validateTask(t Task) (prompt string, id, requestID pgtype.UUID, err error) {
 	prompt = strings.TrimSpace(t.Prompt)
 	switch {
 	case prompt == "":
-		return "", id, fmt.Errorf("%w: the prompt is empty", ErrInvalidTask)
+		return "", id, requestID, fmt.Errorf("%w: the prompt is empty", ErrInvalidTask)
 	case utf8.RuneCountInString(prompt) > maxPromptRunes:
-		return "", id, fmt.Errorf("%w: the prompt is longer than %d characters", ErrInvalidTask, maxPromptRunes)
+		return "", id, requestID, fmt.Errorf("%w: the prompt is longer than %d characters", ErrInvalidTask, maxPromptRunes)
 	case t.Principal.ID == "" || (t.Principal.Kind != auth.KindUser && t.Principal.Kind != auth.KindServiceAccount):
-		return "", id, fmt.Errorf("%w: the principal is not valid", ErrInvalidTask)
+		return "", id, requestID, fmt.Errorf("%w: the principal is not valid", ErrInvalidTask)
 	case t.DashboardID == "" && t.PanelID != "":
-		return "", id, fmt.Errorf("%w: a panel needs a dashboard", ErrInvalidTask)
+		return "", id, requestID, fmt.Errorf("%w: a panel needs a dashboard", ErrInvalidTask)
 	case t.PanelID != "" && !panelIDPattern.MatchString(t.PanelID):
-		return "", id, fmt.Errorf("%w: the panel id is not valid", ErrInvalidTask)
+		return "", id, requestID, fmt.Errorf("%w: the panel id is not valid", ErrInvalidTask)
 	case incompleteSuggestion(t):
-		return "", id, fmt.Errorf("%w: a suggestion needs a dashboard, a panel and a base version", ErrInvalidTask)
+		return "", id, requestID, fmt.Errorf("%w: a suggestion needs a dashboard, a panel and a base version", ErrInvalidTask)
 	}
 	if t.DashboardID != "" {
 		if id, err = db.ParseUUID(t.DashboardID); err != nil {
-			return "", id, fmt.Errorf("%w: the dashboard id is not a UUID", ErrInvalidTask)
+			return "", id, requestID, fmt.Errorf("%w: the dashboard id is not a UUID", ErrInvalidTask)
 		}
 	}
-	return prompt, id, nil
+	if !t.Suggest {
+		if requestID, err = db.ParseUUID(t.RequestID); err != nil {
+			return "", id, requestID, fmt.Errorf("%w: the request id is not a UUID", ErrInvalidTask)
+		}
+	}
+	return prompt, id, requestID, nil
+}
+
+type runner struct {
+	agent       *Agent
+	task        Task
+	prompt      string
+	mode        tools.Mode
+	statuses    []datasource.Status
+	requestID   pgtype.UUID
+	dashboardID pgtype.UUID
+	state       *runState
+	totals      *callTotals
+	out         *Outcome
+}
+
+type sessionEnd struct {
+	reseed   seedReason
+	compact  seedReason
+	conflict bool
+	chat     llm.Session
+	results  []llm.ToolResult
+}
+
+func compaction(reason seedReason, chat llm.Session, results []llm.ToolResult) sessionEnd {
+	return sessionEnd{compact: reason, chat: chat, results: results}
 }
 
 func (a *Agent) run(ctx context.Context, t Task, out *Outcome) error {
-	prompt, dashboardUUID, err := validateTask(t)
+	prompt, dashboardUUID, requestUUID, err := validateTask(t)
 	if err != nil {
 		return err
 	}
@@ -214,31 +271,146 @@ func (a *Agent) run(ctx context.Context, t Task, out *Outcome) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	for restarts := 0; ; restarts++ {
-		var current *revision
-		switch mode {
-		case tools.ModeRevise:
-			if current, err = a.loadLatest(ctx, dashboardUUID, t.RequestID); err != nil {
-				return err
-			}
-			out.DashboardID = current.dashboardID
-		case tools.ModeSuggest:
-			if current, err = a.loadBase(ctx, dashboardUUID, t); err != nil {
-				return err
-			}
-			out.DashboardID = current.dashboardID
-		}
-		conflict, err := a.session(ctx, t, prompt, mode, statuses, current, out)
+	r := &runner{
+		agent: a, task: t, prompt: prompt, mode: mode, statuses: statuses,
+		requestID: requestUUID, dashboardID: dashboardUUID,
+		state:  &runState{tools: a.tools, known: toolNames(a.tools.List()), progress: t.Progress, logger: a.logger, mode: mode},
+		totals: &callTotals{},
+		out:    out,
+	}
+	defer func() {
+		out.RepairRounds += r.state.repairs
+		out.ToolCalls += r.state.toolCalls
+		out.ToolTime += r.state.toolTime
+		out.FailedCalls += r.totals.failedCalls
+		out.Retries += r.totals.retries
+		out.ModelTime += r.totals.modelTime
+		out.MaxSaveOutputTokens = max(out.MaxSaveOutputTokens, r.state.maxSaveOutput)
+		out.BuildSaves += r.state.buildSaves
+		out.Nudges += r.state.nudges
+		out.SaveNowRefusals += r.state.saveNowRefusals
+		out.StalledTurns += r.state.stalledTurns
+		out.OnePanelRefusals += r.state.onePanelRefusals
+	}()
+	return r.loop(ctx)
+}
+
+func (r *runner) loop(ctx context.Context) error {
+	reason := seedFresh
+	restarts := 0
+	var carry *sessionEnd
+	for {
+		current, err := r.load(ctx)
 		if err != nil {
 			return err
 		}
-		if !conflict {
+		build, err := r.loadBuild(ctx)
+		if err != nil {
+			return err
+		}
+		if r.buildIsStale(current, build) {
+			if err := r.restartFromLatest(ctx, &restarts); err != nil {
+				return err
+			}
+			reason, carry = seedConflict, nil
+			continue
+		}
+		if build != nil && reason == seedFresh {
+			reason = resumeReason(r.task)
+		}
+		end, err := r.session(ctx, current, build, reason, carry)
+		if err != nil {
+			return err
+		}
+		carry = nil
+		switch {
+		case end.conflict:
+			if err := r.restartFromLatest(ctx, &restarts); err != nil {
+				return err
+			}
+			reason = seedConflict
+		case end.compact != seedFresh:
+			carry, reason = &end, end.compact
+		case end.reseed != seedFresh:
+			r.out.Reseeds++
+			reason = end.reseed
+		default:
 			return nil
 		}
-		if restarts >= maxRestarts {
-			return ErrConflict
-		}
 	}
+}
+
+func (r *runner) buildIsStale(current *revision, build *dashboards.Build) bool {
+	return r.mode == tools.ModeRevise && build != nil && current != nil && build.BaseVersion != current.number
+}
+
+func (r *runner) restartFromLatest(ctx context.Context, restarts *int) error {
+	if err := r.discardBuild(ctx); err != nil {
+		return err
+	}
+	if *restarts >= maxRestarts {
+		r.state.stop("Stopped: the dashboard changed twice while the agent was revising it")
+		return ErrConflict
+	}
+	*restarts++
+	r.state.restart()
+	return nil
+}
+
+func (r *runner) load(ctx context.Context) (*revision, error) {
+	var current *revision
+	var err error
+	switch r.mode {
+	case tools.ModeRevise:
+		current, err = r.agent.loadLatest(ctx, r.dashboardID, r.task.RequestID)
+	case tools.ModeSuggest:
+		current, err = r.agent.loadBase(ctx, r.dashboardID, r.task)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if current != nil {
+		r.out.DashboardID = current.dashboardID
+	}
+	return current, nil
+}
+
+func (r *runner) loadBuild(ctx context.Context) (*dashboards.Build, error) {
+	if r.mode == tools.ModeSuggest {
+		return nil, nil
+	}
+	build, found, err := r.agent.builds.Build(ctx, r.requestID)
+	switch {
+	case ctx.Err() != nil:
+		return nil, ctx.Err()
+	case err != nil:
+		return nil, r.agent.buildStoreError(ctx, "could not load the build", err, r.task.RequestID)
+	case !found:
+		return nil, nil
+	}
+	return &build, nil
+}
+
+func (r *runner) discardBuild(ctx context.Context) error {
+	err := r.agent.builds.DiscardBuild(ctx, r.requestID, r.task.Attempt)
+	switch {
+	case ctx.Err() != nil:
+		return ctx.Err()
+	case err != nil:
+		return r.agent.buildStoreError(ctx, "could not discard the build", err, r.task.RequestID)
+	}
+	return nil
+}
+
+func (a *Agent) buildStoreError(ctx context.Context, message string, err error, requestID string) error {
+	if errors.Is(err, dashboards.ErrBuildLost) || errors.Is(err, dashboards.ErrNotFound) {
+		return err
+	}
+	a.logger.ErrorContext(ctx, "agent could not use the build", append([]any{
+		slog.String("error_code", string(codeInternal)),
+		slog.String("agent_request_id", requestID),
+	}, logattrs.Safe(err)...)...)
+	return &safeError{message: message, code: codeInternal, err: err}
 }
 
 func (a *Agent) loadLatest(ctx context.Context, id pgtype.UUID, requestID string) (*revision, error) {
@@ -319,7 +491,7 @@ func (a *Agent) loaded(ctx context.Context, dash dashboards.Dashboard, ver dashb
 			return nil, ctxErr
 		}
 		a.logger.ErrorContext(ctx, "agent could not load the dashboard", append([]any{
-			slog.String("error_code", codeLoadFailed),
+			slog.String("error_code", string(codeLoadFailed)),
 			slog.String("agent_request_id", requestID),
 		}, logattrs.Safe(err)...)...)
 		return nil, &safeError{message: "could not load the dashboard", code: codeLoadFailed, err: err}
@@ -329,64 +501,240 @@ func (a *Agent) loaded(ctx context.Context, dash dashboards.Dashboard, ver dashb
 	return &revision{dashboardID: dash.ID, number: ver.Number, spec: ver.Spec, unverified: ver.Unverified}, nil
 }
 
-func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.Mode, statuses []datasource.Status, current *revision, out *Outcome) (bool, error) {
-	contextText, err := buildContext(statuses, mode, t.Source, t.PanelID, current)
-	if err != nil {
-		return false, contextError(err)
+func (r *runner) prepareSession(ctx context.Context, current *revision, build *dashboards.Build, reason seedReason) (context.Context, llm.Request, error) {
+	view := current
+	if build != nil {
+		view = buildView(current, build)
 	}
-	run := runScope(t, prompt, mode, current)
+	contextText, err := buildContext(r.statuses, r.mode, r.task.Source, r.task.PanelID, r.prompt, view, seed{build: build, reason: reason, note: r.task.ContinueNote})
+	if err != nil {
+		return ctx, llm.Request{}, contextError(err)
+	}
+	if found := r.state.digest.text(); found != "" && r.mode != tools.ModeSuggest {
+		contextText += "\n\n" + found
+	}
+	run := runScope(r.task, r.prompt, r.mode, current)
 	ctx = tools.WithRun(ctx, run)
-	ctx = llm.WithAgentRequestID(ctx, t.RequestID)
-	state := &runState{tools: a.tools, known: toolNames(a.tools.List()), progress: t.Progress, logger: a.logger, mode: mode, parentVersion: run.ParentVersion}
-	defer func() { out.RepairRounds += state.repairs }()
+	r.state.parentVersion = run.ParentVersion
+	r.state.guards.resetReads()
+	r.state.window = saveWindow{}
+	r.state.sessionBytes = 0
 
-	chat, err := a.provider.Start(ctx, llm.Request{System: a.system, Tools: a.toolSpecs, Prompt: prompt, Context: contextText})
-	if err != nil {
-		return false, providerError(ctx, err)
+	request := llm.Request{
+		System: r.agent.system, Tools: r.agent.toolSpecs, Prompt: r.prompt, Context: contextText,
+		Pruning: llm.Pruning{KeepTurns: pruneKeepTurns, StepBytes: pruneStepBytes},
 	}
-	noResult := noResultError(mode)
+	if build != nil {
+		request.BuildSaves = build.Saves
+	}
+	return ctx, request, nil
+}
+
+func (r *runner) startSession(ctx context.Context, current *revision, build *dashboards.Build, reason seedReason) (context.Context, llm.Session, error) {
+	ctx, request, err := r.prepareSession(ctx, current, build, reason)
+	if err != nil {
+		return ctx, nil, err
+	}
+	chat, err := r.agent.provider.Start(ctx, request)
+	if err != nil {
+		return ctx, nil, providerError(ctx, err)
+	}
+	return ctx, chat, nil
+}
+
+func (r *runner) compact(ctx context.Context, chat llm.Session, current *revision, build *dashboards.Build, reason seedReason) (context.Context, error) {
+	ctx, request, err := r.prepareSession(ctx, current, build, reason)
+	if err != nil {
+		return ctx, err
+	}
+	err = chat.Compact(llm.Compaction{
+		Message:     request.UserMessage(),
+		TailTurns:   compactTailTurns,
+		TailBytes:   compactTailBytes,
+		ResultBytes: compactResultBytes,
+	})
+	if err != nil {
+		return ctx, providerError(ctx, err)
+	}
+	r.out.Compactions++
+	if reason == seedRenewed {
+		r.out.Renewals++
+	}
+	return ctx, nil
+}
+
+func (r *runner) session(ctx context.Context, current *revision, build *dashboards.Build, reason seedReason, carry *sessionEnd) (sessionEnd, error) {
+	var chat llm.Session
 	var results []llm.ToolResult
-	for modelCall := 1; modelCall <= maxModelCalls; modelCall++ {
-		turn, err := chat.Next(ctx, results)
+	var err error
+	if carry == nil {
+		ctx, chat, err = r.startSession(ctx, current, build, reason)
+	} else {
+		chat, results = carry.chat, carry.results
+		ctx, err = r.compact(ctx, chat, current, build, reason)
+	}
+	if err != nil {
+		return sessionEnd{}, err
+	}
+	for {
+		r.state.modelCalls++
+		r.state.window.calls++
+		turn, err := r.agent.modelCall(ctx, chat, results, r.totals)
 		if err != nil {
-			return false, providerError(ctx, err)
+			if r.cutOffByTimeout(ctx, err) {
+				return compaction(seedCallTimeout, chat, results), nil
+			}
+			return sessionEnd{}, providerError(ctx, err)
 		}
-		out.Usage = out.Usage.Add(turn.Usage)
-		if turn.Stop == llm.StopRefusal {
-			return false, ErrRefused
-		}
-		if turn.Stop == llm.StopMaxTokens {
-			return false, fmt.Errorf("%w after reaching max tokens", noResult)
-		}
-		if len(turn.ToolCalls) == 0 {
-			return false, noResult
+		r.out.Usage = r.out.Usage.Add(turn.Usage)
+		r.state.noteSavingTurn(turn)
+		if end, done, err := r.endOfTurn(ctx, turn); done || err != nil {
+			if end.compact != seedFresh {
+				end.chat, end.results = chat, results
+			}
+			return end, err
 		}
 		var outcome turnOutcome
-		if results, outcome, err = state.executeTurn(ctx, turn.ToolCalls, modelCall == maxModelCalls); err != nil {
-			return false, err
+		readGuard := readRefusal(r.mode, r.state.window, containsSave(turn.ToolCalls))
+		if results, outcome, err = r.state.executeTurn(ctx, turn.ToolCalls, readGuard); err != nil {
+			return sessionEnd{}, err
 		}
-		switch {
-		case outcome.suggestion != nil:
-			out.Suggestion = outcome.suggestion
-			return false, nil
-		case outcome.saved != nil:
-			out.DashboardID = outcome.saved.dashboardID
-			out.Version = outcome.saved.version
-			out.Replayed = outcome.saved.replayed
-			return false, nil
-		case outcome.conflict:
-			return true, nil
-		case outcome.notFound:
-			return false, dashboards.ErrNotFound
-		case outcome.rejected && state.rejections > maxRepairRounds:
-			return false, repairExhausted(mode, outcome.issueCodes)
+		if err := r.state.endStall(outcome); err != nil {
+			return sessionEnd{}, err
+		}
+		r.state.nudge(results, outcome)
+		r.state.sessionBytes += sizeOfTurn(turn, results)
+		if end, done, err := r.settle(outcome); done || err != nil {
+			return end, err
+		}
+		if outcome.built && r.state.sessionBytes > r.agent.sessionRenewBytes {
+			return compaction(seedRenewed, chat, results), nil
 		}
 	}
-	return false, turnLimitError(mode)
+}
+
+func sizeOfTurn(turn llm.Turn, results []llm.ToolResult) int {
+	n := len(turn.Text)
+	for _, c := range turn.ToolCalls {
+		n += len(c.Input)
+	}
+	for _, res := range results {
+		n += len(res.Content)
+	}
+	return n
+}
+
+func (r *runner) cutOffByTimeout(ctx context.Context, err error) bool {
+	var callErr *llm.CallError
+	if ctx.Err() != nil || !errors.As(err, &callErr) || callErr.Failure != llm.CallTimeout {
+		return false
+	}
+	return !r.cutOff("a model call ran past the time limit")
+}
+
+func (r *runner) cutOff(what string) (final bool) {
+	r.state.cutOffs++
+	switch {
+	case r.mode == tools.ModeSuggest:
+		r.state.stop("Stopped: " + what)
+		return true
+	case r.state.cutOffs >= maxCutOffsInRow:
+		r.state.stop(fmt.Sprintf("Stopped: %s %d times in a row", what, maxCutOffsInRow))
+		return true
+	}
+	return false
+}
+
+func (r *runner) endOfTurn(ctx context.Context, turn llm.Turn) (sessionEnd, bool, error) {
+	switch {
+	case turn.Stop == llm.StopRefusal:
+		return sessionEnd{}, true, ErrRefused
+	case turn.Stop == llm.StopMaxTokens:
+		if r.cutOff("the model's answer was cut off at the output limit") {
+			return sessionEnd{}, true, &outputLimitError{base: noResultError(r.mode)}
+		}
+		return sessionEnd{compact: seedOutputLimit}, true, nil
+	case len(turn.ToolCalls) == 0:
+		end, err := r.finishWithoutCall(ctx, noResultError(r.mode))
+		return end, true, err
+	}
+	return sessionEnd{}, false, nil
+}
+
+func (r *runner) settle(outcome turnOutcome) (sessionEnd, bool, error) {
+	switch {
+	case outcome.suggestion != nil:
+		r.out.Suggestion = outcome.suggestion
+		return sessionEnd{}, true, nil
+	case outcome.saved != nil:
+		r.out.DashboardID = outcome.saved.dashboardID
+		r.out.Version = outcome.saved.version
+		r.out.Replayed = outcome.saved.replayed
+		return sessionEnd{}, true, nil
+	case outcome.conflict:
+		return sessionEnd{conflict: true}, true, nil
+	case outcome.notFound:
+		return sessionEnd{}, true, dashboards.ErrNotFound
+	case outcome.rejected && r.state.rejections >= maxRejectionsInRow:
+		r.state.stop(fmt.Sprintf("Stopped: %d %s in a row were rejected", maxRejectionsInRow, rejectedThing(r.mode)))
+		return sessionEnd{}, true, repairExhausted(r.mode, outcome.issueCodes)
+	}
+	return sessionEnd{}, false, nil
+}
+
+func rejectedThing(mode tools.Mode) string {
+	if mode == tools.ModeSuggest {
+		return "proposals"
+	}
+	return "saves"
+}
+
+func (r *runner) finishWithoutCall(ctx context.Context, noResult error) (sessionEnd, error) {
+	if r.mode == tools.ModeSuggest {
+		return sessionEnd{}, noResult
+	}
+	build, found, err := r.agent.builds.Build(ctx, r.requestID)
+	switch {
+	case ctx.Err() != nil:
+		return sessionEnd{}, ctx.Err()
+	case err != nil:
+		return sessionEnd{}, r.agent.buildStoreError(ctx, "could not load the build", err, r.task.RequestID)
+	case !found:
+		return sessionEnd{}, noResult
+	}
+	if build.Progress().Pending() > 0 && !r.state.pendingNudged {
+		r.state.pendingNudged = true
+		return sessionEnd{reseed: seedPending}, nil
+	}
+	dash, ver, replayed, err := r.agent.builds.CommitBuild(ctx, r.task.Principal, r.requestID, r.task.Attempt)
+	var conflict *dashboards.ConflictError
+	switch {
+	case errors.As(err, &conflict):
+		return sessionEnd{conflict: true}, nil
+	case ctx.Err() != nil:
+		return sessionEnd{}, ctx.Err()
+	case err != nil:
+		return sessionEnd{}, r.agent.buildStoreError(ctx, "could not save the build", err, r.task.RequestID)
+	}
+	r.out.DashboardID = dash.ID
+	r.out.Version = ver.Number
+	r.out.Replayed = replayed
+	return sessionEnd{}, nil
+}
+
+func buildView(current *revision, build *dashboards.Build) *revision {
+	view := &revision{spec: build.Spec, unverified: build.Unverified}
+	if current != nil {
+		view.dashboardID, view.number, view.conversion = current.dashboardID, current.number, current.conversion
+	}
+	return view
 }
 
 func runScope(t Task, prompt string, mode tools.Mode, current *revision) tools.Run {
 	run := tools.Run{Mode: mode, RequestID: t.RequestID}
+	if mode != tools.ModeSuggest {
+		run.Build, run.Attempt = true, t.Attempt
+	}
 	if mode == tools.ModeCreate {
 		run.Prompt = prompt
 	}
@@ -409,17 +757,7 @@ func noResultError(mode tools.Mode) error {
 	return ErrNoSave
 }
 
-func turnLimitError(mode tools.Mode) error {
-	if mode == tools.ModeSuggest {
-		return ErrSuggestTurnLimit
-	}
-	return ErrTurnLimit
-}
-
 func contextError(err error) error {
-	if errors.Is(err, ErrTooLarge) {
-		return err
-	}
 	return &safeError{message: "could not build the request context", code: codeContextFailed, err: err}
 }
 
@@ -429,6 +767,11 @@ func providerError(ctx context.Context, err error) error {
 	}
 	return fmt.Errorf("%w: %w", errModelCall, err)
 }
+
+type outputLimitError struct{ base error }
+
+func (e *outputLimitError) Error() string { return e.base.Error() + " after reaching max tokens" }
+func (e *outputLimitError) Unwrap() error { return e.base }
 
 func repairExhausted(mode tools.Mode, codes []string) error {
 	exhausted := ErrRepairExhausted
@@ -448,6 +791,14 @@ func (a *Agent) logFinish(ctx context.Context, mode tools.Mode, requestID string
 		slog.Int("version", out.Version),
 		slog.Int("model_calls", out.Usage.Calls),
 		slog.Int("repair_rounds", out.RepairRounds),
+		slog.Int("build_saves", out.BuildSaves),
+		slog.Int("reseeds", out.Reseeds),
+		slog.Int("renewals", out.Renewals),
+		slog.Int("compactions", out.Compactions),
+		slog.Int("nudges", out.Nudges),
+		slog.Int("save_now_refusals", out.SaveNowRefusals),
+		slog.Int("stalled_turns", out.StalledTurns),
+		slog.Int("one_panel_refusals", out.OnePanelRefusals),
 		slog.Int64("input_tokens", out.Usage.InputTokens),
 		slog.Int64("output_tokens", out.Usage.OutputTokens),
 		slog.Int64("cache_read_tokens", out.Usage.CacheReadTokens),
@@ -460,46 +811,63 @@ func (a *Agent) logFinish(ctx context.Context, mode tools.Mode, requestID string
 		attrs = append(attrs, slog.String("dashboard_id", out.DashboardID))
 	}
 	if err != nil {
-		attrs = append(attrs, slog.String("error_code", errorKind(err)))
+		attrs = append(attrs, slog.String("error_code", string(failureCode(err))))
 		var safe *safeError
 		if errors.As(err, &safe) || errors.Is(err, errModelCall) {
 			attrs = append(attrs, logattrs.Safe(err)...)
 		}
 	}
-	a.logger.InfoContext(ctx, "agent run finished", attrs...)
+	a.logger.Log(ctx, finishLevel(err), "agent run finished", attrs...)
 }
 
-func errorKind(err error) string {
+func finishLevel(err error) slog.Level {
 	var safe *safeError
 	switch {
+	case err == nil, failureCode(err) == revisions.FailureCanceled:
+		return slog.LevelInfo
+	case errors.As(err, &safe), failureCode(err) == codeInternal:
+		return slog.LevelError
+	default:
+		return slog.LevelWarn
+	}
+}
+
+var sentinelFailures = []struct {
+	sentinel error
+	code     revisions.FailureCode
+}{
+	{llm.ErrNoFixture, revisions.FailureNoFixture},
+	{errModelCall, revisions.FailureProviderError},
+	{context.Canceled, revisions.FailureCanceled},
+	{context.DeadlineExceeded, revisions.FailureRunTimeout},
+	{ErrNoSave, revisions.FailureNoToolCall},
+	{ErrNoSuggestion, revisions.FailureNoToolCall},
+	{ErrDraftInvalid, revisions.FailureDraftInvalid},
+	{ErrRepairExhausted, revisions.FailureValidationExhausted},
+	{ErrNoProgress, revisions.FailureNoProgress},
+	{dashboards.ErrBuildLost, revisions.FailureLeaseExpired},
+	{ErrRefused, revisions.FailureRefused},
+	{ErrConflict, revisions.FailureConflict},
+	{ErrInvalidTask, revisions.FailureInvalidTask},
+	{dashboards.ErrNotFound, revisions.FailureNotFound},
+}
+
+func failureCode(err error) revisions.FailureCode {
+	var safe *safeError
+	var limit *outputLimitError
+	var callErr *llm.CallError
+	switch {
+	case errors.As(err, &limit):
+		return revisions.FailureOutputLimit
 	case errors.As(err, &safe):
 		return safe.code
-	case errors.Is(err, errModelCall):
-		return "model_failed"
-	case errors.Is(err, context.Canceled):
-		return "canceled"
-	case errors.Is(err, context.DeadlineExceeded):
-		return "deadline_exceeded"
-	case errors.Is(err, ErrNoSave):
-		return "no_save"
-	case errors.Is(err, ErrNoSuggestion):
-		return "no_suggestion"
-	case errors.Is(err, ErrDraftInvalid):
-		return "draft_invalid"
-	case errors.Is(err, ErrRepairExhausted):
-		return "repair_exhausted"
-	case errors.Is(err, ErrTurnLimit):
-		return "turn_limit"
-	case errors.Is(err, ErrRefused):
-		return "refused"
-	case errors.Is(err, ErrConflict):
-		return "conflict"
-	case errors.Is(err, ErrInvalidTask):
-		return "invalid_task"
-	case errors.Is(err, ErrTooLarge):
-		return "too_large"
-	case errors.Is(err, dashboards.ErrNotFound):
-		return "not_found"
+	case errors.As(err, &callErr):
+		return revisions.FailureCode(callErr.Failure)
+	}
+	for _, f := range sentinelFailures {
+		if errors.Is(err, f.sentinel) {
+			return f.code
+		}
 	}
 	return codeInternal
 }
