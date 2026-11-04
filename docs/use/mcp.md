@@ -12,21 +12,45 @@ The endpoint is stateless, refuses an `Origin` that is not `SLASHOBSERVE_PUBLIC_
 On `initialize` the server returns an `Mcp-Session-Id` that only carries the client's self-reported name and holds no state.
 Each version and agent request records its origin (`web`, `cli`, `mcp` or `api`) and, for `mcp`, that client name.
 
-The server offers 19 tools.
+The server offers 21 tools.
 Each has a lowest role, which the server checks when a client calls it, using the role of the key's service account:
 
 | Role      | Tools                                                                                                                                                         |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Viewer    | `list_dashboards`, `get_dashboard`, `get_spec_guide`, `list_comments`, `list_folders`                                                                         |
+| Viewer    | `list_dashboards`, `get_dashboard`, `get_panels`, `get_spec_guide`, `list_comments`, `list_folders`                                                           |
 | Commenter | `reply_to_comment`, `resolve_comment`                                                                                                                         |
-| Editor    | `create_dashboard`, `update_dashboard`, `import_grafana_dashboard`, `list_datasources`, `list_metrics`, `list_labels`, `list_label_values`, `get_schema`, `sample_rows`, `lint_query`, `query_range`, `query_instant` |
+| Editor    | `create_dashboard`, `update_dashboard`, `update_panels`, `import_grafana_dashboard`, `list_datasources`, `list_metrics`, `list_labels`, `list_label_values`, `get_schema`, `sample_rows`, `lint_query`, `query_range`, `query_instant` |
 
 A call below the key's role returns the tool error `forbidden_role`.
 Folder access applies on top: a tool that names a dashboard or folder the key cannot see returns `not_found`, and changing a dashboard needs Edit on its folder.
 
 `create_dashboard` and `update_dashboard` run every panel query before they save and reject a panel whose query fails or returns no data, as described in [What a save checks](../concepts/agent.md#what-a-save-checks).
-`update_dashboard` needs the `dashboard_id` and the `parent_version` you read; if a newer version has been saved since, it returns the tool error `version_conflict` with the latest version.
+`update_dashboard` needs the `dashboard_id` and the `parent_version` you read, and sends the complete document; if a newer version has been saved since, it returns the tool error `version_conflict` with the latest version.
 `get_dashboard` returns the Spec at the latest version or at `version`, and returns `too_large` for a Spec over 128 KiB.
+
+`update_panels` changes an existing dashboard by sending only what changed, so a one-panel fix costs one panel and not the whole document.
+It takes `dashboard_id`, `parent_version` and a `summary`, and a patch with any of these:
+
+- `upsert`: up to 50 complete panels, each replacing the panel with its id or, with a new id, added.
+  A panel that leaves out `gridPos` keeps its position, and a row keeps its children, which are upserted by their own ids.
+- `delete`: up to 50 panel ids; a row only together with all of its children.
+- `layout`: up to 200 moves of existing panels to a `gridPos` or into a row, with `row` set to `""` for the top level.
+- `variables`: the complete variable list, which replaces the existing one.
+- `dashboard`: the default `time`, the `title`, the `tags` and the `links`.
+
+A key present in `dashboard` replaces that value whole, so `tags` and `links` are not merged item by item and `[]` clears them, and a key left out keeps the current value.
+The server merges the patch into the version named by `parent_version` and validates the whole result, so a bad tag or time is rejected with its path in the document.
+This call changes only the default range:
+
+```json
+{ "dashboard": { "time": { "from": "now-6h", "to": "now" } }, "summary": "Default to the last 6 hours" }
+```
+
+`update_panels` runs only the queries it changed, and every query when `time` changes to a different range, as described in [What a save checks](../concepts/agent.md#what-a-save-checks).
+A rejection lists `failing_panels`, so the client resends only those panels.
+`get_panels` reads the full JSON of up to 20 panels by `ids`, at the latest version or at `version`, together with the variables; ids it did not return are in `missing`, and `truncated` is true when the result was cut to fit.
+It returns at least one panel, and a panel too large to return is listed in `too_large`.
+`list_metrics`, `list_labels`, `list_label_values` and `get_schema` take an `offset` and answer `truncated`, `truncated_by` (`limit` or `bytes`) and `next_offset`, so a client pages through a long list by passing `next_offset` back as `offset`.
 
 `list_folders` is available over MCP only.
 It lists the folders the key can see, with `can_create` for each, and sets `truncated` when there are more than fit in the result.

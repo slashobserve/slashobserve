@@ -33,7 +33,9 @@ Each block is collapsed until you open it, and lists every Grafana option it car
 An option mapped without a field name is one no catalog describes yet, such as the options of legacy panels.
 Options that need no setting (Grafana defaults, options with no visible effect and editor bookkeeping) are shown as a count that you can open to see each of them.
 A very large dashboard lists at most 200 options per block and 10,000 in all, keeping excluded, then not imported, then mapped options before those that need no setting.
-Later saves run every query too, but keep a failing panel or variable unverified, instead of failing, for as long as its queries and the variables they use are unchanged; a new or changed query must return data, and a panel whose queries pass again is no longer unverified.
+Later saves keep a failing panel or variable unverified, instead of failing, for as long as its queries and the variables they use are unchanged, and so does its panel type, time override (`timeFrom` and `timeShift`), `maxDataPoints` and `interval`; a new or changed query must return data, and a panel whose queries pass again is no longer unverified.
+A save with `update_dashboard` runs every query.
+A save with `update_panels` runs only the queries it changed, unless it changes the dashboard's default `time`, which runs every query; either way a panel the save did not change stays unverified while it still fails, and an unverified panel that now returns data leaves the list.
 The original JSON is stored with the import so a newer importer can convert it again, and it is never shown to the agent.
 
 A query's min step written as a variable (`$name`, `${name}` or `[[name]]`) imports as `${name}`, so the query uses the step selected in that variable.

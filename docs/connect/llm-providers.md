@@ -32,7 +32,7 @@ SLASHOBSERVE_LLM_API_KEY=<your Anthropic API key>
 The default model is `claude-sonnet-5-5`.
 Set `SLASHOBSERVE_LLM_MODEL` to use another, for example `claude-opus-5-5` for harder prompts or `claude-haiku-5-5` for lower cost.
 The server does not validate the model name itself.
-`SLASHOBSERVE_LLM_EFFORT` sets the model's effort level and applies to this provider only.
+`SLASHOBSERVE_LLM_EFFORT` sets the model's effort level: `low`, `medium`, `high`, `xhigh` or `max`, and `medium` when unset.
 To read the key from a file, such as a Docker or Kubernetes secret, use `SLASHOBSERVE_LLM_API_KEY_FILE` instead.
 
 ## OpenAI-compatible
@@ -60,3 +60,8 @@ The key is optional for servers that need none, as Ollama does.
 The model must support tool calling.
 Inside a container, `localhost` is the container itself; use an address the container can reach, such as `http://host.docker.internal:11434/v1` on Docker Desktop.
 The project does not vouch for any particular local model, and dashboard quality depends heavily on the model.
+
+`SLASHOBSERVE_LLM_EFFORT` sets the reasoning effort sent with each call: `none`, `minimal`, `low`, `medium`, `high` or `xhigh`.
+Unset, nothing is sent and the server uses its own default.
+A reasoning model spends output tokens on reasoning before it answers, so a lower effort such as `low` can shorten each call on some gateways.
+A gateway that does not accept the parameter answers every call with a provider error; unset the variable if that happens.

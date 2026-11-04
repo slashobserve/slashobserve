@@ -22,7 +22,7 @@ Entries are sorted by time and come in four kinds:
   Choosing the panel name scrolls to the panel and highlights it.
   A comment on a panel that no longer exists reads "on a removed panel".
 - **Agent requests** show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
-  While the agent works, the entry reads "Agent is working on it" with its latest step and the step number, or "Waiting to start" while it is queued.
+  While the agent works, the entry reads "Agent is working on it" with its latest step and the step number, "Queued, position N" while it is queued, or "Canceling" after its requester cancels it.
   **Details** opens the full conversation at `/observe/<id>` in a new tab.
 - **Versions** show who saved: "Agent saved", "`<name>` saved" or "`<client>` saved over MCP", then "Version N" with its summary, or "No summary".
   **See changes** opens the comparison with the previous version.

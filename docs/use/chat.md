@@ -57,14 +57,16 @@ The conversation shows these as phases, each with a message from the server:
 | Repairing        | "Save rejected: 2 issues (...)"                                                        |
 
 A save is the real check.
-It runs every panel query and rejects a panel whose query is invalid or returns no data, except for alert list panels.
+A full save runs every panel query, and an `update_panels` save runs only the panels and variables it changed.
+Either rejects a panel whose query is invalid or returns no data, except for alert list panels.
 The rejection comes back to the agent with the problem for each panel, and the agent fixes the draft and saves again.
 The instructions allow three repair attempts; if the agent still cannot save, the request fails.
-A successful save ends the run, and the version summary is a sentence the agent wrote, "Create dashboard" if it wrote none.
+A save that finishes the dashboard ends the run, and the version summary is a sentence the agent wrote, "Create dashboard" if it wrote none.
 
 Queries the agent runs while drafting are capped at 15 seconds, 200 series, 100,000 points and 1,000 rows, so a heavy query may fail where the saved panel would work.
-A run gets 3 minutes and at most 20 model calls.
-When it runs out of either, the conversation ends with "The dashboard could not be built" and a **Try again** button.
+A run has no cap on model calls and no time limit by default; it stops after three rejected saves in a row, when it stops making progress (for example by reading past six model calls without a save, or by repeating a save), or when the person who asked cancels it; see [Cancel a run](#cancel-a-run).
+An administrator can set a time limit.
+When a run stops early, the conversation ends with "The dashboard could not be built" and a **Try again** button; when it kept a build, you can also continue it, see [Continue a stopped build](#continue-a-stopped-build).
 A run that a server shutdown interrupts goes back to the queue and starts again, and one that a crash interrupts gets one more attempt.
 
 Only the server's step messages and errors are shown.
@@ -72,6 +74,58 @@ The model's own text is never displayed, so there is no commentary to read and n
 
 A dashboard has 2 to 8 panels unless you ask for another number, and the agent adds variables only when the request asks for a breakdown people will filter on.
 It uses the time range you state ("last 6h" becomes `now-6h` to `now`), and otherwise the last hour.
+
+## Watch the build
+
+A large dashboard is not written in one model call.
+The agent builds it panel by panel, and each accepted panel appears in a live view of the dashboard at `/builds/<request id>`, with a status line such as "Building, 12 of 40 panels".
+Only you can watch your build: anyone else, and anyone who can no longer view the dashboard you are revising, gets "Only the person who asked can watch this build."
+Nothing appears in the dashboards list, a folder or the version history until the agent finishes.
+The dashboard is then saved once, as one version, and the live view opens it.
+
+If the agent stops before it finishes, the live view keeps what was built for 7 days.
+Choose **Save what was built** to keep it: for a new dashboard it becomes version 1 in the folder the agent would have used, and for a follow-up it becomes the next version of the dashboard when nobody has saved a version since the build started.
+When someone has, the build cannot be saved and the page says so; open the dashboard and ask again.
+You need Edit access to the target to save it, and the request stays marked as failed.
+
+In the conversation, a card above the progress list shows the same status line with thumbnails of the most recent rows and panels built so far, and a **Watch live** link; when the agent stops, the card keeps the thumbnails and offers **Save what was built** and **Continue**.
+On the dashboard page, the running entry shows the same status line and, for you, a **Watch live** link.
+Every turn of the conversation keeps its card and buttons for as long as the build is kept, not only the latest ones.
+
+### Queue position
+
+While a request waits for the agent, its status line reads "Queued, position 3".
+The position counts the requests ahead of it in the order the agent picks them up.
+It can change if a request is skipped, because a dashboard runs one revision at a time and a request whose dashboard is busy waits for it.
+Everywhere a queued request is shown, in the conversation, on its build page and in the dashboard's running entry, the line is the same.
+
+### Cancel a run
+
+While a request is queued or running, **Cancel run** stops it.
+Only the person who asked sees it; an Editor or Admin cannot cancel someone else's request.
+A queued request stops at once.
+A running one shows "Canceling" and stops within a few seconds, once the call the agent is making returns.
+The request ends as failed with "the run was canceled" and keeps what was built, so you can save or continue it.
+If the agent had already saved the finished dashboard, the request counts as succeeded and the cancel changes nothing.
+
+Other people's follow-ups on the same dashboard wait behind a run until it ends, so a run that goes nowhere holds them back until its owner cancels it or one of its limits stops it.
+
+### Continue a stopped build
+
+**Continue** on a stopped build starts a new run that picks up from the panels already built.
+Choosing it opens a form with an optional note for the agent, such as "skip the network rows" or "use the prod datasource".
+The note follows the prompt rule: 1 to 4000 characters, with no control or bidirectional-text characters, and the form shows "Use at most 4000 characters." when it is too long.
+A blank note sends none.
+Choose **Continue build** to start the run.
+
+The new turn appears below the old one, marked "Continues an earlier run" with your note under it, and the stopped turn says "Continued in a new run".
+The agent sees the note in every start of that run, including a restart after a server shutdown.
+A new dashboard continues on its own page, and a follow-up continues in the same conversation.
+
+Only the person who asked can continue a build, and it needs the same access as starting a run.
+A build can be continued once, and not after you saved it; **Save what was built** and **Continue** exclude each other, so whichever you choose first wins and the other says it can no longer be done.
+A follow-up whose dashboard got a newer version since the build started cannot be continued: the page says "Someone saved a newer version after this build started, so it can't be continued. Open the dashboard and ask again."
+A continued run counts toward the same limits as a new request.
 
 ## Read the result
 
@@ -119,8 +173,6 @@ It does not need to have been your dashboard.
 
 - **Answer questions.** It only produces dashboards, and its text is not shown.
 - **Use a datasource that is not configured or not healthy**, or names it did not discover.
-- **Work on a dashboard over 128 KiB of Spec.** It fails with "the dashboard is too large for the agent to revise".
-  A dashboard holds at most 200 panels.
 - **Change a dashboard you cannot edit.** It cannot reach folders you have no Edit access to.
 - **Add panels with no data.** The save refuses them, and the agent does not create placeholders.
 - **Make the same choices every time.** Results depend on the model; a clearer prompt with the metric, service or time range you want gives better dashboards.

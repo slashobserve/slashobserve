@@ -18,9 +18,9 @@ Three choices in the format follow from how dashboards are used here:
   A document holds no URL, address or credential for a datasource.
 - Every panel has a string `id` that stays the same across versions.
   [Comments](versions.md#comments) anchor to it, and the diff between two versions names the panels that changed.
-- The agent and MCP clients write a whole document in one call.
-  The agent reads the JSON Schema and an authoring guide first, and an MCP client gets both from `get_spec_guide`.
-  The agent cannot revise a dashboard whose compact JSON is over 128 KiB, and the server refuses any document over 1 MiB.
+- The agent and MCP clients write a whole document with `update_dashboard`, or only the panels that changed with `update_panels`.
+  The agent starts with an authoring guide and reads the JSON Schema with `get_spec_guide`, and an MCP client gets both from the same tool.
+  The agent sees a dashboard over 16 KiB as an outline, and the server refuses any document over 1 MiB.
 
 A Grafana dashboard is not stored as is.
 The importer converts it into this format and keeps a `placeholder` panel for each panel it cannot convert yet (see [Import Grafana dashboards](../use/import-grafana.md)).
@@ -489,6 +489,6 @@ The body lists every problem in `issues`, each with a path into the document, a 
 
 The schema is `spec/schema/observespec.v0.json` in the repository.
 Its `$id` is `https://slashobserve.com/schemas/observespec.v0.json`, and the documentation site publishes it at that address, so editors and validators can fetch it there.
-The `get_spec_guide` MCP tool returns the authoring guide, the schema and an example for a model that has not seen them (see [MCP](../use/mcp.md)).
+Over MCP, `get_spec_guide` returns the authoring guide, the schema and an example for a model that has not seen them (see [MCP](../use/mcp.md)); inside an agent run it returns only the schema.
 
 A document cannot carry a `$schema` field, because the schema refuses unknown fields.

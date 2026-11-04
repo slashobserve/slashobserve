@@ -17,6 +17,13 @@ Those lines carry:
 - `errno`, the operating system's text (such as `connection refused`) when the cause is a system error
 - the ids that locate the failure, such as `agent_request_id` (look it up with `observe status <id>` or `GET /api/v1/observe/{id}`), `dashboard_id`, `principal_id` and a datasource `uid`
 
+Every call to the model provider logs one `llm call finished` line, at `INFO` when it succeeded and at `WARN` when it failed.
+It carries `agent_request_id`, `provider`, `model`, `duration`, `attempts` (HTTP attempts, counting the provider client's own retries), `retries` and `status` (the provider's last HTTP status, or 0 when the last attempt got no answer).
+A successful call adds `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens` and `stop_reason`.
+A failed call adds `failure_code` (`call_timeout`, `rate_limited`, `provider_error`, or `run_timeout` or `canceled` when the run itself ended), and when the provider sent them, `provider_error_type`, `provider_error_code`, `provider_error_param`, `request_id` and `retry_after`.
+These values are logged only when they are plain tokens.
+The line never holds the prompt, the model's reply, a tool input or result, or the provider's error message, because a provider can echo any of them back, unless you turn the message on (see [Provider error messages](#provider-error-messages)).
+
 A panic is logged by its Go type (`panic_type`), never its value.
 A datasource that turns unhealthy logs `datasource unhealthy` once, with its `uid` and `type`; it does not log again until the datasource has recovered.
 A refused sign-in also logs the domain of the email address, and a failed code exchange logs the provider's `oauth_error` code (such as `invalid_grant`) when it is a plain code.
@@ -34,3 +41,27 @@ To help you find the cause, the line adds only what the server knows from your s
 - `datasources_failed` adds `datasource_uid` and, for a validation failure the server wrote itself such as a limit or URL scheme problem, a `detail` message.
 
 For anything else, test the connection yourself with `psql "$SLASHOBSERVE_DATABASE_URL"`.
+
+## Log levels
+
+Set the level with `SLASHOBSERVE_LOG_LEVEL` (`debug`, `info`, `warn` or `error`, default `info`) and the format with `SLASHOBSERVE_LOG_FORMAT` (`json` or `text`).
+
+| Level   | Meaning                                                                                                                                                  |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DEBUG` | Detail for each step, such as one line per tool call and the health checks.                                                                              |
+| `INFO`  | Normal lifecycle: startup, a successful model call, a run that saved or was canceled.                                                                    |
+| `WARN`  | Degraded or recoverable: a failed model call, or a run the model or provider ended without a result (`refused`, `no_tool_call`, `provider_error` and so on). |
+| `ERROR` | A failure you must act on: a run that ended with `internal`, `tool_failed`, `tool_panicked`, `result_too_large`, `load_failed`, `context_failed` or `malformed_result`. |
+
+## Agent runs
+
+Each run logs one `agent run finished` line with its `error_code` when it failed.
+It is written at `INFO` when the run succeeded or was canceled, at `ERROR` when the server failed, and at `WARN` for every other ending.
+At `DEBUG`, each tool call also logs a `tool call finished` line with `agent_request_id`, `tool`, `duration` and `is_error`; it holds no tool input and no result.
+
+## Provider error messages
+
+Set `SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS=true` to add the provider's own error message to a failed `llm call finished` line as `provider_error_message`.
+The message has the API key removed, newlines and other control characters replaced by spaces, and is cut to 1024 bytes.
+It is never added to the error stored on an agent request or returned by the API.
+A provider can echo parts of the prompt in its message, and the server logs one `WARN` at startup while the setting is on, so use it for evals and debugging only.

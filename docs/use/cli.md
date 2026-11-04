@@ -49,11 +49,23 @@ bin/observe "checkout p99 latency, last 6h"
 ```
 
 It prints progress to standard error and then the dashboard address to standard output, and `-q` hides the progress.
-A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `status`, `login`, `logout`, `version` or `help`) must be quoted as one argument.
+A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `status`, `cancel`, `continue`, `login`, `logout`, `version` or `help`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
-`--timeout` (5 minutes by default) stops the waiting and not the request, which keeps running on the server.
+`--timeout` (2 hours by default, so a large build can finish while you wait) stops the waiting and not the request, which keeps running on the server; `bin/observe status <request-id> --wait` waits again.
+While a request waits for a worker, `observe status` prints `Queued, position N`, its place among the queued requests.
+The order can shift, because a request is skipped while another revision of its dashboard is running.
 The CLI exits with 0 on success, 2 when the command line is wrong and 1 for any other failure.
+
+`bin/observe cancel <request-id>` cancels a queued or running request and prints it.
+A queued request stops at once, and a running one within a few seconds, once the call it is in returns.
+The request ends `failed` with the code `canceled`, and what it built so far is kept.
+`bin/observe continue <request-id>` starts a new request that takes over the kept build of a stopped one, waits the way a prompt does and prints the dashboard address.
+It accepts `--no-wait` and `--timeout` like a prompt, and `--note <text>` gives the continued run an instruction; the note follows the same rule as a prompt (1 to 4000 characters, no control characters) and the server's `400` message is printed as it is.
+A stopped request with a build prints `Save it in the browser, or continue it: observe continue <request-id>` in `observe status`, and one that was already continued prints `Continued by <request-id>`.
+Only the person who made a request can cancel or continue it; anyone else gets `only the requester can cancel or continue <request-id>`.
+Canceling a request that already finished, or continuing one that was saved, already continued or has no build, fails with a one-line message naming the request.
+Continuing a revision fails when its dashboard has a newer version than the build started from.
 
 `bin/observe dashboards list` lists dashboards, newest update first, 50 at a time; when there are more it prints the `--cursor` value for the next page.
 `bin/observe dashboards show <dashboard-id>` lists the panels of the latest version, or of one given with `--version N`, and `bin/observe dashboards versions <dashboard-id>` lists its versions.

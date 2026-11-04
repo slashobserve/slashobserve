@@ -13,8 +13,11 @@ The conversation page shows the steps the tools report and the result, never the
 
 ## The tool loop
 
-The model starts with the prompt, the configured datasources and whether each is healthy, the authoring guide, the JSON Schema and an example.
+The model starts with the prompt, the configured datasources and whether each is healthy, the authoring guide and an example.
+The JSON Schema is not in that text: the model reads it on demand with `get_spec_guide`, which inside a run returns only the schema.
 For a revision it also gets the current version of the dashboard.
+When that version is over 16 KiB as compact JSON, it gets an outline instead: the title, default time range, refresh, tags, links and variables in full, one line for each panel with its id, type, title, row and position, and the full JSON of the panel it was asked about and of any panel whose id the prompt names.
+The model reads the JSON of other panels with `get_panels`.
 It then works in this order:
 
 1. **Discover.**
@@ -28,19 +31,100 @@ It then works in this order:
    `query_range` and `query_instant` run a query and return a compact summary, so the model can check a query returns data.
    These ad hoc queries run with tighter limits than a saved dashboard (see [Datasources file](../reference/datasources-file.md)).
 5. **Save.**
-   `create_dashboard` saves a new dashboard and `update_dashboard` saves a new version of an existing one, each with a full document.
+   `create_dashboard` saves a new dashboard with a full document.
+   `update_panels` saves a new version of an existing dashboard from a patch that holds only what changed: the panels to add or replace, the ids to delete, moves, the variables, and a `dashboard` field for the default `time`, the `title`, the `tags` and the `links`.
+   The server merges the patch into the version it builds on and validates the whole result, so changing one panel of a large dashboard costs a small save.
+   A key present in `dashboard` replaces that value whole, and a key left out keeps the current one.
+   `get_panels` reads the full JSON of up to 20 panels by id, with the variables, before the model changes them.
+   `update_dashboard` saves a new version from a full document and is for rewriting a dashboard whole.
    When the prompt contains Grafana dashboard JSON, the model calls `import_grafana_dashboard` instead of rewriting it, and the agent may import only JSON that the prompt contains.
 6. **Repair**, if the save is rejected.
 
-A successful save ends the run.
-A run makes at most 20 model calls, runs one save per turn and is stopped after 3 minutes.
-On its last model call only a save can run.
-A run that ends without an accepted save stores nothing.
+## The build
+
+A run does not save versions as it goes.
+Every accepted `create_dashboard`, `update_dashboard` or `update_panels` goes into a build, an unsaved copy of the dashboard that only the person who asked can watch (see [Chat](../use/chat.md#watch-the-build)).
+Each save into the build is checked like a version save, so every panel's queries are verified as the panel arrives.
+The build becomes one version when the agent finishes, either with `finish` set on its last save or with an answer that has no tool call.
+Nothing shows in the dashboard list, a folder or the history before that, and an intermediate panel never becomes a version.
+
+The agent builds every dashboard panel by panel.
+The first save is `create_dashboard` with the title, time range, variables and one panel, with `row` naming the row it belongs to, plus `planned_panels`, the number of panels the model expects the finished dashboard to have.
+Every other panel is its own `update_panels` call, with the panel alone in `upsert` and `row` naming the row it belongs to; a new row is created with its first panel.
+A save that adds or changes more than one panel is rejected.
+The server places each new panel at the end of its row and moves what is below it, whatever position the model sent.
+A revision changes one panel per `update_panels` call, so a change to many existing panels takes one call each; deletes, moves, variables and dashboard fields may go with the panel.
+Each save checks only the panel it adds or changes, so a build of 100 panels does not rerun the queries of the panels already built.
+`planned_panels`, `finish` and `row` exist only for the built-in agent; MCP clients keep one version per accepted save.
+The planned count is an estimate: the web app shows it beside the number of panels built, and a finished build commits even when fewer panels were built than planned.
+A save that changes the planned count says so in its step, and the finish save's step names the panel it added.
+
+The first save must come early.
+From the sixth model call since the session started, its history was shortened, or the last accepted save, reads are refused and only a save can run; the call before gets a note to save next.
+A suggest run, which proposes one panel for the panel editor, gets 12 calls instead of 6, with the note at the 11th.
+Reads in the same call as a save always run, and so do the reads of the call right after a rejected save, so the model can look into why a save was rejected.
+Two turns in a row in which every call was refused end the run with `no_progress`.
+
+If the model answers without a tool call while fewer panels than planned are built, it is told once and gets a fresh session that starts from the build; its next answer without a tool call saves what is built.
+If a model call is cut off at the output limit or runs past the per-call time limit, the agent shortens its conversation to the last few calls, the build and the names it already discovered, and goes on; a second cut-off with no accepted save in between ends the run with `output_limit` or `call_timeout`.
+After an accepted save, once the conversation passes `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` (256 KiB by default), it is shortened the same way, so a long build stays inside the model's context window.
+Shortening keeps the last 4 turns of the conversation, up to 32 KiB, and cuts their older tool results to 2 KiB.
+It puts the build, the reason and a list of up to 4 KiB of the metric, label and table names the agent found in front of them, so the agent does not discover them again.
+The names are sent to the model and never written to the server's logs.
+Older read results are also left out of what is sent once they add up to 64 KiB, while the last 4 turns stay in full.
+Only the model's view is shortened: the run keeps everything it read.
+A shortened conversation is not a fresh session, and neither has a count of its own that ends the run.
+
+A run that fails writes no version and keeps its build for 7 days.
+The person who asked can keep it with **Save what was built**, which saves the build as a new dashboard, or as the next version when nobody saved the dashboard since the build started.
+The request stays failed and keeps its failure code.
+A run the server restarts continues from its build.
+
+## Limits
+
+A run has no cap on model calls and runs one save per turn.
+It ends when it finishes, is canceled, reaches `SLASHOBSERVE_AGENT_RUN_TIMEOUT` when that is set, loses its claim on the request, or stops making progress.
+Three rejected saves in a row end it.
+The guards steer before they stop, and every refusal and every stop shows as a step that names its rule, such as "Refused query_range: ..." or "Stopped: ...".
+A run that keeps asking a read it already made is first answered, then refused: a successful read is answered once more from its first result with a note, a failed read or a query result runs again, and a third identical call is refused.
+A save identical to an earlier one is refused.
+A save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run with `no_progress`.
+Only the person who asked can cancel a queued or running request.
+A queued request is canceled at once, and a running one stops within a few seconds, after the model or tool call in flight returns.
+A canceled run keeps its build like any other stopped run, and a version saved before the cancel took effect still counts.
+The person who asked can also continue a stopped build: it starts a new run from the panels already built, with an optional note for the agent.
+A stopped build is saved or continued, never both.
+A queued request shows its place in the queue, such as "Queued, position 3".
+One request per dashboard runs at a time, so other revisions of a dashboard wait behind a run that does not end, and nobody else can cancel it.
+A run has no time limit by default; `SLASHOBSERVE_AGENT_RUN_TIMEOUT` sets one of at least `1m`.
+Model calls stream.
+An attempt that receives nothing for `SLASHOBSERVE_LLM_IDLE_TIMEOUT` (180 s by default, `0` for none) is retried with backoff, like a rate limit or a server error, up to 4 attempts within `SLASHOBSERVE_LLM_REQUEST_TIMEOUT`.
+A single model call, retries included, is stopped after 10 minutes by default; `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` sets that limit and `0` removes it.
+The first call of a new build runs one reasoning step higher than `SLASHOBSERVE_LLM_EFFORT`, and later calls cap their output at half of `SLASHOBSERVE_LLM_MAX_TOKENS` (at least 8192), resending a cut call once at the full cap.
+While a run is in flight the server renews its claim on the request every 5 seconds, so a long run is not picked up by a second worker.
+A run that ends without an accepted save writes no version.
+A run shows its most recent 1000 steps per attempt.
+
+A failed run records one failure code beside its message, in `failure_code` on the request.
+The codes you will see most are `run_timeout` (the whole run ran out of time), `call_timeout` (one model call did not answer in time), `rate_limited` (the provider answered 429 after its retries), `provider_error` (any other provider or network failure), `output_limit` (the model ran out of output tokens), `no_tool_call` (the model finished without saving), `refused`, `validation_exhausted` (three rejected saves in a row), and `no_progress` (the run stopped making progress).
+A run the server lost track of, such as after a restart, or whose save found its build taken over by a newer attempt, is `lease_expired`.
+Runs from v0.1.0 may show `turn_limit`, a model-call cap later versions removed.
+The request's `usage` also reports `failed_calls`, `retries` (extra HTTP attempts inside model calls), `tool_calls`, `model_ms`, `tool_ms`, `max_save_output_tokens`, `build_saves` (saves into the build), `reseeds` (new sessions after an early stop with panels still planned), `compactions` (times the session history was shortened), `renewals` (compactions after the history passed the renewal size), `nudges` (steering messages before reads are refused), `save_now_refusals` (reads refused for lack of a save), `stalled_turns` (turns in which every call was refused) and `one_panel_refusals` (saves refused for changing more than one panel).
+A run that fails on its first model call has `usage` with `model_calls` 0 and `failed_calls` 1.
 
 ## What a save checks
 
 Before it stores a version, the server runs the queries itself, whatever the model checked earlier.
-Besides validating the document, it runs every query of every panel, hidden queries included, over the dashboard's default time range and with each variable at its default, and it runs every query variable.
+Besides validating the document, it runs queries over the dashboard's default time range and with each variable at its default, hidden queries included.
+Which queries run depends on the tool:
+
+- `create_dashboard` and `update_dashboard` run every query of every panel and every query variable.
+- `update_panels` runs only the queries that changed against the version it builds on: the panels whose query text, datasource, type, `timeFrom`, `timeShift`, `maxDataPoints` or `interval` changed, the panels that use a variable whose query changed, and the variables that changed.
+  A new panel counts as changed, but an edit of only a panel's title or position, or a change to `tags` or `links`, runs nothing.
+  A panel the patch did not touch is not run again, so a query that has started failing since the last save does not block a patch that leaves it alone.
+- `update_panels` runs every query when it changes the default `time` to a different `from` or `to`, because each panel's check depends on that range, and a panel that returns nothing over the new range rejects the save.
+  It runs every query too when it changes the title of a dashboard whose queries use `$__dashboard`.
+  The model is told to keep such a panel and widen the range, not delete the panel to make the save pass.
 
 The save is rejected when:
 
@@ -49,11 +133,12 @@ The save is rejected when:
 - the document breaks a rule of the format, such as overlapping panels or an undeclared variable.
 
 The rejection lists each problem with the path of the panel or variable and a code.
+Every rejection in a run lists `failing_panels`, the ids of the panels the problems belong to, with a line that says how to repair them.
+The step of a rejected save names the first problem's path, and a refused input names the reason.
 The model fixes only the panels it names and saves again.
-A run makes the first save plus up to three repairs, so at most four saves.
-If the third repair is also rejected, the run ends with an error that names the last issue codes.
+Three rejected saves in a row end the run with an error that names the last issue codes, and an accepted save into the build resets the count.
 
-When the dashboard changed while the agent was revising it, the run restarts once from the latest version.
+When the dashboard changed while the agent was revising it, the build is discarded and the run restarts once from the latest version, at the commit or as soon as a new session would start on the older build.
 If it changes again, the run fails.
 
 A revision starts from the current document and keeps panel ids, positions and everything the prompt does not ask to change, so [comments](versions.md#comments) stay attached to their panels.
@@ -70,8 +155,9 @@ A new dashboard goes to the folder the requester last created a dashboard in, el
 The saved version records the requester as its author and the request that asked for it, and the version menu on the dashboard shows "Agent" as the one who saved it.
 The tool-level roles do not apply inside a run, because the requester was already checked.
 
-The built-in agent has 14 of the 19 tools: the 11 above, plus `list_datasources`, `list_dashboards` and `get_dashboard`.
-The comment tools and `list_folders` are for MCP clients only, so the agent never writes or resolves a comment reply; `get_spec_guide` is for MCP clients too, because the agent's system prompt already holds the guide, schema and example it returns.
+The built-in agent has 17 of the 21 tools: the 11 above, plus `update_panels`, `get_panels`, `get_spec_guide`, `list_datasources`, `list_dashboards` and `get_dashboard`.
+The comment tools and `list_folders` are for MCP clients only, so the agent never writes or resolves a comment reply.
+Inside a run `get_spec_guide` returns only the JSON Schema, because the guide and the example are already in the agent's system text; over MCP it returns the guide, the schema and the example.
 When a revision request comes from a comment, the server resolves that thread itself once a version is saved.
 
 The agent sends what its tools return to the LLM provider, including names, label values, sampled rows and query results (see [LLM providers](../connect/llm-providers.md)).

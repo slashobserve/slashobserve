@@ -47,4 +47,5 @@ Going backward is the one jump that is not supported.
 The [changelog](https://github.com/slashobserve/slashobserve/blob/main/CHANGELOG.md) names a release whose migration rewrites existing data.
 
 On `SIGTERM` the server stops accepting requests, gives running requests 15 seconds, and hands a running agent request back to the queue without using up an attempt.
-A crash instead leaves the request's lease to expire, so the next process picks it up after the lease ends.
+A worker holds a 60-second lease on its request and renews it every 5 seconds while the run is in flight.
+A crash instead leaves the lease to expire, so the next process picks the request up within a minute.

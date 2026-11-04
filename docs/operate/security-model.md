@@ -21,7 +21,21 @@ description: What SlashObserve protects and what an operator should know.
   They never reach the browser.
   The datasources API returns health only, with no address, user or secret.
   The browser gets panel data from the server's query proxy, which runs only the queries stored in a saved dashboard and rejects any query text sent to it with `403 query_not_in_spec`.
-  The one exception is the draft preview: a signed-in user can run an unsaved panel's queries before saving, under the same limits as the agent's tools, and service-account keys cannot.
+  There are two exceptions, and in both the browser still sends no query text.
+  The draft preview lets a signed-in user run an unsaved panel's queries before saving, under the same limits as the agent's tools, and service-account keys cannot.
+  The build data routes (`/api/v1/observe/{id}/build/panels/{panel_id}/data` and `/api/v1/observe/{id}/build/variables/{name}/values`) run the queries of the dashboard an agent request is still assembling, which is not a saved version yet.
+  Only the signed-in user who made the request can call them, and for a revision only while they can still view the dashboard; anyone else gets 404 and a service-account key gets `403 user_session_required`.
+  They load the stored build on the server, run under the same limits as the agent's tools, and never cache or share results.
+  People who can see a dashboard see how far its revision has come, never the build's panels.
+  The revisions list (`GET /api/v1/dashboards/{id}/revisions`) is visible to every viewer of the dashboard, and carries a stopped build's progress counts, besides the continue note a person gave; the build's title is shown only to the person who asked, and is null for everyone else.
+- **Only the requester saves a stopped build.**
+  When an agent run fails, its build is kept for 7 days.
+  The person or key that made the request can save it as one version with `POST /api/v1/observe/{id}/build/save`, if its role is Editor or higher and it can edit the dashboard (or create dashboards, for a new one); nobody else can, and the route answers them 404.
+  No query runs when it is saved, because the agent checked each step as it made it.
+- **Only the requester cancels or continues a request.**
+  `POST /api/v1/observe/{id}/cancel` and `POST /api/v1/observe/{id}/continue` answer anyone else 403, or 404 for a new-dashboard request they cannot see, and no role or folder level overrides that.
+  Continue also needs the access that starting a run needs, and it answers 409 when someone saved a newer version of the dashboard after the build started.
+  A run that does not end holds back other editors' revisions on its dashboard until its limits, its requester or a run time limit end it.
 - **Every query is bounded.**
   Whatever a prompt or a client asks for, each query has a timeout and limits on series, points and rows, applied on the server.
   ClickHouse is queried only as a read-only user.
