@@ -13,7 +13,7 @@ import (
 
 const (
 	pollInterval    = time.Second
-	defaultTimeout  = 5 * time.Minute
+	defaultTimeout  = 2 * time.Hour
 	maxPollFailures = 3
 )
 
@@ -26,6 +26,16 @@ type agentRequest struct {
 	URL         *string     `json:"url"`
 	Error       *string     `json:"error"`
 	Steps       []agentStep `json:"steps"`
+
+	QueuePosition *int          `json:"queue_position"`
+	FailureCode   *string       `json:"failure_code"`
+	Build         *buildSummary `json:"build"`
+	BuildSavedAt  *string       `json:"build_saved_at"`
+	ContinuedBy   *string       `json:"continued_by"`
+}
+
+type buildSummary struct {
+	Panels int `json:"panels"`
 }
 
 type agentStep struct {
@@ -89,6 +99,10 @@ func (a *app) submit(ctx context.Context, c *client, payload map[string]any, noW
 	if err != nil {
 		return err
 	}
+	return a.reportQueued(ctx, c, data, noWait, timeout)
+}
+
+func (a *app) reportQueued(ctx context.Context, c *client, data []byte, noWait bool, timeout time.Duration) error {
 	queued, err := decode[requestEnvelope](data)
 	if err != nil {
 		return err
@@ -164,6 +178,14 @@ func printRequest(out *output, req agentRequest) {
 		{"URL", orDash(req.URL)},
 		{"Error", orDash(req.Error)},
 	})
+	switch {
+	case req.Status == "queued" && req.QueuePosition != nil:
+		out.line("Queued, position %d", *req.QueuePosition)
+	case req.Status == "failed" && req.ContinuedBy != nil:
+		out.line("Continued by %s", text(*req.ContinuedBy))
+	case req.Status == "failed" && req.Build != nil && req.Build.Panels >= 1 && req.BuildSavedAt == nil:
+		out.line("Save it in the browser, or continue it: observe continue %s", text(req.ID))
+	}
 	if len(req.Steps) > 0 {
 		out.line("")
 		for _, step := range req.Steps {

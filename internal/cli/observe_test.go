@@ -193,3 +193,138 @@ func TestShowPrintsEveryPanelShape(t *testing.T) {
 		}
 	}
 }
+
+const stoppedID = "11111111-2222-3333-4444-555555555555"
+
+type controlCall struct {
+	method string
+	path   string
+	body   string
+}
+
+func runAgainst(t *testing.T, status int, reply string, args ...string) (controlCall, string, string, int) {
+	t.Helper()
+	var call controlCall
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body := new(bytes.Buffer)
+		_, _ = body.ReadFrom(r.Body)
+		call = controlCall{method: r.Method, path: r.URL.Path, body: body.String()}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		_, _ = fmt.Fprint(w, reply)
+	}))
+	t.Cleanup(server.Close)
+	var stdout, stderr bytes.Buffer
+	full := append([]string{"--server", server.URL, "--token", "k"}, args...)
+	code := Main(full, IO{In: strings.NewReader(""), Out: &stdout, Err: &stderr}, "test")
+	return call, stdout.String(), stderr.String(), code
+}
+
+func TestCancelPostsAndPrintsTheRequest(t *testing.T) {
+	reply := `{"request":{"id":"` + stoppedID + `","status":"failed","source":"observe","failure_code":"canceled","steps":[]}}`
+	call, stdout, stderr, code := runAgainst(t, http.StatusOK, reply, "cancel", stoppedID)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	if call.method != http.MethodPost || call.path != "/api/v1/observe/"+stoppedID+"/cancel" || call.body != "" {
+		t.Fatalf("got %+v", call)
+	}
+	if !strings.Contains(stdout, stoppedID) || !strings.Contains(stdout, "failed") {
+		t.Fatalf("output lacks the request:\n%s", stdout)
+	}
+}
+
+func TestCancelAndContinueErrorLines(t *testing.T) {
+	cases := []struct {
+		name   string
+		args   []string
+		status int
+		reply  string
+		want   string
+	}{
+		{"cancel forbidden", []string{"cancel", stoppedID}, 403, `{"error":"your role does not allow this","code":"forbidden_role"}`, "only the requester can cancel or continue " + stoppedID},
+		{"continue forbidden", []string{"continue", stoppedID}, 403, `{"error":"x","code":"forbidden_role"}`, "only the requester can cancel or continue " + stoppedID},
+		{"cancel finished", []string{"cancel", stoppedID}, 409, `{"error":"the request already finished","code":"request_finished"}`, "request " + stoppedID + " already finished"},
+		{"not continuable", []string{"continue", stoppedID}, 409, `{"error":"x","code":"not_continuable"}`, "request " + stoppedID + " has no stopped build to continue"},
+		{"version conflict", []string{"continue", stoppedID}, 409, `{"error":"x","code":"version_conflict","latest_version":7}`, "newer version (7)"},
+		{"version conflict without a number", []string{"continue", stoppedID}, 409, `{"error":"x","code":"version_conflict"}`, "cannot be continued: the dashboard has a newer version than"},
+		{"invalid note", []string{"continue", stoppedID, "--note", " "}, 400, `{"error":"note must be 1 to 4000 characters","code":"invalid_request"}`, "note must be 1 to 4000 characters"},
+		{"missing", []string{"cancel", stoppedID}, 404, `{"error":"request not found","code":"not_found"}`, "request not found"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, stderr, code := runAgainst(t, tc.status, tc.reply, tc.args...)
+			if code != 1 || !strings.Contains(stderr, tc.want) {
+				t.Fatalf("exit %d, stderr %q, want %q", code, stderr, tc.want)
+			}
+		})
+	}
+}
+
+func TestContinueSendsTheNoteOnlyWhenGiven(t *testing.T) {
+	const newID = "99999999-2222-3333-4444-555555555555"
+	const created = `{"request":{"id":"` + newID + `","status":"queued","steps":[]}}`
+	cases := []struct {
+		name string
+		args []string
+		body string
+	}{
+		{"no note", []string{"continue", stoppedID, "--no-wait"}, ""},
+		{"note", []string{"continue", stoppedID, "--no-wait", "--note", "keep the latency row"}, `{"note":"keep the latency row"}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			call, stdout, stderr, code := runAgainst(t, http.StatusCreated, created, tc.args...)
+			if code != 0 {
+				t.Fatalf("exit %d: %s", code, stderr)
+			}
+			if call.method != http.MethodPost || call.path != "/api/v1/observe/"+stoppedID+"/continue" || call.body != tc.body {
+				t.Fatalf("got %+v", call)
+			}
+			if strings.TrimSpace(stdout) != newID {
+				t.Fatalf("stdout %q", stdout)
+			}
+		})
+	}
+}
+
+func TestControlCommandsRejectABadID(t *testing.T) {
+	for _, name := range []string{"cancel", "continue"} {
+		_, _, stderr, code := runAgainst(t, http.StatusOK, `{}`, name, "nope")
+		if code != 2 || !strings.Contains(stderr, "not a valid id") {
+			t.Fatalf("%s: exit %d, stderr %q", name, code, stderr)
+		}
+	}
+}
+
+func TestPrintRequestExplainsQueueAndStoppedBuilds(t *testing.T) {
+	position, saved, continuedBy := 3, "2026-11-03T00:00:00Z", "99999999-2222-3333-4444-555555555555"
+	build := &buildSummary{Panels: 2}
+	cases := []struct {
+		name string
+		req  agentRequest
+		want string
+		none string
+	}{
+		{"queued with a position", agentRequest{ID: stoppedID, Status: "queued", QueuePosition: &position}, "Queued, position 3", ""},
+		{"queued without a position", agentRequest{ID: stoppedID, Status: "queued"}, "", "Queued, position"},
+		{"failed with a build", agentRequest{ID: stoppedID, Status: "failed", Build: build}, "Save it in the browser, or continue it: observe continue " + stoppedID, ""},
+		{"failed with an empty build", agentRequest{ID: stoppedID, Status: "failed", Build: &buildSummary{}}, "", "continue"},
+		{"failed with a saved build", agentRequest{ID: stoppedID, Status: "failed", Build: build, BuildSavedAt: &saved}, "", "continue"},
+		{"failed and continued", agentRequest{ID: stoppedID, Status: "failed", Build: build, ContinuedBy: &continuedBy}, "Continued by " + continuedBy, "Save it in the browser"},
+		{"running with a build", agentRequest{ID: stoppedID, Status: "running", Build: build}, "", "Save it in the browser"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var stdout bytes.Buffer
+			printRequest(&output{out: &stdout, err: &bytes.Buffer{}}, tc.req)
+			got := stdout.String()
+			if tc.want != "" && !strings.Contains(got, tc.want) {
+				t.Fatalf("output lacks %q:\n%s", tc.want, got)
+			}
+			if tc.none != "" && strings.Contains(got, tc.none) {
+				t.Fatalf("output has %q:\n%s", tc.none, got)
+			}
+		})
+	}
+}
