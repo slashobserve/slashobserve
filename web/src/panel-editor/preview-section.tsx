@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import type { Selections } from "@/api/keys"
 import { useNow } from "@/components/relative-time"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { PanelSource } from "@/dashboards/panel-source"
 import { maxDataPointsFor, usePanelData } from "@/dashboards/use-panel-data"
 import { sameJson, stableJson } from "@/lib/json"
 import { describeRange } from "@/lib/time"
@@ -160,9 +161,12 @@ function DataPreview({
     isDataPanel(base) &&
     (!sameJson(base.queries, debounced.queries) ||
       base.datasource !== debounced.datasource)
+  const savedSource = useMemo<PanelSource>(
+    () => ({ kind: "version", dashboardId, version: baseVersion }),
+    [dashboardId, baseVersion]
+  )
   const saved = usePanelData({
-    dashboardId,
-    version: baseVersion,
+    source: savedSource,
     panel: base,
     from: timeRange.from,
     to: timeRange.to,

@@ -3,11 +3,17 @@ import { useQueries } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
-import { dashboardKeys } from "@/api/keys"
 import { requestZone } from "@/lib/time"
 import type { Variable } from "@/spec"
 
 import { panelRequestLimiter } from "./limiter"
+import {
+  panelFingerprint,
+  sourceScope,
+  stateScope,
+  variableValuesKey,
+  type PanelSource,
+} from "./panel-source"
 import { useSetDashboardSearch, withVariables } from "./search"
 import {
   changeVars,
@@ -33,8 +39,7 @@ export type VariableState = {
 }
 
 type Args = {
-  dashboardId: string
-  version: number
+  source: PanelSource
   variables: Variable[]
   from?: string
   to?: string
@@ -43,8 +48,7 @@ type Args = {
 }
 
 export function useVariables({
-  dashboardId,
-  version,
+  source,
   variables,
   from,
   to,
@@ -52,13 +56,13 @@ export function useVariables({
   urlVars,
 }: Args) {
   const setSearch = useSetDashboardSearch()
+  const owner = stateScope(source)
   const [sessionState, setSessionState] = useState<{
-    dashboardId: string
+    owner: string
     vars: VariableValues
-  }>({ dashboardId, vars: {} })
-  const sessionVars =
-    sessionState.dashboardId === dashboardId ? sessionState.vars : {}
-  const scope = `${dashboardId}:${version}`
+  }>({ owner, vars: {} })
+  const sessionVars = sessionState.owner === owner ? sessionState.vars : {}
+  const scope = sourceScope(source)
   const [loadRange, setLoadRange] = useState({ scope, from, to })
   if (loadRange.scope !== scope) setLoadRange({ scope, from, to })
   const atLoad = loadRange.scope === scope ? loadRange : { from, to }
@@ -70,10 +74,10 @@ export function useVariables({
       const { parents: earlier, parentsReady } = requests[index]
       const asked = valuesRange(variable, { from, to }, atLoad)
       return {
-        queryKey: dashboardKeys.variableValues(
-          dashboardId,
-          version,
+        queryKey: variableValuesKey(
+          source,
           variable.name,
+          source.kind === "build" ? panelFingerprint(variable) : "",
           { from: asked.from, to: asked.to, selections: earlier }
         ),
         queryFn: ({ signal }: { signal: AbortSignal }) => {
@@ -82,20 +86,32 @@ export function useVariables({
           if (asked.to !== undefined) range.to = asked.to
           const tz = requestZone(timezone)
           if (tz !== undefined) range.tz = tz
+          const params = withVariables(range, earlier)
           return panelRequestLimiter.run(
             () =>
-              api
-                .GET(
-                  "/dashboards/{id}/versions/{version}/variables/{name}/values",
-                  {
+              (source.kind === "version"
+                ? api.GET(
+                    "/dashboards/{id}/versions/{version}/variables/{name}/values",
+                    {
+                      params: {
+                        path: {
+                          id: source.dashboardId,
+                          version: source.version,
+                          name: variable.name,
+                        },
+                        query: params,
+                      },
+                      signal,
+                    }
+                  )
+                : api.GET("/observe/{id}/build/variables/{name}/values", {
                     params: {
-                      path: { id: dashboardId, version, name: variable.name },
-                      query: withVariables(range, earlier),
+                      path: { id: source.requestId, name: variable.name },
+                      query: params,
                     },
                     signal,
-                  }
-                )
-                .then(unwrap),
+                  })
+              ).then(unwrap),
             signal
           )
         },
@@ -109,7 +125,7 @@ export function useVariables({
 
   const parentKeys = requests.map((request) => parentKeyOf(request.parents))
   const [lastLoaded, setLastLoaded] = useState<Record<string, LoadedValues>>({})
-  const scopePrefix = `${dashboardId}:${version}:`
+  const scopePrefix = `${scope}:`
   let nextLoaded = lastLoaded
   if (Object.keys(nextLoaded).some((key) => !key.startsWith(scopePrefix))) {
     nextLoaded = Object.fromEntries(
@@ -192,7 +208,7 @@ export function useVariables({
       name,
       values
     )
-    setSessionState({ dashboardId, vars: next.session })
+    setSessionState({ owner, vars: next.session })
     if (JSON.stringify(next.url) === JSON.stringify(urlVars)) return
     setSearch((current) => ({
       ...current,

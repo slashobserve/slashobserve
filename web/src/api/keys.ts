@@ -75,6 +75,19 @@ export const observeKeys = {
     ["observe-mine", source, limit] as const,
   mineAll: () => ["observe-mine"] as const,
   create: () => ["observe-create"] as const,
+  build: (id: string, saves: number) => ["observe-build", id, saves] as const,
+  buildPanelData: (
+    id: string,
+    panelId: string,
+    fingerprint: string,
+    params: PanelDataParams
+  ) => ["observe-build", id, "panels", panelId, fingerprint, params] as const,
+  buildVariableValues: (
+    id: string,
+    name: string,
+    fingerprint: string,
+    params: VariableValuesParams
+  ) => ["observe-build", id, "variables", name, fingerprint, params] as const,
 }
 
 export const serviceAccountKeys = {

@@ -2,18 +2,23 @@ import { useQuery } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
 import { ApiError, isRetryable, unwrap } from "@/api/errors"
-import { dashboardKeys, type Selections } from "@/api/keys"
+import type { Selections } from "@/api/keys"
 import { instantPanelTypes, isDataPanel, type Panel } from "@/spec"
 
 import { requestZone } from "@/lib/time"
 
 import { panelRequestLimiter } from "./limiter"
+import {
+  keepsPreviousData,
+  panelDataKey,
+  panelFingerprint,
+  type PanelSource,
+} from "./panel-source"
 import { withVariables } from "./search"
 import { sortSelections } from "./variables"
 
 type Args = {
-  dashboardId: string
-  version: number
+  source: PanelSource
   panel: Panel
   from?: string
   to?: string
@@ -44,8 +49,7 @@ export function panelRetry(count: number, error: unknown): boolean {
 }
 
 export function usePanelData({
-  dashboardId,
-  version,
+  source,
   panel,
   from,
   to,
@@ -56,8 +60,9 @@ export function usePanelData({
   enabled,
 }: Args) {
   const selections = sortSelections(vars)
+  const fingerprint = source.kind === "build" ? panelFingerprint(panel) : ""
   return useQuery({
-    queryKey: dashboardKeys.panelData(dashboardId, version, panel.id, {
+    queryKey: panelDataKey(source, panel.id, fingerprint, {
       from,
       to,
       selections,
@@ -75,24 +80,39 @@ export function usePanelData({
       const tz = requestZone(timezone)
       if (tz !== undefined) query.tz = tz
       if (maxDataPoints !== undefined) query.max_data_points = maxDataPoints
+      const params = withVariables(query, selections)
       return panelRequestLimiter.run(
         () =>
-          api
-            .GET("/dashboards/{id}/versions/{version}/panels/{panel_id}/data", {
-              params: {
-                path: { id: dashboardId, version, panel_id: panel.id },
-                query: withVariables(query, selections),
-              },
-              signal,
-            })
-            .then(unwrap),
+          (source.kind === "version"
+            ? api.GET(
+                "/dashboards/{id}/versions/{version}/panels/{panel_id}/data",
+                {
+                  params: {
+                    path: {
+                      id: source.dashboardId,
+                      version: source.version,
+                      panel_id: panel.id,
+                    },
+                    query: params,
+                  },
+                  signal,
+                }
+              )
+            : api.GET("/observe/{id}/build/panels/{panel_id}/data", {
+                params: {
+                  path: { id: source.requestId, panel_id: panel.id },
+                  query: params,
+                },
+                signal,
+              })
+          ).then(unwrap),
         signal
       )
     },
     enabled,
     placeholderData: (previous, previousQuery) =>
-      previousQuery?.queryKey[1] === dashboardId &&
-      previousQuery.queryKey[3] === version
+      previousQuery !== undefined &&
+      keepsPreviousData(source, fingerprint, previousQuery.queryKey)
         ? previous
         : undefined,
     staleTime: 0,
