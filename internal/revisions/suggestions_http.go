@@ -36,6 +36,8 @@ type suggestionJSON struct {
 	Steps        []Step          `json:"steps"`
 	Panel        json.RawMessage `json:"panel"`
 	Error        *string         `json:"error"`
+	FailureCode  *string         `json:"failure_code"`
+	Usage        *Usage          `json:"usage"`
 	RequestedBy  authorJSON      `json:"requested_by"`
 	Origin       *string         `json:"origin"`
 	OriginClient *string         `json:"origin_client"`
@@ -146,6 +148,7 @@ func (s *Service) newSuggestionJSON(c *gin.Context, row dbsqlc.AgentRequest) sug
 		Prompt:       row.Prompt,
 		Status:       Status(row.Status),
 		Steps:        []Step{},
+		FailureCode:  httpapi.OptionalString(row.FailureCode.String),
 		RequestedBy:  authorJSON{Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: row.RequestedByName, Email: row.RequestedByEmail.String},
 		Origin:       httpapi.OptionalString(row.Origin.String),
 		OriginClient: httpapi.OptionalString(row.OriginClient.String),
@@ -153,6 +156,7 @@ func (s *Service) newSuggestionJSON(c *gin.Context, row dbsqlc.AgentRequest) sug
 		StartedAt:    formatOptionalTime(optionalTime(row.StartedAt)),
 		FinishedAt:   formatOptionalTime(optionalTime(row.FinishedAt)),
 	}
+	out.Usage = s.decodeUsage(c.Request.Context(), out.ID, row.RunUsage)
 	switch out.Status {
 	case StatusSucceeded:
 		out.Panel = row.Suggestion

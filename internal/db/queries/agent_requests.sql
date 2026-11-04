@@ -11,11 +11,13 @@ WHERE dashboard_id = @dashboard_id AND source <> 'suggest' AND status IN ('queue
 -- name: EnqueueAgentRequest :one
 INSERT INTO agent_requests (
   dashboard_id, source, comment_id, prompt, panel_id, base_version,
-  requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client
+  requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
+  continues_id, continue_note
 ) VALUES (
   @dashboard_id, @source, sqlc.narg('comment_id'), @prompt, sqlc.narg('panel_id'), @base_version::integer,
   @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
-  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text
+  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text,
+  sqlc.narg('continues_id')::uuid, sqlc.narg('continue_note')::text
 )
 RETURNING *;
 
@@ -23,7 +25,7 @@ RETURNING *;
 UPDATE agent_requests
 SET status = 'running',
   attempts = attempts + 1,
-  lease_until = clock_timestamp() + interval '5 minutes',
+  lease_until = clock_timestamp() + make_interval(secs => @lease_seconds::double precision),
   started_at = coalesce(started_at, clock_timestamp())
 WHERE id = (
   SELECT r.id FROM agent_requests r
@@ -39,18 +41,43 @@ WHERE id = (
 )
 RETURNING *;
 
+-- name: RenewAgentRequestLease :one
+UPDATE agent_requests
+SET lease_until = clock_timestamp() + make_interval(secs => @lease_seconds::double precision)
+WHERE id = @id AND status = 'running' AND attempts = @attempts
+RETURNING cancel_requested_at;
+
 -- name: FailExhaustedAgentRequests :many
 UPDATE agent_requests r
 SET status = CASE WHEN saved.version IS NULL THEN 'failed' ELSE 'succeeded' END,
   result_version = saved.version,
   dashboard_id = coalesce(r.dashboard_id, saved.dashboard_id),
-  error = CASE WHEN saved.version IS NULL THEN 'agent run did not finish' END,
+  error = CASE WHEN saved.version IS NOT NULL THEN NULL WHEN r.cancel_requested_at IS NOT NULL THEN 'the run was canceled' ELSE 'agent run did not finish' END,
+  failure_code = CASE WHEN saved.version IS NOT NULL THEN NULL WHEN r.cancel_requested_at IS NOT NULL THEN 'canceled' ELSE 'lease_expired' END,
   lease_until = NULL,
   finished_at = clock_timestamp()
 FROM agent_requests e
 LEFT JOIN dashboard_versions saved ON saved.agent_request_id = e.id AND (e.dashboard_id IS NULL OR saved.dashboard_id = e.dashboard_id)
 WHERE r.id = e.id AND r.status = 'running' AND r.lease_until < clock_timestamp() AND r.attempts >= @max_attempts::integer
 RETURNING r.*;
+
+-- name: CancelAgentRequest :one
+UPDATE agent_requests
+SET cancel_requested_at = coalesce(cancel_requested_at, clock_timestamp()),
+  canceled_by_kind = coalesce(canceled_by_kind, @canceled_by_kind),
+  canceled_by_id = coalesce(canceled_by_id, @canceled_by_id),
+  canceled_by_name = coalesce(canceled_by_name, @canceled_by_name),
+  status = CASE WHEN status = 'queued' THEN 'failed' ELSE status END,
+  error = CASE WHEN status = 'queued' THEN @message::text ELSE error END,
+  failure_code = CASE WHEN status = 'queued' THEN 'canceled' ELSE failure_code END,
+  lease_until = CASE WHEN status = 'queued' THEN NULL ELSE lease_until END,
+  finished_at = CASE WHEN status = 'queued' THEN clock_timestamp() ELSE finished_at END
+WHERE id = @id AND status IN ('queued', 'running') AND source <> 'suggest'
+RETURNING *;
+
+-- name: CountQueuedAgentRequestsBefore :one
+SELECT count(*) FROM agent_requests
+WHERE status = 'queued' AND (created_at, id) < (@created_at::timestamptz, @id::uuid);
 
 -- name: SucceedAgentRequest :one
 UPDATE agent_requests
@@ -67,6 +94,7 @@ RETURNING *;
 UPDATE agent_requests
 SET status = 'failed',
   error = @error::text,
+  failure_code = sqlc.narg('failure_code')::text,
   run_usage = sqlc.narg('run_usage')::jsonb,
   lease_until = NULL,
   finished_at = clock_timestamp()
@@ -76,8 +104,6 @@ RETURNING *;
 -- name: ReleaseAgentRequest :one
 UPDATE agent_requests
 SET status = 'queued', attempts = attempts - 1, lease_until = NULL,
-  steps = CASE WHEN @check_failed::boolean THEN steps
-    ELSE jsonb_path_query_array(steps, '$[*] ? (@.attempt != $attempt)', jsonb_build_object('attempt', @attempts::integer)) END,
   check_failures = check_failures + CASE WHEN @check_failed::boolean THEN 1 ELSE 0 END
 WHERE id = @id AND status = 'running' AND attempts = @attempts
 RETURNING *;
@@ -110,9 +136,9 @@ WHERE source = 'observe' AND status IN ('queued', 'running') AND requested_by_id
 SELECT count(*) FROM agent_requests WHERE source = 'observe' AND status IN ('queued', 'running');
 
 -- name: EnqueueObserveRequest :one
-INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client)
+INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client, continues_id, continue_note)
 VALUES ('observe', @prompt, @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
-  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text)
+  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, sqlc.narg('continues_id')::uuid, sqlc.narg('continue_note')::text)
 RETURNING *;
 
 -- name: GetAgentRequestByID :one
@@ -125,13 +151,27 @@ WHERE agent_request_id = @agent_request_id
 
 -- name: AppendAgentRequestStep :execrows
 UPDATE agent_requests
-SET steps = steps || jsonb_build_array(@step::jsonb)
-WHERE id = @id AND status = 'running' AND attempts = @attempts
-  AND (SELECT count(*) FROM jsonb_array_elements(steps) AS recorded WHERE (recorded ->> 'attempt')::integer = @attempts) < @max_steps::integer;
+SET steps = (
+  SELECT COALESCE(jsonb_agg(ranked.recorded ORDER BY ranked.n), '[]'::jsonb)
+  FROM (
+    SELECT numbered.recorded, numbered.n,
+      CASE WHEN (numbered.recorded ->> 'attempt')::integer = @attempts::integer
+        THEN count(*) FILTER (WHERE (numbered.recorded ->> 'attempt')::integer = @attempts::integer)
+          OVER (ORDER BY numbered.n DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+      END AS recent
+    FROM (
+      SELECT recorded, row_number() OVER () AS n
+      FROM jsonb_array_elements(agent_requests.steps) AS recorded
+    ) numbered
+  ) ranked
+  WHERE ranked.recent IS NULL OR ranked.recent < @max_steps::integer
+) || jsonb_build_array(@step::jsonb)
+WHERE id = @id AND status = 'running' AND attempts = @attempts::integer;
 
 -- name: ListAgentRequestsBy :many
 SELECT r.id, r.source, r.prompt, r.dashboard_id, r.panel_id, r.status, r.result_version, r.error,
   r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
+  r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   d.title AS dashboard_title
 FROM agent_requests r
 LEFT JOIN dashboards d ON d.id = r.dashboard_id

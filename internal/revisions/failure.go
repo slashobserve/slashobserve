@@ -1,0 +1,34 @@
+package revisions
+
+type FailureCode string
+
+const (
+	FailureRunTimeout          FailureCode = "run_timeout"
+	FailureCallTimeout         FailureCode = "call_timeout"
+	FailureRateLimited         FailureCode = "rate_limited"
+	FailureProviderError       FailureCode = "provider_error"
+	FailureOutputLimit         FailureCode = "output_limit"
+	FailureNoToolCall          FailureCode = "no_tool_call"
+	FailureRefused             FailureCode = "refused"
+	FailureValidationExhausted FailureCode = "validation_exhausted"
+	FailureConflict            FailureCode = "conflict"
+	FailureInvalidTask         FailureCode = "invalid_task"
+	FailureNotFound            FailureCode = "not_found"
+	FailureDraftInvalid        FailureCode = "draft_invalid"
+	FailureCanceled            FailureCode = "canceled"
+	FailureLoadFailed          FailureCode = "load_failed"
+	FailureContextFailed       FailureCode = "context_failed"
+	FailureToolFailed          FailureCode = "tool_failed"
+	FailureResultTooLarge      FailureCode = "result_too_large"
+	FailureToolPanicked        FailureCode = "tool_panicked"
+	FailureMalformedResult     FailureCode = "malformed_result"
+	FailureInternal            FailureCode = "internal"
+	FailureNoFixture           FailureCode = "no_fixture"
+	FailureRequesterGone       FailureCode = "requester_gone"
+	FailureRequesterForbidden  FailureCode = "requester_forbidden"
+	FailureCheckFailed         FailureCode = "check_failed"
+	FailureCrashed             FailureCode = "crashed"
+	FailureNoSuggestion        FailureCode = "no_suggestion"
+	FailureLeaseExpired        FailureCode = "lease_expired"
+	FailureNoProgress          FailureCode = "no_progress"
+)

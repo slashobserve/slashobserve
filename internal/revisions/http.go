@@ -1,6 +1,7 @@
 package revisions
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -60,6 +61,13 @@ type revisionJSON struct {
 	CreatedAt     string     `json:"created_at"`
 	StartedAt     *string    `json:"started_at"`
 	FinishedAt    *string    `json:"finished_at"`
+
+	FailureCode  *string            `json:"failure_code"`
+	Build        *buildProgressJSON `json:"build"`
+	BuildSavedAt *string            `json:"build_saved_at"`
+	ContinuesID  *string            `json:"continues_id"`
+	ContinuedBy  *string            `json:"continued_by"`
+	ContinueNote *string            `json:"continue_note"`
 }
 
 type envelopeJSON struct {
@@ -131,7 +139,7 @@ func (s *Service) createRevision(c *gin.Context) {
 	}
 	rev := revisionFromRow(row)
 	c.Header("Location", "/api/v1/dashboards/"+rev.DashboardID+"/revisions/"+rev.ID)
-	c.JSON(http.StatusAccepted, envelopeJSON{Revision: newRevisionJSON(rev)})
+	c.JSON(http.StatusAccepted, envelopeJSON{Revision: newRevisionJSON(rev, buildState{}, httpapi.Caller(c))})
 }
 
 func threadCommentID(c *gin.Context, req createRequest) (pgtype.UUID, bool) {
@@ -173,9 +181,14 @@ func (s *Service) listRevisions(c *gin.Context) {
 		s.fail(c, "list revisions", err, dashboardAttr(dashboardID))
 		return
 	}
+	states, err := s.revisionBuildStates(ctx, items)
+	if err != nil {
+		s.fail(c, "list revision build state", err, dashboardAttr(dashboardID))
+		return
+	}
 	body := listJSON{Revisions: make([]revisionJSON, len(items))}
 	for i, item := range items {
-		body.Revisions[i] = newRevisionJSON(item)
+		body.Revisions[i] = newRevisionJSON(item, states[i], httpapi.Caller(c))
 	}
 	if next != "" {
 		body.NextCursor = &next
@@ -197,7 +210,32 @@ func (s *Service) getRevision(c *gin.Context) {
 		s.fail(c, "get revision", err, dashboardAttr(dashboardID), slog.String("agent_request_id", id.String()))
 		return
 	}
-	c.JSON(http.StatusOK, envelopeJSON{Revision: newRevisionJSON(rev)})
+	states, err := s.revisionBuildStates(c.Request.Context(), []Revision{rev})
+	if err != nil {
+		s.fail(c, "get revision build state", err, dashboardAttr(dashboardID), slog.String("agent_request_id", id.String()))
+		return
+	}
+	c.JSON(http.StatusOK, envelopeJSON{Revision: newRevisionJSON(rev, states[0], httpapi.Caller(c))})
+}
+
+func (s *Service) revisionBuildStates(ctx context.Context, revs []Revision) ([]buildState, error) {
+	ids := make([]pgtype.UUID, len(revs))
+	for i, rev := range revs {
+		id, err := db.ParseUUID(rev.ID)
+		if err != nil {
+			return nil, fmt.Errorf("revision id: %w", err)
+		}
+		ids[i] = id
+	}
+	byID, err := s.buildStates(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	states := make([]buildState, len(revs))
+	for i, id := range ids {
+		states[i] = byID[id]
+	}
+	return states, nil
 }
 
 func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any) {
@@ -239,7 +277,7 @@ func dashboardAttr(id pgtype.UUID) any {
 	return slog.String("dashboard_id", id.String())
 }
 
-func newRevisionJSON(r Revision) revisionJSON {
+func newRevisionJSON(r Revision, state buildState, caller auth.Principal) revisionJSON {
 	out := revisionJSON{
 		ID:            r.ID,
 		DashboardID:   r.DashboardID,
@@ -258,6 +296,13 @@ func newRevisionJSON(r Revision) revisionJSON {
 		CreatedAt:     httpapi.FormatTime(r.CreatedAt),
 		StartedAt:     formatOptionalTime(r.StartedAt),
 		FinishedAt:    formatOptionalTime(r.FinishedAt),
+
+		FailureCode:  httpapi.OptionalString(r.FailureCode),
+		Build:        state.progressFor(r.RequestedBy, caller),
+		BuildSavedAt: formatOptionalTime(r.BuildSavedAt),
+		ContinuesID:  httpapi.OptionalString(r.ContinuesID),
+		ContinuedBy:  state.continuedBy,
+		ContinueNote: httpapi.OptionalString(r.ContinueNote),
 	}
 	return out
 }

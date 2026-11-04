@@ -9,32 +9,54 @@ import (
 )
 
 type AgentRequest struct {
-	ID               pgtype.UUID
-	DashboardID      pgtype.UUID
-	Source           string
-	CommentID        pgtype.UUID
-	Prompt           string
-	PanelID          pgtype.Text
-	BaseVersion      pgtype.Int4
-	Status           string
-	Attempts         int32
-	CheckFailures    int32
-	LeaseUntil       pgtype.Timestamptz
-	ResultVersion    pgtype.Int4
-	Error            pgtype.Text
-	RequestedByKind  string
-	RequestedByID    pgtype.UUID
-	RequestedByName  string
-	RequestedByEmail pgtype.Text
-	CreatedAt        pgtype.Timestamptz
-	StartedAt        pgtype.Timestamptz
-	FinishedAt       pgtype.Timestamptz
-	Steps            []byte
-	RunUsage         []byte
-	Origin           pgtype.Text
-	OriginClient     pgtype.Text
-	Draft            []byte
-	Suggestion       []byte
+	ID                pgtype.UUID
+	DashboardID       pgtype.UUID
+	Source            string
+	CommentID         pgtype.UUID
+	Prompt            string
+	PanelID           pgtype.Text
+	BaseVersion       pgtype.Int4
+	Status            string
+	Attempts          int32
+	CheckFailures     int32
+	LeaseUntil        pgtype.Timestamptz
+	ResultVersion     pgtype.Int4
+	Error             pgtype.Text
+	RequestedByKind   string
+	RequestedByID     pgtype.UUID
+	RequestedByName   string
+	RequestedByEmail  pgtype.Text
+	CreatedAt         pgtype.Timestamptz
+	StartedAt         pgtype.Timestamptz
+	FinishedAt        pgtype.Timestamptz
+	Steps             []byte
+	RunUsage          []byte
+	Origin            pgtype.Text
+	OriginClient      pgtype.Text
+	Draft             []byte
+	Suggestion        []byte
+	FailureCode       pgtype.Text
+	BuildSavedAt      pgtype.Timestamptz
+	CancelRequestedAt pgtype.Timestamptz
+	CanceledByKind    pgtype.Text
+	CanceledByID      pgtype.UUID
+	CanceledByName    pgtype.Text
+	ContinuesID       pgtype.UUID
+	ContinueNote      pgtype.Text
+}
+
+type AgentRequestBuild struct {
+	AgentRequestID pgtype.UUID
+	DashboardID    pgtype.UUID
+	BaseVersion    pgtype.Int4
+	Spec           []byte
+	Unverified     []byte
+	Summary        string
+	Saves          int32
+	Panels         int32
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	PlannedPanels  int32
 }
 
 type Dashboard struct {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strings"
 	"sync/atomic"
@@ -205,6 +206,9 @@ func TestExhaustedLeaseFailsASuggestionWithoutRunningItAgain(t *testing.T) {
 	if failed.Error.String != revisions.ExhaustedMessage || failed.ResultVersion.Valid || failed.Suggestion != nil || calls.Load() != 0 {
 		t.Fatalf("exhausted suggestion = %+v after %d calls", failed, calls.Load())
 	}
+	if failed.FailureCode.String != string(revisions.FailureLeaseExpired) {
+		t.Fatalf("failure_code = %+v", failed.FailureCode)
+	}
 }
 
 func TestSuggestionRowsMustHoldAnObjectWhenTheyHaveSucceeded(t *testing.T) {
@@ -280,7 +284,7 @@ func TestSuggestionThatIsNotAnObjectFailsAsNoSuggestion(t *testing.T) {
 				return
 			}
 			failed := waitForSuggestion(t, svc, dash, sug.ID, user, revisions.StatusFailed)
-			if failed.Error.String != "the agent did not propose a panel" || failed.Suggestion != nil {
+			if failed.Error.String != "the agent did not propose a panel" || failed.Suggestion != nil || failed.FailureCode.String != string(revisions.FailureNoSuggestion) {
 				t.Fatalf("suggestion = %+v", failed)
 			}
 		})
@@ -360,5 +364,52 @@ func TestDraftOverTheRawBodyGuardIsRefusedWithItsOwnMessage(t *testing.T) {
 	}
 	if want := fmt.Sprintf("the draft panel is over %d bytes", revisions.MaxDraftBytes); err.Error() != want {
 		t.Fatalf("err = %q, want %q", err, want)
+	}
+}
+
+func TestSuggestionResponseCarriesTheFailureCodeAndUsage(t *testing.T) {
+	usage := revisions.Usage{Provider: "openai", Model: "m", FailedCalls: 1, Retries: 2, ModelMS: 900}
+	svc, d := newSuggestService(t, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+		return revisions.Result{Usage: &usage, FailureCode: revisions.FailureCallTimeout}, errors.New("the model did not answer in time")
+	}))
+	dash := seedDashboard(t, d, 1)
+	sug := suggestFor(t, svc, dash, user)
+	startWorker(t, svc, d, revisions.WorkerOptions{})
+	waitForSuggestion(t, svc, dash, sug.ID, user, revisions.StatusFailed)
+
+	rec := call(newRouter(svc), http.MethodGet, "/api/v1/dashboards/"+dash.String()+"/suggestions/"+sug.ID.String(), "")
+	var body struct {
+		Suggestion struct {
+			FailureCode *string        `json:"failure_code"`
+			Usage       map[string]any `json:"usage"`
+		} `json:"suggestion"`
+	}
+	if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &body) != nil {
+		t.Fatalf("GET suggestion: %d %s", rec.Code, rec.Body)
+	}
+	got := body.Suggestion
+	if got.FailureCode == nil || *got.FailureCode != "call_timeout" || got.Usage["failed_calls"] != float64(1) || got.Usage["retries"] != float64(2) || got.Usage["model_ms"] != float64(900) {
+		t.Fatalf("suggestion = %+v", got)
+	}
+}
+
+func TestSucceededSuggestionReportsNullFailureCodeAndNullUsageWithoutModelCalls(t *testing.T) {
+	svc, d := newSuggestService(t, proposing(suggestedPanel))
+	dash := seedDashboard(t, d, 1)
+	sug := suggestFor(t, svc, dash, user)
+	startWorker(t, svc, d, revisions.WorkerOptions{})
+	waitForSuggestion(t, svc, dash, sug.ID, user, revisions.StatusSucceeded)
+
+	rec := call(newRouter(svc), http.MethodGet, "/api/v1/dashboards/"+dash.String()+"/suggestions/"+sug.ID.String(), "")
+	var body struct {
+		Suggestion map[string]any `json:"suggestion"`
+	}
+	if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &body) != nil {
+		t.Fatalf("GET suggestion: %d %s", rec.Code, rec.Body)
+	}
+	for _, key := range []string{"failure_code", "usage"} {
+		if value, present := body.Suggestion[key]; !present || value != nil {
+			t.Errorf("%s = %v (present %v), want null", key, value, present)
+		}
 	}
 }

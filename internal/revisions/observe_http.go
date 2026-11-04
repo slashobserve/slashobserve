@@ -1,6 +1,7 @@
 package revisions
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -52,26 +53,37 @@ type agentInfoJSON struct {
 }
 
 type agentRequestJSON struct {
-	ID            string     `json:"id"`
-	Source        Source     `json:"source"`
-	Prompt        string     `json:"prompt"`
-	DashboardID   *string    `json:"dashboard_id"`
-	BaseVersion   *int       `json:"base_version"`
-	PanelID       *string    `json:"panel_id"`
-	CommentID     *string    `json:"comment_id"`
-	Status        Status     `json:"status"`
-	Attempts      int        `json:"attempts"`
-	ResultVersion *int       `json:"result_version"`
-	URL           *string    `json:"url"`
-	Error         *string    `json:"error"`
-	Steps         []Step     `json:"steps"`
-	Usage         *Usage     `json:"usage"`
-	RequestedBy   authorJSON `json:"requested_by"`
-	Origin        *string    `json:"origin"`
-	OriginClient  *string    `json:"origin_client"`
-	CreatedAt     string     `json:"created_at"`
-	StartedAt     *string    `json:"started_at"`
-	FinishedAt    *string    `json:"finished_at"`
+	ID            string             `json:"id"`
+	Source        Source             `json:"source"`
+	Prompt        string             `json:"prompt"`
+	DashboardID   *string            `json:"dashboard_id"`
+	BaseVersion   *int               `json:"base_version"`
+	PanelID       *string            `json:"panel_id"`
+	CommentID     *string            `json:"comment_id"`
+	Status        Status             `json:"status"`
+	Attempts      int                `json:"attempts"`
+	ResultVersion *int               `json:"result_version"`
+	URL           *string            `json:"url"`
+	Error         *string            `json:"error"`
+	FailureCode   *string            `json:"failure_code"`
+	Steps         []Step             `json:"steps"`
+	Usage         *Usage             `json:"usage"`
+	Build         *buildProgressJSON `json:"build"`
+	BuildSavedAt  *string            `json:"build_saved_at"`
+	RequestedBy   authorJSON         `json:"requested_by"`
+	Origin        *string            `json:"origin"`
+	OriginClient  *string            `json:"origin_client"`
+	CreatedAt     string             `json:"created_at"`
+	StartedAt     *string            `json:"started_at"`
+	FinishedAt    *string            `json:"finished_at"`
+
+	QueuePosition     *int        `json:"queue_position"`
+	CancelRequestedAt *string     `json:"cancel_requested_at"`
+	CanceledBy        *authorJSON `json:"canceled_by"`
+	CanCancel         bool        `json:"can_cancel"`
+	ContinuesID       *string     `json:"continues_id"`
+	ContinueNote      *string     `json:"continue_note"`
+	ContinuedBy       *string     `json:"continued_by"`
 }
 
 type requestSummaryJSON struct {
@@ -90,6 +102,13 @@ type requestSummaryJSON struct {
 	CreatedAt      string  `json:"created_at"`
 	StartedAt      *string `json:"started_at"`
 	FinishedAt     *string `json:"finished_at"`
+
+	FailureCode  *string            `json:"failure_code"`
+	Build        *buildProgressJSON `json:"build"`
+	BuildSavedAt *string            `json:"build_saved_at"`
+	ContinuesID  *string            `json:"continues_id"`
+	ContinuedBy  *string            `json:"continued_by"`
+	ContinueNote *string            `json:"continue_note"`
 }
 
 type requestListJSON struct {
@@ -106,6 +125,10 @@ func (h *ObserveHandler) Register(api auth.Routes) {
 	api.POST("/observe", auth.RoleViewer, h.createObserve)
 	api.GET("/observe", auth.RoleViewer, h.listObserve)
 	api.GET("/observe/:id", auth.RoleViewer, h.getObserve)
+	api.GET("/observe/:id/build", auth.RoleViewer, h.getBuild)
+	api.POST("/observe/:id/build/save", auth.RoleEditor, h.saveBuild)
+	api.POST("/observe/:id/cancel", auth.RoleViewer, h.cancelObserve)
+	api.POST("/observe/:id/continue", auth.RoleViewer, h.continueObserve)
 }
 
 func (h *ObserveHandler) getAgent(c *gin.Context) {
@@ -159,7 +182,7 @@ func (h *ObserveHandler) createObserve(c *gin.Context) {
 		return
 	}
 	c.Header("Location", "/api/v1/observe/"+row.ID.String())
-	c.JSON(http.StatusAccepted, agentRequestEnvelopeJSON{Request: h.view(c, row)})
+	h.replyRequest(c, http.StatusAccepted, row)
 }
 
 func (h *ObserveHandler) enqueue(c *gin.Context, dashboardID pgtype.UUID, baseVersion *int, prompt string) (dbsqlc.AgentRequest, bool) {
@@ -201,9 +224,18 @@ func (h *ObserveHandler) listObserve(c *gin.Context) {
 		h.service.fail(c, "list agent requests", err, principalAttrs(c)...)
 		return
 	}
+	ids := make([]pgtype.UUID, len(rows))
+	for i, row := range rows {
+		ids[i] = row.ID
+	}
+	states, err := h.service.buildStates(c.Request.Context(), ids)
+	if err != nil {
+		h.service.fail(c, "list agent request build state", err, principalAttrs(c)...)
+		return
+	}
 	body := requestListJSON{Requests: make([]requestSummaryJSON, len(rows))}
 	for i, row := range rows {
-		body.Requests[i] = h.summary(row)
+		body.Requests[i] = h.summary(row, states[row.ID])
 	}
 	if next != "" {
 		body.NextCursor = &next
@@ -211,7 +243,7 @@ func (h *ObserveHandler) listObserve(c *gin.Context) {
 	c.JSON(http.StatusOK, body)
 }
 
-func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow) requestSummaryJSON {
+func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildState) requestSummaryJSON {
 	out := requestSummaryJSON{
 		ID:           row.ID.String(),
 		Source:       Source(row.Source),
@@ -224,6 +256,14 @@ func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow) requestSumma
 		CreatedAt:    httpapi.FormatTime(row.CreatedAt.Time),
 		StartedAt:    formatOptionalTime(optionalTime(row.StartedAt)),
 		FinishedAt:   formatOptionalTime(optionalTime(row.FinishedAt)),
+
+		FailureCode: httpapi.OptionalString(row.FailureCode.String),
+		// ListMine returns only the caller's own requests, so the build title is the requester's to see
+		Build:        state.build,
+		BuildSavedAt: formatOptionalTime(optionalTime(row.BuildSavedAt)),
+		ContinuesID:  optionalUUID(row.ContinuesID),
+		ContinuedBy:  state.continuedBy,
+		ContinueNote: httpapi.OptionalString(row.ContinueNote.String),
 	}
 	if row.DashboardID.Valid {
 		id := row.DashboardID.String()
@@ -239,6 +279,14 @@ func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow) requestSumma
 		out.ResultVersion = &n
 	}
 	return out
+}
+
+func optionalUUID(id pgtype.UUID) *string {
+	if !id.Valid {
+		return nil
+	}
+	s := id.String()
+	return &s
 }
 
 func optionalText(t pgtype.Text) *string {
@@ -261,18 +309,32 @@ func (h *ObserveHandler) getObserve(c *gin.Context) {
 		h.service.fail(c, "get agent request", err, slog.String("agent_request_id", id.String()))
 		return
 	}
-	c.JSON(http.StatusOK, agentRequestEnvelopeJSON{Request: h.view(c, row)})
+	h.replyRequest(c, http.StatusOK, row)
 }
 
-func (h *ObserveHandler) view(c *gin.Context, row dbsqlc.AgentRequest) agentRequestJSON {
+func (h *ObserveHandler) render(c *gin.Context, row dbsqlc.AgentRequest) (agentRequestJSON, error) {
+	ctx := c.Request.Context()
+	states, err := h.service.buildStates(ctx, []pgtype.UUID{row.ID})
+	if err != nil {
+		return agentRequestJSON{}, err
+	}
+	position, err := h.service.queuePosition(ctx, row)
+	if err != nil {
+		return agentRequestJSON{}, err
+	}
+	return h.view(c, row, states[row.ID], position), nil
+}
+
+func (h *ObserveHandler) view(c *gin.Context, row dbsqlc.AgentRequest, state buildState, position *int) agentRequestJSON {
 	out := agentRequestJSON{
-		ID:       row.ID.String(),
-		Source:   Source(row.Source),
-		Prompt:   row.Prompt,
-		Status:   Status(row.Status),
-		Attempts: int(row.Attempts),
-		Error:    httpapi.OptionalString(row.Error.String),
-		Steps:    []Step{},
+		ID:          row.ID.String(),
+		Source:      Source(row.Source),
+		Prompt:      row.Prompt,
+		Status:      Status(row.Status),
+		Attempts:    int(row.Attempts),
+		Error:       httpapi.OptionalString(row.Error.String),
+		FailureCode: httpapi.OptionalString(row.FailureCode.String),
+		Steps:       []Step{},
 		RequestedBy: authorJSON{
 			Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: row.RequestedByName, Email: row.RequestedByEmail.String,
 		},
@@ -281,6 +343,18 @@ func (h *ObserveHandler) view(c *gin.Context, row dbsqlc.AgentRequest) agentRequ
 		CreatedAt:    httpapi.FormatTime(row.CreatedAt.Time),
 		StartedAt:    formatOptionalTime(optionalTime(row.StartedAt)),
 		FinishedAt:   formatOptionalTime(optionalTime(row.FinishedAt)),
+		Build:        state.progressFor(requesterOf(row), httpapi.Caller(c)),
+		BuildSavedAt: formatOptionalTime(optionalTime(row.BuildSavedAt)),
+
+		QueuePosition:     position,
+		CancelRequestedAt: formatOptionalTime(optionalTime(row.CancelRequestedAt)),
+		CanCancel:         canCancel(row, httpapi.Caller(c)),
+		ContinuesID:       optionalUUID(row.ContinuesID),
+		ContinueNote:      httpapi.OptionalString(row.ContinueNote.String),
+		ContinuedBy:       state.continuedBy,
+	}
+	if row.CanceledByKind.Valid {
+		out.CanceledBy = &authorJSON{Kind: row.CanceledByKind.String, ID: row.CanceledByID.String(), Name: row.CanceledByName.String}
 	}
 	if row.DashboardID.Valid {
 		id := row.DashboardID.String()
@@ -311,13 +385,18 @@ func (h *ObserveHandler) view(c *gin.Context, row dbsqlc.AgentRequest) agentRequ
 		}
 		out.Steps = []Step{}
 	}
-	if len(row.RunUsage) > 0 {
-		var usage Usage
-		if err := json.Unmarshal(row.RunUsage, &usage); err != nil {
-			h.service.logger.ErrorContext(c.Request.Context(), "decode agent request usage", logattrs.Failure("agent_request_usage_decode_failed", err, slog.String("agent_request_id", out.ID))...)
-		} else {
-			out.Usage = &usage
-		}
-	}
+	out.Usage = h.service.decodeUsage(c.Request.Context(), out.ID, row.RunUsage)
 	return out
+}
+
+func (s *Service) decodeUsage(ctx context.Context, requestID string, raw []byte) *Usage {
+	if len(raw) == 0 {
+		return nil
+	}
+	var usage Usage
+	if err := json.Unmarshal(raw, &usage); err != nil {
+		s.logger.ErrorContext(ctx, "decode agent request usage", logattrs.Failure("agent_request_usage_decode_failed", err, slog.String("agent_request_id", requestID))...)
+		return nil
+	}
+	return &usage
 }

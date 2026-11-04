@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"reflect"
 	"strings"
@@ -204,6 +205,29 @@ func waitForStatus(t *testing.T, svc *revisions.Service, dashboard pgtype.UUID, 
 	return rev
 }
 
+func failureCodeOf(t *testing.T, svc *revisions.Service, id string) (code string, set bool) {
+	t.Helper()
+	row, err := svc.GetByID(context.Background(), mustUUID(t, id))
+	if err != nil {
+		t.Fatalf("GetByID(%s): %v", id, err)
+	}
+	return row.FailureCode.String, row.FailureCode.Valid
+}
+
+func assertFailureCode(t *testing.T, svc *revisions.Service, id string, want revisions.FailureCode) {
+	t.Helper()
+	if code, set := failureCodeOf(t, svc, id); code != string(want) || !set {
+		t.Fatalf("failure_code = %q (set %v), want %q", code, set, want)
+	}
+}
+
+func assertNoFailureCode(t *testing.T, svc *revisions.Service, id string) {
+	t.Helper()
+	if code, set := failureCodeOf(t, svc, id); set {
+		t.Fatalf("failure_code = %q, want NULL", code)
+	}
+}
+
 func succeedWith(version int) reviserFunc {
 	return func(context.Context, revisions.Request) (revisions.Result, error) {
 		return revisions.Result{Version: version}, nil
@@ -231,6 +255,7 @@ func TestRequestRunsAndSucceeds(t *testing.T) {
 	if got.ID != rev.ID || got.DashboardID != dash.String() || got.Prompt != "add a p99 panel" || got.BaseVersion != 1 || !reflect.DeepEqual(got.RequestedBy, user) {
 		t.Fatalf("the reviser received %+v", got)
 	}
+	assertNoFailureCode(t, svc, rev.ID)
 }
 
 func TestRunActsWithTheRequestersCurrentRoleAndGroups(t *testing.T) {
@@ -267,6 +292,7 @@ func TestRunFailsWhenTheRequesterNoLongerExists(t *testing.T) {
 	if failed.Error != "the person or key that asked for this run no longer exists" || calls.Load() != 0 {
 		t.Fatalf("revision = %+v after %d calls", failed, calls.Load())
 	}
+	assertFailureCode(t, svc, rev.ID, revisions.FailureRequesterGone)
 }
 
 func TestRunIsReleasedWhenTheRequesterCannotBeLoaded(t *testing.T) {
@@ -415,6 +441,7 @@ func TestPanicInTheReviserFailsOnlyThatRequest(t *testing.T) {
 	if failed.Error != "the agent run crashed" {
 		t.Fatalf("error = %q", failed.Error)
 	}
+	assertFailureCode(t, svc, boom.ID, revisions.FailureCrashed)
 	waitForStatus(t, svc, dash, fine.ID, revisions.StatusSucceeded)
 }
 
@@ -459,6 +486,40 @@ func TestRunTimeoutFailsTheRequest(t *testing.T) {
 	failed := waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
 	if failed.Error != "the agent run timed out" {
 		t.Fatalf("error = %q", failed.Error)
+	}
+	assertFailureCode(t, svc, rev.ID, revisions.FailureRunTimeout)
+}
+
+func TestRunTimeoutOverridesTheCodeThatTheReviserReports(t *testing.T) {
+	svc, d := newService(t, reviserFunc(func(ctx context.Context, _ revisions.Request) (revisions.Result, error) {
+		<-ctx.Done()
+		return revisions.Result{FailureCode: revisions.FailureCallTimeout}, ctx.Err()
+	}))
+	dash := seedDashboard(t, d, 1)
+	rev := submit(t, svc, dash, "slow")
+	startWorker(t, svc, d, revisions.WorkerOptions{RunTimeout: 100 * time.Millisecond})
+	waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
+	assertFailureCode(t, svc, rev.ID, revisions.FailureRunTimeout)
+}
+
+func TestFailedRunStoresTheCodeTheReviserReportsOrInternal(t *testing.T) {
+	for name, tc := range map[string]struct {
+		reported revisions.FailureCode
+		want     revisions.FailureCode
+	}{
+		"a reported code is stored": {revisions.FailureRateLimited, revisions.FailureRateLimited},
+		"no reported code":          {"", revisions.FailureInternal},
+	} {
+		t.Run(name, func(t *testing.T) {
+			svc, d := newService(t, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+				return revisions.Result{FailureCode: tc.reported}, errors.New("the run failed")
+			}))
+			dash := seedDashboard(t, d, 1)
+			rev := submit(t, svc, dash, "go")
+			startWorker(t, svc, d, revisions.WorkerOptions{})
+			waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
+			assertFailureCode(t, svc, rev.ID, tc.want)
+		})
 	}
 }
 
@@ -613,6 +674,7 @@ func TestPersistentFailureToCheckTheSavedVersionReleasesThenFailsTheRequest(t *t
 	if failed.Error != "could not check the request's saved version" || failed.Attempts != 1 || calls.Load() != 0 {
 		t.Fatalf("revision = %+v after %d calls", failed, calls.Load())
 	}
+	assertFailureCode(t, svc, rev.ID, revisions.FailureCheckFailed)
 }
 
 func TestCheckFailedReleaseKeepsTheRecordedSteps(t *testing.T) {
@@ -677,6 +739,7 @@ func TestSecondExpiredLeaseFailsWithoutAnotherRun(t *testing.T) {
 	if failed.Error != revisions.ExhaustedMessage || failed.Attempts != 2 || calls.Load() != 0 {
 		t.Fatalf("exhausted revision = %+v after %d calls", failed, calls.Load())
 	}
+	assertFailureCode(t, svc, rev.ID, revisions.FailureLeaseExpired)
 }
 
 func TestExhaustedRequestWithASavedVersionSucceeds(t *testing.T) {
@@ -695,6 +758,7 @@ func TestExhaustedRequestWithASavedVersionSucceeds(t *testing.T) {
 	if done.ResultVersion == nil || *done.ResultVersion != 2 || done.Error != "" || done.Attempts != 2 || done.FinishedAt == nil || calls.Load() != 0 {
 		t.Fatalf("revision = %+v after %d calls", done, calls.Load())
 	}
+	assertNoFailureCode(t, svc, rev.ID)
 }
 
 func TestExhaustedThreadRequestWithASavedVersionResolvesTheThread(t *testing.T) {
@@ -1313,7 +1377,73 @@ func TestRunFailsWhenTheRequesterNoLongerHasAccessAtClaim(t *testing.T) {
 		row, err := svc.GetByID(context.Background(), observe.ID)
 		return err == nil && row.Status == string(revisions.StatusFailed) && row.Error.String == message
 	})
+	assertFailureCode(t, svc, rev.ID, revisions.FailureRequesterForbidden)
+	assertFailureCode(t, svc, observe.ID.String(), revisions.FailureRequesterForbidden)
 	if calls.Load() != 0 {
 		t.Fatalf("the agent ran %d times for requesters without access", calls.Load())
+	}
+}
+
+func TestObserveResponseCarriesTheFailureCodeAndTheExtendedUsage(t *testing.T) {
+	usage := revisions.Usage{
+		Provider: "openai", Model: "m", ModelCalls: 2, FailedCalls: 1, Retries: 2, ToolCalls: 3,
+		ModelMS: 1500, ToolMS: 40, MaxSaveOutputTokens: 1800, OutputTokens: 900,
+	}
+	svc, d := newService(t, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+		return revisions.Result{Usage: &usage, FailureCode: revisions.FailureRateLimited}, errors.New("the model provider is rate limiting requests")
+	}))
+	dash := seedDashboard(t, d, 2)
+	okID := observeFor(t, svc, user, "fine")
+	d.Exec(t, "UPDATE agent_requests SET status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, okID), dash)
+	failedID := observeFor(t, svc, user, "limited")
+	startWorker(t, svc, d, revisions.WorkerOptions{Workers: 1})
+	waitFor(t, "the limited observe request to fail", func() bool {
+		row, err := svc.GetByID(context.Background(), mustUUID(t, failedID))
+		return err == nil && row.Status == string(revisions.StatusFailed)
+	})
+
+	fetch := func(id string) map[string]any {
+		rec := call(observeRouterFor(svc, user), http.MethodGet, "/api/v1/observe/"+id, "")
+		var body struct {
+			Request map[string]any `json:"request"`
+		}
+		if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &body) != nil {
+			t.Fatalf("GET /observe/%s: %d %s", id, rec.Code, rec.Body)
+		}
+		return body.Request
+	}
+	failed := fetch(failedID)
+	if failed["failure_code"] != "rate_limited" {
+		t.Fatalf("failure_code = %v", failed["failure_code"])
+	}
+	want := map[string]float64{"model_calls": 2, "failed_calls": 1, "retries": 2, "tool_calls": 3, "model_ms": 1500, "tool_ms": 40, "max_save_output_tokens": 1800}
+	got, _ := failed["usage"].(map[string]any)
+	for key, value := range want {
+		if got[key] != value {
+			t.Errorf("usage.%s = %v, want %v", key, got[key], value)
+		}
+	}
+	ok := fetch(okID)
+	if code, present := ok["failure_code"]; !present || code != nil {
+		t.Fatalf("a succeeded request must report failure_code null, got %v (present %v)", code, present)
+	}
+}
+
+func TestStoredUsageWithoutTheNewFieldsStillDecodesWithZeros(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	id := observeFor(t, svc, user, "old row")
+	d.Exec(t, `UPDATE agent_requests SET status = 'failed', error = 'x', run_usage = '{"provider":"p","model":"m","input_tokens":1,"output_tokens":2,"cache_read_tokens":0,"cache_write_tokens":0,"model_calls":1,"repair_rounds":0}'::jsonb WHERE id = $1`, mustUUID(t, id))
+	rec := call(observeRouterFor(svc, user), http.MethodGet, "/api/v1/observe/"+id, "")
+	var body struct {
+		Request struct {
+			FailureCode *string        `json:"failure_code"`
+			Usage       map[string]any `json:"usage"`
+		} `json:"request"`
+	}
+	if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &body) != nil {
+		t.Fatalf("GET: %d %s", rec.Code, rec.Body)
+	}
+	if body.Request.FailureCode != nil || body.Request.Usage["failed_calls"] != float64(0) || body.Request.Usage["model_ms"] != float64(0) {
+		t.Fatalf("request = %+v", body.Request)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -18,12 +19,12 @@ import (
 )
 
 const (
-	defaultWorkers    = 2
-	defaultPoll       = 5 * time.Second
-	defaultRunTimeout = 3 * time.Minute
-	finishTimeout     = 15 * time.Second
-	listenBackoff     = time.Second
-	maxListenBackoff  = 30 * time.Second
+	defaultWorkers   = 2
+	defaultPoll      = 5 * time.Second
+	heartbeatEvery   = 5 * time.Second
+	finishTimeout    = 15 * time.Second
+	listenBackoff    = time.Second
+	maxListenBackoff = 30 * time.Second
 
 	maxCheckFailures   = 3
 	checkFailedMessage = "could not check the request's saved version"
@@ -48,6 +49,8 @@ type Worker struct {
 	listen  events.Listener
 	logger  *slog.Logger
 	opts    WorkerOptions
+
+	heartbeat time.Duration
 }
 
 func NewWorker(service *Service, listen events.Listener, logger *slog.Logger, opts WorkerOptions) *Worker {
@@ -63,10 +66,7 @@ func NewWorker(service *Service, listen events.Listener, logger *slog.Logger, op
 	if opts.Poll <= 0 {
 		opts.Poll = defaultPoll
 	}
-	if opts.RunTimeout <= 0 {
-		opts.RunTimeout = defaultRunTimeout
-	}
-	return &Worker{service: service, listen: listen, logger: logger, opts: opts}
+	return &Worker{service: service, listen: listen, logger: logger, opts: opts, heartbeat: heartbeatEvery}
 }
 
 func (w *Worker) Run(ctx context.Context) {
@@ -160,11 +160,16 @@ func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool 
 		}
 	}
 
+	if claimed.CancelRequestedAt.Valid {
+		w.finish(ctx, claimed, canceledOutcome(nil, nil))
+		return true
+	}
+
 	req := requestFrom(claimed)
 	requester, err := w.service.principals.Principal(ctx, auth.PrincipalKind(claimed.RequestedByKind), claimed.RequestedByID.String())
 	switch {
 	case errors.Is(err, auth.ErrPrincipalGone):
-		w.finish(ctx, claimed, outcome{message: requesterGoneMessage, code: "agent_requester_gone"})
+		w.finish(ctx, claimed, outcome{message: requesterGoneMessage, code: "agent_requester_gone", failure: FailureRequesterGone})
 		return true
 	case err != nil:
 		w.logger.ErrorContext(ctx, "load agent request requester", logattrs.Failure("agent_requester_load_failed", err, logAttrs(claimed)...)...)
@@ -174,7 +179,7 @@ func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool 
 	req.RequestedBy = requester
 	switch err := w.service.checkRun(ctx, Source(claimed.Source), claimed.DashboardID, requester); {
 	case errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound):
-		w.finish(ctx, claimed, outcome{message: requesterForbiddenMessage, code: "agent_requester_forbidden"})
+		w.finish(ctx, claimed, outcome{message: requesterForbiddenMessage, code: "agent_requester_forbidden", failure: FailureRequesterForbidden})
 		return true
 	case err != nil:
 		w.logger.ErrorContext(ctx, "check agent request requester access", logattrs.Failure("agent_requester_access_failed", err, logAttrs(claimed)...)...)
@@ -182,39 +187,137 @@ func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool 
 		return false
 	}
 
-	runCtx, cancel := context.WithTimeout(ctx, w.opts.RunTimeout)
-	result, err := w.revise(runCtx, req)
-	timedOut := errors.Is(runCtx.Err(), context.DeadlineExceeded)
-	cancel()
-
+	result, run, err := w.runLeased(ctx, claimed, req)
+	if run.lost || errors.Is(err, ErrLeaseLost) {
+		w.logger.WarnContext(ctx, "agent request lease lost; dropping this attempt's work", logattrs.Failure("agent_request_lease_lost", ErrLeaseLost, append(logAttrs(claimed), slog.Int("attempt", int(claimed.Attempts)))...)...)
+		return false
+	}
 	if err == nil {
 		w.finish(ctx, claimed, successOutcome(suggest, result))
 		return true
 	}
-	if !suggest {
+	return w.settleFailure(ctx, claimed, run, result, err)
+}
+
+func (w *Worker) settleFailure(ctx context.Context, claimed dbsqlc.AgentRequest, run runEnd, result Result, err error) bool {
+	if claimed.Source != string(SourceSuggest) {
 		if settled, progressed := w.settleSaved(ctx, claimed, result.Usage); settled {
 			return progressed
 		}
 	}
 	crashed := errors.Is(err, errCrashed)
-	code := "agent_run_failed"
-	if crashed {
-		code = "agent_run_panicked"
-	}
-	switch {
-	case ctx.Err() != nil:
+	switch settlementFor(run, ctx.Err() != nil, crashed) {
+	case settleCanceled:
+		w.finish(ctx, claimed, canceledOutcome(err, result.Usage))
+	case settleRelease:
 		w.logger.InfoContext(ctx, "agent request interrupted; releasing it", slog.String("agent_request_id", claimed.ID.String()))
 		w.release(ctx, claimed, false)
 		return false
-	case timedOut:
-		if !crashed {
-			code = "agent_run_timed_out"
+	case settleTimedOut:
+		code, failure := "agent_run_timed_out", FailureRunTimeout
+		if crashed {
+			code, failure = "agent_run_panicked", FailureCrashed
 		}
-		w.finish(ctx, claimed, outcome{message: timedOutMessage, code: code, cause: err, usage: result.Usage})
+		w.finish(ctx, claimed, outcome{message: timedOutMessage, code: code, failure: failure, cause: err, usage: result.Usage})
 	default:
-		w.finish(ctx, claimed, outcome{message: err.Error(), code: code, cause: err, usage: result.Usage})
+		code, failure := "agent_run_failed", result.FailureCode
+		if crashed {
+			code, failure = "agent_run_panicked", FailureCrashed
+		}
+		if failure == "" {
+			failure = FailureInternal
+		}
+		w.finish(ctx, claimed, outcome{message: err.Error(), code: code, failure: failure, cause: err, usage: result.Usage})
 	}
 	return true
+}
+
+type settlement int
+
+const (
+	settleFailed settlement = iota
+	settleCanceled
+	settleRelease
+	settleTimedOut
+)
+
+func settlementFor(run runEnd, shuttingDown, crashed bool) settlement {
+	switch {
+	case run.canceled && !crashed:
+		return settleCanceled
+	case shuttingDown:
+		return settleRelease
+	case run.timedOut:
+		return settleTimedOut
+	}
+	return settleFailed
+}
+
+func canceledOutcome(cause error, usage *Usage) outcome {
+	return outcome{message: CanceledMessage, code: "agent_run_canceled", failure: FailureCanceled, cause: cause, usage: usage}
+}
+
+type runEnd struct {
+	timedOut bool
+	lost     bool
+	canceled bool
+}
+
+func (w *Worker) runLeased(ctx context.Context, claimed dbsqlc.AgentRequest, req Request) (Result, runEnd, error) {
+	runCtx, cancel := w.runContext(ctx)
+	defer cancel()
+	var lost, canceled atomic.Bool
+	stopHeartbeat := w.holdLease(ctx, claimed, cancel, &lost, &canceled)
+	result, err := w.revise(runCtx, req)
+	stopHeartbeat()
+	return result, runEnd{timedOut: errors.Is(runCtx.Err(), context.DeadlineExceeded), lost: lost.Load(), canceled: canceled.Load()}, err
+}
+
+func (w *Worker) runContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if w.opts.RunTimeout <= 0 {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, w.opts.RunTimeout)
+}
+
+func (w *Worker) holdLease(ctx context.Context, claimed dbsqlc.AgentRequest, cancelRun context.CancelFunc, lost, canceled *atomic.Bool) (stop func()) {
+	beatCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(w.heartbeat)
+		defer ticker.Stop()
+		renewedAt := time.Now()
+		for {
+			select {
+			case <-beatCtx.Done():
+				return
+			case <-ticker.C:
+			}
+			renewCtx, cancelRenew := context.WithTimeout(beatCtx, w.service.leaseTTL)
+			cancelRequested, err := w.service.renewLease(renewCtx, claimed)
+			cancelRenew()
+			switch {
+			case err == nil:
+				renewedAt = time.Now()
+				if cancelRequested && canceled.CompareAndSwap(false, true) {
+					cancelRun()
+				}
+			case beatCtx.Err() != nil:
+				return
+			case errors.Is(err, ErrLeaseLost), time.Since(renewedAt) > w.service.leaseTTL:
+				lost.Store(true)
+				cancelRun()
+				return
+			default:
+				w.logger.WarnContext(ctx, "renew agent request lease; retrying at the next beat", logattrs.Failure("agent_lease_renew_failed", err, logAttrs(claimed)...)...)
+			}
+		}
+	}()
+	return func() {
+		cancel()
+		<-done
+	}
 }
 
 func successOutcome(suggest bool, result Result) outcome {
@@ -223,7 +326,7 @@ func successOutcome(suggest bool, result Result) outcome {
 	}
 	proposed := bytes.TrimSpace(result.Suggestion)
 	if len(proposed) == 0 || proposed[0] != '{' || !json.Valid(proposed) {
-		return outcome{message: noSuggestionMessage, code: "agent_no_suggestion", usage: result.Usage}
+		return outcome{message: noSuggestionMessage, code: "agent_no_suggestion", failure: FailureNoSuggestion, usage: result.Usage}
 	}
 	return outcome{suggestion: proposed, usage: result.Usage}
 }
@@ -236,7 +339,7 @@ func (w *Worker) settleSaved(ctx context.Context, claimed dbsqlc.AgentRequest, u
 	case err != nil:
 		w.logger.ErrorContext(ctx, "check agent request result", logattrs.Failure("agent_request_check_failed", err, slog.String("agent_request_id", claimed.ID.String()))...)
 		if int(claimed.CheckFailures)+1 >= maxCheckFailures {
-			w.finish(ctx, claimed, outcome{message: checkFailedMessage, code: "agent_request_check_failed", cause: err})
+			w.finish(ctx, claimed, outcome{message: checkFailedMessage, code: "agent_request_check_failed", failure: FailureCheckFailed, cause: err})
 			return true, true
 		}
 		w.release(ctx, claimed, true)
@@ -305,15 +408,17 @@ func logAttrs(claimed dbsqlc.AgentRequest) []any {
 
 func requestFrom(row dbsqlc.AgentRequest) Request {
 	return Request{
-		ID:          row.ID.String(),
-		DashboardID: row.DashboardID.String(),
-		Source:      Source(row.Source),
-		Prompt:      row.Prompt,
-		PanelID:     row.PanelID.String,
-		BaseVersion: int(row.BaseVersion.Int32),
-		Draft:       row.Draft,
-		Attempt:     int(row.Attempts),
-		RequestedBy: requesterOf(row),
-		Origin:      origin.Origin{Kind: origin.Kind(row.Origin.String), Client: row.OriginClient.String},
+		ID:           row.ID.String(),
+		DashboardID:  row.DashboardID.String(),
+		Source:       Source(row.Source),
+		Prompt:       row.Prompt,
+		PanelID:      row.PanelID.String,
+		BaseVersion:  int(row.BaseVersion.Int32),
+		Draft:        row.Draft,
+		Attempt:      int(row.Attempts),
+		RequestedBy:  requesterOf(row),
+		Origin:       origin.Origin{Kind: origin.Kind(row.Origin.String), Client: row.OriginClient.String},
+		Continues:    row.ContinuesID.Valid,
+		ContinueNote: row.ContinueNote.String,
 	}
 }

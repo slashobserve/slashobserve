@@ -34,13 +34,15 @@ type Service struct {
 	logger  *slog.Logger
 	panels  PanelChecker
 	specs   SpecReader
+	builds  Builds
 
 	principals Principals
 	access     *folders.Access
+	leaseTTL   time.Duration
 }
 
 func NewService(database *db.DB, reviser Reviser, logger *slog.Logger, opts ...Option) *Service {
-	s := &Service{db: database, reviser: reviser, logger: logger}
+	s := &Service{db: database, reviser: reviser, logger: logger, leaseTTL: LeaseTTL}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -59,6 +61,9 @@ type EnqueueParams struct {
 	PanelID     string
 	BaseVersion int
 	By          auth.Principal
+
+	ContinuesID  pgtype.UUID
+	ContinueNote string
 }
 
 func (s *Service) Submit(ctx context.Context, p EnqueueParams) (dbsqlc.AgentRequest, error) {
@@ -116,6 +121,8 @@ func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		RequestedByEmail: pgtype.Text{String: p.By.Email, Valid: p.By.Email != ""},
 		Origin:           originKind,
 		OriginClient:     originClient,
+		ContinuesID:      p.ContinuesID,
+		ContinueNote:     pgtype.Text{String: p.ContinueNote, Valid: p.ContinueNote != ""},
 	})
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue agent request: %w", err)
@@ -207,48 +214,56 @@ func (s *Service) SubmitObserve(ctx context.Context, by auth.Principal, prompt s
 	if err := s.checkRun(ctx, SourceObserve, pgtype.UUID{}, by); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
+	var row dbsqlc.AgentRequest
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		var err error
+		row, err = s.enqueueObserve(ctx, q, by, prompt, pgtype.UUID{}, "")
+		return err
+	})
+	return row, err
+}
+
+func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, prompt string, continuesID pgtype.UUID, note string) (dbsqlc.AgentRequest, error) {
 	requesterID, err := db.ParseUUID(by.ID)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("requester id: %w", err)
 	}
 	originKind, originClient := origin.From(ctx).Columns()
-	var row dbsqlc.AgentRequest
-	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		if err := q.LockObserveRequests(ctx); err != nil {
-			return fmt.Errorf("lock observe requests: %w", err)
-		}
-		mine, err := q.CountActiveObserveRequestsBy(ctx, requesterID)
-		if err != nil {
-			return fmt.Errorf("count active observe requests of requester: %w", err)
-		}
-		if mine >= MaxActiveObservePerPrincipal {
-			return ErrTooManyRequests
-		}
-		all, err := q.CountActiveObserveRequests(ctx)
-		if err != nil {
-			return fmt.Errorf("count active observe requests: %w", err)
-		}
-		if all >= MaxActiveObserve {
-			return ErrAgentBusy
-		}
-		row, err = q.EnqueueObserveRequest(ctx, dbsqlc.EnqueueObserveRequestParams{
-			Prompt:           prompt,
-			RequestedByKind:  string(by.Kind),
-			RequestedByID:    requesterID,
-			RequestedByName:  by.Name,
-			RequestedByEmail: pgtype.Text{String: by.Email, Valid: by.Email != ""},
-			Origin:           originKind,
-			OriginClient:     originClient,
-		})
-		if err != nil {
-			return fmt.Errorf("enqueue observe request: %w", err)
-		}
-		if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
-			return fmt.Errorf("notify workers: %w", err)
-		}
-		return nil
+	if err := q.LockObserveRequests(ctx); err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("lock observe requests: %w", err)
+	}
+	mine, err := q.CountActiveObserveRequestsBy(ctx, requesterID)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("count active observe requests of requester: %w", err)
+	}
+	if mine >= MaxActiveObservePerPrincipal {
+		return dbsqlc.AgentRequest{}, ErrTooManyRequests
+	}
+	all, err := q.CountActiveObserveRequests(ctx)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("count active observe requests: %w", err)
+	}
+	if all >= MaxActiveObserve {
+		return dbsqlc.AgentRequest{}, ErrAgentBusy
+	}
+	row, err := q.EnqueueObserveRequest(ctx, dbsqlc.EnqueueObserveRequestParams{
+		Prompt:           prompt,
+		RequestedByKind:  string(by.Kind),
+		RequestedByID:    requesterID,
+		RequestedByName:  by.Name,
+		RequestedByEmail: pgtype.Text{String: by.Email, Valid: by.Email != ""},
+		Origin:           originKind,
+		OriginClient:     originClient,
+		ContinuesID:      continuesID,
+		ContinueNote:     pgtype.Text{String: note, Valid: note != ""},
 	})
-	return row, err
+	if err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue observe request: %w", err)
+	}
+	if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("notify workers: %w", err)
+	}
+	return row, nil
 }
 
 func (s *Service) GetByID(ctx context.Context, id pgtype.UUID) (dbsqlc.AgentRequest, error) {
@@ -355,6 +370,9 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 		if err != nil {
 			return fmt.Errorf("fail exhausted agent requests: %w", err)
 		}
+		if _, err := q.DeleteExpiredAgentRequestBuilds(ctx, BuildRetentionDays); err != nil {
+			return fmt.Errorf("delete expired agent request builds: %w", err)
+		}
 		for _, row := range exhausted {
 			if err := notifyRevision(ctx, q, row); err != nil {
 				return err
@@ -363,7 +381,7 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 				s.resolveThread(ctx, savepoint, row)
 			}
 		}
-		row, err := q.ClaimAgentRequest(ctx, MaxAttempts)
+		row, err := q.ClaimAgentRequest(ctx, dbsqlc.ClaimAgentRequestParams{LeaseSeconds: s.leaseTTL.Seconds(), MaxAttempts: MaxAttempts})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
@@ -381,11 +399,25 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 	return claimed, found, err
 }
 
+func (s *Service) renewLease(ctx context.Context, claimed dbsqlc.AgentRequest) (canceled bool, err error) {
+	cancelRequestedAt, err := s.db.Queries().RenewAgentRequestLease(ctx, dbsqlc.RenewAgentRequestLeaseParams{
+		LeaseSeconds: s.leaseTTL.Seconds(), ID: claimed.ID, Attempts: claimed.Attempts,
+	})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return false, ErrLeaseLost
+	case err != nil:
+		return false, fmt.Errorf("renew agent request lease: %w", err)
+	}
+	return cancelRequestedAt.Valid, nil
+}
+
 type outcome struct {
 	version    *int
 	suggestion json.RawMessage
 	message    string
 	code       string
+	failure    FailureCode
 	cause      error
 	usage      *Usage
 }
@@ -414,7 +446,7 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 			})
 		default:
 			row, err = q.FailAgentRequest(ctx, dbsqlc.FailAgentRequestParams{
-				ID: claimed.ID, Attempts: claimed.Attempts, Error: truncateError(o.message), RunUsage: usage,
+				ID: claimed.ID, Attempts: claimed.Attempts, Error: truncateError(o.message), FailureCode: failureText(o.failure), RunUsage: usage,
 			})
 		}
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -433,6 +465,10 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 		return nil
 	})
 	return finished, err
+}
+
+func failureText(code FailureCode) pgtype.Text {
+	return pgtype.Text{String: string(code), Valid: code != ""}
 }
 
 func (s *Service) release(ctx context.Context, claimed dbsqlc.AgentRequest, checkFailed bool) (bool, error) {
@@ -568,6 +604,12 @@ func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 	}
 	rev.StartedAt = optionalTime(row.StartedAt)
 	rev.FinishedAt = optionalTime(row.FinishedAt)
+	rev.FailureCode = row.FailureCode.String
+	rev.BuildSavedAt = optionalTime(row.BuildSavedAt)
+	rev.ContinueNote = row.ContinueNote.String
+	if row.ContinuesID.Valid {
+		rev.ContinuesID = row.ContinuesID.String()
+	}
 	return rev
 }
 
