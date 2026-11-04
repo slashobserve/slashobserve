@@ -160,8 +160,8 @@ SET steps = (
           OVER (ORDER BY numbered.n DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
       END AS recent
     FROM (
-      SELECT recorded, row_number() OVER () AS n
-      FROM jsonb_array_elements(agent_requests.steps) AS recorded
+      SELECT recorded, n
+      FROM jsonb_array_elements(agent_requests.steps) WITH ORDINALITY AS elements(recorded, n)
     ) numbered
   ) ranked
   WHERE ranked.recent IS NULL OR ranked.recent < @max_steps::integer
