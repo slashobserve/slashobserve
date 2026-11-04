@@ -15,3 +15,6 @@ coverage.*
 .idea/
 .vscode/
 /dist/
+
+/plans/
+/.claude/
