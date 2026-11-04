@@ -8,6 +8,7 @@ import type { Variable } from "@/spec"
 
 import { panelRequestLimiter } from "./limiter"
 import {
+  loadRangeScope,
   panelFingerprint,
   sourceScope,
   stateScope,
@@ -63,9 +64,12 @@ export function useVariables({
   }>({ owner, vars: {} })
   const sessionVars = sessionState.owner === owner ? sessionState.vars : {}
   const scope = sourceScope(source)
-  const [loadRange, setLoadRange] = useState({ scope, from, to })
-  if (loadRange.scope !== scope) setLoadRange({ scope, from, to })
-  const atLoad = loadRange.scope === scope ? loadRange : { from, to }
+  const rangeScope = loadRangeScope(source, { from, to })
+  const [loadRange, setLoadRange] = useState({ scope: rangeScope, from, to })
+  if (loadRange.scope !== rangeScope) {
+    setLoadRange({ scope: rangeScope, from, to })
+  }
+  const atLoad = loadRange.scope === rangeScope ? loadRange : { from, to }
   const vars = mergeVars(variables, { url: urlVars, session: sessionVars })
   const [knownOptions, setKnownOptions] = useState<VariableOptions>({})
   const requests = valuesRequests(variables, vars, knownOptions)

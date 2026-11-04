@@ -5,6 +5,7 @@ import { reusePanel } from "@/panels/transforms/reuse-panel"
 
 import {
   keepsPreviousData,
+  loadRangeScope,
   panelDataKey,
   panelFingerprint,
   sourceScope,
@@ -142,5 +143,24 @@ describe("scopes", () => {
     expect(sourceScope(build)).toBe("build:req")
     expect(stateScope(build)).toBe("build:req")
     expect(sourceScope({ ...build, saves: 5 })).toBe(sourceScope(build))
+  })
+
+  it("resets a build's load range when its time range changes, not when it saves again", () => {
+    const range = { from: "now-6h", to: "now" }
+    expect(loadRangeScope({ ...build, saves: 5 }, range)).toBe(
+      loadRangeScope(build, range)
+    )
+    expect(loadRangeScope(build, { from: "now-1h", to: "now" })).not.toBe(
+      loadRangeScope(build, range)
+    )
+    expect(loadRangeScope(build, { from: "now-6h", to: "now-1h" })).not.toBe(
+      loadRangeScope(build, range)
+    )
+  })
+
+  it("keeps a version's load range scope independent of the time range", () => {
+    expect(loadRangeScope(version, { from: "now-1h", to: "now" })).toBe(
+      loadRangeScope(version, { from: "now-6h", to: "now" })
+    )
   })
 })

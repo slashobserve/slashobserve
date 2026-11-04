@@ -20,6 +20,15 @@ export function sourceScope(source: PanelSource): string {
     : `build:${source.requestId}`
 }
 
+export function loadRangeScope(
+  source: PanelSource,
+  range: { from?: string; to?: string }
+): string {
+  return source.kind === "version"
+    ? sourceScope(source)
+    : `${sourceScope(source)}:${range.from ?? ""}:${range.to ?? ""}`
+}
+
 export function stateScope(source: PanelSource): string {
   return source.kind === "version"
     ? source.dashboardId
