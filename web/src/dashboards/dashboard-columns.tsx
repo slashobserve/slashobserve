@@ -11,6 +11,7 @@ import { ArrowUpRightIcon } from "lucide-react"
 import type { paths } from "@/api/schema.gen"
 import { RelativeTime } from "@/components/relative-time"
 import { madeByDetail } from "@/lib/origin"
+import { cn } from "@/lib/utils"
 
 import { DashboardRowMenu } from "./row-menu"
 
@@ -30,6 +31,8 @@ declare module "@tanstack/react-table" {
 
 export type DashboardSummary =
   paths["/dashboards"]["get"]["responses"][200]["content"]["application/json"]["dashboards"][number]
+
+const zeroWidthAfterLastWord = "ml-1 -mr-[18px]"
 
 export const listFeatures = tableFeatures({})
 
@@ -55,7 +58,10 @@ export const dashboardColumns = column.columns([
           rel="noopener"
           aria-label={`Open ${row.original.title} in a new tab`}
           title={`Open ${row.original.title} in a new tab`}
-          className="ml-1 inline-block rounded-sm align-text-bottom text-muted-foreground opacity-0 outline-none group-hover/row:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring [@media(hover:none)]:opacity-100"
+          className={cn(
+            zeroWidthAfterLastWord,
+            "inline-block rounded-sm align-text-bottom text-muted-foreground opacity-0 outline-none group-hover/row:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring [@media(hover:none)]:opacity-100"
+          )}
         >
           <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
         </Link>
