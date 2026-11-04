@@ -25,7 +25,7 @@ define DEMO_BANNER
 	@echo "Sign in as admin@example.com / password (Dex, development only)"
 endef
 
-.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-down demo-reset demo-fault demo-fault-reset e2e e2e-browser e2e-all evals golden tidy-check clean
+.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down e2e e2e-browser e2e-all evals golden tidy-check clean
 
 build: web
 	$(MAKE) server cli
@@ -104,6 +104,12 @@ demo-fault:
 
 demo-fault-reset:
 	curl -fsS -X DELETE "http://localhost:$${SLASHOBSERVE_SHOP_HOST_PORT:-8081}/fault"
+
+demo-k8s:
+	scripts/demo-k8s.sh up
+
+demo-k8s-down:
+	scripts/demo-k8s.sh down
 
 e2e:
 	scripts/e2e.sh

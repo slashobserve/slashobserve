@@ -60,3 +60,15 @@ A bad `type` or `pct` returns 400 with `{"error":"..."}`.
 `kind` is `counter` or `gauge`, and `labels` is a list of label maps, one series each; an empty list gives one series with no labels.
 A counter grows by 1 per second since the process started, so `rate()` is a stable 1; a gauge is always 1.
 Unknown fields, a bad kind, a bad name and duplicate metric names are rejected at start.
+
+## Kubernetes
+
+`make demo-k8s` runs the same shop on a local three-node kind cluster named `slashobserve-demo`, next to kube-state-metrics, node-exporter and a Prometheus that carries the kube-prometheus recording rules, so the public Kubernetes dashboards have real data.
+The shop keeps its contract there: one Deployment per pod name (`frontend-0`, `checkout-0`, `checkout-1`, `payments-0`) plus `loadgen`, each with the fixed `SHOP_POD`, so every pod keeps its own fault state.
+The fault APIs of `checkout-0` and `checkout-1` are on http://127.0.0.1:38081 and http://127.0.0.1:38082, and Prometheus is on http://127.0.0.1:39090.
+
+    scripts/demo-k8s.sh fault checkout-1 errors 30
+    scripts/demo-k8s.sh fault checkout-1 errors 0
+
+`make demo-k8s-down` deletes only that cluster.
+`demo/k8s/README.md` lists what runs, the scrape jobs and the recording rules.

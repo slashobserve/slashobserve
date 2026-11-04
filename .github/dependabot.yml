@@ -8,6 +8,7 @@ updates:
       - /tools/sqlc
       - /tools/golangci-lint
       - /tools/govulncheck
+      - /tools/kind
     schedule:
       interval: weekly
     cooldown:
