@@ -242,6 +242,7 @@ function DashboardView({
 
   const [linkedPanel, setLinkedPanel] = useState(search.panel)
   const clearLinkedPanel = useCallback(() => setLinkedPanel(undefined), [])
+  const [focusesLinkedPanel] = useState(search.edit === undefined)
   useEffect(() => {
     if (linkedPanel === undefined) return
     const row = findPanel(spec, linkedPanel)?.row
@@ -489,7 +490,11 @@ function DashboardView({
                   }
                   canComment={permissions.comment}
                   canEdit={permissions.edit}
-                  focusOnRender={item.first && item.panel.id === linkedPanel}
+                  focusOnRender={
+                    focusesLinkedPanel &&
+                    item.first &&
+                    item.panel.id === linkedPanel
+                  }
                   onFocused={clearLinkedPanel}
                   composerRef={composerRef}
                 />
