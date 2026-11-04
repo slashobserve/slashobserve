@@ -2,6 +2,7 @@ package revisions_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -124,5 +125,34 @@ func TestClaimStillWorksWhenBuildRetentionCleanupFails(t *testing.T) {
 	claimed, found := claimOne(t, svc)
 	if !found || claimed.ID != row.ID {
 		t.Fatalf("claim = %+v, found %v; want the queued request despite the failing cleanup", claimed, found)
+	}
+}
+
+func TestContinueRefusesWithVersionConflictWhenTheDashboardMovedOnAndEnqueuesNothing(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	ctx := context.Background()
+	dash := seedDashboard(t, d, 1)
+	rev := submit(t, svc, dash, "add a panel")
+	id := mustUUID(t, rev.ID)
+	claimed, _ := claimOne(t, svc)
+	if _, err := d.Queries().UpsertAgentRequestBuild(ctx, dbsqlc.UpsertAgentRequestBuildParams{
+		AgentRequestID: id, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Attempt: claimed.Attempts,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	d.Exec(t, "UPDATE agent_requests SET status = 'failed', failure_code = 'no_progress', error = 'stopped', lease_until = NULL, finished_at = now() WHERE id = $1", id)
+	saveVersionUnder(t, d, dash, pgtype.UUID{}, 2)
+
+	_, err := svc.Continue(ctx, id, user, "")
+	var conflict *revisions.BuildConflictError
+	if !errors.As(err, &conflict) || conflict.Latest != 2 {
+		t.Fatalf("continue = %v, want BuildConflictError at version 2", err)
+	}
+	var requests int
+	if err := d.SQLDB(t).QueryRow("SELECT count(*) FROM agent_requests").Scan(&requests); err != nil || requests != 1 {
+		t.Fatalf("agent requests = %d, %v; want only the stopped one", requests, err)
+	}
+	if _, err := d.Queries().GetAgentRequestBuild(ctx, id); err != nil {
+		t.Fatalf("build after refused continue: %v, want it kept on the stopped request", err)
 	}
 }
