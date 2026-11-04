@@ -4,7 +4,113 @@ import (
 	"context"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
+
+func expireLease(t *testing.T, d *dbtest.Database, id pgtype.UUID) {
+	t.Helper()
+	d.Exec(t, "UPDATE agent_requests SET lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", id)
+}
+
+func saveVersionUnder(t *testing.T, d *dbtest.Database, dashboard, requestID pgtype.UUID, version int32) {
+	t.Helper()
+	_, err := d.Queries().InsertDashboardVersion(context.Background(), dbsqlc.InsertDashboardVersionParams{
+		DashboardID: dashboard, Version: version, ParentVersion: pgtype.Int4{Int32: version - 1, Valid: true}, Spec: []byte(`{}`), Summary: "s",
+		AuthorKind: "user", AuthorID: mustUUID(t, userID), AuthorName: "Ada", AgentRequestID: requestID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.Exec(t, "UPDATE dashboards SET latest_version = $2 WHERE id = $1", dashboard, version)
+}
+
+func TestCancelOfARunningRequestWithALiveLeaseOnlyFlagsIt(t *testing.T) {
+	svc, _ := newService(t, succeedWith(2))
+	row, err := svc.SubmitObserve(context.Background(), user, "live")
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimOne(t, svc)
+
+	got, err := svc.Cancel(context.Background(), row.ID, user)
+	if err != nil {
+		t.Fatalf("cancel: %v", err)
+	}
+	if got.Status != string(revisions.StatusRunning) || !got.CancelRequestedAt.Valid || got.FailureCode.Valid || !got.LeaseUntil.Valid || got.FinishedAt.Valid {
+		t.Fatalf("canceled live run = %+v, want running with only cancel_requested_at set", got)
+	}
+}
+
+func TestCancelFinishesARunningRequestWhoseLeaseExpired(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	row, err := svc.SubmitObserve(context.Background(), user, "crashed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimOne(t, svc)
+	expireLease(t, d, row.ID)
+
+	got, err := svc.Cancel(context.Background(), row.ID, user)
+	if err != nil {
+		t.Fatalf("cancel: %v", err)
+	}
+	if got.Status != string(revisions.StatusFailed) || got.FailureCode.String != string(revisions.FailureCanceled) || got.Error.String != revisions.CanceledMessage || got.LeaseUntil.Valid || !got.FinishedAt.Valid || !got.CancelRequestedAt.Valid {
+		t.Fatalf("canceled crashed run = %+v, want failed with code canceled, no lease and finished", got)
+	}
+	stored, err := svc.GetByID(context.Background(), row.ID)
+	if err != nil || stored.Status != string(revisions.StatusFailed) {
+		t.Fatalf("stored = %+v, %v; want the failed row persisted", stored, err)
+	}
+	if _, found := claimOne(t, svc); found {
+		t.Fatal("a canceled request was claimed again")
+	}
+}
+
+func TestCancelKeepsTheBuildOfARunningRequestWhoseLeaseExpired(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	row, err := svc.SubmitObserve(context.Background(), user, "crashed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimed, _ := claimOne(t, svc)
+	if _, err := d.Queries().UpsertAgentRequestBuild(context.Background(), dbsqlc.UpsertAgentRequestBuildParams{
+		AgentRequestID: row.ID, Spec: []byte(`{}`), Attempt: claimed.Attempts,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	expireLease(t, d, row.ID)
+
+	if _, err := svc.Cancel(context.Background(), row.ID, user); err != nil {
+		t.Fatalf("cancel: %v", err)
+	}
+	if _, err := d.Queries().GetAgentRequestBuild(context.Background(), row.ID); err != nil {
+		t.Fatalf("build after cancel: %v, want it kept", err)
+	}
+}
+
+func TestCancelOfAnExpiredRunWithASavedVersionSucceedsIt(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	row, err := svc.SubmitObserve(context.Background(), user, "saved before the crash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimOne(t, svc)
+	saveVersionUnder(t, d, dash, row.ID, 2)
+	expireLease(t, d, row.ID)
+
+	got, err := svc.Cancel(context.Background(), row.ID, user)
+	if err != nil {
+		t.Fatalf("cancel: %v", err)
+	}
+	if got.Status != string(revisions.StatusSucceeded) || got.ResultVersion.Int32 != 2 || got.DashboardID != dash || got.Error.Valid || got.FailureCode.Valid || got.LeaseUntil.Valid || !got.FinishedAt.Valid {
+		t.Fatalf("canceled run with a saved version = %+v, want succeeded with version 2 on the dashboard", got)
+	}
+}
 
 func TestClaimStillWorksWhenBuildRetentionCleanupFails(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))

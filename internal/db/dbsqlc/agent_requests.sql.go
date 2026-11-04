@@ -52,18 +52,29 @@ func (q *Queries) AppendAgentRequestStep(ctx context.Context, arg AppendAgentReq
 }
 
 const cancelAgentRequest = `-- name: CancelAgentRequest :one
-UPDATE agent_requests
-SET cancel_requested_at = coalesce(cancel_requested_at, clock_timestamp()),
-  canceled_by_kind = coalesce(canceled_by_kind, $1),
-  canceled_by_id = coalesce(canceled_by_id, $2),
-  canceled_by_name = coalesce(canceled_by_name, $3),
-  status = CASE WHEN status = 'queued' THEN 'failed' ELSE status END,
-  error = CASE WHEN status = 'queued' THEN $4::text ELSE error END,
-  failure_code = CASE WHEN status = 'queued' THEN 'canceled' ELSE failure_code END,
-  lease_until = CASE WHEN status = 'queued' THEN NULL ELSE lease_until END,
-  finished_at = CASE WHEN status = 'queued' THEN clock_timestamp() ELSE finished_at END
-WHERE id = $5 AND status IN ('queued', 'running') AND source <> 'suggest'
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note
+WITH target AS (
+  SELECT r.id, saved.version AS saved_version, saved.dashboard_id AS saved_dashboard_id,
+    (r.status = 'queued' OR r.lease_until < clock_timestamp()) AS finishes
+  FROM agent_requests r
+  LEFT JOIN dashboard_versions saved ON saved.agent_request_id = r.id AND (r.dashboard_id IS NULL OR saved.dashboard_id = r.dashboard_id)
+  WHERE r.id = $5 AND r.status IN ('queued', 'running') AND r.source <> 'suggest'
+  FOR UPDATE OF r
+)
+UPDATE agent_requests r
+SET cancel_requested_at = coalesce(r.cancel_requested_at, clock_timestamp()),
+  canceled_by_kind = coalesce(r.canceled_by_kind, $1),
+  canceled_by_id = coalesce(r.canceled_by_id, $2),
+  canceled_by_name = coalesce(r.canceled_by_name, $3),
+  status = CASE WHEN NOT t.finishes THEN r.status WHEN t.saved_version IS NULL THEN 'failed' ELSE 'succeeded' END,
+  result_version = CASE WHEN t.finishes THEN t.saved_version ELSE r.result_version END,
+  dashboard_id = CASE WHEN t.finishes THEN coalesce(r.dashboard_id, t.saved_dashboard_id) ELSE r.dashboard_id END,
+  error = CASE WHEN NOT t.finishes THEN r.error WHEN t.saved_version IS NULL THEN $4::text END,
+  failure_code = CASE WHEN NOT t.finishes THEN r.failure_code WHEN t.saved_version IS NULL THEN 'canceled' END,
+  lease_until = CASE WHEN t.finishes THEN NULL ELSE r.lease_until END,
+  finished_at = CASE WHEN t.finishes THEN clock_timestamp() ELSE r.finished_at END
+FROM target t
+WHERE r.id = t.id
+RETURNING r.id, r.dashboard_id, r.source, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note
 `
 
 type CancelAgentRequestParams struct {

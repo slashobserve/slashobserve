@@ -112,7 +112,7 @@ func (s *Service) Cancel(ctx context.Context, id pgtype.UUID, by auth.Principal)
 		return dbsqlc.AgentRequest{}, fmt.Errorf("requester id: %w", err)
 	}
 	var out dbsqlc.AgentRequest
-	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+	err = s.db.InTxWithSavepoints(ctx, func(q *dbsqlc.Queries, savepoint db.Savepoint) error {
 		updated, err := q.CancelAgentRequest(ctx, dbsqlc.CancelAgentRequestParams{
 			CanceledByKind: pgtype.Text{String: string(by.Kind), Valid: true},
 			CanceledByID:   requesterID,
@@ -132,8 +132,14 @@ func (s *Service) Cancel(ctx context.Context, id pgtype.UUID, by auth.Principal)
 			return fmt.Errorf("cancel agent request: %w", err)
 		}
 		out = updated
-		if updated.Status == string(StatusFailed) {
-			return notifyRevision(ctx, q, updated)
+		if updated.Status == string(StatusRunning) {
+			return nil
+		}
+		if err := notifyRevision(ctx, q, updated); err != nil {
+			return err
+		}
+		if updated.Status == string(StatusSucceeded) {
+			s.resolveThread(ctx, savepoint, updated)
 		}
 		return nil
 	})

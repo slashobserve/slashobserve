@@ -62,18 +62,29 @@ WHERE r.id = e.id AND r.status = 'running' AND r.lease_until < clock_timestamp()
 RETURNING r.*;
 
 -- name: CancelAgentRequest :one
-UPDATE agent_requests
-SET cancel_requested_at = coalesce(cancel_requested_at, clock_timestamp()),
-  canceled_by_kind = coalesce(canceled_by_kind, @canceled_by_kind),
-  canceled_by_id = coalesce(canceled_by_id, @canceled_by_id),
-  canceled_by_name = coalesce(canceled_by_name, @canceled_by_name),
-  status = CASE WHEN status = 'queued' THEN 'failed' ELSE status END,
-  error = CASE WHEN status = 'queued' THEN @message::text ELSE error END,
-  failure_code = CASE WHEN status = 'queued' THEN 'canceled' ELSE failure_code END,
-  lease_until = CASE WHEN status = 'queued' THEN NULL ELSE lease_until END,
-  finished_at = CASE WHEN status = 'queued' THEN clock_timestamp() ELSE finished_at END
-WHERE id = @id AND status IN ('queued', 'running') AND source <> 'suggest'
-RETURNING *;
+WITH target AS (
+  SELECT r.id, saved.version AS saved_version, saved.dashboard_id AS saved_dashboard_id,
+    (r.status = 'queued' OR r.lease_until < clock_timestamp()) AS finishes
+  FROM agent_requests r
+  LEFT JOIN dashboard_versions saved ON saved.agent_request_id = r.id AND (r.dashboard_id IS NULL OR saved.dashboard_id = r.dashboard_id)
+  WHERE r.id = @id AND r.status IN ('queued', 'running') AND r.source <> 'suggest'
+  FOR UPDATE OF r
+)
+UPDATE agent_requests r
+SET cancel_requested_at = coalesce(r.cancel_requested_at, clock_timestamp()),
+  canceled_by_kind = coalesce(r.canceled_by_kind, @canceled_by_kind),
+  canceled_by_id = coalesce(r.canceled_by_id, @canceled_by_id),
+  canceled_by_name = coalesce(r.canceled_by_name, @canceled_by_name),
+  status = CASE WHEN NOT t.finishes THEN r.status WHEN t.saved_version IS NULL THEN 'failed' ELSE 'succeeded' END,
+  result_version = CASE WHEN t.finishes THEN t.saved_version ELSE r.result_version END,
+  dashboard_id = CASE WHEN t.finishes THEN coalesce(r.dashboard_id, t.saved_dashboard_id) ELSE r.dashboard_id END,
+  error = CASE WHEN NOT t.finishes THEN r.error WHEN t.saved_version IS NULL THEN @message::text END,
+  failure_code = CASE WHEN NOT t.finishes THEN r.failure_code WHEN t.saved_version IS NULL THEN 'canceled' END,
+  lease_until = CASE WHEN t.finishes THEN NULL ELSE r.lease_until END,
+  finished_at = CASE WHEN t.finishes THEN clock_timestamp() ELSE r.finished_at END
+FROM target t
+WHERE r.id = t.id
+RETURNING r.*;
 
 -- name: CountQueuedAgentRequestsBefore :one
 SELECT count(*) FROM agent_requests
