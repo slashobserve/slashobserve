@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react"
 import { dashboardKeys } from "@/api/keys"
 import { AgentMark } from "@/components/agent-mark"
 import { StatusIcon } from "@/components/status-label"
+import { buildStatusText, type BuildProgress } from "@/observe/build"
 import { shortRequestId, stepSummary } from "@/observe/conversation"
 import {
   isTerminal,
@@ -13,10 +14,18 @@ import {
   stopsPolling,
   usePollFailures,
 } from "@/observe/queries"
+import { CancelRequestButton } from "@/observe/request-actions"
 
+import { BuildCard } from "./build-card"
 import { ResultCard } from "./result-card"
 import { StepList } from "./step-list"
-import { RetryButton, Stalled, TurnFailure } from "./turn-failure"
+import { resultFinishedAt, showsWorkingRow } from "./turn-model"
+import {
+  RetryButton,
+  Stalled,
+  TurnFailure,
+  useOpenNewRun,
+} from "./turn-failure"
 
 const reconnectingAfterFailures = 2
 
@@ -32,6 +41,12 @@ export type TurnSummary = {
   requested_by: { id: string; name: string }
   created_at: string
   finished_at: string | null
+  failure_code: string | null
+  build: BuildProgress | null
+  build_saved_at: string | null
+  continues_id: string | null
+  continued_by: string | null
+  continue_note: string | null
 }
 
 type Props = {
@@ -60,6 +75,22 @@ function Sender({ summary }: { summary: TurnSummary }) {
   )
 }
 
+function ContinuedFrom({ summary }: { summary: TurnSummary }) {
+  if (summary.continues_id === null) return null
+  return (
+    <>
+      <p className="self-end text-xs text-muted-foreground">
+        Continues an earlier run
+      </p>
+      {summary.continue_note !== null ? (
+        <p className="max-w-[80%] self-end text-xs wrap-anywhere whitespace-pre-wrap text-muted-foreground">
+          {summary.continue_note}
+        </p>
+      ) : null}
+    </>
+  )
+}
+
 export function RequestTurn({
   summary,
   dashboardTitle,
@@ -67,6 +98,7 @@ export function RequestTurn({
   onRetried,
 }: Props) {
   const queryClient = useQueryClient()
+  const { principal } = useRouteContext({ from: "/_authed" })
   const [detailsOpen, setDetailsOpen] = useState(false)
   const query = useQuery({
     ...observeRequestQuery(summary.id),
@@ -74,14 +106,20 @@ export function RequestTurn({
   })
   const live = query.data
   const settled = !isActive(summary.status)
-  const request: TurnSummary =
-    live !== undefined && !(settled && !isTerminal(live)) ? live : summary
+  const showLive = live !== undefined && !(settled && !isTerminal(live))
+  const request: TurnSummary = showLive ? live : summary
+  const detail = showLive ? live : undefined
+  const build = request.build
+  const openNewRun = useOpenNewRun(request, onRetried)
+  const isRequester = request.requested_by.id === principal.id
   const active = isActive(request.status)
   const stalled = active && stopsPolling(query.error)
   const pollFailures = usePollFailures(summary.id)
   const reconnecting =
     active && !stalled && pollFailures >= reconnectingAfterFailures
   const steps = live?.steps ?? []
+  const savedBuild =
+    request.status === "failed" && request.build_saved_at !== null
 
   const wasActive = useRef(active)
   const dashboardId = request.dashboard_id
@@ -112,6 +150,7 @@ export function RequestTurn({
     >
       <div className="flex flex-col gap-1.5">
         <Sender summary={request} />
+        <ContinuedFrom summary={request} />
         <div className="max-w-[80%] self-end rounded-xl border px-3.5 py-2.5 text-sm wrap-anywhere whitespace-pre-wrap">
           {request.prompt}
         </div>
@@ -121,17 +160,41 @@ export function RequestTurn({
         <div className="flex min-w-0 flex-1 flex-col gap-3 pt-[3px]">
           {active ? (
             <div className="flex flex-col gap-2.5">
-              <span className="flex items-center gap-2 text-[13px]">
-                <StatusIcon tone="running" />
-                {dashboardTitle !== undefined
-                  ? `Revising ${dashboardTitle}`
-                  : request.dashboard_id !== null
-                    ? "Revising the dashboard"
-                    : "Building the dashboard"}
-              </span>
+              {build !== null ? (
+                <BuildCard
+                  request={detail ?? request}
+                  build={build}
+                  isRequester={isRequester}
+                  onContinued={(next) => void openNewRun(next)}
+                />
+              ) : (
+                <span className="flex items-center gap-2 text-[13px]">
+                  <StatusIcon tone="running" />
+                  {detail !== undefined &&
+                  (detail.queue_position !== null ||
+                    detail.cancel_requested_at !== null)
+                    ? buildStatusText({
+                        status: detail.status,
+                        build: null,
+                        failureCode: detail.failure_code,
+                        queuePosition: detail.queue_position,
+                        canceling: detail.cancel_requested_at !== null,
+                      })
+                    : dashboardTitle !== undefined
+                      ? `Revising ${dashboardTitle}`
+                      : request.dashboard_id !== null
+                        ? "Revising the dashboard"
+                        : "Building the dashboard"}
+                </span>
+              )}
+              {detail?.can_cancel ? (
+                <div className="self-start">
+                  <CancelRequestButton request={detail} />
+                </div>
+              ) : null}
               <StepList
                 steps={steps}
-                working={!stalled}
+                working={showsWorkingRow(request, stalled)}
                 reconnecting={reconnecting}
               />
               {stalled ? (
@@ -174,13 +237,18 @@ export function RequestTurn({
               </div>
             </details>
           )}
-          {request.status === "succeeded" &&
+          {savedBuild ? (
+            <p className="text-[13px]">
+              You saved what was built as version {request.result_version}.
+            </p>
+          ) : null}
+          {(request.status === "succeeded" || savedBuild) &&
           request.result_version !== null &&
           request.dashboard_id !== null ? (
             <ResultCard
               dashboardId={request.dashboard_id}
               version={request.result_version}
-              finishedAt={request.finished_at}
+              finishedAt={resultFinishedAt(request)}
               eager={loadSteps}
             />
           ) : null}
@@ -190,8 +258,16 @@ export function RequestTurn({
               The request finished without a dashboard.
             </p>
           ) : null}
-          {request.status === "failed" ? (
+          {request.status === "failed" && !savedBuild ? (
             <TurnFailure request={request} onRetried={onRetried} />
+          ) : null}
+          {request.status === "failed" && !savedBuild && build !== null ? (
+            <BuildCard
+              request={request}
+              build={build}
+              isRequester={isRequester}
+              onContinued={(next) => void openNewRun(next)}
+            />
           ) : null}
           <Link
             to="/observe/$requestId"

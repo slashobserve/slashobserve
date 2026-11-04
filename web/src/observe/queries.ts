@@ -1,6 +1,7 @@
 import { useMemo } from "react"
 import {
   infiniteQueryOptions,
+  type QueryClient,
   queryOptions,
   useInfiniteQuery,
   useIsMutating,
@@ -190,6 +191,16 @@ export function usePollFailures(id: string): number {
 
 export type ObserveInput = { prompt: string; dashboardId?: string }
 
+function recordRequest(queryClient: QueryClient, request: ObserveRequest) {
+  queryClient.setQueryData(observeKeys.request(request.id), request)
+  void queryClient.invalidateQueries({ queryKey: observeKeys.mineAll() })
+  if (request.dashboard_id) {
+    void queryClient.invalidateQueries({
+      queryKey: dashboardKeys.revisions(request.dashboard_id),
+    })
+  }
+}
+
 export function useCreateObserveRequest() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -200,19 +211,43 @@ export function useCreateObserveRequest() {
         .POST("/observe", { body: { prompt, dashboard_id: dashboardId } })
         .then(unwrap)
         .then((body) => body.request),
-    onSuccess: (request) => {
-      queryClient.setQueryData(observeKeys.request(request.id), request)
-      void queryClient.invalidateQueries({ queryKey: observeKeys.mineAll() })
-      if (request.dashboard_id) {
-        void queryClient.invalidateQueries({
-          queryKey: dashboardKeys.revisions(request.dashboard_id),
-        })
-      }
-    },
+    onSuccess: (request) => recordRequest(queryClient, request),
     onError: (error) => {
       if (isAgentUnavailable(error)) {
         void queryClient.invalidateQueries({ queryKey: observeKeys.agent() })
       }
+    },
+  })
+}
+
+export function useCancelRequest(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      api
+        .POST("/observe/{id}/cancel", { params: { path: { id } } })
+        .then(unwrap)
+        .then((body) => body.request),
+    onSuccess: (request) => recordRequest(queryClient, request),
+  })
+}
+
+export function useContinueRequest(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ note }: { note?: string } = {}) => {
+      const trimmed = note?.trim() ?? ""
+      return api
+        .POST("/observe/{id}/continue", {
+          params: { path: { id } },
+          body: trimmed === "" ? undefined : { note: trimmed },
+        })
+        .then(unwrap)
+        .then((body) => body.request)
+    },
+    onSuccess: (request) => {
+      recordRequest(queryClient, request)
+      void queryClient.invalidateQueries({ queryKey: observeKeys.request(id) })
     },
   })
 }

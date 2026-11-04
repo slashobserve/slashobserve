@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
+import { buildStatusText } from "@/observe/build"
 import {
   requestStatusView,
   useMyRequests,
@@ -282,7 +283,15 @@ function HistoryMeta({ request }: { request: RequestSummary }) {
       ? request.result_version !== null
         ? `Saved version ${request.result_version}`
         : "Finished"
-      : view.text
+      : request.status === "failed" &&
+          (request.build !== null || request.continued_by !== null)
+        ? buildStatusText({
+            status: request.status,
+            build: request.build,
+            failureCode: request.failure_code,
+            continued: request.continued_by !== null,
+          })
+        : view.text
 
   return (
     <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">

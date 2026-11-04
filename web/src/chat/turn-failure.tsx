@@ -60,8 +60,42 @@ export function OpenDashboardLink({
 
 type FailedRequest = Pick<
   ObserveRequest,
-  "source" | "dashboard_id" | "prompt" | "error"
+  "source" | "dashboard_id" | "prompt" | "error" | "continued_by"
 >
+
+export function useOpenNewRun(
+  request: Pick<ObserveRequest, "source" | "dashboard_id">,
+  onRevised: (request: ObserveRequest) => void
+): (next: ObserveRequest) => Promise<void> {
+  const navigate = useNavigate()
+  const opensPage = retryAction(request).kind === "create"
+  return async (next) => {
+    if (opensPage) {
+      await navigate({
+        to: "/observe/$requestId",
+        params: { requestId: next.id },
+        replace: true,
+      })
+    } else {
+      onRevised(next)
+    }
+  }
+}
+
+function ContinuedNote({ request }: { request: FailedRequest }) {
+  if (request.continued_by === null) return null
+  return request.source === "observe" ? (
+    <Link
+      to="/observe/$requestId"
+      params={{ requestId: request.continued_by }}
+      className="rounded-sm text-foreground underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      Continued in a new run
+    </Link>
+  ) : (
+    <span className="text-muted-foreground">Continued in a new run</span>
+  )
+}
 
 export function TurnFailure({
   request,
@@ -70,10 +104,11 @@ export function TurnFailure({
   request: FailedRequest
   onRetried: (request: ObserveRequest) => void
 }) {
-  const navigate = useNavigate()
   const create = useCreateObserveRequest()
+  const openNewRun = useOpenNewRun(request, onRetried)
   const [retrying, setRetrying] = useState(false)
   const action = retryAction(request)
+  const continued = request.continued_by !== null
 
   async function retry() {
     setRetrying(true)
@@ -82,15 +117,7 @@ export function TurnFailure({
         prompt: request.prompt,
         dashboardId: action.kind === "revise" ? action.dashboardId : undefined,
       })
-      if (action.kind === "create") {
-        await navigate({
-          to: "/observe/$requestId",
-          params: { requestId: next.id },
-          replace: true,
-        })
-      } else {
-        onRetried(next)
-      }
+      await openNewRun(next)
     } catch (cause) {
       toast.error(describeSubmitError(cause).message)
     } finally {
@@ -117,9 +144,12 @@ export function TurnFailure({
             {sentence(request.error ?? "The request failed")}
           </p>
         </div>
-        {action.kind !== "none" || request.dashboard_id !== null ? (
+        {continued ||
+        action.kind !== "none" ||
+        request.dashboard_id !== null ? (
           <div className="flex flex-wrap items-center gap-2">
-            {action.kind !== "none" ? (
+            <ContinuedNote request={request} />
+            {!continued && action.kind !== "none" ? (
               <RetryButton busy={retrying} onClick={() => void retry()}>
                 Try again
               </RetryButton>

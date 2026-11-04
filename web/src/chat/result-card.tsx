@@ -23,7 +23,7 @@ import {
 
 import { OpenDashboardLink } from "./turn-failure"
 
-const thumbnailColumns = 4
+export const thumbnailColumns = 4
 const nearViewportMargin = "600px"
 
 const sparklineColors = [
@@ -41,7 +41,7 @@ function sparkline(seed: number, dips: boolean): string {
   }).join(" ")
 }
 
-function thumbnailSpan(panel: Panel): number {
+export function thumbnailSpan(panel: Panel): number {
   return Math.min(
     thumbnailColumns,
     Math.max(1, Math.round(panel.gridPos.w / 6))
@@ -64,7 +64,7 @@ function thumbnails(panels: Panel[]): Panel[] {
   return shown
 }
 
-function Thumbnail({ panel, index }: { panel: Panel; index: number }) {
+export function Thumbnail({ panel, index }: { panel: Panel; index: number }) {
   return (
     <div
       style={{ gridColumn: `span ${thumbnailSpan(panel)}` }}

@@ -17,6 +17,7 @@ import { Route as AuthedShellDatasourcesRouteImport } from './routes/_authed/_sh
 import { Route as AuthedShellImportRouteImport } from './routes/_authed/_shell/import'
 import { Route as AuthedShellKeysRouteImport } from './routes/_authed/_shell/keys'
 import { Route as AuthedShellPeopleRouteImport } from './routes/_authed/_shell/people'
+import { Route as AuthedBuildsRequestIdRouteImport } from './routes/_authed/builds/$requestId'
 import { Route as AuthedDashboardsByTitleRouteImport } from './routes/_authed/dashboards/by-title'
 import { Route as AuthedShellChatIndexRouteImport } from './routes/_authed/_shell/_chat/index'
 import { Route as AuthedShellDashboardsIndexRouteImport } from './routes/_authed/_shell/dashboards/index'
@@ -63,6 +64,11 @@ const AuthedShellPeopleRoute = AuthedShellPeopleRouteImport.update({
   id: '/people',
   path: '/people',
   getParentRoute: () => AuthedShellRoute,
+} as any)
+const AuthedBuildsRequestIdRoute = AuthedBuildsRequestIdRouteImport.update({
+  id: '/builds/$requestId',
+  path: '/builds/$requestId',
+  getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedDashboardsByTitleRoute = AuthedDashboardsByTitleRouteImport.update({
   id: '/dashboards/by-title',
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/import': typeof AuthedShellImportRoute
   '/keys': typeof AuthedShellKeysRoute
   '/people': typeof AuthedShellPeopleRoute
+  '/builds/$requestId': typeof AuthedBuildsRequestIdRoute
   '/dashboards/by-title': typeof AuthedDashboardsByTitleRoute
   '/folders/$folderId': typeof AuthedShellFoldersFolderIdRoute
   '/settings/keys': typeof AuthedShellSettingsKeysRoute
@@ -139,6 +146,7 @@ export interface FileRoutesByTo {
   '/import': typeof AuthedShellImportRoute
   '/keys': typeof AuthedShellKeysRoute
   '/people': typeof AuthedShellPeopleRoute
+  '/builds/$requestId': typeof AuthedBuildsRequestIdRoute
   '/dashboards/by-title': typeof AuthedDashboardsByTitleRoute
   '/folders/$folderId': typeof AuthedShellFoldersFolderIdRoute
   '/settings/keys': typeof AuthedShellSettingsKeysRoute
@@ -158,6 +166,7 @@ export interface FileRoutesById {
   '/_authed/_shell/import': typeof AuthedShellImportRoute
   '/_authed/_shell/keys': typeof AuthedShellKeysRoute
   '/_authed/_shell/people': typeof AuthedShellPeopleRoute
+  '/_authed/builds/$requestId': typeof AuthedBuildsRequestIdRoute
   '/_authed/dashboards/by-title': typeof AuthedDashboardsByTitleRoute
   '/_authed/_shell/folders/$folderId': typeof AuthedShellFoldersFolderIdRoute
   '/_authed/_shell/settings/keys': typeof AuthedShellSettingsKeysRoute
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/import'
     | '/keys'
     | '/people'
+    | '/builds/$requestId'
     | '/dashboards/by-title'
     | '/folders/$folderId'
     | '/settings/keys'
@@ -193,6 +203,7 @@ export interface FileRouteTypes {
     | '/import'
     | '/keys'
     | '/people'
+    | '/builds/$requestId'
     | '/dashboards/by-title'
     | '/folders/$folderId'
     | '/settings/keys'
@@ -211,6 +222,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell/import'
     | '/_authed/_shell/keys'
     | '/_authed/_shell/people'
+    | '/_authed/builds/$requestId'
     | '/_authed/dashboards/by-title'
     | '/_authed/_shell/folders/$folderId'
     | '/_authed/_shell/settings/keys'
@@ -284,6 +296,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/people'
       preLoaderRoute: typeof AuthedShellPeopleRouteImport
       parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/builds/$requestId': {
+      id: '/_authed/builds/$requestId'
+      path: '/builds/$requestId'
+      fullPath: '/builds/$requestId'
+      preLoaderRoute: typeof AuthedBuildsRequestIdRouteImport
+      parentRoute: typeof AuthedRoute
     }
     '/_authed/dashboards/by-title': {
       id: '/_authed/dashboards/by-title'
@@ -395,6 +414,7 @@ const AuthedShellRouteWithChildren = AuthedShellRoute._addFileChildren(
 
 interface AuthedRouteChildren {
   AuthedShellRoute: typeof AuthedShellRouteWithChildren
+  AuthedBuildsRequestIdRoute: typeof AuthedBuildsRequestIdRoute
   AuthedDashboardsByTitleRoute: typeof AuthedDashboardsByTitleRoute
   AuthedDashboardsDashboardIdVersionsRoute: typeof AuthedDashboardsDashboardIdVersionsRoute
   AuthedDashboardsDashboardIdIndexRoute: typeof AuthedDashboardsDashboardIdIndexRoute
@@ -402,6 +422,7 @@ interface AuthedRouteChildren {
 
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedShellRoute: AuthedShellRouteWithChildren,
+  AuthedBuildsRequestIdRoute: AuthedBuildsRequestIdRoute,
   AuthedDashboardsByTitleRoute: AuthedDashboardsByTitleRoute,
   AuthedDashboardsDashboardIdVersionsRoute:
     AuthedDashboardsDashboardIdVersionsRoute,
