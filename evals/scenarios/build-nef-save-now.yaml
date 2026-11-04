@@ -1,0 +1,10 @@
+id: build-nef-save-now
+prompt: "eval build: the model reads for six calls before it saves the next panel"
+category: prometheus
+kind: create
+suites: [replay]
+expect:
+  datasources: [prometheus]
+  min_panels: 3
+  max_panels: 3
+  usage: {nudges: 1, save_now_refusals: 1, stalled_turns: 1}

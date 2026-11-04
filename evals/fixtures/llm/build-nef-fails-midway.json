@@ -1,0 +1,168 @@
+{
+  "prompt": "eval build: the first save is accepted and every later save is rejected",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Start Node Exporter Full",
+            "planned_panels": 3,
+            "spec": {
+              "specVersion": "0",
+              "title": "Node Exporter Full",
+              "time": {
+                "from": "now-1h",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "row_cpu",
+                  "type": "row",
+                  "title": "CPU",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 24,
+                    "h": 1
+                  },
+                  "panels": [
+                    {
+                      "id": "cpu_busy",
+                      "type": "timeseries",
+                      "title": "CPU Busy",
+                      "gridPos": {
+                        "x": 0,
+                        "y": 1,
+                        "w": 12,
+                        "h": 8
+                      },
+                      "datasource": "prom",
+                      "queries": [
+                        {
+                          "query": "sum(rate(node_cpu_seconds_total{mode!=\"idle\"}[$__rate_interval]))"
+                        }
+                      ],
+                      "unit": "percentunit"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Broken 0",
+            "upsert": [
+              {
+                "id": "bad_0",
+                "type": "timeseries",
+                "title": "Broken 0",
+                "gridPos": {
+                  "x": 0,
+                  "y": 0,
+                  "w": 12,
+                  "h": 8
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "sum(rate(node_cpu_seconds_total{mode=\"iowait\"}[$__rate_interval])"
+                  }
+                ]
+              }
+            ],
+            "row": {
+              "id": "row_cpu",
+              "title": "CPU"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Broken 1",
+            "upsert": [
+              {
+                "id": "bad_1",
+                "type": "timeseries",
+                "title": "Broken 1",
+                "gridPos": {
+                  "x": 0,
+                  "y": 0,
+                  "w": 12,
+                  "h": 8
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "avg(node_load1"
+                  }
+                ]
+              }
+            ],
+            "row": {
+              "id": "row_cpu",
+              "title": "CPU"
+            }
+          }
+        }
+      ],
+      "expect": [
+        {
+          "is_error": true,
+          "contains": "invalid_spec"
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Broken 2",
+            "upsert": [
+              {
+                "id": "bad_2",
+                "type": "timeseries",
+                "title": "Broken 2",
+                "gridPos": {
+                  "x": 0,
+                  "y": 0,
+                  "w": 12,
+                  "h": 8
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "max(node_load5"
+                  }
+                ]
+              }
+            ],
+            "row": {
+              "id": "row_cpu",
+              "title": "CPU"
+            }
+          }
+        }
+      ],
+      "expect": [
+        {
+          "is_error": true,
+          "contains": "invalid_spec"
+        }
+      ]
+    }
+  ]
+}

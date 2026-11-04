@@ -1,0 +1,10 @@
+id: fault-latency
+prompt: "eval fault: the provider answers slowly and then saves"
+category: prometheus
+kind: create
+suites: [replay]
+expect:
+  datasources: [prometheus]
+  metrics: [http_requests_total]
+  units: [reqps]
+  min_panels: 1

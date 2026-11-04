@@ -1,0 +1,8 @@
+id: fault-server-error
+prompt: "eval fault: the provider answers the first model call with a server error"
+category: prometheus
+kind: create
+suites: [replay]
+expect:
+  datasources: [prometheus]
+  failure_code: provider_error

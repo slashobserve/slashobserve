@@ -10,7 +10,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -22,6 +24,12 @@ const (
 	drainGrace      = 3 * time.Minute
 	maxBodyBytes    = 16 << 20
 	maxPerPrincipal = 3
+
+	serverRunLimit     = 120 * time.Minute
+	serverSettleMargin = 5 * time.Minute
+	defaultTimeout     = serverRunLimit + serverSettleMargin
+
+	runnerTimeout = "runner_timeout"
 )
 
 type client struct {
@@ -32,6 +40,14 @@ type client struct {
 	poll    time.Duration
 	backoff time.Duration
 	grace   time.Duration
+
+	// the server grants one import at a time per key, and the agent's import tool takes the same slot as the runner's seeding
+	importMu sync.Mutex
+}
+
+func (c *client) holdImportSlot() (release func()) {
+	c.importMu.Lock()
+	return c.importMu.Unlock
 }
 
 type apiError struct {
@@ -56,6 +72,29 @@ type Usage struct {
 	CacheWriteTokens int64  `json:"cache_write_tokens"`
 	ModelCalls       int    `json:"model_calls"`
 	RepairRounds     int    `json:"repair_rounds"`
+
+	ToolCalls           int   `json:"tool_calls"`
+	FailedCalls         int   `json:"failed_calls"`
+	Retries             int   `json:"retries"`
+	ModelMS             int64 `json:"model_ms"`
+	ToolMS              int64 `json:"tool_ms"`
+	MaxSaveOutputTokens int64 `json:"max_save_output_tokens"`
+
+	BuildSaves       int `json:"build_saves"`
+	Reseeds          int `json:"reseeds"`
+	Renewals         int `json:"renewals"`
+	Compactions      int `json:"compactions"`
+	Nudges           int `json:"nudges"`
+	SaveNowRefusals  int `json:"save_now_refusals"`
+	StalledTurns     int `json:"stalled_turns"`
+	OnePanelRefusals int `json:"one_panel_refusals"`
+}
+
+type Step struct {
+	At     time.Time `json:"at"`
+	Phase  string    `json:"phase"`
+	Tool   string    `json:"tool"`
+	Status string    `json:"status"`
 }
 
 type AgentRequest struct {
@@ -64,9 +103,13 @@ type AgentRequest struct {
 	DashboardID   *string    `json:"dashboard_id"`
 	ResultVersion *int       `json:"result_version"`
 	Error         *string    `json:"error"`
+	FailureCode   *string    `json:"failure_code"`
 	CreatedAt     time.Time  `json:"created_at"`
 	FinishedAt    *time.Time `json:"finished_at"`
 	Usage         *Usage     `json:"usage"`
+	Steps         []Step     `json:"steps"`
+
+	FirstSaveAt *time.Time `json:"-"`
 }
 
 func (r AgentRequest) finished() bool {
@@ -129,12 +172,20 @@ func (c *client) do(ctx context.Context, method, path string, body, out any) err
 		return err
 	}
 	if resp.StatusCode/100 != 2 {
-		return decodeAPIError(resp.StatusCode, raw)
+		return c.withoutToken(decodeAPIError(resp.StatusCode, raw))
 	}
 	if out == nil {
 		return nil
 	}
 	return json.Unmarshal(raw, out)
+}
+
+func (c *client) withoutToken(err error) error {
+	var api *apiError
+	if c.token != "" && errors.As(err, &api) {
+		api.Message = strings.ReplaceAll(api.Message, c.token, "[redacted]")
+	}
+	return err
 }
 
 func decodeAPIError(status int, raw []byte) error {
@@ -164,23 +215,37 @@ func (c *client) createObserve(ctx context.Context, prompt string) (AgentRequest
 
 func slotsFull(err error) bool {
 	var api *apiError
-	return errors.As(err, &api) && api.Status == http.StatusTooManyRequests && (api.Code == "too_many_requests" || api.Code == "agent_busy")
+	return errors.As(err, &api) && api.Status == http.StatusTooManyRequests && (api.Code == "too_many_requests" || api.Code == "agent_busy" || api.Code == "too_many_revisions")
 }
 
-func (c *client) createObserveWhenFree(ctx context.Context, prompt string) (AgentRequest, error) {
+func importsBusy(err error) bool {
+	var api *apiError
+	return errors.As(err, &api) && api.Status == http.StatusTooManyRequests && api.Code == "too_many_imports"
+}
+
+func (c *client) whenFree(ctx context.Context, busy func(error) bool, attempt func() error) error {
 	wait := c.backoff
 	for {
-		req, err := c.createObserve(ctx, prompt)
-		if !slotsFull(err) {
-			return req, err
+		err := attempt()
+		if !busy(err) {
+			return err
 		}
 		select {
 		case <-ctx.Done():
-			return req, err
+			return err
 		case <-time.After(wait):
 		}
 		wait = min(wait*2, maxCreateWait)
 	}
+}
+
+func (c *client) createObserveWhenFree(ctx context.Context, prompt string) (AgentRequest, error) {
+	var req AgentRequest
+	err := c.whenFree(ctx, slotsFull, func() (err error) {
+		req, err = c.createObserve(ctx, prompt)
+		return err
+	})
+	return req, err
 }
 
 func (c *client) getObserve(ctx context.Context, id string) (AgentRequest, error) {
@@ -208,7 +273,9 @@ func (c *client) waitObserve(ctx context.Context, last AgentRequest) (AgentReque
 		req, err := c.getObserve(ctx, last.ID)
 		switch {
 		case err == nil:
+			seen := last.FirstSaveAt
 			last = req
+			last.FirstSaveAt = earliestSave(req.Steps, seen)
 			if last.finished() {
 				return last, nil
 			}
@@ -223,23 +290,155 @@ func (c *client) waitObserve(ctx context.Context, last AgentRequest) (AgentReque
 	}
 }
 
-func (c *client) drain(ctx context.Context, last AgentRequest) {
+func (c *client) drain(ctx context.Context, last AgentRequest) AgentRequest {
 	ctx, cancel := context.WithTimeout(ctx, c.grace)
 	defer cancel()
-	_, _ = c.waitObserve(ctx, last)
+	last, _ = c.waitObserve(ctx, last)
+	return last
+}
+
+type UnverifiedPanel struct {
+	PanelID string `json:"panel_id"`
+}
+
+type UnverifiedVariable struct {
+	Name string `json:"name"`
+}
+
+type Unverified struct {
+	Panels    []UnverifiedPanel    `json:"panels"`
+	Variables []UnverifiedVariable `json:"variables"`
+}
+
+func (u Unverified) hasPanel(id string) bool {
+	return slices.ContainsFunc(u.Panels, func(p UnverifiedPanel) bool { return p.PanelID == id })
+}
+
+func (u Unverified) variableNames() []string {
+	var names []string
+	for _, v := range u.Variables {
+		names = append(names, v.Name)
+	}
+	return names
+}
+
+type Version struct {
+	Version    int             `json:"version"`
+	Spec       json.RawMessage `json:"spec"`
+	Unverified Unverified      `json:"unverified"`
+}
+
+func (c *client) getVersion(ctx context.Context, dashboardID string, version int) (Version, error) {
+	var env struct {
+		Version Version `json:"version"`
+	}
+	path := fmt.Sprintf("/dashboards/%s/versions/%d", url.PathEscape(dashboardID), version)
+	err := c.do(ctx, http.MethodGet, path, nil, &env)
+	return env.Version, err
 }
 
 func (c *client) getVersionSpec(ctx context.Context, dashboardID string, version int) ([]byte, error) {
-	var env struct {
-		Version struct {
-			Spec json.RawMessage `json:"spec"`
-		} `json:"version"`
-	}
-	path := fmt.Sprintf("/dashboards/%s/versions/%d", url.PathEscape(dashboardID), version)
-	if err := c.do(ctx, http.MethodGet, path, nil, &env); err != nil {
+	v, err := c.getVersion(ctx, dashboardID, version)
+	if err != nil {
 		return nil, err
 	}
-	return env.Version.Spec, nil
+	return v.Spec, nil
+}
+
+type Imported struct {
+	DashboardID string
+	ImportID    string
+	Version     int
+	Spec        json.RawMessage
+	Unverified  Unverified
+}
+
+func (c *client) createImport(ctx context.Context, dashboardJSON []byte, mapping map[string]string) (Imported, error) {
+	body := map[string]any{"json": string(dashboardJSON)}
+	if len(mapping) > 0 {
+		body["mapping"] = mapping
+	}
+	var env struct {
+		Dashboard struct {
+			ID string `json:"id"`
+		} `json:"dashboard"`
+		Version Version `json:"version"`
+		Import  struct {
+			ID string `json:"id"`
+		} `json:"import"`
+	}
+	c.importMu.Lock()
+	defer c.importMu.Unlock()
+	err := c.whenFree(ctx, importsBusy, func() error {
+		return c.do(ctx, http.MethodPost, "/imports", body, &env)
+	})
+	if err != nil {
+		return Imported{}, err
+	}
+	return Imported{DashboardID: env.Dashboard.ID, ImportID: env.Import.ID, Version: env.Version.Version, Spec: env.Version.Spec, Unverified: env.Version.Unverified}, nil
+}
+
+type ImportRecord struct {
+	ID          string `json:"id"`
+	DashboardID string `json:"dashboard_id"`
+	Version     int    `json:"version"`
+	Title       string `json:"title"`
+}
+
+func (c *client) dashboardImport(ctx context.Context, dashboardID string) (ImportRecord, error) {
+	var record ImportRecord
+	err := c.do(ctx, http.MethodGet, "/dashboards/"+url.PathEscape(dashboardID)+"/import", nil, &record)
+	return record, err
+}
+
+func (c *client) createRevision(ctx context.Context, dashboardID string, baseVersion int, panelID, prompt string) (AgentRequest, error) {
+	body := map[string]any{"prompt": prompt, "base_version": baseVersion}
+	if panelID != "" {
+		body["panel_id"] = panelID
+	}
+	var env struct {
+		Revision AgentRequest `json:"revision"`
+	}
+	err := c.whenFree(ctx, slotsFull, func() error {
+		return c.do(ctx, http.MethodPost, "/dashboards/"+url.PathEscape(dashboardID)+"/revisions", body, &env)
+	})
+	return env.Revision, err
+}
+
+type Suggestion struct {
+	ID          string          `json:"id"`
+	DashboardID string          `json:"dashboard_id"`
+	PanelID     string          `json:"panel_id"`
+	BaseVersion int             `json:"base_version"`
+	Status      string          `json:"status"`
+	Panel       json.RawMessage `json:"panel"`
+	Error       *string         `json:"error"`
+	FailureCode *string         `json:"failure_code"`
+	Usage       *Usage          `json:"usage"`
+}
+
+func (s Suggestion) finished() bool {
+	return s.Status == "succeeded" || s.Status == "failed"
+}
+
+func (c *client) createSuggestion(ctx context.Context, dashboardID string, version int, panelID, prompt string) (Suggestion, error) {
+	body := map[string]any{"version": version, "panel_id": panelID, "prompt": prompt}
+	var env struct {
+		Suggestion Suggestion `json:"suggestion"`
+	}
+	err := c.whenFree(ctx, slotsFull, func() error {
+		return c.do(ctx, http.MethodPost, "/dashboards/"+url.PathEscape(dashboardID)+"/suggestions", body, &env)
+	})
+	return env.Suggestion, err
+}
+
+func (c *client) getSuggestion(ctx context.Context, dashboardID, suggestionID string) (Suggestion, error) {
+	var env struct {
+		Suggestion Suggestion `json:"suggestion"`
+	}
+	path := "/dashboards/" + url.PathEscape(dashboardID) + "/suggestions/" + url.PathEscape(suggestionID)
+	err := c.do(ctx, http.MethodGet, path, nil, &env)
+	return env.Suggestion, err
 }
 
 func (c *client) datasourceTypes(ctx context.Context) (map[string]string, error) {
@@ -278,4 +477,13 @@ func (c *client) getPanelData(ctx context.Context, dashboardID string, version i
 	path := fmt.Sprintf("/dashboards/%s/versions/%d/panels/%s/data", url.PathEscape(dashboardID), version, url.PathEscape(panelID))
 	err := c.do(ctx, http.MethodGet, path, nil, &data)
 	return data, err
+}
+
+func (c *client) getVariableValues(ctx context.Context, dashboardID string, version int, name string) ([]string, error) {
+	var body struct {
+		Values []string `json:"values"`
+	}
+	path := fmt.Sprintf("/dashboards/%s/versions/%d/variables/%s/values", url.PathEscape(dashboardID), version, url.PathEscape(name))
+	err := c.do(ctx, http.MethodGet, path, nil, &body)
+	return body.Values, err
 }

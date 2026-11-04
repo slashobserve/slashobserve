@@ -1,0 +1,5 @@
+models:
+  - name: model-a
+    env_file: deploy/compose/.env.model-a
+  - name: model-b
+    env_file: deploy/compose/.env.model-b

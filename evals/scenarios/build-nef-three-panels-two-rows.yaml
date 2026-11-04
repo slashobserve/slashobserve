@@ -1,0 +1,10 @@
+id: build-nef-three-panels-two-rows
+prompt: "eval build: three node panels in a CPU row and a Memory row, saved one at a time"
+category: prometheus
+kind: create
+suites: [replay]
+expect:
+  datasources: [prometheus]
+  min_panels: 3
+  max_panels: 3
+  usage: {build_saves: 3, reseeds: 0}

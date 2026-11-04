@@ -1,0 +1,11 @@
+id: build-nef-renewal
+prompt: "eval build: a long node exporter dashboard whose history outgrows one session"
+category: prometheus
+kind: create
+suites: [replay]
+expect:
+  datasources: [prometheus]
+  min_panels: 136
+  max_panels: 136
+  max_seconds: 300
+  usage: {renewals: 1, compactions: 1, reseeds: 0}

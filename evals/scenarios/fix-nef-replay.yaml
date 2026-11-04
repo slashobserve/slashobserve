@@ -1,0 +1,13 @@
+id: fix-nef-replay
+prompt: 'Fix the unverified panel "{panel_title}" ({panel_id}).'
+kind: fix_unverified
+suites: [replay]
+seed:
+  corpus: rfmoz/node-exporter-full.json
+  break_panel: true
+expect:
+  only_target_changed: true
+  target_returns_data: true
+  unverified_cleared: true
+  max_save_output_tokens: 2000
+  max_seconds: 90

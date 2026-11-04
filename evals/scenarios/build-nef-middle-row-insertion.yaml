@@ -1,0 +1,10 @@
+id: build-nef-middle-row-insertion
+prompt: "eval build: a panel for the CPU row arrives after the Disk row exists"
+category: prometheus
+kind: create
+suites: [replay]
+expect:
+  datasources: [prometheus]
+  min_panels: 3
+  max_panels: 3
+  usage: {build_saves: 3}

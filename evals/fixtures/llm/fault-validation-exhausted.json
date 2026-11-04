@@ -1,0 +1,175 @@
+{
+  "prompt": "eval fault: every save the model attempts is rejected",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Create the request rate by route dashboard",
+            "spec": {
+              "specVersion": "0",
+              "title": "Request rate by route",
+              "time": {
+                "from": "now-15m",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "req_rate",
+                  "type": "timeseries",
+                  "title": "Request rate by route",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 8
+                  },
+                  "datasource": "prom",
+                  "queries": [
+                    {
+                      "query": "sum by (route) (rate(http_requests_total[$__rate_interval])"
+                    }
+                  ],
+                  "unit": "reqps"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Create the request rate by route dashboard",
+            "spec": {
+              "specVersion": "0",
+              "title": "Request rate by route",
+              "time": {
+                "from": "now-15m",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "req_rate",
+                  "type": "timeseries",
+                  "title": "Request rate by route",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 8
+                  },
+                  "datasource": "prom",
+                  "queries": [
+                    {
+                      "query": "sum by (status) (rate(http_requests_total[$__rate_interval])"
+                    }
+                  ],
+                  "unit": "reqps"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "expect": [
+        {
+          "is_error": true,
+          "contains": "query_invalid"
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Create the request rate by route dashboard",
+            "spec": {
+              "specVersion": "0",
+              "title": "Request rate by route",
+              "time": {
+                "from": "now-15m",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "req_rate",
+                  "type": "timeseries",
+                  "title": "Request rate by route",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 8
+                  },
+                  "datasource": "prom",
+                  "queries": [
+                    {
+                      "query": "sum by (le) (rate(http_requests_total[$__rate_interval])"
+                    }
+                  ],
+                  "unit": "reqps"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "expect": [
+        {
+          "is_error": true,
+          "contains": "query_invalid"
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Create the request rate by route dashboard",
+            "spec": {
+              "specVersion": "0",
+              "title": "Request rate by route",
+              "time": {
+                "from": "now-15m",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "req_rate",
+                  "type": "timeseries",
+                  "title": "Request rate by route",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 8
+                  },
+                  "datasource": "prom",
+                  "queries": [
+                    {
+                      "query": "sum by (code) (rate(http_requests_total[$__rate_interval])"
+                    }
+                  ],
+                  "unit": "reqps"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "expect": [
+        {
+          "is_error": true,
+          "contains": "query_invalid"
+        }
+      ]
+    }
+  ]
+}

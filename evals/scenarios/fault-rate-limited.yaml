@@ -1,0 +1,8 @@
+id: fault-rate-limited
+prompt: "eval fault: the provider rate limits the first model call"
+category: prometheus
+kind: create
+suites: [replay]
+expect:
+  datasources: [prometheus]
+  failure_code: rate_limited

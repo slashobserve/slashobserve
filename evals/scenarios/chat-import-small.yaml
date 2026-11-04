@@ -1,0 +1,6 @@
+id: chat-import-small
+prompt: 'Please import this Grafana dashboard into SlashObserve:'
+kind: chat_import
+suites: [live, replay]
+seed:
+  corpus: altinity/test_timeFilterMs_and_timeSeriesMs.json

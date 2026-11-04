@@ -1,0 +1,8 @@
+id: fault-text-only
+prompt: "eval fault: the model answers in text and never calls a tool"
+category: prometheus
+kind: create
+suites: [replay]
+expect:
+  datasources: [prometheus]
+  failure_code: no_tool_call

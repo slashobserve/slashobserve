@@ -1,0 +1,8 @@
+id: revise-nef-add-panel
+prompt: Add a panel showing the 1 minute load average.
+kind: revise
+suites: [live]
+seed:
+  corpus: rfmoz/node-exporter-full.json
+expect:
+  keeps_panels: true

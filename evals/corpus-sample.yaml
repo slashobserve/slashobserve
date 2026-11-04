@@ -1,0 +1,16 @@
+dashboards:
+  - rfmoz/node-exporter-full.json
+  - rfmoz/haproxy.json
+  - cilium/cilium-dashboard.json
+  - victoriametrics/victoriametrics.json
+  - argo-cd/dashboard.json
+  - victoriametrics/vmalert.json
+  - clickhouse-datasource/otel-service-dashboard.json
+  - slashobserve/demo-shop.json
+k8s:
+  - kube-prometheus/k8s-resources-namespace.json
+  - kube-prometheus/k8s-resources-pod.json
+  - kube-prometheus/namespace-by-pod.json
+  - kube-prometheus/pod-total.json
+  - dotdc/k8s-views-global.json
+  - dotdc/k8s-views-pods.json

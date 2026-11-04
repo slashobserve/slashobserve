@@ -1,0 +1,175 @@
+gaps:
+  - dashboard: dotdc/k8s-addons-prometheus.json
+    panel_title: "Instance Down"
+    reason: "the query selects only unhealthy pods or targets and every one is healthy"
+  - dashboard: dotdc/k8s-addons-prometheus.json
+    panel_title: "Persistent Volumes - Capacity and usage in %"
+    reason: "no kubelet_volume_stats_* series: kind local-path volumes are hostPath volumes, for which the kubelet reports no volume stats"
+  - dashboard: dotdc/k8s-addons-prometheus.json
+    panel_title: "Persistent Volumes - Capacity and usage in bytes"
+    reason: "no kubelet_volume_stats_* series: kind local-path volumes are hostPath volumes, for which the kubelet reports no volume stats"
+  - dashboard: dotdc/k8s-addons-prometheus.json
+    panel_title: "Persistent Volumes - Inodes"
+    reason: "no kubelet_volume_stats_* series: kind local-path volumes are hostPath volumes, for which the kubelet reports no volume stats"
+  - dashboard: dotdc/k8s-system-coredns.json
+    panel_title: "CoreDNS - DNS Errors"
+    reason: "no coredns_proxy_request_duration_seconds_count series with rcode SERVFAIL or REFUSED, because CoreDNS has had no failed upstream query"
+  - dashboard: dotdc/k8s-views-global.json
+    panel_title: "CPU Core Throttled by instance"
+    reason: "node_cpu_core_throttles_total is not exposed by node-exporter on these nodes"
+  - dashboard: dotdc/k8s-views-global.json
+    panel_title: "CPU Throttled seconds by namespace"
+    reason: "varies with throttling between runs"
+  - dashboard: dotdc/k8s-views-global.json
+    panel_title: "Kubernetes Pods Status Reason"
+    reason: "kube_pod_status_reason has no series while no pod has a status reason"
+  - dashboard: dotdc/k8s-views-global.json
+    panel_title: "OOM Events by namespace"
+    reason: "the query keeps only values above 0 and no container was OOM killed, restarted or throttled"
+  - dashboard: dotdc/k8s-views-global.json
+    panel_title: "Container Restarts by namespace"
+    reason: "the query keeps only values above 0 and no container was OOM killed, restarted or throttled"
+  - dashboard: dotdc/k8s-views-namespaces.json
+    panel_title: "CPU Throttled seconds by pod"
+    reason: "varies with throttling between runs"
+  - dashboard: dotdc/k8s-views-namespaces.json
+    panel_title: "Kubernetes Pods Status Reason"
+    reason: "kube_pod_status_reason has no series while no pod has a status reason"
+  - dashboard: dotdc/k8s-views-namespaces.json
+    panel_title: "OOM Events by namespace, pod"
+    reason: "the query keeps only values above 0 and no container was OOM killed, restarted or throttled"
+  - dashboard: dotdc/k8s-views-namespaces.json
+    panel_title: "Container Restarts by namespace, pod"
+    reason: "the query keeps only values above 0 and no container was OOM killed, restarted or throttled"
+  - dashboard: dotdc/k8s-views-namespaces.json
+    panel_title: "Pods with unexpected status"
+    reason: "the query selects only unhealthy pods or targets and every one is healthy"
+  - dashboard: dotdc/k8s-views-namespaces.json
+    panel_title: "Persistent Volumes - Capacity and usage in %"
+    reason: "no kubelet_volume_stats_* series: kind local-path volumes are hostPath volumes, for which the kubelet reports no volume stats"
+  - dashboard: dotdc/k8s-views-namespaces.json
+    panel_title: "Persistent Volumes - Capacity and usage in bytes"
+    reason: "no kubelet_volume_stats_* series: kind local-path volumes are hostPath volumes, for which the kubelet reports no volume stats"
+  - dashboard: dotdc/k8s-views-namespaces.json
+    panel_title: "Persistent Volumes - Inodes"
+    reason: "no kubelet_volume_stats_* series: kind local-path volumes are hostPath volumes, for which the kubelet reports no volume stats"
+  - dashboard: dotdc/k8s-views-nodes.json
+    panel_title: "Number of CPU Core Throttled"
+    reason: "node_cpu_core_throttles_total is not exposed by node-exporter on these nodes"
+  - dashboard: dotdc/k8s-views-nodes.json
+    panel_title: "Persistent Volumes - Usage in %"
+    reason: "no kubelet_volume_stats_* series: kind local-path volumes are hostPath volumes, for which the kubelet reports no volume stats"
+  - dashboard: dotdc/k8s-views-nodes.json
+    panel_title: "Persistent Volumes - Usage in GB"
+    reason: "no kubelet_volume_stats_* series: kind local-path volumes are hostPath volumes, for which the kubelet reports no volume stats"
+  - dashboard: dotdc/k8s-views-nodes.json
+    panel_title: "Persistent Volumes - Inodes"
+    reason: "no kubelet_volume_stats_* series: kind local-path volumes are hostPath volumes, for which the kubelet reports no volume stats"
+  - dashboard: dotdc/k8s-views-pods.json
+    panel_title: "Created by"
+    reason: "the pod variable defaults to All, whose value .* is used with an = matcher on pod, so the single-pod query matches nothing"
+  - dashboard: dotdc/k8s-views-pods.json
+    panel_title: "Running on"
+    reason: "the pod variable defaults to All, whose value .* is used with an = matcher on pod, so the single-pod query matches nothing"
+  - dashboard: dotdc/k8s-views-pods.json
+    panel_title: "Pod IP"
+    reason: "the pod variable defaults to All, whose value .* is used with an = matcher on pod, so the single-pod query matches nothing"
+  - dashboard: dotdc/k8s-views-pods.json
+    panel_title: "Priority Class"
+    reason: "the pod variable defaults to All, whose value .* is used with an = matcher on pod, so the single-pod query matches nothing"
+  - dashboard: dotdc/k8s-views-pods.json
+    panel_title: "QOS Class"
+    reason: "the pod variable defaults to All, whose value .* is used with an = matcher on pod, so the single-pod query matches nothing"
+  - dashboard: dotdc/k8s-views-pods.json
+    panel_title: "Last Terminated Reason"
+    reason: "the pod variable defaults to All, whose value .* is used with an = matcher on pod, so the single-pod query matches nothing"
+  - dashboard: dotdc/k8s-views-pods.json
+    panel_title: "Last Terminated Exit Code"
+    reason: "the pod variable defaults to All, whose value .* is used with an = matcher on pod, so the single-pod query matches nothing"
+  - dashboard: dotdc/k8s-views-pods.json
+    panel_title: "Total pod CPU Limits usage"
+    reason: "defaults to the monitoring namespace, whose only pod has no CPU limit, throttling, OOM, restart or scheduling problem"
+  - dashboard: dotdc/k8s-views-pods.json
+    panel_title: "CPU Throttled seconds by container"
+    reason: "defaults to the monitoring namespace, whose only pod has no CPU limit, throttling, OOM, restart or scheduling problem"
+  - dashboard: dotdc/k8s-views-pods.json
+    panel_title: "OOM Events by container"
+    reason: "defaults to the monitoring namespace, whose only pod has no CPU limit, throttling, OOM, restart or scheduling problem"
+  - dashboard: dotdc/k8s-views-pods.json
+    panel_title: "Container Restarts by container"
+    reason: "defaults to the monitoring namespace, whose only pod has no CPU limit, throttling, OOM, restart or scheduling problem"
+  - dashboard: dotdc/k8s-views-pods.json
+    panel_title: "Pods with Container Issues"
+    reason: "defaults to the monitoring namespace, whose only pod has no CPU limit, throttling, OOM, restart or scheduling problem"
+  - dashboard: dotdc/k8s-views-pods.json
+    panel_title: "Unscheduled Pods"
+    reason: "defaults to the monitoring namespace, whose only pod has no CPU limit, throttling, OOM, restart or scheduling problem"
+  - dashboard: kube-prometheus/apiserver.json
+    panel_title: "Write Availability (30d)"
+    reason: "the recording rule has no write series: no apiserver write request returned a 5xx code and the write SLI rules need one"
+  - dashboard: kube-prometheus/apiserver.json
+    panel_title: "Write SLI - Errors"
+    reason: "the recording rule has no write series: no apiserver write request returned a 5xx code and the write SLI rules need one"
+  - dashboard: kube-prometheus/kubelet.json
+    panel_title: "Config Error Count"
+    reason: "kubelet_node_config_error is not exposed by the kubelet of this Kubernetes version"
+  - dashboard: kube-prometheus/kubelet.json
+    panel_title: "Operation Error Rate"
+    reason: "the kubelet exposes the error counter only after the first error, and none occurred"
+  - dashboard: kube-prometheus/kubelet.json
+    panel_title: "Storage Operation Error Rate"
+    reason: "the kubelet exposes the error counter only after the first error, and none occurred"
+  - dashboard: kube-prometheus/node-cluster-rsrc-use.json
+    panel_title: "Network Saturation (Drops Receive/Transmit)"
+    reason: "the query keeps only non-zero drop rates and the nodes drop no packets"
+  - dashboard: kube-prometheus/node-rsrc-use.json
+    panel_title: "Network Saturation (Drops Receive/Transmit)"
+    reason: "the query keeps only non-zero drop rates and the nodes drop no packets"
+  - dashboard: kube-prometheus/persistentvolumesusage.json
+    panel_title: "Volume Space Usage"
+    reason: "no kubelet_volume_stats_* series: kind local-path volumes are hostPath volumes, for which the kubelet reports no volume stats"
+  - dashboard: kube-prometheus/persistentvolumesusage.json
+    panel_title: "Volume inodes Usage"
+    reason: "no kubelet_volume_stats_* series: kind local-path volumes are hostPath volumes, for which the kubelet reports no volume stats"
+  - dashboard: kube-prometheus/pod-total.json
+    panel_title: "Current Rate of Bits Received"
+    reason: "the dashboard saves pod=kube-system as the default, which is not a pod name, so no series carries it"
+  - dashboard: kube-prometheus/pod-total.json
+    panel_title: "Current Rate of Bits Transmitted"
+    reason: "the dashboard saves pod=kube-system as the default, which is not a pod name, so no series carries it"
+  - dashboard: kube-prometheus/pod-total.json
+    panel_title: "Receive Bandwidth"
+    reason: "the dashboard saves pod=kube-system as the default, which is not a pod name, so no series carries it"
+  - dashboard: kube-prometheus/pod-total.json
+    panel_title: "Transmit Bandwidth"
+    reason: "the dashboard saves pod=kube-system as the default, which is not a pod name, so no series carries it"
+  - dashboard: kube-prometheus/pod-total.json
+    panel_title: "Rate of Received Packets"
+    reason: "the dashboard saves pod=kube-system as the default, which is not a pod name, so no series carries it"
+  - dashboard: kube-prometheus/pod-total.json
+    panel_title: "Rate of Transmitted Packets"
+    reason: "the dashboard saves pod=kube-system as the default, which is not a pod name, so no series carries it"
+  - dashboard: kube-prometheus/pod-total.json
+    panel_title: "Rate of Received Packets Dropped"
+    reason: "the dashboard saves pod=kube-system as the default, which is not a pod name, so no series carries it"
+  - dashboard: kube-prometheus/pod-total.json
+    panel_title: "Rate of Transmitted Packets Dropped"
+    reason: "the dashboard saves pod=kube-system as the default, which is not a pod name, so no series carries it"
+  - dashboard: kube-prometheus/proxy.json
+    panel_title: "Rules Sync Latency 99th Quantile"
+    reason: "histogram_quantile of a rate that is 0 over the whole hour, because no service, endpoint or pod changed after Prometheus started scraping"
+  - dashboard: kube-prometheus/proxy.json
+    panel_title: "Network Programming Latency 99th Quantile"
+    reason: "histogram_quantile of a rate that is 0 over the whole hour, because no service, endpoint or pod changed after Prometheus started scraping"
+  - dashboard: kube-prometheus/proxy.json
+    panel_title: "Post Request Latency 99th Quantile"
+    reason: "histogram_quantile of a rate that is 0 over the whole hour, because no service, endpoint or pod changed after Prometheus started scraping"
+  - dashboard: kube-prometheus/proxy.json
+    panel_title: "Get Request Latency 99th Quantile"
+    reason: "histogram_quantile of a rate that is 0 over the whole hour, because no service, endpoint or pod changed after Prometheus started scraping"
+  - dashboard: kube-prometheus/scheduler.json
+    panel_title: "Scheduling latency 99th Quantile"
+    reason: "histogram_quantile of a rate that is 0 over the whole hour, because no service, endpoint or pod changed after Prometheus started scraping"
+  - dashboard: kube-prometheus/scheduler.json
+    panel_title: "Get Request Latency 99th Quantile"
+    reason: "histogram_quantile of a rate that is 0 over the whole hour, because no service, endpoint or pod changed after Prometheus started scraping"

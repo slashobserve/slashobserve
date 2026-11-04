@@ -1,0 +1,10 @@
+id: build-nef-pending-nudge
+prompt: "eval build: the model stops with a panel still planned"
+category: prometheus
+kind: create
+suites: [replay]
+expect:
+  datasources: [prometheus]
+  min_panels: 3
+  max_panels: 3
+  usage: {build_saves: 3, reseeds: 1, nudges: 0}
