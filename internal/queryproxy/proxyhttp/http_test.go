@@ -336,7 +336,7 @@ func buildHarness(t *testing.T, other *fakeDatasource, opts ...queryproxy.Runner
 	specs := &fakeSpecs{known: map[specKey]*spec.Dashboard{{id: id, version: 1}: testDashboard()}}
 	runner := queryproxy.NewRunner(registry, logger, opts...)
 	access := newFakeAccess()
-	h := NewHandler(runner, specs, access, registry, logger)
+	h := NewHandler(runner, specs, nil, access, registry, logger)
 
 	router := gin.New()
 	api := router.Group("/api/v1")
@@ -2027,4 +2027,91 @@ func TestPreviewFetchesExemplars(t *testing.T) {
 	if string(body.Exemplars) != wantExemplars || body.Meta.Queries[0].Exemplars != queryproxy.ExemplarsOK {
 		t.Fatalf("preview exemplars %s status %q, want the sample and ok", body.Exemplars, body.Meta.Queries[0].Exemplars)
 	}
+}
+
+type fakeBuilds struct {
+	mu    sync.Mutex
+	spec  *spec.Dashboard
+	err   error
+	calls int
+}
+
+func (f *fakeBuilds) ViewBuild(context.Context, auth.Principal, pgtype.UUID) (dashboards.Build, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls++
+	return dashboards.Build{Spec: f.spec}, f.err
+}
+
+func (f *fakeBuilds) lookups() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.calls
+}
+
+func (hn *harness) withBuild(d *spec.Dashboard) *fakeBuilds {
+	builds := &fakeBuilds{spec: d}
+	hn.h.builds = builds
+	return builds
+}
+
+func (hn *harness) buildGet(suffix string, kind auth.PrincipalKind) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/observe/"+hn.id.String()+"/build"+suffix, nil)
+	req.Header.Set("X-Kind", string(kind))
+	return hn.serve(req, "alice")
+}
+
+func TestBuildDataRoutesAreRefusedForNonUsersBeforeTheBuildIsRead(t *testing.T) {
+	hn := newHarness(t)
+	builds := hn.withBuild(testDashboard())
+	for _, path := range []string{"/panels/p_ts/data?" + window, "/variables/job/values?" + window} {
+		for _, kind := range []auth.PrincipalKind{auth.KindServiceAccount, ""} {
+			expectError(t, hn.buildGet(path, kind), http.StatusForbidden, "user_session_required")
+		}
+	}
+	if builds.lookups() != 0 || hn.heldSlots() != 0 {
+		t.Fatalf("refused calls read the build %d times and hold %d slots", builds.lookups(), hn.heldSlots())
+	}
+}
+
+func TestBuildPanelDataAndValuesAreNeverCached(t *testing.T) {
+	hn := newHarness(t)
+	hn.withBuild(testDashboard())
+	for range 2 {
+		if body := decodeData(t, hn.buildGet("/panels/p_ts/data?"+window, auth.KindUser)); body.Meta.Cached {
+			t.Fatal("a build's panel data came from the cache")
+		}
+		if body := decodeValues(t, hn.buildGet("/variables/job/values?"+window, auth.KindUser)); body.Cached {
+			t.Fatal("a build's variable values came from the cache")
+		}
+	}
+	if ranges, _, variables, _ := hn.ds.counts(); ranges != 2 || variables < 4 {
+		t.Fatalf("%d range queries and %d variable queries for 2 identical calls of each, want 2 and at least 4", ranges, variables)
+	}
+}
+
+func TestBuildThatIsNotTheCallersAnswersNotFound(t *testing.T) {
+	hn := newHarness(t)
+	hn.withBuild(nil).err = dashboards.ErrBuildNotFound
+	for _, path := range []string{"/panels/p_ts/data?" + window, "/variables/job/values?" + window} {
+		expectError(t, hn.buildGet(path, auth.KindUser), http.StatusNotFound, "not_found")
+	}
+	if hn.heldSlots() != 0 {
+		t.Fatalf("%d slots held after the refusals", hn.heldSlots())
+	}
+}
+
+func TestBuildDataStillRefusesQueryText(t *testing.T) {
+	hn := newHarness(t)
+	builds := hn.withBuild(testDashboard())
+	expectError(t, hn.buildGet("/panels/p_ts/data?query=up&"+window, auth.KindUser), http.StatusForbidden, "query_not_in_spec")
+	if builds.lookups() != 0 {
+		t.Fatal("the build was read for a request that carried query text")
+	}
+}
+
+func TestBuildPanelThatDoesNotExistIsPanelNotFound(t *testing.T) {
+	hn := newHarness(t)
+	hn.withBuild(testDashboard())
+	expectError(t, hn.buildGet("/panels/missing/data?"+window, auth.KindUser), http.StatusNotFound, "panel_not_found")
 }

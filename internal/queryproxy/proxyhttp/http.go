@@ -46,6 +46,10 @@ type SpecSource interface {
 	VersionSpec(ctx context.Context, id pgtype.UUID, version int) (*spec.Dashboard, error)
 }
 
+type BuildSpecs interface {
+	ViewBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (dashboards.Build, error)
+}
+
 type Access interface {
 	Dashboard(ctx context.Context, p auth.Principal, id pgtype.UUID) (folders.DashboardAccess, error)
 	RequireDashboard(n folders.Need) gin.HandlerFunc
@@ -54,6 +58,7 @@ type Access interface {
 type Handler struct {
 	runner   *queryproxy.Runner
 	specs    SpecSource
+	builds   BuildSpecs
 	access   Access
 	registry *datasource.Registry
 	logger   *slog.Logger
@@ -63,13 +68,14 @@ type Handler struct {
 	lintTimeout time.Duration
 }
 
-func NewHandler(runner *queryproxy.Runner, specs SpecSource, access Access, registry *datasource.Registry, logger *slog.Logger) *Handler {
+func NewHandler(runner *queryproxy.Runner, specs SpecSource, builds BuildSpecs, access Access, registry *datasource.Registry, logger *slog.Logger) *Handler {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &Handler{
 		runner:   runner,
 		specs:    specs,
+		builds:   builds,
 		access:   access,
 		registry: registry,
 		logger:   logger,
@@ -83,6 +89,8 @@ func NewHandler(runner *queryproxy.Runner, specs SpecSource, access Access, regi
 func (h *Handler) Register(api auth.Routes) {
 	api.GET("/dashboards/:id/versions/:version/panels/:panel_id/data", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.data)
 	api.GET("/dashboards/:id/versions/:version/variables/:name/values", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.values)
+	api.GET("/observe/:id/build/panels/:panel_id/data", auth.RoleViewer, h.buildData)
+	api.GET("/observe/:id/build/variables/:name/values", auth.RoleViewer, h.buildValues)
 	api.POST("/datasources/:uid/lint", auth.RoleViewer, h.lint)
 	api.POST("/datasources/:uid/preview", auth.RoleViewer, h.preview)
 	api.GET("/datasources/:uid/metrics", auth.RoleViewer, h.metrics)
@@ -152,8 +160,22 @@ func (h *Handler) data(c *gin.Context) {
 		h.fail(c, err)
 		return
 	}
+	h.serveData(c, p, v, c.Param("panel_id"), &cachedVersion{id: id, version: version})
+}
+
+type cachedVersion struct {
+	id      pgtype.UUID
+	version int
+}
+
+func (h *Handler) serveData(c *gin.Context, p params, v loadedVersion, panelID string, cached *cachedVersion) {
+	ctx := c.Request.Context()
+	if cached == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, queryproxy.DraftLimits.Timeout+queryproxy.DraftGrace)
+		defer cancel()
+	}
 	d := v.dashboard
-	panelID := c.Param("panel_id")
 	found, ok := d.FindDataPanel(panelID)
 	if !ok {
 		h.fail(c, fmt.Errorf("%w: %q", queryproxy.ErrPanelNotFound, panelID))
@@ -189,7 +211,18 @@ func (h *Handler) data(c *gin.Context) {
 		writeData(c, noQueriesEntry(kind, al, now), false, now, sourcePanel)
 		return
 	}
-	key := dataKey(id, version, panelID, kind, al, selections, scope)
+	if cached == nil {
+		req := dataRequest(d, panelID, al, selections, user)
+		req.Limits = queryproxy.DraftLimits
+		entry, err := h.render(ctx, req)
+		if err != nil {
+			h.fail(c, err)
+			return
+		}
+		writeData(c, entry, false, entry.executedAt, sourcePanel)
+		return
+	}
+	key := dataKey(cached.id, cached.version, panelID, kind, al, selections, scope)
 	if entry, at, ok := h.caches.data.Get(key); ok {
 		writeData(c, entry, true, at, sourcePanel)
 		return
@@ -202,6 +235,18 @@ func (h *Handler) data(c *gin.Context) {
 		return
 	}
 	writeData(c, entry, false, entry.executedAt, sourcePanel)
+}
+
+func dataRequest(d *spec.Dashboard, panelID string, al alignment, selections map[string]queryproxy.Selection, user datasource.QueryUser) queryproxy.Request {
+	return queryproxy.Request{
+		Dashboard:     d,
+		PanelID:       panelID,
+		Range:         al.rng,
+		Selections:    selections,
+		MaxDataPoints: al.maxDataPoints,
+		Exemplars:     true,
+		User:          user,
+	}
 }
 
 func noQueriesEntry(kind queryproxy.Kind, al alignment, now time.Time) dataEntry {
@@ -223,15 +268,7 @@ func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, 
 		cached.executedAt = stored
 		return cached, nil
 	}
-	entry, err := h.render(ctx, queryproxy.Request{
-		Dashboard:     d,
-		PanelID:       panelID,
-		Range:         al.rng,
-		Selections:    selections,
-		MaxDataPoints: al.maxDataPoints,
-		Exemplars:     true,
-		User:          user,
-	})
+	entry, err := h.render(ctx, dataRequest(d, panelID, al, selections, user))
 	if err != nil {
 		return dataEntry{}, err
 	}
@@ -352,16 +389,34 @@ func (h *Handler) values(c *gin.Context) {
 		h.fail(c, err)
 		return
 	}
+	h.serveValues(c, p, v, c.Param("name"), &cachedVersion{id: id, version: version})
+}
+
+func (h *Handler) serveValues(c *gin.Context, p params, v loadedVersion, name string, cached *cachedVersion) {
+	ctx := c.Request.Context()
+	if cached == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, queryproxy.DraftLimits.Timeout+queryproxy.DraftGrace)
+		defer cancel()
+	}
 	d := v.dashboard
 	rng, _, err := p.timeRange(d, time.Now())
 	if err != nil {
 		h.fail(c, err)
 		return
 	}
-	name := c.Param("name")
 	rng = align(rng, queryproxy.KindRange, defaultMaxDataPoints).rng
 	user, scope := cacheScope(ctx, v)
-	key := valuesKey(id, version, name, rng.From, rng.To, p.selections, scope)
+	if cached == nil {
+		options, truncated, err := h.runner.VariableValues(ctx, d, name, rng, p.selections, user)
+		if err != nil {
+			h.fail(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, newValuesEntry(options, truncated).response(false))
+		return
+	}
+	key := valuesKey(cached.id, cached.version, name, rng.From, rng.To, p.selections, scope)
 	if entry, _, ok := h.caches.values.Get(key); ok {
 		c.JSON(http.StatusOK, entry.response(true))
 		return

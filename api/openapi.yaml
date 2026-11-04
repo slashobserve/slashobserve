@@ -104,6 +104,18 @@ paths:
     $ref: "./paths/observe.yaml#/observe"
   /observe/{id}:
     $ref: "./paths/observe.yaml#/observe-id"
+  /observe/{id}/build:
+    $ref: "./paths/observe.yaml#/observe-id-build"
+  /observe/{id}/cancel:
+    $ref: "./paths/observe.yaml#/observe-id-cancel"
+  /observe/{id}/continue:
+    $ref: "./paths/observe.yaml#/observe-id-continue"
+  /observe/{id}/build/save:
+    $ref: "./paths/observe.yaml#/observe-id-build-save"
+  /observe/{id}/build/panels/{panel_id}/data:
+    $ref: "./paths/observe.yaml#/observe-id-build-panels-panel-id-data"
+  /observe/{id}/build/variables/{name}/values:
+    $ref: "./paths/observe.yaml#/observe-id-build-variables-name-values"
   /news:
     $ref: "./paths/news.yaml#/news"
   /assets/image:
@@ -1294,6 +1306,12 @@ components:
         - attempts
         - result_version
         - error
+        - failure_code
+        - build
+        - build_saved_at
+        - continues_id
+        - continued_by
+        - continue_note
         - requested_by
         - origin
         - origin_client
@@ -1345,6 +1363,34 @@ components:
           nullable: true
           maxLength: 500
           description: Why the revision failed, set when the status is `failed`.
+        failure_code:
+          type: string
+          nullable: true
+          description: Why the request failed, as one code (the codes of `AgentRequest.failure_code`), set when the status is `failed` and null otherwise. Clients must tolerate codes they do not know.
+        build:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/AgentBuildProgress"
+          description: Progress of the build the agent assembles for this request, null when there is none.
+        build_saved_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the requester saved the stopped build of a `failed` request as a version; null otherwise.
+        continues_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The stopped request this one continues.
+        continued_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: The request that continues this one; its build moved there.
+        continue_note:
+          type: string
+          nullable: true
+          description: The note given when continuing a stopped request, null when none was given or this request continues nothing.
         requested_by:
           $ref: "#/components/schemas/Author"
         origin:
@@ -1395,6 +1441,8 @@ components:
         - steps
         - panel
         - error
+        - failure_code
+        - usage
         - requested_by
         - origin
         - origin_client
@@ -1424,7 +1472,7 @@ components:
           enum: [queued, running, succeeded, failed]
         steps:
           type: array
-          maxItems: 200
+          maxItems: 2000
           items:
             $ref: "#/components/schemas/AgentStep"
         panel:
@@ -1437,6 +1485,15 @@ components:
           nullable: true
           maxLength: 500
           description: Why the suggestion failed, set only when the status is `failed`.
+        failure_code:
+          type: string
+          nullable: true
+          description: "Why the suggestion failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `lease_expired` or `no_progress`. Clients must tolerate codes they do not know."
+        usage:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/AgentUsage"
+          description: Tokens, model calls and timings of the attempt that finished the suggestion. Null when no model call was attempted.
         requested_by:
           $ref: "#/components/schemas/Author"
         origin:
@@ -1493,7 +1550,7 @@ components:
           minimum: 0
           description: >-
             The attempt that ran the step.
-            A shutdown release gives the attempt back and deletes its steps, so the re-claimed run reuses the same attempt number with a fresh step list.
+            A shutdown release gives the attempt back and keeps its steps, so the re-claimed run continues the same step list; an attempt keeps its most recent 1000 steps.
             Clients detect a restarted list by each step's `at`, not by `attempt` alone.
         phase:
           type: string
@@ -1521,6 +1578,20 @@ components:
         - cache_write_tokens
         - model_calls
         - repair_rounds
+        - tool_calls
+        - failed_calls
+        - retries
+        - model_ms
+        - tool_ms
+        - max_save_output_tokens
+        - build_saves
+        - reseeds
+        - renewals
+        - compactions
+        - nudges
+        - save_now_refusals
+        - stalled_turns
+        - one_panel_refusals
       properties:
         provider:
           type: string
@@ -1544,6 +1615,141 @@ components:
         repair_rounds:
           type: integer
           minimum: 0
+        tool_calls:
+          type: integer
+          minimum: 0
+          description: Tool calls the model made.
+        failed_calls:
+          type: integer
+          minimum: 0
+          description: Model calls that failed. The call that ended a failed run counts here, so a run that fails on its first call reports `model_calls` 0 and `failed_calls` 1.
+        retries:
+          type: integer
+          minimum: 0
+          description: Extra HTTP attempts made inside model calls after a retryable answer or an idle or first-token timeout, including the resend after an answer cut off at the output limit.
+        model_ms:
+          type: integer
+          minimum: 0
+          description: Wall-clock milliseconds spent waiting on the model, retries included.
+        tool_ms:
+          type: integer
+          minimum: 0
+          description: Wall-clock milliseconds spent running tools; tools of one turn that run in parallel count once.
+        max_save_output_tokens:
+          type: integer
+          minimum: 0
+          description: The largest output token count of any model turn that contained a save, or 0 when no turn did.
+        build_saves:
+          type: integer
+          minimum: 0
+          description: Accepted saves into the request's build during the run, counted across every session of the run.
+        reseeds:
+          type: integer
+          minimum: 0
+          description: Times the run ended its model session and started a new one that carried the build because the model answered without a tool call while the build held fewer panels than planned (`pending`). A compaction keeps its session, and a restart after a conflict starts a new session without counting here.
+        renewals:
+          type: integer
+          minimum: 0
+          description: Compactions made because the session's history passed the renewal size after an accepted save; also counted in `compactions`.
+        compactions:
+          type: integer
+          minimum: 0
+          description: Times the run compacted its session history (on renewal, or on the first cut-off answer).
+        nudges:
+          type: integer
+          minimum: 0
+          description: Steering messages sent one call before the save-now rule refuses reads.
+        save_now_refusals:
+          type: integer
+          minimum: 0
+          description: Read calls refused because six model calls passed without a save (or twelve without a proposal in a suggest run).
+        stalled_turns:
+          type: integer
+          minimum: 0
+          description: Turns in which the agent answered no call because every call was refused.
+        one_panel_refusals:
+          type: integer
+          minimum: 0
+          description: Saves refused for adding or changing more than one panel.
+    AgentBuildProgress:
+      type: object
+      additionalProperties: false
+      required: [saves, panels, planned_panels, title, updated_at]
+      description: How far a request's build has come, without its Spec; the build title is for the requester only.
+      properties:
+        saves:
+          type: integer
+          minimum: 1
+          description: Accepted build saves so far; a client refetches the build when it changes.
+        panels:
+          type: integer
+          minimum: 0
+          description: Panels in the build, row children included and rows themselves excluded.
+        planned_panels:
+          type: integer
+          minimum: 0
+          maximum: 200
+          description: Panels the agent expects the finished dashboard to have, rows not counted; 0 when it gave no estimate. It is an estimate, so `panels` can exceed it.
+        title:
+          type: string
+          nullable: true
+          description: The build's current dashboard title; null for anyone but the principal that made the request, because a build is visible only to its requester.
+        updated_at:
+          type: string
+          format: date-time
+    AgentBuild:
+      type: object
+      additionalProperties: false
+      required: [request_id, dashboard_id, base_version, saves, panels, planned_panels, spec, updated_at]
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        dashboard_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The dashboard being revised; null for a new-dashboard request.
+        base_version:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: The version the revision started from; null for a new-dashboard request.
+        saves:
+          type: integer
+          minimum: 1
+        panels:
+          type: integer
+          minimum: 0
+        planned_panels:
+          type: integer
+          minimum: 0
+          maximum: 200
+          description: Panels the agent expects the finished dashboard to have, rows not counted; 0 when it gave no estimate. It is an estimate, so `panels` can exceed it.
+        spec:
+          type: object
+          additionalProperties: true
+          description: The ObserveSpec document as built so far, checked like a version.
+        updated_at:
+          type: string
+          format: date-time
+    AgentBuildSaved:
+      type: object
+      additionalProperties: false
+      required: [dashboard_id, version, url, replayed]
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        url:
+          type: string
+          description: The address of the dashboard, empty when the server has no public URL configured.
+        replayed:
+          type: boolean
+          description: True when the request had already saved a version, so this call changed nothing.
     AgentRequest:
       type: object
       additionalProperties: false
@@ -1560,8 +1766,18 @@ components:
         - result_version
         - url
         - error
+        - failure_code
         - steps
         - usage
+        - build
+        - build_saved_at
+        - queue_position
+        - cancel_requested_at
+        - canceled_by
+        - can_cancel
+        - continues_id
+        - continue_note
+        - continued_by
         - requested_by
         - origin
         - origin_client
@@ -1605,7 +1821,7 @@ components:
           type: integer
           minimum: 1
           nullable: true
-          description: The version the request saved, set when the status is `succeeded`.
+          description: The version the request saved, set when the status is `succeeded` and, once the requester saved a stopped build, when it is `failed`.
         url:
           type: string
           nullable: true
@@ -1615,16 +1831,62 @@ components:
           nullable: true
           maxLength: 500
           description: Why the request failed, set when the status is `failed`.
+        failure_code:
+          type: string
+          nullable: true
+          description: "Why the request failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `lease_expired` or `no_progress`. Clients must tolerate codes they do not know."
         steps:
           type: array
-          maxItems: 200
+          maxItems: 2000
           items:
             $ref: "#/components/schemas/AgentStep"
         usage:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/AgentUsage"
-          description: Tokens, model calls and repair rounds of the attempt that finished the request.
+          description: Tokens, model calls, repair rounds and timings of the attempt that finished the request. Null when no model call was attempted.
+        build:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/AgentBuildProgress"
+          description: Progress of the build the agent assembles for this request, null when there is none. Shown to everyone who can see the request; the build's Spec is readable only by the requester through `GET /observe/{id}/build`.
+        build_saved_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the requester saved the stopped build of a `failed` request as a version; null otherwise. The request stays `failed` with its `failure_code`.
+        queue_position:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: 1-based place among queued requests in claim order, null unless queued. The worker skips a request whose dashboard already has a running revision, so the order can shift.
+        cancel_requested_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the requester asked to cancel the request; null when they did not. A running request keeps running until its worker sees the flag, then ends `failed` with the `canceled` failure code and keeps its build.
+        canceled_by:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Author"
+          description: Who asked to cancel the request; the email is never set.
+        can_cancel:
+          type: boolean
+          description: Whether the caller may cancel this request now. Only the requester may, while it is queued or running.
+        continues_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The stopped request this one continues.
+        continue_note:
+          type: string
+          nullable: true
+          description: The note given when continuing a stopped request, null when none was given or this request continues nothing.
+        continued_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: The request that continues this one; its build moved there.
         requested_by:
           $ref: "#/components/schemas/Author"
         origin:
@@ -1662,6 +1924,12 @@ components:
         - result_version
         - url
         - error
+        - failure_code
+        - build
+        - build_saved_at
+        - continues_id
+        - continued_by
+        - continue_note
         - origin
         - origin_client
         - created_at
@@ -1701,6 +1969,34 @@ components:
           type: string
           nullable: true
           maxLength: 500
+        failure_code:
+          type: string
+          nullable: true
+          description: Why the request failed, as one code (the codes of `AgentRequest.failure_code`), set when the status is `failed` and null otherwise. Clients must tolerate codes they do not know.
+        build:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/AgentBuildProgress"
+          description: Progress of the build the agent assembles for this request, null when there is none.
+        build_saved_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the requester saved the stopped build of a `failed` request as a version; null otherwise.
+        continues_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The stopped request this one continues.
+        continued_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: The request that continues this one; its build moved there.
+        continue_note:
+          type: string
+          nullable: true
+          description: The note given when continuing a stopped request, null when none was given or this request continues nothing.
         origin:
           type: string
           enum: [web, cli, mcp, api]
@@ -1720,6 +2016,15 @@ components:
           type: string
           format: date-time
           nullable: true
+    ContinueObserveRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        note:
+          type: string
+          nullable: true
+          maxLength: 4000
+          description: An instruction for the continued run, trimmed; 1 to 4000 characters without control or bidirectional override characters, the same rule as a prompt.
     AgentRequestEnvelope:
       type: object
       additionalProperties: false

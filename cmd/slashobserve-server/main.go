@@ -1,7 +1,9 @@
 package main
 
 import (
+	"cmp"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,6 +15,7 @@ import (
 	_ "time/tzdata"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/actions"
 	"github.com/slashobserve/slashobserve/internal/agent"
@@ -29,6 +32,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/events/stream"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/llm/providers"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -208,6 +212,9 @@ func run() error {
 	} else {
 		logger.Info("no llm provider configured; the agent is off")
 	}
+	if cfg.LLM.LogProviderErrors {
+		logger.Warn("provider error messages are logged; a provider can echo prompt text in them")
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -241,7 +248,7 @@ func run() error {
 	runner := queryproxy.NewRunner(registry, logger)
 	dashboardsService := dashboards.New(database, runner, folderAccess, logger)
 	proxyRunner := queryproxy.NewRunner(registry, logger, queryproxy.WithValueCache())
-	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, folderAccess, registry, logger)
+	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, dashboardsService, folderAccess, registry, logger)
 
 	importsService := imports.New(database, dashboardsService, folderAccess, registry, logger)
 	toolComments := dashboards.NewComments(database, dashboardsService, nil)
@@ -265,19 +272,22 @@ func run() error {
 			Provider:    llmProvider,
 			Tools:       toolRegistry,
 			Dashboards:  dashboardsService,
+			Builds:      dashboardsService,
 			Datasources: registry,
 			Imports:     importsService,
 			Logger:      logger,
+
+			SessionRenewBytes: cfg.Agent.SessionRenewBytes,
 		}), revisions.NewSteps(database, logger))
 		observeOpts.Provider, observeOpts.Model = llmProvider.Name(), llmProvider.Model()
 		observeOpts.Effort = reportedEffort(cfg.LLM)
 	}
-	revisionsService := revisions.NewService(database, reviser, logger, revisions.WithPanels(dashboardsService), revisions.WithSpecs(dashboardsService), revisions.WithPrincipals(authService), revisions.WithAccess(folderAccess))
+	revisionsService := revisions.NewService(database, reviser, logger, revisions.WithPanels(dashboardsService), revisions.WithSpecs(dashboardsService), revisions.WithBuilds(buildStore{dashboardsService}), revisions.WithPrincipals(authService), revisions.WithAccess(folderAccess))
 
 	broker := events.NewBroker(database.Listen, logger)
 	go broker.Run(ctx)
 
-	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger)
+	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger, revisions.WorkerOptions{RunTimeout: cfg.Agent.RunTimeout})
 	defer stopWorkers()
 
 	outbound := allowlist.New(database, allowlist.Lock{Locked: cfg.OutboundDomainsLocked, Domains: cfg.OutboundDomains}, logger)
@@ -324,15 +334,68 @@ func run() error {
 	return nil
 }
 
+type buildStore struct {
+	service *dashboards.Service
+}
+
+func (b buildStore) ViewBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (revisions.BuildView, error) {
+	build, err := b.service.ViewBuild(ctx, by, requestID)
+	if err != nil {
+		return revisions.BuildView{}, revisionsBuildError(err)
+	}
+	raw, err := json.Marshal(build.Spec)
+	if err != nil {
+		return revisions.BuildView{}, fmt.Errorf("marshal build spec: %w", err)
+	}
+	progress := build.Progress()
+	view := revisions.BuildView{
+		RequestID:     build.RequestID.String(),
+		Saves:         build.Saves,
+		PlannedPanels: progress.PlannedPanels,
+		Panels:        progress.Panels,
+		Spec:          raw,
+		UpdatedAt:     httpapi.FormatTime(build.UpdatedAt),
+	}
+	if build.DashboardID.Valid {
+		view.DashboardID, view.BaseVersion = build.DashboardID.String(), build.BaseVersion
+	}
+	return view, nil
+}
+
+func (b buildStore) SaveStoppedBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (revisions.SavedBuild, error) {
+	dash, ver, replayed, err := b.service.SaveStoppedBuild(ctx, by, requestID)
+	if err != nil {
+		return revisions.SavedBuild{}, revisionsBuildError(err)
+	}
+	return revisions.SavedBuild{DashboardID: dash.ID, Version: ver.Number, Replayed: replayed}, nil
+}
+
+func revisionsBuildError(err error) error {
+	var conflict *dashboards.ConflictError
+	switch {
+	case errors.As(err, &conflict):
+		return &revisions.BuildConflictError{Latest: conflict.Latest}
+	case errors.Is(err, dashboards.ErrBuildNotFound):
+		return revisions.ErrBuildNotFound
+	case errors.Is(err, dashboards.ErrBuildEmpty):
+		return revisions.ErrBuildEmpty
+	case errors.Is(err, dashboards.ErrBuildNotSavable):
+		return revisions.ErrBuildNotSavable
+	case errors.Is(err, dashboards.ErrNotFound):
+		return revisions.ErrDashboardNotFound
+	}
+	return err
+}
+
 func reportedEffort(llm config.LLM) string {
 	if llm.Provider == config.LLMProviderAnthropic {
-		return llm.Effort
+		return cmp.Or(llm.Effort, "medium")
 	}
 
 	return ""
 }
 
-func startWorkers(ctx context.Context, service *revisions.Service, listen events.Listener, logger *slog.Logger) func() {
+func startWorkers(ctx context.Context, service *revisions.Service, listen events.Listener, logger *slog.Logger, opts revisions.WorkerOptions) func() {
 	if !service.Available() {
 		return func() {}
 	}
@@ -340,7 +403,7 @@ func startWorkers(ctx context.Context, service *revisions.Service, listen events
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		revisions.NewWorker(service, listen, logger, revisions.WorkerOptions{}).Run(workerCtx)
+		revisions.NewWorker(service, listen, logger, opts).Run(workerCtx)
 	}()
 	return func() {
 		cancel()

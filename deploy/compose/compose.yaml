@@ -70,6 +70,7 @@ services:
     environment:
       SLASHOBSERVE_DATABASE_URL: postgres://slashobserve:slashobserve@postgres:5432/slashobserve?sslmode=disable
       SLASHOBSERVE_LOG_LEVEL: ${SLASHOBSERVE_LOG_LEVEL:-info}
+      SLASHOBSERVE_LOG_FORMAT: ${SLASHOBSERVE_LOG_FORMAT:-json}
       SLASHOBSERVE_PUBLIC_URL: http://localhost:${SLASHOBSERVE_HOST_PORT:-8080}
       SLASHOBSERVE_OIDC_ISSUER_URL: http://localhost:${SLASHOBSERVE_DEX_HOST_PORT:-5556}/dex
       SLASHOBSERVE_OIDC_INTERNAL_URL: http://dex:5556
@@ -85,6 +86,7 @@ services:
       SLASHOBSERVE_LLM_MODEL: ${SLASHOBSERVE_LLM_MODEL:-}
       SLASHOBSERVE_LLM_API_KEY: ${SLASHOBSERVE_LLM_API_KEY:-}
       SLASHOBSERVE_LLM_BASE_URL: ${SLASHOBSERVE_LLM_BASE_URL:-}
+      SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS: ${SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS:-}
       SLASHOBSERVE_LLM_REPLAY_DIR: /etc/slashobserve/llm-fixtures
     volumes:
       - ${SLASHOBSERVE_DATASOURCES_HOST_FILE:-./datasources.yaml}:/etc/slashobserve/datasources.yaml:ro

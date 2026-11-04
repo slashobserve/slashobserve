@@ -58,6 +58,12 @@ function request(overrides: Partial<Revision> & { id: string }): Revision {
     created_at: at(0),
     started_at: null,
     finished_at: null,
+    failure_code: null,
+    build: null,
+    build_saved_at: null,
+    continues_id: null,
+    continued_by: null,
+    continue_note: null,
     ...overrides,
   }
 }

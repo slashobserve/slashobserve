@@ -666,7 +666,7 @@ export interface paths {
         };
         /**
          * Stream live events for one dashboard as Server-Sent Events.
-         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) and `comment_id` (for a revision requested by a comment); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
+         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
          */
         get: operations["streamDashboardEvents"];
         put?: never;
@@ -1025,9 +1025,143 @@ export interface paths {
         };
         /**
          * Read one agent request with its progress steps and usage.
-         * @description Works for any agent request, including comment and prompt revisions. A request that has no dashboard yet, or never got one, is readable only by the principal that made it; anyone else gets 404. Clients poll it once a second until the status is `succeeded` or `failed`. After a shutdown release the re-claimed run reuses its attempt number with a fresh step list, so a client detects a restarted list by each step's `at`, not by `attempt` alone.
+         * @description Works for any agent request, including comment and prompt revisions. A request that has no dashboard yet, or never got one, is readable only by the principal that made it; anyone else gets 404. Clients poll it once a second until the status is `succeeded` or `failed`. After a shutdown release the re-claimed run reuses its attempt number and keeps the steps already recorded, so a client detects a restarted run by each step's `at`, not by `attempt` alone. `build` reports the progress of the dashboard the agent is assembling for the request, without its Spec, to everyone who can see the request; it is null when there is no build. A `failed` request keeps its build for 7 days after it finished; `build_saved_at` is set once the requester saved it as a version.
          */
         get: operations["getObserveRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observe/{id}/build": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read the dashboard an agent request has built so far, with its ObserveSpec.
+         * @description Only the principal that made the request can read its build, and for a revision only while that principal can still view the dashboard; everyone else gets 404, as does a request without a build. A new-dashboard request builds a dashboard that is not in any folder or list until it finishes. Clients read `build` of `GET /observe/{id}` once a second and fetch this operation when its `saves` changes.
+         */
+        get: operations["getObserveRequestBuild"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observe/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a queued or running agent request.
+         * @description Only the principal that made the request may call it; no editor and no administrator may cancel another principal's request. Someone else gets 403 `forbidden` on a revision they can see, and 404 on a new-dashboard request or a suggestion request. A queued request becomes `failed` with the failure code `canceled` at once. A running request keeps running until its worker sees the cancel flag, within about 5 seconds plus the time the in-flight model or tool call takes to return; it then ends `failed` with the failure code `canceled`. The build is kept, so the requester can still save it or continue it. A run that saved its version before the cancel took effect ends `succeeded`, because a saved version always wins. Canceling a request that is already canceled answers 200 with the request; any other finished request answers 409 `request_finished`.
+         */
+        post: operations["cancelObserveRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observe/{id}/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Continue a stopped agent request in a new request that takes over its build.
+         * @description The new request copies the stopped request's source, dashboard, comment, panel, prompt and base version, records `continues_id`, and takes the build, so the agent continues from the panels already built with its own model-call budget. The stopped request gains `continued_by` and can no longer be saved or continued. A request is continuable when it is `failed`, its build was not saved, it still has its build, and nothing continues it yet; otherwise the call answers 409 `not_continuable`. Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request. Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request. A revision whose dashboard has a newer version than the build's base answers 409 `version_conflict` with `latest_version`. The new request counts against the same caps as `POST /observe`. The optional `note` is stored on the new request as `continue_note` and given to the agent in every seed of that run, including its restarts. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         */
+        post: operations["continueObserveRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observe/{id}/build/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save the build of a failed agent request as one version.
+         * @description Only the principal that made the request may call it, with the Editor role and edit access on the target; anyone else gets 404. A new-dashboard request becomes version 1 of a new dashboard in the default folder; a revision becomes the next version of its dashboard and fails with 409 `version_conflict` when someone saved a version after the build started, leaving the build in place. No query runs: every build save was checked when the agent made it, and panels that were unverified then stay unverified. The request stays `failed` with its `failure_code`; it gains `result_version`, `dashboard_id` and `build_saved_at`, and the build is deleted. A repeat call answers 200 with `replayed` true and the version already saved. A `queued` or `running` request answers 409 `build_running`, a build without panels 409 `build_empty`, and a request that is no longer failed with an unsaved build 409 `build_not_savable`. A request without a build, an expired build, or a request of someone else answers 404.
+         */
+        post: operations["saveObserveRequestBuild"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observe/{id}/build/panels/{panel_id}/data": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                panel_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Run the queries of one panel of an agent request's build and return their frames.
+         * @description The queries come from the stored build, so the request names a panel and never carries query text, as for saved versions. This is the second exception to the rule that the proxy runs only saved panel queries: the build is not a version yet. Only signed-in users who made the request may call it, and a service-account key gets 403 `user_session_required`; anyone else gets 404. The queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows), nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `tz`, `max_data_points` and the `var-<name>` selections behave as for panel data of a saved version, and `from` and `to` default to the build's `time`. The response has the shape of panel data, with `meta.cached` always false.
+         */
+        get: operations["getBuildPanelData"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observe/{id}/build/variables/{name}/values": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the values of one variable of an agent request's build.
+         * @description Behaves as the values of a saved version's variable, over the stored build, with the same access rule as the build's panel data: signed-in users who made the request only, 403 `user_session_required` for a key, 404 for anyone else. Nothing is cached, and the call counts against the caller's 8 in-flight query requests.
+         */
+        get: operations["getBuildVariableValues"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1740,6 +1874,27 @@ export interface components {
             result_version: number | null;
             /** @description Why the revision failed, set when the status is `failed`. */
             error: string | null;
+            /** @description Why the request failed, as one code (the codes of `AgentRequest.failure_code`), set when the status is `failed` and null otherwise. Clients must tolerate codes they do not know. */
+            failure_code: string | null;
+            /** @description Progress of the build the agent assembles for this request, null when there is none. */
+            build: components["schemas"]["AgentBuildProgress"] | null;
+            /**
+             * Format: date-time
+             * @description When the requester saved the stopped build of a `failed` request as a version; null otherwise.
+             */
+            build_saved_at: string | null;
+            /**
+             * Format: uuid
+             * @description The stopped request this one continues.
+             */
+            continues_id: string | null;
+            /**
+             * Format: uuid
+             * @description The request that continues this one; its build moved there.
+             */
+            continued_by: string | null;
+            /** @description The note given when continuing a stopped request, null when none was given or this request continues nothing. */
+            continue_note: string | null;
             requested_by: components["schemas"]["Author"];
             /**
              * @description Where the request came from; `web` is a signed-in browser, `cli` the observe CLI, `mcp` an MCP client, `api` any other bearer-key caller. Null for requests made before origins were recorded. A label only, never used for access decisions.
@@ -1780,6 +1935,10 @@ export interface components {
             } | null;
             /** @description Why the suggestion failed, set only when the status is `failed`. */
             error: string | null;
+            /** @description Why the suggestion failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `lease_expired` or `no_progress`. Clients must tolerate codes they do not know. */
+            failure_code: string | null;
+            /** @description Tokens, model calls and timings of the attempt that finished the suggestion. Null when no model call was attempted. */
+            usage: components["schemas"]["AgentUsage"] | null;
             requested_by: components["schemas"]["Author"];
             /**
              * @description Where the request came from. A label only, never used for access decisions.
@@ -1810,7 +1969,7 @@ export interface components {
         AgentStep: {
             /** Format: date-time */
             at: string;
-            /** @description The attempt that ran the step. A shutdown release gives the attempt back and deletes its steps, so the re-claimed run reuses the same attempt number with a fresh step list. Clients detect a restarted list by each step's `at`, not by `attempt` alone. */
+            /** @description The attempt that ran the step. A shutdown release gives the attempt back and keeps its steps, so the re-claimed run continues the same step list; an attempt keeps its most recent 1000 steps. Clients detect a restarted list by each step's `at`, not by `attempt` alone. */
             attempt: number;
             /** @enum {string} */
             phase: "discover" | "lint" | "query" | "save" | "repair";
@@ -1830,6 +1989,77 @@ export interface components {
             cache_write_tokens: number;
             model_calls: number;
             repair_rounds: number;
+            /** @description Tool calls the model made. */
+            tool_calls: number;
+            /** @description Model calls that failed. The call that ended a failed run counts here, so a run that fails on its first call reports `model_calls` 0 and `failed_calls` 1. */
+            failed_calls: number;
+            /** @description Extra HTTP attempts made inside model calls after a retryable answer or an idle or first-token timeout, including the resend after an answer cut off at the output limit. */
+            retries: number;
+            /** @description Wall-clock milliseconds spent waiting on the model, retries included. */
+            model_ms: number;
+            /** @description Wall-clock milliseconds spent running tools; tools of one turn that run in parallel count once. */
+            tool_ms: number;
+            /** @description The largest output token count of any model turn that contained a save, or 0 when no turn did. */
+            max_save_output_tokens: number;
+            /** @description Accepted saves into the request's build during the run, counted across every session of the run. */
+            build_saves: number;
+            /** @description Times the run ended its model session and started a new one that carried the build because the model answered without a tool call while the build held fewer panels than planned (`pending`). A compaction keeps its session, and a restart after a conflict starts a new session without counting here. */
+            reseeds: number;
+            /** @description Compactions made because the session's history passed the renewal size after an accepted save; also counted in `compactions`. */
+            renewals: number;
+            /** @description Times the run compacted its session history (on renewal, or on the first cut-off answer). */
+            compactions: number;
+            /** @description Steering messages sent one call before the save-now rule refuses reads. */
+            nudges: number;
+            /** @description Read calls refused because six model calls passed without a save (or twelve without a proposal in a suggest run). */
+            save_now_refusals: number;
+            /** @description Turns in which the agent answered no call because every call was refused. */
+            stalled_turns: number;
+            /** @description Saves refused for adding or changing more than one panel. */
+            one_panel_refusals: number;
+        };
+        /** @description How far a request's build has come, without its Spec; the build title is for the requester only. */
+        AgentBuildProgress: {
+            /** @description Accepted build saves so far; a client refetches the build when it changes. */
+            saves: number;
+            /** @description Panels in the build, row children included and rows themselves excluded. */
+            panels: number;
+            /** @description Panels the agent expects the finished dashboard to have, rows not counted; 0 when it gave no estimate. It is an estimate, so `panels` can exceed it. */
+            planned_panels: number;
+            /** @description The build's current dashboard title; null for anyone but the principal that made the request, because a build is visible only to its requester. */
+            title: string | null;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        AgentBuild: {
+            /** Format: uuid */
+            request_id: string;
+            /**
+             * Format: uuid
+             * @description The dashboard being revised; null for a new-dashboard request.
+             */
+            dashboard_id: string | null;
+            /** @description The version the revision started from; null for a new-dashboard request. */
+            base_version: number | null;
+            saves: number;
+            panels: number;
+            /** @description Panels the agent expects the finished dashboard to have, rows not counted; 0 when it gave no estimate. It is an estimate, so `panels` can exceed it. */
+            planned_panels: number;
+            /** @description The ObserveSpec document as built so far, checked like a version. */
+            spec: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            updated_at: string;
+        };
+        AgentBuildSaved: {
+            /** Format: uuid */
+            dashboard_id: string;
+            version: number;
+            /** @description The address of the dashboard, empty when the server has no public URL configured. */
+            url: string;
+            /** @description True when the request had already saved a version, so this call changed nothing. */
+            replayed: boolean;
         };
         AgentRequest: {
             /** Format: uuid */
@@ -1850,15 +2080,47 @@ export interface components {
             /** @enum {string} */
             status: "queued" | "running" | "succeeded" | "failed";
             attempts: number;
-            /** @description The version the request saved, set when the status is `succeeded`. */
+            /** @description The version the request saved, set when the status is `succeeded` and, once the requester saved a stopped build, when it is `failed`. */
             result_version: number | null;
             /** @description The address of the dashboard, set when the status is `succeeded`. */
             url: string | null;
             /** @description Why the request failed, set when the status is `failed`. */
             error: string | null;
+            /** @description Why the request failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `lease_expired` or `no_progress`. Clients must tolerate codes they do not know. */
+            failure_code: string | null;
             steps: components["schemas"]["AgentStep"][];
-            /** @description Tokens, model calls and repair rounds of the attempt that finished the request. */
+            /** @description Tokens, model calls, repair rounds and timings of the attempt that finished the request. Null when no model call was attempted. */
             usage: components["schemas"]["AgentUsage"] | null;
+            /** @description Progress of the build the agent assembles for this request, null when there is none. Shown to everyone who can see the request; the build's Spec is readable only by the requester through `GET /observe/{id}/build`. */
+            build: components["schemas"]["AgentBuildProgress"] | null;
+            /**
+             * Format: date-time
+             * @description When the requester saved the stopped build of a `failed` request as a version; null otherwise. The request stays `failed` with its `failure_code`.
+             */
+            build_saved_at: string | null;
+            /** @description 1-based place among queued requests in claim order, null unless queued. The worker skips a request whose dashboard already has a running revision, so the order can shift. */
+            queue_position: number | null;
+            /**
+             * Format: date-time
+             * @description When the requester asked to cancel the request; null when they did not. A running request keeps running until its worker sees the flag, then ends `failed` with the `canceled` failure code and keeps its build.
+             */
+            cancel_requested_at: string | null;
+            /** @description Who asked to cancel the request; the email is never set. */
+            canceled_by: components["schemas"]["Author"] | null;
+            /** @description Whether the caller may cancel this request now. Only the requester may, while it is queued or running. */
+            can_cancel: boolean;
+            /**
+             * Format: uuid
+             * @description The stopped request this one continues.
+             */
+            continues_id: string | null;
+            /** @description The note given when continuing a stopped request, null when none was given or this request continues nothing. */
+            continue_note: string | null;
+            /**
+             * Format: uuid
+             * @description The request that continues this one; its build moved there.
+             */
+            continued_by: string | null;
             requested_by: components["schemas"]["Author"];
             /**
              * @description Where the request came from; `web` is a signed-in browser, `cli` the observe CLI, `mcp` an MCP client, `api` any other bearer-key caller. Null for requests made before origins were recorded. A label only, never used for access decisions.
@@ -1890,6 +2152,27 @@ export interface components {
             result_version: number | null;
             url: string | null;
             error: string | null;
+            /** @description Why the request failed, as one code (the codes of `AgentRequest.failure_code`), set when the status is `failed` and null otherwise. Clients must tolerate codes they do not know. */
+            failure_code: string | null;
+            /** @description Progress of the build the agent assembles for this request, null when there is none. */
+            build: components["schemas"]["AgentBuildProgress"] | null;
+            /**
+             * Format: date-time
+             * @description When the requester saved the stopped build of a `failed` request as a version; null otherwise.
+             */
+            build_saved_at: string | null;
+            /**
+             * Format: uuid
+             * @description The stopped request this one continues.
+             */
+            continues_id: string | null;
+            /**
+             * Format: uuid
+             * @description The request that continues this one; its build moved there.
+             */
+            continued_by: string | null;
+            /** @description The note given when continuing a stopped request, null when none was given or this request continues nothing. */
+            continue_note: string | null;
             /** @enum {string|null} */
             origin: "web" | "cli" | "mcp" | "api" | null;
             origin_client: string | null;
@@ -1899,6 +2182,10 @@ export interface components {
             started_at: string | null;
             /** Format: date-time */
             finished_at: string | null;
+        };
+        ContinueObserveRequest: {
+            /** @description An instruction for the continued run, trimmed; 1 to 4000 characters without control or bidirectional override characters, the same rule as a prompt. */
+            note?: string | null;
         };
         AgentRequestEnvelope: {
             request: components["schemas"]["AgentRequest"];
@@ -4746,6 +5033,351 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
+        };
+    };
+    getObserveRequestBuild: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The build. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        build: components["schemas"]["AgentBuild"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    cancelObserveRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request, with `cancel_requested_at` set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRequestEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The request already finished and was not canceled (`request_finished`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    continueObserveRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ContinueObserveRequest"];
+            };
+        };
+        responses: {
+            /** @description The queued request that continues the stopped one. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRequestEnvelope"];
+                };
+            };
+            /** @description The note breaks the prompt rule (`invalid_request`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The request cannot be continued: `not_continuable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["VersionConflict"];
+                };
+            };
+            /** @description Too many agent requests are queued or running (`too_many_requests` for the caller, `agent_busy` for the instance, `too_many_revisions` for the dashboard). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description No LLM provider is configured (`agent_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    saveObserveRequestBuild: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request had already saved a version; nothing changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentBuildSaved"];
+                };
+            };
+            /** @description The build became a version. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentBuildSaved"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["VersionConflict"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    getBuildPanelData: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                tz?: string;
+                max_data_points?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                panel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The frames the build's queries returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelData"];
+                };
+            };
+            /** @description The request is malformed or fails validation. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The request carried query text (`query_not_in_spec`), or the caller is not a signed-in user (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description There is no such build for the caller (`not_found`), or the build has no such panel (`panel_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A query or a variable cannot run, with the codes of panel data. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource did not answer within the query timeout. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    getBuildVariableValues: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                tz?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to 1000 values; `truncated` is true when there were more. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VariableValues"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The request carried query text (`query_not_in_spec`), or the caller is not a signed-in user (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description There is no such build for the caller (`not_found`), or it has no such variable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The variable's query cannot run, with the codes of variable values of a saved version. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["Internal"];
+            /** @description A datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource did not answer within the query timeout. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
         };
     };
     getNewsFeed: {
