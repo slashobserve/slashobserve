@@ -1393,3 +1393,123 @@ func TestCheckPanels(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckChanged(t *testing.T) {
+	plainPanels := func(n int) []spec.Panel {
+		panels := make([]spec.Panel, n)
+		for i := range panels {
+			panels[i] = panelOf("p"+strconv.Itoa(i), spec.Timeseries, "prom", "up")
+		}
+		return panels
+	}
+	brokenVariables := []spec.Variable{
+		queryVariable("job", "missing", "label_values(job)"),
+		queryVariable("other", "missing", "label_values(other)"),
+	}
+	usesJob := func(panels []spec.Panel, ids ...string) []spec.Panel {
+		for i := range panels {
+			if slices.Contains(ids, panels[i].ID) {
+				panels[i].Queries[0].Query = `up{job="$job"}`
+			}
+		}
+		return panels
+	}
+	reusing := func() []spec.Panel {
+		return []spec.Panel{
+			panelOf("src", spec.Timeseries, "prom", "up"),
+			reusingPanel("reuse", "src"),
+			panelOf("other", spec.Timeseries, "prom", "up"),
+		}
+	}
+
+	tests := []struct {
+		name      string
+		panels    []spec.Panel
+		variables []spec.Variable
+		ids       []string
+		names     []string
+		want      []wantIssue
+		wantCalls int
+	}{
+		{
+			name:      "only the named panels run their queries",
+			panels:    plainPanels(6),
+			ids:       []string{"p1", "p4"},
+			wantCalls: 2,
+		},
+		{
+			name:      "a failing named variable is reported",
+			panels:    plainPanels(2),
+			variables: brokenVariables,
+			names:     []string{"job"},
+			want:      []wantIssue{{"/variables/0/datasource", CodeUnknownDatasource, ""}},
+		},
+		{
+			name:      "a failing named variable is reported beside a named panel's run",
+			panels:    plainPanels(2),
+			variables: brokenVariables,
+			names:     []string{"job"},
+			ids:       []string{"p1"},
+			want:      []wantIssue{{"/variables/0/datasource", CodeUnknownDatasource, ""}},
+			wantCalls: 1,
+		},
+		{
+			name:      "a failing variable that is not named is dropped",
+			panels:    plainPanels(2),
+			variables: brokenVariables,
+			ids:       []string{"p1"},
+			wantCalls: 1,
+		},
+		{
+			name:      "a changed panel that uses a failing unnamed variable reports it as unresolved",
+			panels:    usesJob(plainPanels(3), "p1", "p2"),
+			variables: brokenVariables,
+			ids:       []string{"p1"},
+			want:      []wantIssue{{"/panels/1/queries/0/query", CodeVariableUnresolved, `variable "job" could not be resolved`}},
+		},
+		{
+			name:      "a panel reusing a named source panel runs the source once and covers the dependent",
+			panels:    reusing(),
+			ids:       []string{"reuse"},
+			wantCalls: 1,
+		},
+		{
+			name:      "variables and panels named together both run",
+			panels:    plainPanels(4),
+			variables: []spec.Variable{customVariable("env", "a", "b")},
+			ids:       []string{"p2"},
+			names:     []string{"env"},
+			wantCalls: 1,
+		},
+		{
+			name:      "empty lists run nothing",
+			panels:    plainPanels(3),
+			variables: []spec.Variable{queryVariable("job", "prom", "label_values(job)")},
+		},
+		{
+			name:      "names that match no variable and no panel run nothing",
+			panels:    plainPanels(3),
+			variables: []spec.Variable{queryVariable("job", "prom", "label_values(job)")},
+			ids:       []string{"unknown"},
+			names:     []string{"unknown"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFake("prometheus")
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+			d := dashboardOf(tt.panels, tt.variables...)
+			issues, err := runner.CheckChanged(t.Context(), d, testNow, datasource.QueryUser{}, tt.ids, tt.names)
+			if err != nil {
+				t.Fatalf("CheckChanged error: %v", err)
+			}
+			if len(tt.want) == 0 && issues != nil {
+				t.Fatalf("issues = %+v, want nil", issues)
+			}
+			assertIssues(t, issues, tt.want)
+			if got := fake.callCount(); got != tt.wantCalls {
+				t.Fatalf("upstream calls = %d, want %d: %+v", got, tt.wantCalls, fake.recorded())
+			}
+		})
+	}
+}
