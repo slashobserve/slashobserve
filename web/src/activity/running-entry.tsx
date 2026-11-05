@@ -1,8 +1,12 @@
 import { Link, useRouteContext } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 
+import { RunningFor } from "@/chat/run-duration"
+import { StepTimeline } from "@/chat/step-timeline"
 import { buildStatusText } from "@/observe/build"
-import { observeRequestQuery } from "@/observe/queries"
+import { isTerminal, observeRequestQuery } from "@/observe/queries"
+import { CancelRequestButton } from "@/observe/request-actions"
+import { useSettledRefresh } from "@/observe/use-settled-refresh"
 
 import { boxClass, EntryFrame } from "./entry-frame"
 import { currentStep, type TimelineEntry } from "./timeline-model"
@@ -48,6 +52,11 @@ export function RunningEntry({ entry }: Props) {
   const last = steps.at(-1)
   const status = data?.status ?? request.status
   const canceling = data?.cancel_requested_at != null
+  useSettledRefresh({
+    active: !isTerminal(data),
+    status,
+    dashboardId: request.dashboard_id,
+  })
   const watchable =
     data?.build != null && request.requested_by.id === principal.id
   const stepText =
@@ -95,6 +104,20 @@ export function RunningEntry({ entry }: Props) {
           </Link>
         ) : null}
       </div>
+      <StepTimeline
+        steps={steps}
+        working={status === "running"}
+        reconnecting={false}
+        latest={3}
+      />
+      {status === "running" ? (
+        <RunningFor startedAt={data?.started_at ?? request.started_at} />
+      ) : null}
+      {data !== undefined ? (
+        <div className="self-start">
+          <CancelRequestButton request={data} />
+        </div>
+      ) : null}
     </EntryFrame>
   )
 }

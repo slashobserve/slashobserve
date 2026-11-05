@@ -3,7 +3,14 @@ import type { QueryClient } from "@tanstack/react-query"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
-import { activityWidth, clampWidth, editWidth, isStacked } from "./card-width"
+import {
+  activityWidth,
+  chatPaneStacked,
+  chatPaneWidth,
+  clampWidth,
+  editWidth,
+  isStacked,
+} from "./card-width"
 
 const storageKey = "slashobserve-activity"
 const retiredReviseKey = "slashobserve-revise-on-comment"
@@ -14,7 +21,12 @@ try {
   // Storage can be unavailable (private mode); the retired preference then has nothing to remove.
 }
 
-type Persisted = { open: boolean; width: number; editWidth: number }
+type Persisted = {
+  open: boolean
+  width: number
+  editWidth: number
+  chatWidth: number
+}
 
 type ActivityState = Persisted & {
   drafts: Record<string, string>
@@ -22,6 +34,7 @@ type ActivityState = Persisted & {
   setOpen: (open: boolean) => void
   setWidth: (width: number) => void
   setEditWidth: (width: number) => void
+  setChatWidth: (width: number) => void
   setDraft: (dashboardId: string, text: string) => void
   setTarget: (dashboardId: string, panelId: string | null) => void
 }
@@ -44,6 +57,11 @@ function sanitize(saved: unknown, current: ActivityState): ActivityState {
       editWidth,
       Number.POSITIVE_INFINITY
     ),
+    chatWidth: clampWidth(
+      number(stored.chatWidth, current.chatWidth),
+      chatPaneWidth,
+      Number.POSITIVE_INFINITY
+    ),
   }
 }
 
@@ -53,6 +71,7 @@ export const useActivityStore = create<ActivityState>()(
       open: true,
       width: activityWidth.initial,
       editWidth: editWidth.initial,
+      chatWidth: chatPaneWidth.initial,
       drafts: {},
       targets: {},
       setOpen: (open) => set({ open }),
@@ -64,6 +83,10 @@ export const useActivityStore = create<ActivityState>()(
         set({
           editWidth: clampWidth(width, editWidth, Number.POSITIVE_INFINITY),
         }),
+      setChatWidth: (width) =>
+        set({
+          chatWidth: clampWidth(width, chatPaneWidth, Number.POSITIVE_INFINITY),
+        }),
       setDraft: (dashboardId, text) =>
         set((state) => ({ drafts: { ...state.drafts, [dashboardId]: text } })),
       setTarget: (dashboardId, panelId) =>
@@ -73,7 +96,12 @@ export const useActivityStore = create<ActivityState>()(
     }),
     {
       name: storageKey,
-      partialize: ({ open, width, editWidth }) => ({ open, width, editWidth }),
+      partialize: ({ open, width, editWidth, chatWidth }) => ({
+        open,
+        width,
+        editWidth,
+        chatWidth,
+      }),
       merge: sanitize,
     }
   )
@@ -154,5 +182,15 @@ export function useActivityLayout(editing: boolean) {
     viewport,
     width: clampWidth(stored, bounds, viewport),
     stacked: isStacked(bounds, viewport),
+  }
+}
+
+export function useChatPaneLayout() {
+  const stored = useActivityStore((state) => state.chatWidth)
+  const viewport = useViewportWidth()
+  return {
+    bounds: chatPaneWidth,
+    width: clampWidth(stored, chatPaneWidth, viewport),
+    stacked: chatPaneStacked(viewport),
   }
 }

@@ -1,32 +1,29 @@
-import { useNavigate } from "@tanstack/react-router"
+import { useQuery } from "@tanstack/react-query"
 
 import { Button } from "@/components/ui/button"
 import { useDatasources } from "@/datasources/queries"
 import { useAgentInfo } from "@/observe/queries"
-import type { ObserveRequest } from "@/observe/queries"
 import { SavedPrompts } from "@/prompts/saved-prompts"
+import { dashboardTitlesQuery } from "@/shell/palette-queries"
 
-import { ChatComposer, useSendExample } from "./chat-composer"
+import { ChatComposer, useOpenSent, useSendExample } from "./chat-composer"
 import { examplePrompts } from "./examples"
 import { RecentChats } from "./recent-chats"
 
+const noDashboards: readonly { id: string; title: string }[] = []
+
 export function ChatHome() {
-  const navigate = useNavigate()
   const agent = useAgentInfo()
   const datasources = useDatasources()
+  const dashboards = useQuery(dashboardTitlesQuery())
   const { send, pending } = useSendExample()
+  const openSent = useOpenSent()
 
-  const examples = examplePrompts(
-    (datasources.data ?? []).filter((d) => d.healthy).map((d) => d.type)
-  )
+  const examples = examplePrompts({
+    types: (datasources.data ?? []).filter((d) => d.healthy).map((d) => d.type),
+    dashboards: dashboards.data ?? noDashboards,
+  })
   const agentReady = !agent.isPending && agent.data?.available !== false
-
-  function open(request: ObserveRequest) {
-    return navigate({
-      to: "/c/$requestId",
-      params: { requestId: request.id },
-    })
-  }
 
   return (
     <div className="flex min-h-full flex-col items-center justify-center gap-3.5 pt-10 pb-20">
@@ -39,7 +36,7 @@ export function ChatHome() {
           placeholder="Describe a dashboard, like: checkout health by pod, last 6h"
           autoFocus
           promptPicker
-          onSent={open}
+          onSent={openSent}
         />
       </div>
       {!agentReady || examples.length === 0 ? null : (
@@ -50,14 +47,14 @@ export function ChatHome() {
         >
           {examples.map((example) => (
             <Button
-              key={example}
+              key={example.label}
               type="button"
               variant="outline"
               className="font-normal text-muted-foreground"
               disabled={pending}
-              onClick={() => void send(example)}
+              onClick={() => void send(example.prompt, example.dashboardId)}
             >
-              {example}
+              {example.label}
             </Button>
           ))}
         </div>

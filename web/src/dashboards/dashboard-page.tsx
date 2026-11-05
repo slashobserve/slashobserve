@@ -71,6 +71,7 @@ import {
 import { downloadSpec } from "./export-spec"
 import { gridMargin } from "./fit-layout"
 import { MoreMenu } from "./more-menu"
+import { noNewPanels, panelsAddedSince, type SeenVersion } from "./new-panels"
 import { PanelContainer } from "./panel-container"
 import { mixesDatasources } from "./panel-datasources"
 import type { PanelSource } from "./panel-source"
@@ -219,6 +220,18 @@ function DashboardView({
   const refreshMs = refreshToMs(refreshValue)
 
   const pinned = search.version !== undefined
+  const [seen, setSeen] = useState<{
+    latest: SeenVersion | undefined
+    fresh: ReadonlySet<string>
+  }>({ latest: undefined, fresh: noNewPanels })
+  if (envelopeVersion !== seen.latest?.version) {
+    const next = { version: envelopeVersion, spec: envelopeSpec }
+    setSeen({
+      latest: next,
+      fresh:
+        pinned || editing ? noNewPanels : panelsAddedSince(seen.latest, next),
+    })
+  }
   const { mutate: saveVersion } = useAddVersion(dashboardId)
   const toggleResponsive = useCallback(
     (panel: LayoutPanel) => {
@@ -500,6 +513,7 @@ function DashboardView({
               editable={editing && canEdit}
               layout={editing ? session.layout : undefined}
               onLayoutChange={editing ? setLayout : undefined}
+              newPanelIds={editing ? undefined : seen.fresh}
               renderPanel={(item, size) => (
                 <PanelContainer
                   source={source}

@@ -15,14 +15,34 @@ import {
   useCreatePending,
 } from "@/observe/queries"
 import type { ObserveRequest } from "@/observe/queries"
+import { StopRequestButton } from "@/observe/request-actions"
 import { PromptPicker } from "@/prompts/prompt-picker"
 import { maxPromptLength } from "@/prompts/rules"
 import { usePromptPicker } from "@/prompts/use-prompt-picker"
 
+import { agentLabel } from "./agent-label"
+import { ContextChips, type ContextChip } from "./context-chips"
 import { ImportLink } from "./import-link"
 import { NoAgentNote } from "./no-agent-note"
+import {
+  freshCursor,
+  stepHistory,
+  usePromptHistory,
+  type HistoryCursor,
+} from "./prompt-history"
+import { planSend, type Opens } from "./send-plan"
+import {
+  availableCommands,
+  commandHints,
+  commandLabels,
+  matchingCommands,
+  takeCommand,
+  withCommand,
+  type SlashCommand,
+} from "./slash-commands"
 
-const keyboardHint = "Enter sends. Shift+Enter adds a new line."
+const keyboardHint =
+  "Enter sends. Shift+Enter adds a new line. Up arrow recalls an earlier prompt. Type a slash for commands."
 
 const openFailedMessage = "Request created, but it could not be opened."
 
@@ -30,25 +50,38 @@ type Notice = { text: string; invalid: boolean }
 
 type Props = {
   dashboardId?: string
+  dashboardTitle?: string
+  runningRequestId?: string
   placeholder: string
   rows: number
   autoFocus?: boolean
   disabled?: boolean
   promptPicker?: boolean
-  onSent: (request: ObserveRequest) => void | Promise<void>
+  onSent: (request: ObserveRequest, opens: Opens) => void | Promise<void>
+}
+
+export function useOpenSent(append?: (request: ObserveRequest) => void) {
+  const navigate = useNavigate()
+  return async (request: ObserveRequest, opens: Opens) => {
+    if (opens === "same" && append !== undefined) {
+      append(request)
+      return
+    }
+    await navigate({
+      to: opens === "build" ? "/b/$requestId" : "/c/$requestId",
+      params: { requestId: request.id },
+    })
+  }
 }
 
 export function useSendExample() {
-  const navigate = useNavigate()
   const create = useCreateObserveRequest()
+  const openSent = useOpenSent()
 
-  async function send(prompt: string) {
+  async function send(prompt: string, dashboardId?: string) {
     try {
-      const request = await create.mutateAsync({ prompt })
-      await navigate({
-        to: "/c/$requestId",
-        params: { requestId: request.id },
-      })
+      const request = await create.mutateAsync({ prompt, dashboardId })
+      await openSent(request, dashboardId === undefined ? "build" : "chat")
     } catch (cause) {
       toast.error(describeSubmitError(cause).message)
     }
@@ -57,8 +90,19 @@ export function useSendExample() {
   return { send, pending: useCreatePending() }
 }
 
+function PickerPopup({
+  picker,
+}: {
+  picker: ReturnType<typeof usePromptPicker>
+}) {
+  const { principal } = useRouteContext({ from: "/_authed" })
+  return <PromptPicker picker={picker} principalId={principal.id} />
+}
+
 export function ChatComposer({
   dashboardId,
+  dashboardTitle,
+  runningRequestId,
   placeholder,
   rows,
   autoFocus = false,
@@ -66,27 +110,37 @@ export function ChatComposer({
   promptPicker = false,
   onSent,
 }: Props) {
-  const { principal } = useRouteContext({ from: "/_authed" })
   const agent = useAgentInfo()
   const datasources = useDatasources()
   const create = useCreateObserveRequest()
   const creating = useCreatePending()
   const coarse = useCoarsePointer()
+  const history = usePromptHistory()
   const [prompt, setPrompt] = useState("")
+  const [command, setCommand] = useState<SlashCommand | null>(null)
+  const [cursor, setCursor] = useState<HistoryCursor>(freshCursor)
+  const [announcement, setAnnouncement] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [notice, setNotice] = useState<Notice | null>(null)
   const field = useRef<HTMLTextAreaElement>(null)
   const inputId = useId()
   const messageId = useId()
   const hintId = useId()
-  function onFill(body: string) {
-    setPrompt(body)
-    setNotice(null)
+  const commandHintId = useId()
+
+  function placeCaret(at: "start" | "end") {
     requestAnimationFrame(() => {
       const element = field.current
       if (element === null) return
-      element.setSelectionRange(body.length, body.length)
+      const position = at === "start" ? 0 : element.value.length
+      element.setSelectionRange(position, position)
     })
+  }
+
+  function onFill(body: string) {
+    setPrompt(body)
+    setNotice(null)
+    placeCaret("end")
   }
 
   const picker = usePromptPicker({
@@ -95,10 +149,16 @@ export function ChatComposer({
     onFill,
   })
 
+  const available = availableCommands({
+    hasDashboard: dashboardId !== undefined,
+    investigate: false,
+    surface: "chat",
+  })
+  const matches = matchingCommands(prompt, available)
   const agentOff = agent.data?.available === false
   const agentPending = agent.isPending
   const busy = submitting || creating || agentPending
-  const model = agent.data?.model ?? null
+  const model = agentLabel(agent.data)
   const healthy = (datasources.data ?? []).filter((d) => d.healthy)
 
   useEffect(() => {
@@ -130,13 +190,51 @@ export function ChatComposer({
   if (agentOff) return <NoAgentNote />
 
   const describedBy =
-    [coarse ? null : hintId, notice !== null ? messageId : null]
+    [
+      coarse ? null : hintId,
+      matches.length > 0 ? commandHintId : null,
+      notice !== null ? messageId : null,
+    ]
       .filter((id) => id !== null)
       .join(" ") || undefined
 
   function reject(next: Notice) {
     setNotice(next)
     field.current?.focus()
+  }
+
+  function applyText(value: string): string {
+    const taken = takeCommand(value, available)
+    if (taken === null) return value
+    setCommand(taken.command)
+    setAnnouncement(`${commandLabels[taken.command]} on`)
+    return taken.rest
+  }
+
+  function clearCommand() {
+    setCommand(null)
+    setAnnouncement("")
+  }
+
+  function removeCommandChip() {
+    clearCommand()
+    document.getElementById(inputId)?.focus()
+  }
+
+  function recall(direction: "older" | "newer"): boolean {
+    const step = stepHistory(
+      history.entries,
+      cursor,
+      direction,
+      withCommand(command, prompt)
+    )
+    if (step === null) return false
+    setCursor(step.cursor)
+    setCommand(null)
+    setPrompt(applyText(step.text))
+    setNotice(null)
+    placeCaret(direction === "older" ? "start" : "end")
+    return true
   }
 
   async function submit() {
@@ -159,12 +257,17 @@ export function ChatComposer({
       })
       return
     }
+    const plan = planSend({ command, text: trimmed, dashboardId })
+    if ("error" in plan) {
+      reject({ text: plan.error, invalid: true })
+      return
+    }
     setNotice(null)
     setSubmitting(true)
     try {
       let request: ObserveRequest
       try {
-        request = await create.mutateAsync({ prompt: trimmed, dashboardId })
+        request = await create.mutateAsync(plan.input)
       } catch (cause) {
         const described = describeSubmitError(cause)
         if (described.inline) {
@@ -175,9 +278,13 @@ export function ChatComposer({
         }
         return
       }
+      history.record(withCommand(command, trimmed))
       setPrompt("")
+      setCommand(null)
+      setCursor(freshCursor)
+      setAnnouncement("")
       try {
-        await onSent(request)
+        await onSent(request, plan.opens)
       } catch {
         toast.error(openFailedMessage)
       }
@@ -193,6 +300,32 @@ export function ChatComposer({
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (picker.handleKeyDown(event)) return
+    const element = event.currentTarget
+    const plain =
+      !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey
+    if (
+      plain &&
+      event.key === "ArrowUp" &&
+      element.selectionStart === 0 &&
+      element.selectionEnd === 0
+    ) {
+      if (recall("older")) event.preventDefault()
+      return
+    }
+    if (
+      plain &&
+      event.key === "ArrowDown" &&
+      cursor.index !== -1 &&
+      element.selectionStart === element.value.length
+    ) {
+      if (recall("newer")) event.preventDefault()
+      return
+    }
+    if (event.key === "Backspace" && prompt === "" && command !== null) {
+      event.preventDefault()
+      clearCommand()
+      return
+    }
     if (
       !coarse &&
       event.key === "Enter" &&
@@ -203,6 +336,21 @@ export function ChatComposer({
       void submit()
     }
   }
+
+  const chips: ContextChip[] = [
+    ...(command === null
+      ? []
+      : [
+          {
+            id: "command",
+            label: commandLabels[command],
+            onRemove: removeCommandChip,
+          },
+        ]),
+    ...(dashboardTitle === undefined
+      ? []
+      : [{ id: "dashboard", label: dashboardTitle }]),
+  ]
 
   return (
     <div className="w-full">
@@ -219,6 +367,11 @@ export function ChatComposer({
               {keyboardHint}
             </p>
           )}
+          {chips.length > 0 ? (
+            <div className="px-4 pt-3">
+              <ContextChips chips={chips} />
+            </div>
+          ) : null}
           <textarea
             ref={field}
             id={inputId}
@@ -233,9 +386,11 @@ export function ChatComposer({
             enterKeyHint={coarse ? "enter" : "send"}
             className="max-h-60 resize-none border-0 bg-transparent px-4 pt-3.5 pb-1.5 text-[15px] leading-[1.5] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 narrow:text-base"
             onChange={(event) => {
-              setPrompt(event.target.value)
+              const next = applyText(event.target.value)
+              setPrompt(next)
+              setCursor(freshCursor)
               setNotice(null)
-              picker.onValueChange(event.target.value)
+              picker.onValueChange(next)
             }}
             onBlur={picker.dismiss}
             onKeyDown={onKeyDown}
@@ -259,6 +414,9 @@ export function ChatComposer({
             </div>
             <div className="flex items-center gap-1.5">
               <ImportLink />
+              {runningRequestId !== undefined ? (
+                <StopRequestButton requestId={runningRequestId} />
+              ) : null}
               <Button
                 type="submit"
                 size="icon"
@@ -273,13 +431,22 @@ export function ChatComposer({
             </div>
           </div>
         </form>
-        {picker.open ? (
-          <PromptPicker picker={picker} principalId={principal.id} />
-        ) : null}
+        {picker.open ? <PickerPopup picker={picker} /> : null}
       </div>
-      {promptPicker ? (
-        <p role="status" className="sr-only">
-          {picker.announcement}
+      <p role="status" className="sr-only">
+        {announcement !== "" ? announcement : picker.announcement}
+      </p>
+      {matches.length > 0 ? (
+        <p
+          id={commandHintId}
+          className="flex flex-wrap gap-x-3 pt-1.5 text-xs text-muted-foreground"
+        >
+          {matches.map((name) => (
+            <span key={name}>
+              <span className="font-mono">/{name}</span> {commandHints[name]}
+            </span>
+          ))}
+          <span>Type a space after the command to use it.</span>
         </p>
       ) : null}
       <div className="text-[13px]">

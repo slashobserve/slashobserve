@@ -14,6 +14,8 @@ import {
 import { retryAction } from "@/observe/request-model"
 import { dashboardLink } from "@/lib/links"
 
+import { failureText } from "./failure-text"
+
 export function RetryButton({
   busy,
   onClick,
@@ -62,19 +64,27 @@ export function OpenDashboardLink({
 
 type FailedRequest = Pick<
   ObserveRequest,
-  "source" | "dashboard_id" | "prompt" | "error" | "continued_by"
+  | "source"
+  | "dashboard_id"
+  | "prompt"
+  | "error"
+  | "failure_code"
+  | "continued_by"
 >
+
+export type RunOpens = "chat" | "build"
 
 export function useOpenNewRun(
   request: Pick<ObserveRequest, "source" | "dashboard_id">,
-  onRevised: (request: ObserveRequest) => void
+  onRevised: (request: ObserveRequest) => void,
+  opens: RunOpens = "chat"
 ): (next: ObserveRequest) => Promise<void> {
   const navigate = useNavigate()
   const opensPage = retryAction(request).kind === "create"
   return async (next) => {
     if (opensPage) {
       await navigate({
-        to: "/c/$requestId",
+        to: opens === "build" ? "/b/$requestId" : "/c/$requestId",
         params: { requestId: next.id },
         replace: true,
       })
@@ -102,12 +112,15 @@ function ContinuedNote({ request }: { request: FailedRequest }) {
 export function TurnFailure({
   request,
   onRetried,
+  opensRunsIn = "chat",
 }: {
   request: FailedRequest
   onRetried: (request: ObserveRequest) => void
+  opensRunsIn?: RunOpens
 }) {
   const create = useCreateObserveRequest()
-  const openNewRun = useOpenNewRun(request, onRetried)
+  const openNewRun = useOpenNewRun(request, onRetried, opensRunsIn)
+  const explained = failureText(request.failure_code)
   const [retrying, setRetrying] = useState(false)
   const action = retryAction(request)
   const continued = request.continued_by !== null
@@ -143,8 +156,15 @@ export function TurnFailure({
               : "The dashboard could not be updated"}
           </p>
           <p className="wrap-anywhere text-muted-foreground">
-            {sentence(request.error ?? "The request failed")}
+            {explained?.meaning ??
+              sentence(request.error ?? "The request failed")}
           </p>
+          {explained !== null && request.error !== null ? (
+            <p className="wrap-anywhere text-muted-foreground">
+              {sentence(request.error)}
+            </p>
+          ) : null}
+          {explained !== null ? <p>{explained.next}</p> : null}
         </div>
         {continued ||
         action.kind !== "none" ||

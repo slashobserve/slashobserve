@@ -216,13 +216,20 @@ type Props = {
   build: BuildProgress
   isRequester: boolean
   onContinued: (next: ObserveRequest) => void
+  compact?: boolean
 }
 
-export function BuildCard({ request, build, isRequester, onContinued }: Props) {
+export function BuildCard({
+  request,
+  build,
+  isRequester,
+  onContinued,
+  compact = false,
+}: Props) {
   const active = request.status === "queued" || request.status === "running"
   const result = useQuery({
     ...buildQuery(request.id, build.saves),
-    enabled: isRequester,
+    enabled: isRequester && !compact,
     placeholderData: keepPreviousData,
   })
   const loaded = result.data
@@ -258,7 +265,7 @@ export function BuildCard({ request, build, isRequester, onContinued }: Props) {
           {active ? <StatusIcon tone="running" /> : null}
           {status}
         </p>
-        {isRequester ? (
+        {isRequester && !compact ? (
           <Link
             to="/b/$requestId"
             params={{ requestId: request.id }}
@@ -268,7 +275,7 @@ export function BuildCard({ request, build, isRequester, onContinued }: Props) {
           </Link>
         ) : null}
       </div>
-      {rows.length > 0 ? <Rows rows={rows} fresh={fresh} /> : null}
+      {!compact && rows.length > 0 ? <Rows rows={rows} fresh={fresh} /> : null}
       {mayAct ? (
         <BuildActions
           request={request}

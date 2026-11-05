@@ -4,6 +4,7 @@ import { verticalCompactor } from "react-grid-layout/core"
 import "react-grid-layout/css/styles.css"
 
 import type { Selections } from "@/api/keys"
+import { cn } from "@/lib/utils"
 import { rendererManifests } from "@/panels"
 import type { Dashboard } from "@/spec"
 
@@ -21,6 +22,8 @@ import { useRowStore } from "./rows/row-store"
 
 export const gridRowHeight = 30
 const singleColumnBelow = 768
+const fadeIn =
+  "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300"
 
 type Size = { width: number; height: number }
 type PanelItem = Extract<LayoutItem, { kind: "panel" }>
@@ -34,6 +37,7 @@ type Props = {
   editable?: boolean
   layout?: Layout
   onLayoutChange?: (layout: Layout) => void
+  newPanelIds?: ReadonlySet<string>
 }
 
 const noRows: Record<string, boolean> = {}
@@ -56,6 +60,7 @@ export function DashboardGrid({
   editable = false,
   layout,
   onLayoutChange,
+  newPanelIds,
 }: Props) {
   const { width, mounted, containerRef } = useContainerWidth({
     measureBeforeMount: true,
@@ -160,12 +165,19 @@ export function DashboardGrid({
                   {entry.text}
                 </p>
               ) : null}
-              {entry.kind === "panel"
-                ? renderPanel(entry, {
+              {entry.kind === "panel" ? (
+                <div
+                  className={cn(
+                    "size-full",
+                    newPanelIds?.has(entry.panel.id) && fadeIn
+                  )}
+                >
+                  {renderPanel(entry, {
                     width: pixelWidth(width, gridItems[index].w),
                     height: pixelHeight(gridItems[index].h),
-                  })
-                : null}
+                  })}
+                </div>
+              ) : null}
             </div>
           ))}
         </GridLayout>

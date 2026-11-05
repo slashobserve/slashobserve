@@ -11,13 +11,29 @@ import {
 } from "react"
 
 import { ApiError } from "@/api/errors"
+import { agentLabel } from "@/chat/agent-label"
+import { ContextChips, type ContextChip } from "@/chat/context-chips"
+import {
+  freshCursor,
+  stepHistory,
+  usePromptHistory,
+  type HistoryCursor,
+} from "@/chat/prompt-history"
+import {
+  availableCommands,
+  commandLabels,
+  takeCommand,
+  withCommand,
+  type SlashCommand,
+} from "@/chat/slash-commands"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useAddComment } from "@/comments/queries"
 import { liveRegionText } from "@/lib/live-region"
 import { isModEnter } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
-import { sentence } from "@/observe/queries"
+import { sentence, useAgentInfo } from "@/observe/queries"
+import { StopRequestButton } from "@/observe/request-actions"
 import {
   describeRevisionError,
   isAgentUnavailable,
@@ -41,9 +57,15 @@ type Props = {
   placeholder: string
   textareaRef?: Ref<HTMLTextAreaElement>
   notice?: ReactNode
+  runningRequestId?: string
 }
 
 const counterThreshold = 3500
+const commands = availableCommands({
+  hasDashboard: true,
+  investigate: false,
+  surface: "activity",
+})
 const panelGoneText = "That panel no longer exists. Pick another target."
 const agentGoneText =
   "The agent is no longer available. Your text is still here."
@@ -88,14 +110,21 @@ export function ActivityComposer({
   placeholder,
   textareaRef,
   notice,
+  runningRequestId,
 }: Props) {
   const counterId = useId()
+  const textareaId = useId()
   const errorId = useId()
   const addComment = useAddComment(dashboardId)
   const requestRevision = useRequestRevision(dashboardId)
   const field = useRef<HTMLTextAreaElement>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const [note, setNote] = useState({ text: "", count: 0 })
+  const [command, setCommand] = useState<SlashCommand | null>(null)
+  const [cursor, setCursor] = useState<HistoryCursor>(freshCursor)
+  const history = usePromptHistory()
+  const agent = useAgentInfo()
+  const model = agentLabel(agent.data)
 
   useImperativeHandle(
     textareaRef,
@@ -129,8 +158,43 @@ export function ActivityComposer({
 
   function succeeded(text: string) {
     onDraftChange("")
+    setCommand(null)
+    setCursor(freshCursor)
     announce(text)
     field.current?.focus()
+  }
+
+  function applyText(value: string): string {
+    const taken = takeCommand(value, commands)
+    if (taken === null) return value
+    setCommand(taken.command)
+    announce(`${commandLabels[taken.command]} on`)
+    return taken.rest
+  }
+
+  function recall(direction: "older" | "newer"): boolean {
+    const step = stepHistory(
+      history.entries,
+      cursor,
+      direction,
+      withCommand(command, draft)
+    )
+    if (step === null) return false
+    setCursor(step.cursor)
+    setCommand(null)
+    onDraftChange(applyText(step.text))
+    requestAnimationFrame(() => {
+      const element = field.current
+      if (element === null) return
+      const at = direction === "older" ? 0 : element.value.length
+      element.setSelectionRange(at, at)
+    })
+    return true
+  }
+
+  function removeCommandChip() {
+    setCommand(null)
+    document.getElementById(textareaId)?.focus()
   }
 
   function failed(text: string) {
@@ -156,7 +220,10 @@ export function ActivityComposer({
     requestRevision.mutate(
       { prompt: trimmed, baseVersion: latestVersion, panelId },
       {
-        onSuccess: () => succeeded("Sent to the agent"),
+        onSuccess: () => {
+          history.record(withCommand(command, trimmed))
+          succeeded("Sent to the agent")
+        },
         onError: (error) => failed(requestFailureText(error)),
       }
     )
@@ -171,8 +238,47 @@ export function ActivityComposer({
     if (isModEnter(event) && !event.nativeEvent.isComposing) {
       event.preventDefault()
       addCommentNow()
+      return
+    }
+    const element = event.currentTarget
+    const plain =
+      !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey
+    const browsing = cursor.index !== -1
+    if (
+      plain &&
+      event.key === "ArrowUp" &&
+      (draft === "" || browsing) &&
+      element.selectionStart === 0 &&
+      element.selectionEnd === 0
+    ) {
+      if (recall("older")) event.preventDefault()
+      return
+    }
+    if (
+      plain &&
+      event.key === "ArrowDown" &&
+      browsing &&
+      element.selectionStart === element.value.length
+    ) {
+      if (recall("newer")) event.preventDefault()
+      return
+    }
+    if (event.key === "Backspace" && draft === "" && command !== null) {
+      event.preventDefault()
+      setCommand(null)
     }
   }
+
+  const chips: ContextChip[] =
+    command === null
+      ? []
+      : [
+          {
+            id: "command",
+            label: commandLabels[command],
+            onRemove: removeCommandChip,
+          },
+        ]
 
   const describedBy =
     [showCounter ? counterId : null, failure ? errorId : null]
@@ -207,8 +313,10 @@ export function ActivityComposer({
           ))}
         </select>
       </label>
+      <ContextChips chips={chips} />
       <Textarea
         ref={field}
+        id={textareaId}
         aria-label="Comment or request"
         aria-invalid={over || undefined}
         aria-describedby={describedBy}
@@ -218,7 +326,8 @@ export function ActivityComposer({
         readOnly={pending}
         className="field-sizing-fixed max-h-64 min-h-16 resize-y px-3 py-2.5 text-sm"
         onChange={(event) => {
-          onDraftChange(event.target.value)
+          onDraftChange(applyText(event.target.value))
+          setCursor(freshCursor)
           if (failure) setFailure(null)
         }}
         onKeyDown={onKeyDown}
@@ -237,6 +346,9 @@ export function ActivityComposer({
         </span>
       ) : null}
       <div className="flex flex-wrap items-center justify-end gap-2">
+        {model !== null ? (
+          <span className="mr-auto text-xs text-muted-foreground">{model}</span>
+        ) : null}
         <Button
           type="submit"
           variant="outline"
@@ -246,6 +358,9 @@ export function ActivityComposer({
         >
           Add comment
         </Button>
+        {runningRequestId !== undefined ? (
+          <StopRequestButton requestId={runningRequestId} />
+        ) : null}
         {gate.kind === "allowed" ? (
           <Button
             type="button"

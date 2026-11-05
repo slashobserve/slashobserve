@@ -10,6 +10,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
+import { useRouteContext } from "@tanstack/react-router"
 
 import type { components } from "@/api/schema.gen"
 import { commentsQuery, useComments } from "@/comments/queries"
@@ -165,6 +166,7 @@ export function ActivityFeed({
   back,
   composerRef,
 }: Props) {
+  const { principal } = useRouteContext({ from: "/_authed" })
   const comments = useComments(dashboardId)
   const commentsData = useInfiniteQuery(commentsQuery(dashboardId)).data
   const revisions = useRevisions(dashboardId)
@@ -227,6 +229,10 @@ export function ActivityFeed({
       .length,
   })
   const clientName = clientNameFrom(madeBy)
+  const runningRequestId = requests.find(
+    (request) =>
+      isActive(request.status) && request.requested_by.id === principal.id
+  )?.id
 
   const draft = useDraft(dashboardId)
   const storedTarget = useStoredTarget(dashboardId)
@@ -284,6 +290,7 @@ export function ActivityFeed({
       case "request":
         return (
           <RequestEntry
+            dashboardId={dashboardId}
             entry={entry}
             panelTitle={title}
             onSelectPanel={onSelectPanel}
@@ -379,6 +386,7 @@ export function ActivityFeed({
                 : "Write a comment, or tell the agent what to change"
           }
           textareaRef={composerRef}
+          runningRequestId={runningRequestId}
           notice={
             mode === "comment-only" ? (
               <RoleNote>{note}</RoleNote>
