@@ -3,6 +3,8 @@ package main
 import (
 	"cmp"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/actions"
 	"github.com/slashobserve/slashobserve/internal/agent"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/assets"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/config"
@@ -41,6 +44,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/queryproxy/proxyhttp"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/scheduler"
 	"github.com/slashobserve/slashobserve/internal/server"
 	"github.com/slashobserve/slashobserve/internal/server/mcp"
 	"github.com/slashobserve/slashobserve/internal/users"
@@ -251,6 +255,7 @@ func run() error {
 	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, dashboardsService, folderAccess, registry, logger)
 
 	importsService := imports.New(database, dashboardsService, folderAccess, registry, logger)
+	annotationsHandler := annotations.NewHandler(annotations.New(database, folderAccess), logger)
 	toolComments := dashboards.NewComments(database, dashboardsService, nil)
 	toolRegistry := tools.New(tools.Deps{
 		Datasources: registry,
@@ -289,6 +294,8 @@ func run() error {
 
 	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger, revisions.WorkerOptions{RunTimeout: cfg.Agent.RunTimeout})
 	defer stopWorkers()
+	stopScheduler := startScheduler(ctx, scheduler.New(logger, database, scheduler.NopMetrics{}, instanceID()), logger)
+	defer stopScheduler()
 
 	outbound := allowlist.New(database, allowlist.Lock{Locked: cfg.OutboundDomainsLocked, Domains: cfg.OutboundDomains}, logger)
 	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
@@ -314,6 +321,7 @@ func run() error {
 			news.NewHandler(egressClient, logger),
 			actions.NewHandler(dashboardsService, egressClient, folderAccess.RequireDashboard(folders.NeedEdit), logger),
 			assets.NewHandler(assetsClient, logger),
+			annotationsHandler,
 		},
 		Mounts: []server.Mount{{
 			Path:    "/mcp",
@@ -413,6 +421,33 @@ func startWorkers(ctx context.Context, service *revisions.Service, listen events
 			logger.Warn("agent workers did not stop in time")
 		}
 	}
+}
+
+func startScheduler(ctx context.Context, jobs *scheduler.Scheduler, logger *slog.Logger) func() {
+	schedulerCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		jobs.Run(schedulerCtx)
+	}()
+	return func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(shutdownTimeout):
+			logger.Warn("scheduled jobs did not stop in time")
+		}
+	}
+}
+
+func instanceID() string {
+	host, err := os.Hostname()
+	if err != nil || host == "" {
+		host = "server"
+	}
+	suffix := make([]byte, 4)
+	_, _ = rand.Read(suffix)
+	return host + "-" + hex.EncodeToString(suffix)
 }
 
 func newLogger(cfg config.Config) *slog.Logger {

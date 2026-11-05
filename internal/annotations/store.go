@@ -1,0 +1,117 @@
+package annotations
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/httpapi"
+)
+
+type store struct {
+	db *db.DB
+}
+
+func (s *store) insert(ctx context.Context, in CreateInput, creator pgtype.UUID) (Annotation, error) {
+	row, err := s.db.Queries().InsertAnnotation(ctx, dbsqlc.InsertAnnotationParams{
+		DashboardID: in.DashboardID,
+		PanelID:     in.PanelID,
+		TimeFrom:    timestamp(&in.From),
+		TimeTo:      timestamp(in.To),
+		Text:        in.Text,
+		Tags:        in.Tags,
+		CreatedBy:   creator,
+	})
+	if db.IsForeignKeyViolation(err) {
+		return Annotation{}, ErrNotFound
+	}
+	if err != nil {
+		return Annotation{}, err
+	}
+	return annotationOf(row), nil
+}
+
+func (s *store) get(ctx context.Context, id pgtype.UUID) (Annotation, error) {
+	row, err := s.db.Queries().GetAnnotation(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Annotation{}, ErrNotFound
+	}
+	if err != nil {
+		return Annotation{}, err
+	}
+	return annotationOf(row), nil
+}
+
+func (s *store) remove(ctx context.Context, id pgtype.UUID) error {
+	n, err := s.db.Queries().DeleteAnnotation(ctx, id)
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *store) list(ctx context.Context, q ListQuery, limit int) ([]Annotation, error) {
+	params := dbsqlc.ListAnnotationsParams{
+		DashboardID: q.DashboardID,
+		WindowFrom:  timestamp(q.From),
+		WindowTo:    timestamp(q.To),
+		Tags:        q.Tags,
+		RowLimit:    httpapi.Int32(limit),
+	}
+	if params.Tags == nil {
+		params.Tags = []string{}
+	}
+	if q.After != nil {
+		params.CursorTime = timestamp(&q.After.Time)
+		params.CursorID = q.After.ID
+	}
+	rows, err := s.db.Queries().ListAnnotations(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Annotation, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, annotationOf(r))
+	}
+	return out, nil
+}
+
+func timestamp(t *time.Time) pgtype.Timestamptz {
+	if t == nil {
+		return pgtype.Timestamptz{}
+	}
+	return pgtype.Timestamptz{Time: *t, Valid: true}
+}
+
+func annotationOf(r dbsqlc.Annotation) Annotation {
+	a := Annotation{
+		ID:        r.ID.String(),
+		PanelID:   r.PanelID,
+		From:      r.TimeFrom.Time.UTC(),
+		Text:      r.Text,
+		Tags:      r.Tags,
+		CreatedAt: r.CreatedAt.Time.UTC(),
+	}
+	if r.DashboardID.Valid {
+		a.DashboardID = r.DashboardID.String()
+	}
+	if r.TimeTo.Valid {
+		to := r.TimeTo.Time.UTC()
+		a.To = &to
+	}
+	if r.CreatedBy.Valid {
+		a.CreatedBy = r.CreatedBy.String()
+	}
+	if a.Tags == nil {
+		a.Tags = []string{}
+	}
+	return a
+}

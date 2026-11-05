@@ -342,6 +342,52 @@ export interface paths {
         patch: operations["updateSavedPrompt"];
         trace?: never;
     };
+    "/annotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List annotations, newest first.
+         * @description Lists annotations ordered by `time_from` then `id`, newest first. With `dashboard_id`, returns that dashboard's annotations and the global ones; without it, only the global ones. The caller must be able to see the dashboard: a dashboard that is missing or in a folder the caller cannot see is 404 `not_found`. An annotation is in the window when it starts at or before `to` and ends, or starts when it has no end, at or after `from`.
+         */
+        get: operations["listAnnotations"];
+        put?: never;
+        /**
+         * Add an annotation.
+         * @description Adds an annotation to one dashboard, or a global one shown on every dashboard when `dashboard_id` is absent or null. A dashboard annotation needs Edit on the dashboard's folder, and a global one needs the Editor role or higher; otherwise 403 `forbidden_role`. A dashboard that is missing or in a folder the caller cannot see is 404 `not_found`. `time_from` defaults to the server's current time.
+         */
+        post: operations["createAnnotation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/annotations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an annotation.
+         * @description Deletes an annotation the caller created, or any annotation for an Admin; anyone else gets 403 `not_creator`. An annotation that is missing, or on a dashboard the caller cannot see, is 404 `not_found`.
+         */
+        delete: operations["deleteAnnotation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasources": {
         parameters: {
             query?: never;
@@ -1512,6 +1558,36 @@ export interface components {
         };
         SavedPromptList: {
             prompts: components["schemas"]["SavedPrompt"][];
+        };
+        Annotation: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: uuid
+             * @description Null for a global annotation, shown on every dashboard.
+             */
+            dashboard_id: string | null;
+            panel_id: string | null;
+            /** Format: date-time */
+            time_from: string;
+            /**
+             * Format: date-time
+             * @description The end of a range annotation; null for a single instant.
+             */
+            time_to: string | null;
+            text: string;
+            tags: string[];
+            /**
+             * Format: uuid
+             * @description The id of the person or service account that added it.
+             */
+            created_by: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AnnotationList: {
+            annotations: components["schemas"]["Annotation"][];
+            next_cursor: string | null;
         };
         NewsItem: {
             /** @description Plain text, never markup. */
@@ -3174,6 +3250,147 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            500: components["responses"]["Internal"];
+        };
+    };
+    listAnnotations: {
+        parameters: {
+            query?: {
+                dashboard_id?: string;
+                /** @description RFC 3339 start of the window. */
+                from?: string;
+                /** @description RFC 3339 end of the window, not before `from`. */
+                to?: string;
+                /** @description Comma-separated tags; an annotation matches when it has any of them. */
+                tags?: string;
+                /** @description The `next_cursor` of the previous page. */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of annotations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnotationList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The dashboard is missing or the caller cannot see it (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    createAnnotation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    dashboard_id?: string | null;
+                    /** @description A panel of the dashboard; needs `dashboard_id`. */
+                    panel_id?: string;
+                    /** Format: date-time */
+                    time_from?: string;
+                    /**
+                     * Format: date-time
+                     * @description The end of a range annotation, not before `time_from`.
+                     */
+                    time_to?: string | null;
+                    /** @description 1 to 2000 characters once trimmed, without control or bidirectional override characters. */
+                    text: string;
+                    tags?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description The annotation is added. */
+            201: {
+                headers: {
+                    /** @description `/api/v1/annotations/{id}` of the new annotation. */
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Annotation"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The dashboard is missing or the caller cannot see it (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The text is empty, longer than 2000 characters or holds control characters (`invalid_text`), a tag is not valid or there are more than 10 (`invalid_tags`), a time is not RFC 3339, is before 1970 or `time_to` is before `time_from` (`invalid_time`), or `panel_id` is too long or has no `dashboard_id` (`invalid_panel_id`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteAnnotation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The annotation is deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller did not create the annotation and is not an Admin (`not_creator`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
         };
     };

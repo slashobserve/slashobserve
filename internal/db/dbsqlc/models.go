@@ -59,6 +59,18 @@ type AgentRequestBuild struct {
 	PlannedPanels  int32
 }
 
+type Annotation struct {
+	ID          pgtype.UUID
+	DashboardID pgtype.UUID
+	PanelID     string
+	TimeFrom    pgtype.Timestamptz
+	TimeTo      pgtype.Timestamptz
+	Text        string
+	Tags        []string
+	CreatedBy   pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+}
+
 type Dashboard struct {
 	ID                  pgtype.UUID
 	Title               string
@@ -161,6 +173,18 @@ type Instance struct {
 	Singleton bool
 	ID        pgtype.UUID
 	CreatedAt pgtype.Timestamptz
+}
+
+type Job struct {
+	Name           string
+	EverySeconds   int32
+	NextRunAt      pgtype.Timestamptz
+	LeasedBy       string
+	LeaseUntil     pgtype.Timestamptz
+	LastStartedAt  pgtype.Timestamptz
+	LastFinishedAt pgtype.Timestamptz
+	LastOutcome    string
+	LastError      string
 }
 
 type OidcLoginState struct {
