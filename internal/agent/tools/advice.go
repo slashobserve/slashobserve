@@ -123,6 +123,19 @@ func withAdvice(ctx context.Context, out savedOut, doc *spec.Dashboard) savedOut
 	return out
 }
 
+func buildAdvice(ctx context.Context, out buildOut, doc *spec.Dashboard) buildOut {
+	inventory, _ := inventories.get(ctx)
+	out.advice = adviceFor(doc, inventory)
+	rest := out
+	rest.ChangedPanels = nil
+	body, err := json.Marshal(rest)
+	if err != nil {
+		return out
+	}
+	out.ChangedPanels, _ = fit(out.ChangedPanels, listBudget-len(body))
+	return out
+}
+
 type inventoryStore struct {
 	mu       sync.Mutex
 	families map[string][]datasource.Family

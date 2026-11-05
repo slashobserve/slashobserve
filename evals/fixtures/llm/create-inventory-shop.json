@@ -16,7 +16,7 @@
       "expect": [
         {
           "is_error": false,
-          "contains": "\"families_total\""
+          "contains": "\"families_total\":2,\"runtime_families\":"
         }
       ],
       "tool_calls": [
@@ -24,7 +24,7 @@
           "name": "create_dashboard",
           "input": {
             "summary": "Start the shop inventory dashboard with the request rate",
-            "planned_panels": 16,
+            "planned_panels": 15,
             "spec": {
               "specVersion": "0",
               "title": "Shop metric inventory",
@@ -527,39 +527,6 @@
         {
           "name": "update_panels",
           "input": {
-            "summary": "Add Process network",
-            "upsert": [
-              {
-                "id": "process_network",
-                "type": "timeseries",
-                "title": "Process network",
-                "datasource": "prom",
-                "queries": [
-                  {
-                    "query": "rate(process_network_receive_bytes_total{job=\"shop\"}[$__rate_interval])",
-                    "legend": "{{instance}} receive"
-                  },
-                  {
-                    "query": "rate(process_network_transmit_bytes_total{job=\"shop\"}[$__rate_interval])",
-                    "legend": "{{instance}} transmit"
-                  }
-                ],
-                "unit": "Bps"
-              }
-            ],
-            "row": {
-              "id": "row_process",
-              "title": "Process"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "tool_calls": [
-        {
-          "name": "update_panels",
-          "input": {
             "summary": "Add Scrape duration",
             "upsert": [
               {
@@ -616,11 +583,19 @@
             "row": {
               "id": "row_scrape",
               "title": "Scrape"
-            },
-            "finish": true
+            }
           }
         }
       ]
+    },
+    {
+      "expect": [
+        {
+          "is_error": false,
+          "contains": "\"uncovered\":[],\"uncovered_total\":0"
+        }
+      ],
+      "text": "Every family in the shop scope has a panel."
     }
   ]
 }

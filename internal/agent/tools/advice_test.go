@@ -259,3 +259,59 @@ func TestSaveResultsNameTheFamiliesNoPanelQueries(t *testing.T) {
 		t.Fatalf("update_panels notes = %q, want only the first panel's", patched.Notes)
 	}
 }
+
+func TestBuildSavesNameUncoveredFamiliesUntilTheFinish(t *testing.T) {
+	rig := newPanelsRig(t)
+	run := rig.createRun(t)
+	inventories.put(run.ctx, []datasource.Family{{Name: "http_requests_total", Type: "counter"}, {Name: "node_load1"}})
+
+	res, _ := run.run(t, nameCreateDashboard, buildCreateJSON(suggestStat("rps", "Requests", "sum(rate(http_requests_total[5m]))", 0), `,"planned_panels":2`))
+	first, ok := res.Content.(buildOut)
+	if res.IsError || !ok {
+		t.Fatalf("first save = %#v, want a build save", res.Content)
+	}
+	if first.coverage == nil || !slices.Equal(first.Uncovered, []string{"node_load1"}) || first.UncoveredTotal != 1 {
+		t.Fatalf("first save advice = %+v, want node_load1 uncovered", first.advice)
+	}
+	if want := []string{"stat panel rps has no description", "panel rps is numeric and has no unit"}; !slices.Equal(slices.Sorted(slices.Values(first.Notes)), slices.Sorted(slices.Values(want))) {
+		t.Fatalf("first save notes = %q, want %q", first.Notes, want)
+	}
+
+	res, _ = run.run(t, nameUpdatePanels, `{"summary":"Add load","upsert":[`+suggestStat("load", "Load", "node_load1", 4)+`],"finish":true}`)
+	finished := savedVersion(t, res)
+	if finished.coverage == nil || finished.Uncovered == nil || len(finished.Uncovered) != 0 || finished.UncoveredTotal != 0 {
+		t.Fatalf("finish advice = %+v, want an empty uncovered list", finished.advice)
+	}
+}
+
+func TestBuildAdviceShrinksTheChangedPanelsToStayUnderTheBudget(t *testing.T) {
+	ctx := WithRun(context.Background(), Run{Mode: ModeCreate, Build: true, RequestID: "build-advice-budget", Attempt: 1})
+	families := make([]datasource.Family, 80)
+	for i := range families {
+		families[i] = datasource.Family{Name: fmt.Sprintf("%s_%02d", strings.Repeat("f", 120), i)}
+	}
+	inventories.put(ctx, families)
+	shown := make([]panelOut, 300)
+	for i := range shown {
+		shown[i] = panelOut{ID: fmt.Sprintf("p%03d", i), Title: strings.Repeat("t", 100), Type: spec.Stat}
+	}
+	var panels []spec.Panel
+	for i := range 30 {
+		panels = append(panels, spec.Panel{ID: fmt.Sprintf("s%02d", i), Type: spec.Stat})
+	}
+
+	out := buildAdvice(ctx, buildOut{ChangedPanels: shown, Message: "Saved."}, &spec.Dashboard{Panels: panels})
+	body, err := json.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(body) > listBudget {
+		t.Fatalf("build save result is %d bytes, over the %d byte budget", len(body), listBudget)
+	}
+	if len(out.Uncovered) != maxUncovered || out.UncoveredTotal != 80 || len(out.Notes) != maxNotes {
+		t.Fatalf("advice = %d uncovered (total %d), %d notes; want all of it kept", len(out.Uncovered), out.UncoveredTotal, len(out.Notes))
+	}
+	if len(out.ChangedPanels) == 0 || len(out.ChangedPanels) == len(shown) {
+		t.Fatalf("changed panels = %d, want some of the %d kept", len(out.ChangedPanels), len(shown))
+	}
+}

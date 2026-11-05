@@ -55,6 +55,7 @@ type buildOut struct {
 	ChangedPanels []panelOut    `json:"changed_panels"`
 	Layout        *layoutOut    `json:"layout,omitempty"`
 	Message       string        `json:"message"`
+	advice
 }
 
 type layoutOut struct {
@@ -185,12 +186,12 @@ func (r *Registry) saveToBuild(ctx context.Context, in buildSave) (Result, error
 	if in.finish {
 		return r.commitBuild(ctx, in, step)
 	}
-	res := success(step, buildOut{
+	res := success(step, buildAdvice(ctx, buildOut{
 		Build:         buildStateOut{Saves: build.Saves, Panels: progress.Panels, PlannedPanels: progress.PlannedPanels},
 		ChangedPanels: in.changes.shown,
 		Layout:        layoutOf(build.Spec, in.changes.focus(), holes),
 		Message:       message,
-	})
+	}, build.Spec))
 	res.Edits = in.changes.edits
 	return res, nil
 }
@@ -200,7 +201,7 @@ func (r *Registry) commitBuild(ctx context.Context, in buildSave, saveStep strin
 	if err != nil {
 		return saveFailure(err)
 	}
-	return success(finishStep(saveStep, in.changes, ver.Number, versionShape(ver.Spec)), r.savedOut(dash, ver, &replayed)), nil
+	return success(finishStep(saveStep, in.changes, ver.Number, versionShape(ver.Spec)), withAdvice(ctx, r.savedOut(dash, ver, &replayed), ver.Spec)), nil
 }
 
 func finishStep(saveStep string, changes panelChanges, version int, shape string) string {
