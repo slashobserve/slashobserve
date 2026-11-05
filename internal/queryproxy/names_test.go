@@ -239,3 +239,68 @@ func TestNamesReleasesTheSlotWhenDiscoveryIsCanceled(t *testing.T) {
 		t.Fatal("the upstream slot was not released")
 	}
 }
+
+func TestNamesRoutesScopedRequestsToTheInventory(t *testing.T) {
+	families := make([]datasource.Family, 150)
+	for i := range families {
+		families[i] = datasource.Family{Name: fmt.Sprintf("f%03d", i), Help: strings.Repeat("h", maxHelpBytes+1)}
+	}
+	tests := []struct {
+		name          string
+		req           NamesRequest
+		catalog       *datasource.Catalog
+		wantKind      datasource.DiscoverKind
+		wantFamilies  int
+		wantTotal     int
+		wantTruncated bool
+	}{
+		{name: "a scope asks for the inventory", req: NamesRequest{Kind: datasource.DiscoverMetrics, Scope: `{job="shop"}`},
+			catalog: &datasource.Catalog{Families: families, FamiliesTotal: 150}, wantKind: datasource.DiscoverInventory, wantFamilies: 150, wantTotal: 150},
+		{name: "inventory without a scope", req: NamesRequest{Kind: datasource.DiscoverMetrics, Inventory: true},
+			catalog: &datasource.Catalog{Families: families[:2], FamiliesTotal: 2}, wantKind: datasource.DiscoverInventory, wantFamilies: 2, wantTotal: 2},
+		{name: "a truncated scan stays truncated", req: NamesRequest{Kind: datasource.DiscoverMetrics, Scope: `{job="shop"}`},
+			catalog: &datasource.Catalog{Families: families[:3], FamiliesTotal: 9, Truncated: true}, wantKind: datasource.DiscoverInventory, wantFamilies: 3, wantTotal: 9, wantTruncated: true},
+		{name: "a missing total counts the families", req: NamesRequest{Kind: datasource.DiscoverMetrics, Scope: "otel_logs"},
+			catalog: &datasource.Catalog{Families: families[:4]}, wantKind: datasource.DiscoverInventory, wantFamilies: 4, wantTotal: 4},
+		{name: "no scope keeps the kind", req: NamesRequest{Kind: datasource.DiscoverMetrics},
+			catalog: catalogOf(1), wantKind: datasource.DiscoverMetrics},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFake("prometheus")
+			fake.onDiscover = func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
+				return tt.catalog, nil
+			}
+			req := tt.req
+			req.Datasource = "ds"
+			got, err := namesRunner(t, fake).Names(context.Background(), req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sent := fake.discoverRequests()
+			if len(sent) != 1 || sent[0].Kind != tt.wantKind || sent[0].Scope != tt.req.Scope {
+				t.Fatalf("discover requests = %#v, want one %s with scope %q", sent, tt.wantKind, tt.req.Scope)
+			}
+			if len(got.Families) != tt.wantFamilies || got.FamiliesTotal != tt.wantTotal || got.Truncated != tt.wantTruncated {
+				t.Fatalf("families = %d, total = %d, truncated = %v; want %d, %d, %v",
+					len(got.Families), got.FamiliesTotal, got.Truncated, tt.wantFamilies, tt.wantTotal, tt.wantTruncated)
+			}
+			for _, f := range got.Families {
+				if f.Help != strings.Repeat("h", maxHelpBytes)+"..." {
+					t.Fatalf("help of %s = %q, want it clipped", f.Name, f.Help)
+				}
+			}
+		})
+	}
+}
+
+func TestNamesRejectsAScopeOverTheFieldLimit(t *testing.T) {
+	fake := newFake("prometheus")
+	_, err := namesRunner(t, fake).Names(context.Background(), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverMetrics, Scope: strings.Repeat("s", 257)})
+	if !errors.Is(err, ErrInvalidRequest) || err.Error() != "scope must be at most 256 bytes" {
+		t.Fatalf("err = %v, want the scope length rejected", err)
+	}
+	if len(fake.discoverRequests()) != 0 {
+		t.Fatal("discovery ran for a rejected scope")
+	}
+}

@@ -26,16 +26,20 @@ type NamesRequest struct {
 	Metric     string
 	Label      string
 	Table      string
+	Scope      string
+	Inventory  bool
 	Limit      int // 0 means DefaultNamesLimit
 }
 
 type Names struct {
-	Datasource string
-	Label      string
-	Metrics    []datasource.Metric
-	Labels     []string
-	Values     []string
-	Truncated  bool
+	Datasource    string
+	Label         string
+	Metrics       []datasource.Metric
+	Labels        []string
+	Values        []string
+	Families      []datasource.Family
+	FamiliesTotal int
+	Truncated     bool
 }
 
 type invalidNames struct{ message string }
@@ -63,6 +67,7 @@ func (req NamesRequest) validate() (limit int, err error) {
 		{"metric", req.Metric, maxNamesFieldBytes},
 		{"label", req.Label, maxNamesFieldBytes},
 		{"table", req.Table, maxNamesFieldBytes},
+		{"scope", req.Scope, maxNamesFieldBytes},
 	} {
 		if len(f.value) > f.max {
 			return 0, invalidNamesf("%s must be at most %d bytes", f.field, f.max)
@@ -72,6 +77,13 @@ func (req NamesRequest) validate() (limit int, err error) {
 		return 0, invalidNamesf("label is required")
 	}
 	return limit, nil
+}
+
+func (req NamesRequest) kind() datasource.DiscoverKind {
+	if req.Scope != "" || req.Inventory {
+		return datasource.DiscoverInventory
+	}
+	return req.Kind
 }
 
 func (r *Runner) Names(ctx context.Context, req NamesRequest) (Names, error) {
@@ -95,11 +107,12 @@ func (r *Runner) Names(ctx context.Context, req NamesRequest) (Names, error) {
 	ctx, cancel := context.WithTimeout(ctx, namesTimeout)
 	defer cancel()
 	cat, err := inst.Datasource.Discover(ctx, datasource.DiscoverRequest{
-		Kind:   req.Kind,
+		Kind:   req.kind(),
 		Search: req.Search,
 		Metric: req.Metric,
 		Label:  req.Label,
 		Table:  req.Table,
+		Scope:  req.Scope,
 		Limit:  limit + 1,
 	})
 	if err != nil {
@@ -131,11 +144,18 @@ func newNames(req NamesRequest, cat *datasource.Catalog, limit int) Names {
 		Metrics:    make([]datasource.Metric, 0, len(cat.Metrics)),
 		Labels:     append([]string{}, cat.Labels...),
 		Values:     append([]string{}, cat.Values...),
+		Families:   make([]datasource.Family, 0, len(cat.Families)),
+		Truncated:  cat.Truncated,
 	}
 	for _, m := range cat.Metrics {
 		m.Help = ClipBytes(m.Help, maxHelpBytes)
 		out.Metrics = append(out.Metrics, m)
 	}
+	for _, f := range cat.Families {
+		f.Help = ClipBytes(f.Help, maxHelpBytes)
+		out.Families = append(out.Families, f)
+	}
+	out.FamiliesTotal = max(cat.FamiliesTotal, len(out.Families))
 	out.Metrics, out.Truncated = truncate(out.Metrics, limit, out.Truncated)
 	out.Labels, out.Truncated = truncate(out.Labels, limit, out.Truncated)
 	out.Values, out.Truncated = truncate(out.Values, limit, out.Truncated)
