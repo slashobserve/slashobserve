@@ -1,6 +1,7 @@
 import type { WireFrame } from "@/dashboards/queries"
 import { isPanelQuery, queryRef, type DataPanel, type PanelQuery } from "@/spec"
 
+import { qualifyCollidingLabels } from "../frames"
 import {
   numberFieldCount,
   type PreparedField,
@@ -92,15 +93,22 @@ function inferKind(frame: WireFrame): Kind {
   return frame.name !== undefined || isPrometheusShape ? "prometheus" : "sql"
 }
 
+function queryOf(
+  panel: DataPanel,
+  frame: Pick<WireFrame, "ref">
+): PanelQuery | undefined {
+  const found = panel.queries.find(
+    (candidate, index) => queryRef(candidate, index) === frame.ref
+  )
+  return found && isPanelQuery(found) ? found : undefined
+}
+
 function resolveSource(
   panel: DataPanel,
   frame: WireFrame,
   datasourceTypeOf: DatasourceTypeOf | undefined
 ): Source {
-  const found = panel.queries.find(
-    (candidate, index) => queryRef(candidate, index) === frame.ref
-  )
-  const query = found && isPanelQuery(found) ? found : undefined
+  const query = queryOf(panel, frame)
   const type = datasourceTypeOf?.(query?.datasource ?? panel.datasource ?? "")
   // Fallback while datasource types are unknown (list loading or failed).
   const kind =
@@ -272,4 +280,59 @@ export function stampSeriesNames(
         )
       : [...source.frame.fields],
   }))
+}
+
+export type NamedSeries = {
+  frame: PreparedFrame
+  field: PreparedField
+  name: string
+}
+
+const noLabel = "<no label>"
+const nameKey = "__name__"
+
+function labelOrder(series: readonly NamedSeries[]): string[] {
+  const keys = new Set<string>()
+  for (const { frame } of series) {
+    for (const key of Object.keys(frame.labels ?? {})) {
+      if (key !== nameKey) keys.add(key)
+    }
+  }
+  return [nameKey, ...keys]
+}
+
+function labelValue(frame: PreparedFrame, key: string): string {
+  return key === nameKey ? (frame.name ?? "") : (frame.labels?.[key] ?? "")
+}
+
+function namedByDefault(panel: DataPanel, { frame, name }: NamedSeries) {
+  return (
+    !queryOf(panel, frame)?.legend &&
+    name === metricNameFromLabels(prometheusLabels(frame))
+  )
+}
+
+export function displayLabels(
+  panel: DataPanel,
+  series: readonly NamedSeries[]
+): string[] {
+  if (series.length < 2) return series.map(({ name }) => name)
+  const differing = labelOrder(series).filter((key) =>
+    series.some(
+      ({ frame }) => labelValue(frame, key) !== labelValue(series[0].frame, key)
+    )
+  )
+  const labelled = series.map((item) => {
+    if (differing.length === 0 || !namedByDefault(panel, item)) {
+      return { ref: item.frame.ref, label: item.name }
+    }
+    const values = differing
+      .map((key) => labelValue(item.frame, key))
+      .filter((value) => value !== "")
+    const text = values.join(" ") || noLabel
+    const label =
+      numberFieldCount(item.frame) > 1 ? `${text} ${item.field.name}` : text
+    return { ref: item.frame.ref, label }
+  })
+  return qualifyCollidingLabels(labelled).map(({ label }) => label)
 }

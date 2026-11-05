@@ -1,7 +1,12 @@
 import { zonedDateTime } from "@/lib/time"
 import { timeLabel } from "@/lib/time-ticks"
 import { decimalsByUnit } from "@/lib/units"
-import { displayWithDefaults, type Reducer, type Threshold } from "@/spec"
+import {
+  displayWithDefaults,
+  type DataPanel,
+  type Reducer,
+  type Threshold,
+} from "@/spec"
 
 import { styleForSlot } from "../colors"
 import {
@@ -26,6 +31,7 @@ import {
   type PreparedFrame,
 } from "../transforms"
 import { rowCount } from "../transforms/names"
+import { displayLabels, type NamedSeries } from "../transforms/series-names"
 import {
   linearScale,
   scaleOf,
@@ -337,7 +343,32 @@ function isInstant(frames: PreparedFrame[]): boolean {
   return frames.length > 0 && frames.every((frame) => rowCount(frame) === 1)
 }
 
+function visibleNumbers(
+  frame: PreparedFrame,
+  fields: FieldResolver
+): PreparedField[] {
+  return frame.fields.filter(
+    (field) => field.type === "number" && !fields.configFor(frame, field).hidden
+  )
+}
+
+function seriesLabelsByFrame(
+  panel: DataPanel,
+  frames: PreparedFrame[],
+  fields: FieldResolver
+): Map<PreparedFrame, string> {
+  const named = frames.flatMap((frame): NamedSeries[] => {
+    const [first] = visibleNumbers(frame, fields)
+    return first
+      ? [{ frame, field: first, name: fields.displayName(frame, first) }]
+      : []
+  })
+  const labels = displayLabels(panel, named)
+  return new Map(named.map(({ frame }, index) => [frame, labels[index]]))
+}
+
 function instantBarSource(
+  panel: DataPanel,
   frames: PreparedFrame[],
   fields: FieldResolver,
   colorByField: string | undefined
@@ -346,19 +377,17 @@ function instantBarSource(
   const indexByKey = new Map<string, number>()
   const columns = new Map<string, Column>()
   const seen = new Map<string, number>()
+  const seriesLabels = seriesLabelsByFrame(panel, frames, fields)
   let truncated = false
 
   frames.forEach((frame, frameIndex) => {
     const text = frame.fields.find((field) => field.type === "string")
-    const visible = frame.fields.filter(
-      (field) =>
-        field.type === "number" && !fields.configFor(frame, field).hidden
-    )
+    const visible = visibleNumbers(frame, fields)
     const [first] = visible
     if (!first) return
     const label =
       text === undefined
-        ? fields.displayName(frame, first)
+        ? (seriesLabels.get(frame) ?? fields.displayName(frame, first))
         : String(text.values[0] ?? "")
     const categoryKey = text === undefined ? `#${frameIndex}` : label
     let category = indexByKey.get(categoryKey)
@@ -402,6 +431,7 @@ function instantBarSource(
 }
 
 export function barSource(
+  panel: DataPanel,
   frames: PreparedFrame[],
   fields: FieldResolver,
   display: Record<string, unknown>,
@@ -411,12 +441,13 @@ export function barSource(
   const colorByField =
     typeof display.colorByField === "string" ? display.colorByField : undefined
   if (xField === undefined && isInstant(frames)) {
-    return instantBarSource(frames, fields, colorByField)
+    return instantBarSource(panel, frames, fields, colorByField)
   }
   const kind = categoryKindOf(frames, xField)
   const categories: Category[] = []
   const indexByKey = new Map<string, number>()
   const columns: Column[] = []
+  const named: NamedSeries[] = []
   const seen = new Map<string, number>()
   let truncated = false
   let usable = false
@@ -451,10 +482,12 @@ export function barSource(
       for (const [row, index] of rows) {
         byCategory.set(index, finite(field.values[row]))
       }
+      const name = fields.displayName(frame, field)
+      named.push({ frame, field, name })
       columns.push(
         columnOf(frame, field, fields, {
           key: uniqueKey(seen, seriesKey(frame, field.name)),
-          name: fields.displayName(frame, field),
+          name,
           slot: columns.length,
           byCategory,
           colors,
@@ -462,6 +495,9 @@ export function barSource(
       )
     }
   }
+  displayLabels(panel, named).forEach((label, index) => {
+    columns[index].series.name = label
+  })
 
   return {
     categories: usable ? categories : [],

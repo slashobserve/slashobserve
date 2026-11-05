@@ -235,7 +235,7 @@ Its `namePlacement` is `auto` (the name over a horizontal bar and under a vertic
 `minWidth` and `minHeight` keep each gauge or bar at least that many pixels (1 to 2000), the panel scrolls when they do not fit, and a bar gauge's `maxHeight` caps the height of a horizontal bar.
 `titleSize` and `valueSize` set the size in pixels (1 to 200) of the name and the value text of a gauge or a bar gauge.
 A `barchart` panel takes its categories from the first text field, else the time field, unless `xField` names one.
-When every frame holds one row, as an instant query returns, and `xField` is absent, each frame is one category, named by its text field or else by its series name, and the bars of one number field form one series.
+When every frame holds one row, as an instant query returns, and `xField` is absent, each frame is one category, named by its text field or else by its series label (see [Queries and datasources](#queries-and-datasources)), and the bars of one number field form one series.
 A `logs` panel shows its lines newest first (`order`), with `wrap` and `showTime` off, and has more optional `display` keys.
 `showLabels: true` writes each line's unique labels after the time, and `showCommonLabels: true` writes the labels shared by every line once above the list; with one series every label is common.
 `details: false` turns off expanding a line, and `detailsMode: sidebar` shows the fields of the chosen line in a column beside the list instead of under the line.
@@ -326,6 +326,10 @@ A query has the text in `query` and, optionally:
 - `intervalFactor`, a whole number from 2 to 10 that multiplies the query's step, as Grafana's resolution 1/N does.
 - `exemplar`, on a Prometheus range query, to also fetch its exemplars, which a time series and a heatmap draw.
 - `hide`, to keep the query out of the panel's data.
+
+A Prometheus series without a `legend` is named like `up{job="api", pod="checkout-0"}`, and overrides, `fillBelowTo` and Grafana imports match that name.
+Legend rows, tooltip rows and the categories of an instant bar chart show a shorter label instead when the panel has more than one series: the values of the labels that differ between its series, joined by a space in the label order of the first series, with the metric name first only when it differs, and `<no label>` for a series that has none of them.
+Two series of different queries that end up with the same label show their query ref before it.
 
 The query language follows the datasource: PromQL for Prometheus and a single SQL `SELECT` for ClickHouse.
 `$name`, `${name}` and `${name:format}` insert the value of a variable.

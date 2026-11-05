@@ -4,7 +4,11 @@ import type { WireFrame } from "@/dashboards/queries"
 import type { DataPanel } from "@/spec"
 
 import { applyTransforms } from "."
-import { stampSeriesNames, type DatasourceTypeOf } from "./series-names"
+import {
+  displayLabels,
+  stampSeriesNames,
+  type DatasourceTypeOf,
+} from "./series-names"
 
 type Query = {
   query?: string
@@ -321,5 +325,113 @@ describe("without datasource types", () => {
     expect(names([{}], [frame({ labels: { service: "api" } }, "c")])).toEqual([
       ["c api"],
     ])
+  })
+})
+
+describe("displayLabels", () => {
+  function shown(queries: Query[], frames: WireFrame[]): string[] {
+    const built = panel(queries)
+    const stamped = stampSeriesNames(built, frames, () => "prometheus")
+    return displayLabels(
+      built,
+      stamped.flatMap((out) =>
+        out.fields
+          .filter((field) => field.type === "number")
+          .map((field) => ({
+            frame: out,
+            field,
+            name: field.seriesName ?? field.name,
+          }))
+      )
+    )
+  }
+  const series = (ref: string, name: string, labels: Record<string, string>) =>
+    frame({ ref, name, labels }, "Value")
+
+  it.each([
+    {
+      name: "keeps the full name of a single series",
+      queries: [{}],
+      frames: [series("A", "up", { job: "api", pod: "a" })],
+      labels: ['up{job="api", pod="a"}'],
+    },
+    {
+      name: "names series by the one label that differs",
+      queries: [{}],
+      frames: [
+        series("A", "up", { job: "api", pod: "a" }),
+        series("A", "up", { job: "api", pod: "b" }),
+      ],
+      labels: ["a", "b"],
+    },
+    {
+      name: "joins several differing labels in the first frame's order",
+      queries: [{}],
+      frames: [
+        series("A", "http", { pod: "a", status: "200", job: "api" }),
+        series("A", "http", { pod: "b", status: "500", job: "api" }),
+      ],
+      labels: ["a 200", "b 500"],
+    },
+    {
+      name: "keeps the metric name only when it differs",
+      queries: [{}, { ref: "B" }],
+      frames: [
+        series("A", "requests", { pod: "a" }),
+        series("B", "errors", { pod: "a" }),
+      ],
+      labels: ["requests", "errors"],
+    },
+    {
+      name: "puts a differing metric name before the differing labels",
+      queries: [{}, { ref: "B" }],
+      frames: [
+        series("A", "requests", { pod: "a" }),
+        series("B", "errors", { pod: "b" }),
+      ],
+      labels: ["requests a", "errors b"],
+    },
+    {
+      name: "marks a series whose differing labels are all empty",
+      queries: [{}],
+      frames: [series("A", "up", { pod: "a" }), series("A", "up", {})],
+      labels: ["a", "<no label>"],
+    },
+    {
+      name: "compares the series of every query and qualifies collisions",
+      queries: [{}, { ref: "B" }],
+      frames: [
+        series("A", "up", { pod: "a" }),
+        series("A", "up", { pod: "b" }),
+        series("B", "up", { pod: "a" }),
+      ],
+      labels: ["A: a", "b", "B: a"],
+    },
+    {
+      name: "lets a query legend win",
+      queries: [{}, { ref: "B", legend: "{{pod}} errors" }],
+      frames: [
+        series("A", "up", { pod: "a" }),
+        series("B", "up", { pod: "b" }),
+      ],
+      labels: ["a", "b errors"],
+    },
+  ])("$name", ({ queries, frames, labels }) => {
+    expect(shown(queries, frames)).toEqual(labels)
+  })
+
+  it("keeps a name a transform or override changed", () => {
+    const built = panel([{}])
+    const [a, b] = stampSeriesNames(
+      built,
+      [series("A", "up", { pod: "a" }), series("A", "up", { pod: "b" })],
+      () => "prometheus"
+    )
+    expect(
+      displayLabels(built, [
+        { frame: a, field: a.fields[1], name: "Primary" },
+        { frame: b, field: b.fields[1], name: b.fields[1].seriesName ?? "" },
+      ])
+    ).toEqual(["Primary", "b"])
   })
 })

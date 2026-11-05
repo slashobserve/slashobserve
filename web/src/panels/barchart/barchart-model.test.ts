@@ -67,9 +67,11 @@ function build(
   zone: string | undefined = undefined
 ) {
   const merged = displayWithDefaults("barchart", display)
+  const built = panel(extra)
   const source = barSource(
+    built,
     frames,
-    createFieldResolver(panel(extra)),
+    createFieldResolver(built),
     merged,
     zone
   )
@@ -146,6 +148,38 @@ describe("barchartModel categories", () => {
     ])
   })
 
+  it("names default-named series by the labels that differ", () => {
+    const series = (pod: string, values: number[]) =>
+      frame(
+        [
+          { name: "Time", type: "time", values: values.map((_, i) => i) },
+          {
+            name: "Value",
+            type: "number",
+            values,
+            seriesName: `up{job="api", pod="${pod}"}`,
+          },
+        ],
+        { name: "up", labels: { job: "api", pod } }
+      )
+    const instant = build([
+      series("checkout-0", [3]),
+      series("checkout-1", [5]),
+    ])
+    expect(instant.categories.map((category) => category.label)).toEqual([
+      "checkout-0",
+      "checkout-1",
+    ])
+    const range = build([
+      series("checkout-0", [1, 2]),
+      series("checkout-1", [3, 4]),
+    ])
+    expect(range.series.map((entry) => entry.name)).toEqual([
+      "checkout-0",
+      "checkout-1",
+    ])
+  })
+
   it("uses the text field of one row frames as one bar per frame", () => {
     const row = (route: string, value: number) =>
       frame([text("route", [route]), numbers("hits", [value])])
@@ -177,7 +211,11 @@ describe("barchartModel categories", () => {
   })
 
   it("colors an instant bar by its own series override", () => {
+    const overridden = panel({
+      overrides: [{ match: { series: "y" }, color: "critical" }],
+    } as Partial<DataPanel>)
     const source = barSource(
+      overridden,
       [
         frame(
           [
@@ -194,11 +232,7 @@ describe("barchartModel categories", () => {
           { labels: { pod: "y" } }
         ),
       ],
-      createFieldResolver(
-        panel({
-          overrides: [{ match: { series: "y" }, color: "critical" }],
-        } as Partial<DataPanel>)
-      ),
+      createFieldResolver(overridden),
       displayWithDefaults("barchart", {}),
       undefined
     )
