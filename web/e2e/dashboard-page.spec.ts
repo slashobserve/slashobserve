@@ -52,7 +52,7 @@ for (const theme of themes) {
         breadcrumb.getByRole("link", { name: "/observe home" })
       ).toHaveAttribute("href", "/")
       await expect(
-        breadcrumb.getByRole("link", { name: "Dashboards" })
+        breadcrumb.getByRole("link", { name: "Dashboards", exact: true })
       ).toHaveAttribute("href", "/dashboards")
       await expect(
         breadcrumb.getByRole("heading", { level: 1, name: title })
@@ -221,7 +221,7 @@ test("clears a posted draft after the dashboard was left", async ({
   await page.getByRole("button", { name: "Add comment" }).click()
   await page
     .getByRole("navigation", { name: "Breadcrumb" })
-    .getByRole("link", { name: "Dashboards" })
+    .getByRole("link", { name: "Dashboards", exact: true })
     .click()
   await expect(page).toHaveURL("/dashboards")
 
