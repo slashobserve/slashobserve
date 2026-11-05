@@ -70,6 +70,7 @@ lint: web-deps
 	cd web && bun run lint
 	cd web && bun run knip
 	cd web && bun run format:check
+	scripts/docs-lint.sh
 
 golden:
 	go test ./pkg/grafana -run 'TestCorpusGoldens|TestOptionMapIsCurrent' -update
