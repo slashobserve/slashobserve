@@ -1,6 +1,8 @@
 id: log-volume-by-service
 prompt: log volume by service
 category: clickhouse
+kind: create
+suites: [live, replay, smoke]
 done_when: false
 tags: [replay-smoke]
 expect:

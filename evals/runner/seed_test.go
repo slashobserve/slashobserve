@@ -390,76 +390,88 @@ func writeScenarios(t *testing.T, body string) (string, error) {
 
 func TestScenarioKindsDefaultsAndValidation(t *testing.T) {
 	const seed = "seed:\n  corpus: slashobserve/demo-shop.json\n"
+	const live, create = "suites: [live]\n", "kind: create\nsuites: [live]\n"
 	cases := map[string]struct {
 		body    string
 		wantErr string
 	}{
 		"revise needs no datasources": {
-			body: "id: revise-demo\nprompt: Add a panel.\nkind: revise\n" + seed + "expect:\n  keeps_panels: true\n",
+			body: "id: revise-demo\nprompt: Add a panel.\nkind: revise\n" + live + seed + "expect:\n  keeps_panels: true\n",
 		},
 		"suggest with placeholders": {
 			body: "id: suggest-demo\nprompt: 'Improve {panel_title} ({panel_id}).'\nkind: suggest\nsuites: [live, replay]\n" + seed,
 		},
 		"fix with a fault and values": {
-			body: "id: fix-demo\nprompt: Fix it.\nkind: fix_unverified\n" + seed + "  break_panel: true\nfault: {pod: checkout-1, type: errors, pct: 30, soak_seconds: 120}\nexpect:\n  only_target_changed: true\n  failure_code: call_timeout\n  max_save_output_tokens: 2000\n  panel_values:\n    - {query_contains: http_requests_total, series: {pod: checkout-1}, min: 0.2, max: 0.4}\n",
+			body: "id: fix-demo\nprompt: Fix it.\nkind: fix_unverified\n" + live + seed + "  break_panel: true\nfault: {pod: checkout-1, type: errors, pct: 30, soak_seconds: 120}\nexpect:\n  only_target_changed: true\n  failure_code: call_timeout\n  max_save_output_tokens: 2000\n  panel_values:\n    - {query_contains: http_requests_total, series: {pod: checkout-1}, min: 0.2, max: 0.4}\n",
 		},
 		"chat import may exceed the cap": {
-			body: "id: chat-demo\nprompt: " + strings.Repeat("x", maxPromptRunes+1) + "\nkind: chat_import\n",
+			body: "id: chat-demo\nprompt: " + strings.Repeat("x", maxPromptRunes+1) + "\nkind: chat_import\n" + live,
 		},
 		"create still caps the prompt": {
-			body:    "id: create-demo\nprompt: " + strings.Repeat("x", maxPromptRunes+1) + "\ncategory: prometheus\nexpect:\n  datasources: [prometheus]\n",
+			body:    "id: create-demo\nprompt: " + strings.Repeat("x", maxPromptRunes+1) + "\n" + create + "category: prometheus\nexpect:\n  datasources: [prometheus]\n",
 			wantErr: "longer than 4000",
 		},
 		"create still needs datasources": {
-			body:    "id: create-demo\nprompt: Show it.\ncategory: prometheus\n",
+			body:    "id: create-demo\nprompt: Show it.\n" + create + "category: prometheus\n",
 			wantErr: "expect.datasources",
 		},
 		"create still needs a category": {
-			body:    "id: create-demo\nprompt: Show it.\n",
+			body:    "id: create-demo\nprompt: Show it.\n" + create,
 			wantErr: "category",
 		},
 		"unknown kind": {
-			body:    "id: odd-demo\nprompt: Do it.\nkind: delete\n",
+			body:    "id: odd-demo\nprompt: Do it.\nkind: delete\n" + live,
 			wantErr: `kind "delete"`,
 		},
 		"revise without a seed": {
-			body:    "id: revise-demo\nprompt: Add a panel.\nkind: revise\n",
+			body:    "id: revise-demo\nprompt: Add a panel.\nkind: revise\n" + live,
 			wantErr: "seed is required for kind revise",
 		},
 		"target expectation without a seed": {
-			body:    "id: chat-demo\nprompt: Import.\nkind: chat_import\nexpect:\n  keeps_panels: true\n",
+			body:    "id: chat-demo\nprompt: Import.\nkind: chat_import\n" + live + "expect:\n  keeps_panels: true\n",
 			wantErr: "seed is required",
 		},
 		"escaping seed path": {
-			body:    "id: revise-demo\nprompt: Add.\nkind: revise\nseed:\n  corpus: ../x.json\n",
+			body:    "id: revise-demo\nprompt: Add.\nkind: revise\n" + live + "seed:\n  corpus: ../x.json\n",
 			wantErr: "seed.corpus",
 		},
-		"unknown suite": {
-			body:    "id: create-demo\nprompt: Show.\ncategory: prometheus\nsuites: [nightly]\nexpect:\n  datasources: [prometheus]\n",
-			wantErr: `suites entry "nightly"`,
+		"missing kind": {
+			body:    "id: create-demo\nprompt: Show.\ncategory: prometheus\n" + live + "expect:\n  datasources: [prometheus]\n",
+			wantErr: "kind is required",
+		},
+		"missing suites": {
+			body:    "id: create-demo\nprompt: Show.\ncategory: prometheus\nkind: create\nexpect:\n  datasources: [prometheus]\n",
+			wantErr: "suites is required",
+		},
+		"any declared suite name": {
+			body: "id: create-demo\nprompt: Show.\ncategory: prometheus\nkind: create\nsuites: [live, nightly-2]\nexpect:\n  datasources: [prometheus]\n",
+		},
+		"malformed suite": {
+			body:    "id: create-demo\nprompt: Show.\ncategory: prometheus\nkind: create\nsuites: [Nightly]\nexpect:\n  datasources: [prometheus]\n",
+			wantErr: `suites entry "Nightly" must match`,
 		},
 		"duplicate suite": {
-			body:    "id: create-demo\nprompt: Show.\ncategory: prometheus\nsuites: [live, live]\nexpect:\n  datasources: [prometheus]\n",
+			body:    "id: create-demo\nprompt: Show.\ncategory: prometheus\nkind: create\nsuites: [live, live]\nexpect:\n  datasources: [prometheus]\n",
 			wantErr: "suites contain",
 		},
 		"fault percentage out of range": {
-			body:    "id: revise-demo\nprompt: Add.\nkind: revise\n" + seed + "fault: {pod: checkout-0, type: errors, pct: 101}\n",
+			body:    "id: revise-demo\nprompt: Add.\nkind: revise\n" + live + seed + "fault: {pod: checkout-0, type: errors, pct: 101}\n",
 			wantErr: "fault.pct 101",
 		},
 		"fault type unknown": {
-			body:    "id: revise-demo\nprompt: Add.\nkind: revise\n" + seed + "fault: {pod: checkout-0, type: slow, pct: 10}\n",
+			body:    "id: revise-demo\nprompt: Add.\nkind: revise\n" + live + seed + "fault: {pod: checkout-0, type: slow, pct: 10}\n",
 			wantErr: `fault.type "slow"`,
 		},
 		"panel value band inverted": {
-			body:    "id: revise-demo\nprompt: Add.\nkind: revise\n" + seed + "expect:\n  panel_values:\n    - {query_contains: up, min: 2, max: 1}\n",
+			body:    "id: revise-demo\nprompt: Add.\nkind: revise\n" + live + seed + "expect:\n  panel_values:\n    - {query_contains: up, min: 2, max: 1}\n",
 			wantErr: "finite min <= max",
 		},
 		"share above one": {
-			body:    "id: create-demo\nprompt: Show.\ncategory: prometheus\nexpect:\n  datasources: [prometheus]\n  rebuild_metric_share: 1.5\n",
+			body:    "id: create-demo\nprompt: Show.\n" + create + "category: prometheus\nexpect:\n  datasources: [prometheus]\n  rebuild_metric_share: 1.5\n",
 			wantErr: "rebuild_metric_share",
 		},
 		"unknown key still rejected": {
-			body:    "id: revise-demo\nprompt: Add.\nkind: revise\n" + seed + "expect:\n  max_calls: 3\n",
+			body:    "id: revise-demo\nprompt: Add.\nkind: revise\n" + live + seed + "expect:\n  max_calls: 3\n",
 			wantErr: "max_calls",
 		},
 	}
@@ -490,17 +502,17 @@ func loadOne(t *testing.T, body string) Scenario {
 }
 
 func TestScenarioDefaults(t *testing.T) {
-	existing := loadOne(t, "id: create-demo\nprompt: Show.\ncategory: prometheus\nexpect:\n  datasources: [prometheus]\n")
-	if existing.Kind != kindCreate || len(existing.Suites) != 1 || existing.Suites[0] != suiteLive || existing.Expect.MaxPanels != defaultMaxPanels {
-		t.Fatalf("an existing file got kind %q, suites %v, max_panels %d", existing.Kind, existing.Suites, existing.Expect.MaxPanels)
+	create := loadOne(t, "id: create-demo\nprompt: Show.\ncategory: prometheus\nkind: create\nsuites: [live]\nexpect:\n  datasources: [prometheus]\n")
+	if create.Expect.MaxPanels != defaultMaxPanels || create.Expect.MinPanels != defaultMinPanels || create.Expect.MaxSeconds != defaultMaxSeconds {
+		t.Fatalf("a create scenario got expect %+v, want the default panel and time limits", create.Expect)
 	}
 
-	smoke := loadOne(t, "id: smoke-demo\nprompt: Show.\ncategory: prometheus\ntags: [replay-smoke]\nexpect:\n  datasources: [prometheus]\n")
-	if got := strings.Join(smoke.Suites, ","); got != "live,replay" {
-		t.Fatalf("a replay-smoke scenario is in suites %q, want live,replay", got)
+	smoke := loadOne(t, "id: smoke-demo\nprompt: Show.\ncategory: prometheus\nkind: create\nsuites: [live]\ntags: [replay-smoke]\nexpect:\n  datasources: [prometheus]\n")
+	if got := strings.Join(smoke.Suites, ","); got != "live" {
+		t.Fatalf("a replay-smoke scenario is in suites %q, want only the declared live", got)
 	}
 
-	revise := loadOne(t, "id: revise-demo\nprompt: Add.\nkind: revise\nseed:\n  corpus: slashobserve/demo-shop.json\n")
+	revise := loadOne(t, "id: revise-demo\nprompt: Add.\nkind: revise\nsuites: [live]\nseed:\n  corpus: slashobserve/demo-shop.json\n")
 	if revise.Expect.MaxPanels != 0 || revise.Expect.MinPanels != defaultMinPanels || revise.Expect.MaxSeconds != defaultMaxSeconds {
 		t.Fatalf("a revise scenario got expect %+v, want max_panels left at 0", revise.Expect)
 	}

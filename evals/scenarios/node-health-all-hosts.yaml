@@ -1,6 +1,8 @@
 id: node-health-all-hosts
 prompt: node health for all hosts
 category: prometheus
+kind: create
+suites: [live, smoke]
 done_when: true
 expect:
   datasources: [prometheus]

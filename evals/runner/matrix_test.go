@@ -118,7 +118,7 @@ func TestMatrixRunsEntriesInOrderAndWritesOneReportEachAndACombinedTable(t *test
 			return nil
 		},
 		ready: func(context.Context) error { ready++; return nil },
-		run: func(context.Context) (Report, gateOutcome, error) {
+		run: func(context.Context, matrixEntry) (Report, gateOutcome, error) {
 			ran++
 			return reports[ran-1], gateOutcome{}, nil
 		},
@@ -156,7 +156,7 @@ func TestMatrixKeepsGoingAfterAFailedEntryAndReportsIt(t *testing.T) {
 		switchTo: scriptSwitcher(script, &stderr),
 		saveLogs: func(context.Context, string) error { return errors.New("no containers") },
 		ready:    func(context.Context) error { return nil },
-		run: func(context.Context) (Report, gateOutcome, error) {
+		run: func(context.Context, matrixEntry) (Report, gateOutcome, error) {
 			return cannedReport("p", "m", 1, 1, kindCreate), gateOutcome{}, nil
 		},
 	}
@@ -188,7 +188,7 @@ func TestMatrixFailsWhenAGateFailsAndStopsWhenCancelled(t *testing.T) {
 		switchTo: func(context.Context, string) error { switched++; return nil },
 		saveLogs: func(context.Context, string) error { return nil },
 		ready:    func(context.Context) error { return nil },
-		run: func(context.Context) (Report, gateOutcome, error) {
+		run: func(context.Context, matrixEntry) (Report, gateOutcome, error) {
 			return cannedReport("p", "m", 0, 1, kindCreate), gateOutcome{failures: []string{"pass rate 0%"}}, nil
 		},
 	}

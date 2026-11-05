@@ -1,0 +1,10 @@
+id: fault-context-overflow
+prompt: "eval fault: the tool results of one turn outgrow the session before the build finishes"
+category: prometheus
+kind: create
+suites: [replay]
+expect:
+  datasources: [prometheus]
+  min_panels: 2
+  max_panels: 2
+  usage: {compactions: 1, renewals: 1}

@@ -1,6 +1,8 @@
 id: request-rate-vs-yesterday
 prompt: compare request rate today vs same time yesterday
 category: prometheus
+kind: create
+suites: [live]
 done_when: true
 expect:
   datasources: [prometheus]

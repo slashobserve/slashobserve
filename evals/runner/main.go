@@ -62,12 +62,16 @@ const (
 type options struct {
 	server, token      string
 	scenarios, pricing string
+	prometheus         string
 	ids, tags          listFlag
 	list               bool
 	parallel           int
 	timeout            time.Duration
 	out, markdown      string
+	compare            string
+	compareNew         string
 	minPass            float64
+	minQuality         float64
 	minDoneWhen        int
 	minDoneWhenSet     bool
 
@@ -97,6 +101,7 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs.StringVar(&o.token, "token", os.Getenv("OBSERVE_TOKEN"), "service-account key (env OBSERVE_TOKEN)")
 	fs.StringVar(&o.scenarios, "scenarios", "evals/scenarios", "directory of scenario files")
 	fs.StringVar(&o.pricing, "pricing", "evals/pricing.yaml", "model pricing file")
+	fs.StringVar(&o.prometheus, "prometheus", defaultPrometheus, "Prometheus that the expect.scope selectors of the coverage check read their series from")
 	fs.Var(&o.ids, "id", "run only this scenario id (repeatable)")
 	fs.Var(&o.tags, "tag", "run only scenarios with this tag (repeatable)")
 	fs.BoolVar(&o.list, "list", false, "print the selected scenarios and exit")
@@ -104,9 +109,11 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs.DurationVar(&o.timeout, "timeout", defaultTimeout, "how long to wait for one agent request; at least the server's run limit plus a margin, so the server reports its own failure code")
 	fs.StringVar(&o.out, "out", "", "write the JSON report to this file, or with --matrix to this directory")
 	fs.StringVar(&o.markdown, "markdown", "", "write the Markdown report to this file")
+	fs.StringVar(&o.compare, "compare", "", "compare with this base JSON report: the report named after the flags, or this run's --out, and write "+compareFile+" next to it")
 	fs.Float64Var(&o.minPass, "min-pass", 0.8, "minimum share of scenarios that must pass")
+	fs.Float64Var(&o.minQuality, "min-quality", 0, "minimum median quality score, 0 to 1, of every kind that saved a dashboard; 0 turns the gate off")
 	fs.IntVar(&o.minDoneWhen, "min-done-when", defaultMinDoneWhen, "minimum done-when scenarios that must pass when all of them ran")
-	fs.StringVar(&o.suite, "suite", "", "run every scenario and corpus task of the replay or live suite; without it only the create scenarios of the live suite and those tagged "+tagReplaySmoke+" run")
+	fs.StringVar(&o.suite, "suite", "", "run every scenario and corpus task that declares this suite, such as replay, live or smoke; without it only the create scenarios of the live suite and those tagged "+tagReplaySmoke+" run")
 	fs.StringVar(&o.corpus, "corpus", "", "corpus tasks to add: all, sample or none (default all for replay, sample for live, none without --suite)")
 	fs.StringVar(&o.sampleFile, "corpus-sample", o.sampleFile, "file listing the corpus dashboards of the sample")
 	fs.StringVar(&o.matrix, "matrix", "", "run the suite once per model of this file, recreating the server between entries")
@@ -122,6 +129,12 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 			o.minDoneWhenSet = true
 		}
 	})
+	if o.compare != "" {
+		if fs.NArg() > 1 {
+			return o, errors.New("--compare takes one report to compare against the base, or none to compare this run's --out")
+		}
+		o.compareNew = fs.Arg(0)
+	}
 	if err := validateOptions(o); err != nil {
 		return o, err
 	}
@@ -130,31 +143,52 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 }
 
 func validateOptions(o options) error {
+	for _, check := range []func(options) error{validateLimits, validateSelection, validateProfile} {
+		if err := check(o); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateLimits(o options) error {
 	switch {
 	case o.parallel < 1 || o.parallel > maxPerPrincipal:
 		return fmt.Errorf("--parallel must be between 1 and %d, the server's limit of queued or running observe requests per key", maxPerPrincipal)
 	case o.minPass < 0 || o.minPass > 1:
 		return errors.New("--min-pass must be between 0 and 1")
+	case o.minQuality < 0 || o.minQuality > 1:
+		return errors.New("--min-quality must be between 0 and 1")
 	case o.timeout < defaultTimeout:
 		return fmt.Errorf("--timeout must be at least %s: the evals stack's run limit of %s plus %s to report how a run ended", defaultTimeout, serverRunLimit, serverSettleMargin)
-	case o.suite != "" && !slices.Contains(suites, o.suite):
-		return errors.New("--suite must be replay or live")
+	}
+	return nil
+}
+
+func validateSelection(o options) error {
+	switch {
+	case o.suite != "" && !suitePattern.MatchString(o.suite):
+		return fmt.Errorf("--suite %q must match %s", o.suite, suitePattern)
 	case o.corpus != "" && !slices.Contains([]string{corpusAll, corpusSample, corpusNone}, o.corpus):
 		return errors.New("--corpus must be all, sample or none")
 	case o.corpus != "" && o.corpus != corpusNone && o.suite == "":
 		return errors.New("--corpus needs --suite")
 	case o.matrix != "" && o.out == "":
 		return errors.New("--matrix needs --out, the directory that receives one report per model")
+	case o.compare != "" && o.matrix != "":
+		return errors.New("--compare cannot run a matrix; compare each <name>.json of its --out directory instead")
+	case o.compare != "" && o.compareNew == "" && o.out == "":
+		return errors.New("--compare needs --out, the report it compares and the directory that receives " + compareFile)
 	}
-	return validateProfile(o)
+	return nil
 }
 
 func validateProfile(o options) error {
 	switch {
 	case o.profile != profileDefault && o.profile != profileK8s:
 		return errors.New("--profile must be default or k8s")
-	case o.profile == profileK8s && o.suite == suiteReplay:
-		return errors.New("--profile k8s runs the live suite only, not --suite replay")
+	case o.profile == profileK8s && o.suite != "" && o.suite != suiteLive:
+		return fmt.Errorf("--profile k8s runs the live suite only, not --suite %s", o.suite)
 	}
 	return nil
 }
@@ -163,17 +197,29 @@ func defaultCorpus(suite, chosen string) string {
 	switch {
 	case chosen != "":
 		return chosen
+	case suite == "":
+		return corpusNone
 	case suite == suiteReplay:
 		return corpusAll
-	case suite == suiteLive:
-		return corpusSample
 	}
-	return corpusNone
+	return corpusSample
+}
+
+func corpusSuite(suite string) string {
+	if suite == suiteReplay {
+		return suiteReplay
+	}
+	return suiteLive
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
-	if len(args) > 0 && args[0] == "prepare" {
-		return prepare(args[1:], stderr)
+	if len(args) > 0 {
+		switch args[0] {
+		case "prepare":
+			return prepare(args[1:], stderr)
+		case "list":
+			args = append([]string{"--list"}, args[1:]...)
+		}
 	}
 	o, err := parseFlags(args, stderr)
 	if err != nil {
@@ -182,7 +228,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 		return fail(stderr, err)
 	}
-	if o.verifyK8s {
+	switch {
+	case o.compareNew != "":
+		return executeCompare(o.compare, o.compareNew, stdout, stderr)
+	case o.verifyK8s:
 		return executeVerifyK8s(o, stdout, stderr)
 	}
 	all, err := loadScenarios(o.scenarios)
@@ -202,14 +251,21 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 	doneWhen := countDoneWhen(all)
+	if o.minDoneWhen, err = minDoneWhen(o, doneWhen); err != nil {
+		return fail(stderr, err)
+	}
+	return execute(o, selected, doneWhen, stdout, stderr)
+}
+
+func minDoneWhen(o options, doneWhen int) (int, error) {
 	switch {
 	case doneWhen == 0:
 	case !o.minDoneWhenSet:
-		o.minDoneWhen = min(defaultMinDoneWhen, doneWhen)
+		return min(defaultMinDoneWhen, doneWhen), nil
 	case o.minDoneWhen < 0 || o.minDoneWhen > doneWhen:
-		return fail(stderr, fmt.Errorf("--min-done-when must be between 0 and %d, the number of done_when scenarios", doneWhen))
+		return 0, fmt.Errorf("--min-done-when must be between 0 and %d, the number of done_when scenarios", doneWhen)
 	}
-	return execute(o, selected, doneWhen, stdout, stderr)
+	return o.minDoneWhen, nil
 }
 
 func listScenarios(selected []Scenario, stdout io.Writer) {
@@ -257,7 +313,7 @@ func buildCorpusTasks(o options) ([]Scenario, error) {
 			return nil, fmt.Errorf("read the corpus sample: %w", err)
 		}
 	}
-	return build(corpusDir, sample, o.suite)
+	return build(corpusDir, sample, corpusSuite(o.suite))
 }
 
 func inSelection(sc Scenario, suite string) bool {
@@ -268,6 +324,9 @@ func inSelection(sc Scenario, suite string) bool {
 }
 
 func selectScenarios(pool []Scenario, o options) ([]Scenario, error) {
+	if o.suite != "" && !slices.ContainsFunc(pool, func(sc Scenario) bool { return slices.Contains(sc.Suites, o.suite) }) {
+		return nil, fmt.Errorf("--suite %s: no scenario or corpus task declares this suite", o.suite)
+	}
 	for _, id := range o.ids {
 		if i := slices.IndexFunc(pool, func(sc Scenario) bool { return sc.ID == id }); i >= 0 && !inSelection(pool[i], o.suite) {
 			return nil, fmt.Errorf("scenario %q is not in this selection; pass --suite %s", id, strings.Join(pool[i].Suites, " or --suite "))
@@ -319,6 +378,11 @@ func execute(o options, selected []Scenario, doneWhen int, stdout, stderr io.Wri
 	if err := writeReports(o, report, markdown); err != nil {
 		return fail(stderr, err)
 	}
+	if o.compare != "" {
+		if err := compareWith(o.compare, report, o.out, stdout); err != nil {
+			return fail(stderr, err)
+		}
+	}
 	if ctx.Err() != nil || !gates.ok() {
 		return 1
 	}
@@ -369,7 +433,10 @@ func runSuite(ctx context.Context, c *client, pricing Pricing, selected []Scenar
 	report := Report{StartedAt: time.Now().UTC(), Provider: *info.Provider, Model: *info.Model}
 	report.Results = runAll(ctx, c, pricing, selected, o, stderr)
 	report.Aggregates = aggregate(report.Results)
-	return report, evaluateGates(report.Aggregates, o.minPass, o.minDoneWhen, doneWhen), nil
+	for _, model := range report.Aggregates.Cost.UnpricedModels {
+		_, _ = fmt.Fprintf(stderr, "pricing: cost unknown for model %s, left blank\n", model)
+	}
+	return report, evaluateGates(report.Aggregates, gateLimits{minPass: o.minPass, minQuality: o.minQuality, minDoneWhen: o.minDoneWhen, doneWhen: doneWhen}), nil
 }
 
 func fail(stderr io.Writer, err error) int {
@@ -561,6 +628,9 @@ func (e *execution) runCreate(ctx context.Context) (Result, *AgentRequest) {
 	req, ok := e.await(ctx, waitCtx, req, slotWait)
 	if ok && req.Status == "succeeded" {
 		e.inspectResult(ctx, req)
+		if e.sc.Expect.Scope != "" && e.obs.dashboard != nil {
+			e.measureCoverage(ctx)
+		}
 	}
 	return e.done(unfinished(req))
 }
@@ -919,6 +989,11 @@ func finish(sc Scenario, pricing Pricing, res Result, obs observation) Result {
 	res.CostUSD = pricing.cost(obs.request.Usage)
 	if obs.dashboard != nil {
 		res.Panels = len(dataPanels(obs.dashboard))
+		quality, findings := scoreQuality(obs.dashboard)
+		res.Quality, res.QualityFindings = &quality, findings
+	}
+	if obs.coverage != nil {
+		res.Coverage = obs.coverage.score()
 	}
 	if elapsed, ok := latency(obs.request); ok {
 		seconds := elapsed.Seconds()

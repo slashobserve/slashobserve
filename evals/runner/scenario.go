@@ -35,6 +35,7 @@ const (
 
 	suiteReplay = "replay"
 	suiteLive   = "live"
+	suiteSmoke  = "smoke"
 
 	tagReplaySmoke = "replay-smoke"
 
@@ -52,10 +53,10 @@ const (
 )
 
 var (
-	kinds  = []string{kindCreate, kindRevise, kindFixUnverified, kindSuggest, kindChatImport, kindSizeGuard}
-	suites = []string{suiteReplay, suiteLive}
+	kinds = []string{kindCreate, kindRevise, kindFixUnverified, kindSuggest, kindChatImport, kindSizeGuard}
 
-	idPattern = regexp.MustCompile(`^[a-z0-9-]{3,64}$`)
+	idPattern    = regexp.MustCompile(`^[a-z0-9-]{3,64}$`)
+	suitePattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
 )
 
 type Scenario struct {
@@ -122,17 +123,9 @@ type Expect struct {
 	TargetType          string         `yaml:"target_type" json:"target_type,omitempty"`
 	ChangedPanels       int            `yaml:"changed_panels" json:"changed_panels,omitempty"`
 	Usage               map[string]int `yaml:"usage" json:"usage,omitempty"`
-}
 
-type Price struct {
-	Input      float64 `yaml:"input"`
-	Output     float64 `yaml:"output"`
-	CacheRead  float64 `yaml:"cache_read"`
-	CacheWrite float64 `yaml:"cache_write"`
-}
-
-type Pricing struct {
-	Models map[string]Price `yaml:"models"`
+	Scope    string  `yaml:"scope" json:"scope,omitempty"`
+	Coverage float64 `yaml:"coverage" json:"coverage,omitempty"`
 }
 
 func decodeStrict(content []byte, out any) error {
@@ -195,15 +188,6 @@ func applyDefaults(sc *Scenario) {
 	if sc.Tags == nil {
 		sc.Tags = []string{}
 	}
-	if sc.Kind == "" {
-		sc.Kind = kindCreate
-	}
-	if len(sc.Suites) == 0 {
-		sc.Suites = []string{suiteLive}
-	}
-	if slices.Contains(sc.Tags, tagReplaySmoke) && !slices.Contains(sc.Suites, suiteReplay) {
-		sc.Suites = append(sc.Suites, suiteReplay)
-	}
 	if sc.Expect.MinPanels == 0 {
 		sc.Expect.MinPanels = defaultMinPanels
 	}
@@ -212,6 +196,9 @@ func applyDefaults(sc *Scenario) {
 	}
 	if sc.Expect.MaxSeconds == 0 {
 		sc.Expect.MaxSeconds = defaultMaxSeconds
+	}
+	if sc.Expect.Scope != "" && sc.Expect.Coverage == 0 {
+		sc.Expect.Coverage = defaultCoverage
 	}
 }
 
@@ -262,6 +249,12 @@ func validateDatasources(sc Scenario) error {
 }
 
 func validateKind(sc Scenario) error {
+	switch {
+	case sc.Kind == "":
+		return fmt.Errorf("kind is required, one of %s", strings.Join(kinds, ", "))
+	case len(sc.Suites) == 0:
+		return errors.New("suites is required, for example [live] or [live, replay]")
+	}
 	if !slices.Contains(kinds, sc.Kind) {
 		return fmt.Errorf("kind %q must be one of %s", sc.Kind, strings.Join(kinds, ", "))
 	}
@@ -304,8 +297,8 @@ func promptReadsSeed(prompt string) bool {
 
 func validateSuites(list []string) error {
 	for _, suite := range list {
-		if !slices.Contains(suites, suite) {
-			return fmt.Errorf("suites entry %q must be replay or live", suite)
+		if !suitePattern.MatchString(suite) {
+			return fmt.Errorf("suites entry %q must match %s", suite, suitePattern)
 		}
 	}
 	if dup, ok := firstDuplicate(list); ok {
@@ -382,7 +375,10 @@ func validateExpectations(sc Scenario) error {
 			return fmt.Errorf("expect.time_range_from: %w", err)
 		}
 	}
-	return validateBudgetsAndValues(ex)
+	if err := validateBudgetsAndValues(ex); err != nil {
+		return err
+	}
+	return validateCoverage(sc)
 }
 
 func validateBudgetsAndValues(ex Expect) error {
@@ -499,31 +495,4 @@ func filterScenarios(all []Scenario, ids, tags []string) ([]Scenario, error) {
 		return nil, errors.New("no scenario matches the --id and --tag filters")
 	}
 	return out, nil
-}
-
-func loadPricing(path string) (Pricing, error) {
-	content, err := os.ReadFile(path) //nolint:gosec // the path comes from the operator's flags
-	if err != nil {
-		return Pricing{}, err
-	}
-	var pricing Pricing
-	if err := decodeStrict(content, &pricing); err != nil {
-		return Pricing{}, fmt.Errorf("%s: %w", path, err)
-	}
-	return pricing, nil
-}
-
-func (p Pricing) cost(u *Usage) *float64 {
-	if u == nil {
-		return nil
-	}
-	price, ok := p.Models[u.Model]
-	if !ok {
-		return nil
-	}
-	usd := (float64(u.InputTokens)*price.Input +
-		float64(u.OutputTokens)*price.Output +
-		float64(u.CacheReadTokens)*price.CacheRead +
-		float64(u.CacheWriteTokens)*price.CacheWrite) / 1e6
-	return &usd
 }

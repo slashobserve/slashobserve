@@ -30,6 +30,7 @@ var matrixNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
 type matrixEntry struct {
 	Name    string `yaml:"name"`
 	EnvFile string `yaml:"env_file"`
+	Pricing *Price `yaml:"pricing"`
 }
 
 type matrixFile struct {
@@ -57,6 +58,8 @@ func loadMatrix(path string) ([]matrixEntry, error) {
 			return nil, fmt.Errorf("%s: models[%d].env_file is required", path, i)
 		case seen[m.Name]:
 			return nil, fmt.Errorf("%s: models[%d].name %q is used twice", path, i, m.Name)
+		case m.Pricing != nil && m.Pricing.validate() != nil:
+			return nil, fmt.Errorf("%s: models[%d].pricing: %w", path, i, m.Pricing.validate())
 		}
 		seen[m.Name] = true
 	}
@@ -67,7 +70,7 @@ type matrixStep struct {
 	switchTo func(ctx context.Context, envFile string) error
 	saveLogs func(ctx context.Context, path string) error
 	ready    func(ctx context.Context) error
-	run      func(ctx context.Context) (Report, gateOutcome, error)
+	run      func(ctx context.Context, entry matrixEntry) (Report, gateOutcome, error)
 }
 
 type matrixResult struct {
@@ -125,7 +128,7 @@ func runMatrixEntry(ctx context.Context, entry matrixEntry, step matrixStep) (Re
 	if err := step.ready(ctx); err != nil {
 		return Report{}, gateOutcome{}, fmt.Errorf("wait for the server: %w", err)
 	}
-	return step.run(ctx)
+	return step.run(ctx, entry)
 }
 
 func renderMatrix(results []matrixResult) string {
@@ -242,8 +245,8 @@ func executeMatrix(ctx context.Context, c *client, pricing Pricing, selected []S
 		switchTo: scriptSwitcher(o.stackScript, stderr),
 		saveLogs: composeLogSaver(stderr),
 		ready:    func(ctx context.Context) error { return waitReady(ctx, c.base, o.readyTimeout) },
-		run: func(ctx context.Context) (Report, gateOutcome, error) {
-			return runSuite(ctx, c, pricing, selected, o, doneWhen, stderr)
+		run: func(ctx context.Context, entry matrixEntry) (Report, gateOutcome, error) {
+			return runSuite(ctx, c, pricing.with(entry.Pricing), selected, o, doneWhen, stderr)
 		},
 	}
 	ok, err := runMatrix(ctx, entries, step, o.out, stderr)

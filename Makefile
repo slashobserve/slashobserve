@@ -30,7 +30,7 @@ define DEMO_BANNER
 	@echo "Sign in as admin@example.com / password (Dex, development only)"
 endef
 
-.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down e2e e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live golden tidy-check clean
+.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down e2e e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
 
 build: web
 	$(MAKE) server cli
@@ -143,6 +143,10 @@ evals-replay:
 
 evals-live:
 	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --suite live --matrix $(EVALS_MATRIX) --bootstrap-dex --out $(EVALS_REPORT_DIR)
+
+evals-compare:
+	@test -n "$(EVALS_BASE)" -a -n "$(EVALS_NEW)" || { echo "usage: make evals-compare EVALS_BASE=<report.json> EVALS_NEW=<report.json>" >&2; exit 2; }
+	go run ./evals/runner --compare "$(EVALS_BASE)" "$(EVALS_NEW)"
 
 clean:
 	rm -rf bin web/dist web/playwright-report web/test-results web/coverage coverage.out
