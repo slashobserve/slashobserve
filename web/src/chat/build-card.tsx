@@ -19,6 +19,7 @@ import {
 import type { ObserveRequest } from "@/observe/queries"
 import { ContinueBuildButton } from "@/observe/request-actions"
 import { isRowPanel, panelTitle, type Dashboard, type Panel } from "@/spec"
+import { dashboardLink } from "@/lib/links"
 
 import { Thumbnail, thumbnailColumns, thumbnailSpan } from "./result-card"
 
@@ -198,8 +199,7 @@ function SaveBuild({
           <span>{saveBuildErrorText(code, save.error.message)}</span>
           {code === "version_conflict" && request.dashboard_id !== null ? (
             <Link
-              to="/dashboards/$dashboardId"
-              params={{ dashboardId: request.dashboard_id }}
+              {...dashboardLink(request.dashboard_id)}
               className="rounded-sm text-foreground underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Open the dashboard
@@ -260,7 +260,7 @@ export function BuildCard({ request, build, isRequester, onContinued }: Props) {
         </p>
         {isRequester ? (
           <Link
-            to="/builds/$requestId"
+            to="/b/$requestId"
             params={{ requestId: request.id }}
             className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
           >

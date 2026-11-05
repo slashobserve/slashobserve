@@ -23,7 +23,7 @@ export function ChatHome() {
 
   function open(request: ObserveRequest) {
     return navigate({
-      to: "/observe/$requestId",
+      to: "/c/$requestId",
       params: { requestId: request.id },
     })
   }

@@ -69,7 +69,7 @@ export function RecentChats() {
                       className="flex w-full flex-wrap items-center gap-x-3 gap-y-0.5 px-3.5 py-2.5 text-left outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                       onClick={() =>
                         void navigate({
-                          to: "/observe/$requestId",
+                          to: "/c/$requestId",
                           params: { requestId: request.id },
                         })
                       }

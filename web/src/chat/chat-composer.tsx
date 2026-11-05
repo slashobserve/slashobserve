@@ -46,7 +46,7 @@ export function useSendExample() {
     try {
       const request = await create.mutateAsync({ prompt })
       await navigate({
-        to: "/observe/$requestId",
+        to: "/c/$requestId",
         params: { requestId: request.id },
       })
     } catch (cause) {

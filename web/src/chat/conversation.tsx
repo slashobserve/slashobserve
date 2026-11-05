@@ -276,7 +276,7 @@ function ConversationView({
               return
             }
             return navigate({
-              to: "/observe/$requestId",
+              to: "/c/$requestId",
               params: { requestId: request.id },
             })
           }}

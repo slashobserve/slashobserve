@@ -1,4 +1,5 @@
 import { variablePrefix, type DashboardSearchParams } from "@/dashboards/search"
+import { dashboardPath } from "@/lib/links"
 import { stringifySearch } from "@/lib/search"
 import {
   isDataPanel,
@@ -32,21 +33,23 @@ function linkSearch(
   return out
 }
 
+type SharedDashboard = { id: string; title: string }
+
 function dashboardUrl(
   origin: string,
-  dashboardId: string,
+  dashboard: SharedDashboard,
   query: LinkQuery
 ): string {
-  return `${origin}/dashboards/${encodeURIComponent(dashboardId)}${stringifySearch(query)}`
+  return `${origin}${dashboardPath(dashboard.id, dashboard.title)}${stringifySearch(query)}`
 }
 
 export function dashboardShareUrl(
   origin: string,
-  dashboardId: string,
+  dashboard: SharedDashboard,
   search: DashboardSearchParams,
   options: ShareOptions
 ): string {
-  return dashboardUrl(origin, dashboardId, linkSearch(search, options))
+  return dashboardUrl(origin, dashboard, linkSearch(search, options))
 }
 
 export type PanelChoice = { id: string; title: string }
@@ -74,12 +77,12 @@ export function panelChoices(spec: Pick<Dashboard, "panels">): PanelChoice[] {
 
 export function panelShareUrl(
   origin: string,
-  dashboardId: string,
+  dashboard: SharedDashboard,
   panelId: string,
   search: DashboardSearchParams,
   options: ShareOptions
 ): string {
-  return dashboardUrl(origin, dashboardId, {
+  return dashboardUrl(origin, dashboard, {
     ...linkSearch(search, options),
     panel: panelId,
   })

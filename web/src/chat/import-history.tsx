@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { myImportsQuery } from "@/import/record-queries"
 import { importStatus } from "@/import/record-summary"
+import { dashboardLink } from "@/lib/links"
 
 import { ImportLink } from "./import-link"
 
@@ -119,8 +120,7 @@ export function ImportHistory({
           return (
             <li key={item.id}>
               <Link
-                to="/dashboards/$dashboardId"
-                params={{ dashboardId: item.dashboard_id }}
+                {...dashboardLink(item.dashboard_id, item.title)}
                 className="flex w-full flex-col gap-1 rounded-control px-2 py-2.5 text-left outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <span className="line-clamp-2 text-[13px] wrap-anywhere">

@@ -12,6 +12,7 @@ import {
   type ObserveRequest,
 } from "@/observe/queries"
 import { retryAction } from "@/observe/request-model"
+import { dashboardLink } from "@/lib/links"
 
 export function RetryButton({
   busy,
@@ -38,15 +39,16 @@ export function RetryButton({
 
 export function OpenDashboardLink({
   dashboardId,
+  title,
   variant,
 }: {
   dashboardId: string
+  title?: string
   variant: "primary" | "outline"
 }) {
   return (
     <Link
-      to="/dashboards/$dashboardId"
-      params={{ dashboardId }}
+      {...dashboardLink(dashboardId, title)}
       className={cn(
         buttonVariants(
           variant === "primary" ? {} : { variant: "outline", size: "sm" }
@@ -72,7 +74,7 @@ export function useOpenNewRun(
   return async (next) => {
     if (opensPage) {
       await navigate({
-        to: "/observe/$requestId",
+        to: "/c/$requestId",
         params: { requestId: next.id },
         replace: true,
       })
@@ -86,7 +88,7 @@ function ContinuedNote({ request }: { request: FailedRequest }) {
   if (request.continued_by === null) return null
   return request.source === "observe" ? (
     <Link
-      to="/observe/$requestId"
+      to="/c/$requestId"
       params={{ requestId: request.continued_by }}
       className="rounded-sm text-foreground underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >

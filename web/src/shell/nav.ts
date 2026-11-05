@@ -31,9 +31,7 @@ export function visibleNavItems(role: Role): NavItem[] {
 export function isNavItemActive(to: NavPath, pathname: string): boolean {
   if (to === "/") {
     return (
-      pathname === "/" ||
-      pathname === "/import" ||
-      pathname.startsWith("/observe/")
+      pathname === "/" || pathname === "/import" || pathname.startsWith("/c/")
     )
   }
   return pathname === to || pathname.startsWith(`${to}/`)

@@ -21,9 +21,15 @@ const spec: Dashboard = {
   ],
 }
 
-const live = { pathname: "/dashboards/d1/", search: {} }
-const pinned = { pathname: "/dashboards/d1/", search: { version: 3 } }
-const elsewhere = { pathname: "/dashboards/d2/", search: {} }
+const page = "/_authed/d/$dashboardId/{-$slug}"
+const live = { routeId: page, params: { dashboardId: "d1" }, search: {} }
+const pinned = { ...live, search: { version: 3 } }
+const elsewhere = { routeId: page, params: { dashboardId: "d2" }, search: {} }
+const history = {
+  routeId: "/_authed/d/$dashboardId/versions",
+  params: { dashboardId: "d1" },
+  search: {},
+}
 
 function makeDirty() {
   const { start, commitLayout } = useLayoutStore.getState()
@@ -51,6 +57,14 @@ describe("shouldBlockNavigation", () => {
     expect(shouldBlockNavigation({ current: live, next: elsewhere })).toBe(true)
     expect(shouldBlockNavigation({ current: live, next: pinned })).toBe(true)
     expect(shouldBlockNavigation({ current: pinned, next: live })).toBe(true)
+    expect(shouldBlockNavigation({ current: live, next: history })).toBe(true)
+  })
+
+  it("lets the slug change through while dirty", () => {
+    makeDirty()
+    const slugged = { ...live, params: { dashboardId: "d1", slug: "guard" } }
+    expect(shouldBlockNavigation({ current: live, next: slugged })).toBe(false)
+    expect(shouldBlockNavigation({ current: slugged, next: live })).toBe(false)
   })
 
   it("lets a change that keeps the pinned version through while dirty", () => {

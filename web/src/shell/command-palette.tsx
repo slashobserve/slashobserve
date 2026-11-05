@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { dashboardLink, dashboardPath } from "@/lib/links"
 import { isModChord } from "@/lib/shortcuts"
 
 import type { NavPath } from "./nav"
@@ -78,7 +79,7 @@ function PaletteBody({ close }: { close: () => void }) {
 
   function openInNewTab(entry: DashboardEntry) {
     close()
-    window.open(`/dashboards/${entry.id}`, "_blank", "noopener")
+    window.open(dashboardPath(entry.id, entry.label), "_blank", "noopener")
   }
 
   function select(entry: PaletteEntry, event: ReactMouseEvent) {
@@ -90,10 +91,7 @@ function PaletteBody({ close }: { close: () => void }) {
     if (entry.kind === "page") {
       void navigate({ to: entry.to })
     } else if (entry.kind === "dashboard") {
-      void navigate({
-        to: "/dashboards/$dashboardId",
-        params: { dashboardId: entry.id },
-      })
+      void navigate(dashboardLink(entry.id, entry.label))
     } else {
       void signOut()
     }

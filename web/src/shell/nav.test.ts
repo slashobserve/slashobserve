@@ -5,7 +5,7 @@ import { isNavItemActive, visibleNavItems } from "./nav"
 describe("isNavItemActive", () => {
   test("Observe covers the chat, the importer and requests", () => {
     expect(isNavItemActive("/", "/")).toBe(true)
-    expect(isNavItemActive("/", "/observe/abc")).toBe(true)
+    expect(isNavItemActive("/", "/c/abc")).toBe(true)
     expect(isNavItemActive("/", "/import")).toBe(true)
     expect(isNavItemActive("/", "/dashboards")).toBe(false)
   })

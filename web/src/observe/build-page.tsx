@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils"
 import { createSharedCursor } from "@/panels/shared-cursor"
 import { ThemeSwitch } from "@/shell/theme-switch"
 import { isDataPanel, sourcePanelOf, type Dashboard } from "@/spec"
+import { dashboardLink } from "@/lib/links"
 
 import {
   buildQuery,
@@ -133,12 +134,11 @@ function Notice({ children }: { children: string }) {
   )
 }
 
-function dashboardLink(request: ObserveRequest, label: string) {
+function openDashboardLink(request: ObserveRequest, label: string) {
   if (request.dashboard_id === null) return null
   return (
     <Link
-      to="/dashboards/$dashboardId"
-      params={{ dashboardId: request.dashboard_id }}
+      {...dashboardLink(request.dashboard_id)}
       className="rounded-sm text-foreground underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {label}
@@ -169,13 +169,13 @@ function StoppedStrip({ request }: { request: ObserveRequest }) {
           <span>
             You saved what was built as version {request.result_version}.
           </span>
-          {dashboardLink(request, "Open the dashboard")}
+          {openDashboardLink(request, "Open the dashboard")}
         </p>
       ) : null}
       {request.continued_by !== null ? (
         <p>
           <Link
-            to="/builds/$requestId"
+            to="/b/$requestId"
             params={{ requestId: request.continued_by }}
             className="rounded-sm text-foreground underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
@@ -192,10 +192,7 @@ function StoppedStrip({ request }: { request: ObserveRequest }) {
               onClick={() =>
                 save.mutate(undefined, {
                   onSuccess: (saved) =>
-                    void navigate({
-                      to: "/dashboards/$dashboardId",
-                      params: { dashboardId: saved.dashboard_id },
-                    }),
+                    void navigate(dashboardLink(saved.dashboard_id)),
                 })
               }
             >
@@ -212,7 +209,7 @@ function StoppedStrip({ request }: { request: ObserveRequest }) {
             isRequester={isRequester}
             onContinued={(next) =>
               void navigate({
-                to: "/builds/$requestId",
+                to: "/b/$requestId",
                 params: { requestId: next.id },
               })
             }
@@ -221,7 +218,7 @@ function StoppedStrip({ request }: { request: ObserveRequest }) {
             <p role="alert" className="flex flex-wrap items-center gap-x-2">
               <span>{saveBuildErrorText(code, error.message)}</span>
               {code === "version_conflict"
-                ? dashboardLink(request, "Open the dashboard")
+                ? openDashboardLink(request, "Open the dashboard")
                 : null}
             </p>
           ) : null}
@@ -270,11 +267,7 @@ export function BuildPage({ requestId }: { requestId: string }) {
     request?.status === "succeeded" ? request.dashboard_id : null
   useEffect(() => {
     if (succeededId === null) return
-    void navigate({
-      to: "/dashboards/$dashboardId",
-      params: { dashboardId: succeededId },
-      replace: true,
-    })
+    void navigate({ ...dashboardLink(succeededId), replace: true })
   }, [succeededId, navigate])
 
   const active = request?.status === "queued" || request?.status === "running"
@@ -348,7 +341,7 @@ export function BuildPage({ requestId }: { requestId: string }) {
           ) : null,
           <Link
             key="chat"
-            to="/observe/$requestId"
+            to="/c/$requestId"
             params={{ requestId }}
             className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
           >

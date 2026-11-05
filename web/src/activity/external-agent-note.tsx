@@ -1,4 +1,5 @@
 import { CopyButton } from "@/components/copy-button"
+import { dashboardPath } from "@/lib/links"
 
 import { claudeCodePrompt, commentsListCommand } from "./copy-prompt"
 
@@ -13,7 +14,7 @@ export function ExternalAgentNote({ dashboardId, title, clientName }: Props) {
   const prompt = claudeCodePrompt({
     dashboardId,
     title,
-    url: `${window.location.origin}/dashboards/${dashboardId}`,
+    url: `${window.location.origin}${dashboardPath(dashboardId, title)}`,
   })
   return (
     <section

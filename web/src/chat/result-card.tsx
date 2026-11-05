@@ -147,7 +147,11 @@ function CardBody({ data, dashboardId, version, finishedAt }: BodyProps) {
             {hint}
           </span>
         </div>
-        <OpenDashboardLink dashboardId={dashboardId} variant="primary" />
+        <OpenDashboardLink
+          dashboardId={dashboardId}
+          title={spec?.title}
+          variant="primary"
+        />
       </div>
       <div className="flex items-center gap-1.5 border-t px-3.5 py-[9px] text-xs text-muted-foreground">
         <StatusIcon tone="ok" />

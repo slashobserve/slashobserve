@@ -211,7 +211,7 @@ function HistoryList({
                 )}
                 onClick={() =>
                   void navigate({
-                    to: "/observe/$requestId",
+                    to: "/c/$requestId",
                     params: { requestId: request.id },
                   })
                 }

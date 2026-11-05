@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { dashboardLink } from "@/lib/links"
 
 import { titleError } from "./edit/details"
 import { saveProblemFrom, type Problem } from "./edit/save-problem"
@@ -97,10 +98,7 @@ export function DuplicateDashboardDialog({
           openedCopy.current = true
           toast.success(`Created "${trimmed}" in ${folderTitle}`)
           close()
-          void navigate({
-            to: "/dashboards/$dashboardId",
-            params: { dashboardId: created.dashboard.id },
-          })
+          void navigate(dashboardLink(created.dashboard.id, trimmed))
         },
         onError: (failure) =>
           setProblem(saveProblemFrom(failure, rejectedHeading)),

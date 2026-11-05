@@ -270,7 +270,7 @@ export function RequestTurn({
             />
           ) : null}
           <Link
-            to="/observe/$requestId"
+            to="/c/$requestId"
             params={{ requestId: summary.id }}
             className="self-start rounded-control text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >

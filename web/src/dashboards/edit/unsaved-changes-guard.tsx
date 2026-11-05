@@ -51,7 +51,11 @@ export function DiscardLayoutDialog({
   )
 }
 
-type GuardedLocation = { pathname: string; search: unknown }
+type GuardedLocation = {
+  routeId: string
+  params: Record<string, string | undefined>
+  search: unknown
+}
 
 function pinnedVersion(location: GuardedLocation): string | undefined {
   const { version } = (location.search ?? {}) as { version?: unknown }
@@ -67,7 +71,8 @@ export function shouldBlockNavigation({
 }) {
   return (
     isDirtyNow() &&
-    (current.pathname !== next.pathname ||
+    (current.routeId !== next.routeId ||
+      current.params.dashboardId !== next.params.dashboardId ||
       pinnedVersion(current) !== pinnedVersion(next))
   )
 }
