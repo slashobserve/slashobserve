@@ -26,6 +26,8 @@ const (
 
 	typePrometheus = "prometheus"
 	typeClickHouse = "clickhouse"
+	typeLoki       = "loki"
+	typeTempo      = "tempo"
 
 	maxGrafanaUIDs     = 20
 	maxGrafanaUIDBytes = 100
@@ -36,6 +38,8 @@ type Datasource struct {
 	GrafanaUIDs     []string
 	Prometheus      *PrometheusDatasource
 	ClickHouse      *ClickHouseDatasource
+	Loki            *LokiDatasource
+	Tempo           *TempoDatasource
 	Limits          datasource.Limits
 }
 
@@ -47,6 +51,24 @@ type PrometheusDatasource struct {
 	BasicAuthUser     string
 	BasicAuthPassword datasource.Secret
 	BearerToken       datasource.Secret
+}
+
+type HTTPConnection struct {
+	URL               string
+	Headers           map[string]string
+	SecretHeaders     map[string]datasource.Secret
+	BasicAuthUser     string
+	BasicAuthPassword datasource.Secret
+	BearerToken       datasource.Secret
+}
+
+type LokiDatasource struct {
+	HTTPConnection
+	TenantID string
+}
+
+type TempoDatasource struct {
+	HTTPConnection
 }
 
 type ClickHouseDatasource struct {
@@ -66,6 +88,8 @@ type fileDatasource struct {
 	GrafanaUIDs []yamlString    `yaml:"grafanaUids"`
 	Prometheus  *filePrometheus `yaml:"prometheus"`
 	ClickHouse  *fileClickHouse `yaml:"clickhouse"`
+	Loki        *fileLoki       `yaml:"loki"`
+	Tempo       *fileHTTP       `yaml:"tempo"`
 	Limits      fileLimits      `yaml:"limits"`
 }
 
@@ -92,8 +116,17 @@ func (s *yamlString) UnmarshalYAML(node ast.Node) error {
 }
 
 type filePrometheus struct {
+	HTTP           fileHTTP `yaml:",inline"`
+	ScrapeInterval string   `yaml:"scrapeInterval"`
+}
+
+type fileLoki struct {
+	HTTP     fileHTTP `yaml:",inline"`
+	TenantID string   `yaml:"tenantId"`
+}
+
+type fileHTTP struct {
 	URL             string            `yaml:"url"`
-	ScrapeInterval  string            `yaml:"scrapeInterval"`
 	Headers         map[string]string `yaml:"headers"`
 	HeadersFromEnv  map[string]string `yaml:"headersFromEnv"`
 	HeadersFromFile map[string]string `yaml:"headersFromFile"`
@@ -267,33 +300,43 @@ func convertDatasource(path string, raw fileDatasource, lookup func(string) (str
 	errs = append(errs, limitErrs...)
 	ds.Limits = limits
 
+	present := map[string]bool{
+		typePrometheus: raw.Prometheus != nil,
+		typeClickHouse: raw.ClickHouse != nil,
+		typeLoki:       raw.Loki != nil,
+		typeTempo:      raw.Tempo != nil,
+	}
+	if _, known := present[raw.Type]; !known {
+		fail("type", "must be %s, %s, %s or %s, got %q", typePrometheus, typeClickHouse, typeLoki, typeTempo, raw.Type)
+		return ds, errs
+	}
+	for _, block := range slices.Sorted(maps.Keys(present)) {
+		if block != raw.Type && present[block] {
+			fail(block, "not allowed for type %s", raw.Type)
+		}
+	}
+	if !present[raw.Type] {
+		fail(raw.Type, "required for type %s", raw.Type)
+		return ds, errs
+	}
+
+	block := path + "." + raw.Type
+	var blockErrs []error
 	switch raw.Type {
 	case typePrometheus:
-		if raw.ClickHouse != nil {
-			fail("clickhouse", "not allowed for type %s", typePrometheus)
-		}
-		if raw.Prometheus == nil {
-			fail("prometheus", "required for type %s", typePrometheus)
-			break
-		}
-		p, pErrs := convertPrometheus(path+".prometheus", *raw.Prometheus, lookup)
-		errs = append(errs, pErrs...)
-		ds.Prometheus = &p
+		p, pErrs := convertPrometheus(block, *raw.Prometheus, lookup)
+		ds.Prometheus, blockErrs = &p, pErrs
 	case typeClickHouse:
-		if raw.Prometheus != nil {
-			fail("prometheus", "not allowed for type %s", typeClickHouse)
-		}
-		if raw.ClickHouse == nil {
-			fail("clickhouse", "required for type %s", typeClickHouse)
-			break
-		}
-		c, cErrs := convertClickHouse(path+".clickhouse", *raw.ClickHouse, lookup)
-		errs = append(errs, cErrs...)
-		ds.ClickHouse = &c
-	default:
-		fail("type", "must be %s or %s, got %q", typePrometheus, typeClickHouse, raw.Type)
+		c, cErrs := convertClickHouse(block, *raw.ClickHouse, lookup)
+		ds.ClickHouse, blockErrs = &c, cErrs
+	case typeLoki:
+		conn, cErrs := convertHTTP(block, raw.Loki.HTTP, lookup)
+		ds.Loki, blockErrs = &LokiDatasource{HTTPConnection: conn, TenantID: raw.Loki.TenantID}, cErrs
+	case typeTempo:
+		conn, cErrs := convertHTTP(block, *raw.Tempo, lookup)
+		ds.Tempo, blockErrs = &TempoDatasource{HTTPConnection: conn}, cErrs
 	}
-	return ds, errs
+	return ds, append(errs, blockErrs...)
 }
 
 type grafanaAlias struct {
@@ -361,16 +404,28 @@ func convertLimits(path string, raw fileLimits) (datasource.Limits, []error) {
 }
 
 func convertPrometheus(path string, raw filePrometheus, lookup func(string) (string, bool)) (PrometheusDatasource, []error) {
-	var errs []error
-	out := PrometheusDatasource{URL: raw.URL, Headers: raw.Headers}
-	if raw.URL == "" {
-		errs = append(errs, fmt.Errorf("%s.url: required", path))
-	}
+	conn, errs := convertHTTP(path, raw.HTTP, lookup)
 	interval, err := parseOptionalDuration(raw.ScrapeInterval)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("%s.scrapeInterval: %w", path, err))
 	}
-	out.ScrapeInterval = interval
+	return PrometheusDatasource{
+		URL:               conn.URL,
+		ScrapeInterval:    interval,
+		Headers:           conn.Headers,
+		SecretHeaders:     conn.SecretHeaders,
+		BasicAuthUser:     conn.BasicAuthUser,
+		BasicAuthPassword: conn.BasicAuthPassword,
+		BearerToken:       conn.BearerToken,
+	}, errs
+}
+
+func convertHTTP(path string, raw fileHTTP, lookup func(string) (string, bool)) (HTTPConnection, []error) {
+	var errs []error
+	out := HTTPConnection{URL: raw.URL, Headers: raw.Headers}
+	if raw.URL == "" {
+		errs = append(errs, fmt.Errorf("%s.url: required", path))
+	}
 
 	secretHeaders, headerErrs := resolveSecretHeaders(path, raw.Headers, raw.HeadersFromEnv, raw.HeadersFromFile, lookup)
 	errs = append(errs, headerErrs...)

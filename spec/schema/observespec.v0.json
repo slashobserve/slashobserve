@@ -1092,7 +1092,9 @@
         "datasourceType": {
           "enum": [
             "prometheus",
-            "clickhouse"
+            "clickhouse",
+            "loki",
+            "tempo"
           ]
         },
         "regex": {

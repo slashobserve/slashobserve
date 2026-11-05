@@ -24,6 +24,8 @@ type DatasourceType string
 const (
 	Prometheus DatasourceType = "prometheus"
 	ClickHouse DatasourceType = "clickhouse"
+	Loki       DatasourceType = "loki"
+	Tempo      DatasourceType = "tempo"
 )
 
 type WeekStart string

@@ -10,6 +10,8 @@ DEX_PORT="${SLASHOBSERVE_E2E_DEX_PORT:-15556}"
 export SLASHOBSERVE_DEX_HOST_PORT="$DEX_PORT"
 export SLASHOBSERVE_PROMETHEUS_HOST_PORT="${SLASHOBSERVE_E2E_PROMETHEUS_PORT:-19090}"
 export SLASHOBSERVE_SHOP_HOST_PORT="${SLASHOBSERVE_E2E_SHOP_PORT:-18081}"
+export SLASHOBSERVE_LOKI_HOST_PORT="${SLASHOBSERVE_E2E_LOKI_PORT:-13100}"
+export SLASHOBSERVE_TEMPO_HOST_PORT="${SLASHOBSERVE_E2E_TEMPO_PORT:-13200}"
 export SLASHOBSERVE_DATASOURCES_HOST_FILE=./datasources.e2e.yaml
 export SLASHOBSERVE_API_CONTRACT_CHECK=true
 export SLASHOBSERVE_LLM_PROVIDER=replay
@@ -721,14 +723,14 @@ check_no_keys_in_server_log() {
 
 all_datasources_listed() {
   local uid
-  for uid in prom ch prom_tight ch_tight; do
+  for uid in prom ch prom_tight ch_tight loki tempo; do
     grep -q "\"uid\":\"$uid\"" <<<"$1" || return 1
   done
 }
 
 datasources_ready() {
   capture LAST foreground command curl -sS --max-time 10 -b "$1" "$BASE_URL/api/v1/datasources" || true
-  [[ "$(grep -o '"healthy":true' <<<"$LAST" | wc -l | tr -d ' ')" == 4 ]] && all_datasources_listed "$LAST"
+  [[ "$(grep -o '"healthy":true' <<<"$LAST" | wc -l | tr -d ' ')" == 6 ]] && all_datasources_listed "$LAST"
 }
 
 check_datasources() {
@@ -751,7 +753,7 @@ check_datasources() {
       *) fail "datasource entry has unexpected keys ($keys)" ;;
     esac
   done < <(sed -E 's/:"([^"\\]|\\.)*"/:/g' <<<"$body" | grep -oE '\{[^{}]*\}')
-  [[ "$entries" == 4 ]] || fail "expected 4 datasource entries, found $entries"
+  [[ "$entries" == 6 ]] || fail "expected 6 datasource entries, found $entries"
   pass "datasource entries carry exactly uid, type, name, healthy, checked_at, dashboard_count and an optional message"
 }
 

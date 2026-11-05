@@ -18,7 +18,7 @@ The box shows "Describe the dashboard you want first." when it is empty and "Use
 Everyone can start a dashboard: it goes to your My Dashboards, where only you see it until you publish it.
 See [Roles](../teams/roles.md).
 
-The chips under the box list the healthy datasources and the name of the model; the agent can only query datasources the server has configured, see [Prometheus](../connect/prometheus.md) and [ClickHouse](../connect/clickhouse.md).
+The chips under the box list the healthy datasources and the name of the model; the agent can only query datasources the server has configured, see [Prometheus](../connect/prometheus.md), [ClickHouse](../connect/clickhouse.md), [Loki](../connect/loki.md) and [Tempo](../connect/tempo.md).
 Without a model the box is replaced by "No model is connected to this server."
 **Import from Grafana** next to the send button opens [Import Grafana dashboards](import-grafana.md), which needs no model.
 

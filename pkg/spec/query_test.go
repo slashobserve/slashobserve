@@ -185,6 +185,12 @@ func TestMacrosAndFormats(t *testing.T) {
 	if got, want := names(spec.Macros(spec.Prometheus)), wantPrometheus; !slices.Equal(got, want) {
 		t.Errorf("prometheus macros = %v, want %v", got, want)
 	}
+	wantLogsAndTraces := []string{"__interval", "__interval_ms", "__range", "__range_s", "__range_ms", "__from", "__to", "__dashboard", "__user.login", "__user.email", "__user.name", "__user.id"}
+	for _, typ := range []spec.DatasourceType{spec.Loki, spec.Tempo} {
+		if got := names(spec.Macros(typ)); !slices.Equal(got, wantLogsAndTraces) {
+			t.Errorf("%s macros = %v, want %v", typ, got, wantLogsAndTraces)
+		}
+	}
 	wantClickHouse := append(append([]string{"__interval"}, globals...), "__timeFilter", "__timeFilter_ms", "__timeGroup", "__dateFilter", "__dateTimeFilter", "__dt", "__fromTime", "__toTime", "__fromTime_ms", "__toTime_ms", "__interval_s", "__timeInterval", "__timeInterval_ms", "__conditionalAll")
 	if got, want := names(spec.Macros(spec.ClickHouse)), wantClickHouse; !slices.Equal(got, want) {
 		t.Errorf("clickhouse macros = %v, want %v", got, want)

@@ -199,6 +199,38 @@ services:
         limits:
           memory: 1G
 
+  loki:
+    image: grafana/loki:3.7.9@sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28
+    command: ["-config.file=/etc/loki/slashobserve.yaml"]
+    volumes:
+      - ./loki/config.yaml:/etc/loki/slashobserve.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "127.0.0.1:${SLASHOBSERVE_LOKI_HOST_PORT:-3100}:3100"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  tempo:
+    image: grafana/tempo:3.1.1@sha256:64e2fbd56d9c2b3412a4b430a58ea59e91a670b1e75f920a0c702213ad145044
+    command: ["-config.file=/etc/tempo/slashobserve.yaml"]
+    volumes:
+      - ./tempo/config.yaml:/etc/tempo/slashobserve.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "127.0.0.1:${SLASHOBSERVE_TEMPO_HOST_PORT:-3200}:3200"
+    healthcheck:
+      test: ["CMD", "/tempo", "-health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.161.0@sha256:fd328de2552466ad78385e1b1289c3f2402b1c45f265b252aab1955b42845ac1
     environment:
@@ -209,6 +241,10 @@ services:
     depends_on:
       clickhouse:
         condition: service_healthy
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
     restart: unless-stopped
     deploy:
       resources:
@@ -276,3 +312,5 @@ volumes:
   postgres-data:
   prometheus-data:
   clickhouse-data:
+  loki-data:
+  tempo-data:

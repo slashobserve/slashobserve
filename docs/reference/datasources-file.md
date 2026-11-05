@@ -1,9 +1,9 @@
 ---
 title: Datasources file
-description: The YAML file that lists the Prometheus and ClickHouse servers, and its rules for secrets and limits.
+description: The YAML file that lists the Prometheus, ClickHouse, Loki and Tempo servers, and its rules for secrets and limits.
 ---
 
-The datasources file lists the Prometheus and ClickHouse servers SlashObserve queries.
+The datasources file lists the Prometheus, ClickHouse, Loki and Tempo servers SlashObserve queries.
 It is a single YAML document with a top-level `datasources` list; unknown fields are rejected, and an empty list logs a warning at startup.
 The server reads it once at startup.
 
@@ -29,6 +29,17 @@ datasources:
       database: otel
       username: slashobserve_ro
       passwordEnv: SLASHOBSERVE_CLICKHOUSE_PASSWORD
+  - uid: loki
+    type: loki
+    name: Loki
+    loki:
+      url: http://loki:3100
+      tenantId: shop
+  - uid: tempo
+    type: tempo
+    name: Tempo
+    tempo:
+      url: http://tempo:3200
 ```
 
 `deploy/compose/datasources.yaml` is the minimal exemplar used by the demo.
@@ -38,7 +49,7 @@ Fields common to every entry:
 | Field         | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `uid`         | Required, unique. Up to 40 letters, digits, `_` or `-`, starting with a letter or digit. Dashboards refer to a datasource by it. Quote a value that looks like a number, such as `"0123"`, because an unquoted number is refused.                                                                                                                                                                                                    |
-| `type`        | Required: `prometheus` or `clickhouse`. Give only the block that matches (`prometheus:` or `clickhouse:`).                                                                                                                                                                                                                                                                                                                           |
+| `type`        | Required: `prometheus`, `clickhouse`, `loki` or `tempo`. Give only the block that matches (`prometheus:`, `clickhouse:`, `loki:` or `tempo:`).                                                                                                                                                                                                                                                                                     |
 | `name`        | A display name. Quote a value that looks like a number, such as `"0123"`, because an unquoted number is refused.                                                                                                                                                                                                                                                                                                                     |
 | `limits`      | Optional: `timeout` (a Go duration), `maxSeries`, `maxPoints` and `maxRows` (whole numbers, not negative). An omitted value or `0` keeps the default. See below.                                                                                                                                                                                                                                                                                                                |
 | `grafanaUids` | Optional: up to 20 Grafana datasource uids or names this datasource stands for when importing Grafana dashboards, each 1 to 100 bytes after trimming and listed by one datasource only. Matching is exact and case-sensitive. Entries are trimmed, control and invisible characters are refused, an entry may not be another datasource's `uid`, and a value that looks like a number, such as `"0123"` or `"1.50"`, must be quoted. |
@@ -47,7 +58,7 @@ The `uid`, `name` and `grafanaUids` values must not carry a YAML tag such as `!!
 
 The Grafana importer matches a dashboard's datasources by the mapping given with the import, then by a Grafana datasource uid that equals one of your datasource uids (so a dashboard exported from a Grafana that already uses your uids needs no `grafanaUids`), then by `grafanaUids`, then by being the only datasource of that type; it never guesses between two datasources of the same type.
 
-The fields of each block are described under [Prometheus](../connect/prometheus.md) and [ClickHouse](../connect/clickhouse.md).
+The fields of each block are described under [Prometheus](../connect/prometheus.md), [ClickHouse](../connect/clickhouse.md), [Loki](../connect/loki.md) and [Tempo](../connect/tempo.md).
 
 Rules for secrets:
 
@@ -55,11 +66,12 @@ Rules for secrets:
 - A file's content is used with trailing newlines removed; an empty file is an error.
 - Set only one of the env and file forms for the same secret.
 - A header name may appear in only one of `headers`, `headersFromEnv` and `headersFromFile`.
-  Prometheus rejects an `Authorization` header there; use `basicAuth` or a bearer token instead.
+  Prometheus, Loki and Tempo reject an `Authorization` header there; use `basicAuth` or a bearer token instead.
 
 Limits bound every query the server runs for that datasource.
 The defaults are a 30 second timeout, 1000 series, 1,000,000 points and 10,000 rows.
 A value you set replaces the default, up or down; a ClickHouse settings profile can still cap it further.
 The agent's and MCP's ad-hoc queries, and the draft preview in the panel editor, use tighter limits still (15 seconds, 200 series, 100,000 points and 1,000 rows), or the datasource's limits when those are lower.
 For ClickHouse table results (the `table` and `logs` formats, and instant queries) each row counts as one point, so the row limit bounds them.
-Separate from these limits, the server refuses a Prometheus response over 64 MiB and a ClickHouse result over 32 MiB.
+A Loki log query reads at most the row limit or 5,000 lines, and each line counts as one point; a Tempo query returns at most the row limit of spans or traces.
+Separate from these limits, the server refuses a Prometheus, Loki or Tempo response over 64 MiB and a ClickHouse result over 32 MiB.
