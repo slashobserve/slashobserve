@@ -25,6 +25,7 @@ import {
   type PreparedField,
   type PreparedFrame,
 } from "../transforms"
+import { rowCount } from "../transforms/names"
 import {
   linearScale,
   scaleOf,
@@ -294,6 +295,112 @@ function colorsFrom(
   return colors
 }
 
+type ColumnParts = {
+  key: string
+  name: string
+  slot: number
+  byCategory: Map<number, number | null>
+  colors: Map<number, string> | null
+}
+
+function columnOf(
+  frame: PreparedFrame,
+  field: PreparedField,
+  fields: FieldResolver,
+  { key, name, slot, byCategory, colors }: ColumnParts
+): Column {
+  const config = fields.configFor(frame, field)
+  return {
+    series: {
+      key,
+      name,
+      color: config.color
+        ? thresholdColor(config.color)
+        : styleForSlot(slot).color,
+      stack: config.stack,
+      hideInTooltip: config.hideInTooltip,
+      fillOpacity: fields.isSet(frame, field, "fill") ? config.fill / 100 : 1,
+      borderWidth: fields.isSet(frame, field, "lineWidth")
+        ? config.lineWidth
+        : 0,
+    },
+    config,
+    field,
+    byCategory,
+    colors,
+    hideInLegend: config.hideInLegend,
+    thresholdsStyleSet: fields.isSet(frame, field, "thresholdsStyle"),
+  }
+}
+
+function isInstant(frames: PreparedFrame[]): boolean {
+  return frames.length > 0 && frames.every((frame) => rowCount(frame) === 1)
+}
+
+function instantBarSource(
+  frames: PreparedFrame[],
+  fields: FieldResolver,
+  colorByField: string | undefined
+): BarSource {
+  const categories: Category[] = []
+  const indexByKey = new Map<string, number>()
+  const columns = new Map<string, Column>()
+  const seen = new Map<string, number>()
+  let truncated = false
+
+  frames.forEach((frame, frameIndex) => {
+    const text = frame.fields.find((field) => field.type === "string")
+    const visible = frame.fields.filter(
+      (field) =>
+        field.type === "number" && !fields.configFor(frame, field).hidden
+    )
+    const [first] = visible
+    if (!first) return
+    const label =
+      text === undefined
+        ? fields.displayName(frame, first)
+        : String(text.values[0] ?? "")
+    const categoryKey = text === undefined ? `#${frameIndex}` : label
+    let category = indexByKey.get(categoryKey)
+    if (category === undefined) {
+      if (categories.length >= maxCategories) {
+        truncated = true
+        return
+      }
+      category = categories.length
+      indexByKey.set(categoryKey, category)
+      categories.push({ key: categoryKey, label, title: label })
+    }
+    const rows = new Map([[0, category]])
+    const byColor = colorsFrom(frame, colorByField, fields, rows)
+    for (const field of visible) {
+      let column = columns.get(field.name)
+      if (column === undefined) {
+        column = columnOf(frame, field, fields, {
+          key: uniqueKey(seen, seriesKey(frame, field.name)),
+          name:
+            text === undefined ? field.name : fields.displayName(frame, field),
+          slot: columns.size,
+          byCategory: new Map(),
+          colors: new Map(),
+        })
+        columns.set(field.name, column)
+      }
+      column.byCategory.set(category, finite(field.values[0]))
+      const color =
+        byColor?.get(category) ?? fields.configFor(frame, field).color
+      if (color) column.colors?.set(category, thresholdColor(color))
+    }
+  })
+
+  return {
+    categories,
+    columns: [...columns.values()],
+    reason: columns.size > 0 ? null : noCategoriesReason,
+    note: truncated ? truncatedNote : null,
+  }
+}
+
 export function barSource(
   frames: PreparedFrame[],
   fields: FieldResolver,
@@ -303,6 +410,9 @@ export function barSource(
   const xField = typeof display.xField === "string" ? display.xField : undefined
   const colorByField =
     typeof display.colorByField === "string" ? display.colorByField : undefined
+  if (xField === undefined && isInstant(frames)) {
+    return instantBarSource(frames, fields, colorByField)
+  }
   const kind = categoryKindOf(frames, xField)
   const categories: Category[] = []
   const indexByKey = new Map<string, number>()
@@ -341,29 +451,15 @@ export function barSource(
       for (const [row, index] of rows) {
         byCategory.set(index, finite(field.values[row]))
       }
-      columns.push({
-        series: {
+      columns.push(
+        columnOf(frame, field, fields, {
           key: uniqueKey(seen, seriesKey(frame, field.name)),
           name: fields.displayName(frame, field),
-          color: config.color
-            ? thresholdColor(config.color)
-            : styleForSlot(columns.length).color,
-          stack: config.stack,
-          hideInTooltip: config.hideInTooltip,
-          fillOpacity: fields.isSet(frame, field, "fill")
-            ? config.fill / 100
-            : 1,
-          borderWidth: fields.isSet(frame, field, "lineWidth")
-            ? config.lineWidth
-            : 0,
-        },
-        config,
-        field,
-        byCategory,
-        colors,
-        hideInLegend: config.hideInLegend,
-        thresholdsStyleSet: fields.isSet(frame, field, "thresholdsStyle"),
-      })
+          slot: columns.length,
+          byCategory,
+          colors,
+        })
+      )
     }
   }
 

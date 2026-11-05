@@ -233,6 +233,8 @@ Its `valueMode` is `color` or `text`, which both draw the value in the foregroun
 Its `namePlacement` is `auto` (the name over a horizontal bar and under a vertical one), `top` (over both), `left` (in front of a horizontal bar) or `hidden`, and `showUnfilled: false` leaves out the unfilled part of the track.
 `minWidth` and `minHeight` keep each gauge or bar at least that many pixels (1 to 2000), the panel scrolls when they do not fit, and a bar gauge's `maxHeight` caps the height of a horizontal bar.
 `titleSize` and `valueSize` set the size in pixels (1 to 200) of the name and the value text of a gauge or a bar gauge.
+A `barchart` panel takes its categories from the first text field, else the time field, unless `xField` names one.
+When every frame holds one row, as an instant query returns, and `xField` is absent, each frame is one category, named by its text field or else by its series name, and the bars of one number field form one series.
 A `logs` panel shows its lines newest first (`order`), with `wrap` and `showTime` off, and has more optional `display` keys.
 `showLabels: true` writes each line's unique labels after the time, and `showCommonLabels: true` writes the labels shared by every line once above the list; with one series every label is common.
 `details: false` turns off expanding a line, and `detailsMode: sidebar` shows the fields of the chosen line in a column beside the list instead of under the line.

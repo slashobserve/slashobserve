@@ -125,6 +125,88 @@ describe("barchartModel categories", () => {
     expect(model.series.map((series) => series.name)).toEqual(["v"])
   })
 
+  it("gives each series of an instant result its own category", () => {
+    const instant = (pod: string, value: number) =>
+      frame(
+        [
+          { name: "Time", type: "time", values: [60000] },
+          { name: "Value", type: "number", values: [value], seriesName: pod },
+        ],
+        { labels: { pod } }
+      )
+    const model = build([instant("checkout-0", 3), instant("checkout-1", 5)])
+    expect(model.categories.map((category) => category.label)).toEqual([
+      "checkout-0",
+      "checkout-1",
+    ])
+    expect(model.series.map((series) => series.name)).toEqual(["Value"])
+    expect(model.bars.map((row) => row.map((bar) => bar.value))).toEqual([
+      [3],
+      [5],
+    ])
+  })
+
+  it("uses the text field of one row frames as one bar per frame", () => {
+    const row = (route: string, value: number) =>
+      frame([text("route", [route]), numbers("hits", [value])])
+    const model = build([row("/a", 1), row("/b", 2), row("/c", 4)])
+    expect(model.categories.map((category) => category.label)).toEqual([
+      "/a",
+      "/b",
+      "/c",
+    ])
+    expect(model.series.map((series) => series.name)).toEqual(["hits"])
+    expect(model.bars.map((row) => row.map((bar) => bar.value))).toEqual([
+      [1],
+      [2],
+      [4],
+    ])
+  })
+
+  it("keeps the time axis for instant results when xField names the time field", () => {
+    const model = build(
+      [
+        frame([{ name: "Time", type: "time", values: [0] }, numbers("v", [1])]),
+        frame([{ name: "Time", type: "time", values: [0] }, numbers("w", [2])]),
+      ],
+      {},
+      { xField: "Time" }
+    )
+    expect(model.categories).toHaveLength(1)
+    expect(model.series.map((series) => series.name)).toEqual(["v", "w"])
+  })
+
+  it("colors an instant bar by its own series override", () => {
+    const source = barSource(
+      [
+        frame(
+          [
+            { name: "Time", type: "time", values: [0] },
+            { name: "Value", type: "number", values: [1], seriesName: "x" },
+          ],
+          { labels: { pod: "x" } }
+        ),
+        frame(
+          [
+            { name: "Time", type: "time", values: [0] },
+            { name: "Value", type: "number", values: [2], seriesName: "y" },
+          ],
+          { labels: { pod: "y" } }
+        ),
+      ],
+      createFieldResolver(
+        panel({
+          overrides: [{ match: { series: "y" }, color: "critical" }],
+        } as Partial<DataPanel>)
+      ),
+      displayWithDefaults("barchart", {}),
+      undefined
+    )
+    expect([...(source.columns[0].colors ?? new Map()).entries()]).toEqual([
+      [1, "var(--threshold-critical)"],
+    ])
+  })
+
   it("labels time categories in the given zone", () => {
     const model = build(
       [
