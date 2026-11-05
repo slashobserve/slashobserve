@@ -212,9 +212,7 @@ func run() error {
 	} else {
 		logger.Info("no llm provider configured; the agent is off")
 	}
-	if cfg.LLM.LogProviderErrors {
-		logger.Warn("provider error messages are logged; a provider can echo prompt text in them")
-	}
+	warnOptInLogging(logger, cfg)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -278,6 +276,7 @@ func run() error {
 			Logger:      logger,
 
 			SessionRenewBytes: cfg.Agent.SessionRenewBytes,
+			LogToolInputs:     cfg.Agent.LogToolInputs,
 		}), revisions.NewSteps(database, logger))
 		observeOpts.Provider, observeOpts.Model = llmProvider.Name(), llmProvider.Model()
 		observeOpts.Effort = reportedEffort(cfg.LLM)
@@ -385,6 +384,15 @@ func revisionsBuildError(err error) error {
 		return revisions.ErrDashboardNotFound
 	}
 	return err
+}
+
+func warnOptInLogging(logger *slog.Logger, cfg config.Config) {
+	if cfg.LLM.LogProviderErrors {
+		logger.Warn("provider error messages are logged; a provider can echo prompt text in them")
+	}
+	if cfg.Agent.LogToolInputs {
+		logger.Warn("agent tool inputs are logged by hash, size, panel ids and issue paths; meant for evals stacks")
+	}
 }
 
 func reportedEffort(llm config.LLM) string {

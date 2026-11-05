@@ -86,6 +86,7 @@ type runState struct {
 	known         map[string]bool
 	progress      func(Step)
 	logger        *slog.Logger
+	logInputs     bool
 	mode          tools.Mode
 	parentVersion int
 	rejections    int
@@ -346,6 +347,9 @@ func (s *runState) call(ctx context.Context, c llm.ToolCall, repairing bool) cal
 	slot.duration = slot.end.Sub(start)
 	if slot.err == nil {
 		slot.content, slot.err = json.Marshal(slot.result.Content)
+	}
+	if s.logInputs {
+		logToolInput(ctx, s.logger, slot.name, c.Input, slot.err == nil && slot.result.IsError, slot.content)
 	}
 	s.logger.DebugContext(ctx, "tool call finished",
 		agentRequestAttr(ctx),

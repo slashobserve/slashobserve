@@ -90,6 +90,7 @@ type Config struct {
 	Imports           ImportReader
 	Logger            *slog.Logger
 	SessionRenewBytes int
+	LogToolInputs     bool
 }
 
 type Task struct {
@@ -152,6 +153,7 @@ type Agent struct {
 	system            string
 	toolSpecs         []llm.ToolSpec
 	sessionRenewBytes int
+	logToolInputs     bool
 }
 
 func New(c Config) *Agent {
@@ -180,6 +182,7 @@ func New(c Config) *Agent {
 		system:            buildSystem(),
 		toolSpecs:         specs,
 		sessionRenewBytes: c.SessionRenewBytes,
+		logToolInputs:     c.LogToolInputs,
 	}
 }
 
@@ -272,7 +275,7 @@ func (a *Agent) run(ctx context.Context, t Task, out *Outcome) error {
 	r := &runner{
 		agent: a, task: t, prompt: prompt, mode: mode, statuses: statuses,
 		requestID: requestUUID, dashboardID: dashboardUUID,
-		state:  &runState{tools: a.tools, known: toolNames(a.tools.List()), progress: t.Progress, logger: a.logger, mode: mode},
+		state:  &runState{tools: a.tools, known: toolNames(a.tools.List()), progress: t.Progress, logger: a.logger, logInputs: a.logToolInputs, mode: mode},
 		totals: &callTotals{},
 		out:    out,
 	}
