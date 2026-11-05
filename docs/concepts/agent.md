@@ -24,6 +24,9 @@ It then works in this order:
    `list_metrics`, `list_labels` and `list_label_values` find real metric names, label names and label values on Prometheus and on the OpenTelemetry tables of ClickHouse.
    `get_schema` and `sample_rows` list the tables and columns of a ClickHouse datasource and read a few rows.
    The model calls independent discovery tools together in one turn, and uses only names it found in this run or that are already in the dashboard.
+   For a new dashboard, the model first calls `list_metrics` with a `scope` that covers the request, such as `{job="checkout"}` or a ClickHouse table, and gets every metric family in it in one result, with its type, unit, label keys and series count.
+   It plans one panel per family, or a table for a group of related families, and sets `planned_panels` from that plan.
+   A family the request covers ends in a panel, or in the `summary` of the last save with the reason it was left out.
 2. **Draft** the panels.
 3. **Lint.**
    `lint_query` parses each new or changed query and reports syntax and policy problems without running it.
@@ -39,6 +42,13 @@ It then works in this order:
    `update_dashboard` saves a new version from a full document and is for rewriting a dashboard whole.
    When the prompt contains Grafana dashboard JSON, the model calls `import_grafana_dashboard` instead of rewriting it, and the agent may import only JSON that the prompt contains.
 6. **Repair**, if the save is rejected.
+
+Saves outside a build, the ones MCP clients make, also return advice that never rejects a save:
+
+- `uncovered` names up to 50 families of the caller's last scoped inventory that no panel query names, and `uncovered_total` counts them all; a histogram, summary or counter is covered when a query names any of its series.
+- `notes` lists up to 20 hints: a time series or bar chart query with no `legend`, a stat, gauge, bar gauge or time series with no `unit`, and a stat with no `description`.
+
+A save into a build answers with the build's state, which does not carry this advice.
 
 ## The build
 

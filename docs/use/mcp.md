@@ -56,6 +56,16 @@ An overlap is reported at the panel the patch upserted or moved, with both panel
 It returns at least one panel, and a panel too large to return is listed in `too_large`.
 `list_metrics`, `list_labels`, `list_label_values` and `get_schema` take an `offset` and answer `truncated`, `truncated_by` (`limit` or `bytes`) and `next_offset`, so a client pages through a long list by passing `next_offset` back as `offset`.
 
+`list_metrics` also takes `scope`: a series selector such as `{job="checkout"}` on Prometheus, or a table name on ClickHouse.
+With `scope` it answers every metric family in that scope in one result: the name, type, unit, label keys and series count of each family, `families_total`, and `grouped`, the families that share a name prefix such as `http_server`.
+Label keys that every family has are listed once in `common_labels`, and a scope too large for one result pages with `next_offset` like the other lists.
+`search` and `limit` are refused together with `scope`.
+
+The server keeps the last scoped inventory of each service account.
+After one, the results of `create_dashboard`, `update_dashboard` and `update_panels` carry `uncovered`, up to 50 families of that inventory that no panel query names, and `uncovered_total`, how many there are in all; `uncovered` is `[]` once every family is covered.
+A histogram, summary or counter counts as covered when a query names any of its series, such as `<name>_bucket` or `<name>_total`.
+Save results also carry `notes`, up to 20 hints that never reject a save: a time series or bar chart query with no `legend`, a stat, gauge, bar gauge or time series with no `unit`, and a stat with no `description`.
+
 `list_folders` is available over MCP only.
 It lists the folders the key can see, with `can_create` for each, and sets `truncated` when there are more than fit in the result.
 `create_dashboard` takes an optional `folder_id` from that list; without it, the dashboard goes to General.
