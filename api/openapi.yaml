@@ -1572,7 +1572,7 @@ components:
         failure_code:
           type: string
           nullable: true
-          description: "Why the suggestion failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `lease_expired` or `no_progress`. Clients must tolerate codes they do not know."
+          description: "Why the suggestion failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired` or `no_progress`. Clients must tolerate codes they do not know."
         usage:
           nullable: true
           allOf:
@@ -1834,6 +1834,8 @@ components:
       additionalProperties: false
       required:
         - id
+        - kind
+        - title
         - source
         - prompt
         - dashboard_id
@@ -1863,13 +1865,25 @@ components:
         - created_at
         - started_at
         - finished_at
+        - pinned_at
+        - archived_at
+        - from
+        - to
+        - finding
       properties:
         id:
           type: string
           format: uuid
+        kind:
+          type: string
+          enum: [build, investigate]
+          description: "`investigate` for an investigation that ends with a finding, `build` for every request that saves a dashboard version."
+        title:
+          type: string
+          description: The title the requester gave the request, or the start of its prompt when they gave none.
         source:
           type: string
-          enum: [comment, prompt, observe]
+          enum: [comment, prompt, observe, investigate]
         prompt:
           type: string
         dashboard_id:
@@ -1904,7 +1918,7 @@ components:
         url:
           type: string
           nullable: true
-          description: The address of the dashboard, set when the status is `succeeded`.
+          description: The address of the dashboard, or of the finding for an investigation, set when the status is `succeeded`.
         error:
           type: string
           nullable: true
@@ -1913,7 +1927,7 @@ components:
         failure_code:
           type: string
           nullable: true
-          description: "Why the request failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `lease_expired` or `no_progress`. Clients must tolerate codes they do not know."
+          description: "Why the request failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired` or `no_progress`. Clients must tolerate codes they do not know."
         steps:
           type: array
           maxItems: 2000
@@ -1989,11 +2003,39 @@ components:
           type: string
           format: date-time
           nullable: true
+        pinned_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the requester pinned the request; null when it is not pinned.
+        archived_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the requester archived the request; an archived request is left out of `GET /observe`.
+        from:
+          type: string
+          format: date-time
+          nullable: true
+          description: The start of the window an investigation was asked to look at; null when none was given.
+        to:
+          type: string
+          format: date-time
+          nullable: true
+          description: The end of the window an investigation was asked to look at; null when none was given.
+        finding:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Finding"
+          description: The finding an investigation saved; null for other kinds and until the investigation has saved one.
     RequestSummary:
       type: object
       additionalProperties: false
       required:
         - id
+        - kind
+        - title
+        - pinned_at
         - source
         - prompt
         - status
@@ -2020,7 +2062,7 @@ components:
           format: uuid
         source:
           type: string
-          enum: [comment, prompt, observe]
+          enum: [comment, prompt, observe, investigate]
         prompt:
           type: string
         status:
@@ -2062,6 +2104,17 @@ components:
           format: date-time
           nullable: true
           description: When the requester saved the stopped build of a `failed` request as a version; null otherwise.
+        kind:
+          type: string
+          enum: [build, investigate]
+        title:
+          type: string
+          description: The title the requester gave the request, or the start of its prompt when they gave none.
+        pinned_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the requester pinned the request; pinned requests come first in the list.
         continues_id:
           type: string
           format: uuid
@@ -2111,6 +2164,104 @@ components:
       properties:
         request:
           $ref: "#/components/schemas/AgentRequest"
+    FindingAuthor:
+      type: object
+      additionalProperties: false
+      required: [kind, id, name]
+      properties:
+        kind:
+          type: string
+          enum: [user, service_account]
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    Finding:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - agent_request_id
+        - dashboard_id
+        - title
+        - markdown
+        - evidence
+        - from
+        - to
+        - annotation_id
+        - created_by
+        - created_at
+        - url
+      properties:
+        id:
+          type: string
+          format: uuid
+        agent_request_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The investigation that saved the finding; null for a finding saved over MCP, or after the request was deleted.
+        dashboard_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The dashboard the finding is about; null when it is about none.
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        markdown:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: The finding as Markdown of at most 400 words.
+        evidence:
+          type: array
+          maxItems: 4
+          items:
+            type: object
+          description: Up to 4 panel Specs whose queries were checked when the finding was saved, with ids `evidence-1` to `evidence-4`.
+        from:
+          type: string
+          format: date-time
+          description: The start of the window the evidence shows.
+        to:
+          type: string
+          format: date-time
+          description: The end of the window the evidence shows.
+        annotation_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The annotation the finding was pinned as; null until it is pinned.
+        created_by:
+          $ref: "#/components/schemas/FindingAuthor"
+        created_at:
+          type: string
+          format: date-time
+        url:
+          type: string
+          description: The address of the finding, empty when the server has no public URL configured.
+    FindingEnvelope:
+      type: object
+      additionalProperties: false
+      required: [finding]
+      properties:
+        finding:
+          $ref: "#/components/schemas/Finding"
+    FindingList:
+      type: object
+      additionalProperties: false
+      required: [findings, next_cursor]
+      properties:
+        findings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Finding"
+        next_cursor:
+          type: string
+          nullable: true
     ImportRequest:
       type: object
       additionalProperties: false

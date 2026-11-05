@@ -1,12 +1,17 @@
 package revisions
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math"
 	"net/http"
+	"strings"
+	"time"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -16,11 +21,21 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
 	defaultObserveLimit = 20
 	maxObserveLimit     = 100
+	maxQueryRunes       = 200
+)
+
+var (
+	errWindowPair    = errors.New("from and to go together")
+	errWindowTime    = errors.New("from and to must be relative times like now-1h or epoch milliseconds")
+	errWindowOrder   = errors.New("from must be before to")
+	errWindowTooLong = errors.New("the time range is too long")
 )
 
 type ObserveOptions struct {
@@ -28,6 +43,8 @@ type ObserveOptions struct {
 	Model        string
 	Effort       string
 	DashboardURL func(dashboardID, title string) string
+	FindingURL   func(findingID string) string
+	Finding      func(ctx context.Context, requestID pgtype.UUID) (json.RawMessage, bool, error)
 }
 
 type ObserveHandler struct {
@@ -43,6 +60,15 @@ type observeRequest struct {
 	Prompt      *string `json:"prompt"`
 	DashboardID *string `json:"dashboard_id"`
 	BaseVersion *int    `json:"base_version"`
+	Kind        *string `json:"kind"`
+	PanelID     *string `json:"panel_id"`
+	From        *string `json:"from"`
+	To          *string `json:"to"`
+}
+
+type patchObserveRequest struct {
+	Title  json.RawMessage `json:"title"`
+	Pinned *bool           `json:"pinned"`
 }
 
 type agentInfoJSON struct {
@@ -54,7 +80,9 @@ type agentInfoJSON struct {
 
 type agentRequestJSON struct {
 	ID            string             `json:"id"`
+	Kind          string             `json:"kind"`
 	Source        Source             `json:"source"`
+	Title         string             `json:"title"`
 	Prompt        string             `json:"prompt"`
 	DashboardID   *string            `json:"dashboard_id"`
 	BaseVersion   *int               `json:"base_version"`
@@ -84,11 +112,20 @@ type agentRequestJSON struct {
 	ContinuesID       *string     `json:"continues_id"`
 	ContinueNote      *string     `json:"continue_note"`
 	ContinuedBy       *string     `json:"continued_by"`
+
+	PinnedAt   *string         `json:"pinned_at"`
+	ArchivedAt *string         `json:"archived_at"`
+	From       *string         `json:"from"`
+	To         *string         `json:"to"`
+	Finding    json.RawMessage `json:"finding"`
 }
 
 type requestSummaryJSON struct {
 	ID             string  `json:"id"`
+	Kind           string  `json:"kind"`
 	Source         Source  `json:"source"`
+	Title          string  `json:"title"`
+	PinnedAt       *string `json:"pinned_at"`
 	Prompt         string  `json:"prompt"`
 	Status         Status  `json:"status"`
 	DashboardID    *string `json:"dashboard_id"`
@@ -125,6 +162,8 @@ func (h *ObserveHandler) Register(api auth.Routes) {
 	api.POST("/observe", auth.RoleViewer, h.createObserve)
 	api.GET("/observe", auth.RoleViewer, h.listObserve)
 	api.GET("/observe/:id", auth.RoleViewer, h.getObserve)
+	api.PATCH("/observe/:id", auth.RoleViewer, h.patchObserve)
+	api.DELETE("/observe/:id", auth.RoleViewer, h.archiveObserve)
 	api.GET("/observe/:id/build", auth.RoleViewer, h.getBuild)
 	api.POST("/observe/:id/build/save", auth.RoleViewer, h.saveBuild)
 	api.POST("/observe/:id/cancel", auth.RoleViewer, h.cancelObserve)
@@ -156,6 +195,19 @@ func (h *ObserveHandler) createObserve(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", fmt.Sprintf("prompt must be 1 to %d characters without control or bidirectional override characters", MaxPromptRunes))
 		return
 	}
+	switch {
+	case req.Kind == nil || *req.Kind == kindBuild:
+		if req.PanelID != nil || req.From != nil || req.To != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "panel_id, from and to need kind investigate")
+			return
+		}
+	case *req.Kind == kindInvestigate:
+		h.createInvestigation(c, req, prompt)
+		return
+	default:
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "kind must be build or investigate")
+		return
+	}
 	if req.DashboardID == nil && req.BaseVersion != nil {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "base_version needs dashboard_id")
 		return
@@ -185,6 +237,78 @@ func (h *ObserveHandler) createObserve(c *gin.Context) {
 	h.replyRequest(c, http.StatusAccepted, row)
 }
 
+func (h *ObserveHandler) createInvestigation(c *gin.Context, req observeRequest, prompt string) {
+	if req.BaseVersion != nil {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "base_version is not allowed for kind investigate")
+		return
+	}
+	params := InvestigateParams{Prompt: prompt, By: httpapi.Caller(c)}
+	if req.DashboardID != nil {
+		id, err := db.ParseUUID(*req.DashboardID)
+		if err != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "dashboard_id must be a UUID")
+			return
+		}
+		params.DashboardID = id
+	}
+	if req.PanelID != nil {
+		if !params.DashboardID.Valid {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "panel_id needs dashboard_id")
+			return
+		}
+		if err := ValidPanelID(*req.PanelID); err != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
+			return
+		}
+		params.PanelID = *req.PanelID
+	}
+	var err error
+	if params.From, params.To, err = investigateWindow(req.From, req.To, time.Now()); err != nil {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	if !h.service.Available() {
+		httpapi.AbortError(c, http.StatusServiceUnavailable, "agent_unavailable", ErrUnavailable.Error())
+		return
+	}
+	row, err := h.service.SubmitInvestigate(c.Request.Context(), params)
+	if err != nil {
+		var idAttrs []any
+		if params.DashboardID.Valid {
+			idAttrs = append(idAttrs, dashboardAttr(params.DashboardID))
+		}
+		h.service.fail(c, "enqueue investigate request", err, idAttrs...)
+		return
+	}
+	c.Header("Location", "/api/v1/observe/"+row.ID.String())
+	h.replyRequest(c, http.StatusAccepted, row)
+}
+
+func investigateWindow(from, to *string, now time.Time) (*time.Time, *time.Time, error) {
+	if from == nil && to == nil {
+		return nil, nil, nil
+	}
+	if from == nil || to == nil {
+		return nil, nil, errWindowPair
+	}
+	start, err := spec.ResolveTime(*from, now, false, spec.TimeOptions{})
+	if err != nil {
+		return nil, nil, errWindowTime
+	}
+	end, err := spec.ResolveTime(*to, now, true, spec.TimeOptions{})
+	if err != nil {
+		return nil, nil, errWindowTime
+	}
+	switch {
+	case !start.Before(end):
+		return nil, nil, errWindowOrder
+	case end.Sub(start) > queryproxy.MaxRange:
+		return nil, nil, errWindowTooLong
+	}
+	start, end = start.UTC(), end.UTC()
+	return &start, &end, nil
+}
+
 func (h *ObserveHandler) enqueue(c *gin.Context, dashboardID pgtype.UUID, baseVersion *int, prompt string) (dbsqlc.AgentRequest, bool) {
 	var row dbsqlc.AgentRequest
 	var err error
@@ -209,17 +333,11 @@ func (h *ObserveHandler) listObserve(c *gin.Context) {
 	if !ok {
 		return
 	}
-	source := ""
-	if raw, present := c.GetQuery("source"); present {
-		switch Source(raw) {
-		case SourceObserve, SourcePrompt, SourceComment:
-			source = raw
-		default:
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "source must be observe, prompt or comment")
-			return
-		}
+	filter, ok := listFilter(c)
+	if !ok {
+		return
 	}
-	rows, next, err := h.service.ListMine(c.Request.Context(), httpapi.Caller(c), source, limit, c.Query("cursor"))
+	rows, next, err := h.service.ListMine(c.Request.Context(), httpapi.Caller(c), filter, limit, c.Query("cursor"))
 	if err != nil {
 		h.service.fail(c, "list agent requests", err, principalAttrs(c)...)
 		return
@@ -243,10 +361,60 @@ func (h *ObserveHandler) listObserve(c *gin.Context) {
 	c.JSON(http.StatusOK, body)
 }
 
+func listFilter(c *gin.Context) (ListFilter, bool) {
+	var filter ListFilter
+	if raw, present := c.GetQuery("source"); present {
+		switch Source(raw) {
+		case SourceObserve, SourcePrompt, SourceComment, SourceInvestigate:
+			filter.Source = raw
+		default:
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "source must be observe, prompt, comment or investigate")
+			return filter, false
+		}
+	}
+	if raw, present := c.GetQuery("q"); present {
+		q := strings.TrimSpace(raw)
+		if n := utf8.RuneCountInString(q); n < 1 || n > maxQueryRunes || !utf8.ValidString(q) || strings.ContainsRune(q, 0) {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", fmt.Sprintf("q must be 1 to %d characters", maxQueryRunes))
+			return filter, false
+		}
+		filter.Query = q
+	}
+	if raw, present := c.GetQuery("pinned"); present {
+		switch raw {
+		case "true", "false":
+			pinned := raw == "true"
+			filter.Pinned = &pinned
+		default:
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "pinned must be true or false")
+			return filter, false
+		}
+	}
+	if raw, present := c.GetQuery("dashboard_id"); present {
+		id, err := db.ParseUUID(raw)
+		if err != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "dashboard_id must be a UUID")
+			return filter, false
+		}
+		filter.DashboardID = id
+	}
+	return filter, true
+}
+
+func requestTitle(title pgtype.Text, prompt string) string {
+	if title.Valid {
+		return title.String
+	}
+	return DefaultTitle(prompt)
+}
+
 func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildState) requestSummaryJSON {
 	out := requestSummaryJSON{
 		ID:           row.ID.String(),
+		Kind:         Kind(Source(row.Source)),
 		Source:       Source(row.Source),
+		Title:        requestTitle(row.Title, row.Prompt),
+		PinnedAt:     formatOptionalTime(optionalTime(row.PinnedAt)),
 		Prompt:       row.Prompt,
 		Status:       Status(row.Status),
 		PanelID:      optionalText(row.PanelID),
@@ -268,10 +436,14 @@ func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildS
 		id := row.DashboardID.String()
 		out.DashboardID = &id
 		out.DashboardTitle = optionalText(row.DashboardTitle)
-		if out.Status == StatusSucceeded && h.opts.DashboardURL != nil {
+		if out.Status == StatusSucceeded && out.Kind == kindBuild && h.opts.DashboardURL != nil {
 			url := h.opts.DashboardURL(id, row.DashboardTitle.String)
 			out.URL = &url
 		}
+	}
+	if out.Status == StatusSucceeded && row.FindingID.Valid && h.opts.FindingURL != nil {
+		url := h.opts.FindingURL(row.FindingID.String())
+		out.URL = &url
 	}
 	if row.ResultVersion.Valid {
 		n := int(row.ResultVersion.Int32)
@@ -311,6 +483,53 @@ func (h *ObserveHandler) getObserve(c *gin.Context) {
 	h.replyRequest(c, http.StatusOK, row)
 }
 
+func (h *ObserveHandler) patchObserve(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req patchObserveRequest
+	if !httpapi.DecodeBody(c, &req, maxRequestBytes) {
+		return
+	}
+	if req.Title == nil && req.Pinned == nil {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "send title or pinned")
+		return
+	}
+	var title *string
+	clearTitle := bytes.Equal(req.Title, []byte("null"))
+	if req.Title != nil && !clearTitle {
+		var raw string
+		cleaned, valid := "", json.Unmarshal(req.Title, &raw) == nil
+		if valid {
+			cleaned, valid = CleanTitle(raw)
+		}
+		if !valid {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", fmt.Sprintf("title must be 1 to %d characters on one line", MaxTitleRunes))
+			return
+		}
+		title = &cleaned
+	}
+	row, err := h.service.UpdateListFields(c.Request.Context(), id, httpapi.Caller(c), title, clearTitle, req.Pinned)
+	if err != nil {
+		h.failBuild(c, "update agent request", err, slog.String("agent_request_id", id.String()))
+		return
+	}
+	h.replyRequest(c, http.StatusOK, row)
+}
+
+func (h *ObserveHandler) archiveObserve(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	if err := h.service.Archive(c.Request.Context(), id, httpapi.Caller(c)); err != nil {
+		h.failBuild(c, "archive agent request", err, slog.String("agent_request_id", id.String()))
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 func (h *ObserveHandler) render(c *gin.Context, row dbsqlc.AgentRequest) (agentRequestJSON, error) {
 	ctx := c.Request.Context()
 	states, err := h.service.buildStates(ctx, []pgtype.UUID{row.ID})
@@ -321,13 +540,41 @@ func (h *ObserveHandler) render(c *gin.Context, row dbsqlc.AgentRequest) (agentR
 	if err != nil {
 		return agentRequestJSON{}, err
 	}
-	return h.view(c, row, states[row.ID], position), nil
+	out := h.view(c, row, states[row.ID], position)
+	if row.Source == string(SourceInvestigate) && h.opts.Finding != nil {
+		if err := h.attachFinding(ctx, row, &out); err != nil {
+			return agentRequestJSON{}, err
+		}
+	}
+	return out, nil
+}
+
+func (h *ObserveHandler) attachFinding(ctx context.Context, row dbsqlc.AgentRequest, out *agentRequestJSON) error {
+	raw, found, err := h.opts.Finding(ctx, row.ID)
+	if err != nil || !found {
+		return err
+	}
+	out.Finding = raw
+	if out.Status != StatusSucceeded || h.opts.FindingURL == nil {
+		return nil
+	}
+	var finding struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(raw, &finding); err != nil {
+		return fmt.Errorf("read finding id: %w", err)
+	}
+	url := h.opts.FindingURL(finding.ID)
+	out.URL = &url
+	return nil
 }
 
 func (h *ObserveHandler) view(c *gin.Context, row dbsqlc.AgentRequest, state buildState, position *int) agentRequestJSON {
 	out := agentRequestJSON{
 		ID:          row.ID.String(),
+		Kind:        Kind(Source(row.Source)),
 		Source:      Source(row.Source),
+		Title:       requestTitle(row.Title, row.Prompt),
 		Prompt:      row.Prompt,
 		Status:      Status(row.Status),
 		Attempts:    int(row.Attempts),
@@ -351,6 +598,11 @@ func (h *ObserveHandler) view(c *gin.Context, row dbsqlc.AgentRequest, state bui
 		ContinuesID:       optionalUUID(row.ContinuesID),
 		ContinueNote:      httpapi.OptionalString(row.ContinueNote.String),
 		ContinuedBy:       state.continuedBy,
+
+		PinnedAt:   formatOptionalTime(optionalTime(row.PinnedAt)),
+		ArchivedAt: formatOptionalTime(optionalTime(row.ArchivedAt)),
+		From:       formatOptionalTime(optionalTime(row.ContextFrom)),
+		To:         formatOptionalTime(optionalTime(row.ContextTo)),
 	}
 	if row.CanceledByKind.Valid {
 		out.CanceledBy = &authorJSON{Kind: row.CanceledByKind.String, ID: row.CanceledByID.String(), Name: row.CanceledByName.String}
@@ -358,7 +610,7 @@ func (h *ObserveHandler) view(c *gin.Context, row dbsqlc.AgentRequest, state bui
 	if row.DashboardID.Valid {
 		id := row.DashboardID.String()
 		out.DashboardID = &id
-		if out.Status == StatusSucceeded && h.opts.DashboardURL != nil {
+		if out.Status == StatusSucceeded && out.Kind == kindBuild && h.opts.DashboardURL != nil {
 			url := h.opts.DashboardURL(id, "")
 			out.URL = &url
 		}

@@ -1045,13 +1045,13 @@ export interface paths {
         };
         /**
          * List the caller's own agent requests, newest first.
-         * @description Only requests the caller made are listed; a user sees their own and a service account its own. `source` narrows the list to new-dashboard requests (`observe`), follow-up prompts (`prompt`) or comment revisions (`comment`). A new-dashboard request that failed has no dashboard and lives only in this list. Progress steps are not included; read `GET /observe/{id}` for them.
+         * @description Only requests the caller made are listed; a user sees their own and a service account its own. `source` narrows the list to new-dashboard requests (`observe`), follow-up prompts (`prompt`), comment revisions (`comment`) or investigations (`investigate`). `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, and `dashboard_id` keeps the requests about one dashboard. Archived requests are left out, and pinned requests come first, most recently pinned first. A new-dashboard request that failed has no dashboard and lives only in this list. Progress steps are not included; read `GET /observe/{id}` for them.
          */
         get: operations["listObserveRequests"];
         put?: never;
         /**
-         * Ask the agent to build a new dashboard, or to revise an existing one with a follow-up prompt.
-         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * Ask the agent to build a new dashboard, revise an existing one with a follow-up prompt, or investigate a question.
+         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). `panel_id`, `from` and `to` need `kind` `investigate`, `kind` must be `build` or `investigate`, `base_version` is not allowed for an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["createObserveRequest"];
         delete?: never;
@@ -1076,10 +1076,18 @@ export interface paths {
         get: operations["getObserveRequest"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Archive one of your agent requests so it leaves your list.
+         * @description Only the principal that made the request may archive it (403 `forbidden`); a request hidden from the caller answers 404. The request stays readable through `GET /observe/{id}`, and archiving it again changes nothing.
+         */
+        delete: operations["archiveObserveRequest"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Rename or pin one of your agent requests.
+         * @description Only the principal that made the request may change it (403 `forbidden`); a request hidden from the caller answers 404. A `title` string is trimmed and must be 1 to 120 characters on one line; `null` clears it back to the default taken from the prompt. `pinned` true pins the request to the top of `GET /observe`, false unpins it.
+         */
+        patch: operations["updateObserveRequest"];
         trace?: never;
     };
     "/observe/{id}/build": {
@@ -2242,7 +2250,7 @@ export interface components {
             } | null;
             /** @description Why the suggestion failed, set only when the status is `failed`. */
             error: string | null;
-            /** @description Why the suggestion failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `lease_expired` or `no_progress`. Clients must tolerate codes they do not know. */
+            /** @description Why the suggestion failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired` or `no_progress`. Clients must tolerate codes they do not know. */
             failure_code: string | null;
             /** @description Tokens, model calls and timings of the attempt that finished the suggestion. Null when no model call was attempted. */
             usage: components["schemas"]["AgentUsage"] | null;
@@ -2369,8 +2377,15 @@ export interface components {
         AgentRequest: {
             /** Format: uuid */
             id: string;
+            /**
+             * @description `investigate` for an investigation that ends with a finding, `build` for every request that saves a dashboard version.
+             * @enum {string}
+             */
+            kind: "build" | "investigate";
+            /** @description The title the requester gave the request, or the start of its prompt when they gave none. */
+            title: string;
             /** @enum {string} */
-            source: "comment" | "prompt" | "observe";
+            source: "comment" | "prompt" | "observe" | "investigate";
             prompt: string;
             /**
              * Format: uuid
@@ -2387,11 +2402,11 @@ export interface components {
             attempts: number;
             /** @description The version the request saved, set when the status is `succeeded` and, once the requester saved a stopped build, when it is `failed`. */
             result_version: number | null;
-            /** @description The address of the dashboard, set when the status is `succeeded`. */
+            /** @description The address of the dashboard, or of the finding for an investigation, set when the status is `succeeded`. */
             url: string | null;
             /** @description Why the request failed, set when the status is `failed`. */
             error: string | null;
-            /** @description Why the request failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `lease_expired` or `no_progress`. Clients must tolerate codes they do not know. */
+            /** @description Why the request failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired` or `no_progress`. Clients must tolerate codes they do not know. */
             failure_code: string | null;
             steps: components["schemas"]["AgentStep"][];
             /** @description Tokens, model calls, repair rounds and timings of the attempt that finished the request. Null when no model call was attempted. */
@@ -2440,12 +2455,34 @@ export interface components {
             started_at: string | null;
             /** Format: date-time */
             finished_at: string | null;
+            /**
+             * Format: date-time
+             * @description When the requester pinned the request; null when it is not pinned.
+             */
+            pinned_at: string | null;
+            /**
+             * Format: date-time
+             * @description When the requester archived the request; an archived request is left out of `GET /observe`.
+             */
+            archived_at: string | null;
+            /**
+             * Format: date-time
+             * @description The start of the window an investigation was asked to look at; null when none was given.
+             */
+            from: string | null;
+            /**
+             * Format: date-time
+             * @description The end of the window an investigation was asked to look at; null when none was given.
+             */
+            to: string | null;
+            /** @description The finding an investigation saved; null for other kinds and until the investigation has saved one. */
+            finding: components["schemas"]["Finding"] | null;
         };
         RequestSummary: {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            source: "comment" | "prompt" | "observe";
+            source: "comment" | "prompt" | "observe" | "investigate";
             prompt: string;
             /** @enum {string} */
             status: "queued" | "running" | "succeeded" | "failed";
@@ -2466,6 +2503,15 @@ export interface components {
              * @description When the requester saved the stopped build of a `failed` request as a version; null otherwise.
              */
             build_saved_at: string | null;
+            /** @enum {string} */
+            kind: "build" | "investigate";
+            /** @description The title the requester gave the request, or the start of its prompt when they gave none. */
+            title: string;
+            /**
+             * Format: date-time
+             * @description When the requester pinned the request; pinned requests come first in the list.
+             */
+            pinned_at: string | null;
             /**
              * Format: uuid
              * @description The stopped request this one continues.
@@ -2494,6 +2540,59 @@ export interface components {
         };
         AgentRequestEnvelope: {
             request: components["schemas"]["AgentRequest"];
+        };
+        FindingAuthor: {
+            /** @enum {string} */
+            kind: "user" | "service_account";
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        Finding: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: uuid
+             * @description The investigation that saved the finding; null for a finding saved over MCP, or after the request was deleted.
+             */
+            agent_request_id: string | null;
+            /**
+             * Format: uuid
+             * @description The dashboard the finding is about; null when it is about none.
+             */
+            dashboard_id: string | null;
+            title: string;
+            /** @description The finding as Markdown of at most 400 words. */
+            markdown: string;
+            /** @description Up to 4 panel Specs whose queries were checked when the finding was saved, with ids `evidence-1` to `evidence-4`. */
+            evidence: Record<string, never>[];
+            /**
+             * Format: date-time
+             * @description The start of the window the evidence shows.
+             */
+            from: string;
+            /**
+             * Format: date-time
+             * @description The end of the window the evidence shows.
+             */
+            to: string;
+            /**
+             * Format: uuid
+             * @description The annotation the finding was pinned as; null until it is pinned.
+             */
+            annotation_id: string | null;
+            created_by: components["schemas"]["FindingAuthor"];
+            /** Format: date-time */
+            created_at: string;
+            /** @description The address of the finding, empty when the server has no public URL configured. */
+            url: string;
+        };
+        FindingEnvelope: {
+            finding: components["schemas"]["Finding"];
+        };
+        FindingList: {
+            findings: components["schemas"]["Finding"][];
+            next_cursor: string | null;
         };
         ImportRequest: {
             /** @description The Grafana dashboard JSON text, exactly as pasted or uploaded. */
@@ -5521,7 +5620,10 @@ export interface operations {
     listObserveRequests: {
         parameters: {
             query?: {
-                source?: "observe" | "prompt" | "comment";
+                source?: "observe" | "prompt" | "comment" | "investigate";
+                q?: string;
+                pinned?: boolean;
+                dashboard_id?: string;
                 limit?: number;
                 cursor?: string;
             };
@@ -5566,6 +5668,17 @@ export interface operations {
                     dashboard_id?: string;
                     /** @description A version that exists on the dashboard; only allowed together with `dashboard_id`. */
                     base_version?: number;
+                    /**
+                     * @default build
+                     * @enum {string}
+                     */
+                    kind?: "build" | "investigate";
+                    /** @description The panel an investigation is about; needs `dashboard_id`. */
+                    panel_id?: string;
+                    /** @description The start of the window an investigation looks at, a relative time like `now-1h` or epoch milliseconds. */
+                    from?: string;
+                    /** @description The end of the window an investigation looks at, a relative time like `now` or epoch milliseconds. */
+                    to?: string;
                 };
             };
         };
@@ -5628,6 +5741,65 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    archiveObserveRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request is archived; nothing is returned. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateObserveRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    title?: string | null;
+                    pinned?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description The agent request as changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRequestEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
         };
