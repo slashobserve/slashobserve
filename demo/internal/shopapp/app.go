@@ -1,11 +1,13 @@
 package shopapp
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -15,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/demo/internal/fault"
 	"github.com/slashobserve/slashobserve/demo/internal/metrics"
 	"github.com/slashobserve/slashobserve/demo/internal/prng"
+	"github.com/slashobserve/slashobserve/demo/internal/queue"
 )
 
 const (
@@ -22,8 +25,10 @@ const (
 	ServiceCheckout = "checkout"
 	ServicePayments = "payments"
 
-	defaultAddr     = ":8080"
-	upstreamTimeout = 4 * time.Second
+	defaultAddr         = ":8080"
+	upstreamTimeout     = 4 * time.Second
+	defaultQueueWorkers = 4
+	maxQueueWorkers     = 100
 )
 
 type Config struct {
@@ -32,6 +37,7 @@ type Config struct {
 	Addr         string
 	CheckoutURLs []string
 	PaymentsURL  string
+	QueueWorkers int
 }
 
 func listenAddr(lookup func(string) (string, bool)) string {
@@ -48,15 +54,24 @@ func ConfigFromEnv(lookup func(string) (string, bool)) (Config, error) {
 		return strings.TrimSpace(value)
 	}
 	cfg := Config{
-		Service:     get("SHOP_SERVICE"),
-		Pod:         get("SHOP_POD"),
-		Addr:        listenAddr(lookup),
-		PaymentsURL: strings.TrimRight(get("SHOP_PAYMENTS_URL"), "/"),
+		Service:      get("SHOP_SERVICE"),
+		Pod:          get("SHOP_POD"),
+		Addr:         listenAddr(lookup),
+		PaymentsURL:  strings.TrimRight(get("SHOP_PAYMENTS_URL"), "/"),
+		QueueWorkers: defaultQueueWorkers,
 	}
 	for _, raw := range strings.Split(get("SHOP_CHECKOUT_URLS"), ",") {
 		if raw = strings.TrimRight(strings.TrimSpace(raw), "/"); raw != "" {
 			cfg.CheckoutURLs = append(cfg.CheckoutURLs, raw)
 		}
+	}
+
+	if raw := get("SHOP_QUEUE_WORKERS"); raw != "" {
+		workers, err := strconv.Atoi(raw)
+		if err != nil || workers < 1 || workers > maxQueueWorkers {
+			return Config{}, fmt.Errorf("SHOP_QUEUE_WORKERS must be an integer between 1 and %d, got %q", maxQueueWorkers, raw)
+		}
+		cfg.QueueWorkers = workers
 	}
 
 	switch cfg.Service {
@@ -89,10 +104,11 @@ type app struct {
 	rotation  atomic.Uint64
 	alternate atomic.Uint64
 	orderSeq  atomic.Int64
+	orders    *queue.Queue[queuedOrder]
 	mux       *http.ServeMux
 }
 
-func newApp(cfg Config, logger *slog.Logger) http.Handler {
+func newApp(ctx context.Context, cfg Config, logger *slog.Logger) http.Handler {
 	a := &app{
 		cfg:      cfg,
 		log:      logger,
@@ -121,6 +137,7 @@ func newApp(cfg Config, logger *slog.Logger) http.Handler {
 		a.business("POST /api/checkout", a.frontendCheckout)
 		a.business("GET /api/orders/{id}", a.frontendOrder)
 	case ServiceCheckout:
+		a.startOrdersQueue(ctx)
 		a.business("POST /checkout", a.checkout)
 		a.business("GET /orders/{id}", a.getOrder)
 	case ServicePayments:

@@ -82,7 +82,9 @@ func (a *app) checkout(w http.ResponseWriter, r *http.Request) {
 		a.failCheckout(w, r, failure)
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]int64{"order_id": a.orderSeq.Add(1)})
+	id := a.orderSeq.Add(1)
+	a.enqueueOrder(ctx, id)
+	writeJSON(w, http.StatusCreated, map[string]int64{"order_id": id})
 }
 
 func (a *app) authorizePayment(w http.ResponseWriter, r *http.Request, body []byte) bool {

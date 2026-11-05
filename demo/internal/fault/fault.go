@@ -11,23 +11,24 @@ type Kind string
 const (
 	Errors  Kind = "errors"
 	Latency Kind = "latency"
+	Queue   Kind = "queue"
 )
+
+var Kinds = [...]Kind{Errors, Latency, Queue}
 
 const DefaultPct = 30
 
 type State struct {
-	errorsPct  atomic.Int32
-	latencyPct atomic.Int32
+	pct [len(Kinds)]atomic.Int32
 }
 
 func ParseKind(s string) (Kind, error) {
-	switch Kind(s) {
-	case Errors:
-		return Errors, nil
-	case Latency:
-		return Latency, nil
+	for _, kind := range Kinds {
+		if Kind(s) == kind {
+			return kind, nil
+		}
 	}
-	return "", fmt.Errorf("type must be %q or %q", Errors, Latency)
+	return "", fmt.Errorf("type must be %q, %q or %q", Errors, Latency, Queue)
 }
 
 func (s *State) Set(kind Kind, pct int) error {
@@ -43,13 +44,16 @@ func (s *State) Pct(kind Kind) int {
 }
 
 func (s *State) Reset() {
-	s.errorsPct.Store(0)
-	s.latencyPct.Store(0)
+	for i := range s.pct {
+		s.pct[i].Store(0)
+	}
 }
 
 func (s *State) slot(kind Kind) *atomic.Int32 {
-	if kind == Latency {
-		return &s.latencyPct
+	for i, known := range Kinds {
+		if kind == known {
+			return &s.pct[i]
+		}
 	}
-	return &s.errorsPct
+	panic(fmt.Sprintf("fault: unknown kind %q", kind))
 }

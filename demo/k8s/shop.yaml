@@ -107,6 +107,8 @@ spec:
               value: checkout-0
             - name: SHOP_PAYMENTS_URL
               value: http://payments-0:8080
+            - name: SHOP_QUEUE_WORKERS
+              value: "4"
           ports:
             - name: http
               containerPort: 8080
@@ -187,6 +189,8 @@ spec:
               value: checkout-1
             - name: SHOP_PAYMENTS_URL
               value: http://payments-0:8080
+            - name: SHOP_QUEUE_WORKERS
+              value: "4"
           ports:
             - name: http
               containerPort: 8080
