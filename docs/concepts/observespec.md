@@ -144,6 +144,9 @@ An `id` starts with a letter, continues with letters, digits, `_` or `-`, is at 
 The web app draws every panel at its saved `gridPos` when the screen is wide enough for it.
 When a panel would be narrower than its type reads well at, about 160 pixels for a stat, 180 for a gauge, 240 for a chart and 300 for a table, the panels beside it wrap onto more lines and widen to fill the grid; below 768 pixels every panel takes the full width.
 This changes only what you see: the saved `gridPos` stays as it is, and the layout editor always shows it.
+A panel with `responsive: false` keeps its saved size at every width down to the single-column view; it may move to another line when a panel beside it wraps, but it is never widened.
+A save that changes an existing panel's width or height sets `responsive: false`, whether the change comes from the layout editor, the panel editor, the agent, MCP or the CLI; a new panel, an import and a restored version keep what they carry.
+The panel menu's **Keep this size** sets it, and **Make responsive** removes it.
 
 A data panel also has a `title`, a `datasource` and `queries`.
 Its `type` is one of `timeseries`, `stat`, `gauge`, `bargauge`, `table`, `piechart`, `heatmap`, `histogram`, `state-timeline`, `logs`, `barchart`, `status-history`, `trend`, `xychart`, `candlestick`, `nodeGraph`, `traces`, `flamegraph`, `geomap`, `canvas` or `alertlist`.

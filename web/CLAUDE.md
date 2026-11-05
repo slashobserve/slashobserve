@@ -39,6 +39,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - `web/src/observe/request-actions.tsx` is the only place Cancel and Continue render.
   `can_cancel` comes from the server and is never recomputed in the browser.
   A chat turn reads its build state (`failure_code`, `build`, `build_saved_at`, `continued_by`) from its summary, so a turn whose request is not loaded still shows its build card.
+- A renderer declares the narrowest width it reads well at as `minWidth` in its manifest, and `fitLayout` (`web/src/dashboards/fit-layout.ts`) reflows the dashboard view from it, skipping fixed panels (`responsive: false`); the reflow never writes `gridPos`, edit mode shows the saved layout, and the web never decides a freeze (the save funnel does).
 - Panel data requests go through `panelRequestLimiter` (6 concurrent) because the proxy allows 8 in-flight requests per principal.
 - `maxQueuedRevisions` in `web/src/revisions/queries.ts` mirrors the server's cap of 5 queued or running revisions per dashboard.
 - Panel data requests always send an explicit `var-` selection for every declared variable, resolved by `web/src/dashboards/variables.ts`, so the panel and the variable list agree on defaults.

@@ -102,7 +102,16 @@ export function DashboardGrid({
             ),
       ])
     )
-    return fitLayout(items, minimum, new Set())
+    const fixed = new Set(
+      stacked
+        ? []
+        : ordered.flatMap(({ entry, item }) =>
+            entry.kind === "panel" && entry.panel.responsive === false
+              ? [item.i]
+              : []
+          )
+    )
+    return fitLayout(items, minimum, fixed)
   }, [editing, stacked, ordered, width])
 
   return (

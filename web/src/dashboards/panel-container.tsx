@@ -70,6 +70,7 @@ type PanelContainerProps = {
   editingPanel: boolean
   canComment: boolean
   canEdit: boolean
+  onToggleResponsive?: (panel: LayoutPanel) => void
   focusOnRender: boolean
   onFocused: () => void
   composerRef: RefObject<HTMLTextAreaElement | null>
@@ -103,6 +104,7 @@ export const PanelContainer = memo(function PanelContainer({
   editingPanel,
   canComment,
   canEdit,
+  onToggleResponsive,
   focusOnRender,
   onFocused,
   composerRef,
@@ -258,6 +260,11 @@ export const PanelContainer = memo(function PanelContainer({
             inspectable={!layoutSession}
             canComment={canComment}
             canEdit={canEdit}
+            onToggleResponsive={
+              onToggleResponsive && !layoutSession
+                ? () => onToggleResponsive(panel)
+                : undefined
+            }
             composerRef={composerRef}
           />
         }

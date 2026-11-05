@@ -26,7 +26,13 @@ import { ActionProvider } from "@/panels/actions/action-context"
 import { createSharedCursor, type CursorSync } from "@/panels/shared-cursor"
 import { ShareToggle } from "@/share/share-pane"
 import { ThemeSwitch } from "@/shell/theme-switch"
-import { findPanel, isDataPanel, sourcePanelOf } from "@/spec"
+import {
+  findPanel,
+  isDataPanel,
+  panelTitle,
+  sourcePanelOf,
+  type LayoutPanel,
+} from "@/spec"
 
 import { ActivityToggle } from "./activity-toggle"
 import {
@@ -56,6 +62,7 @@ import {
   useLayoutStore,
 } from "./edit/layout-store"
 import { LayoutAnnouncer } from "./edit/panel-move-handle"
+import { saveProblemFrom } from "./edit/save-problem"
 import { UnsavedChangesGuard } from "./edit/unsaved-changes-guard"
 import {
   useDashboardEvents,
@@ -72,9 +79,11 @@ import {
   dashboardVersionQuery,
   forgetDashboard,
   latestDashboardQuery,
+  useAddVersion,
   type DashboardEnvelope,
 } from "./queries"
 import { RefreshPicker } from "./refresh-picker"
+import { withResponsive } from "./responsive"
 import { useRowStore } from "./rows/row-store"
 import {
   backFromSearch,
@@ -205,6 +214,42 @@ function DashboardView({
   const refreshMs = refreshToMs(refreshValue)
 
   const pinned = search.version !== undefined
+  const { mutate: saveVersion } = useAddVersion(dashboardId)
+  const toggleResponsive = useCallback(
+    (panel: LayoutPanel) => {
+      const fixed = panel.responsive === false
+      const title = panelTitle(panel)
+      saveVersion(
+        {
+          spec: withResponsive(spec, panel.id, fixed),
+          summary: fixed
+            ? `Make "${title}" responsive`
+            : `Keep the size of "${title}"`,
+          parent_version: version,
+        },
+        {
+          onSuccess: (saved) =>
+            toast.success(`Saved version ${saved.version.version}`),
+          onError: (failure) => {
+            const problem = saveProblemFrom(
+              failure,
+              "Could not change the panel's size setting"
+            )
+            if (problem.kind === "conflict") {
+              toast.error(
+                "The dashboard changed since you opened it; reload and try again"
+              )
+            } else {
+              toast.error(
+                problem.kind === "invalid" ? problem.heading : problem.message
+              )
+            }
+          },
+        }
+      )
+    },
+    [saveVersion, spec, version]
+  )
   const open = useActivityStore((state) => state.open)
   const setOpen = useActivityStore((state) => state.setOpen)
   const panelInUrl = search.edit !== undefined && search.panel !== undefined
@@ -491,6 +536,11 @@ function DashboardView({
                   }
                   canComment={permissions.comment}
                   canEdit={permissions.edit}
+                  onToggleResponsive={
+                    permissions.edit && !editing && !pinned
+                      ? toggleResponsive
+                      : undefined
+                  }
                   focusOnRender={
                     focusesLinkedPanel &&
                     item.first &&

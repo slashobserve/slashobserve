@@ -2,8 +2,10 @@ import type { ReactNode, RefObject } from "react"
 import {
   ChartLineIcon,
   EllipsisIcon,
+  Maximize2Icon,
   MessageSquarePlusIcon,
   PencilIcon,
+  PinIcon,
   TableIcon,
 } from "lucide-react"
 
@@ -29,6 +31,7 @@ type Props = {
   inspectable: boolean
   canComment: boolean
   canEdit: boolean
+  onToggleResponsive?: () => void
   composerRef: RefObject<HTMLTextAreaElement | null>
 }
 
@@ -50,6 +53,7 @@ export function PanelMenu({
   inspectable,
   canComment,
   canEdit,
+  onToggleResponsive,
   composerRef,
 }: Props) {
   const setSearch = useSetDashboardSearch()
@@ -91,6 +95,19 @@ export function PanelMenu({
         <TableIcon aria-hidden="true" />
       ),
       onSelect: onToggleTableView,
+    })
+  }
+  if (onToggleResponsive) {
+    const fixed = panel.responsive === false
+    items.push({
+      id: "responsive",
+      label: fixed ? "Make responsive" : "Keep this size",
+      icon: fixed ? (
+        <Maximize2Icon aria-hidden="true" />
+      ) : (
+        <PinIcon aria-hidden="true" />
+      ),
+      onSelect: onToggleResponsive,
     })
   }
   return (
