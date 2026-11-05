@@ -228,6 +228,7 @@ Its legend takes `legend` (`bottom`, `right` or `hidden`), `legendMode` (`list` 
 Its tooltip takes `tooltip` (`single`, `all` or `hidden`), `tooltipSort` (`none`, `asc` or `desc`), `tooltipHideZeros`, `tooltipMaxWidth` and `tooltipMaxHeight`.
 `sort` orders the slices by value: `desc` (largest first, the default), `asc` or `none` (the order of the data); the legend keeps the order of the data.
 A `gauge` panel's `thresholdLabels: true` writes the value of each threshold, formatted with the field's unit, along the arc.
+A gauge narrower than 120 pixels leaves those labels out, and one narrower than 160 pixels shortens its value to at most six characters, first with fewer decimals and then, for a number without a unit, with a K, Mil or Bil scale; a mapped text, the no-value text and a value that would round to zero stay as they are.
 A `bargauge` panel draws its bars as `barStyle` `basic` (a filled track) or `lcd` (equal cells lit up to the value).
 Its `valueMode` is `color` or `text`, which both draw the value in the foreground color with the threshold icon and word beside it, or `hidden`, which leaves the value out and keeps the threshold icon and word.
 Its `namePlacement` is `auto` (the name over a horizontal bar and under a vertical one), `top` (over both), `left` (in front of a horizontal bar) or `hidden`, and `showUnfilled: false` leaves out the unfilled part of the track.

@@ -418,6 +418,50 @@ describe("gauge text and color", () => {
   })
 })
 
+describe("gauge compact text", () => {
+  it.each([
+    { name: "keeps short text", values: [12.5], extra: {}, compact: "12.5" },
+    {
+      name: "drops decimals first",
+      values: [1234.567],
+      extra: { decimals: 2 },
+      compact: "1,235",
+    },
+    {
+      name: "scales a long plain number",
+      values: [1234567],
+      extra: {},
+      compact: "1 Mil",
+    },
+    {
+      name: "keeps the unit while dropping decimals",
+      values: [15_425_000_000],
+      extra: { unit: "decbytes" },
+      compact: "15 GB",
+    },
+    {
+      name: "never rounds a small value to zero",
+      values: [0.000123],
+      extra: {},
+      compact: "0.00012",
+    },
+    {
+      name: "keeps a mapping's text",
+      values: [100],
+      extra: { mappings: [{ value: "100", text: "Overloaded" }] },
+      compact: "Overloaded",
+    },
+    {
+      name: "keeps the no-value text",
+      values: [null],
+      extra: { noValue: "no reading" },
+      compact: "no reading",
+    },
+  ] as const)("$name", ({ values, extra, compact }) => {
+    expect(one([...values], extra as Partial<DataPanel>).compact).toBe(compact)
+  })
+})
+
 describe("gauge markers", () => {
   it("splits the ring into one segment per threshold step", () => {
     const gauge = one([10], { thresholds: [...steps], min: 0, max: 100 })
