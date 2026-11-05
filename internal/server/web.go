@@ -17,7 +17,7 @@ var webFiles embed.FS
 
 const webNotBuilt = "SlashObserve web UI is not built into this binary; run make build.\n"
 
-func registerWebRoutes(engine *gin.Engine) {
+func registerWebRoutes(engine *gin.Engine, redirects Redirects) {
 	dist, err := fs.Sub(webFiles, "webdist")
 	if err != nil {
 		panic(fmt.Sprintf("embedded web assets: %v", err))
@@ -32,6 +32,9 @@ func registerWebRoutes(engine *gin.Engine) {
 		}
 		if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead {
 			c.JSON(http.StatusNotFound, gin.H{"error": "not found", "code": "not_found"})
+			return
+		}
+		if redirects.serve(c) {
 			return
 		}
 		name := strings.TrimPrefix(path.Clean("/"+urlPath), "/")
