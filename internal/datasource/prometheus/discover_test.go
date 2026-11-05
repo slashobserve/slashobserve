@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -86,7 +87,7 @@ func shopSeries() []map[string]string {
 
 func TestInventoryGroupsSeriesIntoFamiliesInOneSeriesCall(t *testing.T) {
 	ds, seen := inventoryDS(t, shopSeries(), shopMetadata)
-	cat, err := ds.Discover(context.Background(), datasource.DiscoverRequest{Kind: datasource.DiscoverInventory, Scope: `{job="shop"}`})
+	cat, err := ds.Discover(context.Background(), datasource.DiscoverRequest{Kind: datasource.DiscoverInventory, Scope: `{__name__=~".+",job="shop"}`})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +108,7 @@ func TestInventoryGroupsSeriesIntoFamiliesInOneSeriesCall(t *testing.T) {
 	if len(calls) != 1 {
 		t.Fatalf("series requests = %d, want 1", len(calls))
 	}
-	if got := calls[0].form["match[]"]; len(got) != 1 || got[0] != `{job="shop"}` {
+	if got := calls[0].form["match[]"]; len(got) != 1 || got[0] != `{__name__=~".+",job="shop"}` {
 		t.Fatalf("match[] = %v, want the scope", got)
 	}
 	if got := calls[0].form.Get("limit"); got != fmt.Sprint(datasource.MaxDiscoverLimit*50+1) {
@@ -119,6 +120,43 @@ func TestInventoryGroupsSeriesIntoFamiliesInOneSeriesCall(t *testing.T) {
 	metadata := seen.to("/api/v1/metadata")
 	if len(metadata) != 1 || metadata[0].form.Has("metric") {
 		t.Fatalf("metadata requests = %+v, want one request for all families", metadata)
+	}
+}
+
+func TestInventoryCountsRuntimeFamiliesApartUnlessTheScopeNamesAMetric(t *testing.T) {
+	series := append(shopSeries(),
+		map[string]string{"__name__": "promhttp_metric_handler_requests_total", "job": "shop"},
+		map[string]string{"__name__": "scrape_duration_seconds", "job": "shop"},
+		map[string]string{"__name__": "upstream_latency_seconds", "job": "shop"},
+	)
+	every := []string{"go_gc_duration_seconds", "http_request_duration_seconds", "http_requests_total", "process_open_fds_count", "promhttp_metric_handler_requests_total", "scrape_duration_seconds", "up", "upstream_latency_seconds"}
+	business := []string{"http_request_duration_seconds", "http_requests_total", "upstream_latency_seconds"}
+	tests := []struct {
+		name        string
+		scope       string
+		wantNames   []string
+		wantRuntime int
+	}{
+		{"a label scope counts runtime families apart", `{job="shop"}`, business, 5},
+		{"no scope counts runtime families apart", "", business, 5},
+		{"a __name__ matcher keeps every family", `{__name__=~"go_.+|http_.+",job="shop"}`, every, 0},
+		{"a metric name keeps every family", `go_gc_duration_seconds{job="shop"}`, every, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds, _ := inventoryDS(t, series, shopMetadata)
+			cat, err := ds.Discover(context.Background(), datasource.DiscoverRequest{Kind: datasource.DiscoverInventory, Scope: tt.scope})
+			if err != nil {
+				t.Fatal(err)
+			}
+			names := make([]string, len(cat.Families))
+			for i, f := range cat.Families {
+				names[i] = f.Name
+			}
+			if !slices.Equal(names, tt.wantNames) || cat.FamiliesTotal != len(tt.wantNames) || cat.RuntimeFamilies != tt.wantRuntime {
+				t.Fatalf("families = %v, total = %d, runtime = %d; want %v, %d, %d", names, cat.FamiliesTotal, cat.RuntimeFamilies, tt.wantNames, len(tt.wantNames), tt.wantRuntime)
+			}
+		})
 	}
 }
 

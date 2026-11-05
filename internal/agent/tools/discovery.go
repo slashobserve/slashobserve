@@ -252,12 +252,13 @@ type familyOut struct {
 }
 
 type inventoryOut struct {
-	Datasource    string              `json:"datasource"`
-	Scope         string              `json:"scope"`
-	FamiliesTotal int                 `json:"families_total"`
-	Families      []familyOut         `json:"families"`
-	CommonLabels  []string            `json:"common_labels,omitempty"`
-	Grouped       map[string][]string `json:"grouped"`
+	Datasource      string              `json:"datasource"`
+	Scope           string              `json:"scope"`
+	FamiliesTotal   int                 `json:"families_total"`
+	RuntimeFamilies int                 `json:"runtime_families"`
+	Families        []familyOut         `json:"families"`
+	CommonLabels    []string            `json:"common_labels,omitempty"`
+	Grouped         map[string][]string `json:"grouped"`
 	truncation
 }
 
@@ -272,7 +273,7 @@ func (r *Registry) listInventory(ctx context.Context, in listMetricsInput, offse
 		return res, err
 	}
 	inventories.put(ctx, names.Families)
-	out := compactInventory(inventoryOut{Datasource: names.Datasource, Scope: in.Scope, FamiliesTotal: names.FamiliesTotal}, names.Families, offset, names.Truncated)
+	out := compactInventory(inventoryOut{Datasource: names.Datasource, Scope: in.Scope, FamiliesTotal: names.FamiliesTotal, RuntimeFamilies: names.RuntimeFamilies}, names.Families, offset, names.Truncated)
 	listed := make([]string, len(out.Families))
 	for i, f := range out.Families {
 		listed[i] = f.Name

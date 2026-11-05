@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/prometheus/model/labels"
+
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -116,7 +118,8 @@ func (d *Datasource) discoverMetrics(ctx context.Context, form url.Values, searc
 
 func (d *Datasource) discoverInventory(ctx context.Context, form url.Values, scope string) (*datasource.Catalog, error) {
 	selector := cmp.Or(strings.TrimSpace(scope), everySeries)
-	if _, err := promParser.ParseMetricSelector(selector); err != nil {
+	matchers, err := promParser.ParseMetricSelector(selector)
+	if err != nil {
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "scope must be a series selector such as {job=\"checkout\"}: %s", truncateText(err.Error()))
 	}
 	form.Set("match[]", selector)
@@ -145,34 +148,40 @@ func (d *Datasource) discoverInventory(ctx context.Context, form url.Values, sco
 	wg.Wait()
 	truncated := len(series) > maxInventorySeries
 	families := familiesOf(series[:min(len(series), maxInventorySeries)], metadata)
+	runtime := 0
+	if scope == "" || !slices.ContainsFunc(matchers, func(m *labels.Matcher) bool { return m.Name == metricNameLabel }) {
+		kept := slices.DeleteFunc(slices.Clone(families), func(f datasource.Family) bool { return datasource.IsRuntimeFamily(f.Name) })
+		families, runtime = kept, len(families)-len(kept)
+	}
 	return &datasource.Catalog{
-		Families:      families[:min(len(families), datasource.MaxDiscoverLimit)],
-		FamiliesTotal: len(families),
-		Truncated:     truncated || len(families) > datasource.MaxDiscoverLimit,
+		Families:        families[:min(len(families), datasource.MaxDiscoverLimit)],
+		FamiliesTotal:   len(families),
+		RuntimeFamilies: runtime,
+		Truncated:       truncated || len(families) > datasource.MaxDiscoverLimit,
 	}, nil
 }
 
 func familiesOf(series []map[string]string, metadata map[string][]metricMetadata) []datasource.Family {
-	labels := map[string]map[string]bool{}
+	keys := map[string]map[string]bool{}
 	counts := map[string]int{}
 	for _, s := range series {
 		name := familyName(s[metricNameLabel], metadata)
 		if name == "" {
 			continue
 		}
-		if labels[name] == nil {
-			labels[name] = map[string]bool{}
+		if keys[name] == nil {
+			keys[name] = map[string]bool{}
 		}
 		for key := range s {
 			if key != metricNameLabel {
-				labels[name][key] = true
+				keys[name][key] = true
 			}
 		}
 		counts[name]++
 	}
 	families := make([]datasource.Family, 0, len(counts))
 	for _, name := range slices.Sorted(maps.Keys(counts)) {
-		family := datasource.Family{Name: name, Labels: slices.Sorted(maps.Keys(labels[name])), Series: counts[name]}
+		family := datasource.Family{Name: name, Labels: slices.Sorted(maps.Keys(keys[name])), Series: counts[name]}
 		if md := metadata[name]; len(md) > 0 {
 			family.Type, family.Help, family.Unit = md[0].Type, md[0].Help, md[0].Unit
 		}

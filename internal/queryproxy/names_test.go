@@ -252,10 +252,11 @@ func TestNamesRoutesScopedRequestsToTheInventory(t *testing.T) {
 		wantKind      datasource.DiscoverKind
 		wantFamilies  int
 		wantTotal     int
+		wantRuntime   int
 		wantTruncated bool
 	}{
 		{name: "a scope asks for the inventory", req: NamesRequest{Kind: datasource.DiscoverMetrics, Scope: `{job="shop"}`},
-			catalog: &datasource.Catalog{Families: families, FamiliesTotal: 150}, wantKind: datasource.DiscoverInventory, wantFamilies: 150, wantTotal: 150},
+			catalog: &datasource.Catalog{Families: families, FamiliesTotal: 150, RuntimeFamilies: 41}, wantKind: datasource.DiscoverInventory, wantFamilies: 150, wantTotal: 150, wantRuntime: 41},
 		{name: "inventory without a scope", req: NamesRequest{Kind: datasource.DiscoverMetrics, Inventory: true},
 			catalog: &datasource.Catalog{Families: families[:2], FamiliesTotal: 2}, wantKind: datasource.DiscoverInventory, wantFamilies: 2, wantTotal: 2},
 		{name: "a truncated scan stays truncated", req: NamesRequest{Kind: datasource.DiscoverMetrics, Scope: `{job="shop"}`},
@@ -281,9 +282,9 @@ func TestNamesRoutesScopedRequestsToTheInventory(t *testing.T) {
 			if len(sent) != 1 || sent[0].Kind != tt.wantKind || sent[0].Scope != tt.req.Scope {
 				t.Fatalf("discover requests = %#v, want one %s with scope %q", sent, tt.wantKind, tt.req.Scope)
 			}
-			if len(got.Families) != tt.wantFamilies || got.FamiliesTotal != tt.wantTotal || got.Truncated != tt.wantTruncated {
-				t.Fatalf("families = %d, total = %d, truncated = %v; want %d, %d, %v",
-					len(got.Families), got.FamiliesTotal, got.Truncated, tt.wantFamilies, tt.wantTotal, tt.wantTruncated)
+			if len(got.Families) != tt.wantFamilies || got.FamiliesTotal != tt.wantTotal || got.RuntimeFamilies != tt.wantRuntime || got.Truncated != tt.wantTruncated {
+				t.Fatalf("families = %d, total = %d, runtime = %d, truncated = %v; want %d, %d, %d, %v",
+					len(got.Families), got.FamiliesTotal, got.RuntimeFamilies, got.Truncated, tt.wantFamilies, tt.wantTotal, tt.wantRuntime, tt.wantTruncated)
 			}
 			for _, f := range got.Families {
 				if f.Help != strings.Repeat("h", maxHelpBytes)+"..." {

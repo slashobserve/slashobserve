@@ -2,6 +2,8 @@ package datasource
 
 import (
 	"context"
+	"slices"
+	"strings"
 	"time"
 )
 
@@ -121,9 +123,10 @@ type Catalog struct {
 	Columns []Column `json:"columns,omitempty"`
 	Sample  *Frame   `json:"sample,omitempty"`
 
-	Families      []Family `json:"families,omitempty"`
-	FamiliesTotal int      `json:"families_total,omitempty"`
-	Truncated     bool     `json:"truncated,omitempty"`
+	Families        []Family `json:"families,omitempty"`
+	FamiliesTotal   int      `json:"families_total,omitempty"`
+	RuntimeFamilies int      `json:"runtime_families,omitempty"`
+	Truncated       bool     `json:"truncated,omitempty"`
 }
 
 type Family struct {
@@ -141,6 +144,12 @@ var familySeriesSuffixes = map[string][]string{
 	"histogram":      {"_bucket", "_sum", "_count", "_created"},
 	"gaugehistogram": {"_bucket", "_gsum", "_gcount"},
 	"summary":        {"_sum", "_count", "_created"},
+}
+
+var runtimeFamilyPrefixes = []string{"go_", "process_", "promhttp_", "scrape_"}
+
+func IsRuntimeFamily(name string) bool {
+	return name == "up" || slices.ContainsFunc(runtimeFamilyPrefixes, func(prefix string) bool { return strings.HasPrefix(name, prefix) })
 }
 
 func (f Family) SeriesNames() []string {

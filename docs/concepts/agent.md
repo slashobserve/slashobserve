@@ -25,6 +25,7 @@ It then works in this order:
    `get_schema` and `sample_rows` list the tables and columns of a ClickHouse datasource and read a few rows.
    The model calls independent discovery tools together in one turn, and uses only names it found in this run or that are already in the dashboard.
    For a new dashboard, the model first calls `list_metrics` with a `scope` that covers the request, such as `{job="checkout"}` or a ClickHouse table, and gets every metric family in it in one result, with its type, unit, label keys and series count.
+   Go, process, `promhttp_` and scrape runtime families and `up` are only counted, unless the scope names `__name__`.
    It plans one panel per family, or a table for a group of related families, and sets `planned_panels` from that plan.
    A family the request covers ends in a panel, or in the `summary` of the last save with the reason it was left out.
 2. **Draft** the panels.

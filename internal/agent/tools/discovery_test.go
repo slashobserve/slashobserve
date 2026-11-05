@@ -464,3 +464,20 @@ func TestListMetricsScopeTakesNoSearchOrLimit(t *testing.T) {
 		}
 	}
 }
+
+func TestListMetricsScopeReportsTheRuntimeFamilyCount(t *testing.T) {
+	ds := &fakeDS{discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		return &datasource.Catalog{Families: shopFamilies(2), FamiliesTotal: 2, RuntimeFamilies: 43}, nil
+	}}
+	res, err := call(t, newTestRegistry(t, ds, nil), nameListMetrics, `{"datasource":"fake","scope":"{job=\"shop\"}"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res.Content, err)
+	}
+	body, err := json.Marshal(res.Content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), `"families_total":2,"runtime_families":43,`) {
+		t.Fatalf("result = %s, want families_total 2 and runtime_families 43", body)
+	}
+}

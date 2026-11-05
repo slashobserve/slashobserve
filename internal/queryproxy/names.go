@@ -32,14 +32,15 @@ type NamesRequest struct {
 }
 
 type Names struct {
-	Datasource    string
-	Label         string
-	Metrics       []datasource.Metric
-	Labels        []string
-	Values        []string
-	Families      []datasource.Family
-	FamiliesTotal int
-	Truncated     bool
+	Datasource      string
+	Label           string
+	Metrics         []datasource.Metric
+	Labels          []string
+	Values          []string
+	Families        []datasource.Family
+	FamiliesTotal   int
+	RuntimeFamilies int
+	Truncated       bool
 }
 
 type invalidNames struct{ message string }
@@ -156,6 +157,7 @@ func newNames(req NamesRequest, cat *datasource.Catalog, limit int) Names {
 		out.Families = append(out.Families, f)
 	}
 	out.FamiliesTotal = max(cat.FamiliesTotal, len(out.Families))
+	out.RuntimeFamilies = cat.RuntimeFamilies
 	out.Metrics, out.Truncated = truncate(out.Metrics, limit, out.Truncated)
 	out.Labels, out.Truncated = truncate(out.Labels, limit, out.Truncated)
 	out.Values, out.Truncated = truncate(out.Values, limit, out.Truncated)
