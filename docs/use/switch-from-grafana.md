@@ -40,7 +40,8 @@ A Grafana that cannot be reached or refuses the token still answers `200`, with 
 ## Map datasources
 
 `GET /api/v1/grafana/{id}/datasources` lists Grafana's datasources, and `matched_uid` names the datasource of yours each one matches by the importer's automatic rules.
-A null `matched_uid` means the datasource needs a mapping, or has a type SlashObserve does not query, in which case its panels import as placeholders.
+Each one also names its `kind`, the type of yours it maps to (`prometheus` or `clickhouse`), and its `candidates`, the uids of your datasources of that kind, which are the only mapping targets an import keeps.
+A null `matched_uid` means the datasource needs a mapping, or has a type SlashObserve does not query, in which case its `kind` is null and its panels import as placeholders.
 Give the open matches in the `mapping` of the import, keyed by the Grafana datasource uid or name, or add the Grafana uid to `grafanaUids` in the [datasources file](../reference/datasources-file.md) so every later import matches it too.
 A mapping entry that a dashboard does not use is ignored for that dashboard.
 

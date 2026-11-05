@@ -2819,6 +2819,10 @@ export interface components {
             name: string;
             /** @description The Grafana plugin id, such as `prometheus`. */
             type: string;
+            /** @description Our datasource type the importer maps it to (`prometheus` or `clickhouse`); null when SlashObserve does not query this type, and its panels import as placeholders. */
+            kind: string | null;
+            /** @description The uids of our datasources of that kind, the only valid mapping targets. */
+            candidates: string[];
             matched_uid: string | null;
         };
         GrafanaResolved: {

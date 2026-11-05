@@ -2791,7 +2791,7 @@ components:
     GrafanaDatasource:
       type: object
       additionalProperties: false
-      required: [uid, name, type, matched_uid]
+      required: [uid, name, type, kind, candidates, matched_uid]
       properties:
         uid:
           type: string
@@ -2800,6 +2800,15 @@ components:
         type:
           type: string
           description: The Grafana plugin id, such as `prometheus`.
+        kind:
+          type: string
+          nullable: true
+          description: Our datasource type the importer maps it to (`prometheus` or `clickhouse`); null when SlashObserve does not query this type, and its panels import as placeholders.
+        candidates:
+          type: array
+          items:
+            type: string
+          description: The uids of our datasources of that kind, the only valid mapping targets.
         matched_uid:
           type: string
           nullable: true
