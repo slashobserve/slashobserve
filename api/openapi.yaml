@@ -126,6 +126,22 @@ paths:
     $ref: "./paths/imports.yaml#/imports-preview"
   /imports:
     $ref: "./paths/imports.yaml#/imports"
+  /grafana:
+    $ref: "./paths/grafana.yaml#/grafana"
+  /grafana/{id}:
+    $ref: "./paths/grafana.yaml#/grafana-id"
+  /grafana/{id}/test:
+    $ref: "./paths/grafana.yaml#/grafana-id-test"
+  /grafana/{id}/folders:
+    $ref: "./paths/grafana.yaml#/grafana-id-folders"
+  /grafana/{id}/datasources:
+    $ref: "./paths/grafana.yaml#/grafana-id-datasources"
+  /grafana/{id}/imports:
+    $ref: "./paths/grafana.yaml#/grafana-id-imports"
+  /grafana/{id}/imports/{sync_id}:
+    $ref: "./paths/grafana.yaml#/grafana-id-imports-syncid"
+  /grafana/resolve/{uid}:
+    $ref: "./paths/grafana.yaml#/grafana-resolve-uid"
 components:
   securitySchemes:
     sessionCookie:
@@ -2439,6 +2455,255 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ImportSourceDatasource"
+    GrafanaConnectionTest:
+      type: object
+      additionalProperties: false
+      required: [at, ok, message]
+      properties:
+        at:
+          type: string
+          format: date-time
+        ok:
+          type: boolean
+        message:
+          type: string
+          description: A fixed sentence chosen by the outcome, such as the folder and dashboard counts or why Grafana could not be read.
+    GrafanaImportSummary:
+      type: object
+      additionalProperties: false
+      required: [id, status, total, done, failed, skipped, error, started_at, finished_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [running, finished, failed, canceled]
+          description: "`failed` means the run could not list Grafana's dashboards; one failing dashboard only counts in `failed`."
+        total:
+          type: integer
+          description: The dashboards chosen, known once the dashboards are listed; 0 until then.
+        done:
+          type: integer
+        failed:
+          type: integer
+        skipped:
+          type: integer
+          description: Dashboards imported before whose Grafana version is not newer.
+        error:
+          type: string
+          nullable: true
+          description: Why the run failed; null unless `status` is `failed`.
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+    GrafanaImportResult:
+      type: object
+      additionalProperties: false
+      required: [uid, title, outcome, dashboard_id, unverified_panels, placeholder_panels, error]
+      properties:
+        uid:
+          type: string
+          description: The Grafana dashboard uid.
+        title:
+          type: string
+        outcome:
+          type: string
+          enum: [imported, updated, skipped, failed]
+        dashboard_id:
+          type: string
+          format: uuid
+          nullable: true
+        unverified_panels:
+          type: integer
+        placeholder_panels:
+          type: integer
+        error:
+          type: string
+          nullable: true
+          description: A fixed sentence chosen by the kind of failure; null unless `outcome` is `failed`.
+    GrafanaImport:
+      type: object
+      additionalProperties: false
+      required: [id, connection_id, status, total, done, failed, skipped, error, started_at, finished_at, results]
+      properties:
+        id:
+          type: string
+          format: uuid
+        connection_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [running, finished, failed, canceled]
+        total:
+          type: integer
+        done:
+          type: integer
+        failed:
+          type: integer
+        skipped:
+          type: integer
+        error:
+          type: string
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        results:
+          type: array
+          description: One entry per dashboard handled so far, in the order they finished.
+          items:
+            $ref: "#/components/schemas/GrafanaImportResult"
+    GrafanaConnection:
+      type: object
+      additionalProperties: false
+      required: [id, name, url, created_by, created_at, updated_at, last_test, last_sync]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        url:
+          type: string
+          description: The Grafana base URL as stored, without a trailing slash.
+        created_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: The id of the person or service account that stored the connection.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        last_test:
+          nullable: true
+          description: Null until the connection is tested, and again after its URL or token changes.
+          allOf:
+            - $ref: "#/components/schemas/GrafanaConnectionTest"
+        last_sync:
+          nullable: true
+          description: The summary of the last finished import, or null before the first one.
+          allOf:
+            - $ref: "#/components/schemas/GrafanaImportSummary"
+    GrafanaConnectionList:
+      type: object
+      additionalProperties: false
+      required: [connections]
+      properties:
+        connections:
+          type: array
+          items:
+            $ref: "#/components/schemas/GrafanaConnection"
+    CreateGrafanaConnectionRequest:
+      type: object
+      additionalProperties: false
+      required: [name, url, token]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+          description: The Grafana base URL, http or https, with a domain name and no user info, query or fragment.
+        token:
+          type: string
+          minLength: 1
+          maxLength: 4096
+          description: A Grafana service-account token with Viewer access to the folders to import.
+    UpdateGrafanaConnectionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+          description: A new URL needs `token` in the same request.
+        token:
+          type: string
+          minLength: 1
+          maxLength: 4096
+    StartGrafanaImportRequest:
+      type: object
+      additionalProperties: false
+      required: [folders]
+      properties:
+        folders:
+          description: '"all", or the Grafana folder uids to import, each with its subfolders; `general` names the dashboards outside any folder.'
+          oneOf:
+            - type: string
+              enum: [all]
+            - type: array
+              minItems: 1
+              maxItems: 1000
+              items:
+                type: string
+                minLength: 1
+                maxLength: 64
+        mapping:
+          type: object
+          maxProperties: 200
+          description: Grafana datasource uid or name to the uid of a datasource here, for the datasources the automatic match leaves open.
+          additionalProperties:
+            type: string
+            minLength: 1
+            maxLength: 200
+    GrafanaFolder:
+      type: object
+      additionalProperties: false
+      required: [uid, title, dashboards]
+      properties:
+        uid:
+          type: string
+        title:
+          type: string
+        dashboards:
+          type: integer
+    GrafanaDatasource:
+      type: object
+      additionalProperties: false
+      required: [uid, name, type, matched_uid]
+      properties:
+        uid:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          description: The Grafana plugin id, such as `prometheus`.
+        matched_uid:
+          type: string
+          nullable: true
+    GrafanaResolved:
+      type: object
+      additionalProperties: false
+      required: [dashboard_id, url]
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          description: The web app path of the dashboard.
   responses:
     BadRequest:
       description: The request is malformed or fails validation.

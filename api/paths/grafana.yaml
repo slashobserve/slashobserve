@@ -1,0 +1,425 @@
+grafana:
+  get:
+    operationId: listGrafanaConnections
+    summary: List the stored Grafana connections.
+    description: >-
+      Only Admins can call this endpoint.
+      Connections are sorted by creation time; a response never carries the token.
+    responses:
+      "200":
+        description: The connections.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/GrafanaConnectionList"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  post:
+    operationId: createGrafanaConnection
+    summary: Store a Grafana URL and service-account token.
+    description: >-
+      Only Admins can call this endpoint.
+      The URL may be http or https on any port, and its host may resolve to a private or loopback address, because Grafana usually runs inside the network.
+      The host must be a domain name, and it is added to the outbound allowlist when it is not allowed yet.
+      The token is encrypted with a key derived from `SLASHOBSERVE_SECRET_KEY` and is never returned.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/CreateGrafanaConnectionRequest"
+    responses:
+      "201":
+        description: The connection is stored.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/GrafanaConnection"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The role is too low (`forbidden_role`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the host (`outbound_domain_not_allowed`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "409":
+        description: "`SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The host is not allowed and 100 outbound domains are already allowed (`too_many_domains`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+grafana-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: getGrafanaConnection
+    summary: Read one Grafana connection.
+    description: Only Admins can call this endpoint.
+    responses:
+      "200":
+        description: The connection.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/GrafanaConnection"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  patch:
+    operationId: updateGrafanaConnection
+    summary: Change a connection's name, URL or token.
+    description: >-
+      Only Admins can call this endpoint.
+      A new URL needs the token again, so a stored token never reaches another host.
+      Changing the URL or the token clears the last test.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/UpdateGrafanaConnectionRequest"
+    responses:
+      "200":
+        description: The changed connection.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/GrafanaConnection"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The role is too low (`forbidden_role`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the new host (`outbound_domain_not_allowed`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: "`SLASHOBSERVE_SECRET_KEY` is not set and a new token was sent (`secret_key_missing`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The new host is not allowed and 100 outbound domains are already allowed (`too_many_domains`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: deleteGrafanaConnection
+    summary: Delete a connection and its stored token.
+    description: Only Admins can call this endpoint. Imported dashboards and the outbound allowlist entry stay.
+    responses:
+      "204":
+        description: The connection is deleted.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+grafana-id-test:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: testGrafanaConnection
+    summary: Check that Grafana answers with the stored token.
+    description: >-
+      Only Admins can call this endpoint.
+      The server reads `/api/health`, `/api/folders` and the first page of `/api/search`, and stores the outcome in `last_test`.
+      A Grafana that cannot be reached or refuses the token still answers 200, with `last_test.ok` false and a fixed message.
+    responses:
+      "200":
+        description: The connection with its new `last_test`.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/GrafanaConnection"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: "`SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or the stored token cannot be read with it (`token_unreadable`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+grafana-id-folders:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: listGrafanaFolders
+    summary: List the Grafana folders and how many dashboards each holds.
+    description: >-
+      Only Admins can call this endpoint.
+      Nested folders are titled `Parent / Child`, and dashboards outside any folder are counted under the uid `general`.
+      Counts cover the folder itself, not its subfolders.
+    responses:
+      "200":
+        description: The folders, sorted by title.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../openapi.yaml#/components/schemas/GrafanaFolder"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The role is too low (`forbidden_role`), or the host is no longer on the outbound allowlist (`outbound_domain_not_allowed`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: "`SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or the stored token cannot be read with it (`token_unreadable`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "502":
+        description: Grafana could not be reached, refused the token or gave an answer the server cannot read (`grafana_unavailable`); the message is fixed by the kind of failure.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+grafana-id-datasources:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: listGrafanaDatasources
+    summary: List the Grafana datasources and the datasource each one matches here.
+    description: >-
+      Only Admins can call this endpoint.
+      `matched_uid` applies the importer's automatic match rules; null means the datasource needs a mapping or has no supported type.
+    responses:
+      "200":
+        description: The datasources, sorted by name.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../openapi.yaml#/components/schemas/GrafanaDatasource"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The role is too low (`forbidden_role`), or the host is no longer on the outbound allowlist (`outbound_domain_not_allowed`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: "`SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or the stored token cannot be read with it (`token_unreadable`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "502":
+        description: Grafana could not be reached, refused the token or gave an answer the server cannot read (`grafana_unavailable`); the message is fixed by the kind of failure.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+grafana-id-imports:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: startGrafanaImport
+    summary: Import every dashboard of the chosen folders.
+    description: >-
+      Only Admins can call this endpoint.
+      The import runs in the background; read its progress from the `Location` header.
+      Each dashboard becomes one import record holding its Grafana uid, in a folder named after its Grafana folder (`Parent / Child` for nested ones), or General for dashboards outside any folder.
+      A dashboard imported before is saved as a new version only when its Grafana `version` is newer, otherwise it is skipped.
+      One dashboard failing never stops the run.
+      A connection runs one import at a time.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/StartGrafanaImportRequest"
+    responses:
+      "202":
+        description: The import started.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/GrafanaImport"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: An import from this connection is already running (`import_running`), `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or the stored token cannot be read with it (`token_unreadable`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+grafana-id-imports-syncid:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: sync_id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
+  get:
+    operationId: getGrafanaImport
+    summary: Read the progress of an import.
+    description: >-
+      Only Admins can call this endpoint.
+      The server keeps the last 20 imports in memory until it restarts; the connection's `last_sync` keeps the summary of the last finished one.
+    responses:
+      "200":
+        description: The import and every dashboard handled so far.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/GrafanaImport"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+grafana-resolve-uid:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 256
+  get:
+    operationId: resolveGrafanaUID
+    summary: Find the dashboard imported from a Grafana uid.
+    description: >-
+      Any signed-in caller can resolve a uid, so links to the old Grafana dashboard keep working.
+      A uid whose dashboard sits in a folder the caller cannot see answers 404, like a uid nobody imported.
+    responses:
+      "200":
+        description: The imported dashboard.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/GrafanaResolved"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
