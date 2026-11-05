@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/imports"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -41,6 +42,7 @@ const (
 var (
 	ErrResultTooLarge = errors.New("result too large")
 	ErrPanicked       = errors.New("panicked")
+	ErrInvariant      = errors.New("tool invariant broken")
 )
 
 const (
@@ -61,6 +63,23 @@ func FailureCode(err error) string {
 }
 
 var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes, nameGetSpecGuide: 96 << 10, nameUpdateDashboard: maxSuggestResult, nameGetPanels: MaxModelSpecBytes, nameUpdatePanels: maxSuggestResult}
+
+const defaultNarrowing = "narrow the request"
+
+var narrowing = map[string]string{
+	nameListMetrics:     "pass search, or a smaller limit and the next_offset as offset",
+	nameListLabels:      "pass metric or table, search, or a smaller limit and the next_offset as offset",
+	nameListLabelValues: "pass metric or table, search, or a smaller limit and the next_offset as offset",
+	nameGetSchema:       "pass table, or page on with the next_offset as offset",
+	nameSampleRows:      "pass a smaller limit",
+	nameQueryRange:      "shorten from and to, lower max_data_points, or reduce the series with a label selector or an aggregation",
+	nameQueryInstant:    "shorten from and to, or reduce the series with a label selector or an aggregation",
+	nameGetDashboard:    "use get_panels with the panel ids you need",
+	nameGetPanels:       "ask for fewer panel ids",
+	nameListDashboards:  "pass a smaller limit and page on with next_cursor",
+}
+
+const datasourceSilent = "the datasource did not answer"
 
 type Tool struct {
 	Name        string
@@ -201,7 +220,7 @@ func (r *Registry) List() []Tool {
 	return out
 }
 
-func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage) (res Result, err error) {
+func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage) (Result, error) {
 	e, ok := r.entries[name]
 	if !ok {
 		res := toolError(codeUnknownTool, fmt.Sprintf("unknown tool %q", clip(name, maxStepNameBytes)))
@@ -209,23 +228,18 @@ func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage)
 		return res, nil
 	}
 	_, inRun := RunFrom(ctx)
-	principal, _ := auth.FromContext(ctx)
+	principal, hasPrincipal := auth.FromContext(ctx)
+	if inRun && !hasPrincipal {
+		return Result{}, fmt.Errorf("tool %s: %w: a run without a principal", name, ErrInvariant)
+	}
 	if !allowed(principal, inRun, e.tool.MinRole) {
 		res := toolError(codeForbiddenRole, fmt.Sprintf("this key's role (%s) cannot use %s; an admin can change the service account's role", principal.Role, name))
 		res.Step = "Refused " + name + ": " + codeForbiddenRole
 		return res, nil
 	}
-	defer func() {
-		if p := recover(); p != nil {
-			r.deps.Logger.ErrorContext(ctx, "agent tool panicked",
-				slog.String("tool", name),
-				slog.String("panic_type", fmt.Sprintf("%T", p)))
-			res, err = Result{}, fmt.Errorf("tool %s: %w", name, ErrPanicked)
-		}
-	}()
-	res, err = e.handle(ctx, input)
+	res, err := r.handle(ctx, e, name, input)
 	if err != nil {
-		return Result{}, fmt.Errorf("tool %s: %w", name, err)
+		return Result{}, err
 	}
 	if eb, ok := res.Content.(errorBody); ok && eb.unknownField {
 		fields := r.fields[name].mcp
@@ -235,20 +249,134 @@ func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage)
 		eb.Message += "; " + name + " takes " + fieldList(fields)
 		res.Content = eb
 	}
+	if res, err = r.capped(ctx, name, res); err != nil {
+		return Result{}, err
+	}
+	if eb, ok := res.Content.(errorBody); ok && res.IsError && res.Step == "" {
+		res.Step = callErrorStep(name, eb)
+	}
+	return res, nil
+}
+
+func (r *Registry) handle(ctx context.Context, e entry, name string, input json.RawMessage) (res Result, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			r.deps.Logger.ErrorContext(ctx, "agent tool panicked",
+				slog.String("tool", name),
+				slog.String("panic_type", fmt.Sprintf("%T", p)))
+			res, err = Result{}, fmt.Errorf("tool %s: %w: %w", name, ErrInvariant, ErrPanicked)
+		}
+	}()
+	res, err = e.handle(ctx, input)
+	switch {
+	case err == nil:
+		return res, nil
+	case endsRun(ctx, err):
+		return Result{}, fmt.Errorf("tool %s: %w: %w", name, ErrInvariant, err)
+	}
+	r.deps.Logger.WarnContext(ctx, "agent tool failed", logattrs.Failure(FailureToolFailed, err, slog.String("tool", name), runRequestAttr(ctx))...)
+	return handlerFailed(name, err), nil
+}
+
+func (r *Registry) capped(ctx context.Context, name string, res Result) (Result, error) {
 	body, err := json.Marshal(res.Content)
 	if err != nil {
-		return Result{}, fmt.Errorf("tool %s: marshal result: %w", name, err)
+		return Result{}, fmt.Errorf("tool %s: %w: marshal result: %w", name, ErrInvariant, err)
 	}
 	limit := maxContentBytes
 	if l, ok := resultLimits[name]; ok {
 		limit = l
 	}
-	if len(body) > limit {
-		r.deps.Logger.ErrorContext(ctx, "agent tool result too large", slog.String("tool", name), slog.Int("bytes", len(body)))
-		return Result{}, fmt.Errorf("tool %s: %w: %d bytes, over the %d byte limit", name, ErrResultTooLarge, len(body), limit)
+	if len(body) <= limit {
+		return res, nil
 	}
-	if eb, ok := res.Content.(errorBody); ok && res.IsError && res.Step == "" {
-		res.Step = callErrorStep(name, eb)
+	if trimmed, ok := trimmedSave(res.Content, limit); ok {
+		res.Content = trimmed
+		return res, nil
+	}
+	r.deps.Logger.ErrorContext(ctx, "agent tool result too large", slog.String("tool", name), slog.Int("bytes", len(body)))
+	return tooLarge(name, len(body), limit)
+}
+
+func trimmedSave(content any, limit int) (any, bool) {
+	switch c := content.(type) {
+	case savedOut:
+		panels, unverified := c.Panels, c.UnverifiedPanels
+		c.Panels, c.UnverifiedPanels, c.Truncated = []panelOut{}, []string{}, true
+		c.UnverifiedPanels, _ = fit(unverified, limit-jsonSize(c)-len(`,"unverified_panels":[]`))
+		c.Panels, _ = fit(panels, limit-jsonSize(c))
+		return c, jsonSize(c) <= limit
+	case buildOut:
+		changed := c.ChangedPanels
+		c.ChangedPanels = []panelOut{}
+		if jsonSize(c) > limit {
+			c.Layout = nil
+		}
+		c.ChangedPanels, _ = fit(changed, limit-jsonSize(c))
+		return c, jsonSize(c) <= limit
+	}
+	return nil, false
+}
+
+func jsonSize(v any) int {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return math.MaxInt
+	}
+	return len(raw)
+}
+
+var runEnding = []error{
+	context.Canceled,
+	context.DeadlineExceeded,
+	dashboards.ErrBuildLost,
+	ErrPanicked,
+	ErrInvariant,
+	errInvalidRun,
+	errCommentsNotConfigured,
+	errFoldersNotConfigured,
+	errImportsNotConfigured,
+}
+
+func endsRun(ctx context.Context, err error) bool {
+	return ctx.Err() != nil || slices.ContainsFunc(runEnding, func(target error) bool { return errors.Is(err, target) })
+}
+
+func runRequestAttr(ctx context.Context) slog.Attr {
+	run, _ := RunFrom(ctx)
+	return slog.String("agent_request_id", run.RequestID)
+}
+
+func handlerFailed(name string, err error) Result {
+	return toolError(FailureToolFailed, name+" failed: "+safeText(err))
+}
+
+func safeText(err error) string {
+	var parts []string
+	for _, a := range logattrs.Safe(err) {
+		attr, ok := a.(slog.Attr)
+		if !ok || attr.Key == "error_type" {
+			continue
+		}
+		parts = append(parts, attr.Key+" "+attr.Value.String())
+	}
+	if len(parts) == 0 {
+		return datasourceSilent
+	}
+	return strings.Join(parts, ", ")
+}
+
+func tooLarge(name string, size, limit int) (Result, error) {
+	hint, ok := narrowing[name]
+	if !ok {
+		hint = defaultNarrowing
+	}
+	res := failure("Result too large: "+name, errorBody{
+		Code:    FailureResultTooLarge,
+		Message: fmt.Sprintf("the %s result is %d bytes, over the %d byte limit; %s", name, size, limit, hint),
+	})
+	if _, err := json.Marshal(res.Content); err != nil {
+		return Result{}, fmt.Errorf("tool %s: %w: %w: %d bytes, over the %d byte limit", name, ErrInvariant, ErrResultTooLarge, size, limit)
 	}
 	return res, nil
 }

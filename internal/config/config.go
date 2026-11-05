@@ -111,6 +111,8 @@ const (
 	envAgentRunTimeout      = "SLASHOBSERVE_AGENT_RUN_TIMEOUT"
 	envAgentSessionRenewKiB = "SLASHOBSERVE_AGENT_SESSION_RENEW_KIB"
 
+	envAgentLogToolInputs = "SLASHOBSERVE_AGENT_LOG_TOOL_INPUTS"
+
 	envProvisionDir = "SLASHOBSERVE_PROVISION_DIR"
 	envMetrics      = "SLASHOBSERVE_METRICS"
 )
@@ -122,7 +124,7 @@ var serverEnvNames = []string{
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
-	envLLMLogProviderErrors, envAgentRunTimeout, envAgentSessionRenewKiB,
+	envLLMLogProviderErrors, envAgentRunTimeout, envAgentSessionRenewKiB, envAgentLogToolInputs,
 	envProvisionDir, envMetrics,
 }
 
@@ -148,6 +150,7 @@ type LLM struct {
 type Agent struct {
 	RunTimeout        time.Duration
 	SessionRenewBytes int
+	LogToolInputs     bool
 }
 
 type Config struct {
@@ -239,6 +242,10 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		errs = append(errs, err)
 	}
 	errs = append(errs, loadAgent(lookup, &cfg)...)
+	cfg.Agent.LogToolInputs, err = loadBool(lookup, envAgentLogToolInputs, false)
+	if err != nil {
+		errs = append(errs, err)
+	}
 	errs = append(errs, loadOutboundDomains(lookup, &cfg)...)
 
 	cfg.ProvisionDir = get(lookup, envProvisionDir)

@@ -86,6 +86,7 @@ type runState struct {
 	known         map[string]bool
 	progress      func(Step)
 	logger        *slog.Logger
+	logInputs     bool
 	mode          tools.Mode
 	parentVersion int
 	rejections    int
@@ -347,6 +348,9 @@ func (s *runState) call(ctx context.Context, c llm.ToolCall, repairing bool) cal
 	if slot.err == nil {
 		slot.content, slot.err = json.Marshal(slot.result.Content)
 	}
+	if s.logInputs {
+		logToolInput(ctx, s.logger, slot.name, c.Input, slot.err == nil && slot.result.IsError, slot.content)
+	}
 	s.logger.DebugContext(ctx, "tool call finished",
 		agentRequestAttr(ctx),
 		slog.String("tool", slot.name),
@@ -397,6 +401,13 @@ func (s *runState) stop(message string) {
 		return
 	}
 	s.progress(Step{At: time.Now().UTC(), Phase: phaseSave, Tool: stopTool, Status: statusError, Message: message})
+}
+
+func (s *runState) note(message string) {
+	if s.progress == nil {
+		return
+	}
+	s.progress(Step{At: time.Now().UTC(), Phase: phaseSave, Tool: stopTool, Status: statusOK, Message: message})
 }
 
 func (s *runState) report(slot callSlot) {

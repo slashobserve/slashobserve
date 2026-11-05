@@ -100,6 +100,38 @@ func TestLLMLogProviderErrorsSetting(t *testing.T) {
 	}
 }
 
+func TestAgentLogToolInputsSetting(t *testing.T) {
+	tests := []struct {
+		name  string
+		set   map[string]string
+		want  bool
+		fails bool
+	}{
+		{name: "unset is off", set: nil},
+		{name: "empty is off", set: map[string]string{envAgentLogToolInputs: ""}},
+		{name: "false", set: map[string]string{envAgentLogToolInputs: "false"}},
+		{name: "true", set: map[string]string{envAgentLogToolInputs: "true"}, want: true},
+		{name: "yes is refused", set: map[string]string{envAgentLogToolInputs: "yes"}, fails: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := Load(envOf(llmEnv(tt.set)))
+			if tt.fails {
+				if err == nil || !strings.Contains(err.Error(), envAgentLogToolInputs+": must be true or false") {
+					t.Fatalf("expected a boolean error, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.Agent.LogToolInputs != tt.want {
+				t.Fatalf("LogToolInputs = %v, want %v", cfg.Agent.LogToolInputs, tt.want)
+			}
+		})
+	}
+}
+
 func TestLLMAPIKeyAndFileAreMutuallyExclusiveForEveryProvider(t *testing.T) {
 	for _, provider := range []string{"", LLMProviderReplay, LLMProviderAnthropic} {
 		_, err := Load(envOf(llmEnv(map[string]string{

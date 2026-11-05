@@ -223,6 +223,42 @@ func (q *Queries) MoveAgentRequestBuild(ctx context.Context, arg MoveAgentReques
 	return result.RowsAffected(), nil
 }
 
+const rebaseAgentRequestBuild = `-- name: RebaseAgentRequestBuild :execrows
+UPDATE agent_request_builds b
+SET base_version = $1::integer,
+  spec = $2::jsonb,
+  unverified = $3::jsonb,
+  panels = $4::integer,
+  updated_at = clock_timestamp()
+FROM agent_requests r
+WHERE b.agent_request_id = $5::uuid
+  AND r.id = b.agent_request_id AND r.status = 'running' AND r.attempts = $6::integer
+`
+
+type RebaseAgentRequestBuildParams struct {
+	BaseVersion    int32
+	Spec           []byte
+	Unverified     []byte
+	Panels         int32
+	AgentRequestID pgtype.UUID
+	Attempt        int32
+}
+
+func (q *Queries) RebaseAgentRequestBuild(ctx context.Context, arg RebaseAgentRequestBuildParams) (int64, error) {
+	result, err := q.db.Exec(ctx, rebaseAgentRequestBuild,
+		arg.BaseVersion,
+		arg.Spec,
+		arg.Unverified,
+		arg.Panels,
+		arg.AgentRequestID,
+		arg.Attempt,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const upsertAgentRequestBuild = `-- name: UpsertAgentRequestBuild :one
 INSERT INTO agent_request_builds (
   agent_request_id, dashboard_id, base_version, spec, unverified, planned_panels, summary, panels

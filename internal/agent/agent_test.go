@@ -28,6 +28,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/llm/replay"
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 	"github.com/slashobserve/slashobserve/spec/examples"
@@ -2203,12 +2204,14 @@ func TestFailureCodesOfToolFailuresAreInTheClosedSet(t *testing.T) {
 }
 
 type fakeBuilds struct {
-	mu        sync.Mutex
-	build     *dashboards.Build
-	commitErr []error
-	commits   int
-	discards  int
-	attempts  []int
+	mu         sync.Mutex
+	build      *dashboards.Build
+	commitErr  []error
+	commits    int
+	discards   int
+	attempts   []int
+	rebaseOnto int
+	rebases    int
 }
 
 func (f *fakeBuilds) Build(context.Context, pgtype.UUID) (dashboards.Build, bool, error) {
@@ -2243,6 +2246,17 @@ func (f *fakeBuilds) DiscardBuild(_ context.Context, _ pgtype.UUID, attempt int)
 	f.attempts = append(f.attempts, attempt)
 	f.build = nil
 	return nil
+}
+
+func (f *fakeBuilds) RebaseBuild(context.Context, auth.Principal, pgtype.UUID, int) (int, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.rebases++
+	if f.rebaseOnto == 0 || f.build == nil {
+		return 0, false, nil
+	}
+	f.build.BaseVersion = f.rebaseOnto
+	return f.rebaseOnto, true, nil
 }
 
 func (f *fakeBuilds) current() *dashboards.Build {
@@ -2719,6 +2733,63 @@ func TestACommitConflictDiscardsTheBuildAndRestartsOnce(t *testing.T) {
 	if len(started) != 2 || !strings.Contains(started[1].Context, "Someone saved a new version while you worked; your build was discarded. Make the change again on the dashboard above.") ||
 		strings.Contains(started[1].Context, "<build>") {
 		t.Fatalf("restart request = %+v", started)
+	}
+}
+
+func hasStep(steps []agent.Step, message string) bool {
+	return slices.ContainsFunc(steps, func(s agent.Step) bool { return s.Message == message && s.Status == "ok" })
+}
+
+func TestACommitConflictOnADisjointChangeRebasesAndCommitsWithoutANewSession(t *testing.T) {
+	r := newRig(t, session(stopTurn(llm.StopEndTurn)))
+	r.builds.seed(agentBuild(t, "r1"))
+	r.builds.commitErr = []error{&dashboards.ConflictError{Latest: 4}}
+	r.builds.rebaseOnto = 4
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil || out.Version != 1 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	if r.builds.commits != 1 || r.builds.discards != 0 || len(r.provider.started()) != 1 {
+		t.Fatalf("commits %d, discards %d, sessions %d, want one commit on the first session", r.builds.commits, r.builds.discards, len(r.provider.started()))
+	}
+	if !hasStep(r.recordedSteps(), "Rebased onto version 4") {
+		t.Fatalf("steps = %+v, want the rebase step", r.recordedSteps())
+	}
+}
+
+func TestAFinishSaveConflictOnADisjointChangeRebasesAndCommits(t *testing.T) {
+	r := newRig(t, session(toolTurn(call("c1", "update_panels", `{"finish":true}`))))
+	r.builds.seed(agentBuild(t, "r1"))
+	r.builds.rebaseOnto = 4
+	r.tools.onSave("update_panels", conflictResult(4))
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil || out.Version != 1 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	if r.builds.commits != 1 || r.builds.discards != 0 || len(r.provider.started()) != 1 || r.provider.sessions[0].modelCalls() != 1 {
+		t.Fatalf("commits %d, discards %d, sessions %d, model calls %d", r.builds.commits, r.builds.discards, len(r.provider.started()), r.provider.sessions[0].modelCalls())
+	}
+}
+
+func TestARebasedCommitThatConflictsAgainRestartsFromTheLatest(t *testing.T) {
+	r := newRig(t,
+		session(stopTurn(llm.StopEndTurn)),
+		session(toolTurn(call("c1", "update_panels", `{}`))),
+	)
+	r.builds.seed(agentBuild(t, "r1"))
+	r.builds.commitErr = []error{&dashboards.ConflictError{Latest: 4}, &dashboards.ConflictError{Latest: 5}}
+	r.builds.rebaseOnto = 4
+	r.tools.onSave("update_panels", savedResult(dashID, 6))
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil || out.Version != 6 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	started := r.provider.started()
+	if r.builds.discards != 1 || len(started) != 2 || !strings.Contains(started[1].Context, conflictSeedSentence) {
+		t.Fatalf("discards %d, sessions %d, want one restart with the conflict seed", r.builds.discards, len(started))
 	}
 }
 
@@ -3233,6 +3304,27 @@ func TestAResumedBuildOnAnOlderVersionRestartsFromTheLatest(t *testing.T) {
 	}
 }
 
+func TestAResumedBuildOnAnOlderVersionRebasesWhenItsChangesAreDisjoint(t *testing.T) {
+	r := newRig(t, session(toolTurn(call("c1", "update_panels", `{}`))))
+	stale := agentBuild(t, "r1")
+	stale.BaseVersion = latestVersion - 1
+	r.builds.seed(stale)
+	r.builds.rebaseOnto = latestVersion
+	r.tools.onSave("update_panels", savedResult(dashID, 4))
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil || out.Version != 4 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	started := r.provider.started()
+	if len(started) != 1 || strings.Contains(started[0].Context, conflictSeedSentence) || !strings.Contains(started[0].Context, "<build>") {
+		t.Fatalf("started = %+v, want one session on the kept build", started)
+	}
+	if r.builds.discards != 0 || r.builds.rebases != 1 || !hasStep(r.recordedSteps(), "Rebased onto version 3") {
+		t.Fatalf("discards %d, rebases %d, steps %+v", r.builds.discards, r.builds.rebases, r.recordedSteps())
+	}
+}
+
 func TestADashboardThatMovedBeforeARenewalRestartsAtTheRenewal(t *testing.T) {
 	r := newRigWithRenewBytes(t, 1,
 		session(toolTurn(call("s1", "update_panels", `{"n":1}`))),
@@ -3560,5 +3652,151 @@ func TestEverySessionAsksForRequestSidePruning(t *testing.T) {
 		if req.Pruning != (llm.Pruning{KeepTurns: 4, StepBytes: 64 << 10}) {
 			t.Fatalf("session %d pruning = %+v", i, req.Pruning)
 		}
+	}
+}
+
+type scriptedDatasource struct {
+	mu      sync.Mutex
+	answers []func() ([]datasource.Frame, error)
+}
+
+func (d *scriptedDatasource) Type() string                      { return "prometheus" }
+func (d *scriptedDatasource) CheckHealth(context.Context) error { return nil }
+func (d *scriptedDatasource) Close() error                      { return nil }
+func (d *scriptedDatasource) Discover(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
+	return &datasource.Catalog{}, nil
+}
+func (d *scriptedDatasource) Lint(context.Context, string) ([]datasource.Diagnostic, error) {
+	return nil, nil
+}
+func (d *scriptedDatasource) VariableValues(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) {
+	return nil, nil
+}
+func (d *scriptedDatasource) QueryInstant(context.Context, datasource.Query, datasource.TimeRange) ([]datasource.Frame, error) {
+	return nil, nil
+}
+
+func (d *scriptedDatasource) QueryRange(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if len(d.answers) == 0 {
+		return nil, nil
+	}
+	answer := d.answers[0]
+	d.answers = d.answers[1:]
+	return answer()
+}
+
+func registryRig(t *testing.T, ds datasource.Datasource, sessions ...*scriptedSession) (*agent.Agent, *scriptedProvider, *bytes.Buffer) {
+	t.Helper()
+	logs := &bytes.Buffer{}
+	logger := slog.New(slog.NewJSONHandler(logs, nil))
+	reg, err := datasource.NewRegistry(logger, datasource.Instance{UID: "prom", Name: "Prometheus", Datasource: ds})
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := &scriptedProvider{sessions: sessions}
+	a := agent.New(agent.Config{
+		Provider:    provider,
+		Tools:       tools.New(tools.Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Logger: logger}),
+		Dashboards:  &fakeDashboards{number: latestVersion},
+		Builds:      &fakeBuilds{},
+		Datasources: fakeHealth{},
+		Logger:      logger,
+	})
+	return a, provider, logs
+}
+
+func TestAToolErrorFromAHandlerReachesTheModelAndTheRunGoesOn(t *testing.T) {
+	ds := &scriptedDatasource{answers: []func() ([]datasource.Frame, error){
+		func() ([]datasource.Frame, error) { return nil, errors.New("boom at 10.0.0.5 UNIQUE-SECRET") },
+		func() ([]datasource.Frame, error) { return nil, nil },
+	}}
+	s := session(
+		toolTurn(call("c1", "query_range", `{"datasource":"prom","query":"up"}`)),
+		toolTurn(call("c2", "query_range", `{"datasource":"prom","query":"sum(up)"}`)),
+		stopTurn(llm.StopRefusal),
+	)
+	a, _, logs := registryRig(t, ds, s)
+
+	if _, err := a.Run(context.Background(), agent.Task{Prompt: "checkout health by pod", RequestID: requestID, Attempt: 1, Principal: principal}); !errors.Is(err, agent.ErrRefused) {
+		t.Fatalf("err = %v, want the run to reach the model's refusal", err)
+	}
+	if got := s.modelCalls(); got != 3 {
+		t.Fatalf("model calls = %d, want 3", got)
+	}
+	failed := s.results(1)
+	if len(failed) != 1 || !failed[0].IsError || !strings.Contains(failed[0].Content, `"code":"tool_failed"`) ||
+		!strings.Contains(failed[0].Content, "query_range failed: the datasource did not answer") {
+		t.Fatalf("result after the failure = %+v", failed)
+	}
+	if next := s.results(2); len(next) != 1 || next[0].IsError {
+		t.Fatalf("result after the retry = %+v", next)
+	}
+	for _, leaked := range []string{"UNIQUE-SECRET", "10.0.0.5"} {
+		if strings.Contains(logs.String(), leaked) || strings.Contains(failed[0].Content, leaked) {
+			t.Fatalf("%q leaked: %s", leaked, logs.String())
+		}
+	}
+	if strings.Count(logs.String(), `"msg":"agent tool failed"`) != 1 {
+		t.Fatalf("want one tool failure line: %s", logs.String())
+	}
+}
+
+func TestAnInvariantFromAHandlerStillEndsTheRun(t *testing.T) {
+	tests := []struct {
+		name   string
+		answer func() ([]datasource.Frame, error)
+		tool   string
+		input  string
+		cause  error
+		code   string
+	}{
+		{
+			name:   "wrapped cancellation",
+			answer: func() ([]datasource.Frame, error) { return nil, fmt.Errorf("upstream: %w", context.Canceled) },
+			tool:   "query_range",
+			input:  `{"datasource":"prom","query":"up"}`,
+			cause:  context.Canceled,
+			code:   "tool_failed",
+		},
+		{
+			name:  "handler panic",
+			tool:  "get_panels",
+			input: `{"ids":["p1"]}`,
+			cause: tools.ErrPanicked,
+			code:  "tool_panicked",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := &scriptedDatasource{}
+			if tt.answer != nil {
+				ds.answers = append(ds.answers, tt.answer)
+			}
+			s := session(toolTurn(call("c1", tt.tool, tt.input)), stopTurn(llm.StopRefusal))
+			a, _, logs := registryRig(t, ds, s)
+
+			_, err := a.Run(context.Background(), agent.Task{Prompt: "checkout health by pod", RequestID: requestID, Attempt: 1, Principal: principal})
+			if !errors.Is(err, tools.ErrInvariant) || !errors.Is(err, tt.cause) {
+				t.Fatalf("err = %v, want an invariant wrapping %v", err, tt.cause)
+			}
+			if err.Error() != "the "+tt.tool+" tool failed with an internal error" {
+				t.Fatalf("error text = %q", err.Error())
+			}
+			if got := s.modelCalls(); got != 1 {
+				t.Fatalf("model calls = %d, want the run to end after the first turn", got)
+			}
+			var finish map[string]any
+			for line := range strings.SplitSeq(logs.String(), "\n") {
+				var entry map[string]any
+				if json.Unmarshal([]byte(line), &entry) == nil && entry["msg"] == "agent run finished" {
+					finish = entry
+				}
+			}
+			if finish["error_code"] != tt.code {
+				t.Fatalf("finish line = %v, want error_code %s", finish, tt.code)
+			}
+		})
 	}
 }

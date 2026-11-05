@@ -98,6 +98,11 @@ Three rejected saves in a row end it.
 The guards steer before they stop, and every refusal and every stop shows as a step that names its rule, such as "Refused query_range: ..." or "Stopped: ...".
 A run that keeps asking a read it already made is first answered, then refused: a successful read is answered once more from its first result with a note, a failed read or a query result runs again, and a third identical call is refused.
 A save identical to an earlier one is refused.
+A tool result over its size limit goes back to the model as a `result_too_large` error that names the parameters that narrow that tool's answer, such as `search` and `limit` for `list_metrics` or `get_panels` instead of `get_dashboard`.
+A save result is never an error for its size, because the save already happened: its panel list is cut to fit and marked `truncated`.
+A tool that fails, such as a datasource that does not answer, goes back to the model as a `tool_failed` error without the error's own text, and the run goes on.
+A tool call ends the run only on a broken internal invariant: a cancellation, a lost claim on the build, or a tool that panicked (`tool_panicked`).
+On an evals stack, `SLASHOBSERVE_AGENT_LOG_TOOL_INPUTS` logs each tool input by hash, size, panel ids and the issue paths of a rejected save, never by its text; see [Configuration](../reference/configuration.md).
 A save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run with `no_progress`.
 Only the person who asked can cancel a queued or running request.
 A queued request is canceled at once, and a running one stops within a few seconds, after the model or tool call in flight returns.
@@ -148,7 +153,9 @@ The step of a rejected save names the first problem's path, and a refused input 
 The model fixes only the panels it names and saves again.
 Three rejected saves in a row end the run with an error that names the last issue codes, and an accepted save into the build resets the count.
 
-When the dashboard changed while the agent was revising it, the build is discarded and the run restarts once from the latest version, at the commit or as soon as a new session would start on the older build.
+When the dashboard changed while the agent was revising it, the server moves the build onto the latest version, at the commit or as soon as a new session would start on the older build, as long as the build changed no dashboard setting and none of the panels the newer versions changed.
+The agent's panels are checked again on the latest version, and a commit that hit the change is retried at once.
+Otherwise the build is discarded and the run restarts once from the latest version.
 If it changes again, the run fails.
 
 A revision starts from the current document and keeps panel ids, positions and everything the prompt does not ask to change, so [comments](versions.md#comments) stay attached to their panels.
