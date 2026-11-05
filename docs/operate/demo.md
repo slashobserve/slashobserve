@@ -4,8 +4,17 @@ description: The services, signals and faults of the demo stack's shop, so you k
 ---
 
 The demo stack from the [quick start](../get-started/quick-start.md) runs a small shop with three services: `frontend` (pod `frontend-0`), `checkout` (pods `checkout-0` and `checkout-1`) and `payments` (pod `payments-0`).
-A load generator sends it traffic all the time, so every chart has live data.
+A load generator sends it traffic all the time on a daily curve, so every chart has live data.
+The rate is lowest at 04:00, at 0.4 times the base rate of 20 requests per second, and highest at 14:00, at 1.6 times it.
+Those hours are in the containers' local time, which is UTC unless `TZ` is set on both the `loadgen` and `prometheus` services.
+The 26 hours of history the stack writes on its first boot follow the same curve, so yesterday's chart joins today's without a step.
 Its metrics are in the `prom` datasource, and its logs and traces are in `ch`.
+
+## Traffic
+
+`SLASHOBSERVE_LOADGEN_CURVE=flat make demo` keeps the request rate constant at 20 requests per second.
+Setting `SLASHOBSERVE_LOADGEN_CURVE=flat` in the compose `.env` file does the same.
+A stack that already wrote its history keeps that history until `make demo-reset`, so reset it after switching the curve.
 
 ## Metrics
 

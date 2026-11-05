@@ -12,8 +12,14 @@ services:
       - ${SLASHOBSERVE_EVALS_RUNTIME_DIR}/llm:/etc/slashobserve/llm-fixtures:ro
 
   prometheus:
+    environment:
+      LOADGEN_CURVE: flat
     volumes:
       - ./evals/scrape.d:/etc/prometheus/scrape.d:ro
+
+  loadgen:
+    environment:
+      LOADGEN_CURVE: flat
 
   checkout-1:
     ports:

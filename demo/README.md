@@ -8,7 +8,7 @@ It is a separate Go module so the OpenTelemetry SDK and the Prometheus client st
 | Command | What it does |
 | --- | --- |
 | `shop serve` | Runs one service, chosen by `SHOP_SERVICE`. |
-| `shop loadgen` | Sends fixed-rate, seeded traffic to the frontend. |
+| `shop loadgen` | Sends seeded traffic to the frontend on a daily curve, or at a fixed rate with `LOADGEN_CURVE=flat`. |
 | `shop synth` | Serves the series listed in `SYNTH_FILE` on `/metrics`, for the evals stack. |
 | `shop healthcheck` | Exits 0 when `http://127.0.0.1<SHOP_ADDR>/healthz` returns 200. |
 
@@ -37,6 +37,7 @@ The frontend round-robins the checkout pods, and checkout calls payments.
 | `LOADGEN_TARGET` | loadgen | Frontend base URL (required). |
 | `LOADGEN_RPS` | loadgen | Requests per second, 1 to 1000, default `20`. |
 | `LOADGEN_SEED` | loadgen | Seed for the route and cart choices, default `42`. |
+| `LOADGEN_CURVE` | loadgen | `daily` (default) scales `LOADGEN_RPS` from 0.4 at 04:00 to 1.6 at 14:00 local time, mean 1.0; `flat` keeps it constant. The Prometheus backfill reads the same variable. |
 | `LOADGEN_START_FILE` | loadgen | Optional path to a file holding a Unix time in seconds; loadgen waits for the file and sends its first request at that time. |
 
 Every service exposes Prometheus metrics on `/metrics` and liveness on `/healthz`.
