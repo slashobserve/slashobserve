@@ -4,10 +4,17 @@ import { verticalCompactor } from "react-grid-layout/core"
 import "react-grid-layout/css/styles.css"
 
 import type { Selections } from "@/api/keys"
+import { rendererManifests } from "@/panels"
 import type { Dashboard } from "@/spec"
 
 import { membershipOf, rowCompactor } from "./edit/layout"
-import { fitLayout, gridColumns, gridMargin, pixelWidth } from "./fit-layout"
+import {
+  columnsFor,
+  fitLayout,
+  gridColumns,
+  gridMargin,
+  pixelWidth,
+} from "./fit-layout"
 import { expandLayout, type LayoutItem } from "./rows/expand-layout"
 import { RowHeader } from "./rows/row-header"
 import { useRowStore } from "./rows/row-store"
@@ -81,13 +88,22 @@ export function DashboardGrid({
   const stacked = width < singleColumnBelow
   const gridItems = useMemo(() => {
     const items = ordered.map(({ item }) => item)
-    if (!stacked) return items
-    return fitLayout(
-      items,
-      new Map(items.map((item) => [item.i, gridColumns])),
-      new Set()
+    if (editing && !stacked) return items
+    const minimum = new Map(
+      ordered.map(({ entry, item }) => [
+        item.i,
+        stacked
+          ? gridColumns
+          : columnsFor(
+              entry.kind === "panel"
+                ? rendererManifests.get(entry.panel.type)?.minWidth
+                : undefined,
+              width
+            ),
+      ])
     )
-  }, [stacked, ordered])
+    return fitLayout(items, minimum, new Set())
+  }, [editing, stacked, ordered, width])
 
   return (
     <div ref={containerRef} className="w-full">

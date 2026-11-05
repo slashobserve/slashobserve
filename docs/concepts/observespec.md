@@ -141,6 +141,9 @@ An `id` starts with a letter, continues with letters, digits, `_` or `-`, is at 
 
 `gridPos` places a panel on a grid 24 columns wide with `x`, `y`, `w` and `h`.
 `x + w` cannot exceed 24, and panels cannot overlap.
+The web app draws every panel at its saved `gridPos` when the screen is wide enough for it.
+When a panel would be narrower than its type reads well at, about 160 pixels for a stat, 180 for a gauge, 240 for a chart and 300 for a table, the panels beside it wrap onto more lines and widen to fill the grid; below 768 pixels every panel takes the full width.
+This changes only what you see: the saved `gridPos` stays as it is, and the layout editor always shows it.
 
 A data panel also has a `title`, a `datasource` and `queries`.
 Its `type` is one of `timeseries`, `stat`, `gauge`, `bargauge`, `table`, `piechart`, `heatmap`, `histogram`, `state-timeline`, `logs`, `barchart`, `status-history`, `trend`, `xychart`, `candlestick`, `nodeGraph`, `traces`, `flamegraph`, `geomap`, `canvas` or `alertlist`.
