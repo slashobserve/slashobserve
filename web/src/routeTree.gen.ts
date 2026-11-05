@@ -26,6 +26,7 @@ import { Route as AuthedShellChatIndexRouteImport } from './routes/_authed/_shel
 import { Route as AuthedShellDashboardsIndexRouteImport } from './routes/_authed/_shell/dashboards/index'
 import { Route as AuthedShellFFolderIdRouteImport } from './routes/_authed/_shell/f/$folderId'
 import { Route as AuthedShellSettingsIndexRouteImport } from './routes/_authed/_shell/settings/index'
+import { Route as AuthedShellSettingsGrafanaRouteImport } from './routes/_authed/_shell/settings/grafana'
 import { Route as AuthedShellSettingsKeysRouteImport } from './routes/_authed/_shell/settings/keys'
 import { Route as AuthedDDashboardIdVersionsRouteImport } from './routes/_authed/d/$dashboardId/versions'
 import { Route as AuthedDDashboardIdChar123SlugChar125RouteImport } from './routes/_authed/d/$dashboardId/{-$slug}'
@@ -117,6 +118,12 @@ const AuthedShellSettingsIndexRoute =
     path: '/settings/',
     getParentRoute: () => AuthedShellRoute,
   } as any)
+const AuthedShellSettingsGrafanaRoute =
+  AuthedShellSettingsGrafanaRouteImport.update({
+    id: '/settings/grafana',
+    path: '/settings/grafana',
+    getParentRoute: () => AuthedShellRoute,
+  } as any)
 const AuthedShellSettingsKeysRoute = AuthedShellSettingsKeysRouteImport.update({
   id: '/settings/keys',
   path: '/settings/keys',
@@ -166,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/folders/$folderId': typeof AuthedFoldersFolderIdRoute
   '/observe/$requestId': typeof AuthedObserveRequestIdRoute
   '/f/$folderId': typeof AuthedShellFFolderIdRoute
+  '/settings/grafana': typeof AuthedShellSettingsGrafanaRoute
   '/settings/keys': typeof AuthedShellSettingsKeysRoute
   '/d/$dashboardId/versions': typeof AuthedDDashboardIdVersionsRoute
   '/d/$dashboardId/{-$slug}': typeof AuthedDDashboardIdChar123SlugChar125Route
@@ -188,6 +196,7 @@ export interface FileRoutesByTo {
   '/folders/$folderId': typeof AuthedFoldersFolderIdRoute
   '/observe/$requestId': typeof AuthedObserveRequestIdRoute
   '/f/$folderId': typeof AuthedShellFFolderIdRoute
+  '/settings/grafana': typeof AuthedShellSettingsGrafanaRoute
   '/settings/keys': typeof AuthedShellSettingsKeysRoute
   '/d/$dashboardId/versions': typeof AuthedDDashboardIdVersionsRoute
   '/d/$dashboardId/{-$slug}': typeof AuthedDDashboardIdChar123SlugChar125Route
@@ -213,6 +222,7 @@ export interface FileRoutesById {
   '/_authed/folders/$folderId': typeof AuthedFoldersFolderIdRoute
   '/_authed/observe/$requestId': typeof AuthedObserveRequestIdRoute
   '/_authed/_shell/f/$folderId': typeof AuthedShellFFolderIdRoute
+  '/_authed/_shell/settings/grafana': typeof AuthedShellSettingsGrafanaRoute
   '/_authed/_shell/settings/keys': typeof AuthedShellSettingsKeysRoute
   '/_authed/d/$dashboardId/versions': typeof AuthedDDashboardIdVersionsRoute
   '/_authed/d/$dashboardId/{-$slug}': typeof AuthedDDashboardIdChar123SlugChar125Route
@@ -238,6 +248,7 @@ export interface FileRouteTypes {
     | '/folders/$folderId'
     | '/observe/$requestId'
     | '/f/$folderId'
+    | '/settings/grafana'
     | '/settings/keys'
     | '/d/$dashboardId/versions'
     | '/d/$dashboardId/{-$slug}'
@@ -260,6 +271,7 @@ export interface FileRouteTypes {
     | '/folders/$folderId'
     | '/observe/$requestId'
     | '/f/$folderId'
+    | '/settings/grafana'
     | '/settings/keys'
     | '/d/$dashboardId/versions'
     | '/d/$dashboardId/{-$slug}'
@@ -284,6 +296,7 @@ export interface FileRouteTypes {
     | '/_authed/folders/$folderId'
     | '/_authed/observe/$requestId'
     | '/_authed/_shell/f/$folderId'
+    | '/_authed/_shell/settings/grafana'
     | '/_authed/_shell/settings/keys'
     | '/_authed/d/$dashboardId/versions'
     | '/_authed/d/$dashboardId/{-$slug}'
@@ -421,6 +434,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedShellSettingsIndexRouteImport
       parentRoute: typeof AuthedShellRoute
     }
+    '/_authed/_shell/settings/grafana': {
+      id: '/_authed/_shell/settings/grafana'
+      path: '/settings/grafana'
+      fullPath: '/settings/grafana'
+      preLoaderRoute: typeof AuthedShellSettingsGrafanaRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
     '/_authed/_shell/settings/keys': {
       id: '/_authed/_shell/settings/keys'
       path: '/settings/keys'
@@ -487,6 +507,7 @@ interface AuthedShellRouteChildren {
   AuthedShellKeysRoute: typeof AuthedShellKeysRoute
   AuthedShellPeopleRoute: typeof AuthedShellPeopleRoute
   AuthedShellFFolderIdRoute: typeof AuthedShellFFolderIdRoute
+  AuthedShellSettingsGrafanaRoute: typeof AuthedShellSettingsGrafanaRoute
   AuthedShellSettingsKeysRoute: typeof AuthedShellSettingsKeysRoute
   AuthedShellDashboardsIndexRoute: typeof AuthedShellDashboardsIndexRoute
   AuthedShellSettingsIndexRoute: typeof AuthedShellSettingsIndexRoute
@@ -499,6 +520,7 @@ const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellKeysRoute: AuthedShellKeysRoute,
   AuthedShellPeopleRoute: AuthedShellPeopleRoute,
   AuthedShellFFolderIdRoute: AuthedShellFFolderIdRoute,
+  AuthedShellSettingsGrafanaRoute: AuthedShellSettingsGrafanaRoute,
   AuthedShellSettingsKeysRoute: AuthedShellSettingsKeysRoute,
   AuthedShellDashboardsIndexRoute: AuthedShellDashboardsIndexRoute,
   AuthedShellSettingsIndexRoute: AuthedShellSettingsIndexRoute,

@@ -29,6 +29,7 @@ import {
   SettingsProblem,
   SettingsRow,
 } from "@/settings/settings-card"
+import { SettingsTabs } from "@/settings/settings-tabs"
 
 export const Route = createFileRoute("/_authed/_shell/settings/")({
   staticData: { crumbs: [{ label: "Settings" }] },
@@ -53,6 +54,7 @@ function SettingsPage() {
         title="Settings"
         description="Most settings are read from the server environment; change them in SLASHOBSERVE_* settings and restart. Outbound access is managed here."
       />
+      <SettingsTabs />
       <AgentCard />
       <ServerCard />
       <SignInCard />

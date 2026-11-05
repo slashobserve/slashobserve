@@ -154,6 +154,23 @@ export const importKeys = {
   forDashboard: (id: string) => ["imports", "dashboard", id] as const,
 }
 
+export const grafanaKeys = {
+  all: ["grafana"] as const,
+  connections: () => ["grafana", "connections"] as const,
+  folders: (connectionId: string) =>
+    ["grafana", connectionId, "folders"] as const,
+  datasources: (connectionId: string) =>
+    ["grafana", connectionId, "datasources"] as const,
+  sync: (connectionId: string, syncId: string) =>
+    ["grafana", connectionId, "imports", syncId] as const,
+}
+
+export const repairKeys = {
+  all: ["repairs"] as const,
+  list: (folderId: string | null) =>
+    ["repairs", "list", folderId ?? "all"] as const,
+}
+
 export const outboundDomainKeys = {
   list: () => ["outbound-domains"] as const,
 }

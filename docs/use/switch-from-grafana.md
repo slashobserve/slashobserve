@@ -13,7 +13,16 @@ Each dashboard goes through the same importer as [Import Grafana dashboards](imp
 - In Grafana, create a service account with the Viewer role on the folders you want to bring over, and a token for it.
   The server only reads from Grafana: `/api/health`, `/api/folders`, `/api/search`, `/api/datasources` and `/api/dashboards/uid/<uid>`.
 
-## Who can connect, and why private hosts are allowed
+## Connect
+
+Open Settings and choose the Grafana tab; only Admins see it.
+Give the connection a name, the Grafana URL and the service account token, and choose Add connection.
+The token is stored encrypted and is never shown again, not in the web app and not in the API.
+Choose Test on the connection to check it: the outcome names how many top-level folders and dashboards the server found, for example `Connected: 12 top-level folders, 340 dashboards.`
+A Grafana that cannot be reached or refuses the token shows a fixed message such as `Grafana refused the token (status 401).`
+To change the token, delete the connection and add it again; imported dashboards stay when a connection is deleted.
+
+### Who can connect, and why private hosts are allowed
 
 Only Admins can add, change, test, list or delete a connection, or start an import from one; a key needs the Admin role too.
 The token is never returned by the API, never logged, and only ever sent to the host of the connection's URL.
@@ -25,7 +34,34 @@ This is safe to allow only because the person adding the URL is an Admin, who al
 The host must still be a domain name, not an IP address, and it must be on the outbound allowlist: adding a connection allows its domain when the list is managed in Settings, and is refused with `403 outbound_domain_not_allowed` when `SLASHOBSERVE_OUTBOUND_DOMAINS` locks the list and does not name it.
 Every request to Grafana keeps the outbound timeout and an 8 MiB size cap, and a redirect is never followed.
 
-## Connect and test
+## Import
+
+Choose Import on a connection.
+Pick All folders, or Choose folders and tick the ones you want; a folder brings its subfolders with it, and General stands for the dashboards outside any folder.
+Then check the datasource matches.
+Each Grafana datasource of a type SlashObserve queries is listed with a choice of your datasources of the same type, prefilled by the importer's automatic rules, so a datasource of the wrong type is never offered.
+A datasource with no match is flagged: dashboards that use it fail until you pick one.
+Datasources of other types are counted in one line, and their panels import as placeholders.
+
+Choose Start import to begin.
+The page shows how many dashboards are done out of the total, and how many failed or were skipped, while the import runs, and it keeps showing the run after a reload.
+When it ends, the results are grouped:
+
+- Failed: the dashboards that could not be imported, each with its Grafana uid and the reason.
+- Need repair: the dashboards that were imported with unverified or placeholder panels, with their counts and a link to each.
+- Imported: the dashboards that imported cleanly.
+- Skipped: the dashboards already imported at the same Grafana version.
+
+The server fetches at most 4 dashboards from Grafana at a time and saves them one after another, and a dashboard that fails never stops the run.
+A connection runs one import at a time.
+The server keeps the last 20 runs in memory until it restarts, and the connection's last import keeps the summary of the last finished one.
+A restart stops a running import; start it again and it continues by skipping what it already imported.
+
+## The API
+
+Everything in the Grafana tab is also in the HTTP API for Admins and Admin keys, and the repair queue for Editors and Admins.
+
+### Connections
 
 ```sh
 curl -X POST "$SERVER/api/v1/grafana" -H "Authorization: Bearer $OBSERVE_TOKEN" \
@@ -34,10 +70,10 @@ curl -X POST "$SERVER/api/v1/grafana" -H "Authorization: Bearer $OBSERVE_TOKEN" 
 ```
 
 The answer is the connection with its `id`.
-`POST /api/v1/grafana/{id}/test` reads Grafana's health, its top-level folders and the first page of its dashboards, and stores the outcome in `last_test`, for example `Connected: 12 top-level folders, 340 dashboards.`
-A Grafana that cannot be reached or refuses the token still answers `200`, with `last_test.ok` false and a fixed message such as `Grafana refused the token (status 401).`
+`POST /api/v1/grafana/{id}/test` reads Grafana's health, its top-level folders and the first page of its dashboards, and stores the outcome in `last_test`.
+A Grafana that cannot be reached or refuses the token still answers `200`, with `last_test.ok` false.
 
-## Map datasources
+### Datasources and folders
 
 `GET /api/v1/grafana/{id}/datasources` lists Grafana's datasources, and `matched_uid` names the datasource of yours each one matches by the importer's automatic rules.
 Each one also names its `kind`, the type of yours it maps to (`prometheus` or `clickhouse`), and its `candidates`, the uids of your datasources of that kind, which are the only mapping targets an import keeps.
@@ -45,9 +81,10 @@ A null `matched_uid` means the datasource needs a mapping, or has a type SlashOb
 Give the open matches in the `mapping` of the import, keyed by the Grafana datasource uid or name, or add the Grafana uid to `grafanaUids` in the [datasources file](../reference/datasources-file.md) so every later import matches it too.
 A mapping entry that a dashboard does not use is ignored for that dashboard.
 
-## Import all
-
 `GET /api/v1/grafana/{id}/folders` lists Grafana's folders with how many dashboards each holds; `general` stands for the dashboards outside any folder.
+
+### Imports
+
 Start the import with every folder, or with the folders you choose (each with its subfolders):
 
 ```sh
@@ -57,12 +94,9 @@ curl -X POST "$SERVER/api/v1/grafana/$ID/imports" -H "Authorization: Bearer $OBS
 ```
 
 The answer is `202` with a `Location` header; `GET` it to follow `total`, `done`, `failed` and `skipped`, and the `results` with each dashboard's uid, title, outcome, dashboard id, unverified and placeholder panel counts and error.
-The server fetches at most 4 dashboards from Grafana at a time and saves them one after another, and a dashboard that fails never stops the run.
-A connection runs one import at a time.
-The server keeps the last 20 runs in memory until it restarts, and the connection's `last_sync` keeps the summary of the last finished one.
-A restart stops a running import; start it again and it continues by skipping what it already imported.
+The connection's `last_sync` keeps the summary of the last finished run.
 
-## Repair
+### Repairs
 
 `GET /api/v1/repairs` lists every dashboard, in folders you can see, whose latest version still has unverified panels or variables or placeholder panels, with their counts, when it was imported and its latest repair.
 Editors and Admins can call it, and `folder_id` limits it to one folder.
