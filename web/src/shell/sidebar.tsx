@@ -6,9 +6,11 @@ import {
   useRouterState,
 } from "@tanstack/react-router"
 import {
+  ChartGanttIcon,
   DatabaseIcon,
   KeyIcon,
   LayoutDashboardIcon,
+  LogsIcon,
   SettingsIcon,
   TerminalIcon,
   UsersIcon,
@@ -43,6 +45,8 @@ import {
 const icons: Record<NavPath, LucideIcon> = {
   "/": TerminalIcon,
   "/dashboards": LayoutDashboardIcon,
+  "/logs": LogsIcon,
+  "/traces": ChartGanttIcon,
   "/datasources": DatabaseIcon,
   "/keys": KeyIcon,
   "/people": UsersIcon,

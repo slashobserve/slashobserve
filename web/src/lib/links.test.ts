@@ -6,7 +6,10 @@ import {
   dashboardLink,
   dashboardPath,
   folderPath,
+  logsUrl,
   slugOf,
+  traceLink,
+  traceUrl,
 } from "./links"
 
 describe("slugOf", () => {
@@ -59,5 +62,40 @@ describe("dashboard addresses", () => {
     expect(folderPath(id)).toBe(`/f/${id}`)
     expect(chatPath(id)).toBe(`/c/${id}`)
     expect(buildPath(id)).toBe(`/b/${id}`)
+  })
+})
+
+describe("logs and trace addresses", () => {
+  const traceId = "4bf92f3577b34da6a3ce929d0e0e4736"
+
+  it("builds a trace address with only the datasource", () => {
+    expect(traceUrl(traceId, "tempo")).toBe(`/t/${traceId}?ds=tempo`)
+  })
+
+  it("appends the range after the datasource", () => {
+    expect(traceUrl(traceId, "ch", { from: "1760000000000", to: "now" })).toBe(
+      `/t/${traceId}?ds=ch&from=1760000000000&to=now`
+    )
+  })
+
+  it("gives the router the trace id and search", () => {
+    expect(traceLink(traceId, "tempo")).toEqual({
+      to: "/t/$traceId",
+      params: { traceId },
+      search: { ds: "tempo", from: undefined, to: undefined },
+    })
+  })
+
+  it("percent-encodes the logs query", () => {
+    expect(
+      logsUrl({
+        ds: "loki",
+        q: '{service_name="checkout"}',
+        from: "now-1h",
+        to: "now",
+      })
+    ).toBe(
+      "/logs?ds=loki&q=%7Bservice_name%3D%22checkout%22%7D&from=now-1h&to=now"
+    )
   })
 })

@@ -18,6 +18,8 @@ describe("filterPalette", () => {
     expect(groups[0]?.items.map((entry) => entry.label)).toEqual([
       "Observe",
       "Dashboards",
+      "Logs",
+      "Traces",
       "Datasources",
       "API keys",
       "People",
@@ -70,7 +72,13 @@ describe("filterPalette", () => {
     const labels = filterPalette("", [], "viewer")[0]?.items.map(
       (entry) => entry.label
     )
-    expect(labels).toEqual(["Observe", "Dashboards", "Settings"])
+    expect(labels).toEqual([
+      "Observe",
+      "Dashboards",
+      "Logs",
+      "Traces",
+      "Settings",
+    ])
     expect(filterPalette("people", [], "viewer")).toEqual([])
   })
 

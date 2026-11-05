@@ -1,3 +1,5 @@
+import { stringifySearch } from "./search"
+
 const maxSlugLength = 60
 const historySegment = "versions"
 
@@ -43,4 +45,41 @@ export function chatPath(requestId: string): string {
 
 export function buildPath(requestId: string): string {
   return path("b", requestId)
+}
+
+export type LogsLinkSearch = {
+  ds?: string
+  q?: string
+  from?: string
+  to?: string
+}
+
+export function logsUrl(search: LogsLinkSearch): string {
+  return "/logs" + stringifySearch(search)
+}
+
+type TraceRange = { from: string; to: string }
+
+function traceSearch(datasourceUid: string, range: TraceRange | undefined) {
+  return { ds: datasourceUid, from: range?.from, to: range?.to }
+}
+
+export function traceLink(
+  traceId: string,
+  datasourceUid: string,
+  range?: TraceRange
+) {
+  return {
+    to: "/t/$traceId",
+    params: { traceId },
+    search: traceSearch(datasourceUid, range),
+  } as const
+}
+
+export function traceUrl(
+  traceId: string,
+  datasourceUid: string,
+  range?: TraceRange
+): string {
+  return path("t", traceId) + stringifySearch(traceSearch(datasourceUid, range))
 }
