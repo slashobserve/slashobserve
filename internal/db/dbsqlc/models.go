@@ -59,6 +59,18 @@ type AgentRequestBuild struct {
 	PlannedPanels  int32
 }
 
+type Annotation struct {
+	ID          pgtype.UUID
+	DashboardID pgtype.UUID
+	PanelID     string
+	TimeFrom    pgtype.Timestamptz
+	TimeTo      pgtype.Timestamptz
+	Text        string
+	Tags        []string
+	CreatedBy   pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+}
+
 type Dashboard struct {
 	ID                  pgtype.UUID
 	Title               string

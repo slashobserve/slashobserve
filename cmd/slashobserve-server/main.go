@@ -20,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/actions"
 	"github.com/slashobserve/slashobserve/internal/agent"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/assets"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/config"
@@ -251,6 +252,7 @@ func run() error {
 	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, dashboardsService, folderAccess, registry, logger)
 
 	importsService := imports.New(database, dashboardsService, folderAccess, registry, logger)
+	annotationsHandler := annotations.NewHandler(annotations.New(database, folderAccess), logger)
 	toolComments := dashboards.NewComments(database, dashboardsService, nil)
 	toolRegistry := tools.New(tools.Deps{
 		Datasources: registry,
@@ -314,6 +316,7 @@ func run() error {
 			news.NewHandler(egressClient, logger),
 			actions.NewHandler(dashboardsService, egressClient, folderAccess.RequireDashboard(folders.NeedEdit), logger),
 			assets.NewHandler(assetsClient, logger),
+			annotationsHandler,
 		},
 		Mounts: []server.Mount{{
 			Path:    "/mcp",

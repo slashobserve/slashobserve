@@ -42,6 +42,10 @@ paths:
     $ref: "./paths/prompts.yaml#/prompts"
   /prompts/{id}:
     $ref: "./paths/prompts.yaml#/prompts-id"
+  /annotations:
+    $ref: "./paths/annotations.yaml#/annotations"
+  /annotations/{id}:
+    $ref: "./paths/annotations.yaml#/annotations-id"
   /datasources:
     $ref: "./paths/datasources.yaml#/datasources"
   /folders:
@@ -637,6 +641,60 @@ components:
           maxItems: 500
           items:
             $ref: "#/components/schemas/SavedPrompt"
+    Annotation:
+      type: object
+      additionalProperties: false
+      required: [id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        dashboard_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Null for a global annotation, shown on every dashboard.
+        panel_id:
+          type: string
+          nullable: true
+        time_from:
+          type: string
+          format: date-time
+        time_to:
+          type: string
+          format: date-time
+          nullable: true
+          description: The end of a range annotation; null for a single instant.
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        tags:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+        created_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: The id of the person or service account that added it.
+        created_at:
+          type: string
+          format: date-time
+    AnnotationList:
+      type: object
+      additionalProperties: false
+      required: [annotations, next_cursor]
+      properties:
+        annotations:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/Annotation"
+        next_cursor:
+          type: string
+          nullable: true
     NewsItem:
       type: object
       additionalProperties: false
