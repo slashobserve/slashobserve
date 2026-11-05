@@ -62,7 +62,7 @@ Colour is used only in a terminal, and setting `NO_COLOR` to any value turns it 
 It opens only `http` and `https` addresses.
 `status --wait`, `continue`, `run` and `import` accept `--open` too.
 
-A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `status`, `cancel`, `continue`, `annotate`, `open`, `doctor`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
+A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `status`, `cancel`, `continue`, `annotate`, `open`, `doctor`, `logs`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
 `--timeout` (2 hours by default, so a large build can finish while you wait) stops the waiting and not the request, which keeps running on the server; `bin/observe status <request-id> --wait` waits again.
@@ -72,7 +72,7 @@ The CLI exits with these codes:
 
 | Code | When |
 | ---- | ---- |
-| `0` | The command succeeded, including when `--open` could not open the browser. |
+| `0` | The command succeeded, including when `--open` could not open the browser and when `observe logs --tail` ends with Ctrl-C. |
 | `1` | The server refused or failed the request, the agent request failed, the waiting stopped at `--timeout` or an interrupt, `observe open` could not open the browser, or an `observe doctor` check failed. |
 | `2` | The command line is wrong: an unknown command or flag, a missing argument or an invalid id. |
 
@@ -163,6 +163,20 @@ model       ok      anthropic claude-haiku-5-5, effort low
 
 `doctor` exits 1 when any check fails and 0 otherwise, since a warning never fails it.
 `--json` prints `{"ok": <bool>, "checks": [{"check", "status", "detail"}]}` instead of the table, and colour marks `ok` and `fail` only in a terminal.
+
+`bin/observe logs <query> --datasource <uid>` runs a log query on a Loki or ClickHouse datasource and prints the lines oldest first:
+
+```sh
+bin/observe logs '{app="shop"} |= "error"' --datasource loki --from now-15m
+bin/observe logs '{app="shop"}' --datasource loki --tail
+```
+
+`--from` and `--to` default to `now-1h` and `now` and take the same times as a dashboard, and `--limit` keeps the newest 1 to 1000 lines (100 by default).
+Each line shows its time in UTC, its level when the lines have one, the labels whose values differ between the lines, and the message.
+The message is the first column named `body`, `message`, `msg`, `line` or `log`, else the first text column, as in the web app's logs panel.
+`--tail` keeps asking every 2 seconds and prints only the lines it has not printed, with every label, until Ctrl-C, which exits 0.
+`--json` prints the response body, or with `--tail` one JSON object per line with `time`, `level`, `labels` and `line`.
+An invalid query exits 1 with the datasource's message.
 
 `bin/observe completion bash`, `zsh` or `fish` prints a completion script for commands and flags.
 Load it for the current shell, or save it where your shell reads completions:
