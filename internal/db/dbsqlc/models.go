@@ -43,6 +43,11 @@ type AgentRequest struct {
 	CanceledByName    pgtype.Text
 	ContinuesID       pgtype.UUID
 	ContinueNote      pgtype.Text
+	ContextFrom       pgtype.Timestamptz
+	ContextTo         pgtype.Timestamptz
+	Title             pgtype.Text
+	PinnedAt          pgtype.Timestamptz
+	ArchivedAt        pgtype.Timestamptz
 }
 
 type AgentRequestBuild struct {
@@ -126,6 +131,22 @@ type DashboardVersion struct {
 	OriginClient   pgtype.Text
 	DatasourceUids []string
 	Unverified     []byte
+}
+
+type Finding struct {
+	ID             pgtype.UUID
+	AgentRequestID pgtype.UUID
+	DashboardID    pgtype.UUID
+	Title          string
+	Markdown       string
+	Evidence       []byte
+	TimeFrom       pgtype.Timestamptz
+	TimeTo         pgtype.Timestamptz
+	CreatedByKind  string
+	CreatedByID    pgtype.UUID
+	CreatedByName  string
+	AnnotationID   pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
 }
 
 type Folder struct {

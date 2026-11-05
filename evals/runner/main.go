@@ -597,6 +597,8 @@ func (e *execution) dispatch(ctx context.Context) (Result, *AgentRequest) {
 		return e.runSuggestion(ctx)
 	case kindChatImport, kindSizeGuard:
 		return e.runChatImport(ctx)
+	case kindInvestigate:
+		return e.runInvestigation(ctx)
 	}
 	return e.runCreate(ctx)
 }
@@ -619,7 +621,7 @@ func (e *execution) runCreate(ctx context.Context) (Result, *AgentRequest) {
 	waitCtx, cancel := context.WithTimeout(ctx, e.o.timeout)
 	defer cancel()
 	createStart := time.Now()
-	req, err := e.c.createObserveWhenFree(waitCtx, e.sc.Prompt)
+	req, err := e.c.createObserveWhenFree(waitCtx, e.sc.Prompt, "")
 	slotWait := time.Since(createStart)
 	if err != nil {
 		e.createFailed(waitCtx, err)
@@ -632,6 +634,20 @@ func (e *execution) runCreate(ctx context.Context) (Result, *AgentRequest) {
 			e.measureCoverage(ctx)
 		}
 	}
+	return e.done(unfinished(req))
+}
+
+func (e *execution) runInvestigation(ctx context.Context) (Result, *AgentRequest) {
+	waitCtx, cancel := context.WithTimeout(ctx, e.o.timeout)
+	defer cancel()
+	createStart := time.Now()
+	req, err := e.c.createObserveWhenFree(waitCtx, e.sc.Prompt, kindInvestigate)
+	slotWait := time.Since(createStart)
+	if err != nil {
+		e.createFailed(waitCtx, err)
+		return e.done(nil)
+	}
+	req, _ = e.await(ctx, waitCtx, req, slotWait)
 	return e.done(unfinished(req))
 }
 
@@ -763,7 +779,7 @@ func (e *execution) runChatImport(ctx context.Context) (Result, *AgentRequest) {
 	waitCtx, cancel := context.WithTimeout(ctx, e.o.timeout)
 	defer cancel()
 	createStart := time.Now()
-	req, err := e.c.createObserveWhenFree(waitCtx, prompt)
+	req, err := e.c.createObserveWhenFree(waitCtx, prompt, "")
 	slotWait := time.Since(createStart)
 	if err != nil {
 		if promptRejected(err, prompt) {
@@ -994,6 +1010,9 @@ func finish(sc Scenario, pricing Pricing, res Result, obs observation) Result {
 	}
 	if obs.coverage != nil {
 		res.Coverage = obs.coverage.score()
+	}
+	if f := obs.request.Finding; f != nil {
+		res.FindingWords, res.Evidence = len(strings.Fields(f.Markdown)), len(f.Evidence)
 	}
 	if elapsed, ok := latency(obs.request); ok {
 		seconds := elapsed.Seconds()

@@ -26,14 +26,18 @@ const (
 	MaxErrorRunes   = 500
 	MaxPanelIDRunes = 64
 
-	MaxActiveObservePerPrincipal = 3
-	MaxActiveObserve             = 20
-	MaxActiveSuggestPerPrincipal = 2
-	MaxActiveSuggest             = 10
-	MaxDraftBytes                = 64 << 10
-	MaxSteps                     = 1000
-	MaxStepMessageRunes          = 200
-	BuildRetentionDays           = 7
+	MaxActiveObservePerPrincipal     = 3
+	MaxActiveObserve                 = 20
+	MaxActiveSuggestPerPrincipal     = 2
+	MaxActiveInvestigatePerPrincipal = 3
+	MaxActiveInvestigate             = 10
+	MaxTitleRunes                    = 120
+	DefaultTitleRunes                = 80
+	MaxActiveSuggest                 = 10
+	MaxDraftBytes                    = 64 << 10
+	MaxSteps                         = 1000
+	MaxStepMessageRunes              = 200
+	BuildRetentionDays               = 7
 
 	WakeChannel      = "slashobserve_agent_requests"
 	ExhaustedMessage = "agent run did not finish"
@@ -43,10 +47,16 @@ const (
 type Source string
 
 const (
-	SourceComment Source = "comment"
-	SourcePrompt  Source = "prompt"
-	SourceObserve Source = "observe"
-	SourceSuggest Source = "suggest"
+	SourceComment     Source = "comment"
+	SourcePrompt      Source = "prompt"
+	SourceObserve     Source = "observe"
+	SourceSuggest     Source = "suggest"
+	SourceInvestigate Source = "investigate"
+)
+
+const (
+	kindBuild       = "build"
+	kindInvestigate = "investigate"
 )
 
 type Status string
@@ -71,6 +81,8 @@ var (
 	ErrCommentNotFound  = errors.New("comment not found")
 	ErrRequestFinished  = errors.New("the request already finished")
 	ErrNotContinuable   = errors.New("the request has no stopped build to continue")
+
+	ErrTooManyInvestigations = tooManyInvestigationsError{}
 
 	ErrTooManySuggestions = fmt.Errorf("you already have %d suggestions queued or running", MaxActiveSuggestPerPrincipal)
 	ErrDraftTooLarge      = fmt.Errorf("the draft panel is over %d bytes as compact JSON", spec.MaxSuggestedPanelBytes)
@@ -105,6 +117,14 @@ func (notSuggestibleError) Error() string {
 }
 
 func (notSuggestibleError) Unwrap() error { return ErrUnknownPanel }
+
+type tooManyInvestigationsError struct{}
+
+func (tooManyInvestigationsError) Error() string {
+	return fmt.Sprintf("you already have %d investigations queued or running", MaxActiveInvestigatePerPrincipal)
+}
+
+func (tooManyInvestigationsError) Unwrap() error { return ErrTooManyRequests }
 
 type draftBodyTooLargeError struct{}
 
@@ -154,11 +174,14 @@ type Request struct {
 
 	Continues    bool
 	ContinueNote string
+
+	From, To *time.Time
 }
 
 type Result struct {
 	Version     int
 	Suggestion  json.RawMessage
+	FindingID   string
 	Usage       *Usage
 	FailureCode FailureCode
 }
@@ -237,6 +260,29 @@ func CleanPrompt(s string) (string, bool) {
 		return "", false
 	}
 	return s, true
+}
+
+func Kind(source Source) string {
+	if source == SourceInvestigate {
+		return kindInvestigate
+	}
+	return kindBuild
+}
+
+func DefaultTitle(prompt string) string {
+	line, _, _ := strings.Cut(strings.TrimSpace(prompt), "\n")
+	if r := []rune(line); len(r) > DefaultTitleRunes {
+		line = string(r[:DefaultTitleRunes])
+	}
+	return strings.TrimSpace(line)
+}
+
+func CleanTitle(s string) (string, bool) {
+	title, ok := CleanPrompt(s)
+	if !ok || strings.ContainsAny(title, "\n\r") || utf8.RuneCountInString(title) > MaxTitleRunes {
+		return "", false
+	}
+	return title, true
 }
 
 func CleanContinueNote(note *string) (string, bool) {

@@ -34,6 +34,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/egress/allowlist"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/events/stream"
+	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -264,7 +265,10 @@ func run() error {
 	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, dashboardsService, folderAccess, registry, logger)
 
 	importsService := imports.New(database, dashboardsService, folderAccess, registry, logger)
-	annotationsHandler := annotations.NewHandler(annotations.New(database, folderAccess), logger)
+	annotationsService := annotations.New(database, folderAccess)
+	annotationsHandler := annotations.NewHandler(annotationsService, logger)
+	findingsService := findings.New(database, folderAccess, annotationsService, dashboardsService, logger)
+	findingURL := func(id string) string { return links.Finding(cfg.PublicURL, id) }
 	toolComments := dashboards.NewComments(database, dashboardsService, nil)
 	toolRegistry := tools.New(tools.Deps{
 		Datasources: registry,
@@ -273,6 +277,7 @@ func run() error {
 		Comments:    toolComments,
 		Imports:     importsService,
 		Folders:     folderAccess,
+		Findings:    findingsService,
 		PublicURL:   cfg.PublicURL,
 		Logger:      logger,
 	})
@@ -280,6 +285,8 @@ func run() error {
 	var reviser revisions.Reviser
 	observeOpts := revisions.ObserveOptions{
 		DashboardURL: func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
+		FindingURL:   findingURL,
+		Finding:      findingOfRequest(findingsService, findingURL),
 	}
 	if llmProvider != nil {
 		reviser = agent.NewReviser(agent.New(agent.Config{
@@ -347,6 +354,8 @@ func run() error {
 			revisionsService,
 			revisions.NewObserveHandler(revisionsService, observeOpts),
 			proxyHandler,
+			findings.NewHandler(findingsService, findingURL, logger),
+			proxyhttp.NewFindingData(proxyHandler, findingsService),
 			users.NewHandler(database, authService, folderAccess, logger),
 			outbound,
 			prompts.NewHandler(database, logger),
@@ -374,6 +383,17 @@ func run() error {
 		return described("http_server_failed", err)
 	}
 	return nil
+}
+
+func findingOfRequest(service *findings.Service, findingURL func(id string) string) func(context.Context, pgtype.UUID) (json.RawMessage, bool, error) {
+	return func(ctx context.Context, requestID pgtype.UUID) (json.RawMessage, bool, error) {
+		f, found, err := service.ForRequest(ctx, requestID)
+		if err != nil || !found {
+			return nil, found, err
+		}
+		raw, err := json.Marshal(findings.JSONOf(f, findingURL(f.ID)))
+		return raw, err == nil, err
+	}
 }
 
 type buildStore struct {

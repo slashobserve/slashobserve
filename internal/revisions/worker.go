@@ -34,6 +34,7 @@ const (
 	requesterGoneMessage = "the person or key that asked for this run no longer exists"
 
 	noSuggestionMessage = "the agent did not propose a panel"
+	noFindingMessage    = "the agent finished without saving a finding"
 )
 
 var errCrashed = errors.New(crashedMessage)
@@ -153,8 +154,8 @@ func (w *Worker) step(ctx context.Context) (bool, error) {
 }
 
 func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool {
-	suggest := claimed.Source == string(SourceSuggest)
-	if !suggest {
+	source := Source(claimed.Source)
+	if source != SourceSuggest {
 		if settled, progressed := w.settleSaved(ctx, claimed, nil); settled {
 			return progressed
 		}
@@ -193,7 +194,7 @@ func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool 
 		return false
 	}
 	if err == nil {
-		w.finish(ctx, claimed, successOutcome(suggest, result))
+		w.finish(ctx, claimed, successOutcome(source, result))
 		return true
 	}
 	return w.settleFailure(ctx, claimed, run, result, err)
@@ -320,10 +321,20 @@ func (w *Worker) holdLease(ctx context.Context, claimed dbsqlc.AgentRequest, can
 	}
 }
 
-func successOutcome(suggest bool, result Result) outcome {
-	if !suggest {
-		return outcome{version: &result.Version, usage: result.Usage}
+func successOutcome(source Source, result Result) outcome {
+	switch source {
+	case SourceSuggest:
+		return suggestionOutcome(result)
+	case SourceInvestigate:
+		if result.FindingID == "" {
+			return outcome{message: noFindingMessage, code: "agent_no_finding", failure: FailureNoFinding, usage: result.Usage}
+		}
+		return outcome{finding: true, usage: result.Usage}
 	}
+	return outcome{version: &result.Version, usage: result.Usage}
+}
+
+func suggestionOutcome(result Result) outcome {
 	proposed := bytes.TrimSpace(result.Suggestion)
 	if len(proposed) == 0 || proposed[0] != '{' || !json.Valid(proposed) {
 		return outcome{message: noSuggestionMessage, code: "agent_no_suggestion", failure: FailureNoSuggestion, usage: result.Usage}
@@ -334,7 +345,15 @@ func successOutcome(suggest bool, result Result) outcome {
 func (w *Worker) settleSaved(ctx context.Context, claimed dbsqlc.AgentRequest, usage *Usage) (settled, progressed bool) {
 	checkCtx, cancel := finishContext(ctx)
 	defer cancel()
+	if claimed.Source == string(SourceInvestigate) {
+		found, err := w.service.hasFinding(checkCtx, claimed)
+		return w.settleChecked(ctx, claimed, err, found, outcome{finding: true, usage: usage})
+	}
 	version, saved, err := w.service.existingVersion(checkCtx, claimed)
+	return w.settleChecked(ctx, claimed, err, saved, outcome{version: &version, usage: usage})
+}
+
+func (w *Worker) settleChecked(ctx context.Context, claimed dbsqlc.AgentRequest, err error, saved bool, success outcome) (settled, progressed bool) {
 	switch {
 	case err != nil:
 		w.logger.ErrorContext(ctx, "check agent request result", logattrs.Failure("agent_request_check_failed", err, slog.String("agent_request_id", claimed.ID.String()))...)
@@ -345,7 +364,7 @@ func (w *Worker) settleSaved(ctx context.Context, claimed dbsqlc.AgentRequest, u
 		w.release(ctx, claimed, true)
 		return true, false
 	case saved:
-		w.finish(ctx, claimed, outcome{version: &version, usage: usage})
+		w.finish(ctx, claimed, success)
 		return true, true
 	}
 	return false, true
@@ -389,7 +408,7 @@ func (w *Worker) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o outc
 		w.logger.ErrorContext(ctx, "finish agent request", logattrs.Failure("agent_request_finish_failed", err, attrs...)...)
 	case !finished:
 		w.logger.WarnContext(ctx, "agent request was finished elsewhere; dropping this result", attrs...)
-	case o.suggestion != nil:
+	case o.suggestion != nil, o.finding:
 		w.logger.InfoContext(ctx, "agent request succeeded", append(attrs, slog.Int("attempt", int(claimed.Attempts)))...)
 	case o.version != nil:
 		w.logger.InfoContext(ctx, "agent request succeeded", append(attrs, slog.Int("version", *o.version), slog.Int("attempt", int(claimed.Attempts)))...)
@@ -420,5 +439,7 @@ func requestFrom(row dbsqlc.AgentRequest) Request {
 		Origin:       origin.Origin{Kind: origin.Kind(row.Origin.String), Client: row.OriginClient.String},
 		Continues:    row.ContinuesID.Valid,
 		ContinueNote: row.ContinueNote.String,
+		From:         optionalTime(row.ContextFrom),
+		To:           optionalTime(row.ContextTo),
 	}
 }

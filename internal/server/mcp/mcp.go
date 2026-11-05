@@ -63,6 +63,9 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 		mcpserver.WithRecovery(),
 		mcpserver.WithInstructions(tools.ServerInstructions))
 	for _, t := range reg.List() {
+		if t.AgentOnly {
+			continue
+		}
 		srv.AddTool(toolFor(t), h.callTool(t.Name))
 	}
 	// The library rejects loopback connections whose Host is not loopback, which breaks a same-host reverse proxy;

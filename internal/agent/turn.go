@@ -34,6 +34,7 @@ const (
 	toolUpdateDashboard = "update_dashboard"
 	toolUpdatePanels    = "update_panels"
 	toolImportGrafana   = "import_grafana_dashboard"
+	toolSaveFinding     = "save_finding"
 
 	codeInvalidRequest  = "invalid_request"
 	codeVersionConflict = "version_conflict"
@@ -73,6 +74,7 @@ type turnOutcome struct {
 	saved      *savedVersion
 	built      bool
 	suggestion json.RawMessage
+	finding    string
 	conflict   bool
 	notFound   bool
 	rejected   bool
@@ -98,6 +100,7 @@ type runState struct {
 	cutOffs       int
 	modelCalls    int
 	pendingNudged bool
+	findingNudged bool
 
 	nudges           int
 	saveNowRefusals  int
@@ -140,7 +143,7 @@ func (s *runState) label(name string) string {
 
 func isSave(name string) bool {
 	switch name {
-	case toolCreateDashboard, toolUpdateDashboard, toolUpdatePanels, toolImportGrafana:
+	case toolCreateDashboard, toolUpdateDashboard, toolUpdatePanels, toolImportGrafana, toolSaveFinding:
 		return true
 	}
 	return false
@@ -183,7 +186,7 @@ func (s *runState) restart() {
 }
 
 func (s *runState) nudge(results []llm.ToolResult, outcome turnOutcome) {
-	if len(results) == 0 || outcome.built || outcome.saved != nil || outcome.suggestion != nil {
+	if len(results) == 0 || outcome.built || outcome.saved != nil || outcome.suggestion != nil || outcome.finding != "" {
 		return
 	}
 	if note := nudgeFor(s.mode, s.window); note != "" {
@@ -466,6 +469,7 @@ type saveBody struct {
 	LatestVersion int             `json:"latest_version"`
 	Replayed      *bool           `json:"replayed"`
 	Suggested     bool            `json:"suggested"`
+	FindingID     string          `json:"finding_id"`
 	Build         *struct{}       `json:"build"`
 	Panel         json.RawMessage `json:"panel"`
 	Issues        []struct {
@@ -495,6 +499,12 @@ func (s *runState) classifySave(ctx context.Context, slot callSlot) (turnOutcome
 
 func (s *runState) classifyAccepted(ctx context.Context, slot callSlot, body saveBody) (turnOutcome, error) {
 	switch {
+	case s.mode == tools.ModeInvestigate:
+		if body.FindingID == "" {
+			return turnOutcome{}, s.malformed(ctx, slot)
+		}
+		s.window = saveWindow{}
+		return turnOutcome{finding: body.FindingID}, nil
 	case s.mode == tools.ModeSuggest:
 		if !body.Suggested || len(body.Panel) == 0 {
 			return turnOutcome{}, s.malformed(ctx, slot)

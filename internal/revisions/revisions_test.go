@@ -1447,3 +1447,50 @@ func TestStoredUsageWithoutTheNewFieldsStillDecodesWithZeros(t *testing.T) {
 		t.Fatalf("request = %+v", body.Request)
 	}
 }
+
+func TestKindIsInvestigateOnlyForInvestigations(t *testing.T) {
+	for source, want := range map[revisions.Source]string{
+		revisions.SourceInvestigate: "investigate",
+		revisions.SourceObserve:     "build",
+		revisions.SourcePrompt:      "build",
+		revisions.SourceComment:     "build",
+	} {
+		if got := revisions.Kind(source); got != want {
+			t.Errorf("Kind(%s) = %q, want %q", source, got, want)
+		}
+	}
+}
+
+func TestDefaultTitleIsTheFirstLineCutAtEightyRunes(t *testing.T) {
+	cases := []struct{ prompt, want string }{
+		{"checkout health\nby pod", "checkout health"},
+		{"  spaced  ", "spaced"},
+		{strings.Repeat("ü", 100), strings.Repeat("ü", 80)},
+	}
+	for _, c := range cases {
+		if got := revisions.DefaultTitle(c.prompt); got != c.want {
+			t.Errorf("DefaultTitle(%q) = %q, want %q", c.prompt, got, c.want)
+		}
+	}
+}
+
+func TestCleanTitleTakesOneLineOfAtMost120Runes(t *testing.T) {
+	cases := []struct {
+		title string
+		want  string
+		ok    bool
+	}{
+		{"  Checkout  ", "Checkout", true},
+		{strings.Repeat("a", 120), strings.Repeat("a", 120), true},
+		{strings.Repeat("a", 121), "", false},
+		{"two\nlines", "", false},
+		{"   ", "", false},
+		{"bidi \u202e", "", false},
+	}
+	for _, c := range cases {
+		got, ok := revisions.CleanTitle(c.title)
+		if got != c.want || ok != c.ok {
+			t.Errorf("CleanTitle(%q) = %q, %v, want %q, %v", c.title, got, ok, c.want, c.ok)
+		}
+	}
+}

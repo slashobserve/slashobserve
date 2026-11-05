@@ -38,6 +38,7 @@ var (
 	ErrConflict        = errors.New("the dashboard changed twice while the agent was revising it")
 	ErrInvalidTask     = errors.New("invalid agent task")
 	ErrNoSuggestion    = errors.New("the model finished without proposing a panel")
+	ErrNoFinding       = errors.New("the model finished without saving a finding")
 	ErrDraftInvalid    = errors.New("the draft panel is not valid")
 	errModelCall       = errors.New("model call failed")
 
@@ -107,6 +108,8 @@ type Task struct {
 	Suggest      bool
 	BaseVersion  int
 	Draft        json.RawMessage
+	Investigate  bool
+	From, To     *time.Time
 	Progress     func(Step)
 }
 
@@ -123,6 +126,7 @@ type Outcome struct {
 	DashboardID         string
 	Version             int
 	Suggestion          json.RawMessage
+	FindingID           string
 	Replayed            bool
 	RepairRounds        int
 	Usage               llm.Usage
@@ -152,7 +156,8 @@ type Agent struct {
 	imports           ImportReader
 	logger            *slog.Logger
 	system            string
-	toolSpecs         []llm.ToolSpec
+	investigateSystem string
+	toolSpecs         map[tools.Mode][]llm.ToolSpec
 	sessionRenewBytes int
 	logToolInputs     bool
 }
@@ -161,13 +166,16 @@ func New(c Config) *Agent {
 	if c.Logger == nil {
 		c.Logger = slog.Default()
 	}
-	specs := make([]llm.ToolSpec, 0)
-	for _, t := range c.Tools.List() {
-		if t.MCPOnly {
-			continue
+	specs := map[tools.Mode][]llm.ToolSpec{}
+	for _, mode := range []tools.Mode{tools.ModeCreate, tools.ModeRevise, tools.ModeSuggest, tools.ModeInvestigate} {
+		specs[mode] = make([]llm.ToolSpec, 0)
+		for _, t := range c.Tools.List() {
+			if !t.OfferedIn(mode) {
+				continue
+			}
+			t = t.ForAgent()
+			specs[mode] = append(specs[mode], llm.ToolSpec{Name: t.Name, Description: t.Description, InputSchema: t.InputSchema})
 		}
-		t = t.ForAgent()
-		specs = append(specs, llm.ToolSpec{Name: t.Name, Description: t.Description, InputSchema: t.InputSchema})
 	}
 	if c.SessionRenewBytes <= 0 {
 		c.SessionRenewBytes = defaultSessionRenewBytes
@@ -181,6 +189,7 @@ func New(c Config) *Agent {
 		imports:           c.Imports,
 		logger:            c.Logger,
 		system:            buildSystem(),
+		investigateSystem: buildInvestigateSystem(),
 		toolSpecs:         specs,
 		sessionRenewBytes: c.SessionRenewBytes,
 		logToolInputs:     c.LogToolInputs,
@@ -196,6 +205,9 @@ func (a *Agent) Run(ctx context.Context, t Task) (Outcome, error) {
 }
 
 func modeOf(t Task) tools.Mode {
+	if t.Investigate {
+		return tools.ModeInvestigate
+	}
 	if t.Suggest {
 		return tools.ModeSuggest
 	}
@@ -406,6 +418,10 @@ func (r *runner) load(ctx context.Context) (*revision, error) {
 		current, err = r.agent.loadLatest(ctx, r.dashboardID, r.task.RequestID)
 	case tools.ModeSuggest:
 		current, err = r.agent.loadBase(ctx, r.dashboardID, r.task)
+	case tools.ModeInvestigate:
+		if r.dashboardID.Valid {
+			current, err = r.agent.loadLatest(ctx, r.dashboardID, r.task.RequestID)
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -417,7 +433,7 @@ func (r *runner) load(ctx context.Context) (*revision, error) {
 }
 
 func (r *runner) loadBuild(ctx context.Context) (*dashboards.Build, error) {
-	if r.mode == tools.ModeSuggest {
+	if r.mode == tools.ModeSuggest || r.mode == tools.ModeInvestigate {
 		return nil, nil
 	}
 	build, found, err := r.agent.builds.Build(ctx, r.requestID)
@@ -543,11 +559,7 @@ func (a *Agent) loaded(ctx context.Context, dash dashboards.Dashboard, ver dashb
 }
 
 func (r *runner) prepareSession(ctx context.Context, current *revision, build *dashboards.Build, reason seedReason) (context.Context, llm.Request, error) {
-	view := current
-	if build != nil {
-		view = buildView(current, build)
-	}
-	contextText, err := buildContext(r.statuses, r.mode, r.task.Source, r.task.PanelID, r.prompt, view, seed{build: build, reason: reason, note: r.task.ContinueNote})
+	contextText, system, err := r.sessionText(current, build, reason)
 	if err != nil {
 		return ctx, llm.Request{}, contextError(err)
 	}
@@ -562,13 +574,26 @@ func (r *runner) prepareSession(ctx context.Context, current *revision, build *d
 	r.state.sessionBytes = 0
 
 	request := llm.Request{
-		System: r.agent.system, Tools: r.agent.toolSpecs, Prompt: r.prompt, Context: contextText,
+		System: system, Tools: r.agent.toolSpecs[r.mode], Prompt: r.prompt, Context: contextText,
 		Pruning: llm.Pruning{KeepTurns: pruneKeepTurns, StepBytes: pruneStepBytes},
 	}
 	if build != nil {
 		request.BuildSaves = build.Saves
 	}
 	return ctx, request, nil
+}
+
+func (r *runner) sessionText(current *revision, build *dashboards.Build, reason seedReason) (contextText, system string, err error) {
+	sd := seed{build: build, reason: reason, note: r.task.ContinueNote}
+	if r.mode == tools.ModeInvestigate {
+		return investigateContext(r.statuses, r.task, current, sd), r.agent.investigateSystem, nil
+	}
+	view := current
+	if build != nil {
+		view = buildView(current, build)
+	}
+	contextText, err = buildContext(r.statuses, r.mode, r.task.Source, r.task.PanelID, r.prompt, view, sd)
+	return contextText, r.agent.system, err
 }
 
 func (r *runner) startSession(ctx context.Context, current *revision, build *dashboards.Build, reason seedReason) (context.Context, llm.Session, error) {
@@ -701,6 +726,9 @@ func (r *runner) endOfTurn(ctx context.Context, turn llm.Turn, chat llm.Session,
 
 func (r *runner) settle(outcome turnOutcome) (sessionEnd, bool, error) {
 	switch {
+	case outcome.finding != "":
+		r.out.FindingID = outcome.finding
+		return sessionEnd{}, true, nil
 	case outcome.suggestion != nil:
 		r.out.Suggestion = outcome.suggestion
 		return sessionEnd{}, true, nil
@@ -721,14 +749,23 @@ func (r *runner) settle(outcome turnOutcome) (sessionEnd, bool, error) {
 }
 
 func rejectedThing(mode tools.Mode) string {
-	if mode == tools.ModeSuggest {
+	switch mode {
+	case tools.ModeSuggest:
 		return "proposals"
+	case tools.ModeInvestigate:
+		return "findings"
 	}
 	return "saves"
 }
 
 func (r *runner) finishWithoutCall(ctx context.Context, chat llm.Session, noResult error) (sessionEnd, error) {
-	if r.mode == tools.ModeSuggest {
+	switch {
+	case r.mode == tools.ModeSuggest:
+		return sessionEnd{}, noResult
+	case r.mode == tools.ModeInvestigate && !r.state.findingNudged:
+		r.state.findingNudged = true
+		return compaction(seedNoFinding, chat, nil), nil
+	case r.mode == tools.ModeInvestigate:
 		return sessionEnd{}, noResult
 	}
 	build, found, err := r.agent.builds.Build(ctx, r.requestID)
@@ -774,11 +811,16 @@ func buildView(current *revision, build *dashboards.Build) *revision {
 
 func runScope(t Task, prompt string, mode tools.Mode, current *revision) tools.Run {
 	run := tools.Run{Mode: mode, RequestID: t.RequestID}
-	if mode != tools.ModeSuggest {
+	switch mode {
+	case tools.ModeCreate:
+		run.Build, run.Attempt, run.Prompt = true, t.Attempt, prompt
+	case tools.ModeRevise:
 		run.Build, run.Attempt = true, t.Attempt
-	}
-	if mode == tools.ModeCreate {
-		run.Prompt = prompt
+	case tools.ModeInvestigate:
+		run.Attempt, run.Prompt, run.PanelID = t.Attempt, prompt, t.PanelID
+		if t.From != nil && t.To != nil {
+			run.From, run.To = *t.From, *t.To
+		}
 	}
 	if current == nil {
 		return run
@@ -793,8 +835,11 @@ func runScope(t Task, prompt string, mode tools.Mode, current *revision) tools.R
 }
 
 func noResultError(mode tools.Mode) error {
-	if mode == tools.ModeSuggest {
+	switch mode {
+	case tools.ModeSuggest:
 		return ErrNoSuggestion
+	case tools.ModeInvestigate:
+		return ErrNoFinding
 	}
 	return ErrNoSave
 }
@@ -851,6 +896,9 @@ func (a *Agent) logFinish(ctx context.Context, mode tools.Mode, requestID string
 	if out.DashboardID != "" {
 		attrs = append(attrs, slog.String("dashboard_id", out.DashboardID))
 	}
+	if out.FindingID != "" {
+		attrs = append(attrs, slog.String("finding_id", out.FindingID))
+	}
 	if err != nil {
 		attrs = append(attrs, slog.String("error_code", string(failureCode(err))))
 		var safe *safeError
@@ -883,6 +931,7 @@ var sentinelFailures = []struct {
 	{context.DeadlineExceeded, revisions.FailureRunTimeout},
 	{ErrNoSave, revisions.FailureNoToolCall},
 	{ErrNoSuggestion, revisions.FailureNoToolCall},
+	{ErrNoFinding, revisions.FailureNoFinding},
 	{ErrDraftInvalid, revisions.FailureDraftInvalid},
 	{ErrRepairExhausted, revisions.FailureValidationExhausted},
 	{ErrNoProgress, revisions.FailureNoProgress},

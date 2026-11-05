@@ -27,7 +27,7 @@ type meteredReviser struct {
 
 func (m meteredReviser) Revise(ctx context.Context, req revisions.Request) (revisions.Result, error) {
 	result, err := m.reviser.Revise(ctx, req)
-	kind := modeOf(Task{Suggest: req.Source == revisions.SourceSuggest, DashboardID: req.DashboardID})
+	kind := modeOf(taskFor(req))
 	m.metrics.AgentRun(string(kind), runOutcome(result, err))
 	return result, err
 }

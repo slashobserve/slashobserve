@@ -18,6 +18,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `queryproxy`: panel query runner shared by save validation and the proxy.
   `queryproxy/proxyhttp` holds its HTTP handlers, a subpackage because it reads versions through `dashboards`, which imports `queryproxy`.
 - `agent`: the agent loop; `agent/tools` is the only place agent tools are defined; `agent/prompts` holds the embedded prompts.
+- `findings`: stores investigate results; `revisions` reads them only through sqlc and the `ObserveOptions.Finding` func, and never imports `findings`.
 
 ## Secrets and configuration
 

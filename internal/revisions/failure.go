@@ -29,6 +29,7 @@ const (
 	FailureCheckFailed         FailureCode = "check_failed"
 	FailureCrashed             FailureCode = "crashed"
 	FailureNoSuggestion        FailureCode = "no_suggestion"
+	FailureNoFinding           FailureCode = "no_finding"
 	FailureLeaseExpired        FailureCode = "lease_expired"
 	FailureNoProgress          FailureCode = "no_progress"
 )

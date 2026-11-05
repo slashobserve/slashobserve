@@ -11,11 +11,13 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -47,6 +49,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		Comments:    comments,
 		Imports:     imports.New(database.DB, service, access, datasources, logger),
 		Folders:     access,
+		Findings:    findings.New(database.DB, access, annotations.New(database.DB, access), service, logger),
 		Logger:      logger,
 	})
 	ctx := auth.WithPrincipal(context.Background(), placeholderUser)
@@ -76,6 +79,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"body":           json.RawMessage(`"done"`),
 		"ids":            json.RawMessage(`["p1"]`),
 		"summary":        json.RawMessage(`"Change a panel"`),
+		"markdown":       json.RawMessage(`"checkout errors are up"`),
 		"json":           json.RawMessage(`"{\"title\":\"Imported\",\"schemaVersion\":39,\"panels\":[]}"`),
 	}
 
@@ -95,6 +99,10 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 					t.Fatalf("no sample value for required field %q; add one to samples", field)
 				}
 				base[field] = sample
+			}
+			ctx := ctx
+			if tool.AgentOnly {
+				ctx = WithRun(ctx, Run{Mode: ModeInvestigate})
 			}
 			baseRes := callWith(ctx, t, registry, tool.Name, base)
 			baseBody := contentJSON(t, baseRes)

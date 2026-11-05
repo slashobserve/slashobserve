@@ -72,7 +72,7 @@ func canCancel(row dbsqlc.AgentRequest, by auth.Principal) bool {
 }
 
 func continueBlocker(row dbsqlc.AgentRequest) error {
-	if row.Status != string(StatusFailed) || row.BuildSavedAt.Valid {
+	if row.Source == string(SourceInvestigate) || row.Status != string(StatusFailed) || row.BuildSavedAt.Valid {
 		return ErrNotContinuable
 	}
 	return nil

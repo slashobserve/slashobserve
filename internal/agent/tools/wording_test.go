@@ -370,16 +370,19 @@ func TestDescriptionsOfferOnlySearchTheToolTakes(t *testing.T) {
 const agentToolTextBudget = 19344
 
 func TestAgentToolTextStaysWithinBudget(t *testing.T) {
-	total := 0
-	for _, tool := range New(Deps{}).List() {
-		if tool.MCPOnly {
-			continue
+	listed := New(Deps{}).List()
+	for _, mode := range []Mode{ModeCreate, ModeRevise, ModeSuggest, ModeInvestigate} {
+		total := 0
+		for _, tool := range listed {
+			if !tool.OfferedIn(mode) {
+				continue
+			}
+			offered := tool.ForAgent()
+			total += len(offered.Description) + len(offered.InputSchema)
 		}
-		offered := tool.ForAgent()
-		total += len(offered.Description) + len(offered.InputSchema)
-	}
-	if total > agentToolTextBudget {
-		t.Errorf("agent tool text is %d bytes, over the %d byte budget; raise the budget deliberately and say why in the commit body", total, agentToolTextBudget)
+		if total > agentToolTextBudget {
+			t.Errorf("%s: agent tool text is %d bytes, over the %d byte budget; raise the budget deliberately and say why in the commit body", mode, total, agentToolTextBudget)
+		}
 	}
 }
 

@@ -42,3 +42,15 @@ func TestCanceledOutcomeIsAFailureWithTheCanceledCode(t *testing.T) {
 		t.Fatalf("canceledOutcome = %+v", o)
 	}
 }
+
+func TestAnInvestigationSucceedsOnlyWithAFinding(t *testing.T) {
+	if o := successOutcome(SourceInvestigate, Result{}); o.finding || o.failure != FailureNoFinding || o.message != noFindingMessage {
+		t.Errorf("without a finding = %+v", o)
+	}
+	if o := successOutcome(SourceInvestigate, Result{FindingID: "f1"}); !o.finding || o.version != nil || o.failure != "" {
+		t.Errorf("with a finding = %+v", o)
+	}
+	if o := successOutcome(SourcePrompt, Result{Version: 3}); o.finding || o.version == nil || *o.version != 3 {
+		t.Errorf("a build = %+v", o)
+	}
+}

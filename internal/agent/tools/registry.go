@@ -15,10 +15,12 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -87,6 +89,7 @@ type Tool struct {
 	InputSchema json.RawMessage
 	ReadOnly    bool
 	MCPOnly     bool
+	AgentOnly   bool
 	MinRole     auth.Role
 
 	AgentDescription string
@@ -126,6 +129,7 @@ type Deps struct {
 	Comments    *dashboards.Comments
 	Imports     *imports.Service
 	Folders     *folders.Access
+	Findings    *findings.Service
 	PublicURL   *url.URL
 	Logger      *slog.Logger
 }
@@ -133,10 +137,22 @@ type Deps struct {
 type Mode string
 
 const (
-	ModeCreate  Mode = "create"
-	ModeRevise  Mode = "revise"
-	ModeSuggest Mode = "suggest"
+	ModeCreate      Mode = "create"
+	ModeRevise      Mode = "revise"
+	ModeSuggest     Mode = "suggest"
+	ModeInvestigate Mode = "investigate"
 )
+
+func (t Tool) OfferedIn(mode Mode) bool {
+	switch {
+	case t.MCPOnly:
+		return false
+	case mode == ModeInvestigate:
+		return t.ReadOnly || t.Name == nameSaveFinding
+	default:
+		return !t.AgentOnly
+	}
+}
 
 type Run struct {
 	Mode          Mode
@@ -148,6 +164,7 @@ type Run struct {
 	Base          *spec.Dashboard
 	Build         bool
 	Attempt       int
+	From, To      time.Time
 }
 
 type runKey struct{}
@@ -207,6 +224,7 @@ func (r *Registry) baseEntries() []entry {
 	all = append(all, r.folderEntries()...)
 	all = append(all, r.importEntries()...)
 	all = append(all, r.guideEntries()...)
+	all = append(all, r.findingEntries()...)
 	return all
 }
 
@@ -227,7 +245,7 @@ func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage)
 		res.Step = "Rejected an unknown tool"
 		return res, nil
 	}
-	_, inRun := RunFrom(ctx)
+	run, inRun := RunFrom(ctx)
 	principal, hasPrincipal := auth.FromContext(ctx)
 	if inRun && !hasPrincipal {
 		return Result{}, fmt.Errorf("tool %s: %w: a run without a principal", name, ErrInvariant)
@@ -235,6 +253,9 @@ func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage)
 	if !allowed(principal, inRun, e.tool.MinRole) {
 		res := toolError(codeForbiddenRole, fmt.Sprintf("this key's role (%s) cannot use %s; an admin can change the service account's role", principal.Role, name))
 		res.Step = "Refused " + name + ": " + codeForbiddenRole
+		return res, nil
+	}
+	if res, ok := offered(e.tool, run, inRun); !ok {
 		return res, nil
 	}
 	res, err := r.handle(ctx, e, name, input)
@@ -336,6 +357,7 @@ var runEnding = []error{
 	errCommentsNotConfigured,
 	errFoldersNotConfigured,
 	errImportsNotConfigured,
+	errFindingsNotConfigured,
 }
 
 func endsRun(ctx context.Context, err error) bool {
@@ -379,6 +401,25 @@ func tooLarge(name string, size, limit int) (Result, error) {
 		return Result{}, fmt.Errorf("tool %s: %w: %w: %d bytes, over the %d byte limit", name, ErrInvariant, ErrResultTooLarge, size, limit)
 	}
 	return res, nil
+}
+
+func offered(t Tool, run Run, inRun bool) (Result, bool) {
+	var message string
+	switch {
+	case t.MCPOnly:
+		return Result{}, true
+	case inRun && run.Mode == ModeInvestigate && !t.OfferedIn(run.Mode):
+		message = "an investigate run only reads data and ends with " + nameSaveFinding + "; it cannot use " + t.Name
+	case inRun && !t.OfferedIn(run.Mode):
+		message = nameSaveFinding + " is only for investigate runs"
+	case !inRun && t.AgentOnly:
+		message = nameSaveFinding + " runs inside the agent; MCP clients use " + nameCreateFinding
+	default:
+		return Result{}, true
+	}
+	res := toolError(codeNotInThisRun, message)
+	res.Step = "Refused " + t.Name + ": " + codeNotInThisRun
+	return res, false
 }
 
 func allowed(p auth.Principal, inRun bool, floor auth.Role) bool {

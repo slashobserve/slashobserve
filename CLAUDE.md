@@ -116,6 +116,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 
 - The agent only ever outputs ObserveSpec JSON, and its text output is discarded: only tool-saved Specs, or in suggest mode one tool-validated panel, leave a run.
   No code path takes LLM-written HTML or JS into the UI.
+  The agent outputs ObserveSpec JSON or, in an investigate run, a tool-saved finding; nothing else leaves a run.
 - The agent saves into a build one panel per save, and only the finished build becomes a version, one per request.
   Tool-saved Specs still are the only agent output that leaves a run; the agent's planned panel count is an integer and may be shown.
 - A build is visible only to the person who made the request, and for a revision only while they can still view the dashboard.

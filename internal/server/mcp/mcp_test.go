@@ -81,8 +81,18 @@ func newFixture(t *testing.T) *fixture {
 		handler: NewHandler(reg, authn, Options{PublicURL: base, Version: "test", Logger: logger}),
 		authn:   authn,
 		logs:    logs,
-		tools:   reg.List(),
+		tools:   offeredOverMCP(reg),
 	}
+}
+
+func offeredOverMCP(reg *tools.Registry) []tools.Tool {
+	var out []tools.Tool
+	for _, t := range reg.List() {
+		if !t.AgentOnly {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 type syncWriter struct {
@@ -386,7 +396,7 @@ func TestToolsListMirrorsTheRegistry(t *testing.T) {
 	if err := json.Unmarshal(decodeRPC(t, rec).Result, &result); err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Tools) != len(f.tools) || len(f.tools) != 21 {
+	if len(result.Tools) != len(f.tools) || len(f.tools) != 23 {
 		t.Fatalf("listed %d tools, registry has %d", len(result.Tools), len(f.tools))
 	}
 	for _, want := range f.tools {

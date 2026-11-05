@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -165,6 +166,8 @@ func scenarioChecks(sc Scenario, obs observation) []CheckResult {
 		checks = []CheckResult{checkFailureCode(ex, obs), checkProposal(obs), checkNoVersionAdded(obs), checkLatency(ex, obs)}
 	case kindChatImport:
 		checks = []CheckResult{checkFailureCode(ex, obs), checkImported(obs), checkLatency(ex, obs)}
+	case kindInvestigate:
+		checks = []CheckResult{checkFailureCode(ex, obs), checkFindingMentions(ex, obs), checkEvidence(ex, obs), checkLatency(ex, obs)}
 	default:
 		checks = createChecks(ex, obs)
 	}
@@ -486,6 +489,31 @@ func latency(req AgentRequest) (time.Duration, bool) {
 		return 0, false
 	}
 	return req.FinishedAt.Sub(req.CreatedAt), true
+}
+
+func checkFindingMentions(ex Expect, obs observation) CheckResult {
+	const name = "finding_mentions"
+	f := obs.request.Finding
+	if f == nil {
+		return result(name, false, "the request has no finding")
+	}
+	text := strings.ToLower(f.Markdown)
+	var missing []string
+	for _, want := range ex.FindingMentions {
+		if !strings.Contains(text, strings.ToLower(want)) {
+			missing = append(missing, strconv.Quote(want))
+		}
+	}
+	return result(name, len(missing) == 0, "the finding does not mention "+strings.Join(missing, ", "))
+}
+
+func checkEvidence(ex Expect, obs observation) CheckResult {
+	const name = "evidence"
+	got := 0
+	if f := obs.request.Finding; f != nil {
+		got = len(f.Evidence)
+	}
+	return result(name, obs.request.Finding != nil && got >= ex.EvidenceMin, fmt.Sprintf("the finding has %d evidence panels, expected at least %d", got, ex.EvidenceMin))
 }
 
 func checkFailureCode(ex Expect, obs observation) CheckResult {

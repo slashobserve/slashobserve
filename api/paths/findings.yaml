@@ -1,0 +1,259 @@
+findings:
+  get:
+    operationId: listFindings
+    summary: List the findings the caller can read, newest first.
+    description: >-
+      A finding on a dashboard is listed for anyone who can view that dashboard, and a finding without one only for the person who made it and Admins.
+      With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404.
+    parameters:
+      - name: dashboard_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: cursor
+        in: query
+        description: The `next_cursor` of the previous page.
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of findings.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/FindingList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+findings-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: getFinding
+    summary: Read one finding.
+    description: >-
+      Anyone who can view the finding's dashboard may read it; a finding without a dashboard is readable by the person who made it and Admins.
+      A finding the caller cannot read gives 404, never 403.
+    responses:
+      "200":
+        description: The finding.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/FindingEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+findings-id-pin:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: pinFinding
+    summary: Pin a finding to its dashboard as an annotation.
+    description: >-
+      The annotation's text is the finding's first line and a link to it, tagged `finding`, at the end of the finding's window; pinning needs Edit on the dashboard.
+      Pinning a finding that is already pinned answers 200 with the same annotation.
+    responses:
+      "201":
+        description: The annotation made for the finding.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Annotation"
+      "200":
+        description: The finding was already pinned; this is its annotation.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Annotation"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The finding has no dashboard to pin to (`finding_has_no_dashboard`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+findings-id-dashboard:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: saveFindingAsDashboard
+    summary: Save a finding's evidence panels as a new dashboard.
+    description: >-
+      Anyone who can read the finding may call it; the dashboard lands in the caller's My Dashboards and every evidence query is run again before it is saved.
+      A finding without evidence gives 409 `finding_has_no_evidence`.
+    responses:
+      "201":
+        description: The new dashboard and its first version.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The finding has no evidence panels (`finding_has_no_evidence`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/InvalidSpec"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+findings-id-panels-panel-id-data:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: panel_id
+      in: path
+      required: true
+      schema:
+        type: string
+  get:
+    operationId: getFindingPanelData
+    summary: Run the queries of one evidence panel of a finding and return their frames.
+    description: >-
+      Runs one evidence panel of a finding. Only browser sessions may call it; a key gets 403 `user_session_required`. Evidence queries are stored with the finding and were checked when it was saved.
+      Anyone who can read the finding may call it, `from` and `to` default to the finding's window, nothing is cached, and the response has the shape of panel data.
+    parameters:
+      - name: from
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: to
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: tz
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      - name: max_data_points
+        in: query
+        schema:
+          type: integer
+          minimum: 10
+          maximum: 11000
+          default: 1000
+    responses:
+      "200":
+        description: The frames the evidence panel's queries returned.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelData"
+      "400":
+        description: The request is malformed or fails validation.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The request carried query text (`query_not_in_spec`), or the caller is not a signed-in user (`user_session_required`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: There is no such finding for the caller (`not_found`), or the finding has no such evidence panel (`panel_not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "422":
+        description: A query or a variable cannot run, with the codes of panel data.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        description: The server failed to handle the request.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "502":
+        description: A datasource is unavailable.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "504":
+        description: A datasource did not answer within the query timeout.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
