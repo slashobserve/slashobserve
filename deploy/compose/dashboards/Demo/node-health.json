@@ -1,0 +1,122 @@
+{
+  "specVersion": "0",
+  "title": "Node health",
+  "description": "CPU, memory, disks and network of each host, and what each container of the stack uses.",
+  "tags": ["demo", "node"],
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "30s",
+  "variables": [
+    { "name": "instance", "label": "Host", "type": "query", "datasource": "prom",
+      "query": "label_values(node_uname_info, instance)", "multi": true, "includeAll": true, "default": "$__all" }
+  ],
+  "panels": [
+    { "id": "p_cpu_busy", "type": "stat", "title": "CPU busy",
+      "description": "Share of CPU time spent outside idle on the busiest selected host.",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 }, "datasource": "prom", "unit": "percentunit",
+      "thresholds": [{ "color": "ok" }, { "value": 0.8, "color": "warning" }, { "value": 0.9, "color": "critical" }],
+      "queries": [{ "query": "max(1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\",instance=~\"${instance:regex}\"}[$__rate_interval])))" }] },
+    { "id": "p_memory_used", "type": "stat", "title": "Memory used",
+      "description": "Share of memory not available to new work on the fullest selected host.",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 }, "datasource": "prom", "unit": "percentunit",
+      "thresholds": [{ "color": "ok" }, { "value": 0.8, "color": "warning" }, { "value": 0.9, "color": "critical" }],
+      "queries": [{ "query": "max(1 - node_memory_MemAvailable_bytes{instance=~\"${instance:regex}\"} / node_memory_MemTotal_bytes{instance=~\"${instance:regex}\"})" }] },
+    { "id": "p_disk_used", "type": "stat", "title": "Fullest filesystem",
+      "description": "Share of space used on the fullest filesystem of the selected hosts.",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 }, "datasource": "prom", "unit": "percentunit",
+      "thresholds": [{ "color": "ok" }, { "value": 0.8, "color": "warning" }, { "value": 0.9, "color": "critical" }],
+      "queries": [{ "query": "max(1 - node_filesystem_avail_bytes{fstype!~\"tmpfs|ramfs|overlay|fakeowner\",instance=~\"${instance:regex}\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|ramfs|overlay|fakeowner\",instance=~\"${instance:regex}\"})" }] },
+    { "id": "p_load_per_cpu", "type": "stat", "title": "Load per CPU",
+      "description": "Five-minute load average divided by CPU count on the busiest selected host; above 1, work waits for a CPU.",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 }, "datasource": "prom", "unit": "short", "decimals": 2,
+      "thresholds": [{ "color": "ok" }, { "value": 1, "color": "warning" }, { "value": 2, "color": "critical" }],
+      "queries": [{ "query": "max(node_load5{instance=~\"${instance:regex}\"} / on (instance) count by (instance) (node_cpu_seconds_total{mode=\"idle\",instance=~\"${instance:regex}\"}))" }] },
+    { "id": "r_cpu", "type": "row", "title": "Is the CPU busy?",
+      "gridPos": { "x": 0, "y": 4, "w": 24, "h": 1 },
+      "panels": [
+        { "id": "p_cpu_by_host", "type": "timeseries", "title": "CPU busy by host",
+          "gridPos": { "x": 0, "y": 5, "w": 8, "h": 8 }, "datasource": "prom", "unit": "percentunit", "min": 0, "max": 1,
+          "queries": [{ "query": "1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\",instance=~\"${instance:regex}\"}[$__rate_interval]))", "legend": "{{instance}}" }] },
+        { "id": "p_cpu_by_mode", "type": "timeseries", "title": "CPU time by mode",
+          "gridPos": { "x": 8, "y": 5, "w": 8, "h": 8 }, "datasource": "prom", "unit": "percentunit",
+          "queries": [{ "query": "sum by (mode) (rate(node_cpu_seconds_total{mode!=\"idle\",instance=~\"${instance:regex}\"}[$__rate_interval])) / scalar(count(node_cpu_seconds_total{mode=\"idle\",instance=~\"${instance:regex}\"}))", "legend": "{{mode}}" }] },
+        { "id": "p_load", "type": "timeseries", "title": "Load average and CPUs",
+          "gridPos": { "x": 16, "y": 5, "w": 8, "h": 8 }, "datasource": "prom", "unit": "short",
+          "queries": [
+            { "query": "node_load1{instance=~\"${instance:regex}\"}", "legend": "{{instance}} 1m" },
+            { "query": "node_load5{instance=~\"${instance:regex}\"}", "legend": "{{instance}} 5m" },
+            { "query": "node_load15{instance=~\"${instance:regex}\"}", "legend": "{{instance}} 15m" },
+            { "query": "count by (instance) (node_cpu_seconds_total{mode=\"idle\",instance=~\"${instance:regex}\"})", "legend": "{{instance}} CPUs" }
+          ] }
+      ] },
+    { "id": "r_memory", "type": "row", "title": "Is memory running out?",
+      "gridPos": { "x": 0, "y": 13, "w": 24, "h": 1 },
+      "panels": [
+        { "id": "p_memory_used_by_host", "type": "timeseries", "title": "Memory used by host",
+          "gridPos": { "x": 0, "y": 14, "w": 8, "h": 8 }, "datasource": "prom", "unit": "percentunit", "min": 0, "max": 1,
+          "queries": [{ "query": "1 - node_memory_MemAvailable_bytes{instance=~\"${instance:regex}\"} / node_memory_MemTotal_bytes{instance=~\"${instance:regex}\"}", "legend": "{{instance}}" }] },
+        { "id": "p_memory_available", "type": "timeseries", "title": "Memory available and total",
+          "gridPos": { "x": 8, "y": 14, "w": 8, "h": 8 }, "datasource": "prom", "unit": "bytes",
+          "queries": [
+            { "query": "node_memory_MemAvailable_bytes{instance=~\"${instance:regex}\"}", "legend": "{{instance}} available" },
+            { "query": "node_memory_MemTotal_bytes{instance=~\"${instance:regex}\"}", "legend": "{{instance}} total" }
+          ] },
+        { "id": "p_page_faults", "type": "timeseries", "title": "Major page faults",
+          "gridPos": { "x": 16, "y": 14, "w": 8, "h": 8 }, "datasource": "prom", "unit": "suffix: faults/s",
+          "queries": [{ "query": "rate(node_vmstat_pgmajfault{instance=~\"${instance:regex}\"}[$__rate_interval])", "legend": "{{instance}}" }] }
+      ] },
+    { "id": "r_disk", "type": "row", "title": "Are the disks full or busy?",
+      "gridPos": { "x": 0, "y": 22, "w": 24, "h": 1 },
+      "panels": [
+        { "id": "p_filesystem_used", "type": "timeseries", "title": "Filesystem used",
+          "gridPos": { "x": 0, "y": 23, "w": 8, "h": 8 }, "datasource": "prom", "unit": "percentunit", "min": 0, "max": 1,
+          "queries": [{ "query": "1 - node_filesystem_avail_bytes{fstype!~\"tmpfs|ramfs|overlay|fakeowner\",instance=~\"${instance:regex}\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|ramfs|overlay|fakeowner\",instance=~\"${instance:regex}\"}", "legend": "{{instance}} {{mountpoint}}" }] },
+        { "id": "p_disk_throughput", "type": "timeseries", "title": "Disk read and write",
+          "gridPos": { "x": 8, "y": 23, "w": 8, "h": 8 }, "datasource": "prom", "unit": "Bps",
+          "queries": [
+            { "query": "sum by (instance) (rate(node_disk_read_bytes_total{device=~\"(h|s|v|xv)d[a-z]+|nvme[0-9]+n[0-9]+|md[0-9]+|dm-[0-9]+\",instance=~\"${instance:regex}\"}[$__rate_interval]))", "legend": "{{instance}} read" },
+            { "query": "sum by (instance) (rate(node_disk_written_bytes_total{device=~\"(h|s|v|xv)d[a-z]+|nvme[0-9]+n[0-9]+|md[0-9]+|dm-[0-9]+\",instance=~\"${instance:regex}\"}[$__rate_interval]))", "legend": "{{instance}} written" }
+          ] },
+        { "id": "p_disk_busy", "type": "timeseries", "title": "Disk busy time",
+          "gridPos": { "x": 16, "y": 23, "w": 8, "h": 8 }, "datasource": "prom", "unit": "percentunit", "min": 0, "max": 1,
+          "queries": [{ "query": "max by (instance, device) (rate(node_disk_io_time_seconds_total{device=~\"(h|s|v|xv)d[a-z]+|nvme[0-9]+n[0-9]+|md[0-9]+|dm-[0-9]+\",instance=~\"${instance:regex}\"}[$__rate_interval]))", "legend": "{{instance}} {{device}}" }] }
+      ] },
+    { "id": "r_network", "type": "row", "title": "Is the network busy?",
+      "gridPos": { "x": 0, "y": 31, "w": 24, "h": 1 },
+      "panels": [
+        { "id": "p_network_bytes", "type": "timeseries", "title": "Network received and sent",
+          "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 }, "datasource": "prom", "unit": "Bps",
+          "queries": [
+            { "query": "sum by (instance) (rate(node_network_receive_bytes_total{device!~\"lo|veth.*|docker.*|br-.*\",instance=~\"${instance:regex}\"}[$__rate_interval]))", "legend": "{{instance}} received" },
+            { "query": "sum by (instance) (rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|docker.*|br-.*\",instance=~\"${instance:regex}\"}[$__rate_interval]))", "legend": "{{instance}} sent" }
+          ] },
+        { "id": "p_network_errors", "type": "timeseries", "title": "Network errors and drops",
+          "gridPos": { "x": 12, "y": 32, "w": 12, "h": 8 }, "datasource": "prom", "unit": "pps",
+          "queries": [
+            { "query": "sum by (instance) (rate(node_network_receive_errs_total{device!~\"lo|veth.*|docker.*|br-.*\",instance=~\"${instance:regex}\"}[$__rate_interval]))", "legend": "{{instance}} receive errors" },
+            { "query": "sum by (instance) (rate(node_network_transmit_errs_total{device!~\"lo|veth.*|docker.*|br-.*\",instance=~\"${instance:regex}\"}[$__rate_interval]))", "legend": "{{instance}} send errors" },
+            { "query": "sum by (instance) (rate(node_network_receive_drop_total{device!~\"lo|veth.*|docker.*|br-.*\",instance=~\"${instance:regex}\"}[$__rate_interval]))", "legend": "{{instance}} receive drops" },
+            { "query": "sum by (instance) (rate(node_network_transmit_drop_total{device!~\"lo|veth.*|docker.*|br-.*\",instance=~\"${instance:regex}\"}[$__rate_interval]))", "legend": "{{instance}} send drops" }
+          ] }
+      ] },
+    { "id": "r_containers", "type": "row", "title": "Which containers use the most?",
+      "gridPos": { "x": 0, "y": 40, "w": 24, "h": 1 },
+      "panels": [
+        { "id": "p_container_cpu", "type": "timeseries", "title": "CPU by container",
+          "gridPos": { "x": 0, "y": 41, "w": 12, "h": 8 }, "datasource": "prom", "unit": "suffix: cores",
+          "queries": [{ "query": "sum by (pod) (rate(container_cpu_usage_seconds_total{pod!=\"\"}[$__rate_interval]))", "legend": "{{pod}}" }],
+          "display": { "legendMode": "table", "legendValues": ["mean", "max"], "legendSortBy": "max", "legendSortDesc": true } },
+        { "id": "p_container_memory", "type": "timeseries", "title": "Memory by container",
+          "gridPos": { "x": 12, "y": 41, "w": 12, "h": 8 }, "datasource": "prom", "unit": "bytes",
+          "queries": [{ "query": "sum by (pod) (container_memory_working_set_bytes{pod!=\"\"})", "legend": "{{pod}}" }],
+          "display": { "legendMode": "table", "legendValues": ["mean", "max"], "legendSortBy": "max", "legendSortDesc": true } },
+        { "id": "p_container_received", "type": "timeseries", "title": "Network received by container",
+          "gridPos": { "x": 0, "y": 49, "w": 12, "h": 8 }, "datasource": "prom", "unit": "Bps",
+          "queries": [{ "query": "sum by (pod) (rate(container_network_receive_bytes_total{pod!=\"\"}[$__rate_interval]))", "legend": "{{pod}}" }],
+          "display": { "legendMode": "table", "legendValues": ["mean", "max"], "legendSortBy": "max", "legendSortDesc": true } },
+        { "id": "p_container_sent", "type": "timeseries", "title": "Network sent by container",
+          "gridPos": { "x": 12, "y": 49, "w": 12, "h": 8 }, "datasource": "prom", "unit": "Bps",
+          "queries": [{ "query": "sum by (pod) (rate(container_network_transmit_bytes_total{pod!=\"\"}[$__rate_interval]))", "legend": "{{pod}}" }],
+          "display": { "legendMode": "table", "legendValues": ["mean", "max"], "legendSortBy": "max", "legendSortDesc": true } }
+      ] }
+  ]
+}
