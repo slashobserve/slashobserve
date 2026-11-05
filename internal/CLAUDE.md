@@ -87,6 +87,7 @@ This lists only the packages whose purpose the name does not make obvious.
   An unchanged panel that started failing stays verified until a full save runs.
   The conditional `latest_version` update is the concurrency check (409 `version_conflict`).
   Events go out with `pg_notify` inside the saving transaction.
+- A save that changes an existing panel's `w` or `h` sets `responsive: false` on it in `freezeResized` (`internal/dashboards/responsive.go`), called from `persistVersion` before the replay check and from `commitRevision`; creates, imports, duplicates and restores never freeze, and the server never re-sizes a panel because of the flag.
 - `agent_request_builds` holds one build per agent request: the canonical Spec, the carried `unverified` list, `planned_panels` and `panels`, so nothing parses the Spec to show progress.
   Every build write is fenced by the attempt (`status = 'running' AND attempts = @attempt`), so a worker that lost its lease writes nothing.
   Every build save with a parent is a partial check, as `ChangedSince` decides against the build, or against the base version for the first save of a revision, and placement moves change only `gridPos`, so they run no query.

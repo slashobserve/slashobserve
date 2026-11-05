@@ -327,6 +327,15 @@ func (s *Service) commitRevision(ctx context.Context, by auth.Principal, build B
 	if err != nil {
 		return Dashboard{}, Version{}, false, err
 	}
+	prev, err := s.VersionSpec(ctx, build.DashboardID, build.BaseVersion)
+	if err != nil {
+		return Dashboard{}, Version{}, false, err
+	}
+	if freezeResized(prev, in.spec) {
+		if in.canonical, err = json.Marshal(in.spec); err != nil {
+			return Dashboard{}, Version{}, false, fmt.Errorf("marshal spec: %w", err)
+		}
+	}
 	in.dashboardID = build.DashboardID
 	in.parent = build.BaseVersion
 	dash, ver, err := s.store.addVersionWith(ctx, in, func(q *dbsqlc.Queries, _ Dashboard, ver Version) error {

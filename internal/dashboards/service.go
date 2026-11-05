@@ -212,6 +212,17 @@ func (s *Service) persistVersion(ctx context.Context, by auth.Principal, id pgty
 	if err != nil {
 		return Dashboard{}, Version{}, false, err
 	}
+	if parent >= 1 && parent <= latest {
+		prev, err := s.VersionSpec(ctx, id, parent)
+		if err != nil {
+			return Dashboard{}, Version{}, false, err
+		}
+		if freezeResized(prev, parsed) {
+			if canonical, err = json.Marshal(parsed); err != nil {
+				return Dashboard{}, Version{}, false, fmt.Errorf("marshal spec: %w", err)
+			}
+		}
+	}
 	if latest != parent {
 		return s.replayOrConflict(ctx, by, id, parent, canonical, requestID)
 	}
