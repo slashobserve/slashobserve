@@ -120,6 +120,16 @@ paths:
     $ref: "./paths/observe.yaml#/observe-id-build-panels-panel-id-data"
   /observe/{id}/build/variables/{name}/values:
     $ref: "./paths/observe.yaml#/observe-id-build-variables-name-values"
+  /findings:
+    $ref: "./paths/findings.yaml#/findings"
+  /findings/{id}:
+    $ref: "./paths/findings.yaml#/findings-id"
+  /findings/{id}/pin:
+    $ref: "./paths/findings.yaml#/findings-id-pin"
+  /findings/{id}/dashboard:
+    $ref: "./paths/findings.yaml#/findings-id-dashboard"
+  /findings/{id}/panels/{panel_id}/data:
+    $ref: "./paths/findings.yaml#/findings-id-panels-panel-id-data"
   /news:
     $ref: "./paths/news.yaml#/news"
   /assets/image:
