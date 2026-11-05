@@ -139,6 +139,7 @@ func (a *app) importCommand() *cobra.Command {
 	cmd.Flags().StringArrayVar(&a.importing.maps, "map", nil, "use our datasource <uid> for a Grafana datasource: <grafana>=<uid> (repeatable)")
 	cmd.Flags().BoolVar(&a.importing.preview, "preview", false, "show the report without saving anything")
 	cmd.Flags().StringVar(&a.importing.folder, "folder", "", "put the dashboard in the folder with this title (default: the folder named in the Grafana export, else your default folder)")
+	a.addOpenFlag(cmd)
 	return cmd
 }
 
@@ -187,7 +188,8 @@ func (a *app) runImport(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	out.line("%s", links.Dashboard(c.base, imported.Dashboard.ID, imported.Dashboard.Title))
+	address := links.Dashboard(c.base, imported.Dashboard.ID, imported.Dashboard.Title)
+	out.line("%s", address)
 	out.notice("Imported %q: %s", text(imported.Import.Title), imported.Import.Report.Counts.line())
 	out.notice("Folder: %s", text(imported.Dashboard.Folder.Title))
 	if imported.FolderNote != nil {
@@ -196,6 +198,7 @@ func (a *app) runImport(cmd *cobra.Command, args []string) error {
 	if table := imported.Import.Report.attention(); table != "" {
 		out.notice("%s", table)
 	}
+	a.openLink(out, address)
 	return nil
 }
 

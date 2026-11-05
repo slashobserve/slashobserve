@@ -3,22 +3,64 @@ package cli
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"text/tabwriter"
 	"time"
 	"unicode"
+
+	"golang.org/x/term"
 )
+
+const noColorEnv = "NO_COLOR"
 
 type output struct {
 	out   io.Writer
 	err   io.Writer
 	json  bool
 	quiet bool
+
+	terminal bool
+	color    palette
 }
 
 func (a *app) output() *output {
-	return &output{out: a.std.Out, err: a.std.Err, json: a.json, quiet: a.quiet}
+	terminal := isTerminal(a.std.Out)
+	return &output{
+		out: a.std.Out, err: a.std.Err, json: a.json, quiet: a.quiet,
+		terminal: terminal,
+		color:    palette{on: terminal && os.Getenv(noColorEnv) == ""},
+	}
 }
+
+func isTerminal(w io.Writer) bool {
+	file, ok := w.(*os.File)
+	return ok && term.IsTerminal(int(file.Fd()))
+}
+
+const defaultTerminalWidth = 80
+
+func terminalWidth(w io.Writer) int {
+	if file, ok := w.(*os.File); ok {
+		if width, _, err := term.GetSize(int(file.Fd())); err == nil && width > 0 {
+			return width
+		}
+	}
+	return defaultTerminalWidth
+}
+
+type palette struct{ on bool }
+
+func (p palette) paint(code, s string) string {
+	if !p.on {
+		return s
+	}
+	return "\x1b[" + code + "m" + s + "\x1b[0m"
+}
+
+func (p palette) green(s string) string { return p.paint("32", s) }
+
+func (p palette) dim(s string) string { return p.paint("2", s) }
 
 func (o *output) body(data []byte) {
 	_, _ = o.out.Write(data)

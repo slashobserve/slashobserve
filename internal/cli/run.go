@@ -37,6 +37,7 @@ func (a *app) runCommand() *cobra.Command {
 	flags := cmd.Flags()
 	flags.BoolVar(&a.run.noWait, "no-wait", false, "print the request id and exit without waiting")
 	flags.DurationVar(&a.run.timeout, "timeout", defaultTimeout, "stop waiting after this long; the request keeps running on the server")
+	a.addOpenFlag(cmd)
 	return cmd
 }
 

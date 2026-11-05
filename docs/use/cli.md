@@ -48,14 +48,33 @@ Then give it a prompt:
 bin/observe "checkout p99 latency, last 6h"
 ```
 
-It prints progress to standard error and then the dashboard address to standard output, and `-q` hides the progress.
-A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `status`, `cancel`, `continue`, `login`, `logout`, `version` or `help`) must be quoted as one argument.
+While the agent builds, it prints a line for each panel the build adds, as `Panel 3 of 8: Checkout p99 (timeseries)`; the count after `of` is the number of panels the agent planned, and it is left out when the agent gave no estimate or built more than it planned.
+A follow-up prints only the panels it adds, not the ones the dashboard already had.
+Only the key that made the request can read its build, so `status --wait` on someone else's request shows the steps without panel lines.
+It ends with `Saved version N  https://observe.example.com/d/<dashboard id>/<slug>`, the address described in [Addresses in the web app](web.md).
+
+In a terminal, the progress goes to standard output with the last line: the agent's latest step shows in one status line that rewrites in place, the panel lines stay, and the status line is cleared before the last line.
+When standard output is not a terminal, as in `url=$(bin/observe "checkout p99 latency")` or a pipe, standard output holds only the address, and the steps, the panel lines and `Saved version N` go to standard error, one per line.
+`-q` hides the steps, the panel lines and `Saved version N`, and prints only the address.
+`--json` prints the finished request object of `GET /api/v1/observe/{id}` instead, and the steps and panel lines still go to standard error.
+Colour is used only in a terminal, and setting `NO_COLOR` to any value turns it off.
+`--open` opens the dashboard address in the browser once it is saved, with `open` on macOS, `xdg-open` on Linux and the URL handler on Windows; when the opener is missing or fails, the CLI prints a warning and still exits 0.
+It opens only `http` and `https` addresses.
+`status --wait`, `continue`, `run` and `import` accept `--open` too.
+
+A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `status`, `cancel`, `continue`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
 `--timeout` (2 hours by default, so a large build can finish while you wait) stops the waiting and not the request, which keeps running on the server; `bin/observe status <request-id> --wait` waits again.
 While a request waits for a worker, `observe status` prints `Queued, position N`, its place among the queued requests.
 The order can shift, because a request is skipped while another revision of its dashboard is running.
-The CLI exits with 0 on success, 2 when the command line is wrong and 1 for any other failure.
+The CLI exits with these codes:
+
+| Code | When |
+| ---- | ---- |
+| `0` | The command succeeded, including when `--open` could not open the browser. |
+| `1` | The server refused or failed the request, the agent request failed, or the waiting stopped at `--timeout` or an interrupt. |
+| `2` | The command line is wrong: an unknown command or flag, a missing argument or an invalid id. |
 
 `bin/observe cancel <request-id>` cancels a queued or running request and prints it.
 A queued request stops at once, and a running one within a few seconds, once the call it is in returns.
@@ -69,6 +88,7 @@ Continuing a revision fails when its dashboard has a newer version than the buil
 
 `bin/observe dashboards list` lists dashboards, newest update first, 50 at a time; when there are more it prints the `--cursor` value for the next page.
 `bin/observe dashboards show <dashboard-id>` lists the panels of the latest version, or of one given with `--version N`, and `bin/observe dashboards versions <dashboard-id>` lists its versions.
+The lists and the panel table print as columns aligned with spaces.
 `bin/observe --help` shows the rest.
 `bin/observe dashboards delete <dashboard-id> --yes` deletes a dashboard with every version, comment and agent request, for everyone; it needs Edit on the dashboard, cannot be undone, and refuses to run without `--yes`.
 It fails with `409` and the code `dashboard_being_created` while the agent request that is creating the dashboard is still queued or running.
@@ -95,6 +115,15 @@ Comments on a dashboard can be worked from the terminal:
   If the thread was already resolved, `--version` is not applied and the command exits 1.
 
 Add `--json` to any of them to print the API response unchanged.
+
+`bin/observe completion bash`, `zsh` or `fish` prints a completion script for commands and flags.
+Load it for the current shell, or save it where your shell reads completions:
+
+```sh
+source <(bin/observe completion bash)
+bin/observe completion zsh > "${fpath[1]}/_observe"
+bin/observe completion fish > ~/.config/fish/completions/observe.fish
+```
 
 The CLI reads its settings in this order: flags, the environment, then the saved file.
 
