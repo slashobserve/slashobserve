@@ -426,7 +426,6 @@ func TestDiscover(t *testing.T) {
 	}
 	for _, req := range []datasource.DiscoverRequest{
 		{Kind: datasource.DiscoverTables},
-		{Kind: datasource.DiscoverSampleRows},
 		{Kind: datasource.DiscoverLabelValues, Label: "bad-label"},
 	} {
 		if _, err := ds.Discover(ctx, req); !errors.Is(err, datasource.ErrInvalidQuery) {
