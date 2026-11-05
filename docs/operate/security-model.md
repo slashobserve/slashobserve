@@ -47,6 +47,7 @@ description: What SlashObserve protects and what an operator should know.
   Through MCP, a key can also list datasources, run bounded queries and sample rows, and create and update dashboards.
 - **Outbound requests are allowlisted.**
   The server fetches content from other sites only for domains on the allowlist, which starts empty, and only over `https` to public addresses; private, loopback and metadata addresses are refused even when a name resolves to one.
+  A Grafana connection an Admin configures is the exception: it may use `http` and a private address, because the Grafana being migrated usually runs inside the same network.
   This covers news feeds, images, map tiles, GeoJSON files and actions.
   Redirects are checked hop by hop, and no cookies or credentials are sent.
   A canvas or field action also needs Edit on the dashboard and a confirmation in the browser, and the server never follows a redirect for it.

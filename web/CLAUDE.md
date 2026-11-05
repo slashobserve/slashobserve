@@ -16,8 +16,8 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - `web/src/routeTree.gen.ts`, `web/src/spec/*.gen.ts` and `web/src/api/schema.gen.ts` are generated; commit them, never edit them.
   The route tree comes from the Vite plugin on `dev` and `build`, the other two from `make generate`.
 - Import the Spec only from `web/src/spec/index.ts`, and keep `web/src/spec` free of app imports so it can become the `@slashobserve/spec` package.
-- Vitest covers pure helpers (`*.test.ts` next to the code).
-  Testing Library is not installed.
+- Vitest covers pure helpers (`*.test.ts` next to the code) and, under happy-dom with Testing Library, components whose behaviour is not a pure helper (`*.test.tsx`).
+  A test that reads files from disk opts out of the DOM with `// @vitest-environment node`.
 - cmdk is deliberately not used.
   The command palette (`web/src/shell/command-palette.tsx`) is Base UI `Autocomplete` rendered `inline` in a `Dialog`.
 - TanStack Table (headless) is used for the dashboards list only.

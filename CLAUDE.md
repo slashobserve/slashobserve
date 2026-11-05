@@ -12,8 +12,8 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 | `make build` | Install web dependencies, build the Vite app into `internal/server/webdist`, then build `bin/slashobserve-server` with the UI embedded. |
 | `make server` | Build only the Go binary, embedding whatever is in `internal/server/webdist`. |
 | `make cli` | Build only `bin/observe`; `make build` builds it too. |
-| `make test` | `go test -race ./...` for the root module and `demo`, the web Vitest suite, then `scripts/release-scripts-test.sh` (the release tag and release notes scripts) and `scripts/install-test.sh` (the root `install.sh`, against fake release assets). |
-| `make lint` | golangci-lint (config verify, format diff, run), `sqlc diff`, web typecheck, Spec drift and fixture parity check, web API type drift check (`api:check`), ESLint, knip (unused web files, exports and dependencies), Prettier check. |
+| `make test` | `go test -race ./...` for the root module and `demo`, the web Vitest suite (`COVER=1` adds Go and web coverage), then `scripts/release-scripts-test.sh` (the release tag and release notes scripts) and `scripts/install-test.sh` (the root `install.sh`, against fake release assets). |
+| `make lint` | golangci-lint (config verify, format diff, run), `sqlc diff`, web typecheck, Spec drift and fixture parity check, web API type drift check (`api:check`), ESLint, knip (unused web files, exports and dependencies), Prettier check, and `scripts/docs-lint.sh` on the docs pages. |
 | `make ci` | `lint`, `test`, `tidy-check` (`go mod tidy -diff` for the root module and `demo`), `build`: what the CI `check` job runs. |
 | `make audit` | `govulncheck` for the root module and `demo`, `bun audit --prod` and `bun audit --audit-level=high` for the web lockfile (minus the advisories in `WEB_AUDIT_IGNORE`): what the CI `audit` job runs. |
 | `make generate` | Regenerate sqlc code, the web Spec types/validator and the web API types (`web/src/api/schema.gen.ts`) after editing migrations, queries, the schema or `api/`. |
@@ -144,5 +144,5 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
   Fixing an existing failing check is allowed.
 - Do not commit ADRs, decision records or the brief; decisions live in the `CLAUDE.md` files, and implementation plans live outside the repository.
 - Create repositories, push, and open PRs only after Ishan says go.
-- CI branch protection must mark the `check` job as required, and `e2e` once that job is re-enabled.
+- CI branch protection must mark the `check` job as required, and `e2e-api` and the four `e2e-browser` shards once those jobs are re-enabled.
 - Markdown: one sentence per line; never use an em dash.

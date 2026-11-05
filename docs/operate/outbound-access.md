@@ -17,6 +17,7 @@ Every fetch follows the same rules, whatever the domain:
 - Only `https` on port 443.
 - Only public addresses.
   The server checks the address it connects to, so a name that resolves to a private, loopback, link-local or cloud metadata address is refused.
+  The one exception is a [Grafana connection](../use/switch-from-grafana.md) an Admin configures: its address may be `http` on any port and may resolve to a private address, and it still has to be on the allowlist.
 - A redirect is followed up to 5 times, and each hop must be an allowed domain on `https`.
 - No cookies, credentials or `Referer` are sent.
 - Each fetch has a size cap (1 MiB unless the feature asks for more, 8 MiB at most), a 10 second time limit and a content type check.
