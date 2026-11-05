@@ -407,7 +407,7 @@ func TestClassifyRouting(t *testing.T) {
 		wantStep string
 	}{
 		{"canceled", context.Canceled, "", true, ""},
-		{"internal", errors.New("dial tcp 10.0.0.5: password=hunter2"), "", true, ""},
+		{"internal", errors.New("dial tcp 10.0.0.5: password=hunter2"), "tool_failed", false, "Could not run query_instant: tool_failed"},
 		{"deadline", context.DeadlineExceeded, "query_timeout", false, "Ran a query on fake: query_timeout"},
 		{"upstream timeout", datasource.Errorf(datasource.ErrTimeout, "after 15s"), "query_timeout", false, "Ran a query on fake: query_timeout"},
 		{"invalid query", datasource.Errorf(datasource.ErrInvalidQuery, "bad promql"), "query_invalid", false, "Ran a query on fake: query_invalid"},
