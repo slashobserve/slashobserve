@@ -38,6 +38,7 @@ type Config struct {
 	RPS       int
 	Seed      uint64
 	StartFile string
+	Curve     Curve
 }
 
 func ConfigFromEnv(lookup func(string) (string, bool)) (Config, error) {
@@ -50,6 +51,7 @@ func ConfigFromEnv(lookup func(string) (string, bool)) (Config, error) {
 		RPS:       defaultRPS,
 		Seed:      defaultSeed,
 		StartFile: get("LOADGEN_START_FILE"),
+		Curve:     CurveDaily,
 	}
 	if cfg.Target == "" {
 		return Config{}, errors.New("LOADGEN_TARGET is required")
@@ -68,7 +70,18 @@ func ConfigFromEnv(lookup func(string) (string, bool)) (Config, error) {
 		}
 		cfg.Seed = seed
 	}
+	switch raw := get("LOADGEN_CURVE"); raw {
+	case "", string(CurveDaily):
+	case string(CurveFlat):
+		cfg.Curve = CurveFlat
+	default:
+		return Config{}, fmt.Errorf("LOADGEN_CURVE must be daily or flat, got %q", raw)
+	}
 	return cfg, nil
+}
+
+func (c Config) gap(at time.Time) time.Duration {
+	return time.Duration(float64(time.Second) / (float64(c.RPS) * c.Curve.Factor(at)))
 }
 
 type plan struct {
@@ -86,7 +99,7 @@ func Run(ctx context.Context, lookup func(string) (string, bool), logger *slog.L
 	if err != nil {
 		return err
 	}
-	logger.Info("loadgen started", "target", cfg.Target, "rps", cfg.RPS, "seed", cfg.Seed)
+	logger.Info("loadgen started", "target", cfg.Target, "rps", cfg.RPS, "seed", cfg.Seed, "curve", cfg.Curve)
 	if cfg.StartFile != "" {
 		if err := waitForStart(ctx, cfg.StartFile, logger); err != nil {
 			return err
@@ -105,10 +118,11 @@ func Run(ctx context.Context, lookup func(string) (string, bool), logger *slog.L
 		inflight sync.WaitGroup
 		slots    = make(chan struct{}, maxInFlight)
 		rng      = rand.New(rand.NewPCG(cfg.Seed, cfg.Seed)) //nolint:gosec // deterministic seeded demo traffic, not security sensitive
-		tick     = time.NewTicker(time.Second / time.Duration(cfg.RPS))
+		next     = time.Now()
+		pace     = time.NewTimer(0)
 		summary  = time.NewTicker(summaryEvery)
 	)
-	defer tick.Stop()
+	defer pace.Stop()
 	defer summary.Stop()
 
 	for {
@@ -119,7 +133,7 @@ func Run(ctx context.Context, lookup func(string) (string, bool), logger *slog.L
 			return nil
 		case <-summary.C:
 			logSummary(logger, "loadgen summary", &stats)
-		case <-tick.C:
+		case <-pace.C:
 			p := nextPlan(rng)
 			select {
 			case slots <- struct{}{}:
@@ -130,6 +144,11 @@ func Run(ctx context.Context, lookup func(string) (string, bool), logger *slog.L
 			default:
 				stats.dropped.Add(1)
 			}
+			next = next.Add(cfg.gap(next))
+			if time.Since(next) > time.Second {
+				next = time.Now()
+			}
+			pace.Reset(time.Until(next))
 		}
 	}
 }

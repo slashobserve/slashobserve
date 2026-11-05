@@ -2,6 +2,7 @@ package loadgen
 
 import (
 	"math"
+	"strings"
 	"testing"
 	"time"
 )
@@ -88,5 +89,54 @@ func TestDailyCurveUsesLocation(t *testing.T) {
 	}
 	if got := CurveDaily.Factor(local); math.Abs(got-1.6) > 1e-9 {
 		t.Errorf("Factor(14:00 ist) = %.9f, want 1.6", got)
+	}
+}
+
+func TestConfigFromEnvCurve(t *testing.T) {
+	lookup := func(env map[string]string) func(string) (string, bool) {
+		return func(key string) (string, bool) {
+			value, ok := env[key]
+			return value, ok
+		}
+	}
+	cfg, err := ConfigFromEnv(lookup(map[string]string{"LOADGEN_TARGET": "http://shop"}))
+	if err != nil || cfg.Curve != CurveDaily {
+		t.Errorf("no LOADGEN_CURVE: curve %q, err %v; want daily", cfg.Curve, err)
+	}
+	cfg, err = ConfigFromEnv(lookup(map[string]string{"LOADGEN_TARGET": "http://shop", "LOADGEN_CURVE": "flat"}))
+	if err != nil || cfg.Curve != CurveFlat {
+		t.Errorf("LOADGEN_CURVE=flat: curve %q, err %v; want flat", cfg.Curve, err)
+	}
+	_, err = ConfigFromEnv(lookup(map[string]string{"LOADGEN_TARGET": "http://shop", "LOADGEN_CURVE": "hourly"}))
+	if err == nil || !strings.Contains(err.Error(), "LOADGEN_CURVE must be daily or flat") {
+		t.Errorf("LOADGEN_CURVE=hourly: err %v, want the daily or flat error", err)
+	}
+}
+
+func TestDailyScheduleKeepsMeanRate(t *testing.T) {
+	cfg := Config{RPS: 20, Curve: CurveDaily}
+	steps := func(from, to time.Time) int {
+		n := 0
+		for ts := from; ts.Before(to); ts = ts.Add(cfg.gap(ts)) {
+			n++
+		}
+		return n
+	}
+	cases := []struct {
+		name      string
+		from      time.Time
+		span      time.Duration
+		want      float64
+		tolerance float64
+	}{
+		{"day", at(0, 0, 0, 0), 24 * time.Hour, 20 * 86400, 0.01},
+		{"trough", at(4, 0, 0, 0), time.Minute, 0.4 * 20 * 60, 0.02},
+		{"peak", at(14, 0, 0, 0), time.Minute, 1.6 * 20 * 60, 0.02},
+	}
+	for _, c := range cases {
+		got := float64(steps(c.from, c.from.Add(c.span)))
+		if math.Abs(got-c.want)/c.want > c.tolerance {
+			t.Errorf("%s: %v requests, want %v within %.0f%%", c.name, got, c.want, c.tolerance*100)
+		}
 	}
 }
