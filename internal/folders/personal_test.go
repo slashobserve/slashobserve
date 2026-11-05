@@ -111,15 +111,27 @@ func TestPersonalFolderIsTheOwnersAlone(t *testing.T) {
 	}
 }
 
-func TestEditorsStillCreateInGeneral(t *testing.T) {
+func TestEditorsDefaultToTheirPersonalFolderAndStillCreateInGeneral(t *testing.T) {
 	d := dbtest.New(t)
 	editor := addUser(t, d, "eve")
-	got, err := NewAccess(d.DB).CreationFolder(t.Context(), userAs(editor, auth.RoleEditor), pgtype.UUID{})
+	access := NewAccess(d.DB)
+	got, err := access.CreationFolder(t.Context(), userAs(editor, auth.RoleEditor), pgtype.UUID{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Personal {
+		t.Fatalf("an Editor's creation folder = %+v, want their personal folder", got)
+	}
+	var generalID pgtype.UUID
+	if err := d.SQLDB(t).QueryRowContext(t.Context(), `SELECT id FROM folders WHERE general`).Scan(&generalID); err != nil {
+		t.Fatal(err)
+	}
+	got, err = access.CreationFolder(t.Context(), userAs(editor, auth.RoleEditor), generalID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !got.General {
-		t.Fatalf("an Editor's creation folder = %+v, want General", got)
+		t.Fatalf("an Editor's requested creation folder = %+v, want General", got)
 	}
 }
 

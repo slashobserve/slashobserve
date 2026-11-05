@@ -2,13 +2,10 @@ package folders
 
 import (
 	"context"
-	"errors"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
-	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
 
 func (a *Access) CreationFolder(ctx context.Context, p auth.Principal, requested pgtype.UUID) (Folder, error) {
@@ -16,18 +13,7 @@ func (a *Access) CreationFolder(ctx context.Context, p auth.Principal, requested
 	if err != nil {
 		return Folder{}, err
 	}
-	var lastUsed pgtype.UUID
-	if !requested.Valid {
-		principalID, err := principalUUID(p)
-		if err != nil {
-			return Folder{}, err
-		}
-		lastUsed, err = a.db.Queries().LastCreatedFolder(ctx, dbsqlc.LastCreatedFolderParams{Kind: string(p.Kind), ID: principalID})
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-			return Folder{}, err
-		}
-	}
-	id, err := pickCreationFolder(levels.entries, levels.personal, lastUsed, requested)
+	id, err := pickCreationFolder(levels.entries, levels.personal, requested)
 	if err != nil {
 		return Folder{}, err
 	}
@@ -35,31 +21,17 @@ func (a *Access) CreationFolder(ctx context.Context, p auth.Principal, requested
 	return e.Folder, nil
 }
 
-func pickCreationFolder(levels []folderLevel, personal, lastUsed, requested pgtype.UUID) (pgtype.UUID, error) {
+func pickCreationFolder(levels []folderLevel, personal, requested pgtype.UUID) (pgtype.UUID, error) {
 	if requested.Valid {
 		return requestedCreationFolder(levels, requested)
 	}
-	canCreate := func(id pgtype.UUID) bool {
-		for _, e := range levels {
-			if e.Folder.ID == id {
-				return e.Abilities.Create
-			}
+	for _, e := range levels {
+		if personal.Valid && e.Folder.ID == personal && e.Abilities.Create {
+			return personal, nil
 		}
-		return false
-	}
-	if lastUsed.Valid && canCreate(lastUsed) {
-		return lastUsed, nil
 	}
 	for _, e := range levels {
 		if e.Folder.General && e.Abilities.Create {
-			return e.Folder.ID, nil
-		}
-	}
-	if personal.Valid && canCreate(personal) {
-		return personal, nil
-	}
-	for _, e := range levels {
-		if e.Abilities.Create {
 			return e.Folder.ID, nil
 		}
 	}

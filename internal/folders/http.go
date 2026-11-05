@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -147,7 +146,7 @@ func (h *Handler) create(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	if strings.EqualFold(title, personalTitle) {
+	if reservedTitle(title) {
 		httpapi.AbortError(c, http.StatusConflict, "folder_exists", "a folder with that name already exists")
 		return
 	}
@@ -199,7 +198,7 @@ func (h *Handler) rename(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	if strings.EqualFold(title, personalTitle) {
+	if reservedTitle(title) {
 		httpapi.AbortError(c, http.StatusConflict, "folder_exists", "a folder with that name already exists")
 		return
 	}

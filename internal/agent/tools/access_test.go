@@ -238,83 +238,100 @@ func (r *accessRig) create(t *testing.T, by auth.Principal, title string, folder
 	return r.call(t, by, nameCreateDashboard, input)
 }
 
-func TestCreateDashboardWithoutAFolderUsesTheRequestersLastFolderElseGeneral(t *testing.T) {
-	t.Run("General when the requester has created nothing yet", func(t *testing.T) {
-		r := newAccessRig(t)
-		r.newFolder(t, "Ops")
-		if got := r.createdIn(t, r.create(t, keyCaller, "First", pgtype.UUID{})); got != "General" {
-			t.Fatalf("landed in %q, want General", got)
-		}
+func (r *accessRig) person(t *testing.T, subject string, role auth.Role) auth.Principal {
+	t.Helper()
+	u, err := r.db.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{
+		OidcIssuer: "i", OidcSubject: subject, Email: subject + "@example.com", Name: subject,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return auth.Principal{Kind: auth.KindUser, ID: u.ID.String(), Name: subject, Role: role}
+}
 
-	t.Run("the folder the requester last created a dashboard in", func(t *testing.T) {
+func TestCreateDashboardWithoutAFolderUsesTheDefaultFolder(t *testing.T) {
+	t.Run("a key lands in General even after an explicit create in another folder", func(t *testing.T) {
 		r := newAccessRig(t)
 		ops := r.newFolder(t, "Ops")
 		if got := r.createdIn(t, r.create(t, keyCaller, "In ops", ops)); got != "Ops" {
 			t.Fatalf("explicit folder: landed in %q, want Ops", got)
 		}
-		if got := r.createdIn(t, r.create(t, keyCaller, "Next", pgtype.UUID{})); got != "Ops" {
-			t.Fatalf("no folder after Ops: landed in %q, want Ops", got)
-		}
-		general := r.generalFolder(t)
-		if got := r.createdIn(t, r.create(t, keyCaller, "Back", general)); got != "General" {
-			t.Fatalf("explicit General: landed in %q, want General", got)
-		}
-		if got := r.createdIn(t, r.create(t, keyCaller, "Then", pgtype.UUID{})); got != "General" {
-			t.Fatalf("no folder after General: landed in %q, want General", got)
+		if got := r.createdIn(t, r.create(t, keyCaller, "Next", pgtype.UUID{})); got != "General" {
+			t.Fatalf("no folder after Ops: landed in %q, want General", got)
 		}
 	})
 
-	t.Run("each requester has their own last folder", func(t *testing.T) {
+	t.Run("a person lands in their My Dashboards even after an explicit create elsewhere", func(t *testing.T) {
 		r := newAccessRig(t)
+		eve := r.person(t, "eve", auth.RoleEditor)
 		ops := r.newFolder(t, "Ops")
-		r.create(t, keyCaller, "In ops", ops)
+		if got := r.createdIn(t, r.create(t, eve, "In ops", ops)); got != "Ops" {
+			t.Fatalf("explicit folder: landed in %q, want Ops", got)
+		}
+		if got := r.createdIn(t, r.create(t, eve, "Next", pgtype.UUID{})); got != "My Dashboards" {
+			t.Fatalf("no folder: landed in %q, want My Dashboards", got)
+		}
+	})
+
+	t.Run("each person gets their own My Dashboards", func(t *testing.T) {
+		r := newAccessRig(t)
+		eve, bob := r.person(t, "eve", auth.RoleEditor), r.person(t, "bob", auth.RoleEditor)
+		mine := r.create(t, eve, "Mine", pgtype.UUID{})
+		theirs := r.create(t, bob, "Theirs", pgtype.UUID{})
+		if folderOf(t, r, mine) == folderOf(t, r, theirs) {
+			t.Fatal("two people landed in the same personal folder")
+		}
+	})
+
+	t.Run("a principal with no person record lands in General", func(t *testing.T) {
+		r := newAccessRig(t)
 		if got := r.createdIn(t, r.create(t, editorCaller, "Mine", pgtype.UUID{})); got != "General" {
-			t.Fatalf("another requester landed in %q, want General", got)
-		}
-	})
-
-	t.Run("General when the last folder can no longer be created in", func(t *testing.T) {
-		r := newAccessRig(t)
-		ops := r.newFolder(t, "Ops")
-		r.create(t, editorCaller, "In ops", ops)
-		err := r.db.Queries().InsertFolderPermission(t.Context(), dbsqlc.InsertFolderPermissionParams{
-			FolderID: ops, GroupName: pgtype.Text{String: privateGroup, Valid: true}, Level: "view",
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := r.createdIn(t, r.create(t, editorCaller, "Next", pgtype.UUID{})); got != "General" {
 			t.Fatalf("landed in %q, want General", got)
 		}
 	})
 
-	t.Run("an agent run saves in the requester's last folder", func(t *testing.T) {
+	t.Run("an agent run saves in the requester's My Dashboards", func(t *testing.T) {
 		r := newAccessRig(t)
+		eve := r.person(t, "eve", auth.RoleEditor)
 		ops := r.newFolder(t, "Ops")
-		r.create(t, editorCaller, "In ops", ops)
-		ctx := WithRun(auth.WithPrincipal(t.Context(), editorCaller), Run{Mode: ModeCreate})
+		r.create(t, eve, "In ops", ops)
+		ctx := WithRun(auth.WithPrincipal(t.Context(), eve), Run{Mode: ModeCreate})
 		res, err := r.registry.Call(ctx, nameCreateDashboard, []byte(`{"spec":`+boardSpec("From a run")+`}`))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := r.createdIn(t, res); got != "Ops" {
-			t.Fatalf("landed in %q, want Ops", got)
+		if got := r.createdIn(t, res); got != "My Dashboards" {
+			t.Fatalf("landed in %q, want My Dashboards", got)
+		}
+	})
+
+	t.Run("a key that cannot create in General is refused", func(t *testing.T) {
+		r := newAccessRig(t)
+		viewerKey := auth.Principal{Kind: auth.KindServiceAccount, ID: "99999999-9999-4999-8999-999999999999", Name: "reader", Role: auth.RoleViewer}
+		ctx := WithRun(auth.WithPrincipal(t.Context(), viewerKey), Run{Mode: ModeCreate})
+		res, err := r.registry.Call(ctx, nameCreateDashboard, []byte(`{"spec":`+boardSpec("Refused")+`}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if code := errorCode(t, res); code != codeForbiddenRole {
+			t.Fatalf("error code = %s, want %s", code, codeForbiddenRole)
 		}
 	})
 }
 
-func (r *accessRig) generalFolder(t *testing.T) pgtype.UUID {
+func folderOf(t *testing.T, r *accessRig, res Result) pgtype.UUID {
 	t.Helper()
-	rows, err := r.db.Queries().FolderFacts(t.Context(), dbsqlc.FolderFactsParams{Groups: []string{}, Kind: string(auth.KindUser)})
+	saved, ok := res.Content.(savedOut)
+	if res.IsError || !ok {
+		t.Fatalf("create_dashboard = %s", textOf(t, res))
+	}
+	id, err := db.ParseUUID(saved.DashboardID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, f := range rows {
-		if f.General {
-			return f.ID
-		}
+	folderID, err := r.db.Queries().DashboardFolder(t.Context(), id)
+	if err != nil {
+		t.Fatal(err)
 	}
-	t.Fatal("no General folder")
-	return pgtype.UUID{}
+	return folderID
 }

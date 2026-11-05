@@ -32,35 +32,28 @@ func TestPickCreationFolder(t *testing.T) {
 		name      string
 		levels    []folderLevel
 		personal  pgtype.UUID
-		lastUsed  pgtype.UUID
 		requested pgtype.UUID
 		want      pgtype.UUID
 		wantErr   error
 	}{
-		{"requested folder where the caller can create", levels(can), none, pgtype.UUID{}, payments, payments, nil},
-		{"requested folder that is visible but not creatable", levels(can), none, pgtype.UUID{}, viewOnly, pgtype.UUID{}, ErrForbidden},
-		{"requested folder that is invisible", levels(can), none, pgtype.UUID{}, missing, pgtype.UUID{}, ErrNotFound},
-		{"requested folder wins over the last used one", levels(can), none, checkout, payments, payments, nil},
-		{"last used folder where the caller can create", levels(can), none, payments, pgtype.UUID{}, payments, nil},
-		{"last used folder the caller cannot create in falls to General", levels(can), none, viewOnly, pgtype.UUID{}, general, nil},
-		{"last used folder that is no longer visible falls to General", levels(can), none, missing, pgtype.UUID{}, general, nil},
-		{"no last used folder uses General", levels(can), none, pgtype.UUID{}, pgtype.UUID{}, general, nil},
-		{"General not creatable falls to the first creatable folder", levels(cannot), none, pgtype.UUID{}, pgtype.UUID{}, checkout, nil},
+		{"requested folder where the caller can create", levels(can), none, payments, payments, nil},
+		{"requested folder that is visible but not creatable", levels(can), none, viewOnly, none, ErrForbidden},
+		{"requested folder that is invisible", levels(can), none, missing, none, ErrNotFound},
+		{"requested folder wins over the personal folder", withPersonal(can), mine, payments, payments, nil},
+		{"requested personal folder is honoured", withPersonal(can), mine, mine, mine, nil},
+		{"personal folder wins over a creatable General", withPersonal(can), mine, none, mine, nil},
+		{"no personal folder falls to General", levels(can), none, none, general, nil},
+		{"a personal folder that is not visible falls to General", levels(can), mine, none, general, nil},
+		{"General not creatable and no personal folder is forbidden", levels(cannot), none, none, none, ErrForbidden},
 		{"nothing creatable", []folderLevel{
 			{Folder: Folder{ID: general, General: true}, Abilities: cannot},
 			{Folder: Folder{ID: viewOnly}, Abilities: cannot},
-		}, none, none, none, none, ErrForbidden},
-		{"General not creatable falls to the personal folder before another creatable folder", withPersonal(cannot), mine, none, none, mine, nil},
-		{"General creatable wins over the personal folder", withPersonal(can), mine, none, none, general, nil},
-		{"last used personal folder is picked", withPersonal(can), mine, mine, none, mine, nil},
-		{"requested personal folder is honoured", withPersonal(can), mine, none, mine, mine, nil},
-		{"requested personal folder wins over the last used one", withPersonal(can), mine, checkout, mine, mine, nil},
-		{"a personal folder that is not visible is not picked", levels(cannot), mine, none, none, checkout, nil},
-		{"no visible folders", nil, none, pgtype.UUID{}, pgtype.UUID{}, pgtype.UUID{}, ErrForbidden},
+		}, none, none, none, ErrForbidden},
+		{"no visible folders", nil, none, none, none, ErrForbidden},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := pickCreationFolder(tc.levels, tc.personal, tc.lastUsed, tc.requested)
+			got, err := pickCreationFolder(tc.levels, tc.personal, tc.requested)
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("error = %v, want %v", err, tc.wantErr)
 			}

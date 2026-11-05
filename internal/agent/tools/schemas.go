@@ -66,7 +66,7 @@ const (
 	propParentVersion = `"parent_version":{"type":"integer","minimum":1,"description":"The version you read. If a newer one was saved since, the save returns version_conflict with latest_version: read that version, apply your change to it and save again."}`
 	propSummary       = `"summary":{"type":"string","minLength":1,"maxLength":500,"description":"One line describing the change."}`
 	propDashID        = `"dashboard_id":{"type":"string","description":"Dashboard id from list_dashboards or a save result."}`
-	propFolderID      = `"folder_id":{"type":"string","format":"uuid","description":"Folder id from list_folders. Default your last used folder, else General."}`
+	propFolderID      = `"folder_id":{"type":"string","format":"uuid","description":"Folder id from list_folders. Default General."}`
 	propCommentID     = `"comment_id":{"type":"string","description":"Comment id from list_comments."}`
 )
 

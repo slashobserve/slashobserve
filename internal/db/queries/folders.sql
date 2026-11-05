@@ -14,12 +14,6 @@ ORDER BY NOT f.personal, f.general, lower(f.title), f.id;
 -- name: DashboardFolder :one
 SELECT folder_id FROM dashboards WHERE id = @id;
 
--- name: LastCreatedFolder :one
-SELECT folder_id FROM dashboards
-WHERE created_by_kind = @kind AND created_by_id = @id
-ORDER BY created_at DESC, id DESC
-LIMIT 1;
-
 -- name: ListFolderDetails :many
 SELECT f.id, f.title, f.general, f.created_by_kind, f.created_by_id, f.created_by_name,
   (SELECT count(*) FROM dashboards d WHERE d.folder_id = f.id)::integer AS dashboard_count,

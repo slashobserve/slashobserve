@@ -39,9 +39,18 @@ func (r *rig) addPerson(t *testing.T, subject string) person {
 	}
 }
 
-func (r *rig) createAs(t *testing.T, p person) pgtype.UUID {
+func (r *rig) generalFolder(t *testing.T) pgtype.UUID {
 	t.Helper()
-	dash, _, err := r.service.Create(t.Context(), p.principal, pgtype.UUID{}, panelsSpec("mine", "rps"), "create")
+	var general pgtype.UUID
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT id FROM folders WHERE general`).Scan(&general); err != nil {
+		t.Fatal(err)
+	}
+	return general
+}
+
+func (r *rig) createAs(t *testing.T, p person, folder pgtype.UUID) pgtype.UUID {
+	t.Helper()
+	dash, _, err := r.service.Create(t.Context(), p.principal, folder, panelsSpec("mine", "rps"), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +73,7 @@ func (r *rig) folderOfDashboard(t *testing.T, id pgtype.UUID) pgtype.UUID {
 func TestOnlyTheCreatorMovesADashboardIntoAPersonalFolder(t *testing.T) {
 	r := newRig(t, false)
 	ada, bob := r.addPerson(t, "ada"), r.addPerson(t, "bob")
-	dash := r.createAs(t, ada)
+	dash := r.createAs(t, ada, r.generalFolder(t))
 	general := r.folderOfDashboard(t, dash)
 
 	if _, _, err := r.service.move(t.Context(), bob.principal, dash, bob.personal); !errors.Is(err, folders.ErrNotCreator) {
@@ -96,7 +105,7 @@ func TestOnlyTheCreatorMovesADashboardIntoAPersonalFolder(t *testing.T) {
 func TestEachPersonMovesTheirOwnDashboardIntoTheirPersonalFolder(t *testing.T) {
 	r := newRig(t, false)
 	bob := r.addPerson(t, "bob")
-	dash := r.createAs(t, bob)
+	dash := r.createAs(t, bob, r.generalFolder(t))
 	if _, _, err := r.service.move(t.Context(), bob.principal, dash, bob.personal); err != nil {
 		t.Fatal(err)
 	}
