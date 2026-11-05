@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/agent/prompts"
@@ -68,6 +69,28 @@ func TestGetSpecGuideOverMCPReturnsTheGuideTheSchemaAndTheExample(t *testing.T) 
 	}
 	if res.Step != "Read the Spec guide" {
 		t.Fatalf("step = %q", res.Step)
+	}
+}
+
+func TestGetSpecGuideOverMCPCarriesOnlyTheConfiguredSections(t *testing.T) {
+	res, err := call(t, newTestRegistry(t, &fakeDS{typ: "loki"}, nil), nameGetSpecGuide, `{}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var guide string
+	if err := json.Unmarshal(contentFields(t, res)["guide"], &guide); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(guide, "## Loki (LogQL)") || strings.Contains(guide, "## Prometheus (PromQL)") {
+		t.Fatalf("guide for a loki-only server holds the wrong sections")
+	}
+
+	res, err = call(t, New(Deps{}), nameGetSpecGuide, `{}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(contentFields(t, res)["guide"], &guide); err != nil || strings.TrimSpace(guide) == "" {
+		t.Fatalf("a registry with no datasources answers guide %q, %v", guide, err)
 	}
 }
 

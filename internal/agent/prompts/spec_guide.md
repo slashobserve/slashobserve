@@ -65,24 +65,6 @@ Decide what the data is before choosing a type: one value, a value against a lim
 - Give every stat and gauge a one-sentence `description`: a lone number has no axis or legend to explain it.
 - `transform` reshapes results in the browser; use it only when a query cannot return the shape.
 
-## Prometheus (PromQL)
-- Use `$__rate_interval` as the window in `rate()` and `increase()`; use `$__range` for an increase over the whole range.
-- Aggregate with `sum by (label)` to keep series few; set `legend` to `{{label}}`.
-- Latency quantiles: `histogram_quantile(0.99, sum by (le) (rate(<name>_bucket[$__rate_interval])))`.
-- A ratio whose numerator may have no series yet (errors before any occurred): `(sum(rate(<errors>[$__rate_interval])) or vector(0)) / sum(rate(<all>[$__rate_interval]))`.
-- An earlier-period comparison goes in one query: `label_replace(<now>, "period", "now", "", "") or label_replace(<same with offset 1d>, "period", "1d ago", "", "")`, so the panel has data before the earlier period exists.
-- `ALERTS{alertstate="firing"}` lists firing alerts; a second query on `ALERTS_FOR_STATE` shows since when.
-
-## ClickHouse (OpenTelemetry exporter tables)
-- `otel_logs` (Timestamp, ServiceName, SeverityText, Body, LogAttributes), `otel_traces` (Timestamp, ServiceName, SpanName, Duration, StatusCode, SpanAttributes), `otel_metrics_*`; check columns with `get_schema`.
-- Always filter time with `$__timeFilter(Timestamp)`.
-- `otel_traces` Duration is nanoseconds: divide by 1e6 for `unit: ms`, or keep it with `unit: ns`.
-- Time series: `SELECT $__timeInterval(Timestamp) AS time, ServiceName, count() AS logs FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY time, ServiceName ORDER BY time`.
-- Filter by a variable that can select All with `$__conditionalAll(ServiceName IN (${service:singlequote}), $service)`; when All must filter by something else, put that condition before the variable: `$__conditionalAll(ServiceName IN (${service:singlequote}), ServiceName = 'api', $service)`.
-- Exactly one `SELECT` statement, no semicolon; add `LIMIT` to tables.
-- Service map edges: `SELECT concat(p.ServiceName, ' -> ', c.ServiceName) AS id, p.ServiceName AS source, c.ServiceName AS target, count() AS mainstat FROM otel_traces AS c INNER JOIN otel_traces AS p ON c.ParentSpanId = p.SpanId AND c.TraceId = p.TraceId WHERE $__timeFilter(c.Timestamp) AND $__timeFilter(p.Timestamp) AND p.ServiceName != c.ServiceName GROUP BY source, target LIMIT 200`.
-- One trace, filtered by a `textbox` variable that falls back to the latest trace: `SELECT TraceId AS traceID, SpanId AS spanID, ParentSpanId AS parentSpanID, ServiceName AS serviceName, SpanName AS operationName, Timestamp AS startTime, Duration / 1000000 AS duration, SpanAttributes AS tags FROM otel_traces WHERE TraceId = if(${trace_id:sqlstring} = '', (SELECT TraceId FROM otel_traces WHERE $__timeFilter(Timestamp) ORDER BY Timestamp DESC LIMIT 1), ${trace_id:sqlstring}) ORDER BY startTime LIMIT 1000`.
-
 ## Variables
 - Add a variable only when the request asks for a breakdown the user will filter.
 - `query` variables: Prometheus `label_values(<metric>, <label>)`, referenced as `$name`, or `${name:regex}` inside `=~`; ClickHouse references use `${name:sqlstring}` inside `IN (...)`.

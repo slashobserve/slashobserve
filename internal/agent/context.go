@@ -24,11 +24,21 @@ type revision struct {
 	conversion  []tools.Attention
 }
 
-func buildSystem() string {
+func systemFor(statuses []datasource.Status) string {
+	var types []spec.DatasourceType
+	for _, s := range statuses {
+		if t := spec.DatasourceType(s.Type); !slices.Contains(types, t) {
+			types = append(types, t)
+		}
+	}
+	return buildSystem(types)
+}
+
+func buildSystem(types []spec.DatasourceType) string {
 	var b strings.Builder
 	b.WriteString(strings.TrimRight(prompts.System(), "\n"))
 	b.WriteString("\n\n# Authoring guide\n")
-	b.WriteString(strings.TrimRight(prompts.SpecGuide(), "\n"))
+	b.WriteString(strings.TrimRight(prompts.GuideFor(types), "\n"))
 	b.WriteString("\n\n# Example Spec (format only)\n")
 	writeJSONBlock(&b, compactJSON(examples.CheckoutServiceHealth))
 	b.WriteString("\n")
