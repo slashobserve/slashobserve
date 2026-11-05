@@ -6,7 +6,7 @@ import {
 } from "@playwright/test"
 
 export async function openDashboard(page: Page, id: string, search = "") {
-  await page.goto(`/dashboards/${id}${search}`)
+  await page.goto(`/d/${id}${search}`)
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
 }
 

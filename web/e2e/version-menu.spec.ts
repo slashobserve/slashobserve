@@ -148,16 +148,14 @@ for (const scheme of themes) {
       await versionMenu(page)
         .getByRole("menuitem", { name: "Compare versions" })
         .click()
-      await expect(page).toHaveURL(
-        new RegExp(`/dashboards/${id}/versions\\?back=`)
-      )
+      await expect(page).toHaveURL(new RegExp(`/d/${id}/versions\\?back=`))
       await expect(
         page.getByRole("heading", { level: 1, name: /: history$/ })
       ).toBeVisible()
 
       await page.getByRole("link", { name: "Back to dashboard" }).click()
       await expect(page).toHaveURL(
-        new RegExp(`/dashboards/${id}\\?from=now-6h$`)
+        new RegExp(`/d/${id}(/[a-z0-9-]+)?\\?from=now-6h$`)
       )
       await expect(versionButton(page)).toBeVisible()
     })

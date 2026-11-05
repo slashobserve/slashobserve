@@ -214,13 +214,13 @@ test("opens a dashboard in the same tab and from the arrow in a new tab", async 
     context.waitForEvent("page"),
     arrow.click(),
   ])
-  await expect(popup).toHaveURL(new RegExp(`/dashboards/${created.id}`))
+  await expect(popup).toHaveURL(new RegExp(`/d/${created.id}`))
   await expect(popup.getByRole("heading", { level: 1 })).toHaveText(title)
   await expect(page).toHaveURL(/\/dashboards(\?.*)?$/)
   await popup.close()
 
   await link.click()
-  await expect(page).toHaveURL(new RegExp(`/dashboards/${created.id}`))
+  await expect(page).toHaveURL(new RegExp(`/d/${created.id}`))
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(title)
 })
 

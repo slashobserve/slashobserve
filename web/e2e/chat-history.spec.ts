@@ -161,7 +161,7 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(rows.nth(1)).toContainText(neverSavesPrompt)
 
       await rows.nth(0).click()
-      await expect(page).toHaveURL(new RegExp(`/observe/${newerId}$`))
+      await expect(page).toHaveURL(new RegExp(`/c/${newerId}$`))
       await expect(aside).toBeVisible()
       await expect(button).toHaveAttribute("aria-expanded", "true")
       await expect(rows.nth(0)).toHaveAttribute("aria-current", "true")
@@ -203,7 +203,7 @@ for (const scheme of ["light", "dark"] as const) {
         await openHistory(page)
 
         await rowsOf(panel(page)).first().click()
-        await expect(page).toHaveURL(new RegExp(`/observe/${id}$`))
+        await expect(page).toHaveURL(new RegExp(`/c/${id}$`))
         await expect(panel(page)).toBeVisible()
         await expect(
           page.getByRole("heading", { level: 1, name: unanswerablePrompt })
@@ -456,7 +456,7 @@ test.describe("on a short window", () => {
     expect(scrolled).toBeGreaterThan(0)
 
     await rows.last().click()
-    await expect(page).toHaveURL(new RegExp(`/observe/${id}$`))
+    await expect(page).toHaveURL(new RegExp(`/c/${id}$`))
     await expect(
       page.getByRole("heading", { level: 1, name: unanswerablePrompt })
     ).toBeVisible()

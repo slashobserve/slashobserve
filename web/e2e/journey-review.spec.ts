@@ -138,7 +138,7 @@ for (const colorScheme of ["light", "dark"] as const) {
           .click()
 
         await expect(page).toHaveURL(
-          new RegExp(`/dashboards/${id}/versions\\?.*from=1&to=2`)
+          new RegExp(`/d/${id}/versions\\?.*from=1&to=2`)
         )
         await expect(
           page.getByRole("heading", { level: 1, name: /: history$/ })
@@ -154,7 +154,9 @@ for (const colorScheme of ["light", "dark"] as const) {
         ).toBeVisible()
 
         await page.getByRole("link", { name: "Back to dashboard" }).click()
-        await expect(page).toHaveURL(new RegExp(`/dashboards/${id}(\\?|$)`))
+        await expect(page).toHaveURL(
+          new RegExp(`/d/${id}(/[a-z0-9-]+)?(\\?|$)`)
+        )
         await expect(card(page)).toBeVisible()
         await expect(panel(page, firstPanelTitle)).toBeVisible()
         await expect(panel(page, "p99 latency")).toBeVisible()

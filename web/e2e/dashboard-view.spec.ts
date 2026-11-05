@@ -328,7 +328,7 @@ test("shows not found for an unknown dashboard", async ({
   page,
   consoleErrors,
 }) => {
-  await page.goto("/dashboards/00000000-0000-0000-0000-000000000000")
+  await page.goto("/d/00000000-0000-0000-0000-000000000000")
   await expect(
     page.getByRole("heading", { name: "Dashboard not found" })
   ).toBeVisible()
@@ -353,7 +353,7 @@ test("shows a load problem for a version that fails and retries it", async ({
       body: JSON.stringify({ error: "database unavailable", code: "internal" }),
     })
   )
-  await page.goto(`/dashboards/${id}?version=1`)
+  await page.goto(`/d/${id}?version=1`)
   await expect(page.getByText("Could not load version 1")).toBeVisible()
   await expect(page.getByText("Database unavailable.")).toBeVisible()
   await expect(

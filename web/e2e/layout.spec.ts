@@ -358,7 +358,7 @@ test("asks before discarding unsaved changes", async ({ page, request }) => {
   ).toBeFocused()
   await dialog.getByRole("button", { name: "Keep editing" }).click()
   await expect(dialog).toHaveCount(0)
-  await expect(page).toHaveURL(new RegExp(`/dashboards/${id}$`))
+  await expect(page).toHaveURL(new RegExp(`/d/${id}(/[a-z0-9-]+)?$`))
   await expect(page.getByText("Unsaved changes")).toBeVisible()
 
   await page.getByRole("button", { name: "Cancel" }).click()

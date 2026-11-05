@@ -7,7 +7,7 @@ import { expect, test } from "./fixtures"
 const agentTimeout = 90_000
 const askPrompt = "demo shop RED metrics by endpoint"
 const followUpPrompt = "Show this per route"
-const requestPath = /\/observe\/([0-9a-f-]{36})$/
+const requestPath = /\/c\/([0-9a-f-]{36})$/
 const dashboardTitle = "Demo shop RED metrics"
 const refinedDashboardTitle = "E2E dashboard"
 
@@ -88,7 +88,9 @@ for (const colorScheme of ["light", "dark"] as const) {
 
       await test.step("open the dashboard", async () => {
         await firstTurn.getByRole("link", { name: /^Open dashboard/ }).click()
-        await expect(page).toHaveURL(new RegExp(`/dashboards/${dashboardId}$`))
+        await expect(page).toHaveURL(
+          new RegExp(`/d/${dashboardId}(/[a-z0-9-]+)?$`)
+        )
         await expect(page.getByRole("heading", { level: 1 })).toHaveText(
           dashboardTitle
         )
@@ -110,7 +112,7 @@ for (const colorScheme of ["light", "dark"] as const) {
           timeout: agentTimeout,
         })
         await expect(secondTurn.getByText(/^Ran \d+ steps?/)).toBeVisible()
-        await expect(page).toHaveURL(new RegExp(`/observe/${firstId}$`))
+        await expect(page).toHaveURL(new RegExp(`/c/${firstId}$`))
         const turns = page.getByRole("region", { name: /^Request / })
         await expect(turns.first()).toContainText(askPrompt)
         await expect(turns.last()).toContainText(followUpPrompt)
@@ -155,7 +157,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         )
 
         await rows.nth(order.current).click()
-        await expect(page).toHaveURL(new RegExp(`/observe/${firstId}$`))
+        await expect(page).toHaveURL(new RegExp(`/c/${firstId}$`))
         await expect(rows.nth(order.current)).toHaveAttribute(
           "aria-current",
           "true"
@@ -170,7 +172,7 @@ for (const colorScheme of ["light", "dark"] as const) {
           .first()
         await expect(row).toBeVisible()
         await row.click()
-        await expect(page).toHaveURL(new RegExp(`/observe/${firstId}$`))
+        await expect(page).toHaveURL(new RegExp(`/c/${firstId}$`))
       })
 
       await test.step("theme", async () => {

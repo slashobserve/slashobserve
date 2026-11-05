@@ -7,8 +7,8 @@ const followUpPrompt = "add a requests by pod panel"
 const draftPrompt = "an unsent draft"
 const neverSavesPrompt = "e2e: a slow run that never saves"
 const unanswerablePrompt = "e2e: a follow-up the replay provider cannot answer"
-const requestPath = /\/observe\/([0-9a-f-]{36})$/
-const dashboardPath = /\/dashboards\/([0-9a-f-]{36})/
+const requestPath = /\/c\/([0-9a-f-]{36})$/
+const dashboardPath = /\/d\/([0-9a-f-]{36})/
 const requestApi = /\/api\/v1\/observe\/[0-9a-f-]{36}$/
 const revisionsApi = /\/api\/v1\/dashboards\/[0-9a-f-]{36}\/revisions$/
 const openLink = { name: "Open dashboard", exact: true }
@@ -89,8 +89,8 @@ test("records the repair step and reopens finished requests", async ({
   expect(JSON.stringify(finished?.steps)).toContain('"phase":"repair"')
   expect(finished?.dashboard_id).not.toBeNull()
 
-  await page.goto(`/observe/${request.id}`)
-  await expect(page).toHaveURL(new RegExp(`/observe/${request.id}$`))
+  await page.goto(`/c/${request.id}`)
+  await expect(page).toHaveURL(new RegExp(`/c/${request.id}$`))
   const summary = page
     .locator("summary")
     .filter({ hasText: /repaired 1 query/ })
@@ -144,17 +144,20 @@ test("retries a failed follow-up on the same dashboard", async ({ page }) => {
   expect(queued.status()).toBe(202)
   const { request } = (await queued.json()) as { request: { id: string } }
 
-  await page.goto(`/observe/${request.id}`)
+  await page.goto(`/c/${request.id}`)
   const alerts = page.getByRole("alert")
   await expect(alerts).toContainText("no replay fixture", { timeout: 30_000 })
   await expect(alerts).toContainText("could not be updated")
   const open = alerts.getByRole("link", openLink)
-  await expect(open).toHaveAttribute("href", `/dashboards/${dashboardId}`)
+  await expect(open).toHaveAttribute(
+    "href",
+    new RegExp(`^/d/${dashboardId}(/[a-z0-9-]+)?$`)
+  )
   await expect(open).not.toHaveAttribute("target")
   await alerts.getByRole("button", { name: "Try again" }).click()
 
   await expect(alerts).toHaveCount(2, { timeout: 30_000 })
-  await expect(page).toHaveURL(new RegExp(`/observe/${request.id}$`))
+  await expect(page).toHaveURL(new RegExp(`/c/${request.id}$`))
   await expect(alerts.last()).toContainText("no replay fixture", {
     timeout: 30_000,
   })
@@ -199,12 +202,15 @@ test("links a failed comment revision back to its dashboard", async ({
   }
   expect(comment.revision).not.toBeNull()
 
-  await page.goto(`/observe/${comment.revision?.id}`)
+  await page.goto(`/c/${comment.revision?.id}`)
   const alert = page.getByRole("alert")
   await expect(alert).toContainText("no replay fixture", { timeout: 30_000 })
   await expect(alert.getByRole("button", { name: "Try again" })).toHaveCount(0)
   const open = alert.getByRole("link", openLink)
-  await expect(open).toHaveAttribute("href", `/dashboards/${dashboardId}`)
+  await expect(open).toHaveAttribute(
+    "href",
+    new RegExp(`^/d/${dashboardId}(/[a-z0-9-]+)?$`)
+  )
   await expect(open).not.toHaveAttribute("target")
 })
 

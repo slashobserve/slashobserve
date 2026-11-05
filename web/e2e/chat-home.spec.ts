@@ -81,7 +81,7 @@ for (const scheme of ["light", "dark"] as const) {
       })
 
       await row.click()
-      await expect(page).toHaveURL(new RegExp(`/observe/${request.id}$`))
+      await expect(page).toHaveURL(new RegExp(`/c/${request.id}$`))
     })
 
     test("replaces the composer when no model is connected", async ({

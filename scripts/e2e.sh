@@ -2113,7 +2113,7 @@ observe_suite() {
   observe_wait "$id" 90
   did="$(grep -o '"dashboard_id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
   [[ -n "$did" ]] || fail "the finished observe request has no dashboard ($(cat "$TMP/api.body"))"
-  observe_expect "the finished observe request" '"status":"succeeded"' '"result_version":1' '"attempts":1' '"error":null' "\"url\":\"$BASE_URL/dashboards/$did\"" \
+  observe_expect "the finished observe request" '"status":"succeeded"' '"result_version":1' '"attempts":1' '"error":null' "\"url\":\"$BASE_URL/d/$did" \
     '"phase":"save","tool":"create_dashboard","status":"error"' '"phase":"repair","tool":"create_dashboard","status":"ok"' \
     '"provider":"replay"' '"model_calls":6' '"repair_rounds":1'
   pass "a new dashboard request repairs its broken query and finishes with steps, usage and the dashboard address"
@@ -3058,11 +3058,11 @@ cli_suite() {
 
   cli_run --timeout 120s "log volume by service"
   url="$(cat "$TMP/cli.out")"
-  if [[ "$CLI_CODE" != 0 || "$(wc -l <"$TMP/cli.out" | tr -d ' ')" != 1 || ! "$url" =~ ^http://localhost:${PORT}/dashboards/[0-9a-f-]{36}$ ]]; then
+  if [[ "$CLI_CODE" != 0 || "$(wc -l <"$TMP/cli.out" | tr -d ' ')" != 1 || ! "$url" =~ ^http://localhost:${PORT}/d/([0-9a-f-]{36})(/[a-z0-9-]+)?$ ]]; then
     fail "observe with a prompt should print one dashboard address ($CLI_CODE; stdout: $url; stderr: $(cat "$TMP/cli.err"))"
   fi
   grep -qF "save" "$TMP/cli.err" || fail "observe with a prompt printed no progress steps (stderr: $(cat "$TMP/cli.err"))"
-  did="${url##*/}"
+  did="${BASH_REMATCH[1]}"
   pass "observe with a prompt prints only the dashboard address and reports progress on stderr"
 
   cli_comments_checks "$did"
@@ -3105,7 +3105,7 @@ cli_suite() {
   fi
   cli_run status "$request_id" --wait --timeout 120s
   url="$(cat "$TMP/cli.out")"
-  if [[ "$CLI_CODE" != 0 || ! "$url" =~ ^http://localhost:${PORT}/dashboards/[0-9a-f-]{36}$ ]]; then
+  if [[ "$CLI_CODE" != 0 || ! "$url" =~ ^http://localhost:${PORT}/d/([0-9a-f-]{36})(/[a-z0-9-]+)?$ ]]; then
     fail "observe status --wait should print the dashboard address ($CLI_CODE: $url; $(cat "$TMP/cli.err"))"
   fi
   cli_run status "$request_id"

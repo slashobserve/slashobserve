@@ -288,7 +288,7 @@ test("shows not found when the stream keeps failing because the dashboard is gon
     })
   })
 
-  await page.goto(`/dashboards/${id}`)
+  await page.goto(`/d/${id}`)
   await expect(
     page.getByRole("heading", { name: "Dashboard not found" })
   ).toBeVisible({ timeout: 20_000 })

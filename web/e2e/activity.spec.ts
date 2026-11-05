@@ -471,10 +471,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         const details = card(page).getByRole("link", {
           name: /Details of the running agent request/,
         })
-        await expect(details).toHaveAttribute(
-          "href",
-          /\/observe\/[0-9a-f-]{36}$/
-        )
+        await expect(details).toHaveAttribute("href", /\/c\/[0-9a-f-]{36}$/)
 
         finish()
         const entry = entryWith(page, unanswerablePrompt)
@@ -696,7 +693,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         ""
       )
 
-      await page.goto(`/dashboards/${id}?panel=rps&tab=query`)
+      await page.goto(`/d/${id}?panel=rps&tab=query`)
       const editor = page.getByRole("complementary", {
         name: `Edit ${rpsTitle}`,
       })
