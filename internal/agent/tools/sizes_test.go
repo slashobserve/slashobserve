@@ -2,8 +2,12 @@ package tools
 
 import (
 	"encoding/json"
+	"fmt"
+	"slices"
+	"strings"
 	"testing"
 
+	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -93,5 +97,69 @@ func TestChooseSize(t *testing.T) {
 				t.Errorf("size = %+v, want %+v", got, tt.want)
 			}
 		})
+	}
+}
+
+const guideSizesPrefix = "- Default sizes, `w`x`h`: "
+const guideSizesSuffix = "; a row is 24x1."
+
+func impliedGuideLine() string {
+	bySize := map[string][]string{}
+	for panelType, g := range defaultSizes {
+		key := fmt.Sprintf("%dx%d", g.W, g.H)
+		bySize[key] = append(bySize[key], string(panelType))
+	}
+	var groups []string
+	for key, names := range bySize {
+		slices.Sort(names)
+		groups = append(groups, strings.Join(names, ", ")+" "+key)
+	}
+	slices.Sort(groups)
+	groups = append(groups, fmt.Sprintf("others %dx%d", fallbackSize.W, fallbackSize.H))
+	return guideSizesPrefix + strings.Join(groups, "; ") + guideSizesSuffix
+}
+
+func TestTheGuideStatesEveryDefaultSize(t *testing.T) {
+	var line string
+	for _, l := range strings.Split(prompts.SpecGuide(), "\n") {
+		if strings.HasPrefix(l, guideSizesPrefix) {
+			line = l
+		}
+	}
+	if line == "" || !strings.HasSuffix(line, guideSizesSuffix) {
+		t.Fatalf("the guide has no default sizes line ending in %q; the table implies %q", guideSizesSuffix, impliedGuideLine())
+	}
+	stated := map[spec.PanelType]bool{}
+	others := false
+	for group := range strings.SplitSeq(strings.TrimSuffix(strings.TrimPrefix(line, guideSizesPrefix), guideSizesSuffix), "; ") {
+		fields := strings.Fields(group)
+		var w, h int
+		if _, err := fmt.Sscanf(fields[len(fields)-1], "%dx%d", &w, &h); err != nil {
+			t.Fatalf("group %q has no WxH size: %v", group, err)
+		}
+		got := spec.GridPos{W: w, H: h}
+		names := strings.NewReplacer(" and ", ", ").Replace(strings.Join(fields[:len(fields)-1], " "))
+		for name := range strings.SplitSeq(names, ", ") {
+			if name == "others" {
+				others = true
+				if got != fallbackSize {
+					t.Errorf("the guide gives others %+v, fallbackSize is %+v; the table implies %q", got, fallbackSize, impliedGuideLine())
+				}
+				continue
+			}
+			want, ok := defaultSizes[spec.PanelType(name)]
+			if !ok || want != got {
+				t.Errorf("the guide gives %s %+v, defaultSizes has %+v (listed %v); the table implies %q", name, got, want, ok, impliedGuideLine())
+			}
+			stated[spec.PanelType(name)] = true
+		}
+	}
+	if !others {
+		t.Errorf("the guide does not state the size of other types; the table implies %q", impliedGuideLine())
+	}
+	for panelType := range defaultSizes {
+		if !stated[panelType] {
+			t.Errorf("the guide does not state the size of %s; the table implies %q", panelType, impliedGuideLine())
+		}
 	}
 }

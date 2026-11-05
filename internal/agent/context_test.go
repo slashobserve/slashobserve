@@ -310,6 +310,8 @@ func TestOutlineTargetsAreCapped(t *testing.T) {
 	}
 }
 
+const systemTextBudget = 21496
+
 func TestBuildSystemHoldsTheRulesTheGuideAndTheExampleButNotTheSchema(t *testing.T) {
 	system := buildSystem()
 	for _, want := range []string{
@@ -324,8 +326,8 @@ func TestBuildSystemHoldsTheRulesTheGuideAndTheExampleButNotTheSchema(t *testing
 	if strings.Contains(system, "# ObserveSpec v0 JSON Schema") || strings.Contains(system, `"$defs"`) {
 		t.Fatal("system text carries the JSON Schema")
 	}
-	if len(system) >= 20<<10 {
-		t.Fatalf("system text is %d bytes, want under 20 KiB", len(system))
+	if len(system) > systemTextBudget {
+		t.Fatalf("system text is %d bytes, over the %d byte budget", len(system), systemTextBudget)
 	}
 	if !strings.Contains(system, "- Never create a placeholder panel. Keep existing placeholders unchanged apart from their position, and delete one only when the request asks.") {
 		t.Fatal("system prompt lacks the placeholder rule")
@@ -343,7 +345,9 @@ func TestBuildSystemStatesTheRulesTheLoopEnforces(t *testing.T) {
 		"names a dashboard to rebuild",
 		"A third identical call is refused, and a `<note>` at the end of a tool result is an instruction from the server",
 		"when `truncated` is true, pass `next_offset` to page on",
-		"Pick widths in a row that add up to 24",
+		"make its widths add up to exactly 24",
+		"out of the panels you save: the server sizes a new panel",
+		"## Panel type by data shape",
 		"with `row` naming its row",
 	} {
 		if !strings.Contains(system, want) {
@@ -354,6 +358,8 @@ func TestBuildSystemStatesTheRulesTheLoopEnforces(t *testing.T) {
 		"two to eight panels unless the request asks for more",
 		"after an `update_panels` rejection resend only",
 		"The schema here leaves out",
+		"Pick widths in a row that add up to 24",
+		"Use `stat` or `table` for",
 	} {
 		if strings.Contains(system, gone) {
 			t.Errorf("system text still holds %q", gone)

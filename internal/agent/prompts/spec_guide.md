@@ -7,13 +7,6 @@ The schema leaves out rare, import-only and purely visual options; when a Spec y
 
 ## Panels
 - A data panel has `id`, `type`, `title`, `gridPos`, `datasource` (a datasource uid such as `prom`) and `queries`.
-- `timeseries`: a trend over time; its queries run as range queries.
-- `stat`: one current number, such as an error ratio; `gauge`: one number against `min`, `max` and thresholds.
-- `bargauge`: compare a few current values across series; `piechart`: shares of a total.
-- `table`: rows such as top-N lists or slow spans; `logs`: ClickHouse log lines.
-- `heatmap` and `histogram`: distributions such as latency; `state-timeline`: states per series over time.
-- `barchart`: values across categories, such as requests per route; use an `instant: true` query with `format: "table"` (the first label column is the x axis) or set `display.xField`.
-- `status-history`: one row per series, one cell per sample, for discrete states.
 - `trend`: a line over a numeric x axis instead of time (`display.xField`, default the first number column).
 - `xychart`: one numeric column (`display.xField`) plotted against the others.
 - `candlestick`: `open`, `high`, `low`, `close` and optional `volume` columns over time.
@@ -31,22 +24,44 @@ The schema leaves out rare, import-only and purely visual options; when a Spec y
 - Leave text panels with `mode: "html"` and canvas element `actions` exactly as they are; they come only from imports and people. You may move or delete them.
 - Add a `text` panel only when the request asks for notes, as plain sentences in `content`.
 
+## Panel type by data shape
+Decide what the data is before choosing a type: one value, a value against a limit, a trend, a distribution, a ranking, a share, rows of attributes, states, logs or events.
+- One current value, such as a count, a rate now or a total: `stat` with an `instant: true` query, or `reduce` `lastNotNull` on a range query; thresholds only when the value has a good and a bad direction, then `colorMode` `value`.
+- A state now, such as `up`: `stat` with `mappings` naming each state (0 Down, 1 Up) and no unit; a version, owner or node label: `stat` with `textMode` `name`, or a `table` for several labels; an age: `stat` on `time() - <timestamp>` in `s` or `dtdurations`.
+- One ratio against a known maximum, such as used over capacity: `gauge` with `min` 0, `max` 1 and `percentunit` (or `max` 100 and `percent`), thresholds `ok`, `warning` near 0.8, `critical` near 0.9; a value with no natural maximum is a `stat`.
+- A trend of one to about ten series, such as rates, gauges, ratios or latency quantiles (p50, p90 and p99 together, in `s` or `ms`): `timeseries`; 10 to 20 series: a full-width `timeseries`; more: aggregate with `sum by` or `topk` first.
+- A distribution over time: `heatmap` of `sum by (le) (rate(<name>_bucket[$__rate_interval]))` with `format: "heatmap"`, the bucket bound's unit and `yScale` log for wide ranges; buckets become a heatmap or quantile lines, never one line per bucket; raw values over the whole range: `histogram`.
+- A ranking or top N now: `bargauge` on an instant `topk(N, ...)` or `ORDER BY ... DESC LIMIT N`, `orientation` horizontal for long names; a `table` when entries need several columns; never a `timeseries` with a line per entry.
+- Values across categories: `barchart` with an `instant: true` query and `format: "table"` (the first label column is the x axis) or `display.xField`, legend hidden for one series; shares of a whole in up to six parts: `piechart` with `legend` `right`.
+- Several attributes per entity, inventories or slowest-N lists: `table` with `format: "table"`, a unit per column in `overrides` and `LIMIT` in SQL.
+- Discrete states per entity over time, such as `up` or `ALERTS`: `state-timeline` with mappings or thresholds per state and no unit, or `status-history` (one cell per sample) for periodic checks.
+- Show a counter as `rate()` or `increase()`; its raw value only in a stat titled as a lifetime total, or inside `count(...)`.
+
 ## Queries
 - Each query has `query` and, if it returns several series, a `legend` such as `{{route}}`.
 - Put related series in one panel with several queries, such as requests and errors; queries are named `A`, `B`, `C` by position; write `ref` only for a stable name.
 - A query may set its own `datasource`, `instant: true` for one value per series, `interval` as its minimum step (a duration, or `${name}` of an `interval` variable), `exemplar: true` to mark exemplars on a Prometheus time series, or `hide: true` to run nowhere.
 
 ## Layout
-- The grid is 24 columns wide; `x + w` may not exceed 24 and panels may not overlap.
-- Typical sizes: timeseries `w` 12 `h` 8, stat or gauge `w` 6 `h` 4, table `w` 24 `h` 8, row `w` 24 `h` 1; fill rows left to right, top to bottom.
-- Pick widths in a row that add up to 24, such as 6+6+12 or 8+8+8, and give the panels of one line the same height: a gap narrower than the next panel, or under a short panel beside a tall one, stays empty.
+- The grid is 24 columns wide and a screen about 22 units tall; `x + w` may not exceed 24 and panels may not overlap.
+- Default sizes, `w`x`h`: stat and gauge 6x4; timeseries, bargauge, barchart, heatmap and histogram 12x8; piechart 8x8; table 24x8; state-timeline and status-history 24x6; logs, traces, nodeGraph and geomap 24x10; text 24x2; others 12x8; a row is 24x1.
+- A line is the panels side by side at one `y`: plan it before its first panel, make its widths add up to exactly 24, and give its panels one height; a stat or gauge beside a chart takes the chart's height, and short panels otherwise get their own line.
+- Line recipes: 12/12, 8/8/8, 24, 6/6/6/6, 4/4/4/4/4/4, 16/8, 8/16, 18/6, 6/6/12, 4/4/4/12 or 15/9; equal widths unless one panel is the focus; vary the recipe by purpose: single values in a strip, related charts 12/12, a group of three such as requests, errors and duration 8/8/8.
+- Full width only for a table of five or more columns (or unknown), logs, traces, a service map, state timelines, a note, the last panel of an odd line, and one headline chart per row at `h` 7; a table of up to four columns goes 12 or 8 wide beside a chart of its height; never end a row on a lone half or third.
+- Open with one strip of three, four or six single values of one width (8, 6 or 4) at `h` 3 or 4, two strips at most, and keep single values out of later rows unless a row has its own strip.
+- Order from summary to detail: an optional 24x2 note, the strip, the key charts, one row per subsystem or resource, then drill-down rows; title the first row `Overview` and later rows with a short noun.
+- Up to 8 panels need no rows or one or two; 9 to 16 may use rows; above 16, rows of two to six panels; never collapse the first row, and collapse detail rows only from 30 panels.
+- Keep five to nine panels in the first 22 units and the total height near 50 units unless the request rebuilds a whole dashboard.
 
 ## Field options
-- `unit` is a unit id from the schema: `reqps` for request rates, `s` or `ms` for durations, `percentunit` for 0-1 ratios, `percent` for 0-100, `bytes`, `short` for counts, or `suffix:<text>`.
+- Set `unit` on every timeseries, stat, gauge and bargauge; it is a unit id from the schema: `reqps` for request rates, `s` or `ms` for durations, `percentunit` for 0-1 ratios, `percent` for 0-100, `bytes`, `short` for counts, or `suffix:<text>`.
 - `thresholds` ascend; the first step may leave out `value` and is then the base color, for example `[{"color": "ok"}, {"value": 0.25, "color": "warning"}, {"value": 0.5, "color": "critical"}]`; colors are `ok`, `info`, `warning`, `critical`, `text` (the theme's text color) or a hex color.
 - `decimals`, `min`, `max`, `displayName`, `noValue` and `mappings` (each needs `text`, `color` or both) refine values.
 - `overrides` set the same options for matching series, for example `{"match": {"query": "B"}, "unit": "s"}`.
-- `display` holds the per-type options; set it only when the request asks for one, after reading its type's options with `get_spec_guide`.
+- `display` holds the per-type options; set one only when the request or a rule in this guide asks for it, after reading its type's options with `get_spec_guide`.
+- Legends: a list below the chart, naming each series with its query's `legend`; above five series a table (`display.legendMode` `table`, `legendValues` `["lastNotNull", "max"]`), below the chart up to 12 wide and on the right (`display.legend` `right`) only at full width; `display.legend` `hidden` for one unnamed series.
+- A stat draws its sparkline from `h` 4; at `h` 2 or 3 set `display.graph` false.
+- Give every stat and gauge a one-sentence `description`: a lone number has no axis or legend to explain it.
 - `transform` reshapes results in the browser; use it only when a query cannot return the shape.
 
 ## Prometheus (PromQL)
