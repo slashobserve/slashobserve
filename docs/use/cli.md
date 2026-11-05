@@ -62,7 +62,7 @@ Colour is used only in a terminal, and setting `NO_COLOR` to any value turns it 
 It opens only `http` and `https` addresses.
 `status --wait`, `continue`, `run` and `import` accept `--open` too.
 
-A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `status`, `cancel`, `continue`, `annotate`, `open`, `doctor`, `logs`, `traces`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
+A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `status`, `cancel`, `continue`, `annotate`, `open`, `doctor`, `logs`, `traces`, `grafana`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
 `--timeout` (2 hours by default, so a large build can finish while you wait) stops the waiting and not the request, which keeps running on the server; `bin/observe status <request-id> --wait` waits again.
@@ -73,7 +73,7 @@ The CLI exits with these codes:
 | Code | When |
 | ---- | ---- |
 | `0` | The command succeeded, including when `--open` could not open the browser and when `observe logs --tail` ends with Ctrl-C. |
-| `1` | The server refused or failed the request, the agent request failed, the waiting stopped at `--timeout` or an interrupt, `observe open` could not open the browser, or an `observe doctor` check failed. |
+| `1` | The server refused or failed the request, the agent request failed, the waiting stopped at `--timeout` or an interrupt, `observe open` could not open the browser, an `observe doctor` check failed, or an `observe grafana import` had a dashboard fail. |
 | `2` | The command line is wrong: an unknown command or flag, a missing argument or an invalid id. |
 
 `bin/observe cancel <request-id>` cancels a queued or running request and prints it.
@@ -189,6 +189,29 @@ The id is 16 or 32 hexadecimal characters, and `--from` and `--to` (`now-24h` an
 On ClickHouse it reads the OpenTelemetry `otel_traces` table.
 It prints a header with the span count, the total duration and the root span, then one row per span with its service, its name indented under its parent, its start after the trace start, its duration and `ok`, `error` or `-`.
 A trace with no spans in the range exits 1, and `--json` prints the response body.
+
+`bin/observe grafana connect <url> --token-stdin` stores a Grafana connection for [Switch from Grafana](switch-from-grafana.md) and tests it, and needs an Admin key.
+The token comes only from standard input, so it never lands in shell history, and `--name` defaults to the URL's host:
+
+```sh
+printf '%s' "$GRAFANA_TOKEN" | bin/observe grafana connect https://grafana.example.com --token-stdin --name "Ops Grafana"
+```
+
+It prints `Connected <name>: <id>` and the test message, and `--json` prints the tested connection.
+A failed test exits 1 with the message and the connection id; the connection stays stored, and you fix or remove it on the Grafana settings page.
+
+`bin/observe grafana import <connection id>` imports dashboards from that Grafana, with `--folders` for some folders or `--all` for every one:
+
+```sh
+bin/observe grafana import <connection id>
+bin/observe grafana import <connection id> --folders general,platform
+bin/observe grafana import <connection id> --all
+```
+
+Without either flag it prints the folders as a table of uid, title and dashboard count and exits 2.
+It then waits for the import, showing `Imported <done> of <total>` on a terminal, and prints how many dashboards were done, skipped and failed, a table of the failed ones with their error, and a notice for dashboards with panels that did not verify.
+It exits 1 when any dashboard failed or the import failed or was canceled, and `--json` prints the final import.
+The server keeps an import only until it restarts, and an interrupt stops the waiting while the import continues on the server.
 
 `bin/observe completion bash`, `zsh` or `fish` prints a completion script for commands and flags.
 Load it for the current shell, or save it where your shell reads completions:
