@@ -99,6 +99,7 @@ The guards steer before they stop, and every refusal and every stop shows as a s
 A run that keeps asking a read it already made is first answered, then refused: a successful read is answered once more from its first result with a note, a failed read or a query result runs again, and a third identical call is refused.
 A save identical to an earlier one is refused.
 A tool result over its size limit goes back to the model as a `result_too_large` error that names the parameters that narrow that tool's answer, such as `search` and `limit` for `list_metrics` or `get_panels` instead of `get_dashboard`.
+A save result is never an error for its size, because the save already happened: its panel list is cut to fit and marked `truncated`.
 A tool that fails, such as a datasource that does not answer, goes back to the model as a `tool_failed` error without the error's own text, and the run goes on.
 A tool call ends the run only on a broken internal invariant: a cancellation, a lost claim on the build, or a tool that panicked (`tool_panicked`).
 On an evals stack, `SLASHOBSERVE_AGENT_LOG_TOOL_INPUTS` logs each tool input by hash, size, panel ids and the issue paths of a rejected save, never by its text; see [Configuration](../reference/configuration.md).

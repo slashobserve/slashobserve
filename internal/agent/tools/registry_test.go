@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 func TestDecodeInput(t *testing.T) {
@@ -494,6 +495,71 @@ func TestAResultOverItsLimitIsTooLargeWithANarrowingHint(t *testing.T) {
 			}
 			if !strings.Contains(logs.String(), "agent tool result too large") {
 				t.Fatalf("log lacks the too-large line: %s", logs.String())
+			}
+		})
+	}
+}
+
+func TestASaveResultOverItsLimitIsTrimmedNeverAnError(t *testing.T) {
+	panels := func(n int) []panelOut {
+		out := make([]panelOut, n)
+		for i := range out {
+			out[i] = panelOut{ID: fmt.Sprintf("p%d", i), Title: strings.Repeat("t", 200), Type: spec.Timeseries}
+		}
+		return out
+	}
+	ids := func(n int) []string {
+		out := make([]string, n)
+		for i := range out {
+			out[i] = fmt.Sprintf("unverified-%d-%s", i, strings.Repeat("u", 40))
+		}
+		return out
+	}
+	tests := []struct {
+		name    string
+		tool    string
+		limit   int
+		content any
+	}{
+		{"create with too many panels", nameCreateDashboard, maxContentBytes, savedOut{DashboardID: "d1", Version: 1, URL: "http://x/d/d1", Panels: panels(200), UnverifiedPanels: ids(3)}},
+		{"update_panels with too many unverified panels", nameUpdatePanels, maxSuggestResult, savedOut{DashboardID: "d1", Version: 9, URL: "http://x/d/d1", Panels: panels(400), UnverifiedPanels: ids(2000)}},
+		{"build save with too many changed panels", nameUpdateDashboard, maxSuggestResult, buildOut{Build: buildStateOut{Saves: 2, Panels: 400}, ChangedPanels: panels(400), Layout: &layoutOut{Rows: []string{"r1"}}, Message: "saved"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if jsonSize(tt.content) <= tt.limit {
+				t.Fatalf("fixture is %d bytes, not over the %d byte limit", jsonSize(tt.content), tt.limit)
+			}
+			r := newTestRegistry(t, &fakeDS{}, nil)
+			r.entries[tt.tool] = entry{handle: func(context.Context, json.RawMessage) (Result, error) {
+				return success("Saved", tt.content), nil
+			}}
+			res, err := call(t, r, tt.tool, `{}`)
+			if err != nil || res.IsError {
+				t.Fatalf("res = %#v err = %v, want a trimmed success", res, err)
+			}
+			if size := jsonSize(res.Content); size > tt.limit {
+				t.Fatalf("trimmed result is %d bytes, over the %d byte limit", size, tt.limit)
+			}
+			switch got := res.Content.(type) {
+			case savedOut:
+				want := tt.content.(savedOut)
+				if !got.Truncated || got.DashboardID != want.DashboardID || got.Version != want.Version || got.URL != want.URL {
+					t.Fatalf("got %+v, want the saved version kept and marked truncated", got)
+				}
+				if len(got.UnverifiedPanels) == 0 || !slices.Equal(got.UnverifiedPanels, want.UnverifiedPanels[:len(got.UnverifiedPanels)]) {
+					t.Fatalf("unverified panels = %v, want a prefix of the saved list", got.UnverifiedPanels)
+				}
+				if len(got.Panels) >= len(want.Panels) || !slices.Equal(got.Panels, want.Panels[:len(got.Panels)]) {
+					t.Fatalf("panels = %d, want a shorter prefix of %d", len(got.Panels), len(want.Panels))
+				}
+			case buildOut:
+				want := tt.content.(buildOut)
+				if got.Build != want.Build || got.Message != want.Message || len(got.ChangedPanels) == 0 || len(got.ChangedPanels) >= len(want.ChangedPanels) {
+					t.Fatalf("got %+v, want the build state kept and fewer changed panels", got)
+				}
+			default:
+				t.Fatalf("content is %T", res.Content)
 			}
 		})
 	}

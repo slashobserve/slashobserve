@@ -297,8 +297,40 @@ func (r *Registry) capped(ctx context.Context, name string, res Result) (Result,
 	if len(body) <= limit {
 		return res, nil
 	}
+	if trimmed, ok := trimmedSave(res.Content, limit); ok {
+		res.Content = trimmed
+		return res, nil
+	}
 	r.deps.Logger.ErrorContext(ctx, "agent tool result too large", slog.String("tool", name), slog.Int("bytes", len(body)))
 	return tooLarge(name, len(body), limit)
+}
+
+func trimmedSave(content any, limit int) (any, bool) {
+	switch c := content.(type) {
+	case savedOut:
+		panels, unverified := c.Panels, c.UnverifiedPanels
+		c.Panels, c.UnverifiedPanels, c.Truncated = []panelOut{}, []string{}, true
+		c.UnverifiedPanels, _ = fit(unverified, limit-jsonSize(c)-len(`,"unverified_panels":[]`))
+		c.Panels, _ = fit(panels, limit-jsonSize(c))
+		return c, jsonSize(c) <= limit
+	case buildOut:
+		changed := c.ChangedPanels
+		c.ChangedPanels = []panelOut{}
+		if jsonSize(c) > limit {
+			c.Layout = nil
+		}
+		c.ChangedPanels, _ = fit(changed, limit-jsonSize(c))
+		return c, jsonSize(c) <= limit
+	}
+	return nil, false
+}
+
+func jsonSize(v any) int {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return math.MaxInt
+	}
+	return len(raw)
 }
 
 var runEnding = []error{
