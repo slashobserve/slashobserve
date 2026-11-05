@@ -403,6 +403,13 @@ func (s *runState) stop(message string) {
 	s.progress(Step{At: time.Now().UTC(), Phase: phaseSave, Tool: stopTool, Status: statusError, Message: message})
 }
 
+func (s *runState) note(message string) {
+	if s.progress == nil {
+		return
+	}
+	s.progress(Step{At: time.Now().UTC(), Phase: phaseSave, Tool: stopTool, Status: statusOK, Message: message})
+}
+
 func (s *runState) report(slot callSlot) {
 	if s.progress == nil {
 		return

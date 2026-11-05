@@ -95,7 +95,10 @@ This lists only the packages whose purpose the name does not make obvious.
   Every build save with a parent is a partial check, as `ChangedSince` decides against the build, or against the base version for the first save of a revision, and placement moves change only `gridPos`, so they run no query.
   `CommitBuild` is one transaction that writes the version and deletes the build, and it runs no query because every build save was already checked.
   A create build passes through `closeLines` (`internal/dashboards/closelines.go`) in `commitBuild`, the one funnel of every commit path; revisions do not.
-  A conflict at commit, or a session about to start on a build whose base is older than the latest version, discards the build, and the run restarts once from the latest version.
+  A conflict at commit, or a session about to start on a build whose base is older than the latest version, first tries `RebaseBuild` (`internal/dashboards/build.go`).
+  It rebases only when the build left every dashboard-level field as its base had it and the panels it changed (content, row or `gridPos`) are not among those the newer versions changed (content or row); it replays them onto the latest version through `spec.ApplyPanelPatch`, keeps the latest `gridPos` of a panel the build did not move, checks the changed panels with the partial check and moves the base with the attempt-fenced `RebaseAgentRequestBuild`, which leaves `saves` alone.
+  After a commit conflict a clean rebase retries `CommitBuild` once in the same session.
+  Otherwise the build is discarded, and the run restarts once from the latest version.
 - A failed request keeps its build for `revisions.BuildRetentionDays`, and `claim` deletes the expired ones beside `FailExhaustedAgentRequests`.
   A lost lease or a shutdown release keeps the build, and the next holder re-seeds from it.
 - `internal/revisions` cannot import `internal/dashboards`, so it takes the build through its `Builds` interface and `cmd/slashobserve-server/main.go` adapts the service with `buildStore`.

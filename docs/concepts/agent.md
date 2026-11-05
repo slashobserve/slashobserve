@@ -153,7 +153,9 @@ The step of a rejected save names the first problem's path, and a refused input 
 The model fixes only the panels it names and saves again.
 Three rejected saves in a row end the run with an error that names the last issue codes, and an accepted save into the build resets the count.
 
-When the dashboard changed while the agent was revising it, the build is discarded and the run restarts once from the latest version, at the commit or as soon as a new session would start on the older build.
+When the dashboard changed while the agent was revising it, the server moves the build onto the latest version, at the commit or as soon as a new session would start on the older build, as long as the build changed no dashboard setting and none of the panels the newer versions changed.
+The agent's panels are checked again on the latest version, and a commit that hit the change is retried at once.
+Otherwise the build is discarded and the run restarts once from the latest version.
 If it changes again, the run fails.
 
 A revision starts from the current document and keeps panel ids, positions and everything the prompt does not ask to change, so [comments](versions.md#comments) stay attached to their panels.

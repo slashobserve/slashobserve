@@ -18,6 +18,17 @@ SET spec = EXCLUDED.spec,
   updated_at = clock_timestamp()
 RETURNING *;
 
+-- name: RebaseAgentRequestBuild :execrows
+UPDATE agent_request_builds b
+SET base_version = @base_version::integer,
+  spec = @spec::jsonb,
+  unverified = sqlc.narg('unverified')::jsonb,
+  panels = @panels::integer,
+  updated_at = clock_timestamp()
+FROM agent_requests r
+WHERE b.agent_request_id = @agent_request_id::uuid
+  AND r.id = b.agent_request_id AND r.status = 'running' AND r.attempts = @attempt::integer;
+
 -- name: GetAgentRequestBuild :one
 SELECT * FROM agent_request_builds WHERE agent_request_id = @agent_request_id;
 

@@ -79,6 +79,7 @@ type BuildStore interface {
 	Build(ctx context.Context, requestID pgtype.UUID) (dashboards.Build, bool, error)
 	CommitBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (dashboards.Dashboard, dashboards.Version, bool, error)
 	DiscardBuild(ctx context.Context, requestID pgtype.UUID, attempt int) error
+	RebaseBuild(ctx context.Context, by auth.Principal, requestID pgtype.UUID, attempt int) (int, bool, error)
 }
 
 type Config struct {
@@ -301,20 +302,12 @@ func (r *runner) loop(ctx context.Context) error {
 	restarts := 0
 	var carry *sessionEnd
 	for {
-		current, err := r.load(ctx)
+		current, build, restarted, err := r.loadOnLatest(ctx, &restarts)
 		if err != nil {
 			return err
 		}
-		build, err := r.loadBuild(ctx)
-		if err != nil {
-			return err
-		}
-		if r.buildIsStale(current, build) {
-			if err := r.restartFromLatest(ctx, &restarts); err != nil {
-				return err
-			}
+		if restarted {
 			reason, carry = seedConflict, nil
-			continue
 		}
 		if build != nil && reason == seedFresh {
 			reason = resumeReason(r.task)
@@ -326,6 +319,10 @@ func (r *runner) loop(ctx context.Context) error {
 		carry = nil
 		switch {
 		case end.conflict:
+			committed, err := r.rebaseAndCommit(ctx)
+			if err != nil || committed {
+				return err
+			}
 			if err := r.restartFromLatest(ctx, &restarts); err != nil {
 				return err
 			}
@@ -338,8 +335,54 @@ func (r *runner) loop(ctx context.Context) error {
 	}
 }
 
+func (r *runner) loadOnLatest(ctx context.Context, restarts *int) (current *revision, build *dashboards.Build, restarted bool, err error) {
+	for {
+		if current, err = r.load(ctx); err != nil {
+			return nil, nil, false, err
+		}
+		if build, err = r.loadBuild(ctx); err != nil {
+			return nil, nil, false, err
+		}
+		if !r.buildIsStale(current, build) {
+			return current, build, restarted, nil
+		}
+		rebased, err := r.rebase(ctx)
+		if err != nil {
+			return nil, nil, false, err
+		}
+		if !rebased {
+			if err := r.restartFromLatest(ctx, restarts); err != nil {
+				return nil, nil, false, err
+			}
+			restarted = true
+		}
+	}
+}
+
 func (r *runner) buildIsStale(current *revision, build *dashboards.Build) bool {
 	return r.mode == tools.ModeRevise && build != nil && current != nil && build.BaseVersion != current.number
+}
+
+func (r *runner) rebase(ctx context.Context) (bool, error) {
+	onto, rebased, err := r.agent.builds.RebaseBuild(ctx, r.task.Principal, r.requestID, r.task.Attempt)
+	switch {
+	case ctx.Err() != nil:
+		return false, ctx.Err()
+	case err != nil:
+		return false, r.agent.buildStoreError(ctx, "could not rebase the build", err, r.task.RequestID)
+	case rebased:
+		r.state.note(fmt.Sprintf("Rebased onto version %d", onto))
+	}
+	return rebased, nil
+}
+
+func (r *runner) rebaseAndCommit(ctx context.Context) (bool, error) {
+	rebased, err := r.rebase(ctx)
+	if err != nil || !rebased {
+		return false, err
+	}
+	end, err := r.commit(ctx)
+	return err == nil && !end.conflict, err
 }
 
 func (r *runner) restartFromLatest(ctx context.Context, restarts *int) error {
@@ -701,6 +744,10 @@ func (r *runner) finishWithoutCall(ctx context.Context, chat llm.Session, noResu
 		r.state.pendingNudged = true
 		return compaction(seedPending, chat, nil), nil
 	}
+	return r.commit(ctx)
+}
+
+func (r *runner) commit(ctx context.Context) (sessionEnd, error) {
 	dash, ver, replayed, err := r.agent.builds.CommitBuild(ctx, r.task.Principal, r.requestID, r.task.Attempt)
 	var conflict *dashboards.ConflictError
 	switch {

@@ -2204,12 +2204,14 @@ func TestFailureCodesOfToolFailuresAreInTheClosedSet(t *testing.T) {
 }
 
 type fakeBuilds struct {
-	mu        sync.Mutex
-	build     *dashboards.Build
-	commitErr []error
-	commits   int
-	discards  int
-	attempts  []int
+	mu         sync.Mutex
+	build      *dashboards.Build
+	commitErr  []error
+	commits    int
+	discards   int
+	attempts   []int
+	rebaseOnto int
+	rebases    int
 }
 
 func (f *fakeBuilds) Build(context.Context, pgtype.UUID) (dashboards.Build, bool, error) {
@@ -2244,6 +2246,17 @@ func (f *fakeBuilds) DiscardBuild(_ context.Context, _ pgtype.UUID, attempt int)
 	f.attempts = append(f.attempts, attempt)
 	f.build = nil
 	return nil
+}
+
+func (f *fakeBuilds) RebaseBuild(context.Context, auth.Principal, pgtype.UUID, int) (int, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.rebases++
+	if f.rebaseOnto == 0 || f.build == nil {
+		return 0, false, nil
+	}
+	f.build.BaseVersion = f.rebaseOnto
+	return f.rebaseOnto, true, nil
 }
 
 func (f *fakeBuilds) current() *dashboards.Build {
@@ -2720,6 +2733,63 @@ func TestACommitConflictDiscardsTheBuildAndRestartsOnce(t *testing.T) {
 	if len(started) != 2 || !strings.Contains(started[1].Context, "Someone saved a new version while you worked; your build was discarded. Make the change again on the dashboard above.") ||
 		strings.Contains(started[1].Context, "<build>") {
 		t.Fatalf("restart request = %+v", started)
+	}
+}
+
+func hasStep(steps []agent.Step, message string) bool {
+	return slices.ContainsFunc(steps, func(s agent.Step) bool { return s.Message == message && s.Status == "ok" })
+}
+
+func TestACommitConflictOnADisjointChangeRebasesAndCommitsWithoutANewSession(t *testing.T) {
+	r := newRig(t, session(stopTurn(llm.StopEndTurn)))
+	r.builds.seed(agentBuild(t, "r1"))
+	r.builds.commitErr = []error{&dashboards.ConflictError{Latest: 4}}
+	r.builds.rebaseOnto = 4
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil || out.Version != 1 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	if r.builds.commits != 1 || r.builds.discards != 0 || len(r.provider.started()) != 1 {
+		t.Fatalf("commits %d, discards %d, sessions %d, want one commit on the first session", r.builds.commits, r.builds.discards, len(r.provider.started()))
+	}
+	if !hasStep(r.recordedSteps(), "Rebased onto version 4") {
+		t.Fatalf("steps = %+v, want the rebase step", r.recordedSteps())
+	}
+}
+
+func TestAFinishSaveConflictOnADisjointChangeRebasesAndCommits(t *testing.T) {
+	r := newRig(t, session(toolTurn(call("c1", "update_panels", `{"finish":true}`))))
+	r.builds.seed(agentBuild(t, "r1"))
+	r.builds.rebaseOnto = 4
+	r.tools.onSave("update_panels", conflictResult(4))
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil || out.Version != 1 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	if r.builds.commits != 1 || r.builds.discards != 0 || len(r.provider.started()) != 1 || r.provider.sessions[0].modelCalls() != 1 {
+		t.Fatalf("commits %d, discards %d, sessions %d, model calls %d", r.builds.commits, r.builds.discards, len(r.provider.started()), r.provider.sessions[0].modelCalls())
+	}
+}
+
+func TestARebasedCommitThatConflictsAgainRestartsFromTheLatest(t *testing.T) {
+	r := newRig(t,
+		session(stopTurn(llm.StopEndTurn)),
+		session(toolTurn(call("c1", "update_panels", `{}`))),
+	)
+	r.builds.seed(agentBuild(t, "r1"))
+	r.builds.commitErr = []error{&dashboards.ConflictError{Latest: 4}, &dashboards.ConflictError{Latest: 5}}
+	r.builds.rebaseOnto = 4
+	r.tools.onSave("update_panels", savedResult(dashID, 6))
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil || out.Version != 6 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	started := r.provider.started()
+	if r.builds.discards != 1 || len(started) != 2 || !strings.Contains(started[1].Context, conflictSeedSentence) {
+		t.Fatalf("discards %d, sessions %d, want one restart with the conflict seed", r.builds.discards, len(started))
 	}
 }
 
@@ -3231,6 +3301,27 @@ func TestAResumedBuildOnAnOlderVersionRestartsFromTheLatest(t *testing.T) {
 	}
 	if r.builds.discards != 1 {
 		t.Fatalf("discards = %d", r.builds.discards)
+	}
+}
+
+func TestAResumedBuildOnAnOlderVersionRebasesWhenItsChangesAreDisjoint(t *testing.T) {
+	r := newRig(t, session(toolTurn(call("c1", "update_panels", `{}`))))
+	stale := agentBuild(t, "r1")
+	stale.BaseVersion = latestVersion - 1
+	r.builds.seed(stale)
+	r.builds.rebaseOnto = latestVersion
+	r.tools.onSave("update_panels", savedResult(dashID, 4))
+
+	out, err := r.agent.Run(context.Background(), r.reviseTask())
+	if err != nil || out.Version != 4 {
+		t.Fatalf("outcome = %+v, err %v", out, err)
+	}
+	started := r.provider.started()
+	if len(started) != 1 || strings.Contains(started[0].Context, conflictSeedSentence) || !strings.Contains(started[0].Context, "<build>") {
+		t.Fatalf("started = %+v, want one session on the kept build", started)
+	}
+	if r.builds.discards != 0 || r.builds.rebases != 1 || !hasStep(r.recordedSteps(), "Rebased onto version 3") {
+		t.Fatalf("discards %d, rebases %d, steps %+v", r.builds.discards, r.builds.rebases, r.recordedSteps())
 	}
 }
 
