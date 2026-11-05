@@ -191,7 +191,7 @@ func (r *Registry) saveToBuild(ctx context.Context, in buildSave) (Result, error
 		ChangedPanels: in.changes.shown,
 		Layout:        layoutOf(build.Spec, in.changes.focus(), holes),
 		Message:       message,
-	}, build.Spec))
+	}, build.Spec, in.changes.edits.Panels))
 	res.Edits = in.changes.edits
 	return res, nil
 }

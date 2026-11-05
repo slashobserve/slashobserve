@@ -48,6 +48,7 @@ Every accepted save, into a build or by an MCP client, also returns advice that 
 
 - `uncovered` names up to 50 families of the caller's last scoped inventory that no panel query names, and `uncovered_total` counts them all; a histogram, summary or counter is covered when a query names any of its series.
 - `notes` lists up to 20 hints: a time series or bar chart query with no `legend`, a stat, gauge, bar gauge or time series with no `unit`, and a stat with no `description`.
+  A save into a build lists them only for the panels it added or changed, and the finished version lists them for the whole dashboard.
 
 The model is told to finish only when `uncovered` is empty or the `summary` of its last save says why each family in it was left out.
 

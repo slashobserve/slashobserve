@@ -284,6 +284,33 @@ func TestBuildSavesNameUncoveredFamiliesUntilTheFinish(t *testing.T) {
 	}
 }
 
+func TestABuildSaveNotesOnlyThePanelItSaved(t *testing.T) {
+	rig := newPanelsRig(t)
+	run := rig.createRun(t)
+	res, _ := run.run(t, nameCreateDashboard, buildCreateJSON(suggestStat("s00", "Stat 0", "up", 0), `,"planned_panels":13`))
+	if res.IsError {
+		t.Fatalf("first save = %#v", res.Content)
+	}
+	var last buildOut
+	for i := 1; i <= 11; i++ {
+		res, _ = run.run(t, nameUpdatePanels, `{"summary":"Add a stat","upsert":[`+suggestStat(fmt.Sprintf("s%02d", i), fmt.Sprintf("Stat %d", i), "up", 4*i)+`]}`)
+		out, ok := res.Content.(buildOut)
+		if res.IsError || !ok {
+			t.Fatalf("save %d = %#v, want a build save", i, res.Content)
+		}
+		last = out
+	}
+	want := []string{"panel s11 is numeric and has no unit", "stat panel s11 has no description"}
+	if !slices.Equal(last.Notes, want) {
+		t.Fatalf("notes of the save that added s11 = %q, want %q", last.Notes, want)
+	}
+
+	res, _ = run.run(t, nameUpdatePanels, `{"summary":"Add the last stat","upsert":[`+suggestStat("s12", "Stat 12", "up", 48)+`],"finish":true}`)
+	if finished := savedVersion(t, res); len(finished.Notes) != maxNotes || finished.Notes[0] != "panel s00 is numeric and has no unit" {
+		t.Fatalf("finish notes = %q, want the first %d of the whole dashboard", finished.Notes, maxNotes)
+	}
+}
+
 func TestBuildAdviceShrinksTheChangedPanelsToStayUnderTheBudget(t *testing.T) {
 	ctx := WithRun(context.Background(), Run{Mode: ModeCreate, Build: true, RequestID: "build-advice-budget", Attempt: 1})
 	families := make([]datasource.Family, 80)
@@ -296,11 +323,13 @@ func TestBuildAdviceShrinksTheChangedPanelsToStayUnderTheBudget(t *testing.T) {
 		shown[i] = panelOut{ID: fmt.Sprintf("p%03d", i), Title: strings.Repeat("t", 100), Type: spec.Stat}
 	}
 	var panels []spec.Panel
+	var saved []string
 	for i := range 30 {
 		panels = append(panels, spec.Panel{ID: fmt.Sprintf("s%02d", i), Type: spec.Stat})
+		saved = append(saved, panels[i].ID)
 	}
 
-	out := buildAdvice(ctx, buildOut{ChangedPanels: shown, Message: "Saved."}, &spec.Dashboard{Panels: panels})
+	out := buildAdvice(ctx, buildOut{ChangedPanels: shown, Message: "Saved."}, &spec.Dashboard{Panels: panels}, saved)
 	body, err := json.Marshal(out)
 	if err != nil {
 		t.Fatal(err)

@@ -35,15 +35,18 @@ type advice struct {
 }
 
 func adviceFor(doc *spec.Dashboard, inventory []datasource.Family) advice {
-	var out advice
 	if doc == nil {
-		return out
+		return advice{}
 	}
-	entries := doc.AllPanels()
+	return adviceAbout(doc, inventory, doc.AllPanels())
+}
+
+func adviceAbout(doc *spec.Dashboard, inventory []datasource.Family, noted []spec.PanelEntry) advice {
+	var out advice
 	if inventory != nil {
-		out.coverage = uncoveredBy(entries, inventory)
+		out.coverage = uncoveredBy(doc.AllPanels(), inventory)
 	}
-	for _, e := range entries {
+	for _, e := range noted {
 		out.Notes = append(out.Notes, panelNotes(e.Panel)...)
 	}
 	out.Notes = out.Notes[:min(len(out.Notes), maxNotes)]
@@ -123,9 +126,10 @@ func withAdvice(ctx context.Context, out savedOut, doc *spec.Dashboard) savedOut
 	return out
 }
 
-func buildAdvice(ctx context.Context, out buildOut, doc *spec.Dashboard) buildOut {
+func buildAdvice(ctx context.Context, out buildOut, doc *spec.Dashboard, saved []string) buildOut {
 	inventory, _ := inventories.get(ctx)
-	out.advice = adviceFor(doc, inventory)
+	noted := slices.DeleteFunc(doc.AllPanels(), func(e spec.PanelEntry) bool { return !slices.Contains(saved, e.Panel.ID) })
+	out.advice = adviceAbout(doc, inventory, noted)
 	rest := out
 	rest.ChangedPanels = nil
 	body, err := json.Marshal(rest)
