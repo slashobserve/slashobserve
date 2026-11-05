@@ -104,7 +104,7 @@ test("opens a matching dashboard in the same tab and from the arrow in a new tab
     page.context().waitForEvent("page"),
     arrow.click(),
   ])
-  await expect(popup).toHaveURL(new RegExp(`/dashboards/${id}$`))
+  await expect(popup).toHaveURL(new RegExp(`/d/${id}(/[a-z0-9-]+)?$`))
   await popup.close()
   await expect(palette(page)).toHaveCount(0)
   expect(page.url()).toBe(before)
@@ -113,7 +113,7 @@ test("opens a matching dashboard in the same tab and from the arrow in a new tab
   await page.keyboard.type(title)
   await expect(option).toHaveAttribute("data-highlighted", "")
   await page.keyboard.press("Enter")
-  await expect(page).toHaveURL(new RegExp(`/dashboards/${id}$`))
+  await expect(page).toHaveURL(new RegExp(`/d/${id}(/[a-z0-9-]+)?$`))
   await expect(palette(page)).toHaveCount(0)
 })
 

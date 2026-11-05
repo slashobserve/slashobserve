@@ -13,6 +13,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/imports"
+	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
 )
 
@@ -178,7 +179,7 @@ func newImportedOut(publicURL *url.URL, imported imports.Imported) importedOut {
 	out := importedOut{
 		DashboardID: imported.Dashboard.ID,
 		Version:     imported.Version.Number,
-		URL:         DashboardURL(publicURL, imported.Dashboard.ID),
+		URL:         links.Dashboard(publicURL, imported.Dashboard.ID, imported.Dashboard.Title),
 		Title:       imported.Dashboard.Title,
 		Folder:      imported.Dashboard.Folder.Title,
 		Replayed:    imported.Replayed,

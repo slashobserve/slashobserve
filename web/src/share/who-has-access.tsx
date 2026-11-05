@@ -80,7 +80,7 @@ export function WhoHasAccess({ folder, canManage, headingId }: Props) {
       )}
       {canManageAccess(folder, canManage) ? (
         <Link
-          to="/folders/$folderId"
+          to="/f/$folderId"
           params={{ folderId: folder.id }}
           className={cn(
             buttonVariants({ variant: "outline" }),

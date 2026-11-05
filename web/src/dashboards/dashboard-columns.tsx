@@ -12,6 +12,7 @@ import type { paths } from "@/api/schema.gen"
 import { RelativeTime } from "@/components/relative-time"
 import { madeByDetail } from "@/lib/origin"
 import { cn } from "@/lib/utils"
+import { dashboardLink } from "@/lib/links"
 
 import { DashboardRowMenu } from "./row-menu"
 
@@ -45,15 +46,13 @@ export const dashboardColumns = column.columns([
     cell: ({ row }) => (
       <>
         <Link
-          to="/dashboards/$dashboardId"
-          params={{ dashboardId: row.original.id }}
+          {...dashboardLink(row.original.id, row.original.title)}
           className="inline rounded-sm font-medium wrap-anywhere no-underline outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
           {row.original.title}
         </Link>
         <Link
-          to="/dashboards/$dashboardId"
-          params={{ dashboardId: row.original.id }}
+          {...dashboardLink(row.original.id, row.original.title)}
           target="_blank"
           rel="noopener"
           aria-label={`Open ${row.original.title} in a new tab`}

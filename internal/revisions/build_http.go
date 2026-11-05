@@ -222,7 +222,7 @@ func (h *ObserveHandler) saveBuild(c *gin.Context) {
 	}
 	body := savedBuildJSON{DashboardID: saved.DashboardID, Version: saved.Version, Replayed: saved.Replayed}
 	if h.opts.DashboardURL != nil {
-		body.URL = h.opts.DashboardURL(saved.DashboardID)
+		body.URL = h.opts.DashboardURL(saved.DashboardID, "")
 	}
 	c.JSON(status, body)
 }

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 
 import { FolderSettings } from "@/folders/folder-settings"
 
-export const Route = createFileRoute("/_authed/_shell/folders/$folderId")({
+export const Route = createFileRoute("/_authed/_shell/f/$folderId")({
   staticData: {
     crumbs: [
       { label: "Dashboards", to: "/dashboards" },

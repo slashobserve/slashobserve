@@ -9,6 +9,7 @@ import { StatusLabel } from "@/components/status-label"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { isEditableTarget } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
+import { dashboardLink } from "@/lib/links"
 
 import { DatasourcesCard } from "./datasources-card"
 import { importFailure, previewFailure } from "./errors"
@@ -242,8 +243,7 @@ export function ImportPage() {
         Import another
       </Button>
       <Link
-        to="/dashboards/$dashboardId"
-        params={{ dashboardId: result.dashboard.id }}
+        {...dashboardLink(result.dashboard.id, result.dashboard.title)}
         className={cn(buttonVariants())}
       >
         Open dashboard

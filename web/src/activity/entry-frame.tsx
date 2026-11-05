@@ -171,7 +171,7 @@ export function DetailsLink({
 }) {
   return (
     <Link
-      to="/observe/$requestId"
+      to="/c/$requestId"
       params={{ requestId }}
       target="_blank"
       rel="noopener"

@@ -115,7 +115,7 @@ func pollAgainst(ctx context.Context, t *testing.T, statuses []int, timeout time
 	}
 	c := &client{base: base, token: "k", userAgent: "test", http: server.Client()}
 	out := &output{out: &bytes.Buffer{}, err: &bytes.Buffer{}}
-	_, req, err := poll(ctx, c, out, "r", timeout, 5*time.Millisecond)
+	_, req, err := poll(ctx, c, newRequestProgress(c, out, "r"), "r", timeout, 5*time.Millisecond)
 	return stub, req, err
 }
 

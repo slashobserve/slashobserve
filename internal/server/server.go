@@ -45,6 +45,7 @@ type Options struct {
 	DatasourceUsage DatasourceUsage
 	API             []Registrar
 	Mounts          []Mount
+	Redirects       Redirects
 
 	ContractCheck bool
 }
@@ -74,7 +75,7 @@ func New(opts Options) (http.Handler, error) {
 	for _, m := range opts.Mounts {
 		engine.Any(m.Path, gin.WrapH(m.Handler))
 	}
-	registerWebRoutes(engine)
+	registerWebRoutes(engine, opts.Redirects)
 	if checked != nil {
 		if err := checked.checkRoutes(engine); err != nil {
 			return nil, err

@@ -77,7 +77,7 @@ It uses the time range you state ("last 6h" becomes `now-6h` to `now`), and othe
 ## Watch the build
 
 A large dashboard is not written in one model call.
-The agent builds it panel by panel, and each accepted panel appears in a live view of the dashboard at `/builds/<request id>`, with a status line such as "Building, 12 of 40 panels".
+The agent builds it panel by panel, and each accepted panel appears in a live view of the dashboard at `/b/<request id>`, with a status line such as "Building, 12 of 40 panels".
 Only you can watch your build: anyone else, and anyone who can no longer view the dashboard you are revising, gets "Only the person who asked can watch this build."
 Nothing appears in the dashboards list, a folder or the version history until the agent finishes.
 The dashboard is then saved once, as one version, and the live view opens it.

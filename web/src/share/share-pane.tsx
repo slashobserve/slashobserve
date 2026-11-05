@@ -51,6 +51,7 @@ export function SharePane({
   const to = search.to ?? spec.time.to
   const current = { ...searchFromState(search), from, to }
   const origin = window.location.origin
+  const dashboard = { id: dashboardId, title: spec.title }
   const variableNames = Object.keys(search.vars)
 
   const choices = panelChoices(spec)
@@ -78,9 +79,7 @@ export function SharePane({
             setOptions((prev) => ({ ...prev, variables }))
           }
         />
-        <LinkRow
-          url={dashboardShareUrl(origin, dashboardId, current, options)}
-        />
+        <LinkRow url={dashboardShareUrl(origin, dashboard, current, options)} />
         <p className="text-xs text-muted-foreground">
           {folder.personal
             ? "Only you can open this link until you publish the dashboard."
@@ -108,7 +107,7 @@ export function SharePane({
             <CopyButton
               text={panelShareUrl(
                 origin,
-                dashboardId,
+                dashboard,
                 selected,
                 current,
                 options

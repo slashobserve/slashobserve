@@ -28,7 +28,7 @@ export function VersionEntry({ dashboardId, entry, back }: Props) {
       at={entry.at}
     >
       <Link
-        to="/dashboards/$dashboardId/versions"
+        to="/d/$dashboardId/versions"
         params={{ dashboardId }}
         search={n > 1 ? { from: n - 1, to: n, back } : { to: n, back }}
         data-version={n}

@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/slashobserve/slashobserve/internal/links"
 )
 
 const (
@@ -35,7 +37,9 @@ type agentRequest struct {
 }
 
 type buildSummary struct {
-	Panels int `json:"panels"`
+	Saves         int `json:"saves"`
+	Panels        int `json:"panels"`
+	PlannedPanels int `json:"planned_panels"`
 }
 
 type agentStep struct {
@@ -128,6 +132,7 @@ func (a *app) statusCommand() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&a.status.wait, "wait", false, "wait until the request finishes, like the prompt command")
 	cmd.Flags().DurationVar(&a.status.timeout, "timeout", defaultTimeout, "with --wait, stop waiting after this long")
+	a.addOpenFlag(cmd)
 	return cmd
 }
 
@@ -196,7 +201,8 @@ func printRequest(out *output, req agentRequest) {
 
 func (a *app) waitAndReport(ctx context.Context, c *client, id string, timeout time.Duration) error {
 	out := a.output()
-	data, req, err := poll(ctx, c, out, id, timeout, pollInterval)
+	progress := newRequestProgress(c, out, id)
+	data, req, err := poll(ctx, c, progress, id, timeout, pollInterval)
 	if err != nil {
 		return err
 	}
@@ -212,14 +218,23 @@ func (a *app) waitAndReport(ctx context.Context, c *client, id string, timeout t
 		}
 		return fmt.Errorf("observe failed: %s", reason)
 	}
+	address, err := dashboardAddress(c, req)
 	if a.json {
+		if err == nil {
+			a.openLink(out, address)
+		}
 		return nil
 	}
-	address, err := dashboardAddress(c, req)
 	if err != nil {
 		return err
 	}
-	out.line("%s", address)
+	if req.DashboardID != nil {
+		if title, ok := progress.finish(ctx, *req.DashboardID); ok {
+			address = titled(address, *req.DashboardID, title)
+		}
+	}
+	reportSaved(out, req.ResultVer, address)
+	a.openLink(out, address)
 	return nil
 }
 
@@ -228,7 +243,7 @@ func dashboardAddress(c *client, req agentRequest) (string, error) {
 		return text(*req.URL), nil
 	}
 	if req.DashboardID != nil && *req.DashboardID != "" {
-		return c.base.JoinPath("dashboards", *req.DashboardID).String(), nil
+		return links.Dashboard(c.base, *req.DashboardID, ""), nil
 	}
 	return "", errors.New("the agent finished without a dashboard address")
 }
@@ -237,12 +252,12 @@ func stillRunning(id string) error {
 	return fmt.Errorf("still running on the server: observe status %s", id)
 }
 
-func poll(ctx context.Context, c *client, out *output, id string, timeout, interval time.Duration) ([]byte, agentRequest, error) {
+func poll(ctx context.Context, c *client, progress *requestProgress, id string, timeout, interval time.Duration) ([]byte, agentRequest, error) {
 	pollCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
-	var progress stepProgress
+	defer progress.stop()
 	failures := 0
 	for {
 		data, err := c.get(pollCtx, "observe/"+id, nil)
@@ -260,7 +275,7 @@ func poll(ctx context.Context, c *client, out *output, id string, timeout, inter
 			if err != nil {
 				return nil, agentRequest{}, err
 			}
-			progress.print(out, envelope.Request.Steps)
+			progress.update(pollCtx, envelope.Request)
 			if envelope.Request.Status != "queued" && envelope.Request.Status != "running" {
 				return data, envelope.Request, nil
 			}

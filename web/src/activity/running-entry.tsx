@@ -74,7 +74,7 @@ export function RunningEntry({ entry }: Props) {
         className={`${boxClass} flex items-center gap-2 border-dashed hover:bg-muted`}
       >
         <Link
-          to="/observe/$requestId"
+          to="/c/$requestId"
           params={{ requestId: request.id }}
           target="_blank"
           rel="noopener"
@@ -84,7 +84,7 @@ export function RunningEntry({ entry }: Props) {
         </Link>
         {watchable ? (
           <Link
-            to="/builds/$requestId"
+            to="/b/$requestId"
             params={{ requestId: request.id }}
             target="_blank"
             rel="noopener"

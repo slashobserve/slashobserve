@@ -63,6 +63,7 @@ func (a *app) continueCommand() *cobra.Command {
 	cmd.Flags().StringVar(&a.continuing.note, "note", "", "an instruction for the continued run")
 	cmd.Flags().BoolVar(&a.continuing.noWait, "no-wait", false, "print the new request id and exit without waiting")
 	cmd.Flags().DurationVar(&a.continuing.timeout, "timeout", defaultTimeout, "stop waiting after this long; the request keeps running on the server")
+	a.addOpenFlag(cmd)
 	return cmd
 }
 

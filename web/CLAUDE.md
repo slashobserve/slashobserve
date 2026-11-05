@@ -55,7 +55,8 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 ## Routes and shell
 
 - `_authed` only checks the session.
-  Every page except the dashboard renders inside the pathless `_authed/_shell` layout, and dashboard routes under `_authed/dashboards/$dashboardId` have no shell.
+  Every page except the dashboard and the build renders inside the pathless `_authed/_shell` layout, and the dashboard routes under `_authed/d/$dashboardId` and the build route `_authed/b/$requestId` have no shell.
+  Id-bearing pages live at `/d/<id>[/<slug>]`, `/f/<id>`, `/c/<id>` and `/b/<id>`, and every dashboard link and address string comes from `web/src/lib/links.ts`, whose `slugOf` matches `links.Slug` in Go; the old `/dashboards/<id>`, `/folders/<id>`, `/observe/<id>` and `/builds/<id>` route files only redirect.
 - A shell route declares its breadcrumb with `staticData.crumbs`, sets its title with `useDocumentTitle` and never renders `<main>`, which the shell owns.
 - Side panels (Create key, History) are `SidePanel` columns, never dialogs or sheets.
 - A renderer or editor module that fails to load offers "Reload page", not "Retry", because the browser caches a failed module fetch for the life of the document.

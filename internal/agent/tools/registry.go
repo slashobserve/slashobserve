@@ -142,13 +142,6 @@ func RunFrom(ctx context.Context) (Run, bool) {
 	return run, ok
 }
 
-func DashboardURL(base *url.URL, id string) string {
-	if base == nil {
-		return "/dashboards/" + url.PathEscape(id)
-	}
-	return base.JoinPath("dashboards", id).String()
-}
-
 type handler func(ctx context.Context, input json.RawMessage) (Result, error)
 
 type entry struct {

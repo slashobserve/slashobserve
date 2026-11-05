@@ -148,14 +148,17 @@ export function useDashboardEvents(
 
     function viewLatest() {
       const router = latest.current.router
-      const here = router.state.matches.some(
+      const here = router.state.matches.find(
         (match) =>
           match.routeId === dashboardRouteId &&
           match.params.dashboardId === dashboardId
       )
       void router.navigate({
-        to: "/dashboards/$dashboardId",
-        params: { dashboardId },
+        to: "/d/$dashboardId/{-$slug}",
+        params: (previous) => ({
+          dashboardId,
+          slug: here ? previous.slug : undefined,
+        }),
         search: (previous: Record<string, unknown>) =>
           here
             ? searchFromState({

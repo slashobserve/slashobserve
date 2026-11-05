@@ -20,6 +20,7 @@ const search = {
   refresh: "5s",
   panel: "rps",
 }
+const shop = { id: "dash-1", title: "Shop health" }
 const both = { time: true, variables: true }
 const neither = { time: false, variables: false }
 
@@ -29,8 +30,8 @@ function queryOf(url: string) {
 
 describe("dashboardShareUrl", () => {
   it("carries the time range and every variable and nothing else", () => {
-    const url = dashboardShareUrl(origin, "dash-1", search, both)
-    expect(url.startsWith(`${origin}/dashboards/dash-1?`)).toBe(true)
+    const url = dashboardShareUrl(origin, shop, search, both)
+    expect(url.startsWith(`${origin}/d/dash-1/shop-health?`)).toBe(true)
     expect(queryOf(url)).toEqual({
       from: "now-6h",
       to: "now",
@@ -43,7 +44,7 @@ describe("dashboardShareUrl", () => {
   it("leaves the time range out when asked", () => {
     expect(
       queryOf(
-        dashboardShareUrl(origin, "dash-1", search, {
+        dashboardShareUrl(origin, shop, search, {
           time: false,
           variables: true,
         })
@@ -54,7 +55,7 @@ describe("dashboardShareUrl", () => {
   it("leaves the variables out when asked", () => {
     expect(
       queryOf(
-        dashboardShareUrl(origin, "dash-1", search, {
+        dashboardShareUrl(origin, shop, search, {
           time: true,
           variables: false,
         })
@@ -63,14 +64,14 @@ describe("dashboardShareUrl", () => {
   })
 
   it("has no query string when nothing is included", () => {
-    expect(dashboardShareUrl(origin, "dash-1", search, neither)).toBe(
-      `${origin}/dashboards/dash-1`
+    expect(dashboardShareUrl(origin, shop, search, neither)).toBe(
+      `${origin}/d/dash-1/shop-health`
     )
   })
 
   it("never carries version, edit, share, cursor, refresh or panel", () => {
     const keys = Object.keys(
-      queryOf(dashboardShareUrl(origin, "dash-1", search, both))
+      queryOf(dashboardShareUrl(origin, shop, search, both))
     )
     for (const excluded of [
       "version",
@@ -87,16 +88,27 @@ describe("dashboardShareUrl", () => {
   it("encodes values so they read back unchanged", () => {
     const url = dashboardShareUrl(
       origin,
-      "dash-1",
+      shop,
       { "var-q": ["a&b=c", "x y", "$__all"] },
       both
     )
     expect(queryOf(url)).toEqual({ "var-q": ["a&b=c", "x y", "$__all"] })
   })
 
+  it("leaves the slug out when the title has none", () => {
+    expect(
+      dashboardShareUrl(
+        origin,
+        { id: "dash-1", title: "監視" },
+        search,
+        neither
+      )
+    ).toBe(`${origin}/d/dash-1`)
+  })
+
   it("keeps an empty variable value", () => {
-    expect(dashboardShareUrl(origin, "dash-1", { "var-svc": "" }, both)).toBe(
-      `${origin}/dashboards/dash-1?var-svc=`
+    expect(dashboardShareUrl(origin, shop, { "var-svc": "" }, both)).toBe(
+      `${origin}/d/dash-1/shop-health?var-svc=`
     )
   })
 })
@@ -137,7 +149,7 @@ describe("panelChoices", () => {
 
 describe("panelShareUrl", () => {
   it("adds the panel id to the dashboard link", () => {
-    const url = panelShareUrl(origin, "dash-1", "p99", search, both)
+    const url = panelShareUrl(origin, shop, "p99", search, both)
     expect(queryOf(url)).toEqual({
       from: "now-6h",
       to: "now",
@@ -149,8 +161,8 @@ describe("panelShareUrl", () => {
   })
 
   it("uses the chosen panel, not the one in the current search", () => {
-    expect(panelShareUrl(origin, "dash-1", "p99", search, neither)).toBe(
-      `${origin}/dashboards/dash-1?panel=p99`
+    expect(panelShareUrl(origin, shop, "p99", search, neither)).toBe(
+      `${origin}/d/dash-1/shop-health?panel=p99`
     )
   })
 })

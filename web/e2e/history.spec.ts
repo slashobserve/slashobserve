@@ -43,7 +43,7 @@ async function createHistory(request: APIRequestContext) {
 }
 
 async function openHistory(page: Page, id: string, search = "") {
-  await page.goto(`/dashboards/${id}/versions${search}`)
+  await page.goto(`/d/${id}/versions${search}`)
   await expect(
     page.getByRole("heading", { level: 1, name: /: history$/ })
   ).toBeVisible()
@@ -91,7 +91,7 @@ test("lists versions newest first", async ({ page, request }) => {
 
   await openDashboard(page, id)
   await openVersionsFromMenu(page)
-  await expect(page).toHaveURL(new RegExp(`/dashboards/${id}/versions$`))
+  await expect(page).toHaveURL(new RegExp(`/d/${id}/versions$`))
   await expect(page).toHaveTitle(
     `History - ${spec.title} renamed - SlashObserve`
   )
@@ -112,10 +112,12 @@ test("lists versions newest first", async ({ page, request }) => {
   ).toHaveCount(0)
 
   await page.getByRole("link", { name: "View version 2" }).click()
-  await expect(page).toHaveURL(new RegExp(`/dashboards/${id}\\?version=2$`))
+  await expect(page).toHaveURL(
+    new RegExp(`/d/${id}(/[a-z0-9-]+)?\\?version=2$`)
+  )
   await openHistory(page, id)
   await page.getByRole("link", { name: "View version 3" }).click()
-  await expect(page).toHaveURL(new RegExp(`/dashboards/${id}$`))
+  await expect(page).toHaveURL(new RegExp(`/d/${id}(/[a-z0-9-]+)?$`))
 })
 
 test("shows the Spec diff between two versions", async ({ page, request }) => {
@@ -282,7 +284,7 @@ test("restores v1 from history", async ({ page, request }) => {
     .click()
 
   await expect(page.getByText("Restored version 1 as version 4")).toBeVisible()
-  await expect(page).toHaveURL(new RegExp(`/dashboards/${id}$`))
+  await expect(page).toHaveURL(new RegExp(`/d/${id}(/[a-z0-9-]+)?$`))
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(spec.title)
   await expect(versionButton(page)).toHaveText(/v4$/)
 
@@ -327,7 +329,7 @@ test("restores a pinned version from the Versions page", async ({
   await expect(versionButton(page)).toHaveText("v1 of 3")
 
   await openVersionsFromMenu(page)
-  await expect(page).toHaveURL(new RegExp(`/dashboards/${id}/versions\\?back=`))
+  await expect(page).toHaveURL(new RegExp(`/d/${id}/versions\\?back=`))
   await page.getByRole("button", { name: "Restore version 1" }).click()
   await dialog(page)
     .getByRole("button", { name: "Restore", exact: true })
@@ -372,7 +374,7 @@ test("handles a conflict during restore", async ({
     .getByRole("button", { name: "Restore on top of version 4" })
     .click()
   await expect(page.getByText("Restored version 1 as version 5")).toBeVisible()
-  await expect(page).toHaveURL(new RegExp(`/dashboards/${id}$`))
+  await expect(page).toHaveURL(new RegExp(`/d/${id}(/[a-z0-9-]+)?$`))
 })
 
 test("a save that lands while the dialog is open still gets the conflict flow", async ({
@@ -525,11 +527,11 @@ test("keeps the dashboard view through history and back", async ({
   await openDashboard(page, id, "?from=now-6h&refresh=30s&var-pod=checkout-1")
 
   await openVersionsFromMenu(page)
-  await expect(page).toHaveURL(new RegExp(`/dashboards/${id}/versions\\?back=`))
+  await expect(page).toHaveURL(new RegExp(`/d/${id}/versions\\?back=`))
   await page.getByRole("link", { name: "Back to dashboard" }).click()
   await expect(page).toHaveURL(
     new RegExp(
-      `/dashboards/${id}\\?from=now-6h&refresh=30s&var-pod=checkout-1$`
+      `/d/${id}(/[a-z0-9-]+)?\\?from=now-6h&refresh=30s&var-pod=checkout-1$`
     )
   )
 
@@ -541,7 +543,7 @@ test("keeps the dashboard view through history and back", async ({
   await expect(page.getByText("Restored version 1 as version 4")).toBeVisible()
   await expect(page).toHaveURL(
     new RegExp(
-      `/dashboards/${id}\\?from=now-6h&refresh=30s&var-pod=checkout-1$`
+      `/d/${id}(/[a-z0-9-]+)?\\?from=now-6h&refresh=30s&var-pod=checkout-1$`
     )
   )
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(spec.title)
@@ -557,7 +559,7 @@ test("Compare versions keeps a pinned version and drops it after a restore", asy
   await openVersionsFromMenu(page)
   await page.getByRole("link", { name: "Back to dashboard" }).click()
   await expect(page).toHaveURL(
-    new RegExp(`/dashboards/${id}\\?from=now-1h&version=2$`)
+    new RegExp(`/d/${id}(/[a-z0-9-]+)?\\?from=now-1h&version=2$`)
   )
 
   const back = encodeURIComponent("from=now-1h&version=2&panel=rps&edit=query")
@@ -565,7 +567,7 @@ test("Compare versions keeps a pinned version and drops it after a restore", asy
   await page.getByRole("link", { name: "Back to dashboard" }).click()
   await expect(page).toHaveURL(
     new RegExp(
-      `/dashboards/${id}\\?from=now-1h&version=2&panel=rps&edit=query$`
+      `/d/${id}(/[a-z0-9-]+)?\\?from=now-1h&version=2&panel=rps&edit=query$`
     )
   )
 
@@ -575,7 +577,9 @@ test("Compare versions keeps a pinned version and drops it after a restore", asy
     .getByRole("button", { name: "Restore", exact: true })
     .click()
   await expect(page.getByText("Restored version 1 as version 4")).toBeVisible()
-  await expect(page).toHaveURL(new RegExp(`/dashboards/${id}\\?from=now-1h$`))
+  await expect(page).toHaveURL(
+    new RegExp(`/d/${id}(/[a-z0-9-]+)?\\?from=now-1h$`)
+  )
 })
 
 test("the View links keep the dashboard search", async ({ page, request }) => {
@@ -587,13 +591,15 @@ test("the View links keep the dashboard search", async ({ page, request }) => {
 
   await page.getByRole("link", { name: "View version 1" }).click()
   await expect(page).toHaveURL(
-    new RegExp(`/dashboards/${id}\\?from=now-6h&var-pod=checkout-1&version=1$`)
+    new RegExp(
+      `/d/${id}(/[a-z0-9-]+)?\\?from=now-6h&var-pod=checkout-1&version=1$`
+    )
   )
 
   await openHistory(page, id, `?back=${back}`)
   await page.getByRole("link", { name: "View version 3" }).click()
   await expect(page).toHaveURL(
-    new RegExp(`/dashboards/${id}\\?from=now-6h&var-pod=checkout-1$`)
+    new RegExp(`/d/${id}(/[a-z0-9-]+)?\\?from=now-6h&var-pod=checkout-1$`)
   )
 })
 
@@ -609,7 +615,7 @@ test("accepts only dashboard search keys in the back parameter", async ({
 
   await page.getByRole("link", { name: "Back to dashboard" }).click()
   await expect(page).toHaveURL(
-    new RegExp(`/dashboards/${id}\\?from=now-6h&var-pod=checkout-1$`)
+    new RegExp(`/d/${id}(/[a-z0-9-]+)?\\?from=now-6h&var-pod=checkout-1$`)
   )
 })
 

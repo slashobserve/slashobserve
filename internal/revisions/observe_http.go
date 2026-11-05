@@ -27,7 +27,7 @@ type ObserveOptions struct {
 	Provider     string
 	Model        string
 	Effort       string
-	DashboardURL func(dashboardID string) string
+	DashboardURL func(dashboardID, title string) string
 }
 
 type ObserveHandler struct {
@@ -269,7 +269,7 @@ func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildS
 		out.DashboardID = &id
 		out.DashboardTitle = optionalText(row.DashboardTitle)
 		if out.Status == StatusSucceeded && h.opts.DashboardURL != nil {
-			url := h.opts.DashboardURL(id)
+			url := h.opts.DashboardURL(id, row.DashboardTitle.String)
 			out.URL = &url
 		}
 	}
@@ -359,7 +359,7 @@ func (h *ObserveHandler) view(c *gin.Context, row dbsqlc.AgentRequest, state bui
 		id := row.DashboardID.String()
 		out.DashboardID = &id
 		if out.Status == StatusSucceeded && h.opts.DashboardURL != nil {
-			url := h.opts.DashboardURL(id)
+			url := h.opts.DashboardURL(id, "")
 			out.URL = &url
 		}
 	}

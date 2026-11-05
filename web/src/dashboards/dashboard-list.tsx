@@ -250,7 +250,7 @@ function FolderHeaderRow({
           )}
           {folder.permissions.manage ? (
             <Link
-              to="/folders/$folderId"
+              to="/f/$folderId"
               params={{ folderId: folder.id }}
               className="ml-auto rounded-sm text-xs outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
             >

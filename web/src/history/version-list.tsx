@@ -15,6 +15,7 @@ import {
 import { dashboardSearchFromBack } from "@/dashboards/search"
 import { formatDateTime, formatRelative } from "@/lib/time"
 import { cn } from "@/lib/utils"
+import { dashboardLink } from "@/lib/links"
 
 import { RestoreVersionButton } from "./restore-version-button"
 import { useVersionHistory, type VersionMeta } from "./use-version-history"
@@ -71,8 +72,7 @@ function VersionRow({
       <TableCell className={`${cellLayout} max-sm:mt-1 max-sm:w-full`}>
         <div className="flex flex-wrap items-center gap-1.5 sm:flex-nowrap">
           <Link
-            to="/dashboards/$dashboardId"
-            params={{ dashboardId }}
+            {...dashboardLink(dashboardId)}
             search={
               latest
                 ? dashboardSearchFromBack(back, { dropVersion: true })
