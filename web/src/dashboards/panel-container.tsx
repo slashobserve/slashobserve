@@ -62,6 +62,7 @@ type PanelContainerProps = {
   blockedBy: string | undefined
   onRetryBlocked: () => void
   refreshMs: number | null
+  mixedDatasources: boolean
   editable: boolean
   layoutSession: boolean
   openComments: number
@@ -96,6 +97,7 @@ export const PanelContainer = memo(function PanelContainer({
   blockedBy,
   onRetryBlocked,
   refreshMs,
+  mixedDatasources,
   editable,
   layoutSession,
   openComments,
@@ -231,10 +233,11 @@ export const PanelContainer = memo(function PanelContainer({
         highlighted={highlighted}
         editing={editingPanel}
         repeatOf={repeatOf}
-        datasourceLabel={panelDatasourceUids(
-          dataPanel ?? panel,
-          selections
-        ).join(", ")}
+        datasourceLabel={
+          mixedDatasources
+            ? panelDatasourceUids(dataPanel ?? panel, selections).join(", ")
+            : undefined
+        }
         links={links}
         badge={
           <>

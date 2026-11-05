@@ -12,6 +12,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { DashboardGrid } from "@/dashboards/dashboard-grid"
 import { DashboardTopRow } from "@/dashboards/dashboard-top-row"
 import { PanelContainer } from "@/dashboards/panel-container"
+import { mixesDatasources } from "@/dashboards/panel-datasources"
 import type { PanelSource } from "@/dashboards/panel-source"
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { useVariables } from "@/dashboards/use-variables"
@@ -64,6 +65,10 @@ function BuildGrid({
     timezone: spec.timezone,
     urlVars: noUrlVars,
   })
+  const mixedDatasources = useMemo(
+    () => mixesDatasources(spec, selections),
+    [spec, selections]
+  )
   const [cursor] = useState(createSharedCursor)
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const retryBlocking = useRef<(() => void) | undefined>(undefined)
@@ -107,6 +112,7 @@ function BuildGrid({
             blockedBy={blockedBy}
             onRetryBlocked={onRetryBlocked}
             refreshMs={null}
+            mixedDatasources={mixedDatasources}
             editable={false}
             layoutSession={false}
             openComments={0}

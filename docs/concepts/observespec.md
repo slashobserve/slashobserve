@@ -337,6 +337,7 @@ Macros such as `$__rate_interval` for Prometheus and `$__timeFilter(Timestamp)` 
 On ClickHouse, `$__conditionalAll(condition, $variable)` writes `(condition)`, or `1=1` when the variable selects All.
 `$__conditionalAll(condition, otherwise, $variable)` writes `(otherwise)` instead of `1=1` when the variable selects All, and the otherwise condition cannot use that variable.
 A datasource is a uid from the datasources file or `${name}`, naming a datasource variable.
+When the panels of a dashboard read more than one datasource, each panel header names the datasources that panel reads; on a dashboard that reads one, no header names it.
 An `adhoc` variable filters Prometheus queries automatically, and filters ClickHouse queries that leave out `$name` only when it sets `applyToAll`.
 An `adhoc` variable's `default` and `baseFilters` are lists of up to 20 filters, each a `key`, an `operator` (`=`, `!=`, `=~` and `!~`, plus `<` and `>` on ClickHouse, which compare as numbers when both sides are plain numbers and as text otherwise), a `value`, an optional `condition` (`and`, the default, or `or`, ClickHouse only), and the chip texts `keyLabel` and `valueLabel`, which change what is shown and never what is filtered or put in the URL.
 Filters combine left to right and `or` starts a new group, so `a, b, or c` means `(a AND b) OR c`.
