@@ -180,6 +180,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `log/slog`; request logs record the path, never the query string.
 - The server never logs secrets, prompt text, query text, variable values, tool results or MCP client names.
   The `asset fetch failed` and `action run` lines never hold URLs, paths, queries, bodies or action inputs.
+- `SLASHOBSERVE_AGENT_LOG_TOOL_INPUTS` (`internal/agent/toolinputs.go`) logs each run's tool inputs by shape only: a 12 hex character SHA-256 prefix, the size, a save's panel ids that match the id pattern and a rejected save's first 20 issue paths that are plain pointers, never input text.
 - The one exception to the provider-message rule is `SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS`: when on, `llm.CallError.ProviderMessage` (scrubbed of the key and control characters, capped at 1024 bytes, never in `Error()`) is logged as `provider_error_message` on a failed `llm call finished` line.
 - A failure is a fixed message plus `logattrs.Failure(code, err, ids...)` and the relevant ids, never `err.Error()`, and a panic is logged by its type only.
 - `sloglint` forbids the literal attribute keys `error` and `err` under `internal/`, `cmd/` and `pkg/`.

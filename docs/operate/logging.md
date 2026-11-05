@@ -58,6 +58,7 @@ Set the level with `SLASHOBSERVE_LOG_LEVEL` (`debug`, `info`, `warn` or `error`,
 Each run logs one `agent run finished` line with its `error_code` when it failed.
 It is written at `INFO` when the run succeeded or was canceled, at `ERROR` when the server failed, and at `WARN` for every other ending.
 At `DEBUG`, each tool call also logs a `tool call finished` line with `agent_request_id`, `tool`, `duration` and `is_error`; it holds no tool input and no result.
+Set `SLASHOBSERVE_AGENT_LOG_TOOL_INPUTS=true` to log an `INFO` `agent tool input` line per tool call with `input_sha256` (12 hex characters) and `input_bytes`, plus `panel_ids` and `panel_count` for a save and `issue_paths` for a rejected one, never the input's text; the server logs one `WARN` at startup while it is on, and the evals stack sets it.
 
 ## Provider error messages
 
