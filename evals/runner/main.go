@@ -405,6 +405,9 @@ func runSuite(ctx context.Context, c *client, pricing Pricing, selected []Scenar
 	report := Report{StartedAt: time.Now().UTC(), Provider: *info.Provider, Model: *info.Model}
 	report.Results = runAll(ctx, c, pricing, selected, o, stderr)
 	report.Aggregates = aggregate(report.Results)
+	for _, model := range report.Aggregates.Cost.UnpricedModels {
+		_, _ = fmt.Fprintf(stderr, "pricing: cost unknown for model %s, left blank\n", model)
+	}
 	return report, evaluateGates(report.Aggregates, gateLimits{minPass: o.minPass, minQuality: o.minQuality, minDoneWhen: o.minDoneWhen, doneWhen: doneWhen}), nil
 }
 

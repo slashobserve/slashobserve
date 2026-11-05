@@ -128,17 +128,6 @@ type Expect struct {
 	Coverage float64 `yaml:"coverage" json:"coverage,omitempty"`
 }
 
-type Price struct {
-	Input      float64 `yaml:"input"`
-	Output     float64 `yaml:"output"`
-	CacheRead  float64 `yaml:"cache_read"`
-	CacheWrite float64 `yaml:"cache_write"`
-}
-
-type Pricing struct {
-	Models map[string]Price `yaml:"models"`
-}
-
 func decodeStrict(content []byte, out any) error {
 	decoder := yaml.NewDecoder(bytes.NewReader(content), yaml.Strict(), yaml.DisallowUnknownField())
 	if err := decoder.Decode(out); err != nil {
@@ -506,31 +495,4 @@ func filterScenarios(all []Scenario, ids, tags []string) ([]Scenario, error) {
 		return nil, errors.New("no scenario matches the --id and --tag filters")
 	}
 	return out, nil
-}
-
-func loadPricing(path string) (Pricing, error) {
-	content, err := os.ReadFile(path) //nolint:gosec // the path comes from the operator's flags
-	if err != nil {
-		return Pricing{}, err
-	}
-	var pricing Pricing
-	if err := decodeStrict(content, &pricing); err != nil {
-		return Pricing{}, fmt.Errorf("%s: %w", path, err)
-	}
-	return pricing, nil
-}
-
-func (p Pricing) cost(u *Usage) *float64 {
-	if u == nil {
-		return nil
-	}
-	price, ok := p.Models[u.Model]
-	if !ok {
-		return nil
-	}
-	usd := (float64(u.InputTokens)*price.Input +
-		float64(u.OutputTokens)*price.Output +
-		float64(u.CacheReadTokens)*price.CacheRead +
-		float64(u.CacheWriteTokens)*price.CacheWrite) / 1e6
-	return &usd
 }

@@ -74,6 +74,8 @@ type CostStats struct {
 	TotalUSD *float64 `json:"total_usd"`
 	MeanUSD  *float64 `json:"mean_usd"`
 	Priced   int      `json:"priced_scenarios"`
+
+	UnpricedModels []string `json:"unpriced_models"`
 }
 
 type TokenStats struct {
@@ -164,7 +166,7 @@ func splitSizeGuard(results []Result) ([]Result, Tally) {
 }
 
 func aggregate(results []Result) Aggregates {
-	agg := Aggregates{Categories: tallies{}, Kinds: tallies{}, FailureCodes: map[string]int{}, RunnerCodes: map[string]int{}}
+	agg := Aggregates{Categories: tallies{}, Kinds: tallies{}, FailureCodes: map[string]int{}, RunnerCodes: map[string]int{}, Cost: CostStats{UnpricedModels: []string{}}}
 	results, agg.SizeGuard = splitSizeGuard(results)
 	var passed, doneWhenPassed, doneWhenTotal int
 	var latencies, firstPanels, panelRates []float64
@@ -203,10 +205,7 @@ func aggregate(results []Result) Aggregates {
 		latencies = appendValue(latencies, r.LatencySeconds)
 		firstPanels = appendValue(firstPanels, r.FirstPanelSeconds)
 		panelRates = appendValue(panelRates, r.PanelsPerMinute)
-		if r.CostUSD != nil {
-			costTotal += *r.CostUSD
-			agg.Cost.Priced++
-		}
+		costTotal += agg.Cost.add(r)
 		agg.addUsage(r.Usage)
 	}
 	agg.Scenarios = tally(passed, len(results)-agg.Skipped)
@@ -239,6 +238,18 @@ func medians(values map[string][]float64) map[string]float64 {
 		}
 	}
 	return out
+}
+
+func (c *CostStats) add(r Result) float64 {
+	switch {
+	case r.CostUSD != nil:
+		c.Priced++
+		return *r.CostUSD
+	case r.Usage != nil && r.Usage.Model != "" && !slices.Contains(c.UnpricedModels, r.Usage.Model):
+		c.UnpricedModels = append(c.UnpricedModels, r.Usage.Model)
+		slices.Sort(c.UnpricedModels)
+	}
+	return 0
 }
 
 func latencyStats(values []float64) *LatencyStats {
@@ -444,24 +455,7 @@ func renderMarkdown(report Report, gates gateOutcome) string {
 	fmt.Fprintf(&b, "Provider `%s`, model `%s`, started %s.\n\n", report.Provider, report.Model, report.StartedAt.UTC().Format(time.RFC3339))
 
 	b.WriteString(firstPanelLine(agg.FirstPanel) + "\n\n")
-	b.WriteString("| Summary | Value |\n| --- | --- |\n")
-	fmt.Fprintf(&b, "| Scenarios passed | %s |\n", percent(agg.Scenarios))
-	if agg.Skipped > 0 {
-		fmt.Fprintf(&b, "| Skipped, left out of the rates | %d |\n", agg.Skipped)
-	}
-	if agg.LatencyOnly > 0 {
-		fmt.Fprintf(&b, "| Failed on latency or budget only, included in the failures | %d |\n", agg.LatencyOnly)
-	}
-	fmt.Fprintf(&b, "| Done-when passed | %s |\n", percent(agg.DoneWhen))
-	if agg.Latency != nil {
-		fmt.Fprintf(&b, "| Latency p50 / p90 / max | %.1fs / %.1fs / %.1fs |\n", agg.Latency.P50, agg.Latency.P90, agg.Latency.Max)
-	}
-	fmt.Fprintf(&b, "| Cost total / mean | %s / %s%s |\n", usd(agg.Cost.TotalUSD), usd(agg.Cost.MeanUSD), pricedNote(agg))
-	fmt.Fprintf(&b, "| Tokens in / out / cache read / cache write | %d / %d / %d / %d |\n", agg.Tokens.Input, agg.Tokens.Output, agg.Tokens.CacheRead, agg.Tokens.CacheWrite)
-	fmt.Fprintf(&b, "| Cache-read share of prompt tokens | %.0f%% |\n\n", agg.Tokens.CacheReadShare*100)
-	if agg.SizeGuard.Total > 0 {
-		fmt.Fprintf(&b, "Size guard: %d of %d rejected as expected\n\n", agg.SizeGuard.Passed, agg.SizeGuard.Total)
-	}
+	writeSummary(&b, agg)
 
 	b.WriteString("| Category | Passed | Rate |\n| --- | --- | --- |\n")
 	categories := make([]string, 0, len(agg.Categories))
@@ -513,6 +507,30 @@ func renderMarkdown(report Report, gates gateOutcome) string {
 		}
 	}
 	return b.String()
+}
+
+func writeSummary(b *strings.Builder, agg Aggregates) {
+	b.WriteString("| Summary | Value |\n| --- | --- |\n")
+	fmt.Fprintf(b, "| Scenarios passed | %s |\n", percent(agg.Scenarios))
+	if agg.Skipped > 0 {
+		fmt.Fprintf(b, "| Skipped, left out of the rates | %d |\n", agg.Skipped)
+	}
+	if agg.LatencyOnly > 0 {
+		fmt.Fprintf(b, "| Failed on latency or budget only, included in the failures | %d |\n", agg.LatencyOnly)
+	}
+	fmt.Fprintf(b, "| Done-when passed | %s |\n", percent(agg.DoneWhen))
+	if agg.Latency != nil {
+		fmt.Fprintf(b, "| Latency p50 / p90 / max | %.1fs / %.1fs / %.1fs |\n", agg.Latency.P50, agg.Latency.P90, agg.Latency.Max)
+	}
+	fmt.Fprintf(b, "| Cost total / mean | %s / %s%s |\n", usd(agg.Cost.TotalUSD), usd(agg.Cost.MeanUSD), pricedNote(agg))
+	fmt.Fprintf(b, "| Tokens in / out / cache read / cache write | %d / %d / %d / %d |\n", agg.Tokens.Input, agg.Tokens.Output, agg.Tokens.CacheRead, agg.Tokens.CacheWrite)
+	fmt.Fprintf(b, "| Cache-read share of prompt tokens | %.0f%% |\n\n", agg.Tokens.CacheReadShare*100)
+	for _, model := range agg.Cost.UnpricedModels {
+		fmt.Fprintf(b, "Cost unknown for model `%s`: the pricing file has no complete price for it, so its runs have no cost.\n\n", model)
+	}
+	if agg.SizeGuard.Total > 0 {
+		fmt.Fprintf(b, "Size guard: %d of %d rejected as expected\n\n", agg.SizeGuard.Passed, agg.SizeGuard.Total)
+	}
 }
 
 func firstPanelLine(stats *FirstPanelStats) string {
