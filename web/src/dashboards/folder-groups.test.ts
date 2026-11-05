@@ -7,6 +7,7 @@ import {
   accessSummary,
   dashboardCountText,
   groupPage,
+  hasPeopleFolders,
   listSummary,
   yourAccessText,
 } from "./folder-groups"
@@ -225,6 +226,21 @@ const someoneElse = { kind: "user", id: "u-x", name: "Xi" } as const
 function myDashboards(owner: typeof me | typeof someoneElse) {
   return folder("m", "My Dashboards", { personal: true, created_by: owner })
 }
+
+describe("hasPeopleFolders", () => {
+  const mine = folder("m", "My Dashboards", { personal: true })
+  const base = folder("g", "General", { general: true })
+
+  it.each([
+    ["no folders", [], false],
+    ["General alone", [base], false],
+    ["General and My Dashboards", [base, mine], false],
+    ["a folder someone created", [base, mine, checkout], true],
+    ["an empty folder someone created", [base, payments], true],
+  ])("%s", (_name, list, expected) => {
+    expect(hasPeopleFolders(list)).toBe(expected)
+  })
+})
 
 describe("accessSummary", () => {
   it("lists the grantees of a restricted folder", () => {

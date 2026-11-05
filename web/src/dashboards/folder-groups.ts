@@ -61,6 +61,10 @@ export function groupPage(
   return sections
 }
 
+export function hasPeopleFolders(folders: Folder[]): boolean {
+  return folders.some((folder) => !folder.general && !folder.personal)
+}
+
 export function accessSummary(folder: Folder, principalId: string): string {
   if (isOrphanedPersonal(folder, principalId)) {
     return "Only Admins: the owner's account was deleted"

@@ -39,6 +39,7 @@ import {
   accessSummary,
   dashboardCountText,
   groupPage,
+  hasPeopleFolders,
   listSummary,
   yourAccessText,
   type FolderSection,
@@ -356,7 +357,7 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
     !query.isPlaceholderData &&
     !filtered &&
     clampTo === null &&
-    folders.length <= 1
+    !hasPeopleFolders(folders)
   const empty = sections !== null && (noDashboards || sections.length === 0)
   const [resetKey, setResetKey] = useState(0)
   const pending = query.isPending || folderResult.isPending
