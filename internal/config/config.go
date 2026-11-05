@@ -115,7 +115,7 @@ const (
 	envAgentRunTimeout      = "SLASHOBSERVE_AGENT_RUN_TIMEOUT"
 	envAgentSessionRenewKiB = "SLASHOBSERVE_AGENT_SESSION_RENEW_KIB"
 
-	envSecretKey = "SLASHOBSERVE_SECRET_KEY" //nolint:gosec // an environment variable name, not a credential
+	envSecretKey = "SLASHOBSERVE_SECRET_KEY"
 )
 
 var serverEnvNames = []string{
