@@ -15,6 +15,7 @@ import {
   panelShareUrl,
   type ShareOptions,
 } from "./share-links"
+import { PublishSection } from "./publish-section"
 import { WhoHasAccess } from "./who-has-access"
 
 type Props = {
@@ -81,8 +82,9 @@ export function SharePane({
           url={dashboardShareUrl(origin, dashboardId, current, options)}
         />
         <p className="text-xs text-muted-foreground">
-          Links need sign-in. Someone without access to the folder sees
-          &quot;You don&apos;t have access to this dashboard&quot;.
+          {folder.personal
+            ? "Only you can open this link until you publish the dashboard."
+            : 'Links need sign-in. Someone without access to the folder sees "You don\'t have access to this dashboard".'}
         </p>
       </section>
       {selected === undefined ? null : (
@@ -120,7 +122,11 @@ export function SharePane({
           </div>
         </section>
       )}
-      <WhoHasAccess folder={folder} canManage={canManage} headingId={whoId} />
+      {folder.personal ? (
+        <PublishSection dashboardId={dashboardId} headingId={whoId} />
+      ) : (
+        <WhoHasAccess folder={folder} canManage={canManage} headingId={whoId} />
+      )}
     </div>
   )
 }
