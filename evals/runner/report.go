@@ -42,6 +42,7 @@ type Result struct {
 
 	Quality         *float64 `json:"quality"`
 	QualityFindings []string `json:"quality_findings,omitempty"`
+	Coverage        *float64 `json:"coverage,omitempty"`
 
 	FirstPanelSeconds   *float64 `json:"first_panel_seconds"`
 	PanelsPerMinute     *float64 `json:"panels_per_minute"`

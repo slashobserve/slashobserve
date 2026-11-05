@@ -62,6 +62,7 @@ const (
 type options struct {
 	server, token      string
 	scenarios, pricing string
+	prometheus         string
 	ids, tags          listFlag
 	list               bool
 	parallel           int
@@ -98,6 +99,7 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs.StringVar(&o.token, "token", os.Getenv("OBSERVE_TOKEN"), "service-account key (env OBSERVE_TOKEN)")
 	fs.StringVar(&o.scenarios, "scenarios", "evals/scenarios", "directory of scenario files")
 	fs.StringVar(&o.pricing, "pricing", "evals/pricing.yaml", "model pricing file")
+	fs.StringVar(&o.prometheus, "prometheus", defaultPrometheus, "Prometheus that the expect.scope selectors of the coverage check read their series from")
 	fs.Var(&o.ids, "id", "run only this scenario id (repeatable)")
 	fs.Var(&o.tags, "tag", "run only scenarios with this tag (repeatable)")
 	fs.BoolVar(&o.list, "list", false, "print the selected scenarios and exit")
@@ -595,6 +597,9 @@ func (e *execution) runCreate(ctx context.Context) (Result, *AgentRequest) {
 	req, ok := e.await(ctx, waitCtx, req, slotWait)
 	if ok && req.Status == "succeeded" {
 		e.inspectResult(ctx, req)
+		if e.sc.Expect.Scope != "" && e.obs.dashboard != nil {
+			e.measureCoverage(ctx)
+		}
 	}
 	return e.done(unfinished(req))
 }
@@ -955,6 +960,9 @@ func finish(sc Scenario, pricing Pricing, res Result, obs observation) Result {
 		res.Panels = len(dataPanels(obs.dashboard))
 		quality, findings := scoreQuality(obs.dashboard)
 		res.Quality, res.QualityFindings = &quality, findings
+	}
+	if obs.coverage != nil {
+		res.Coverage = obs.coverage.score()
 	}
 	if elapsed, ok := latency(obs.request); ok {
 		seconds := elapsed.Seconds()

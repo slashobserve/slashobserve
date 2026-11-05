@@ -8,5 +8,6 @@ tags: [replay-smoke]
 expect:
   datasources: [prometheus]
   metrics: [http_requests_total, http_request_duration_seconds]
+  scope: '{job="shop"}'
   units: [reqps, rps, ops, short, s, ms]
   min_panels: 2

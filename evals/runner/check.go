@@ -79,6 +79,8 @@ type observation struct {
 
 	importRecord *ImportRecord
 	importErr    string
+
+	coverage *coverageMeasure
 }
 
 func (o observation) failureCode() string {
@@ -219,6 +221,9 @@ func createChecks(ex Expect, obs observation) []CheckResult {
 	checks = append(checks, checkPanels(ex, obs))
 	if ex.Thresholds || len(ex.ThresholdAt) > 0 {
 		checks = append(checks, checkThresholds(ex, obs))
+	}
+	if ex.Scope != "" {
+		checks = append(checks, checkCoverage(ex, obs))
 	}
 	return append(checks, checkLatency(ex, obs))
 }

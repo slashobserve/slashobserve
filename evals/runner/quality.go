@@ -60,17 +60,17 @@ func scoreQuality(d *spec.Dashboard) (float64, []string) {
 		j := rule.judge(d)
 		score += rule.weight * j.share
 		if len(j.failed) > 0 {
-			findings = append(findings, fmt.Sprintf("%s: %s %s", rule.name, listIDs(j.failed), j.what))
+			findings = append(findings, fmt.Sprintf("%s: %s %s", rule.name, listFirst(j.failed, maxListedQualityIDs), j.what))
 		}
 	}
 	return score, findings
 }
 
-func listIDs(ids []string) string {
-	if len(ids) <= maxListedQualityIDs {
-		return strings.Join(ids, ", ")
+func listFirst(items []string, limit int) string {
+	if len(items) <= limit {
+		return strings.Join(items, ", ")
 	}
-	return fmt.Sprintf("%s and %d more", strings.Join(ids[:maxListedQualityIDs], ", "), len(ids)-maxListedQualityIDs)
+	return fmt.Sprintf("%s and %d more", strings.Join(items[:limit], ", "), len(items)-limit)
 }
 
 func judgePanels(panels []*spec.Panel, applies, ok func(*spec.Panel) bool, what string) qualityJudgement {

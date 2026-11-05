@@ -123,6 +123,9 @@ type Expect struct {
 	TargetType          string         `yaml:"target_type" json:"target_type,omitempty"`
 	ChangedPanels       int            `yaml:"changed_panels" json:"changed_panels,omitempty"`
 	Usage               map[string]int `yaml:"usage" json:"usage,omitempty"`
+
+	Scope    string  `yaml:"scope" json:"scope,omitempty"`
+	Coverage float64 `yaml:"coverage" json:"coverage,omitempty"`
 }
 
 type Price struct {
@@ -204,6 +207,9 @@ func applyDefaults(sc *Scenario) {
 	}
 	if sc.Expect.MaxSeconds == 0 {
 		sc.Expect.MaxSeconds = defaultMaxSeconds
+	}
+	if sc.Expect.Scope != "" && sc.Expect.Coverage == 0 {
+		sc.Expect.Coverage = defaultCoverage
 	}
 }
 
@@ -380,7 +386,10 @@ func validateExpectations(sc Scenario) error {
 			return fmt.Errorf("expect.time_range_from: %w", err)
 		}
 	}
-	return validateBudgetsAndValues(ex)
+	if err := validateBudgetsAndValues(ex); err != nil {
+		return err
+	}
+	return validateCoverage(sc)
 }
 
 func validateBudgetsAndValues(ex Expect) error {
