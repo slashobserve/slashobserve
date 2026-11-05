@@ -1,11 +1,11 @@
 ---
 title: Annotations
-description: Mark deploys, incidents and maintenance on a moment or a range of time, for one dashboard or every dashboard, through the API.
+description: Mark deploys, incidents and maintenance on a moment or a range of time, see them as markers on charts, and add them from the CLI or the API.
 ---
 
 An annotation is a note pinned to a moment or a range of time, such as a deploy, an incident or a maintenance window.
 Annotations are stored on the server beside your dashboards and never inside a dashboard's [ObserveSpec](../concepts/observespec.md), so adding one saves no version.
-Charts do not draw annotations yet; for now you add, list and delete them through the HTTP API.
+Charts draw them as markers, and you add, list and delete them through the HTTP API.
 
 ## Global and dashboard annotations
 
@@ -21,6 +21,26 @@ Who may do what:
 - Adding a global annotation needs the Editor role or higher.
 - Reading the annotations of a dashboard needs only that you can see the dashboard; a dashboard you cannot see answers 404, as if it did not exist.
 - Deleting an annotation is for the person or key that added it, and for Admins.
+
+## Markers on charts
+
+Time series, candlestick and state timeline panels draw every annotation in their time range.
+A moment is a vertical line in the info colour, and a range is a light band between two lines.
+A small flag at the bottom of each line opens a card when you hover, focus or tap it.
+The card shows the text, the tags, who added it and when, and says `Every dashboard` for a global one.
+Markers closer than a few pixels share one flag, and its card lists them newest first.
+
+An annotation with a `panel_id` appears only on that panel, and one without appears on every panel of its dashboard.
+Global annotations appear on every dashboard.
+
+A link in the text becomes a link in the card: an `http` or `https` address, or a path on this server such as `/d/<id>`.
+Other text, `javascript:` and `mailto:` addresses included, stays plain text.
+
+## Filter markers by tag
+
+When the dashboard's annotations have tags, the top row shows an `Annotations` menu.
+Pick one or more tags to keep only the markers that have any of them, or `All annotations` to show every marker again.
+The choice is kept in the address as `ann=deploy,incident`, so a shared link shows the same markers.
 
 ## Add a deploy marker
 

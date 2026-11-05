@@ -169,3 +169,10 @@ export const actionKeys = {
 export const newsKeys = {
   feed: (url: string) => ["news", url] as const,
 }
+
+export const annotationKeys = {
+  all: ["annotations"] as const,
+  range: (dashboardId: string, from: string, to: string) =>
+    ["annotations", dashboardId, "range", from, to] as const,
+  tags: (dashboardId: string) => ["annotations", dashboardId, "tags"] as const,
+}

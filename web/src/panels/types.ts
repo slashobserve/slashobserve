@@ -1,5 +1,6 @@
 import type { ComponentType } from "react"
 
+import type { Annotation } from "@/annotations/queries"
 import type { Selections } from "@/api/keys"
 import type { PanelDataMeta, WireFrame } from "@/dashboards/queries"
 import type {
@@ -33,6 +34,7 @@ export type PanelRendererProps = {
   >
   ghostFrames?: PreparedFrame[]
   exemplars?: WireFrame[]
+  annotations?: readonly Annotation[]
 }
 
 export type PanelRenderer = ComponentType<PanelRendererProps>
