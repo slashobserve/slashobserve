@@ -1265,7 +1265,7 @@ export interface paths {
         put?: never;
         /**
          * Import a Grafana dashboard as version 1 of a new dashboard.
-         * @description Takes the same body as the preview and saves the converted Spec even when some queries fail. Panels whose queries fail are marked `unverified` in the stored report with the reason; later saves of the dashboard run every query as usual. The original JSON is stored for a later re-import and is never returned. A caller has at most 1 import in flight and the instance at most 4; more answers 429 `too_many_imports`. A retried agent request that already made its dashboard without an import answers 200 with that dashboard and no `import`. The folder is `folder` from the body, else the Grafana export's `meta.folderTitle`, else the caller's default folder (a person's My Dashboards, a key's General); General and My Dashboards both mean the default. A folder that does not exist is created when the caller is an Editor or above and the caller becomes its creator. Otherwise, or when the folder exists but the caller cannot see it or create in it, the dashboard goes to the default folder and `folder_note` says so. Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder, and 404 `not_found` when a folder disappears while the dashboard is saved.
+         * @description Takes the same body as the preview and saves the converted Spec even when some queries fail. Panels whose queries fail are marked `unverified` in the stored report with the reason; later saves of the dashboard run every query as usual. The original JSON is stored for a later re-import and is never returned. A caller has at most 1 import in flight and the instance at most 4; more answers 429 `too_many_imports`. A retried agent request that already made its dashboard without an import answers 200 with that dashboard and no `import`. The folder is `folder` from the body, else the Grafana export's `meta.folderTitle`, else the caller's default folder (a person's My Dashboards, a key's General); General and My Dashboards both mean the default. A folder that does not exist is created when the caller is an Editor or above and the caller becomes its creator. Otherwise, or when the folder exists but the caller cannot see it or create in it, the dashboard goes to the default folder and `folder_note` says so. Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder, and 404 `not_found` when a folder disappears while the dashboard is saved. The record's `grafana_uid` is the dashboard's Grafana uid when no earlier import holds it, so `GET /grafana/resolve/{uid}` finds this dashboard.
          */
         post: operations["createImport"];
         delete?: never;
@@ -2340,6 +2340,8 @@ export interface components {
             summary: components["schemas"]["ImportSummary"];
             datasources: components["schemas"]["ImportSourceDatasource"][];
             report: components["schemas"]["ImportReport"];
+            /** @description The Grafana dashboard uid this import answers for, or empty. Only the first import of a uid holds it, and only a uid of 1 to 40 letters, digits, `-` or `_`; a later import of the same uid, from a file or a connection, gets an empty value. */
+            grafana_uid: string;
             created_by: components["schemas"]["Author"];
             /** Format: date-time */
             created_at: string;

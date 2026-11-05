@@ -59,6 +59,7 @@ imports:
       A folder that does not exist is created when the caller is an Editor or above and the caller becomes its creator.
       Otherwise, or when the folder exists but the caller cannot see it or create in it, the dashboard goes to the default folder and `folder_note` says so.
       Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder, and 404 `not_found` when a folder disappears while the dashboard is saved.
+      The record's `grafana_uid` is the dashboard's Grafana uid when no earlier import holds it, so `GET /grafana/resolve/{uid}` finds this dashboard.
     requestBody:
       required: true
       content:

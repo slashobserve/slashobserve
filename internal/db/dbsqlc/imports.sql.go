@@ -11,9 +11,29 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const dashboardByGrafanaUID = `-- name: DashboardByGrafanaUID :one
+SELECT dashboard_id,
+  CASE WHEN jsonb_typeof(summary -> 'grafana_version') = 'number'
+    THEN (summary ->> 'grafana_version')::numeric::bigint ELSE 0 END::bigint AS grafana_version
+FROM imports
+WHERE grafana_uid = $1::text AND grafana_uid <> ''
+`
+
+type DashboardByGrafanaUIDRow struct {
+	DashboardID    pgtype.UUID
+	GrafanaVersion int64
+}
+
+func (q *Queries) DashboardByGrafanaUID(ctx context.Context, grafanaUid string) (DashboardByGrafanaUIDRow, error) {
+	row := q.db.QueryRow(ctx, dashboardByGrafanaUID, grafanaUid)
+	var i DashboardByGrafanaUIDRow
+	err := row.Scan(&i.DashboardID, &i.GrafanaVersion)
+	return i, err
+}
+
 const getImportByDashboard = `-- name: GetImportByDashboard :one
 SELECT id, dashboard_id, version, source, importer_version, mapping, summary, datasources, report, title,
-  created_by_kind, created_by_id, created_by_name, created_by_email, created_at
+  created_by_kind, created_by_id, created_by_name, created_by_email, created_at, grafana_uid
 FROM imports
 WHERE dashboard_id = $1
 `
@@ -34,6 +54,7 @@ type GetImportByDashboardRow struct {
 	CreatedByName   string
 	CreatedByEmail  pgtype.Text
 	CreatedAt       pgtype.Timestamptz
+	GrafanaUid      string
 }
 
 func (q *Queries) GetImportByDashboard(ctx context.Context, dashboardID pgtype.UUID) (GetImportByDashboardRow, error) {
@@ -55,6 +76,7 @@ func (q *Queries) GetImportByDashboard(ctx context.Context, dashboardID pgtype.U
 		&i.CreatedByName,
 		&i.CreatedByEmail,
 		&i.CreatedAt,
+		&i.GrafanaUid,
 	)
 	return i, err
 }
@@ -62,12 +84,15 @@ func (q *Queries) GetImportByDashboard(ctx context.Context, dashboardID pgtype.U
 const insertImport = `-- name: InsertImport :one
 INSERT INTO imports (
   dashboard_id, version, source, importer_version, original, mapping, summary, datasources, report,
-  title, created_by_kind, created_by_id, created_by_name, created_by_email
+  title, created_by_kind, created_by_id, created_by_name, created_by_email, grafana_uid
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7, $8, $9,
-  $10, $11, $12, $13, $14
+  $10, $11, $12, $13, $14,
+  CASE WHEN $15::text ~ '^[A-Za-z0-9_-]{1,40}$'
+    AND NOT EXISTS (SELECT 1 FROM imports claimed WHERE claimed.grafana_uid = $15::text)
+  THEN $15::text ELSE '' END
 )
-RETURNING id, created_at
+RETURNING id, created_at, grafana_uid
 `
 
 type InsertImportParams struct {
@@ -85,11 +110,13 @@ type InsertImportParams struct {
 	CreatedByID     pgtype.UUID
 	CreatedByName   string
 	CreatedByEmail  pgtype.Text
+	GrafanaUid      string
 }
 
 type InsertImportRow struct {
-	ID        pgtype.UUID
-	CreatedAt pgtype.Timestamptz
+	ID         pgtype.UUID
+	CreatedAt  pgtype.Timestamptz
+	GrafanaUid string
 }
 
 func (q *Queries) InsertImport(ctx context.Context, arg InsertImportParams) (InsertImportRow, error) {
@@ -108,9 +135,10 @@ func (q *Queries) InsertImport(ctx context.Context, arg InsertImportParams) (Ins
 		arg.CreatedByID,
 		arg.CreatedByName,
 		arg.CreatedByEmail,
+		arg.GrafanaUid,
 	)
 	var i InsertImportRow
-	err := row.Scan(&i.ID, &i.CreatedAt)
+	err := row.Scan(&i.ID, &i.CreatedAt, &i.GrafanaUid)
 	return i, err
 }
 
@@ -191,4 +219,50 @@ func (q *Queries) ListImports(ctx context.Context, arg ListImportsParams) ([]Lis
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockImportGrafanaUID = `-- name: LockImportGrafanaUID :exec
+SELECT pg_advisory_xact_lock(hashtextextended('imports_grafana_uid:' || $1::text, 0))
+`
+
+func (q *Queries) LockImportGrafanaUID(ctx context.Context, grafanaUid string) error {
+	_, err := q.db.Exec(ctx, lockImportGrafanaUID, grafanaUid)
+	return err
+}
+
+const updateImport = `-- name: UpdateImport :execrows
+UPDATE imports
+SET version = $1, importer_version = $2, original = $3, mapping = $4,
+  summary = $5, datasources = $6, report = $7, title = $8
+WHERE dashboard_id = $9
+`
+
+type UpdateImportParams struct {
+	Version         int32
+	ImporterVersion int32
+	Original        []byte
+	Mapping         []byte
+	Summary         []byte
+	Datasources     []byte
+	Report          []byte
+	Title           string
+	DashboardID     pgtype.UUID
+}
+
+func (q *Queries) UpdateImport(ctx context.Context, arg UpdateImportParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateImport,
+		arg.Version,
+		arg.ImporterVersion,
+		arg.Original,
+		arg.Mapping,
+		arg.Summary,
+		arg.Datasources,
+		arg.Report,
+		arg.Title,
+		arg.DashboardID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

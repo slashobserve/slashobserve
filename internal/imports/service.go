@@ -55,10 +55,17 @@ func (e *UnresolvedError) Error() string {
 }
 
 type Request struct {
-	JSON      []byte
-	Mapping   map[string]string
-	Folder    string
-	RequestID pgtype.UUID
+	JSON           []byte
+	Mapping        map[string]string
+	Folder         string
+	FolderID       pgtype.UUID
+	GrafanaVersion int
+	RequestID      pgtype.UUID
+}
+
+type GrafanaImport struct {
+	DashboardID    pgtype.UUID
+	GrafanaVersion int
 }
 
 type Record struct {
@@ -71,6 +78,7 @@ type Record struct {
 	Summary         grafana.Summary
 	Datasources     []grafana.SourceDatasource
 	Report          grafana.Report
+	GrafanaUID      string
 	CreatedBy       dashboards.Author
 	CreatedAt       time.Time
 }
@@ -181,11 +189,7 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 	if err != nil {
 		return Imported{}, err
 	}
-	folderTitle := req.Folder
-	if folderTitle == "" {
-		folderTitle = result.Summary.FolderTitle
-	}
-	target, err := s.access.ForImport(ctx, by, folderTitle)
+	target, err := s.importFolder(ctx, by, req, result.Summary.FolderTitle)
 	if err != nil {
 		return Imported{}, err
 	}
@@ -198,13 +202,19 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 		if err != nil {
 			return err
 		}
+		params.GrafanaUid = result.Summary.UID
+		if params.GrafanaUid != "" {
+			if err := q.LockImportGrafanaUID(ctx, params.GrafanaUid); err != nil {
+				return fmt.Errorf("lock grafana uid: %w", err)
+			}
+		}
 		inserted, err = q.InsertImport(ctx, params)
 		if err != nil {
 			return fmt.Errorf("insert import: %w", err)
 		}
 		return nil
 	}
-	dash, ver, _, replayed, err := s.dashboard.CreateImported(ctx, by, target.Folder.ID, rawSpec, importSummary(result.Summary.Title), req.RequestID, hook)
+	dash, ver, _, replayed, err := s.dashboard.CreateImported(ctx, by, target.Folder.ID, rawSpec, versionSummary(importedPrefix, result.Summary.Title), req.RequestID, hook)
 	if err != nil {
 		return Imported{}, err
 	}
@@ -225,12 +235,111 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 			Summary:         result.Summary,
 			Datasources:     result.Datasources,
 			Report:          result.Report,
+			GrafanaUID:      inserted.GrafanaUid,
 			CreatedBy:       dashboards.Author{Kind: string(by.Kind), ID: by.ID, Name: by.Name, Email: by.Email},
 			CreatedAt:       inserted.CreatedAt.Time.UTC(),
 		},
 	}
 	s.logImported(ctx, imported)
 	return imported, nil
+}
+
+func (s *Service) importFolder(ctx context.Context, by auth.Principal, req Request, fromJSON string) (folders.ImportFolder, error) {
+	if req.FolderID.Valid {
+		folder, err := s.access.CreationFolder(ctx, by, req.FolderID)
+		return folders.ImportFolder{Folder: folder}, err
+	}
+	title := req.Folder
+	if title == "" {
+		title = fromJSON
+	}
+	return s.access.ForImport(ctx, by, title)
+}
+
+func (s *Service) Reimport(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, req Request) (Imported, error) {
+	release, ok := s.importSlots.acquire(principalKey(by))
+	if !ok {
+		return Imported{}, ErrBusy
+	}
+	defer release()
+	if err := checkLimits(req); err != nil {
+		return Imported{}, err
+	}
+	result, err := grafana.Convert(req.JSON, s.options(req))
+	if err != nil {
+		return Imported{}, err
+	}
+	if !result.Ready() {
+		return Imported{}, &UnresolvedError{Datasources: result.Datasources}
+	}
+	rawSpec, err := json.Marshal(result.Spec)
+	if err != nil {
+		return Imported{}, fmt.Errorf("marshal imported spec: %w", err)
+	}
+	cols, err := encodeColumns(req, result)
+	if err != nil {
+		return Imported{}, err
+	}
+	latest, err := s.dashboard.LatestVersion(ctx, dashboardID)
+	if err != nil {
+		return Imported{}, err
+	}
+	dash, ver, _, err := s.dashboard.AddVersion(ctx, by, dashboardID, latest, rawSpec, versionSummary(updatedPrefix, result.Summary.Title))
+	if err != nil {
+		return Imported{}, err
+	}
+	result.Verify(issuesOf(ver.Unverified))
+	replaceNULInReport(&result.Report)
+	rawReport, err := json.Marshal(result.Report)
+	if err != nil {
+		return Imported{}, fmt.Errorf("marshal import report: %w", err)
+	}
+	updated, err := s.db.Queries().UpdateImport(ctx, dbsqlc.UpdateImportParams{
+		DashboardID:     dashboardID,
+		Version:         httpapi.Int32(ver.Number),
+		ImporterVersion: httpapi.Int32(grafana.ImporterVersion),
+		Original:        req.JSON,
+		Mapping:         cols.mapping,
+		Summary:         cols.summary,
+		Datasources:     cols.datasources,
+		Report:          rawReport,
+		Title:           dash.Title,
+	})
+	if err != nil {
+		return Imported{}, fmt.Errorf("update import: %w", err)
+	}
+	if updated == 0 {
+		return Imported{}, ErrNotFound
+	}
+	record, err := s.ForDashboard(ctx, dashboardID)
+	if err != nil {
+		return Imported{}, err
+	}
+	imported := Imported{Record: record, Dashboard: dash, Version: ver}
+	s.logImported(ctx, imported)
+	return imported, nil
+}
+
+func issuesOf(u dashboards.Unverified) []spec.Issue {
+	var issues []spec.Issue
+	for _, p := range u.Panels {
+		issues = append(issues, p.Issues...)
+	}
+	for _, v := range u.Variables {
+		issues = append(issues, v.Issues...)
+	}
+	return issues
+}
+
+func (s *Service) DashboardByGrafanaUID(ctx context.Context, uid string) (GrafanaImport, bool, error) {
+	row, err := s.db.Queries().DashboardByGrafanaUID(ctx, uid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return GrafanaImport{}, false, nil
+	}
+	if err != nil {
+		return GrafanaImport{}, false, fmt.Errorf("find import by grafana uid: %w", err)
+	}
+	return GrafanaImport{DashboardID: row.DashboardID, GrafanaVersion: int(row.GrafanaVersion)}, true, nil
 }
 
 func (s *Service) replay(ctx context.Context, dash dashboards.Dashboard, ver dashboards.Version) (Imported, error) {
@@ -340,6 +449,7 @@ func (s *Service) ForDashboard(ctx context.Context, dashboardID pgtype.UUID) (Re
 		Version:         int(row.Version),
 		ImporterVersion: int(row.ImporterVersion),
 		Title:           row.Title,
+		GrafanaUID:      row.GrafanaUid,
 		CreatedBy:       author(row.CreatedByKind, row.CreatedByID, row.CreatedByName, row.CreatedByEmail),
 		CreatedAt:       row.CreatedAt.Time.UTC(),
 	}
@@ -404,6 +514,11 @@ func (s *slots) acquire(key string) (func(), bool) {
 	}, true
 }
 
+type storedSummary struct {
+	grafana.Summary
+	GrafanaVersion int `json:"grafana_version,omitempty"`
+}
+
 type columns struct {
 	mapping, summary, datasources []byte
 }
@@ -418,7 +533,7 @@ func encodeColumns(req Request, result *grafana.Result) (columns, error) {
 		into *[]byte
 	}{
 		{"mapping", mappingOf(req), &cols.mapping},
-		{"summary", result.Summary, &cols.summary},
+		{"summary", storedSummary{Summary: result.Summary, GrafanaVersion: req.GrafanaVersion}, &cols.summary},
 		{"datasources", result.Datasources, &cols.datasources},
 		{"report", result.Report, &report},
 	} {
@@ -519,12 +634,17 @@ func mappingOf(req Request) map[string]string {
 	return req.Mapping
 }
 
-func importSummary(title string) string {
+const (
+	importedPrefix = "Imported"
+	updatedPrefix  = "Updated"
+)
+
+func versionSummary(verb, title string) string {
 	title = strings.TrimSpace(title)
 	if title == "" {
-		return "Imported from Grafana"
+		return verb + " from Grafana"
 	}
-	const prefix, suffix = `Imported "`, `" from Grafana`
+	prefix, suffix := verb+` "`, `" from Grafana`
 	if room := maxSummaryBytes - len(prefix) - len(suffix); len(title) > room {
 		cut := room
 		for cut > 0 && !utf8.RuneStart(title[cut]) {

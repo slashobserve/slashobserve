@@ -138,6 +138,20 @@ type FolderPermission struct {
 	CreatedAt   pgtype.Timestamptz
 }
 
+type GrafanaConnection struct {
+	ID              pgtype.UUID
+	Name            string
+	Url             string
+	TokenCiphertext []byte
+	CreatedBy       pgtype.UUID
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	LastTestAt      pgtype.Timestamptz
+	LastTestOk      bool
+	LastTestMessage string
+	LastSync        []byte
+}
+
 type Import struct {
 	ID              pgtype.UUID
 	DashboardID     pgtype.UUID
@@ -155,6 +169,7 @@ type Import struct {
 	CreatedByName   string
 	CreatedByEmail  pgtype.Text
 	CreatedAt       pgtype.Timestamptz
+	GrafanaUid      string
 }
 
 type Instance struct {
