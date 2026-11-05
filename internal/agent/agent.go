@@ -155,7 +155,6 @@ type Agent struct {
 	datasources       DatasourceHealth
 	imports           ImportReader
 	logger            *slog.Logger
-	system            string
 	investigateSystem string
 	toolSpecs         map[tools.Mode][]llm.ToolSpec
 	sessionRenewBytes int
@@ -188,7 +187,6 @@ func New(c Config) *Agent {
 		datasources:       c.Datasources,
 		imports:           c.Imports,
 		logger:            c.Logger,
-		system:            buildSystem(),
 		investigateSystem: buildInvestigateSystem(),
 		toolSpecs:         specs,
 		sessionRenewBytes: c.SessionRenewBytes,
@@ -593,7 +591,7 @@ func (r *runner) sessionText(current *revision, build *dashboards.Build, reason 
 		view = buildView(current, build)
 	}
 	contextText, err = buildContext(r.statuses, r.mode, r.task.Source, r.task.PanelID, r.prompt, view, sd)
-	return contextText, r.agent.system, err
+	return contextText, systemFor(r.statuses), err
 }
 
 func (r *runner) startSession(ctx context.Context, current *revision, build *dashboards.Build, reason seedReason) (context.Context, llm.Session, error) {

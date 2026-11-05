@@ -1,0 +1,85 @@
+{
+  "prompt": "Loki log volume by service over the last hour",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "list_labels",
+          "input": {
+            "datasource": "loki"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Create Loki log volume by service",
+            "planned_panels": 2,
+            "spec": {
+              "specVersion": "0",
+              "title": "Loki log volume by service",
+              "time": {
+                "from": "now-1h",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "p_log_volume",
+                  "type": "timeseries",
+                  "title": "Log lines by service",
+                  "datasource": "loki",
+                  "queries": [
+                    {
+                      "query": "sum by (service_name) (count_over_time({service_name=~\".+\"}[$__interval]))",
+                      "legend": "{{service_name}}"
+                    }
+                  ],
+                  "unit": "short"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "expect": [
+        {
+          "is_error": false,
+          "contains": "service_name"
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add log lines per service over the range",
+            "upsert": [
+              {
+                "id": "p_log_volume_total",
+                "type": "bargauge",
+                "title": "Log lines per service",
+                "datasource": "loki",
+                "queries": [
+                  {
+                    "query": "sum by (service_name) (count_over_time({service_name=~\".+\"}[$__range]))",
+                    "legend": "{{service_name}}",
+                    "instant": true
+                  }
+                ],
+                "unit": "short",
+                "display": {
+                  "orientation": "horizontal"
+                }
+              }
+            ],
+            "finish": true
+          }
+        }
+      ]
+    }
+  ]
+}

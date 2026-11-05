@@ -367,7 +367,7 @@ func TestDescriptionsOfferOnlySearchTheToolTakes(t *testing.T) {
 	}
 }
 
-const agentToolTextBudget = 19344
+const agentToolTextBudget = 19535
 
 func TestAgentToolTextStaysWithinBudget(t *testing.T) {
 	listed := New(Deps{}).List()
@@ -387,6 +387,31 @@ func TestAgentToolTextStaysWithinBudget(t *testing.T) {
 }
 
 var toolLikeName = regexp.MustCompile(`\b[a-z]+(?:_[a-z]+)+\b`)
+
+func TestDiscoveryTextNamesEveryDatasourceType(t *testing.T) {
+	mentions := map[string][]string{
+		nameListLabels:      {"Loki", "Tempo"},
+		nameListLabelValues: {"Loki"},
+		nameSampleRows:      {"Loki"},
+		nameGetSchema:       {"Tempo"},
+		nameListDatasources: {"prometheus", "clickhouse", "loki", "tempo"},
+	}
+	byName := toolsByName(t)
+	for name, words := range mentions {
+		tool, ok := byName[name]
+		if !ok {
+			t.Fatalf("%s is not registered", name)
+		}
+		for surface, offered := range map[string]Tool{"mcp": tool, "agent": tool.ForAgent()} {
+			text := offered.Description + string(offered.InputSchema)
+			for _, word := range words {
+				if !strings.Contains(text, word) {
+					t.Errorf("%s %s text does not mention %s", surface, name, word)
+				}
+			}
+		}
+	}
+}
 
 func TestServerInstructionsNameOnlyRealToolsAndFields(t *testing.T) {
 	byName := toolsByName(t)

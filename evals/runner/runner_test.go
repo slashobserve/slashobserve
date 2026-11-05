@@ -52,8 +52,8 @@ func TestShippedScenariosLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(today) != 14 || countDoneWhen(today) != 10 {
-		t.Fatalf("a run with no suite selects %d scenarios with %d done_when, want 14 and 10", len(today), countDoneWhen(today))
+	if len(today) != 17 || countDoneWhen(today) != 10 {
+		t.Fatalf("a run with no suite selects %d scenarios with %d done_when, want 17 and 10", len(today), countDoneWhen(today))
 	}
 }
 
@@ -85,9 +85,9 @@ func TestPromptRejectedMatchesOnlyTheServersAnswerForAnOverCapPrompt(t *testing.
 
 func TestScenarioValidation(t *testing.T) {
 	cases := map[string]struct {
-		extra string
-		want  string
-		mixed bool
+		extra    string
+		want     string
+		category string
 	}{
 		"valid": {
 			extra: "expect:\n  datasources: [prometheus]\n  metrics: [up]\n  units: [reqps, \"µs\"]\n  threshold_at: {percent: 1}\n  time_range_from: [now-1h]\n  changed_paths: [/time]\n  query_contains_any:\n    - [offset 1d, offset 24h]\n",
@@ -97,9 +97,9 @@ func TestScenarioValidation(t *testing.T) {
 			want:  "expect.metrics must not contain an empty entry",
 		},
 		"empty table": {
-			extra: "expect:\n  datasources: [prometheus, clickhouse]\n  tables: [\"\"]\n",
-			mixed: true,
-			want:  "expect.tables must not contain an empty entry",
+			extra:    "expect:\n  datasources: [prometheus, clickhouse]\n  tables: [\"\"]\n",
+			category: "mixed",
+			want:     "expect.tables must not contain an empty entry",
 		},
 		"unknown unit": {
 			extra: "expect:\n  datasources: [prometheus]\n  units: [reqps, requests]\n",
@@ -125,6 +125,15 @@ func TestScenarioValidation(t *testing.T) {
 			extra: "expect:\n  datasources: [prometheus]\n  changed_paths: [\"\"]\n",
 			want:  "expect.changed_paths must not contain an empty entry",
 		},
+		"tempo": {
+			extra:    "expect:\n  datasources: [tempo]\n",
+			category: "tempo",
+		},
+		"loki with a prometheus datasource": {
+			extra:    "expect:\n  datasources: [prometheus]\n",
+			category: "loki",
+			want:     "expect.datasources [prometheus] must be [loki] for category loki",
+		},
 		"bad time range": {
 			extra: "expect:\n  datasources: [prometheus]\n  time_range_from: [last-hour]\n",
 			want:  "expect.time_range_from",
@@ -133,8 +142,8 @@ func TestScenarioValidation(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			header := scenarioHeader
-			if tc.mixed {
-				header = strings.Replace(header, "category: prometheus", "category: mixed", 1)
+			if tc.category != "" {
+				header = strings.Replace(header, "category: prometheus", "category: "+tc.category, 1)
 			}
 			_, err := loadScenarios(writeScenario(t, header+tc.extra))
 			switch {
@@ -1429,8 +1438,8 @@ func TestShippedScenariosKeepTheDefaultSelection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(selected) != 14 {
-		t.Fatalf("the default selection has %d scenarios, want the 14 create scenarios of the live suite", len(selected))
+	if len(selected) != 17 {
+		t.Fatalf("the default selection has %d scenarios, want the 17 create scenarios of the live suite", len(selected))
 	}
 	smoke, err := selectScenarios(scenarios, options{tags: listFlag{tagReplaySmoke}})
 	if err != nil || len(smoke) != 2 {

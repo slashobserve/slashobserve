@@ -1,0 +1,10 @@
+id: logs-volume-by-service
+prompt: Loki log volume by service over the last hour
+category: loki
+kind: create
+suites: [live, replay]
+done_when: false
+expect:
+  datasources: [loki]
+  query_contains_any: [[count_over_time, "rate("], [service_name]]
+  time_range_from: [now-1h, now-60m]

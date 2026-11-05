@@ -44,7 +44,7 @@ expect:
 | `prompt` | The text sent to the agent, at most 4000 characters except for `chat_import` and `size_guard`; it may use `{panel_id}`, `{panel_title}` and `{row_title}`, filled from the seed. |
 | `kind` | What the run does, from the table below. |
 | `suites` | The suites that run it, each a lowercase name such as `live`, `replay` or `smoke`. |
-| `category` | `prometheus`, `clickhouse` or `mixed`; required for `create`. |
+| `category` | `prometheus`, `clickhouse`, `loki`, `tempo` or `mixed`; required for `create`. |
 | `done_when` | Counts towards `--min-done-when`. |
 | `tags` | Free labels for `--tag`; `replay-smoke` also selects the scenario when no `--suite` is given. |
 | `seed` | The corpus dashboard a revision starts from: `corpus` (a path under `pkg/grafana/testdata/corpus`), `break_panel`, `mapping`, `target` and `row`. |
@@ -52,6 +52,7 @@ expect:
 | `expect` | The checks below. |
 
 Scenario prompt text is part of the measurement: change a prompt only together with a new baseline.
+A `loki` or `tempo` scenario names its datasource in the prompt, because ClickHouse holds the same logs and traces.
 
 ### Kinds
 
@@ -91,7 +92,7 @@ Each check is a pure function of what the run saved; a scenario passes when ever
 | --- | --- | --- |
 | `validity` | | The run succeeded and its saved Spec parses. |
 | `data` | | Every data panel returned data. |
-| `source` | `datasources` | Panels query exactly these datasource types (`prometheus`, `clickhouse`). |
+| `source` | `datasources` | Panels query exactly these datasource types (`prometheus`, `clickhouse`, `loki`, `tempo`). |
 | `metrics` | `metrics`, `rebuild_metric_share`, `rebuild_metric_cap` | A Prometheus query contains each name, or the given share of them. |
 | `tables` | `tables` | A ClickHouse query contains each table. |
 | `units` | `units` | Some panel uses one of these units. |

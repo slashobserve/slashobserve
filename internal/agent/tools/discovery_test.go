@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
@@ -479,5 +480,136 @@ func TestListMetricsScopeReportsTheRuntimeFamilyCount(t *testing.T) {
 	}
 	if !strings.Contains(string(body), `"families_total":2,"runtime_families":43,`) {
 		t.Fatalf("result = %s, want families_total 2 and runtime_families 43", body)
+	}
+}
+
+func TestSampleRowsWithoutATableSamplesEveryLokiStream(t *testing.T) {
+	ds := &fakeDS{typ: "loki"}
+	res, err := call(t, newTestRegistry(t, ds, nil), nameSampleRows, `{"datasource":"fake"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res.Content, err)
+	}
+	if req := ds.lastRequest(); req.Kind != datasource.DiscoverSampleRows || req.Table != "" {
+		t.Fatalf("discovery request = %+v", req)
+	}
+
+	prom := &fakeDS{}
+	res, err = call(t, newTestRegistry(t, prom, nil), nameSampleRows, `{"datasource":"fake"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if errorCode(t, res) != codeInvalidRequest || res.Content.(errorBody).Message != "table is required" || len(prom.requests) != 0 {
+		t.Fatalf("prometheus without a table: res = %#v after %d discoveries", res.Content, len(prom.requests))
+	}
+}
+
+func TestSampleRowsPassesALokiSelectorAndRendersTheLines(t *testing.T) {
+	at := time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)
+	ds := &fakeDS{typ: "loki", discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		return &datasource.Catalog{Sample: &datasource.Frame{Fields: []datasource.Field{
+			{Name: "Time", Type: datasource.FieldTime, Values: []any{at}},
+			{Name: "Body", Type: datasource.FieldString, Values: []any{"payment gateway unavailable"}},
+			{Name: "service_name", Type: datasource.FieldString, Values: []any{"payments"}},
+		}}}, nil
+	}}
+	res, err := call(t, newTestRegistry(t, ds, nil), nameSampleRows, `{"datasource":"fake","table":"{service_name=\"payments\"}"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res.Content, err)
+	}
+	if got := ds.lastRequest().Table; got != `{service_name="payments"}` {
+		t.Fatalf("table = %q", got)
+	}
+	out := res.Content.(sampleOut)
+	if !slices.Equal(out.Columns, []string{"Time", "Body", "service_name"}) || len(out.Rows) != 1 || out.Rows[0][1] != "payment gateway unavailable" || out.Table != `{service_name="payments"}` {
+		t.Fatalf("sample = %+v", out)
+	}
+}
+
+func spanCatalog(truncated bool) *datasource.Catalog {
+	return &datasource.Catalog{
+		Sample: &datasource.Frame{Fields: []datasource.Field{
+			{Name: "service", Type: datasource.FieldString, Values: []any{"checkout", "checkout", "payments"}},
+			{Name: "span_name", Type: datasource.FieldString, Values: []any{"POST /checkout", "charge", "charge"}},
+		}},
+		Labels:    []string{"duration", "resource.service.name", "span.http.route"},
+		Truncated: truncated,
+	}
+}
+
+func TestGetSchemaOnTempoListsServicesAndSpanNames(t *testing.T) {
+	ds := &fakeDS{typ: "tempo", discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		return spanCatalog(false), nil
+	}}
+	r := newTestRegistry(t, ds, nil)
+	res, err := call(t, r, nameGetSchema, `{"datasource":"fake"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res.Content, err)
+	}
+	if req := ds.lastRequest(); req.Kind != datasource.DiscoverTables {
+		t.Fatalf("discovery request = %+v", req)
+	}
+	out := res.Content.(spanSchemaOut)
+	wantRows := [][]any{{"checkout", "POST /checkout"}, {"checkout", "charge"}, {"payments", "charge"}}
+	if out.Datasource != "fake" || !slices.Equal(out.Columns, []string{"service", "span_name"}) || !reflect.DeepEqual(out.Rows, wantRows) || out.Truncated {
+		t.Fatalf("schema = %+v", out)
+	}
+	if !slices.Equal(out.Attributes, []string{"duration", "resource.service.name", "span.http.route"}) {
+		t.Fatalf("attributes = %v", out.Attributes)
+	}
+	if res.Step != "Listed 2 services and their span names on fake" {
+		t.Fatalf("step = %q", res.Step)
+	}
+	wantNames := []string{"checkout", "payments", "POST /checkout", "charge", "duration", "resource.service.name", "span.http.route"}
+	if got := res.Discovered; got == nil || got.Of != "services, span names and attributes" || !slices.Equal(got.Names, wantNames) {
+		t.Fatalf("discovered = %+v", got)
+	}
+
+	for _, input := range []string{`{"datasource":"fake","table":"traces"}`, `{"datasource":"fake","offset":1}`} {
+		before := len(ds.requests)
+		res, err := call(t, r, nameGetSchema, input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if errorCode(t, res) != codeInvalidRequest || res.Content.(errorBody).Message != "tempo has no tables; leave out table and offset" || len(ds.requests) != before {
+			t.Fatalf("%s: res = %#v", input, res.Content)
+		}
+	}
+
+	truncated := &fakeDS{typ: "tempo", discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		return spanCatalog(true), nil
+	}}
+	res, err = call(t, newTestRegistry(t, truncated, nil), nameGetSchema, `{"datasource":"fake"}`)
+	if err != nil || res.IsError || !res.Content.(spanSchemaOut).Truncated {
+		t.Fatalf("an upstream cut: res = %#v err = %v", res.Content, err)
+	}
+}
+
+func TestListMetricsScopeOnLokiKeepsTheStoredInventory(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	promFamilies := []datasource.Family{{Name: "http_requests_total", Type: "counter", Series: 4}}
+	lokiFamilies := []datasource.Family{{Name: "service_name", Type: "label", Series: 3}}
+	reg, err := datasource.NewRegistry(logger,
+		datasource.Instance{UID: "prom", Name: "Prometheus", Datasource: inventoryFake(promFamilies, false)},
+		datasource.Instance{UID: "loki", Name: "Loki", Datasource: &fakeDS{typ: "loki", discoverFn: inventoryFake(lokiFamilies, false).discoverFn}},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Logger: logger})
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: "loki-inventory-user", Role: auth.RoleEditor})
+	for _, tc := range []struct{ input, family string }{
+		{`{"datasource":"prom","scope":"{job=\"shop\"}"}`, "http_requests_total"},
+		{`{"datasource":"loki","scope":"{service_name=\"checkout\"}"}`, "service_name"},
+	} {
+		res, err := r.Call(ctx, nameListMetrics, []byte(tc.input))
+		if err != nil || res.IsError {
+			t.Fatalf("%s: res = %#v err = %v", tc.input, res.Content, err)
+		}
+		if got := res.Content.(inventoryOut).Families; len(got) != 1 || got[0].Name != tc.family {
+			t.Fatalf("%s: families = %+v", tc.input, got)
+		}
+	}
+	if got, ok := inventories.get(ctx); !ok || !reflect.DeepEqual(got, promFamilies) {
+		t.Fatalf("stored inventory = %v, %v; want the Prometheus families", got, ok)
 	}
 }

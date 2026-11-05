@@ -83,6 +83,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"json":           json.RawMessage(`"{\"title\":\"Imported\",\"schemaVersion\":39,\"panels\":[]}"`),
 	}
 
+	requiredOnlyForSomeDatasourceTypes := map[string][]string{nameSampleRows: {"table"}}
 	for _, tool := range registry.List() {
 		t.Run(tool.Name, func(t *testing.T) {
 			var schema struct {
@@ -110,7 +111,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 				var body struct{ Code, Message string }
 				_ = json.Unmarshal(baseBody, &body)
 				for field := range schema.Properties {
-					if !slices.Contains(schema.Required, field) && body.Code == codeInvalidRequest && mentions(body.Message, field) {
+					if !slices.Contains(schema.Required, field) && !slices.Contains(requiredOnlyForSomeDatasourceTypes[tool.Name], field) && body.Code == codeInvalidRequest && mentions(body.Message, field) {
 						t.Errorf("a call with exactly the declared required fields %v is rejected for %q, which the schema does not require: %s", schema.Required, field, body.Message)
 					}
 				}

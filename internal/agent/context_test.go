@@ -310,10 +310,15 @@ func TestOutlineTargetsAreCapped(t *testing.T) {
 	}
 }
 
-const systemTextBudget = 21496
+const (
+	systemTextBudget     = 21496
+	fullSystemTextBudget = 24 << 10
+)
+
+var demoTypes = []spec.DatasourceType{spec.Prometheus, spec.ClickHouse}
 
 func TestBuildSystemHoldsTheRulesTheGuideAndTheExampleButNotTheSchema(t *testing.T) {
-	system := buildSystem()
+	system := buildSystem(demoTypes)
 	for _, want := range []string{
 		"You are SlashObserve's dashboard agent.",
 		"\n\n# Authoring guide\n",
@@ -334,8 +339,34 @@ func TestBuildSystemHoldsTheRulesTheGuideAndTheExampleButNotTheSchema(t *testing
 	}
 }
 
+func TestBuildSystemForEveryTypeStaysWithinBudget(t *testing.T) {
+	system := buildSystem([]spec.DatasourceType{spec.Prometheus, spec.ClickHouse, spec.Loki, spec.Tempo})
+	if len(system) > fullSystemTextBudget {
+		t.Fatalf("system text for every datasource type is %d bytes, over the %d byte budget", len(system), fullSystemTextBudget)
+	}
+}
+
+func TestBuildSystemCarriesOnlyTheSectionsOfItsTypes(t *testing.T) {
+	system := buildSystem([]spec.DatasourceType{spec.Loki})
+	if !strings.Contains(system, "## Loki (LogQL)") {
+		t.Fatal("system text lacks the Loki section")
+	}
+	for _, heading := range []string{"## Prometheus (PromQL)", "## ClickHouse (OpenTelemetry exporter tables)", "## Tempo (TraceQL)"} {
+		if strings.Contains(system, heading) {
+			t.Errorf("system text for loki holds %q", heading)
+		}
+	}
+}
+
+func TestSystemForPassesTheDistinctTypesOfTheStatuses(t *testing.T) {
+	statuses := []datasource.Status{{UID: "t1", Type: "tempo"}, {UID: "t2", Type: "tempo"}, {UID: "prom", Type: "prometheus"}}
+	if systemFor(statuses) != buildSystem([]spec.DatasourceType{spec.Prometheus, spec.Tempo}) {
+		t.Fatal("systemFor is not the system text of prometheus and tempo")
+	}
+}
+
 func TestBuildSystemStatesTheRulesTheLoopEnforces(t *testing.T) {
-	system := buildSystem()
+	system := buildSystem(demoTypes)
 	for _, want := range []string{
 		"from the sixth model call without an accepted save only a save runs, and reads in the same call as a save still run",
 		"the next call may run reads, such as `query_range` on a failing query, to see why",

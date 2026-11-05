@@ -12,20 +12,21 @@ The endpoint is stateless, refuses an `Origin` that is not `SLASHOBSERVE_PUBLIC_
 On `initialize` the server returns an `Mcp-Session-Id` that only carries the client's self-reported name and holds no state.
 Each version and agent request records its origin (`web`, `cli`, `mcp` or `api`) and, for `mcp`, that client name.
 
-The server offers 21 tools.
+The server offers 23 tools.
 Each has a lowest role, which the server checks when a client calls it, using the role of the key's service account:
 
 | Role      | Tools                                                                                                                                                         |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Viewer    | `list_dashboards`, `get_dashboard`, `get_panels`, `get_spec_guide`, `list_comments`, `list_folders`                                                           |
+| Viewer    | `list_dashboards`, `get_dashboard`, `get_panels`, `get_spec_guide`, `list_comments`, `list_folders`, `list_findings`                                          |
 | Commenter | `reply_to_comment`, `resolve_comment`                                                                                                                         |
-| Editor    | `create_dashboard`, `update_dashboard`, `update_panels`, `import_grafana_dashboard`, `list_datasources`, `list_metrics`, `list_labels`, `list_label_values`, `get_schema`, `sample_rows`, `lint_query`, `query_range`, `query_instant` |
+| Editor    | `create_dashboard`, `update_dashboard`, `update_panels`, `import_grafana_dashboard`, `list_datasources`, `list_metrics`, `list_labels`, `list_label_values`, `get_schema`, `sample_rows`, `lint_query`, `query_range`, `query_instant`, `create_finding` |
 
 A call below the key's role returns the tool error `forbidden_role`.
 Folder access applies on top: a tool that names a dashboard or folder the key cannot see returns `not_found`, and changing a dashboard needs Edit on its folder.
 A call with a field the tool does not take is refused with `invalid_request` and the list of fields it takes, and a field of the wrong JSON type is refused with the type it needs.
 On `initialize` the server sends instructions with the order of work: read `get_spec_guide` once before the first save, find real names with the discovery tools, check each query with `lint_query` and `query_range` or `query_instant`, then save, sending changes with `update_panels`.
 Each tool's description and input schema are the text the built-in agent reads, except that MCP clients get the full guide from `get_spec_guide`, `folder_id` on `create_dashboard`, and `dashboard_id` and `parent_version` on `update_dashboard` and `update_panels`.
+`get_spec_guide` returns the core of the authoring guide plus one section per datasource type the server has configured, the text the built-in agent reads.
 
 `create_dashboard` and `update_dashboard` run every panel query before they save and reject a panel whose query fails or returns no data, as described in [What a save checks](../concepts/agent.md#what-a-save-checks).
 `update_dashboard` needs the `dashboard_id` and the `parent_version` you read, and sends the complete document; if a newer version has been saved since, it returns the tool error `version_conflict` with the latest version.
@@ -62,6 +63,16 @@ Label keys that every family has are listed once in `common_labels`, and a scope
 Runtime families, `up` and the names that start with `go_`, `process_`, `promhttp_` or `scrape_`, are left out of the list and counted in `runtime_families`, unless the scope names `__name__`, as `{__name__=~"go_.+"}` or `go_goroutines{job="checkout"}` do.
 `search` and `limit` are refused together with `scope`.
 
+Each datasource type answers these discovery tools:
+
+- Prometheus: `list_metrics`, `list_labels` and `list_label_values`.
+- ClickHouse: the same on the OpenTelemetry tables, plus `get_schema` and `sample_rows`.
+- Loki: `list_labels` and `list_label_values` for stream labels, narrowed by a stream selector in `metric`; `sample_rows` for up to 20 lines of the last 15 minutes, from every stream or from a stream selector in `table`; and `list_metrics` with a stream selector as `scope`.
+- Tempo: `list_labels` and `list_label_values` for TraceQL attributes, and `get_schema` for every service with its span names as `columns` and `rows`, plus `attributes`.
+
+On Loki each family of a scoped `list_metrics` is a stream label key, and its `series` counts the streams that carry it.
+That inventory never replaces the one `uncovered` reads.
+
 The server keeps the last scoped inventory of each service account.
 After one, the results of `create_dashboard`, `update_dashboard` and `update_panels` carry `uncovered`, up to 50 families of that inventory that no panel query names, and `uncovered_total`, how many there are in all; `uncovered` is `[]` once every family is covered.
 Runtime families left out of the inventory are never in `uncovered`.
@@ -77,8 +88,12 @@ No tool deletes, moves or duplicates a dashboard: people do that in the web app 
 MCP clients can read open comments with `list_comments`, reply with `reply_to_comment` and resolve with `resolve_comment`, passing the version that fixed the comment.
 A dashboard made by Claude Code can then be reviewed by the team without a model on the server.
 
+`create_finding` saves a finding outside an agent run: a Markdown answer of at most 400 words with up to four evidence panels whose queries must return data.
+`list_findings` lists findings newest first, those on one dashboard with `dashboard_id`, else the key's own.
+
 MCP clients can also hand the server a Grafana dashboard with `import_grafana_dashboard`: pass the dashboard JSON text, optionally a `folder` title, and a `mapping` from Grafana datasource keys to your datasource uids when the result says they could not be matched; panels whose queries fail are saved as unverified and listed in the result so the client can fix them with `update_dashboard`.
 The result names the folder the dashboard went to in `folder`, and `folder_note` says why when it is not the one requested.
+To repair an imported dashboard, read it with `get_dashboard`, fix the panels and variables in its `unverified` list with `update_panels`, and leave placeholder panels to people; the web repair queue does the same through `POST /api/v1/repairs`.
 See [Import Grafana dashboards](import-grafana.md).
 
 Export the key in the shell that starts your client, so the key never lands in a config file:

@@ -50,4 +50,5 @@ They also take the PromQL time macros `$__interval`, `$__interval_ms`, `$__range
 Tempo has no query variables; use a custom or text box variable for trace ids or service names.
 
 The agent can list Tempo's tags, scoped as TraceQL writes them (`resource.service.name`, `span.http.method`, or an intrinsic such as `name` or `status`), and the values of one tag, optionally narrowed by a TraceQL query.
+`get_schema` on Tempo lists every service with its span names and the attributes TraceQL can filter on.
 The query editor's lint accepts a trace id and checks that a TraceQL query has a spanset and that its brackets and quotes balance.
