@@ -499,7 +499,7 @@ export interface paths {
         head?: never;
         /**
          * Move a dashboard to another folder.
-         * @description Needs Edit on the dashboard and on the target folder. A personal folder (My Dashboards) takes only dashboards the caller created; any other answers 403 `not_dashboard_creator`. Moving out of a personal folder follows the same Edit rule as any folder. A move creates no version, does not change `updated_at` and sends no event.
+         * @description Needs Edit on the dashboard and on the target folder. A personal folder (My Dashboards) takes no moves; moving into one answers 409 `personal_folder`. Moving a dashboard out of My Dashboards into a shared folder is how it is published. A move creates no version, does not change `updated_at` and sends no event.
          */
         patch: operations["moveDashboard"];
         trace?: never;
@@ -1115,7 +1115,7 @@ export interface paths {
         put?: never;
         /**
          * Save the build of a failed agent request as one version.
-         * @description Only the principal that made the request may call it, with the Editor role and edit access on the target; anyone else gets 404. A new-dashboard request becomes version 1 of a new dashboard in the default folder; a revision becomes the next version of its dashboard and fails with 409 `version_conflict` when someone saved a version after the build started, leaving the build in place. No query runs: every build save was checked when the agent made it, and panels that were unverified then stay unverified. The request stays `failed` with its `failure_code`; it gains `result_version`, `dashboard_id` and `build_saved_at`, and the build is deleted. A repeat call answers 200 with `replayed` true and the version already saved. A `queued` or `running` request answers 409 `build_running`, a build without panels 409 `build_empty`, and a request that is no longer failed with an unsaved build 409 `build_not_savable`. A request without a build, an expired build, or a request of someone else answers 404.
+         * @description Only the principal that made the request may call it; a revision also needs edit access on its dashboard; anyone else gets 404. A new-dashboard request becomes version 1 of a new dashboard in the requester's default folder (a person's My Dashboards, a key's General); a revision becomes the next version of its dashboard and fails with 409 `version_conflict` when someone saved a version after the build started, leaving the build in place. No query runs: every build save was checked when the agent made it, and panels that were unverified then stay unverified. The request stays `failed` with its `failure_code`; it gains `result_version`, `dashboard_id` and `build_saved_at`, and the build is deleted. A repeat call answers 200 with `replayed` true and the version already saved. A `queued` or `running` request answers 409 `build_running`, a build without panels 409 `build_empty`, and a request that is no longer failed with an unsaved build 409 `build_not_savable`. A request without a build, an expired build, or a request of someone else answers 404.
          */
         post: operations["saveObserveRequestBuild"];
         delete?: never;
@@ -1265,7 +1265,7 @@ export interface paths {
         put?: never;
         /**
          * Import a Grafana dashboard as version 1 of a new dashboard.
-         * @description Takes the same body as the preview and saves the converted Spec even when some queries fail. Panels whose queries fail are marked `unverified` in the stored report with the reason; later saves of the dashboard run every query as usual. The original JSON is stored for a later re-import and is never returned. A caller has at most 1 import in flight and the instance at most 4; more answers 429 `too_many_imports`. A retried agent request that already made its dashboard without an import answers 200 with that dashboard and no `import`. The folder is `folder` from the body, else the Grafana export's `meta.folderTitle`, else the caller's default folder (the last folder they created in, else General, else their My Dashboards); `General` means the default. A folder that does not exist is created when the caller is an Editor or above and the caller becomes its creator. Otherwise, or when the folder exists but the caller cannot see it or create in it, the dashboard goes to the default folder and `folder_note` says so. Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder, and 404 `not_found` when a folder disappears while the dashboard is saved.
+         * @description Takes the same body as the preview and saves the converted Spec even when some queries fail. Panels whose queries fail are marked `unverified` in the stored report with the reason; later saves of the dashboard run every query as usual. The original JSON is stored for a later re-import and is never returned. A caller has at most 1 import in flight and the instance at most 4; more answers 429 `too_many_imports`. A retried agent request that already made its dashboard without an import answers 200 with that dashboard and no `import`. The folder is `folder` from the body, else the Grafana export's `meta.folderTitle`, else the caller's default folder (a person's My Dashboards, a key's General); General and My Dashboards both mean the default. A folder that does not exist is created when the caller is an Editor or above and the caller becomes its creator. Otherwise, or when the folder exists but the caller cannot see it or create in it, the dashboard goes to the default folder and `folder_note` says so. Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder, and 404 `not_found` when a folder disappears while the dashboard is saved.
          */
         post: operations["createImport"];
         delete?: never;
@@ -1450,7 +1450,7 @@ export interface components {
             title: string;
             /** @description True for the General folder, which holds dashboards without a folder of their own and is never restricted, renamed or deleted. */
             general: boolean;
-            /** @description True for a person's own My Dashboards folder, which only they see (Admins see one only after its owner's account is deleted), is never restricted, renamed or shared, and lists first. */
+            /** @description True for the caller's own My Dashboards folder, which only they see, Admins included. It is never restricted, renamed or shared, takes new dashboards but no moves, and lists first. */
             personal: boolean;
             /** @description True when the folder lists people or groups; false means open to everyone by instance role. */
             restricted: boolean;
@@ -3358,7 +3358,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Another folder has that title (`folder_exists`), or the folder is General (`general_folder`) or personal (`personal_folder`). */
+            /** @description Another folder has that title (`folder_exists`), or the folder is General (`general_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3434,7 +3434,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The folder is General (`general_folder`) or personal (`personal_folder`). */
+            /** @description The folder is General (`general_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3523,7 +3523,7 @@ export interface operations {
                     summary?: string;
                     /**
                      * Format: uuid
-                     * @description The folder to create the dashboard in. Missing means the caller's last used folder they can still create in, else General, else their My Dashboards. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
+                     * @description The folder to create the dashboard in. Missing means the caller's default folder: a person's My Dashboards, a service-account key's General. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
                      */
                     folder_id?: string;
                 };
@@ -3669,6 +3669,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             500: components["responses"]["Internal"];
         };
     };
@@ -3841,7 +3842,7 @@ export interface operations {
                     title: string;
                     /**
                      * Format: uuid
-                     * @description The folder to create the dashboard in. Missing means the caller's last used folder they can still create in, else General, else their My Dashboards. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
+                     * @description The folder to create the dashboard in. Missing means the caller's default folder: a person's My Dashboards, a service-account key's General. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
                      */
                     folder_id?: string;
                 };

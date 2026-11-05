@@ -212,8 +212,8 @@ observe-id-build-save:
     operationId: saveObserveRequestBuild
     summary: Save the build of a failed agent request as one version.
     description: >-
-      Only the principal that made the request may call it, with the Editor role and edit access on the target; anyone else gets 404.
-      A new-dashboard request becomes version 1 of a new dashboard in the default folder; a revision becomes the next version of its dashboard and fails with 409 `version_conflict` when someone saved a version after the build started, leaving the build in place.
+      Only the principal that made the request may call it; a revision also needs edit access on its dashboard; anyone else gets 404.
+      A new-dashboard request becomes version 1 of a new dashboard in the requester's default folder (a person's My Dashboards, a key's General); a revision becomes the next version of its dashboard and fails with 409 `version_conflict` when someone saved a version after the build started, leaving the build in place.
       No query runs: every build save was checked when the agent made it, and panels that were unverified then stay unverified.
       The request stays `failed` with its `failure_code`; it gains `result_version`, `dashboard_id` and `build_saved_at`, and the build is deleted.
       A repeat call answers 200 with `replayed` true and the version already saved.

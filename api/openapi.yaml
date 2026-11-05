@@ -515,7 +515,7 @@ components:
           description: True for the General folder, which holds dashboards without a folder of their own and is never restricted, renamed or deleted.
         personal:
           type: boolean
-          description: True for a person's own My Dashboards folder, which only they see (Admins see one only after its owner's account is deleted), is never restricted, renamed or shared, and lists first.
+          description: True for the caller's own My Dashboards folder, which only they see, Admins included. It is never restricted, renamed or shared, takes new dashboards but no moves, and lists first.
         restricted:
           type: boolean
           description: True when the folder lists people or groups; false means open to everyone by instance role.

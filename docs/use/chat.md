@@ -15,7 +15,7 @@ Pressing `/` outside a text field moves the cursor to the box.
 A prompt is 1 to 4000 characters and cannot contain control or bidirectional-text characters.
 The box shows "Describe the dashboard you want first." when it is empty and "Use at most 4000 characters." when it is too long.
 
-Everyone can start a dashboard: it goes to the folder you last created a dashboard in, else General when you can create there, else your My Dashboards.
+Everyone can start a dashboard: it goes to your My Dashboards, where only you see it until you publish it.
 See [Roles](../teams/roles.md).
 
 The chips under the box list the healthy datasources and the name of the model; the agent can only query datasources the server has configured, see [Prometheus](../connect/prometheus.md) and [ClickHouse](../connect/clickhouse.md).
@@ -83,10 +83,9 @@ Nothing appears in the dashboards list, a folder or the version history until th
 The dashboard is then saved once, as one version, and the live view opens it.
 
 If the agent stops before it finishes, the live view keeps what was built for 7 days.
-Choose **Save what was built** to keep it: for a new dashboard it becomes version 1 in the folder the agent would have used, and for a follow-up it becomes the next version of the dashboard when nobody has saved a version since the build started.
+Choose **Save what was built** to keep it: for a new dashboard it becomes version 1 in your My Dashboards, and for a follow-up it becomes the next version of the dashboard when nobody has saved a version since the build started.
 When someone has, the build cannot be saved and the page says so; open the dashboard and ask again.
 You need Edit access to the target to save it, and the request stays marked as failed.
-Saving part of a build needs the Editor role; Viewers and Commenters can choose **Continue** instead.
 
 In the conversation, a card above the progress list shows the same status line with thumbnails of the most recent rows and panels built so far, and a **Watch live** link; when the agent stops, the card keeps the thumbnails and offers **Save what was built** and **Continue**.
 On the dashboard page, the running entry shows the same status line and, for you, a **Watch live** link.
@@ -134,7 +133,7 @@ Open it to see every step.
 The result card shows the title, "N panels from `<datasources>`" and the footer "Saved as version 1".
 Choose **Open dashboard** to go to it.
 
-The dashboard lands in the folder you last created a dashboard in, else General, else your My Dashboards; see [Folders](../teams/folders.md).
+The dashboard lands in your My Dashboards; publish it from its Share pane to share it, see [Folders](../teams/folders.md).
 A failed request shows "The dashboard could not be built" (or "The dashboard could not be updated" for a follow-up) with the reason the server stored, and **Try again** starts a new request with the same prompt.
 When the request already has a dashboard, an **Open dashboard** button is shown next to it.
 Every request has an id, shown as "Request" and its first eight characters at the bottom of the conversation, which you can quote when reporting a problem.

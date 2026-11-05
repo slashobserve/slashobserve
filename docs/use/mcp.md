@@ -58,7 +58,7 @@ It returns at least one panel, and a panel too large to return is listed in `too
 
 `list_folders` is available over MCP only.
 It lists the folders the key can see, with `can_create` for each, and sets `truncated` when there are more than fit in the result.
-`create_dashboard` takes an optional `folder_id` from that list; without it, the dashboard goes to the folder the key last created a dashboard in, else General.
+`create_dashboard` takes an optional `folder_id` from that list; without it, the dashboard goes to General.
 A `folder_id` the key cannot create in returns `forbidden_role`, and an unknown one `not_found`.
 No tool deletes, moves or duplicates a dashboard: people do that in the web app or through the HTTP API, and delete also with `observe dashboards delete`.
 

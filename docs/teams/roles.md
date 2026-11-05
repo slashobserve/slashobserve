@@ -15,7 +15,6 @@ Every person and every service account has one of four instance roles, from the 
 A restricted folder's list can give a person more than their role on that folder, and never less: Edit lets them change, create and start dashboards there, and Admin lets them manage the folder (see [Folders and access](folders.md)).
 Every person also has a private My Dashboards folder where they always have Edit, so a Viewer or Commenter can ask the agent for dashboards there.
 Those runs spend model tokens and let the agent query every configured datasource for them.
-Saving a stopped build with "Save what was built" still needs the Editor role.
 A key is never on a list, so a key has what its role gives.
 Creating folders, managing saved prompts and the Admin pages follow the role only.
 A request the role does not allow is refused with `403` and the code `forbidden_role`.

@@ -134,7 +134,7 @@ folders-id:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: Another folder has that title (`folder_exists`), or the folder is General (`general_folder`) or personal (`personal_folder`).
+        description: Another folder has that title (`folder_exists`), or the folder is General (`general_folder`).
         content:
           application/json:
             schema:
@@ -249,7 +249,7 @@ folders-id-permissions:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The folder is General (`general_folder`) or personal (`personal_folder`).
+        description: The folder is General (`general_folder`).
         content:
           application/json:
             schema:
