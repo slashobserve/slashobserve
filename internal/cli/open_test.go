@@ -134,3 +134,64 @@ func TestOpenAfterWaitOpensTheTitledAddress(t *testing.T) {
 		t.Fatalf("opened %q, want %q", got, want)
 	}
 }
+
+func TestOpenCommandOpensTheServerOrADashboard(t *testing.T) {
+	const server = "https://observe.example.com"
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"server", nil, server},
+		{"dashboard id", []string{testDashboard}, server + "/d/" + testDashboard},
+		{"grafana uid", []string{"checkout-overview_2"}, server + "/d/checkout-overview_2"},
+		{"address on the server", []string{"https://observe.example.com:443/f/abc?x=1"}, server + "/f/abc?x=1"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			record := fakeOpener(t, 0)
+			stdout, stderr, code := runCLI(append([]string{"--server", server, "open"}, tc.args...)...)
+			if code != 0 || strings.TrimSpace(stdout) != tc.want || stderr != "" {
+				t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout, stderr)
+			}
+			if got := opened(t, record); got != tc.want {
+				t.Fatalf("opened %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestOpenCommandPrintsJSON(t *testing.T) {
+	fakeOpener(t, 0)
+	stdout, _, code := runCLI("--server", "https://observe.example.com", "--json", "open", testDashboard)
+	if code != 0 || strings.TrimSpace(stdout) != `{"url":"https://observe.example.com/d/`+testDashboard+`"}` {
+		t.Fatalf("exit %d, stdout %q", code, stdout)
+	}
+}
+
+func TestOpenCommandRefusesAddressesOffTheServer(t *testing.T) {
+	for _, target := range []string{"https://evil.example.com/d/1", "http://observe.example.com/d/1", "javascript:alert(1)", "not a uid"} {
+		t.Run(target, func(t *testing.T) {
+			record := fakeOpener(t, 0)
+			_, stderr, code := runCLI("--server", "https://observe.example.com", "open", target)
+			if code != 2 || stderr == "" {
+				t.Fatalf("exit %d, stderr %q", code, stderr)
+			}
+			if got := opened(t, record); got != "" {
+				t.Fatalf("opened %q", got)
+			}
+		})
+	}
+	_, stderr, _ := runCLI("--server", "https://observe.example.com", "open", "https://evil.example.com/d/1")
+	if !strings.Contains(stderr, "https://evil.example.com/d/1 is not on https://observe.example.com") {
+		t.Fatalf("stderr %q", stderr)
+	}
+}
+
+func TestOpenCommandFailsWhenTheBrowserDoesNotOpen(t *testing.T) {
+	fakeOpener(t, 3)
+	stdout, stderr, code := runCLI("--server", "https://observe.example.com", "open")
+	if code != 1 || strings.TrimSpace(stdout) != "https://observe.example.com" || !strings.Contains(stderr, "could not open the browser") {
+		t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout, stderr)
+	}
+}

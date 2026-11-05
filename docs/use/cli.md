@@ -62,7 +62,7 @@ Colour is used only in a terminal, and setting `NO_COLOR` to any value turns it 
 It opens only `http` and `https` addresses.
 `status --wait`, `continue`, `run` and `import` accept `--open` too.
 
-A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `status`, `cancel`, `continue`, `annotate`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
+A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `status`, `cancel`, `continue`, `annotate`, `open`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
 `--timeout` (2 hours by default, so a large build can finish while you wait) stops the waiting and not the request, which keeps running on the server; `bin/observe status <request-id> --wait` waits again.
@@ -73,7 +73,7 @@ The CLI exits with these codes:
 | Code | When |
 | ---- | ---- |
 | `0` | The command succeeded, including when `--open` could not open the browser. |
-| `1` | The server refused or failed the request, the agent request failed, or the waiting stopped at `--timeout` or an interrupt. |
+| `1` | The server refused or failed the request, the agent request failed, the waiting stopped at `--timeout` or an interrupt, or `observe open` could not open the browser. |
 | `2` | The command line is wrong: an unknown command or flag, a missing argument or an invalid id. |
 
 `bin/observe cancel <request-id>` cancels a queued or running request and prints it.
@@ -126,6 +126,20 @@ bin/observe annotate "Database failover" --dashboard <dashboard-id> --at now-15m
 `--tags` takes comma-separated tags, and `--dashboard` puts the annotation on one dashboard instead of every dashboard.
 `--at` places it in the past, as `now-<N>` with `s`, `m`, `h` or `d`, or as an RFC 3339 time such as `2026-11-01T10:00:00Z`.
 It prints `Added annotation <id> at <time> on every dashboard`, which `-q` hides; a global annotation needs a key with the Editor role.
+
+`bin/observe open` prints an address on the server and opens it in the browser:
+
+```sh
+bin/observe open
+bin/observe open <dashboard-id>
+bin/observe open checkout-overview
+```
+
+With no argument it opens the server itself.
+A dashboard id opens that dashboard, and so does the uid of a dashboard imported from Grafana, which the server resolves to the imported one.
+An `http` or `https` address opens only when its scheme and host are the server's.
+It needs only the server, not a key, and `--json` prints `{"url": "<address>"}` instead of the address.
+Unlike `--open`, it exits 1 when the opener is missing or fails, after printing the address.
 
 `bin/observe completion bash`, `zsh` or `fish` prints a completion script for commands and flags.
 Load it for the current shell, or save it where your shell reads completions:
