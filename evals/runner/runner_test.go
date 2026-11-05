@@ -258,13 +258,13 @@ func TestChecksFollowEveryQueryAndSkipNonDataPanels(t *testing.T) {
 
 func TestGateUsesLoadedDoneWhenCount(t *testing.T) {
 	agg := Aggregates{Scenarios: Tally{Rate: 1}, DoneWhen: Tally{Passed: 3, Total: 4}}
-	if g := evaluateGates(agg, 0.8, 3, 4); !g.ok() {
+	if g := evaluateGates(agg, gateLimits{minPass: 0.8, minDoneWhen: 3, doneWhen: 4}); !g.ok() {
 		t.Fatalf("3 of 4 should pass --min-done-when 3: %v", g.failures)
 	}
-	if g := evaluateGates(agg, 0.8, 4, 4); g.ok() {
+	if g := evaluateGates(agg, gateLimits{minPass: 0.8, minDoneWhen: 4, doneWhen: 4}); g.ok() {
 		t.Fatal("3 of 4 should fail --min-done-when 4")
 	}
-	if g := evaluateGates(agg, 0.8, 4, 10); !g.ok() {
+	if g := evaluateGates(agg, gateLimits{minPass: 0.8, minDoneWhen: 4, doneWhen: 10}); !g.ok() {
 		t.Fatal("the gate applies only when every done_when scenario ran")
 	}
 }
@@ -536,8 +536,8 @@ func TestReportCountsFailureCodesAndRendersThem(t *testing.T) {
 	if !reflect.DeepEqual(report.Aggregates.FailureCodes, want) || report.Aggregates.Uncoded != 0 {
 		t.Fatalf("failure codes = %v, uncoded %d, want %v", report.Aggregates.FailureCodes, report.Aggregates.Uncoded, want)
 	}
-	markdown := renderMarkdown(report, evaluateGates(report.Aggregates, 0, 0, 0))
-	for _, line := range []string{"| call_timeout | 1 |", "| rate_limited | 2 |", "| Failure code |", "| a | n/a | n/a | n/a | n/a | FAIL | prometheus | n/a | n/a | rate_limited |"} {
+	markdown := renderMarkdown(report, evaluateGates(report.Aggregates, gateLimits{}))
+	for _, line := range []string{"| call_timeout | 1 |", "| rate_limited | 2 |", "| Failure code |", "| a | n/a | n/a | n/a | n/a | FAIL | prometheus | n/a | n/a | n/a | rate_limited |"} {
 		if !strings.Contains(markdown, line) {
 			t.Errorf("markdown lacks %q:\n%s", line, markdown)
 		}
@@ -558,14 +558,14 @@ func TestGateFailsForAFailedRunWithoutAFailureCode(t *testing.T) {
 		{ID: "b", Category: "prometheus", Status: "failed", Uncoded: true},
 	}
 	agg := aggregate(results)
-	gates := evaluateGates(agg, 0, 0, 0)
+	gates := evaluateGates(agg, gateLimits{})
 	if gates.ok() || len(gates.failures) != 1 || !strings.Contains(gates.failures[0], "1 failed runs have no failure code") {
 		t.Fatalf("gates = %+v", gates)
 	}
-	if markdown := renderMarkdown(Report{Aggregates: agg, Results: results}, gates); !strings.Contains(markdown, "| uncoded | 1 |") || !strings.Contains(markdown, "| b | n/a | n/a | n/a | n/a | FAIL | prometheus | n/a | n/a | uncoded |") {
+	if markdown := renderMarkdown(Report{Aggregates: agg, Results: results}, gates); !strings.Contains(markdown, "| uncoded | 1 |") || !strings.Contains(markdown, "| b | n/a | n/a | n/a | n/a | FAIL | prometheus | n/a | n/a | n/a | uncoded |") {
 		t.Fatalf("markdown does not show the uncoded run:\n%s", markdown)
 	}
-	if g := evaluateGates(aggregate(results[:1]), 0, 0, 0); !g.ok() {
+	if g := evaluateGates(aggregate(results[:1]), gateLimits{}); !g.ok() {
 		t.Fatalf("a run without failures must not trip the gate: %v", g.failures)
 	}
 }
@@ -1611,7 +1611,7 @@ func TestReportTalliesKindsAndLeavesSkippedOut(t *testing.T) {
 	if _, ok := agg.Categories[""]; ok || len(agg.Categories) != 2 {
 		t.Errorf("a kind without a category must not add an empty category row: %v", agg.Categories)
 	}
-	markdown := renderMarkdown(Report{Aggregates: agg, Results: results}, evaluateGates(agg, 0, 0, 0))
+	markdown := renderMarkdown(Report{Aggregates: agg, Results: results}, evaluateGates(agg, gateLimits{}))
 	for _, line := range []string{"| Kind | Passed | Rate |", "| fix_unverified | 1 of 2 | 50% |", "| Skipped, left out of the rates | 1 |", "| d | n/a | n/a | n/a | n/a | SKIP |", "no_data |"} {
 		if !strings.Contains(markdown, line) {
 			t.Errorf("markdown lacks %q:\n%s", line, markdown)
@@ -1863,7 +1863,7 @@ func TestRunnerTimeoutIsItsOwnOutcomeAndNotAServerCode(t *testing.T) {
 	if agg.RunnerCodes[runnerTimeout] != 1 || agg.FailureCodes[runnerTimeout] != 0 || agg.FailureCodes["run_timeout"] != 1 || agg.Uncoded != 0 {
 		t.Fatalf("runner codes %v, failure codes %v, uncoded %d", agg.RunnerCodes, agg.FailureCodes, agg.Uncoded)
 	}
-	markdown := renderMarkdown(Report{Aggregates: agg, Results: results}, evaluateGates(agg, 0, 0, 0))
+	markdown := renderMarkdown(Report{Aggregates: agg, Results: results}, evaluateGates(agg, gateLimits{}))
 	for _, want := range []string{"| runner_timeout | 1 |", "| run_timeout | 1 |", "Runner outcome, not a server failure code"} {
 		if !strings.Contains(markdown, want) {
 			t.Errorf("markdown lacks %q:\n%s", want, markdown)
@@ -1963,7 +1963,7 @@ func TestLatencyOnlyFailuresAreMarkedAndCounted(t *testing.T) {
 	if agg.LatencyOnly != 2 || agg.Scenarios.Passed != 1 || agg.Scenarios.Total != 5 {
 		t.Fatalf("latency only %d, scenarios %+v", agg.LatencyOnly, agg.Scenarios)
 	}
-	markdown := renderMarkdown(Report{Aggregates: agg, Results: results}, evaluateGates(agg, 0, 0, 0))
+	markdown := renderMarkdown(Report{Aggregates: agg, Results: results}, evaluateGates(agg, gateLimits{}))
 	for _, want := range []string{"Failed on latency or budget only, included in the failures | 2 |", "| slow and otherwise correct | n/a | n/a | n/a | n/a | FAIL (latency only) |", "| slow and wrong | n/a | n/a | n/a | n/a | FAIL |"} {
 		if !strings.Contains(markdown, want) {
 			t.Errorf("markdown lacks %q:\n%s", want, markdown)

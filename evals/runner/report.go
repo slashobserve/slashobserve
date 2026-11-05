@@ -40,6 +40,9 @@ type Result struct {
 	Usage          *Usage        `json:"usage"`
 	CostUSD        *float64      `json:"cost_usd"`
 
+	Quality         *float64 `json:"quality"`
+	QualityFindings []string `json:"quality_findings,omitempty"`
+
 	FirstPanelSeconds   *float64 `json:"first_panel_seconds"`
 	PanelsPerMinute     *float64 `json:"panels_per_minute"`
 	CallsPerPanel       *float64 `json:"calls_per_panel"`
@@ -102,6 +105,8 @@ type Aggregates struct {
 	SaveNowRefusals    int              `json:"save_now_refusals"`
 	StalledTurns       int              `json:"stalled_turns"`
 	OnePanelRefusals   int              `json:"one_panel_refusals"`
+
+	QualityMedian map[string]float64 `json:"quality_median"`
 }
 
 type Report struct {
@@ -163,12 +168,15 @@ func aggregate(results []Result) Aggregates {
 	var passed, doneWhenPassed, doneWhenTotal int
 	var latencies, firstPanels, panelRates []float64
 	var costTotal float64
+	qualities := map[string][]float64{}
 	for _, r := range results {
 		if r.Skipped {
 			agg.Skipped++
 			continue
 		}
-		agg.Kinds.add(cmp.Or(r.Kind, kindCreate), r.Passed)
+		kind := cmp.Or(r.Kind, kindCreate)
+		agg.Kinds.add(kind, r.Passed)
+		qualities[kind] = appendValue(qualities[kind], r.Quality)
 		agg.Categories.add(r.Category, r.Passed)
 		if r.Passed {
 			passed++
@@ -205,6 +213,7 @@ func aggregate(results []Result) Aggregates {
 	agg.Categories.rate()
 	agg.Kinds.rate()
 	agg.Latency = latencyStats(latencies)
+	agg.QualityMedian = medians(qualities)
 	agg.FirstPanel = firstPanelStats(firstPanels)
 	if len(panelRates) > 0 {
 		slices.Sort(panelRates)
@@ -219,6 +228,16 @@ func aggregate(results []Result) Aggregates {
 		agg.Tokens.CacheReadShare = float64(agg.Tokens.CacheRead) / float64(prompt)
 	}
 	return agg
+}
+
+func medians(values map[string][]float64) map[string]float64 {
+	out := map[string]float64{}
+	for key, v := range values {
+		if stats := latencyStats(v); stats != nil {
+			out[key] = stats.P50
+		}
+	}
+	return out
 }
 
 func latencyStats(values []float64) *LatencyStats {
@@ -335,18 +354,55 @@ type gateOutcome struct {
 
 func (g gateOutcome) ok() bool { return len(g.failures) == 0 }
 
-func evaluateGates(agg Aggregates, minPass float64, minDoneWhen, doneWhenScenarios int) gateOutcome {
+type gateLimits struct {
+	minPass, minQuality   float64
+	minDoneWhen, doneWhen int
+}
+
+func evaluateGates(agg Aggregates, limits gateLimits) gateOutcome {
 	var out gateOutcome
-	if agg.Scenarios.Rate < minPass {
-		out.failures = append(out.failures, fmt.Sprintf("pass rate %.0f%% is below --min-pass %.0f%%", agg.Scenarios.Rate*100, minPass*100))
+	if agg.Scenarios.Rate < limits.minPass {
+		out.failures = append(out.failures, fmt.Sprintf("pass rate %.0f%% is below --min-pass %.0f%%", agg.Scenarios.Rate*100, limits.minPass*100))
 	}
-	if doneWhenScenarios > 0 && agg.DoneWhen.Total == doneWhenScenarios && agg.DoneWhen.Passed < minDoneWhen {
-		out.failures = append(out.failures, fmt.Sprintf("%d of %d done-when scenarios passed, below --min-done-when %d", agg.DoneWhen.Passed, agg.DoneWhen.Total, minDoneWhen))
+	if limits.doneWhen > 0 && agg.DoneWhen.Total == limits.doneWhen && agg.DoneWhen.Passed < limits.minDoneWhen {
+		out.failures = append(out.failures, fmt.Sprintf("%d of %d done-when scenarios passed, below --min-done-when %d", agg.DoneWhen.Passed, agg.DoneWhen.Total, limits.minDoneWhen))
 	}
+	out.failures = append(out.failures, qualityGateFailures(agg.QualityMedian, limits.minQuality)...)
 	if agg.Uncoded > 0 {
 		out.failures = append(out.failures, fmt.Sprintf("%d failed runs have no failure code", agg.Uncoded))
 	}
 	return out
+}
+
+func qualityGateFailures(medians map[string]float64, minQuality float64) []string {
+	if minQuality == 0 {
+		return nil
+	}
+	if len(medians) == 0 {
+		return []string{fmt.Sprintf("no run saved a dashboard to score, so no median reaches --min-quality %.2f", minQuality)}
+	}
+	var failures []string
+	for _, kind := range slices.Sorted(maps.Keys(medians)) {
+		if medians[kind] < minQuality {
+			failures = append(failures, fmt.Sprintf("median quality %.2f of the %s runs is below --min-quality %.2f", medians[kind], kind, minQuality))
+		}
+	}
+	return failures
+}
+
+func optionalScore(v *float64) string {
+	if v == nil {
+		return "n/a"
+	}
+	return fmt.Sprintf("%.2f", *v)
+}
+
+func medianCell(medians map[string]float64, kind string) string {
+	median, ok := medians[kind]
+	if !ok {
+		return "n/a"
+	}
+	return optionalScore(&median)
 }
 
 func writeJSON(path string, report Report) error {
@@ -417,10 +473,10 @@ func renderMarkdown(report Report, gates gateOutcome) string {
 		fmt.Fprintf(&b, "| %s | %d of %d | %.0f%% |\n", category, t.Passed, t.Total, t.Rate*100)
 	}
 
-	b.WriteString("\n| Kind | Passed | Rate |\n| --- | --- | --- |\n")
+	b.WriteString("\n| Kind | Passed | Rate | Median quality |\n| --- | --- | --- | --- |\n")
 	for _, kind := range slices.Sorted(maps.Keys(agg.Kinds)) {
 		t := agg.Kinds[kind]
-		fmt.Fprintf(&b, "| %s | %d of %d | %.0f%% |\n", kind, t.Passed, t.Total, t.Rate*100)
+		fmt.Fprintf(&b, "| %s | %d of %d | %.0f%% | %s |\n", kind, t.Passed, t.Total, t.Rate*100, medianCell(agg.QualityMedian, kind))
 	}
 
 	b.WriteString("\n| Failure code | Runs |\n| --- | --- |\n")
@@ -438,7 +494,7 @@ func renderMarkdown(report Report, gates gateOutcome) string {
 
 	writeRunnerOutcomes(&b, agg)
 
-	b.WriteString("\n| Scenario | First panel | Panels/min | Saves | Refusals | Result | Category | Latency | Cost | Failure code | Failed checks | Agent error |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n")
+	b.WriteString("\n| Scenario | First panel | Panels/min | Saves | Refusals | Result | Category | Latency | Cost | Quality | Failure code | Failed checks | Agent error |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n")
 	rows := slices.Clone(report.Results)
 	slices.SortStableFunc(rows, func(a, c Result) int { return cmp.Compare(a.ID, c.ID) })
 	for _, r := range rows {
@@ -446,7 +502,7 @@ func renderMarkdown(report Report, gates gateOutcome) string {
 		if r.LatencySeconds != nil {
 			seconds = fmt.Sprintf("%.1fs", *r.LatencySeconds)
 		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n", r.ID, optionalSeconds(r.FirstPanelSeconds), optionalFloat(r.PanelsPerMinute), savesCell(r), refusalsCell(r), verdictOf(r), r.Category, seconds, usd(r.CostUSD), failureLabel(r), escapeCell(failedChecks(r)), escapeCell(cmp.Or(r.Error, r.Reason)))
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n", r.ID, optionalSeconds(r.FirstPanelSeconds), optionalFloat(r.PanelsPerMinute), savesCell(r), refusalsCell(r), verdictOf(r), r.Category, seconds, usd(r.CostUSD), optionalScore(r.Quality), failureLabel(r), escapeCell(failedChecks(r)), escapeCell(cmp.Or(r.Error, r.Reason)))
 	}
 
 	if !gates.ok() {

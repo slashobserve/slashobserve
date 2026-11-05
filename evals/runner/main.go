@@ -68,6 +68,7 @@ type options struct {
 	timeout            time.Duration
 	out, markdown      string
 	minPass            float64
+	minQuality         float64
 	minDoneWhen        int
 	minDoneWhenSet     bool
 
@@ -105,6 +106,7 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs.StringVar(&o.out, "out", "", "write the JSON report to this file, or with --matrix to this directory")
 	fs.StringVar(&o.markdown, "markdown", "", "write the Markdown report to this file")
 	fs.Float64Var(&o.minPass, "min-pass", 0.8, "minimum share of scenarios that must pass")
+	fs.Float64Var(&o.minQuality, "min-quality", 0, "minimum median quality score, 0 to 1, of every kind that saved a dashboard; 0 turns the gate off")
 	fs.IntVar(&o.minDoneWhen, "min-done-when", defaultMinDoneWhen, "minimum done-when scenarios that must pass when all of them ran")
 	fs.StringVar(&o.suite, "suite", "", "run every scenario and corpus task that declares this suite, such as replay, live or smoke; without it only the create scenarios of the live suite and those tagged "+tagReplaySmoke+" run")
 	fs.StringVar(&o.corpus, "corpus", "", "corpus tasks to add: all, sample or none (default all for replay, sample for live, none without --suite)")
@@ -130,13 +132,30 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 }
 
 func validateOptions(o options) error {
+	for _, check := range []func(options) error{validateLimits, validateSelection, validateProfile} {
+		if err := check(o); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateLimits(o options) error {
 	switch {
 	case o.parallel < 1 || o.parallel > maxPerPrincipal:
 		return fmt.Errorf("--parallel must be between 1 and %d, the server's limit of queued or running observe requests per key", maxPerPrincipal)
 	case o.minPass < 0 || o.minPass > 1:
 		return errors.New("--min-pass must be between 0 and 1")
+	case o.minQuality < 0 || o.minQuality > 1:
+		return errors.New("--min-quality must be between 0 and 1")
 	case o.timeout < defaultTimeout:
 		return fmt.Errorf("--timeout must be at least %s: the evals stack's run limit of %s plus %s to report how a run ended", defaultTimeout, serverRunLimit, serverSettleMargin)
+	}
+	return nil
+}
+
+func validateSelection(o options) error {
+	switch {
 	case o.suite != "" && !suitePattern.MatchString(o.suite):
 		return fmt.Errorf("--suite %q must match %s", o.suite, suitePattern)
 	case o.corpus != "" && !slices.Contains([]string{corpusAll, corpusSample, corpusNone}, o.corpus):
@@ -146,7 +165,7 @@ func validateOptions(o options) error {
 	case o.matrix != "" && o.out == "":
 		return errors.New("--matrix needs --out, the directory that receives one report per model")
 	}
-	return validateProfile(o)
+	return nil
 }
 
 func validateProfile(o options) error {
@@ -384,7 +403,7 @@ func runSuite(ctx context.Context, c *client, pricing Pricing, selected []Scenar
 	report := Report{StartedAt: time.Now().UTC(), Provider: *info.Provider, Model: *info.Model}
 	report.Results = runAll(ctx, c, pricing, selected, o, stderr)
 	report.Aggregates = aggregate(report.Results)
-	return report, evaluateGates(report.Aggregates, o.minPass, o.minDoneWhen, doneWhen), nil
+	return report, evaluateGates(report.Aggregates, gateLimits{minPass: o.minPass, minQuality: o.minQuality, minDoneWhen: o.minDoneWhen, doneWhen: doneWhen}), nil
 }
 
 func fail(stderr io.Writer, err error) int {
@@ -934,6 +953,8 @@ func finish(sc Scenario, pricing Pricing, res Result, obs observation) Result {
 	res.CostUSD = pricing.cost(obs.request.Usage)
 	if obs.dashboard != nil {
 		res.Panels = len(dataPanels(obs.dashboard))
+		quality, findings := scoreQuality(obs.dashboard)
+		res.Quality, res.QualityFindings = &quality, findings
 	}
 	if elapsed, ok := latency(obs.request); ok {
 		seconds := elapsed.Seconds()
