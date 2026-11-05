@@ -772,6 +772,15 @@ api_token() {
   [[ "$API_TOKEN" == sok_* ]] || fail "the e2e-api key response has no token"
 }
 
+shared_dashboard_body() {
+  local out
+  out="$(api GET /folders)"
+  [[ "$out" == 200 ]] || fail "list folders for the shared dashboard body ($out: $(cat "$TMP/api.body"))"
+  python3 -c 'import json,sys; body=json.load(open(sys.argv[1])); body["folder_id"]=next(f["id"] for f in json.load(open(sys.argv[2]))["folders"] if f["general"]); json.dump(body, open(sys.argv[3], "w"))' \
+    "$FIXTURES/dashboard-valid.json" "$TMP/api.body" "$TMP/shared-dashboard.json" || fail "the folder list has no General folder ($(head -c 500 "$TMP/api.body"))"
+  echo "$TMP/shared-dashboard.json"
+}
+
 api() {
   local method="$1" path="$2"
   shift 2
@@ -986,7 +995,7 @@ dashboards_suite() {
     || ! grep -q '"agent_request_id":null' "$TMP/api.body"; then
     fail "a version saved with a bearer key should record the api origin ($out: $(cat "$TMP/api.body"))"
   fi
-  out="$(command curl -sS -o "$TMP/web-create.json" -w '%{http_code}' -b "$TMP/api-jar" -H "Origin: $BASE_URL" -H 'Content-Type: application/json' -X POST --data-binary "@$FIXTURES/dashboard-valid.json" "$BASE_URL/api/v1/dashboards")"
+  out="$(command curl -sS -o "$TMP/web-create.json" -w '%{http_code}' -b "$TMP/api-jar" -H "Origin: $BASE_URL" -H 'Content-Type: application/json' -X POST --data-binary "@$(shared_dashboard_body)" "$BASE_URL/api/v1/dashboards")"
   [[ "$out" == 201 ]] || fail "create a dashboard through the browser session ($out: $(cat "$TMP/web-create.json"))"
   origin_id="$(grep -o '"id":"[^"]*"' "$TMP/web-create.json" | head -1 | cut -d'"' -f4)"
   out="$(api GET "/dashboards/$origin_id/versions/1")"
@@ -3180,7 +3189,7 @@ dashboard_list_suite() {
   out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
   [[ "$out" == 201 ]] || fail "create the api dashboard for the list ($out: $(cat "$TMP/api.body"))"
   d_api="$(first_json_string "$TMP/api.body" id)"
-  out="$(command curl -sS -o "$TMP/list-web.json" -w '%{http_code}' -b "$TMP/api-jar" -H "Origin: $BASE_URL" -H 'Content-Type: application/json' -X POST --data-binary "@$FIXTURES/dashboard-valid.json" "$BASE_URL/api/v1/dashboards")"
+  out="$(command curl -sS -o "$TMP/list-web.json" -w '%{http_code}' -b "$TMP/api-jar" -H "Origin: $BASE_URL" -H 'Content-Type: application/json' -X POST --data-binary "@$(shared_dashboard_body)" "$BASE_URL/api/v1/dashboards")"
   [[ "$out" == 201 ]] || fail "create the web dashboard for the list ($out: $(cat "$TMP/list-web.json"))"
   d_web="$(first_json_string "$TMP/list-web.json" id)"
   out="$(mcp_call 21 tools/call "{\"name\":\"create_dashboard\",\"arguments\":$(cat "$FIXTURES/dashboard-valid.json"),\"_meta\":{\"io.modelcontextprotocol/clientInfo\":{\"name\":\"claude-code\",\"version\":\"9\"}}}" "$TMP/mcp.body")"
