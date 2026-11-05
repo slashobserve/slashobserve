@@ -121,6 +121,39 @@ func TestCreateWithoutTimeUsesNow(t *testing.T) {
 	}
 }
 
+func TestListNamesTheUserOrServiceAccountThatAddedIt(t *testing.T) {
+	r := newRig(t)
+	sql := r.db.SQLDB(t)
+	if _, err := sql.ExecContext(t.Context(), `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1, 'https://idp', 'eve', 'eve@example.com', 'Eve Adams'), ($2, 'https://idp', 'ed', 'ed@example.com', '')`, editor.ID, otherEditor.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := sql.ExecContext(t.Context(), `INSERT INTO service_accounts (id, name) VALUES ($1, 'ci-deploy')`, deployKey.ID); err != nil {
+		t.Fatal(err)
+	}
+	r.create(t, editor, CreateInput{From: at(0), Text: "by a user"})
+	r.create(t, otherEditor, CreateInput{From: at(1), Text: "by a user without a name"})
+	r.create(t, deployKey, CreateInput{From: at(2), Text: "by a key"})
+	r.create(t, admin, CreateInput{From: at(3), Text: "by someone gone"})
+
+	names := map[string]string{}
+	for _, a := range r.list(t, viewer, ListQuery{}).Annotations {
+		names[a.Text] = a.CreatedByName
+	}
+	want := map[string]string{"by a user": "Eve Adams", "by a user without a name": "ed@example.com", "by a key": "ci-deploy", "by someone gone": ""}
+	for text, name := range want {
+		if names[text] != name {
+			t.Errorf("%q created_by_name %q, want %q", text, names[text], name)
+		}
+	}
+}
+
+func TestCreateAnswersTheCallersName(t *testing.T) {
+	r := newRig(t)
+	if a := r.create(t, deployKey, CreateInput{Text: "deploy"}); a.CreatedByName != deployKey.Name {
+		t.Errorf("created_by_name %q, want %q", a.CreatedByName, deployKey.Name)
+	}
+}
+
 func TestViewerSeesGlobalAndDashboardAnnotationsOnTheDashboard(t *testing.T) {
 	r := newRig(t)
 	r.create(t, editor, CreateInput{From: at(0), Text: "global deploy"})

@@ -37,7 +37,7 @@ func (f *fakeAnnotations) Create(_ context.Context, _ auth.Principal, in CreateI
 	if f.err != nil {
 		return Annotation{}, f.err
 	}
-	return Annotation{ID: annotationText, DashboardID: in.DashboardID.String(), PanelID: in.PanelID, From: in.From, To: in.To, Text: in.Text, Tags: append([]string{}, in.Tags...), CreatedBy: editor.ID, CreatedAt: base}, nil
+	return Annotation{ID: annotationText, DashboardID: in.DashboardID.String(), PanelID: in.PanelID, From: in.From, To: in.To, Text: in.Text, Tags: append([]string{}, in.Tags...), CreatedBy: editor.ID, CreatedByName: editor.Name, CreatedAt: base}, nil
 }
 
 func (f *fakeAnnotations) Delete(_ context.Context, _ auth.Principal, id pgtype.UUID) error {
@@ -97,7 +97,7 @@ func TestCreateParsesTheBodyAndAnswersTheAnnotation(t *testing.T) {
 	want := map[string]any{
 		"id": annotationText, "dashboard_id": dashboardText, "panel_id": "latency",
 		"time_from": "2026-11-01T10:00:00Z", "time_to": "2026-11-01T10:30:00.5Z", "text": "deploy v2",
-		"tags": []any{"deploy"}, "created_by": editor.ID, "created_at": "2026-11-01T10:00:00Z",
+		"tags": []any{"deploy"}, "created_by": editor.ID, "created_by_name": editor.Name, "created_at": "2026-11-01T10:00:00Z",
 	}
 	for k, v := range want {
 		if got, err := json.Marshal(body[k]); err != nil || !slices.Equal(got, must(json.Marshal(v))) {
@@ -209,6 +209,29 @@ func TestListAnswersTheNextCursor(t *testing.T) {
 	}
 	if body.NextCursor == nil || *body.NextCursor != httpapi.EncodeTimeCursor(base, annotationText) {
 		t.Errorf("next_cursor %v", body.NextCursor)
+	}
+}
+
+func TestListAnswersTheAuthorNameOrNull(t *testing.T) {
+	fake := &fakeAnnotations{page: Page{Annotations: []Annotation{
+		{ID: annotationText, From: base, Text: "deploy", Tags: []string{}, CreatedBy: editor.ID, CreatedByName: "Eve", CreatedAt: base},
+		{ID: annotationText, From: base, Text: "gone", Tags: []string{}, CreatedAt: base},
+	}}}
+	rec := serve(t, fake, http.MethodGet, "/api/v1/annotations", "")
+	var body struct {
+		Annotations []map[string]any `json:"annotations"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if len(body.Annotations) != 2 {
+		t.Fatalf("annotations %+v", body.Annotations)
+	}
+	if got := body.Annotations[0]["created_by_name"]; got != "Eve" {
+		t.Errorf("created_by_name %v, want Eve", got)
+	}
+	if got, ok := body.Annotations[1]["created_by_name"]; !ok || got != nil {
+		t.Errorf("created_by_name %v (present %v), want null", got, ok)
 	}
 }
 

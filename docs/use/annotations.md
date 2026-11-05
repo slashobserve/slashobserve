@@ -57,6 +57,7 @@ curl -fsS -H "Authorization: Bearer $OBSERVE_TOKEN" \
 - `from` and `to` keep the annotations that overlap the window, so a range that starts before `from` and ends inside it is listed.
 - `tags` is comma-separated and keeps the annotations with any of the tags.
 - `limit` is 1 to 500 and defaults to 100; pass the `next_cursor` of a page as `cursor` to read the next one, until `next_cursor` is null.
+- Each annotation carries `created_by_name`, the name of the person or service account that added it, or null once they are deleted.
 
 ## Delete an annotation
 

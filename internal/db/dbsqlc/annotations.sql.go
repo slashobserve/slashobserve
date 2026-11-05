@@ -88,15 +88,18 @@ func (q *Queries) InsertAnnotation(ctx context.Context, arg InsertAnnotationPara
 }
 
 const listAnnotations = `-- name: ListAnnotations :many
-SELECT id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_at
-FROM annotations
-WHERE (dashboard_id IS NULL OR dashboard_id = $1::uuid)
-  AND ($2::timestamptz IS NULL OR time_from <= $2::timestamptz)
-  AND ($3::timestamptz IS NULL OR COALESCE(time_to, time_from) >= $3::timestamptz)
-  AND (cardinality($4::text[]) = 0 OR tags && $4::text[])
+SELECT a.id, a.dashboard_id, a.panel_id, a.time_from, a.time_to, a.text, a.tags, a.created_by, a.created_at,
+  COALESCE(NULLIF(u.name, ''), u.email, sa.name, '')::text AS created_by_name
+FROM annotations a
+LEFT JOIN users u ON u.id = a.created_by
+LEFT JOIN service_accounts sa ON sa.id = a.created_by
+WHERE (a.dashboard_id IS NULL OR a.dashboard_id = $1::uuid)
+  AND ($2::timestamptz IS NULL OR a.time_from <= $2::timestamptz)
+  AND ($3::timestamptz IS NULL OR COALESCE(a.time_to, a.time_from) >= $3::timestamptz)
+  AND (cardinality($4::text[]) = 0 OR a.tags && $4::text[])
   AND ($5::timestamptz IS NULL
-    OR (time_from, id) < ($5::timestamptz, $6::uuid))
-ORDER BY time_from DESC, id DESC
+    OR (a.time_from, a.id) < ($5::timestamptz, $6::uuid))
+ORDER BY a.time_from DESC, a.id DESC
 LIMIT $7
 `
 
@@ -110,7 +113,20 @@ type ListAnnotationsParams struct {
 	RowLimit    int32
 }
 
-func (q *Queries) ListAnnotations(ctx context.Context, arg ListAnnotationsParams) ([]Annotation, error) {
+type ListAnnotationsRow struct {
+	ID            pgtype.UUID
+	DashboardID   pgtype.UUID
+	PanelID       string
+	TimeFrom      pgtype.Timestamptz
+	TimeTo        pgtype.Timestamptz
+	Text          string
+	Tags          []string
+	CreatedBy     pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+	CreatedByName string
+}
+
+func (q *Queries) ListAnnotations(ctx context.Context, arg ListAnnotationsParams) ([]ListAnnotationsRow, error) {
 	rows, err := q.db.Query(ctx, listAnnotations,
 		arg.DashboardID,
 		arg.WindowTo,
@@ -124,9 +140,9 @@ func (q *Queries) ListAnnotations(ctx context.Context, arg ListAnnotationsParams
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Annotation
+	var items []ListAnnotationsRow
 	for rows.Next() {
-		var i Annotation
+		var i ListAnnotationsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.DashboardID,
@@ -137,6 +153,7 @@ func (q *Queries) ListAnnotations(ctx context.Context, arg ListAnnotationsParams
 			&i.Tags,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.CreatedByName,
 		); err != nil {
 			return nil, err
 		}

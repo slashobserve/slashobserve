@@ -7,6 +7,7 @@ annotations:
       With `dashboard_id`, returns that dashboard's annotations and the global ones; without it, only the global ones.
       The caller must be able to see the dashboard: a dashboard that is missing or in a folder the caller cannot see is 404 `not_found`.
       An annotation is in the window when it starts at or before `to` and ends, or starts when it has no end, at or after `from`.
+      `created_by_name` is read when the list is answered, so it follows a rename and is null once the person or service account is gone.
     parameters:
       - name: dashboard_id
         in: query
