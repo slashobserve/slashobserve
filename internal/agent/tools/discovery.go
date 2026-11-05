@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
@@ -81,6 +82,10 @@ func (r *Registry) instance(uid string) (datasource.Instance, Result, bool) {
 		return datasource.Instance{}, toolError(code, fmt.Sprintf("unknown datasource %q; call list_datasources", clip(uid, maxStepNameBytes))), false
 	}
 	return inst, Result{}, true
+}
+
+func typeOf(inst datasource.Instance) spec.DatasourceType {
+	return spec.DatasourceType(inst.Datasource.Type())
 }
 
 func (r *Registry) discover(ctx context.Context, uid string, req datasource.DiscoverRequest, failStep string) (*datasource.Catalog, Result, bool, error) {
@@ -272,7 +277,9 @@ func (r *Registry) listInventory(ctx context.Context, in listMetricsInput, offse
 	if !ok || err != nil {
 		return res, err
 	}
-	inventories.put(ctx, names.Families)
+	if inst, ok := r.deps.Datasources.Get(names.Datasource); !ok || typeOf(inst) != spec.Loki {
+		inventories.put(ctx, names.Families)
+	}
 	out := compactInventory(inventoryOut{Datasource: names.Datasource, Scope: in.Scope, FamiliesTotal: names.FamiliesTotal, RuntimeFamilies: names.RuntimeFamilies}, names.Families, offset, names.Truncated)
 	listed := make([]string, len(out.Families))
 	for i, f := range out.Families {
@@ -470,6 +477,13 @@ func (r *Registry) getSchema(ctx context.Context, input json.RawMessage) (Result
 	if !ok {
 		return res, nil
 	}
+	inst, res, ok := r.instance(in.Datasource)
+	if !ok {
+		return res, nil
+	}
+	if typeOf(inst) == spec.Tempo {
+		return r.spanSchema(ctx, in, offset)
+	}
 	limit := offset + maxDiscoverItems + 1
 	if in.Table == "" {
 		cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverTables, Limit: limit}, "Listing tables")
@@ -497,6 +511,52 @@ func (r *Registry) getSchema(ctx context.Context, input json.RawMessage) (Result
 	return discovered(res, in.Datasource, described("columns", "of", in.Table), names), nil
 }
 
+type spanSchemaOut struct {
+	Datasource string   `json:"datasource"`
+	Columns    []string `json:"columns"`
+	Rows       [][]any  `json:"rows"`
+	Attributes []string `json:"attributes"`
+	Truncated  bool     `json:"truncated,omitempty"`
+}
+
+func (r *Registry) spanSchema(ctx context.Context, in schemaInput, offset int) (Result, error) {
+	if in.Table != "" || offset > 0 {
+		return invalid("tempo has no tables; leave out table and offset"), nil
+	}
+	cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverTables}, "Listing services and span names")
+	if !ok || err != nil {
+		return res, err
+	}
+	rows := frameRows(cat.Sample, maxDiscoverItems)
+	attributes, cut := fit(cat.Labels, listBudget-sampleRowsBudget)
+	out := spanSchemaOut{
+		Datasource: in.Datasource,
+		Columns:    rows.Columns,
+		Rows:       rows.Rows,
+		Attributes: attributes,
+		Truncated:  rows.Truncated || cut || cat.Truncated,
+	}
+	services, spanNames := distinctColumns(rows.Rows)
+	names := slices.Concat(services, spanNames, attributes)
+	res = success(fmt.Sprintf("Listed %s and their span names on %s", plural(len(services), "service", "services"), in.Datasource), out)
+	return discovered(res, in.Datasource, "services, span names and attributes", names), nil
+}
+
+func distinctColumns(rows [][]any) (first, second []string) {
+	add := func(seen []string, v any) []string {
+		if s, ok := v.(string); ok && !slices.Contains(seen, s) {
+			return append(seen, s)
+		}
+		return seen
+	}
+	for _, row := range rows {
+		if len(row) >= 2 {
+			first, second = add(first, row[0]), add(second, row[1])
+		}
+	}
+	return first, second
+}
+
 type sampleInput struct {
 	Datasource string `json:"datasource"`
 	Table      string `json:"table"`
@@ -519,19 +579,24 @@ func (r *Registry) sampleRows(ctx context.Context, input json.RawMessage) (Resul
 	if !ok {
 		return res, nil
 	}
-	if in.Table == "" {
-		return invalid("table is required"), nil
-	}
 	if res, ok := checkLength("table", in.Table, maxNameBytes); !ok {
 		return res, nil
 	}
-	cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverSampleRows, Table: in.Table, Limit: limit}, "Sampling "+clip(in.Table, maxStepNameBytes))
+	inst, res, ok := r.instance(in.Datasource)
+	if !ok {
+		return res, nil
+	}
+	if in.Table == "" && typeOf(inst) != spec.Loki {
+		return invalid("table is required"), nil
+	}
+	source := clip(cmp.Or(in.Table, "every stream"), maxStepNameBytes)
+	cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverSampleRows, Table: in.Table, Limit: limit}, "Sampling "+source)
 	if !ok || err != nil {
 		return res, err
 	}
 	out := frameRows(cat.Sample, limit)
 	out.Table = in.Table
-	return success(fmt.Sprintf("Sampled %s from %s on %s", plural(len(out.Rows), "row", "rows"), clip(in.Table, maxStepNameBytes), in.Datasource), out), nil
+	return success(fmt.Sprintf("Sampled %s from %s on %s", plural(len(out.Rows), "row", "rows"), source, in.Datasource), out), nil
 }
 
 func frameRows(f *datasource.Frame, limit int) sampleOut {
