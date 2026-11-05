@@ -48,6 +48,6 @@ They also take the PromQL time macros `$__interval`, `$__interval_ms`, `$__range
 
 A query variable on a Loki datasource takes `label_values(label)` or `label_values({selector}, label)` and returns that label's values over the dashboard's time range.
 
-The agent can list Loki's label names and the values of one label, optionally narrowed by a stream selector.
+The agent can list Loki's label names and the values of one label, both optionally narrowed by a stream selector, sample up to 20 recent lines with their labels, and list the stream label keys of a scope with the number of streams that carry each.
 Loki has no metric names, so the metric list is empty.
 The query editor's lint checks that a query has a stream selector, that brackets and quotes balance, and that every stage after `|` is a known parser, formatter or label filter.

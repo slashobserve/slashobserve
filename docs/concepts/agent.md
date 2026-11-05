@@ -14,6 +14,7 @@ The conversation page shows the steps the tools report and the result, never the
 ## The tool loop
 
 The model starts with the prompt, the configured datasources and whether each is healthy, the authoring guide and an example.
+The authoring guide is a core plus one section per datasource type, Prometheus, ClickHouse, Loki and Tempo, and the system text carries only the sections of the configured types.
 The JSON Schema is not in that text: the model reads it on demand with `get_spec_guide`, which inside a run returns only the schema.
 For a revision it also gets the current version of the dashboard.
 When that version is over 16 KiB as compact JSON, it gets an outline instead: the title, default time range, refresh, tags, links and variables in full, one line for each panel with its id, type, title, row and position, and the full JSON of the panel it was asked about and of any panel whose id the prompt names.
@@ -23,6 +24,8 @@ It then works in this order:
 1. **Discover.**
    `list_metrics`, `list_labels` and `list_label_values` find real metric names, label names and label values on Prometheus and on the OpenTelemetry tables of ClickHouse.
    `get_schema` and `sample_rows` list the tables and columns of a ClickHouse datasource and read a few rows.
+   On Loki, `list_labels` and `list_label_values` find stream labels and their values, narrowed by a stream selector in `metric`, `sample_rows` reads up to 20 lines of the last 15 minutes from every stream or from a stream selector in `table`, and `list_metrics` with a stream selector as `scope` lists each stream label key with the number of streams that carry it.
+   On Tempo, `list_labels` and `list_label_values` find TraceQL attributes and their values, and `get_schema` lists every service with its span names, plus the attributes.
    The model calls independent discovery tools together in one turn, and uses only names it found in this run or that are already in the dashboard.
    For a new dashboard, the model first calls `list_metrics` with a `scope` that covers the request, such as `{job="checkout"}` or a ClickHouse table, and gets every metric family in it in one result, with its type, unit, label keys and series count.
    Go, process, `promhttp_` and scrape runtime families and `up` are only counted, unless the scope names `__name__`.
@@ -188,7 +191,7 @@ The comment tools and `list_folders` are for MCP clients only, so the agent neve
 Its tool descriptions and input schemas are the ones MCP clients read, except where a run behaves differently.
 The run names the dashboard and its version, so the agent's `update_dashboard` and `update_panels` take no `dashboard_id` or `parent_version`, and `get_panels` without `dashboard_id` reads the dashboard being worked on, its build included.
 Its saves take `finish`, `planned_panels` and `row`, its `update_panels` takes one panel, and its `create_dashboard` has no `folder_id`.
-Inside a run `get_spec_guide` returns only the JSON Schema, because the guide and the example are already in the agent's system text; over MCP it returns the guide, the schema and the example.
+Inside a run `get_spec_guide` returns only the JSON Schema, because the guide and the example are already in the agent's system text; over MCP it returns the guide with the sections of the configured types, the schema and the example.
 When a revision request comes from a comment, the server resolves that thread itself once a version is saved.
 
 The agent sends what its tools return to the LLM provider, including names, label values, sampled rows and query results (see [LLM providers](../connect/llm-providers.md)).
