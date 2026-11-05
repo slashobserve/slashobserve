@@ -167,6 +167,9 @@ The tool-level roles do not apply inside a run, because the requester was alread
 
 The built-in agent has 17 of the 21 tools: the 11 above, plus `update_panels`, `get_panels`, `get_spec_guide`, `list_datasources`, `list_dashboards` and `get_dashboard`.
 The comment tools and `list_folders` are for MCP clients only, so the agent never writes or resolves a comment reply.
+Its tool descriptions and input schemas are the ones MCP clients read, except where a run behaves differently.
+The run names the dashboard and its version, so the agent's `update_dashboard` and `update_panels` take no `dashboard_id` or `parent_version`, and `get_panels` without `dashboard_id` reads the dashboard being worked on, its build included.
+Its saves take `finish`, `planned_panels` and `row`, its `update_panels` takes one panel, and its `create_dashboard` has no `folder_id`.
 Inside a run `get_spec_guide` returns only the JSON Schema, because the guide and the example are already in the agent's system text; over MCP it returns the guide, the schema and the example.
 When a revision request comes from a comment, the server resolves that thread itself once a version is saved.
 

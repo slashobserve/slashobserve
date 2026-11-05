@@ -2,34 +2,83 @@ package tools
 
 import (
 	"encoding/json"
+	"maps"
+	"slices"
+	"strconv"
 	"strings"
 )
 
 type wording struct{ replacer *strings.Replacer }
 
-func newWording(readGuide, guideRef, folderChoice, folderProp, updateTarget, readTarget, buildProps, buildGuidance, rowProp, upsertMax, layoutGridPos, buildPositions, readBuild, specGuideDesc string) wording {
-	return wording{strings.NewReplacer(
-		"{read_guide}", readGuide,
-		"{guide_ref}", guideRef,
-		"{folder_choice}", folderChoice,
-		"{folder_prop}", folderProp,
-		"{update_target}", updateTarget,
-		"{read_target}", readTarget,
-		"{build_props}", buildProps,
-		"{build_guidance}", buildGuidance,
-		"{row_prop}", rowProp,
-		"{upsert_max}", upsertMax,
-		"{layout_gridpos}", layoutGridPos,
-		"{build_positions}", buildPositions,
-		"{read_build}", readBuild,
-		"{spec_guide_desc}", specGuideDesc,
-	)}
+type variant struct {
+	name  string
+	tools []string
+	mcp   map[string]string
+	agent map[string]string
 }
 
+var variants = []variant{
+	{name: "guide", tools: []string{nameCreateDashboard, nameUpdateDashboard, nameGetSpecGuide},
+		mcp:   map[string]string{"{guide_first}": mcpGuideFirst, "{spec_guide_desc}": mcpSpecGuideDesc},
+		agent: map[string]string{"{spec_guide_desc}": agentSpecGuideDesc}},
+	{name: "folder", tools: []string{nameCreateDashboard},
+		mcp: map[string]string{"{folder_prop}": "," + propFolderID}},
+	{name: "run target", tools: []string{nameUpdateDashboard, nameUpdatePanels, nameGetPanels},
+		mcp: map[string]string{
+			"{target_props}":     propDashID + "," + propParentVersion + ",",
+			"{target_required}":  `"dashboard_id","parent_version",`,
+			"{panels_required}":  `"dashboard_id",`,
+			"{panels_dashboard}": mcpPanelsDashboard,
+		},
+		agent: map[string]string{"{panels_dashboard}": agentPanelsDashboard}},
+	{name: "build", tools: []string{nameCreateDashboard, nameUpdateDashboard, nameUpdatePanels},
+		mcp: map[string]string{"{upsert_max}": strconv.Itoa(maxUpsertPanels), "{layout_gridpos}": mcpLayoutGridPos},
+		agent: map[string]string{
+			"{build_note}":     agentBuildNote,
+			"{build_props}":    agentBuildProps,
+			"{row_prop}":       agentRowProp,
+			"{upsert_max}":     "1",
+			"{layout_gridpos}": agentLayoutGridPos,
+		}},
+}
+
+func (v variant) placeholders() []string {
+	keys := slices.Collect(maps.Keys(v.mcp))
+	for key := range v.agent {
+		if !slices.Contains(keys, key) {
+			keys = append(keys, key)
+		}
+	}
+	slices.Sort(keys)
+	return keys
+}
+
+func surfaceWording(fills func(variant) map[string]string) wording {
+	var pairs []string
+	for _, v := range variants {
+		for _, placeholder := range v.placeholders() {
+			pairs = append(pairs, placeholder, fills(v)[placeholder])
+		}
+	}
+	return wording{strings.NewReplacer(pairs...)}
+}
+
+var (
+	mcpWording   = surfaceWording(func(v variant) map[string]string { return v.mcp })
+	agentWording = surfaceWording(func(v variant) map[string]string { return v.agent })
+)
+
 const (
-	mcpSpecGuideDesc = "Get the ObserveSpec authoring guide, JSON Schema and an example. Read it before calling create_dashboard or update_dashboard."
+	mcpGuideFirst = " Read get_spec_guide before your first save."
+
+	mcpSpecGuideDesc = "Get the ObserveSpec authoring guide, JSON Schema and an example, in one result of up to 64 KiB. Read it once before your first create_dashboard or update_dashboard; every save is checked against them."
 
 	agentSpecGuideDesc = "Get the ObserveSpec JSON Schema. The authoring guide and an example are already in your instructions; call this when a save is rejected with a schema issue you cannot fix from the guide, or before you set an option the guide does not show."
+
+	mcpPanelsDashboard   = "Dashboard id from list_dashboards or a save result."
+	agentPanelsDashboard = "Dashboard id; omit it to read the dashboard you are working on, your build included."
+
+	agentBuildNote = " In a build, each save adds or changes exactly one panel, and the server sets every position."
 
 	agentBuildProps = `,"finish":{"type":"boolean","description":"Set on your last save. The build then becomes the dashboard's version."},"planned_panels":{"type":"integer","minimum":1,"maximum":200,"description":"How many panels you expect the finished dashboard to have, rows not counted. Send it with the first save of a new dashboard; resend it to change it."}`
 
@@ -37,47 +86,6 @@ const (
 
 	mcpLayoutGridPos   = "New position, with x, y, w and h."
 	agentLayoutGridPos = "Size w and h, and the x and y you would like inside the panel's row; the server uses that spot only when it is free."
-
-	agentReadBuild = " Leave out dashboard_id to read the panels of your build."
-
-	agentBuildPositions = " To resize a panel send it with its new w and h; to move it to another row name that row in row; a panel you resend otherwise stays where it is."
-
-	agentBuildGuidance = " In this run every save goes to a build that people watch while you work, and the build becomes one version when you finish. Until then the dashboard has no id, so leave out dashboard_id. Each save adds or changes exactly one panel. Make the first save of a new dashboard `create_dashboard` with the title, time, variables and only the first panel, with `row` naming its row, and send `planned_panels`. Add every other panel with its own `update_panels` call: the panel alone in `upsert`, with `row` naming its row; a new row is created with its first panel. The server sets every panel's position and reads only w and h from a gridPos you send. Set `finish: true` on your last save."
-)
-
-var (
-	mcpWording = newWording(
-		"call get_spec_guide first if you have not read it",
-		"get_spec_guide",
-		"Pass folder_id (see list_folders) to choose the folder; the default is the folder you last created a dashboard in, else General. ",
-		","+propFolderID,
-		`"dashboard_id","parent_version",`,
-		`"dashboard_id",`,
-		"",
-		"",
-		"",
-		"50",
-		mcpLayoutGridPos,
-		"",
-		"",
-		mcpSpecGuideDesc,
-	)
-	agentWording = newWording(
-		"follow the authoring guide in your instructions",
-		"the authoring guide in your instructions",
-		"",
-		"",
-		"",
-		"",
-		agentBuildProps,
-		agentBuildGuidance,
-		agentRowProp,
-		"1",
-		agentLayoutGridPos,
-		agentBuildPositions,
-		agentReadBuild,
-		agentSpecGuideDesc,
-	)
 )
 
 const missingSpec = "spec is required: the complete ObserveSpec document, written by the authoring guide"

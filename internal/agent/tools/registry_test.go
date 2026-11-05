@@ -181,6 +181,9 @@ func TestUnknownFieldNamesTheFieldsOfTheCallersSurface(t *testing.T) {
 			t.Errorf("in-run message lacks %s: %s", field, inRun)
 		}
 	}
+	if strings.Contains(inRun, "dashboard_id") {
+		t.Errorf("in-run message offers dashboard_id: %s", inRun)
+	}
 }
 
 func TestAnInvalidRequestStepCarriesItsClippedMessage(t *testing.T) {

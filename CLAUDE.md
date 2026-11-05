@@ -125,7 +125,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 - Datasource credentials never reach the browser.
   All panel data goes through the query proxy, which only runs queries from a saved Spec; the two exceptions are the draft preview and the requester's own build under `GET /api/v1/observe/{id}/build/...`, both described in `internal/CLAUDE.md`.
 - Every query the agent runs is time-bounded and limited (series, rows, points, timeout) on the server, whatever the prompt says.
-- Tools are defined once in `internal/agent/tools`; MCP and the built-in agent share them, except the MCP-only comment tools and `list_folders`; `get_spec_guide` returns only the JSON Schema inside a run, because the guide and example are in the agent's system text.
+- Tools are defined once in `internal/agent/tools`, with one description per tool and per parameter; MCP and the built-in agent read the same text except the four named variants in `wording.go` (`guide`, `folder`, `run target`, `build`), and `TestSurfacesDifferOnlyByNamedVariants` fails on any other difference; the comment tools and `list_folders` are MCP-only, and `get_spec_guide` returns only the JSON Schema inside a run, because the guide and example are in the agent's system text.
   No tool deletes, moves or duplicates a dashboard; people do that in the web app or the HTTP API, and delete also with the CLI.
 - Imports are the one tolerant first save: `POST /api/v1/imports` saves version 1 even when queries fail and records those panels and variables in `version.unverified` and the import report.
   Later saves run every query, and a failing panel or variable is kept only while the parent version lists it as unverified and it is unchanged.

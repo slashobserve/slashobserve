@@ -170,15 +170,7 @@ func New(d Deps) *Registry {
 		d.Logger = slog.Default()
 	}
 	r := &Registry{deps: d, entries: map[string]entry{}, fields: map[string]surfaceFields{}}
-	var all []entry
-	all = append(all, r.discoveryEntries()...)
-	all = append(all, r.queryEntries()...)
-	all = append(all, r.dashboardEntries()...)
-	all = append(all, r.panelEntries()...)
-	all = append(all, r.commentEntries()...)
-	all = append(all, r.folderEntries()...)
-	all = append(all, r.importEntries()...)
-	all = append(all, r.guideEntries()...)
+	all := r.baseEntries()
 	for _, e := range all {
 		if e.tool.MinRole == "" {
 			panic("tools: " + e.tool.Name + " has no MinRole")
@@ -191,6 +183,19 @@ func New(d Deps) *Registry {
 	}
 	slices.SortFunc(r.tools, func(a, b Tool) int { return strings.Compare(a.Name, b.Name) })
 	return r
+}
+
+func (r *Registry) baseEntries() []entry {
+	var all []entry
+	all = append(all, r.discoveryEntries()...)
+	all = append(all, r.queryEntries()...)
+	all = append(all, r.dashboardEntries()...)
+	all = append(all, r.panelEntries()...)
+	all = append(all, r.commentEntries()...)
+	all = append(all, r.folderEntries()...)
+	all = append(all, r.importEntries()...)
+	all = append(all, r.guideEntries()...)
+	return all
 }
 
 func (r *Registry) List() []Tool {
