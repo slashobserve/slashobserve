@@ -186,7 +186,8 @@ A new dashboard goes to the requester's My Dashboards, where every person has Ed
 The saved version records the requester as its author and the request that asked for it, and the version menu on the dashboard shows "Agent" as the one who saved it.
 The tool-level roles do not apply inside a run, because the requester was already checked.
 
-The built-in agent has 17 of the 21 tools: the 11 above, plus `update_panels`, `get_panels`, `get_spec_guide`, `list_datasources`, `list_dashboards` and `get_dashboard`.
+The server has 24 tools: MCP clients get 23, and the built-in agent gets 18, the 17 it shares with MCP clients plus `save_finding`, which only an investigate run offers.
+The 17 shared tools are the 11 above, plus `update_panels`, `get_panels`, `get_spec_guide`, `list_datasources`, `list_dashboards` and `get_dashboard`.
 The comment tools and `list_folders` are for MCP clients only, so the agent never writes or resolves a comment reply.
 Its tool descriptions and input schemas are the ones MCP clients read, except where a run behaves differently.
 The run names the dashboard and its version, so the agent's `update_dashboard` and `update_panels` take no `dashboard_id` or `parent_version`, and `get_panels` without `dashboard_id` reads the dashboard being worked on, its build included.
