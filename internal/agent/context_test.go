@@ -348,6 +348,7 @@ func TestBuildSystemStatesTheRulesTheLoopEnforces(t *testing.T) {
 		"make its widths add up to exactly 24",
 		"out of the panels you save: the server sizes a new panel",
 		"## Panel type by data shape",
+		"as wide as its line's recipe whatever its series count",
 		"with `row` naming its row",
 	} {
 		if !strings.Contains(system, want) {
@@ -360,6 +361,7 @@ func TestBuildSystemStatesTheRulesTheLoopEnforces(t *testing.T) {
 		"The schema here leaves out",
 		"Pick widths in a row that add up to 24",
 		"Use `stat` or `table` for",
+		"10 to 20 series: a full-width",
 	} {
 		if strings.Contains(system, gone) {
 			t.Errorf("system text still holds %q", gone)
