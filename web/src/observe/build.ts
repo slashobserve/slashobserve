@@ -9,7 +9,6 @@ import { isRetryable, unwrap } from "@/api/errors"
 import { dashboardKeys, observeKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import { maxPromptLength } from "@/prompts/rules"
-import type { Role } from "@/lib/roles"
 import { sentence, type ObserveRequest } from "@/observe/queries"
 
 export type BuildProgress = components["schemas"]["AgentBuildProgress"]
@@ -102,11 +101,6 @@ export function newPanelIds(
   }
   return added
 }
-
-export const saveBuildMinRole: Role = "editor"
-
-export const saveBuildNeedsRoleText =
-  "Saving part of a build needs the Editor role. Continue to let the agent finish it."
 
 export function canSaveBuild({
   status,

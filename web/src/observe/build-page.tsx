@@ -16,7 +16,6 @@ import type { PanelSource } from "@/dashboards/panel-source"
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { useVariables } from "@/dashboards/use-variables"
 import { useDocumentTitle } from "@/lib/document-title"
-import { roleAtLeast } from "@/lib/roles"
 import { cn } from "@/lib/utils"
 import { createSharedCursor } from "@/panels/shared-cursor"
 import { ThemeSwitch } from "@/shell/theme-switch"
@@ -28,8 +27,6 @@ import {
   canSaveBuild,
   newPanelIds,
   saveBuildErrorText,
-  saveBuildMinRole,
-  saveBuildNeedsRoleText,
   useSaveBuild,
 } from "./build"
 import { buildPageNotice, buildPageTitle } from "./build-page-model"
@@ -188,7 +185,7 @@ function StoppedStrip({ request }: { request: ObserveRequest }) {
       ) : null}
       {mayRetry && request.continued_by === null ? (
         <div className="flex flex-wrap items-start gap-3">
-          {roleAtLeast(principal.role, saveBuildMinRole) ? (
+          <div className="flex flex-col items-start gap-1">
             <Button
               disabled={save.isPending}
               aria-busy={save.isPending}
@@ -204,9 +201,12 @@ function StoppedStrip({ request }: { request: ObserveRequest }) {
             >
               {save.isPending ? "Saving" : "Save what was built"}
             </Button>
-          ) : (
-            <p className="text-muted-foreground">{saveBuildNeedsRoleText}</p>
-          )}
+            {request.dashboard_id === null ? (
+              <p className="text-muted-foreground">
+                Saves to your My Dashboards.
+              </p>
+            ) : null}
+          </div>
           <ContinueBuildButton
             request={request}
             isRequester={isRequester}
