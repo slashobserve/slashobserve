@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -16,6 +17,8 @@ import (
 
 const maxGrafanaNameRunes = 100
 
+var errGrafanaImportInterrupted = errors.New("interrupted; the import continues on the server")
+
 type grafanaConnectOptions struct {
 	name       string
 	tokenStdin bool
@@ -26,13 +29,15 @@ type grafanaImportOptions struct {
 	all     bool
 }
 
+type grafanaTest struct {
+	OK      bool   `json:"ok"`
+	Message string `json:"message"`
+}
+
 type grafanaConnection struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	LastTest *struct {
-		OK      bool   `json:"ok"`
-		Message string `json:"message"`
-	} `json:"last_test"`
+	ID       string       `json:"id"`
+	Name     string       `json:"name"`
+	LastTest *grafanaTest `json:"last_test"`
 }
 
 type grafanaFolder struct {
@@ -106,17 +111,9 @@ func (a *app) runGrafanaConnect(cmd *cobra.Command, args []string) error {
 	if !opts.tokenStdin {
 		return usagef("pass the Grafana token on standard input with --token-stdin")
 	}
-	address := strings.TrimSpace(args[0])
-	parsed, err := url.Parse(address)
-	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" {
-		return usagef("%q is not an http or https URL", text(address))
-	}
-	name := opts.name
-	if name == "" {
-		name = parsed.Hostname()
-	}
-	if runes := []rune(name); len(runes) > maxGrafanaNameRunes {
-		name = string(runes[:maxGrafanaNameRunes])
+	address, name, err := grafanaConnectTarget(args[0], opts.name)
+	if err != nil {
+		return err
 	}
 	ctx := cmd.Context()
 	token, err := a.readGrafanaToken(ctx)
@@ -150,14 +147,34 @@ func (a *app) runGrafanaConnect(cmd *cobra.Command, args []string) error {
 	} else {
 		out.line("Connected %s: %s", text(tested.Name), text(tested.ID))
 	}
-	if tested.LastTest == nil {
-		return fmt.Errorf("the server did not report a test result\n%s", stored)
-	}
-	if !tested.LastTest.OK {
-		return fmt.Errorf("the connection test failed: %s\n%s", text(tested.LastTest.Message), stored)
+	if err := connectionTestFailure(tested.LastTest, stored); err != nil {
+		return err
 	}
 	if !a.json {
 		out.line("%s", text(tested.LastTest.Message))
+	}
+	return nil
+}
+
+func grafanaConnectTarget(raw, name string) (string, string, error) {
+	address := strings.TrimSpace(raw)
+	parsed, err := url.Parse(address)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" {
+		return "", "", usagef("%q is not an http or https URL", text(address))
+	}
+	name = cmp.Or(name, parsed.Hostname())
+	if runes := []rune(name); len(runes) > maxGrafanaNameRunes {
+		name = string(runes[:maxGrafanaNameRunes])
+	}
+	return address, name, nil
+}
+
+func connectionTestFailure(test *grafanaTest, stored string) error {
+	switch {
+	case test == nil:
+		return fmt.Errorf("the server did not report a test result\n%s", stored)
+	case !test.OK:
+		return fmt.Errorf("the connection test failed: %s\n%s", text(test.Message), stored)
 	}
 	return nil
 }
@@ -264,38 +281,42 @@ func pollGrafanaImport(ctx context.Context, c *client, out *output, connID, sync
 	}()
 	failures := 0
 	for {
-		data, err := c.get(ctx, "grafana/"+connID+"/imports/"+syncID, nil)
-		if ctx.Err() != nil {
-			return nil, grafanaImport{}, errors.New("interrupted; the import continues on the server")
-		}
-		var api *apiError
+		data, current, err := readGrafanaImport(ctx, c, connID, syncID)
 		switch {
-		case errors.As(err, &api) && api.status == http.StatusNotFound:
-			return nil, grafanaImport{}, fmt.Errorf("the server no longer has import %s; it keeps imports only until it restarts", syncID)
+		case ctx.Err() != nil:
+			return nil, grafanaImport{}, errGrafanaImportInterrupted
 		case err != nil:
 			failures++
 			if !isTransient(err) || failures >= maxPollFailures {
 				return nil, grafanaImport{}, err
 			}
+		case current.Status != "running":
+			return data, current, nil
 		default:
 			failures = 0
-			current, err := decode[grafanaImport](data)
-			if err != nil {
-				return nil, grafanaImport{}, err
-			}
-			if current.Status != "running" {
-				return data, current, nil
-			}
 			if live {
 				_, _ = fmt.Fprintf(out.out, "%s%s", clearLine, out.color.dim(fmt.Sprintf("Imported %d of %d", current.Done, current.Total)))
 			}
 		}
 		select {
 		case <-ctx.Done():
-			return nil, grafanaImport{}, errors.New("interrupted; the import continues on the server")
+			return nil, grafanaImport{}, errGrafanaImportInterrupted
 		case <-ticker.C:
 		}
 	}
+}
+
+func readGrafanaImport(ctx context.Context, c *client, connID, syncID string) ([]byte, grafanaImport, error) {
+	data, err := c.get(ctx, "grafana/"+connID+"/imports/"+syncID, nil)
+	var api *apiError
+	if errors.As(err, &api) && api.status == http.StatusNotFound {
+		return nil, grafanaImport{}, fmt.Errorf("the server no longer has import %s; it keeps imports only until it restarts", syncID)
+	}
+	if err != nil {
+		return nil, grafanaImport{}, err
+	}
+	current, err := decode[grafanaImport](data)
+	return data, current, err
 }
 
 func reportGrafanaImport(out *output, final grafanaImport) {
