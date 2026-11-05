@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_authed/_shell/import/repair")({
   staticData: {
     crumbs: [
       { label: "Observe", to: "/" },
-      { label: "Import from Grafana" },
+      { label: "Import from Grafana", to: "/import" },
       { label: "Repair queue" },
     ],
   },
