@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/slashobserve/slashobserve/internal/links"
 )
 
 const (
@@ -81,6 +83,7 @@ type importPreview struct {
 type importedDashboard struct {
 	Dashboard struct {
 		ID     string `json:"id"`
+		Title  string `json:"title"`
 		Folder struct {
 			Title string `json:"title"`
 		} `json:"folder"`
@@ -184,7 +187,7 @@ func (a *app) runImport(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	out.line("%s", c.base.JoinPath("dashboards", imported.Dashboard.ID).String())
+	out.line("%s", links.Dashboard(c.base, imported.Dashboard.ID, imported.Dashboard.Title))
 	out.notice("Imported %q: %s", text(imported.Import.Title), imported.Import.Report.Counts.line())
 	out.notice("Folder: %s", text(imported.Dashboard.Folder.Title))
 	if imported.FolderNote != nil {

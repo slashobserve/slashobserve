@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
+
+	"github.com/slashobserve/slashobserve/internal/links"
 )
 
 const defaultPageSize = 50
@@ -185,7 +187,7 @@ func (a *app) runShow(cmd *cobra.Command, args []string) error {
 	out.fields([][2]string{
 		{"Title", text(shown.Dashboard.Title)},
 		{"ID", text(shown.Dashboard.ID)},
-		{"URL", c.base.JoinPath("dashboards", shown.Dashboard.ID).String()},
+		{"URL", links.Dashboard(c.base, shown.Dashboard.ID, shown.Dashboard.Title)},
 		{"Version", strconv.Itoa(shown.Version.Version)},
 		{"Author", text(shown.Version.Author.Name)},
 		{"Summary", text(shown.Version.Summary)},

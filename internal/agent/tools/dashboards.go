@@ -19,6 +19,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/imports"
+	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -117,7 +118,7 @@ func (r *Registry) dashboardItems(list []dashboards.ListItem) []dashboardItemOut
 			Tags:          nonNilStrings(d.Tags),
 			LatestVersion: d.LatestVersion,
 			UpdatedAt:     d.UpdatedAt.UTC().Format(time.RFC3339),
-			URL:           DashboardURL(r.deps.PublicURL, d.ID),
+			URL:           links.Dashboard(r.deps.PublicURL, d.ID, d.Title),
 			Folder:        d.Folder.Title,
 		}
 	}
@@ -228,7 +229,7 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if err != nil {
 		return Result{}, err
 	}
-	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: DashboardURL(r.deps.PublicURL, dash.ID), Folder: dash.Folder.Title, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
+	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
 	if out.ImportAttention, out.ImportAttentionTruncated, err = r.importAttention(ctx, id, ver.Number); err != nil {
 		return Result{}, err
 	}
@@ -566,7 +567,7 @@ func (r *Registry) savedOut(dash dashboards.Dashboard, ver dashboards.Version, r
 	return savedOut{
 		DashboardID:      dash.ID,
 		Version:          ver.Number,
-		URL:              DashboardURL(r.deps.PublicURL, dash.ID),
+		URL:              links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title),
 		Replayed:         replayed,
 		Panels:           panels,
 		Truncated:        truncated,

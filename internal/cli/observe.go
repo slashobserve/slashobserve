@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/slashobserve/slashobserve/internal/links"
 )
 
 const (
@@ -228,7 +230,7 @@ func dashboardAddress(c *client, req agentRequest) (string, error) {
 		return text(*req.URL), nil
 	}
 	if req.DashboardID != nil && *req.DashboardID != "" {
-		return c.base.JoinPath("dashboards", *req.DashboardID).String(), nil
+		return links.Dashboard(c.base, *req.DashboardID, ""), nil
 	}
 	return "", errors.New("the agent finished without a dashboard address")
 }

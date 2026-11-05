@@ -34,6 +34,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/imports"
+	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/llm/providers"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/news"
@@ -265,7 +266,7 @@ func run() error {
 
 	var reviser revisions.Reviser
 	observeOpts := revisions.ObserveOptions{
-		DashboardURL: func(id string) string { return tools.DashboardURL(cfg.PublicURL, id) },
+		DashboardURL: func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
 	}
 	if llmProvider != nil {
 		reviser = agent.NewReviser(agent.New(agent.Config{
