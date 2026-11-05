@@ -7,6 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -127,6 +130,7 @@ func checkLength(field, value string, limit int) (Result, bool) {
 type listMetricsInput struct {
 	Datasource string `json:"datasource"`
 	Search     string `json:"search"`
+	Scope      string `json:"scope"`
 	Limit      *int   `json:"limit"`
 	Offset     *int   `json:"offset"`
 }
@@ -218,6 +222,9 @@ func (r *Registry) listMetrics(ctx context.Context, input json.RawMessage) (Resu
 	if !ok {
 		return res, nil
 	}
+	if in.Scope != "" {
+		return r.listInventory(ctx, in, offset)
+	}
 	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
 		Datasource: in.Datasource,
 		Kind:       datasource.DiscoverMetrics,
@@ -234,6 +241,130 @@ func (r *Registry) listMetrics(ctx context.Context, input json.RawMessage) (Resu
 	}
 	res = success(fmt.Sprintf("Listed %s on %s", plural(len(metrics), "metric", "metrics"), names.Datasource), metricsOut{Datasource: names.Datasource, Metrics: metrics, truncation: cut})
 	return discovered(res, names.Datasource, described("metrics", "matching", in.Search), listed), nil
+}
+
+type familyOut struct {
+	Name   string   `json:"name"`
+	Type   string   `json:"type,omitempty"`
+	Unit   string   `json:"unit,omitempty"`
+	Labels []string `json:"labels,omitempty"`
+	Series int      `json:"series"`
+}
+
+type inventoryOut struct {
+	Datasource    string              `json:"datasource"`
+	Scope         string              `json:"scope"`
+	FamiliesTotal int                 `json:"families_total"`
+	Families      []familyOut         `json:"families"`
+	CommonLabels  []string            `json:"common_labels,omitempty"`
+	Grouped       map[string][]string `json:"grouped"`
+	truncation
+}
+
+const scopeTakesNoFilter = "scope returns every family in one result; leave out search and limit"
+
+func (r *Registry) listInventory(ctx context.Context, in listMetricsInput, offset int) (Result, error) {
+	if in.Search != "" || in.Limit != nil {
+		return invalid("%s", scopeTakesNoFilter), nil
+	}
+	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{Datasource: in.Datasource, Kind: datasource.DiscoverMetrics, Scope: in.Scope}, "metric families")
+	if !ok || err != nil {
+		return res, err
+	}
+	inventories.put(ctx, names.Families)
+	out := compactInventory(inventoryOut{Datasource: names.Datasource, Scope: in.Scope, FamiliesTotal: names.FamiliesTotal}, names.Families, offset, names.Truncated)
+	listed := make([]string, len(out.Families))
+	for i, f := range out.Families {
+		listed[i] = f.Name
+	}
+	of := described("metric families", "in", in.Scope)
+	res = success(fmt.Sprintf("Listed %s in %s on %s", plural(len(listed), "metric family", "metric families"), clip(in.Scope, maxStepNameBytes), names.Datasource), out)
+	return discovered(res, names.Datasource, of, listed), nil
+}
+
+type inventoryShape func(base inventoryOut, families []datasource.Family) inventoryOut
+
+var inventoryShapes = []inventoryShape{withEveryLabel, withSharedLabelsOnce, withSharedLabelsOnly}
+
+func compactInventory(base inventoryOut, families []datasource.Family, offset int, upstreamCut bool) inventoryOut {
+	window := families[min(offset, len(families)):]
+	for _, shape := range inventoryShapes {
+		if out := shape(base, window); inventoryFits(out) {
+			if upstreamCut {
+				out.truncation = truncation{Truncated: true, TruncatedBy: truncatedByLimit}
+			}
+			return out
+		}
+	}
+	kept := sort.Search(len(window), func(n int) bool { return !inventoryFits(withSharedLabelsOnly(base, window[:n+1])) })
+	out := withSharedLabelsOnly(base, window[:kept])
+	out.truncation = truncation{Truncated: true, TruncatedBy: truncatedByBytes}
+	if next := offset + kept; next < queryproxy.MaxNamesLimit {
+		out.NextOffset = &next
+	}
+	return out
+}
+
+func inventoryFits(out inventoryOut) bool {
+	body, err := json.Marshal(out)
+	return err == nil && len(body) <= listBudget
+}
+
+func withEveryLabel(base inventoryOut, families []datasource.Family) inventoryOut {
+	return inventoryOf(base, families, nil, true)
+}
+
+func withSharedLabelsOnce(base inventoryOut, families []datasource.Family) inventoryOut {
+	return inventoryOf(base, families, sharedLabels(families), true)
+}
+
+func withSharedLabelsOnly(base inventoryOut, families []datasource.Family) inventoryOut {
+	return inventoryOf(base, families, sharedLabels(families), false)
+}
+
+func inventoryOf(base inventoryOut, families []datasource.Family, shared []string, ownLabels bool) inventoryOut {
+	out := base
+	out.Families = make([]familyOut, len(families))
+	out.CommonLabels = shared
+	out.Grouped = map[string][]string{}
+	members := map[string][]string{}
+	for i, f := range families {
+		out.Families[i] = familyOut{Name: f.Name, Type: f.Type, Unit: f.Unit, Series: f.Series}
+		if ownLabels {
+			out.Families[i].Labels = slices.DeleteFunc(slices.Clone(f.Labels), func(l string) bool { return slices.Contains(shared, l) })
+		}
+		prefix := familyPrefix(f.Name)
+		members[prefix] = append(members[prefix], f.Name)
+	}
+	for prefix, names := range members {
+		if len(names) > 1 {
+			out.Grouped[prefix] = names
+		}
+	}
+	return out
+}
+
+func sharedLabels(families []datasource.Family) []string {
+	if len(families) < 2 {
+		return nil
+	}
+	shared := slices.Clone(families[0].Labels)
+	for _, f := range families[1:] {
+		shared = slices.DeleteFunc(shared, func(l string) bool { return !slices.Contains(f.Labels, l) })
+	}
+	return shared
+}
+
+func familyPrefix(name string) string {
+	first := strings.IndexByte(name, '_')
+	if first < 0 {
+		return name
+	}
+	second := strings.IndexByte(name[first+1:], '_')
+	if second < 0 {
+		return name
+	}
+	return name[:first+1+second]
 }
 
 type labelsOut struct {
