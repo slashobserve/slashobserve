@@ -2,10 +2,12 @@ package imports_test
 
 import (
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/imports"
 )
 
@@ -123,5 +125,32 @@ func TestReimportRunsEveryQueryLikeAnyLaterSave(t *testing.T) {
 	}
 	if latest, err := r.dashboard.LatestVersion(t.Context(), uuid(t, first.Dashboard.ID)); err != nil || latest != 1 {
 		t.Fatalf("latest = %d, err %v", latest, err)
+	}
+}
+
+func TestMappingForKeepsOnlyTheEntriesADashboardCanUse(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	registry, err := datasource.NewRegistry(logger,
+		datasource.Instance{UID: "prom", Datasource: promStub{}},
+		datasource.Instance{UID: "prom2", Datasource: promStub{}},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := imports.New(nil, nil, nil, registry, logger)
+	shared := map[string]string{"old-prom": "prom2", "other": "prom", "typo": "missing"}
+
+	got := svc.MappingFor(grafanaJSON("Shop", "old-prom", 1), shared)
+	if len(got) != 1 || got["old-prom"] != "prom2" {
+		t.Fatalf("mapping %v, want only old-prom to prom2", got)
+	}
+	if got := svc.MappingFor(grafanaJSON("Shop", "typo", 1), shared); len(got) != 0 {
+		t.Fatalf("mapping %v, want no entry for a target that is not a candidate", got)
+	}
+	if got := svc.MappingFor([]byte("not json"), shared); len(got) != 0 {
+		t.Fatalf("mapping %v for unreadable JSON, want empty", got)
+	}
+	if got := svc.MappingFor(grafanaJSON("Shop", "old-prom", 1), nil); len(got) != 0 {
+		t.Fatalf("mapping %v with no shared mapping, want empty", got)
 	}
 }

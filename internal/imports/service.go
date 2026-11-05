@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -471,12 +472,33 @@ func (s *Service) ForDashboard(ctx context.Context, dashboardID pgtype.UUID) (Re
 }
 
 func (s *Service) options(req Request) grafana.Options {
+	return grafana.Options{Datasources: s.Datasources(), Mapping: req.Mapping}
+}
+
+func (s *Service) Datasources() []grafana.Datasource {
 	list := s.registry.List()
 	ours := make([]grafana.Datasource, len(list))
 	for i, in := range list {
 		ours[i] = grafana.Datasource{UID: in.UID, Type: in.Datasource.Type(), Aliases: in.GrafanaUIDs}
 	}
-	return grafana.Options{Datasources: ours, Mapping: req.Mapping}
+	return ours
+}
+
+func (s *Service) MappingFor(raw []byte, shared map[string]string) map[string]string {
+	used := map[string]string{}
+	if len(shared) == 0 {
+		return used
+	}
+	result, err := grafana.Convert(raw, grafana.Options{Datasources: s.Datasources()})
+	if err != nil {
+		return used
+	}
+	for _, d := range result.Datasources {
+		if target, ok := shared[d.Key]; ok && slices.Contains(d.Candidates, target) {
+			used[d.Key] = target
+		}
+	}
+	return used
 }
 
 func principalKey(by auth.Principal) string {
