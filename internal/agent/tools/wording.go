@@ -88,6 +88,17 @@ const (
 	agentLayoutGridPos = "Size w and h, and the x and y you would like inside the panel's row; the server uses that spot only when it is free."
 )
 
+const ServerInstructions = "SlashObserve stores each dashboard as an ObserveSpec JSON document and checks every save by running its queries. " +
+	"Call get_spec_guide once before your first create_dashboard or update_dashboard; it returns the authoring guide, the JSON Schema and an example. " +
+	"Work one panel at a time: take a datasource uid from list_datasources, find real names with list_metrics, list_labels, list_label_values, get_schema and sample_rows, " +
+	"check the query with lint_query, and run it with query_range, or with query_instant for an instant query or a table. " +
+	"Save a new dashboard with create_dashboard; list_folders gives a folder_id. " +
+	"To change a dashboard, read it with get_dashboard, or only the panels you need with get_panels, and send just the change with update_panels; update_dashboard rewrites a whole dashboard. " +
+	"Saves take the version you read as parent_version and answer version_conflict when someone saved since: read the latest version and apply your change again. " +
+	"A save rejects panels whose queries fail or return no data and names them; fix only those and save again. " +
+	"List tools page with next_offset or next_cursor. " +
+	"For feedback, read list_comments, fix the dashboard, then reply_to_comment and resolve_comment with the version you saved."
+
 const missingSpec = "spec is required: the complete ObserveSpec document, written by the authoring guide"
 
 func (t Tool) ForAgent() Tool {

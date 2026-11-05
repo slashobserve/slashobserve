@@ -382,3 +382,18 @@ func TestAgentToolTextStaysWithinBudget(t *testing.T) {
 		t.Errorf("agent tool text is %d bytes, over the %d byte budget; raise the budget deliberately and say why in the commit body", total, agentToolTextBudget)
 	}
 }
+
+var toolLikeName = regexp.MustCompile(`\b[a-z]+(?:_[a-z]+)+\b`)
+
+func TestServerInstructionsNameOnlyRealToolsAndFields(t *testing.T) {
+	byName := toolsByName(t)
+	fields := []string{"folder_id", "parent_version", "version_conflict", "next_offset", "next_cursor"}
+	for _, name := range toolLikeName.FindAllString(ServerInstructions, -1) {
+		if _, ok := byName[name]; !ok && !slices.Contains(fields, name) {
+			t.Errorf("the server instructions mention %s, which is neither a tool nor a known field", name)
+		}
+	}
+	if guide, create := strings.Index(ServerInstructions, nameGetSpecGuide), strings.Index(ServerInstructions, nameCreateDashboard); guide < 0 || guide > create {
+		t.Errorf("get_spec_guide is at %d and create_dashboard at %d; the guide must come first", guide, create)
+	}
+}
