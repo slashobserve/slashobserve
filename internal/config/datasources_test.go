@@ -77,6 +77,78 @@ datasources:
 ` + indent(fields, "      ")
 }
 
+func entry(uid, typ, blocks string) string {
+	return "datasources:\n  - uid: " + uid + "\n    type: " + typ + "\n" + indent(blocks, "    ")
+}
+
+const (
+	lokiBlock  = "loki:\n  url: http://loki:3100"
+	tempoBlock = "tempo:\n  url: http://tempo:3200"
+	promBlock  = "prometheus:\n  url: http://prometheus:9090"
+	chBlock    = "clickhouse:\n  addr: clickhouse:9000\n  username: ro\n  passwordEnv: SLASHOBSERVE_CH_PASSWORD"
+)
+
+func TestLoadLokiAndTempo(t *testing.T) {
+	token := writeFile(t, "token", "tok\n")
+	env := map[string]string{"SLASHOBSERVE_LOKI_PASSWORD": "pw", "SLASHOBSERVE_KEY": "key"}
+	got, err := load(t, entry("logs", "loki", `
+loki:
+  url: http://loki:3100
+  tenantId: team-a
+  headers:
+    X-Plain: p
+  headersFromEnv:
+    X-Key: SLASHOBSERVE_KEY
+  basicAuth:
+    username: reader
+    passwordEnv: SLASHOBSERVE_LOKI_PASSWORD
+`)+strings.TrimPrefix(entry("traces", "tempo", "tempo:\n  url: http://tempo:3200\n  bearerTokenFile: "+token), "datasources:\n"), env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := got[0].Loki
+	if l == nil || got[0].Type != "loki" || l.URL != "http://loki:3100" || l.TenantID != "team-a" || l.Headers["X-Plain"] != "p" ||
+		l.SecretHeaders["X-Key"].Reveal() != "key" || l.BasicAuthUser != "reader" || l.BasicAuthPassword.Reveal() != "pw" {
+		t.Fatalf("loki = %+v", l)
+	}
+	tempo := got[1].Tempo
+	if tempo == nil || got[1].Type != "tempo" || tempo.URL != "http://tempo:3200" || tempo.BearerToken.Reveal() != "tok" {
+		t.Fatalf("tempo = %+v", tempo)
+	}
+	if got[0].Prometheus != nil || got[0].ClickHouse != nil || got[0].Tempo != nil || got[1].Loki != nil {
+		t.Fatalf("unexpected blocks: %+v", got)
+	}
+}
+
+func TestDatasourceBlockMustMatchType(t *testing.T) {
+	env := map[string]string{"SLASHOBSERVE_CH_PASSWORD": "pw"}
+	tests := []struct {
+		name    string
+		content string
+		want    string
+	}{
+		{"loki with a prometheus block", entry("a", "loki", lokiBlock+"\n"+promBlock), "datasources[0].prometheus: not allowed for type loki"},
+		{"loki with a tempo block", entry("a", "loki", lokiBlock+"\n"+tempoBlock), "datasources[0].tempo: not allowed for type loki"},
+		{"tempo with a loki block", entry("a", "tempo", tempoBlock+"\n"+lokiBlock), "datasources[0].loki: not allowed for type tempo"},
+		{"tempo with a clickhouse block", entry("a", "tempo", tempoBlock+"\n"+chBlock), "datasources[0].clickhouse: not allowed for type tempo"},
+		{"prometheus with a loki block", entry("a", "prometheus", promBlock+"\n"+lokiBlock), "datasources[0].loki: not allowed for type prometheus"},
+		{"clickhouse with a tempo block", entry("a", "clickhouse", chBlock+"\n"+tempoBlock), "datasources[0].tempo: not allowed for type clickhouse"},
+		{"loki without its block", entry("a", "loki", tempoBlock), "datasources[0].loki: required for type loki"},
+		{"tempo without its block", entry("a", "tempo", "limits:\n  maxRows: 5"), "datasources[0].tempo: required for type tempo"},
+		{"loki without a url", entry("a", "loki", "loki:\n  tenantId: t"), "datasources[0].loki.url: required"},
+		{"tempo without a url", entry("a", "tempo", "tempo:\n  headers:\n    X-A: b"), "datasources[0].tempo.url: required"},
+		{"tempo has no tenant", entry("a", "tempo", tempoBlock+"\n  tenantId: t"), `unknown field "tenantId"`},
+		{"loki has no scrape interval", entry("a", "loki", lokiBlock+"\n  scrapeInterval: 15s"), `unknown field "scrapeInterval"`},
+		{"loki basic auth and bearer", entry("a", "loki", lokiBlock+"\n  bearerTokenEnv: SLASHOBSERVE_CH_PASSWORD\n  basicAuth:\n    username: u\n    passwordEnv: SLASHOBSERVE_CH_PASSWORD"), "datasources[0].loki: basicAuth and bearerToken are mutually exclusive"},
+		{"tempo secret env prefix", entry("a", "tempo", tempoBlock+"\n  bearerTokenEnv: HOME"), "datasources[0].tempo.bearerTokenEnv: must start with SLASHOBSERVE_"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wantError(t, tt.content, env, tt.want)
+		})
+	}
+}
+
 func TestLoadDatasourcesValid(t *testing.T) {
 	got, err := load(t, validPrometheus, nil)
 	if err != nil {
@@ -125,7 +197,7 @@ func TestLoadDatasourcesStructure(t *testing.T) {
     url: http://other:9090
 `, "  "), `datasources[1].uid: duplicate "prom"`},
 		{"invalid uid", strings.Replace(validPrometheus, "uid: prom", "uid: -bad", 1), "datasources[0].uid: must match"},
-		{"unknown type", strings.Replace(validPrometheus, "type: prometheus", "type: loki", 1), "datasources[0].type"},
+		{"unknown type", strings.Replace(validPrometheus, "type: prometheus", "type: graphite", 1), `datasources[0].type: must be prometheus, clickhouse, loki or tempo, got "graphite"`},
 		{"missing block", "datasources:\n  - uid: a\n    type: prometheus\n", "datasources[0].prometheus: required"},
 		{"wrong block", validPrometheus + "    clickhouse:\n      addr: x\n", "datasources[0].clickhouse: not allowed"},
 		{"negative limit", validPrometheus + "    limits:\n      maxRows: -1\n", "datasources[0].limits.maxRows: must not be negative"},
