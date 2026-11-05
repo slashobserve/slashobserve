@@ -172,6 +172,13 @@ function Results({ results }: { results: GrafanaImportResult[] }) {
           </div>
         )}
       </Group>
+      {groups.needsRepair.length === 0 ? null : (
+        <div className="border-b px-4 py-3 text-[13px]">
+          <Link to="/import/repair" className="underline underline-offset-2">
+            Open the repair queue
+          </Link>
+        </div>
+      )}
       <Group label="Imported" results={groups.imported} open={false}>
         {(result) => <DashboardTitle result={result} />}
       </Group>

@@ -57,6 +57,26 @@ A connection runs one import at a time.
 The server keeps the last 20 runs in memory until it restarts, and the connection's last import keeps the summary of the last finished one.
 A restart stops a running import; start it again and it continues by skipping what it already imported.
 
+## Repair
+
+The repair queue at `/import/repair` lists every dashboard whose latest version still has unverified panels or variables or placeholder panels, in the folders you can see.
+Editors and Admins can open it from Import from Grafana, and from the Need repair group of an import's results.
+Each row shows the dashboard's folder, its unverified panels and variables, its placeholders, when it was imported, and its latest repair.
+A dashboard leaves the list once nothing in it fails.
+
+Repair with the agent queues one revision on that dashboard with this fixed prompt:
+
+```text
+Repair every panel and variable listed as unverified so its query runs and returns data; keep every other panel unchanged and never delete an unverified panel.
+```
+
+Repair all queues one such revision for every listed dashboard in the chosen folder.
+A dashboard with a revision already queued or running is skipped, and so is one with only placeholders, because the agent never edits a placeholder; replace those by hand.
+Each dashboard still runs one revision at a time with at most 5 waiting, and each person can have 20 repairs queued or running, so on a large import run Repair all again when the first ones finish.
+A repair that ran but left failures shows as repaired and still failing, and you can send it again.
+
+From an MCP client, read the dashboard with `get_dashboard`, whose `unverified` list names the failing panels and variables, and fix those panels with `update_panels`.
+
 ## The API
 
 Everything in the Grafana tab is also in the HTTP API for Admins and Admin keys, and the repair queue for Editors and Admins.

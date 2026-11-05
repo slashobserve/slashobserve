@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useDocumentTitle } from "@/lib/document-title"
 import { ImportPage } from "@/import/import-page"
 
-export const Route = createFileRoute("/_authed/_shell/import")({
+export const Route = createFileRoute("/_authed/_shell/import/")({
   staticData: {
     crumbs: [{ label: "Observe", to: "/" }, { label: "Import from Grafana" }],
   },
