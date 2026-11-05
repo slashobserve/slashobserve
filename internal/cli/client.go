@@ -91,15 +91,20 @@ func (a *app) clientFor(base *url.URL, token string) (*client, error) {
 	if !validToken(token) {
 		return nil, errors.New("the key contains characters a key never has; check it, or run observe login")
 	}
+	c := a.keylessClient(base)
+	c.token = token
+	return c, nil
+}
+
+func (a *app) keylessClient(base *url.URL) *client {
 	return &client{
 		base:      base,
-		token:     token,
 		userAgent: "observe/" + a.version,
 		http: &http.Client{
 			Timeout:       requestTimeout,
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		},
-	}, nil
+	}
 }
 
 func (c *client) withTimeout(d time.Duration) *client {
@@ -131,6 +136,25 @@ func (c *client) patch(ctx context.Context, path string, payload any) ([]byte, e
 
 func (c *client) delete(ctx context.Context, path string) ([]byte, error) {
 	return c.do(ctx, http.MethodDelete, path, nil, nil)
+}
+
+func (c *client) probe(ctx context.Context, path string) (int, []byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base.JoinPath(path).String(), nil) //nolint:gosec // calling the server the user configured is the CLI's purpose
+	if err != nil {
+		return 0, nil, fmt.Errorf("build the request: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", c.userAgent)
+	resp, err := c.http.Do(req) //nolint:gosec // calling the server the user configured is the CLI's purpose
+	if err != nil {
+		return 0, nil, c.transportError(ctx, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyBytes))
+	if err != nil {
+		return 0, nil, c.transportError(ctx, err)
+	}
+	return resp.StatusCode, data, nil
 }
 
 func (c *client) send(ctx context.Context, method, path string, payload any) ([]byte, error) {

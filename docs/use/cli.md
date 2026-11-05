@@ -62,7 +62,7 @@ Colour is used only in a terminal, and setting `NO_COLOR` to any value turns it 
 It opens only `http` and `https` addresses.
 `status --wait`, `continue`, `run` and `import` accept `--open` too.
 
-A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `status`, `cancel`, `continue`, `annotate`, `open`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
+A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `status`, `cancel`, `continue`, `annotate`, `open`, `doctor`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
 `--timeout` (2 hours by default, so a large build can finish while you wait) stops the waiting and not the request, which keeps running on the server; `bin/observe status <request-id> --wait` waits again.
@@ -73,7 +73,7 @@ The CLI exits with these codes:
 | Code | When |
 | ---- | ---- |
 | `0` | The command succeeded, including when `--open` could not open the browser. |
-| `1` | The server refused or failed the request, the agent request failed, the waiting stopped at `--timeout` or an interrupt, or `observe open` could not open the browser. |
+| `1` | The server refused or failed the request, the agent request failed, the waiting stopped at `--timeout` or an interrupt, `observe open` could not open the browser, or an `observe doctor` check failed. |
 | `2` | The command line is wrong: an unknown command or flag, a missing argument or an invalid id. |
 
 `bin/observe cancel <request-id>` cancels a queued or running request and prints it.
@@ -140,6 +140,29 @@ A dashboard id opens that dashboard, and so does the uid of a dashboard imported
 An `http` or `https` address opens only when its scheme and host are the server's.
 It needs only the server, not a key, and `--json` prints `{"url": "<address>"}` instead of the address.
 Unlike `--open`, it exits 1 when the opener is missing or fails, after printing the address.
+
+`bin/observe doctor` explains why a setup does not work, one check per row:
+
+```text
+CHECK       STATUS  DETAIL
+server      ok      https://observe.example.com is ready
+key         ok      ci-deploy (service_account)
+role        ok      editor
+version     ok      CLI v0.2.0, server v0.2.0
+datasource  ok      prom (prometheus)
+datasource  fail    logs (loki): connection refused
+model       ok      anthropic claude-haiku-5-5, effort low
+```
+
+- `server` asks `/readyz` and names the readiness checks that fail; when the server cannot be reached, every later check is `skip`.
+- `key` reads `/api/v1/me` with the saved or given key; with no key or a refused key, the later checks are `skip`.
+- `role` warns for a Viewer or Commenter key, because those roles cannot create dashboards or annotations.
+- `version` warns when the CLI and the server are different releases; a local build such as `dev` never warns.
+- `datasource` is one row per datasource with its health, and a warning when there are none.
+- `model` fails when the server has no model configured, because prompts cannot run.
+
+`doctor` exits 1 when any check fails and 0 otherwise, since a warning never fails it.
+`--json` prints `{"ok": <bool>, "checks": [{"check", "status", "detail"}]}` instead of the table, and colour marks `ok` and `fail` only in a terminal.
 
 `bin/observe completion bash`, `zsh` or `fish` prints a completion script for commands and flags.
 Load it for the current shell, or save it where your shell reads completions:
