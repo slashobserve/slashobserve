@@ -57,8 +57,7 @@ export function RunningEntry({ entry }: Props) {
     status,
     dashboardId: request.dashboard_id,
   })
-  const watchable =
-    data?.build != null && request.requested_by.id === principal.id
+  const watchable = data?.build != null && data.requested_by.id === principal.id
   const stepText =
     data?.build != null || status === "queued" || canceling
       ? buildStatusText({

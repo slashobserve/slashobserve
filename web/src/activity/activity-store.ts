@@ -28,13 +28,17 @@ type Persisted = {
   chatWidth: number
 }
 
+type AgentKind = "revise" | "investigate"
+
 type ActivityState = Persisted & {
+  agentKind: AgentKind
   drafts: Record<string, string>
   targets: Record<string, string | null>
   setOpen: (open: boolean) => void
   setWidth: (width: number) => void
   setEditWidth: (width: number) => void
   setChatWidth: (width: number) => void
+  setAgentKind: (kind: AgentKind) => void
   setDraft: (dashboardId: string, text: string) => void
   setTarget: (dashboardId: string, panelId: string | null) => void
 }
@@ -72,6 +76,7 @@ export const useActivityStore = create<ActivityState>()(
       width: activityWidth.initial,
       editWidth: editWidth.initial,
       chatWidth: chatPaneWidth.initial,
+      agentKind: "revise",
       drafts: {},
       targets: {},
       setOpen: (open) => set({ open }),
@@ -87,6 +92,7 @@ export const useActivityStore = create<ActivityState>()(
         set({
           chatWidth: clampWidth(width, chatPaneWidth, Number.POSITIVE_INFINITY),
         }),
+      setAgentKind: (agentKind) => set({ agentKind }),
       setDraft: (dashboardId, text) =>
         set((state) => ({ drafts: { ...state.drafts, [dashboardId]: text } })),
       setTarget: (dashboardId, panelId) =>

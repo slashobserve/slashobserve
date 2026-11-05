@@ -6,6 +6,7 @@ import {
   MessageSquarePlusIcon,
   PencilIcon,
   PinIcon,
+  SearchIcon,
   TableIcon,
 } from "lucide-react"
 
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { focusMovedOutOfMenu } from "@/lib/focus"
 import { isEditablePanel } from "@/panel-editor/draft"
+import { useAgentInfo } from "@/observe/queries"
 import { isRenderable } from "@/panels"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
@@ -57,6 +59,7 @@ export function PanelMenu({
   composerRef,
 }: Props) {
   const setSearch = useSetDashboardSearch()
+  const agentAvailable = useAgentInfo().data?.available === true
   const items: MenuItem[] = []
   if (canComment) {
     items.push({
@@ -72,6 +75,23 @@ export function PanelMenu({
     })
   }
   const data = isDataPanel(panel)
+  if (canEdit && data && agentAvailable) {
+    items.push({
+      id: "investigate",
+      label: inspectable
+        ? "Investigate"
+        : "Investigate (finish the layout first)",
+      icon: <SearchIcon aria-hidden="true" />,
+      disabled: !inspectable,
+      onSelect: () => {
+        focusAfterClose = "composer"
+        const activity = useActivityStore.getState()
+        activity.setOpen(true)
+        activity.setAgentKind("investigate")
+        setSearch((state) => ({ ...state, panel: panel.id, edit: undefined }))
+      },
+    })
+  }
   if (canEdit && isEditablePanel(panel)) {
     items.push({
       id: "edit",

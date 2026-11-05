@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -24,8 +25,9 @@ import {
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { useVersionHistory } from "@/history/use-version-history"
 import { importForDashboardQuery } from "@/import/record-queries"
+import { findingsForDashboardQuery } from "@/findings/queries"
 import { fixPrompt } from "@/import/record-summary"
-import { useAgentInfo } from "@/observe/queries"
+import { useAgentInfo, useMyRequests } from "@/observe/queries"
 import { isActive, useRevisions } from "@/revisions/queries"
 import { allPanels, panelTitle, type Dashboard } from "@/spec"
 
@@ -34,6 +36,7 @@ import { sendToAgentState } from "./agent-gate"
 import { useActivityStore, useDraft, useStoredTarget } from "./activity-store"
 import { clientNameFrom } from "./client-name"
 import { ExternalAgentNote } from "./external-agent-note"
+import { FindingEntry } from "./finding-entry"
 import { ImportEntry } from "./import-entry"
 import { RequestEntry } from "./request-entry"
 import { RunningEntry } from "./running-entry"
@@ -70,6 +73,7 @@ type Props = {
   onSelectPanel: (panelId: string) => void
   back: string | undefined
   composerRef: RefObject<HTMLTextAreaElement | null>
+  range: { from: string; to: string }
 }
 
 type PanelRef = { id: string; title: string }
@@ -112,6 +116,22 @@ function useLatestUnverified(dashboardId: string): UnverifiedRef[] | undefined {
   }).data
 }
 
+let feedDashboardId: string | null = null
+
+function useResetAgentKindOnLeave(dashboardId: string) {
+  const setAgentKind = useActivityStore((state) => state.setAgentKind)
+  useEffect(() => {
+    feedDashboardId = dashboardId
+    return () => {
+      feedDashboardId = null
+      // StrictMode remounts a new feed once in development, so a remount of the same dashboard cancels the reset.
+      queueMicrotask(() => {
+        if (feedDashboardId !== dashboardId) setAgentKind("revise")
+      })
+    }
+  }, [dashboardId, setAgentKind])
+}
+
 function changeSignature(entry: TimelineEntry | undefined): string {
   if (entry === undefined) return ""
   switch (entry.kind) {
@@ -124,6 +144,8 @@ function changeSignature(entry: TimelineEntry | undefined): string {
       return entry.key
     case "import":
       return `${entry.key}:${entry.unverified.length}`
+    case "finding":
+      return `${entry.key}:${entry.finding.annotation_id ?? ""}`
   }
 }
 
@@ -165,6 +187,7 @@ export function ActivityFeed({
   onSelectPanel,
   back,
   composerRef,
+  range,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const comments = useComments(dashboardId)
@@ -175,6 +198,12 @@ export function ActivityFeed({
   const panels = useLatestPanelRefs(dashboardId)
   const latestUnverified = useLatestUnverified(dashboardId)
   const importRecord = useQuery(importForDashboardQuery(dashboardId)).data
+  const findingsData = useQuery(findingsForDashboardQuery(dashboardId)).data
+  const investigations = useMyRequests({
+    source: "investigate",
+    dashboardId,
+  }).requests
+  useResetAgentKindOnLeave(dashboardId)
   const [show, setShow] = useState<TimelineShow>("everything")
 
   const panelList = useMemo(() => panels ?? [], [panels])
@@ -209,11 +238,22 @@ export function ActivityFeed({
           requests,
           versions,
           imported,
+          investigations,
+          findings: findingsData,
         }),
         show,
         scopePanelId
       ),
-    [comments.comments, requests, versions, imported, show, scopePanelId]
+    [
+      comments.comments,
+      requests,
+      versions,
+      imported,
+      investigations,
+      findingsData,
+      show,
+      scopePanelId,
+    ]
   )
 
   const permissions = useLatestPermissions(dashboardId)
@@ -229,10 +269,11 @@ export function ActivityFeed({
       .length,
   })
   const clientName = clientNameFrom(madeBy)
-  const runningRequestId = requests.find(
-    (request) =>
-      isActive(request.status) && request.requested_by.id === principal.id
-  )?.id
+  const runningRequestId =
+    requests.find(
+      (request) =>
+        isActive(request.status) && request.requested_by.id === principal.id
+    )?.id ?? investigations.find((request) => isActive(request.status))?.id
 
   const draft = useDraft(dashboardId)
   const storedTarget = useStoredTarget(dashboardId)
@@ -312,6 +353,8 @@ export function ActivityFeed({
             onAskToFix={onAskToFix}
           />
         )
+      case "finding":
+        return <FindingEntry entry={entry} />
     }
   }
 
@@ -387,6 +430,7 @@ export function ActivityFeed({
           }
           textareaRef={composerRef}
           runningRequestId={runningRequestId}
+          range={range}
           notice={
             mode === "comment-only" ? (
               <RoleNote>{note}</RoleNote>
