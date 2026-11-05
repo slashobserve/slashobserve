@@ -90,9 +90,6 @@ func TestPersonalFolderIsTheOwnersAlone(t *testing.T) {
 	if got := levels.Of(mine); !got.Edit || !got.Create || got.Manage {
 		t.Fatalf("a Viewer's abilities in their own folder = %+v, want edit and create without manage", got)
 	}
-	if folder, ok := levels.Personal(); !ok || folder.ID != mine || !folder.Personal {
-		t.Fatalf("Personal() = %+v, %v", folder, ok)
-	}
 	created, err := access.CreationFolder(t.Context(), userAs(a, auth.RoleViewer), pgtype.UUID{})
 	if err != nil {
 		t.Fatal(err)
@@ -140,9 +137,6 @@ func TestServiceAccountsHaveNoPersonalFolder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := levels.Personal(); ok {
-		t.Fatal("a service account has a personal folder")
-	}
 	for _, f := range levels.Folders() {
 		if f.Personal {
 			t.Fatalf("a service account sees the personal folder %v", f.ID)
@@ -157,33 +151,48 @@ func TestServiceAccountsHaveNoPersonalFolder(t *testing.T) {
 	}
 }
 
-func TestOrphanedPersonalFolderIsAdminOnly(t *testing.T) {
+func TestDeletingAPersonDeletesTheirPersonalFolderAndItsDashboards(t *testing.T) {
 	d := dbtest.New(t)
 	access := NewAccess(d.DB)
-	a, admin, editor := addUser(t, d, "alice"), addUser(t, d, "root"), addUser(t, d, "eve")
-	mine := personalFolderIDs(t, d, a)[0]
-	d.Exec(t, `DELETE FROM users WHERE id = $1`, a)
-
-	var orphaned bool
-	if err := d.SQLDB(t).QueryRowContext(t.Context(), `SELECT owner_id IS NULL FROM folders WHERE id = $1`, mine.String()).Scan(&orphaned); err != nil {
+	a, b, admin := addUser(t, d, "alice"), addUser(t, d, "bob"), addUser(t, d, "root")
+	mine, theirs := personalFolderIDs(t, d, a)[0], personalFolderIDs(t, d, b)[0]
+	insert := func(folder pgtype.UUID) string {
+		var id string
+		if err := d.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO dashboards (title, latest_version, folder_id, created_by_kind, created_by_id, created_by_name, created_via)
+			VALUES ('T', 1, $1::uuid, 'user', $2::uuid, 'alice', 'direct') RETURNING id::text`, folder.String(), a.String()).Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	var generalID pgtype.UUID
+	if err := d.SQLDB(t).QueryRowContext(t.Context(), `SELECT id FROM folders WHERE general`).Scan(&generalID); err != nil {
 		t.Fatal(err)
 	}
-	if !orphaned {
-		t.Fatal("deleting the owner kept owner_id")
+	private, shared, bobs := insert(mine), insert(generalID), insert(theirs)
+
+	d.Exec(t, `DELETE FROM users WHERE id = $1`, a)
+
+	exists := func(table, id string) bool {
+		var n int
+		if err := d.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM `+table+` WHERE id = $1::uuid`, id).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n == 1
+	}
+	if exists("folders", mine.String()) || exists("dashboards", private) {
+		t.Fatal("the deleted person's personal folder or dashboard is still there")
+	}
+	if !exists("dashboards", shared) || !exists("folders", theirs.String()) || !exists("dashboards", bobs) {
+		t.Fatal("deleting a person removed a shared dashboard or another person's folder or dashboard")
 	}
 	levels, err := access.Levels(t.Context(), userAs(admin, auth.RoleAdmin))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := levels.Of(mine); !got.Manage {
-		t.Fatalf("an Admin's abilities in an orphaned folder = %+v, want manage", got)
-	}
-	levels, err = access.Levels(t.Context(), userAs(editor, auth.RoleEditor))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := levels.Of(mine); got.View {
-		t.Fatalf("an Editor's abilities in an orphaned folder = %+v, want none", got)
+	for _, id := range levels.Visible() {
+		if id == mine || id == theirs {
+			t.Fatalf("an Admin sees the personal folder %v", id)
+		}
 	}
 }
 

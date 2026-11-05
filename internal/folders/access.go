@@ -39,11 +39,6 @@ type Levels struct {
 	personal pgtype.UUID
 }
 
-func (l Levels) Personal() (Folder, bool) {
-	e, ok := l.find(l.personal)
-	return e.Folder, ok
-}
-
 func (l Levels) find(id pgtype.UUID) (folderLevel, bool) {
 	for _, e := range l.entries {
 		if e.Folder.ID == id {
@@ -125,7 +120,7 @@ func (a *Access) Levels(ctx context.Context, p auth.Principal) (Levels, error) {
 	entries := make([]folderLevel, 0, len(rows))
 	var personal pgtype.UUID
 	for _, r := range rows {
-		facts := Facts{Restricted: r.Restricted, Creator: r.Creator, Personal: r.Personal, Owner: r.Owner, Orphaned: r.Orphaned}
+		facts := Facts{Restricted: r.Restricted, Creator: r.Creator, Personal: r.Personal, Owner: r.Owner}
 		for _, g := range r.Grants {
 			if level, ok := ParseLevel(g); ok {
 				facts.Grants = append(facts.Grants, level)

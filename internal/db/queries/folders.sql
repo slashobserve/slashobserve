@@ -1,7 +1,6 @@
 -- name: FolderFacts :many
 SELECT f.id, f.title, f.general, f.personal,
   coalesce(f.owner_id = sqlc.narg('user_id')::uuid, false)::boolean AS owner,
-  (f.personal AND f.owner_id IS NULL)::boolean AS orphaned,
   EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id) AS restricted,
   ARRAY(
     SELECT p.level FROM folder_permissions p
@@ -9,7 +8,7 @@ SELECT f.id, f.title, f.general, f.personal,
   )::text[] AS grants,
   coalesce(f.created_by_kind = @kind::text AND f.created_by_id = @principal_id::uuid, false)::boolean AS creator
 FROM folders f
-WHERE NOT f.personal OR f.owner_id IS NULL OR f.owner_id = sqlc.narg('user_id')::uuid
+WHERE NOT f.personal OR f.owner_id = sqlc.narg('user_id')::uuid
 ORDER BY NOT f.personal, f.general, lower(f.title), f.id;
 
 -- name: DashboardFolder :one

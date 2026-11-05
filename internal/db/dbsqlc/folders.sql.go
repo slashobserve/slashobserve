@@ -105,7 +105,6 @@ func (q *Queries) FolderByTitle(ctx context.Context, title string) (pgtype.UUID,
 const folderFacts = `-- name: FolderFacts :many
 SELECT f.id, f.title, f.general, f.personal,
   coalesce(f.owner_id = $1::uuid, false)::boolean AS owner,
-  (f.personal AND f.owner_id IS NULL)::boolean AS orphaned,
   EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id) AS restricted,
   ARRAY(
     SELECT p.level FROM folder_permissions p
@@ -113,7 +112,7 @@ SELECT f.id, f.title, f.general, f.personal,
   )::text[] AS grants,
   coalesce(f.created_by_kind = $3::text AND f.created_by_id = $4::uuid, false)::boolean AS creator
 FROM folders f
-WHERE NOT f.personal OR f.owner_id IS NULL OR f.owner_id = $1::uuid
+WHERE NOT f.personal OR f.owner_id = $1::uuid
 ORDER BY NOT f.personal, f.general, lower(f.title), f.id
 `
 
@@ -130,7 +129,6 @@ type FolderFactsRow struct {
 	General    bool
 	Personal   bool
 	Owner      bool
-	Orphaned   bool
 	Restricted bool
 	Grants     []string
 	Creator    bool
@@ -156,7 +154,6 @@ func (q *Queries) FolderFacts(ctx context.Context, arg FolderFactsParams) ([]Fol
 			&i.General,
 			&i.Personal,
 			&i.Owner,
-			&i.Orphaned,
 			&i.Restricted,
 			&i.Grants,
 			&i.Creator,

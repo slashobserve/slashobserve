@@ -46,7 +46,6 @@ type Facts struct {
 	Creator    bool
 	Personal   bool
 	Owner      bool
-	Orphaned   bool
 }
 
 func roleLevels(role auth.Role) (base, creator Level) {
@@ -62,11 +61,8 @@ func roleLevels(role auth.Role) (base, creator Level) {
 }
 
 func personalLevel(role auth.Role, f Facts) Level {
-	switch {
-	case f.Owner && role.AtLeast(auth.RoleViewer):
+	if f.Owner && role.AtLeast(auth.RoleViewer) {
 		return LevelEdit
-	case f.Orphaned && role == auth.RoleAdmin:
-		return LevelAdmin
 	}
 	return LevelNone
 }

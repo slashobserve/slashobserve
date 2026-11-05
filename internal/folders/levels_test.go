@@ -30,7 +30,6 @@ func TestLevelFor(t *testing.T) {
 		{"owner of a personal folder", Facts{Personal: true, Owner: true}, want{LevelEdit, LevelEdit, LevelEdit, LevelEdit}},
 		{"someone else's personal folder", Facts{Personal: true}, want{LevelNone, LevelNone, LevelNone, LevelNone}},
 		{"someone else's personal folder, creator and granted", Facts{Personal: true, Creator: true, Restricted: true, Grants: []Level{LevelAdmin}}, want{LevelNone, LevelNone, LevelNone, LevelNone}},
-		{"orphaned personal folder", Facts{Personal: true, Orphaned: true}, want{LevelNone, LevelNone, LevelNone, LevelAdmin}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -50,7 +49,7 @@ func TestLevelFor(t *testing.T) {
 }
 
 func TestLevelForRefusesAnUnknownRole(t *testing.T) {
-	facts := []Facts{{Creator: true}, {Restricted: true, Grants: []Level{LevelEdit}}, {Personal: true, Owner: true}, {Personal: true, Orphaned: true}}
+	facts := []Facts{{Creator: true}, {Restricted: true, Grants: []Level{LevelEdit}}, {Personal: true, Owner: true}}
 	for _, role := range []auth.Role{"", "owner"} {
 		for _, f := range facts {
 			if got := LevelFor(role, f); got != LevelNone {
