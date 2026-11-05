@@ -1,0 +1,11 @@
+id: repair-after-import
+prompt: Repair every panel and variable listed as unverified so its query runs and returns data; keep every other panel unchanged and never delete an unverified panel.
+kind: revise
+suites: [live, replay]
+seed:
+  corpus: rfmoz/node-exporter-full.json
+  break_panel: true
+expect:
+  keeps_panels: true
+  only_target_changed: true
+  target_returns_data: true

@@ -24,6 +24,8 @@ import (
 const (
 	categoryPrometheus = "prometheus"
 	categoryClickHouse = "clickhouse"
+	categoryLoki       = "loki"
+	categoryTempo      = "tempo"
 	categoryMixed      = "mixed"
 
 	kindCreate        = "create"
@@ -237,7 +239,7 @@ func validateScenario(sc Scenario) error {
 func validateDatasources(sc Scenario) error {
 	want, ok := datasourcesFor(sc.Category)
 	if !ok {
-		return fmt.Errorf("category %q must be prometheus, clickhouse or mixed", sc.Category)
+		return fmt.Errorf("category %q must be prometheus, clickhouse, loki, tempo or mixed", sc.Category)
 	}
 	got := slices.Clone(sc.Expect.Datasources)
 	slices.Sort(got)
@@ -501,6 +503,10 @@ func datasourcesFor(category string) ([]string, bool) {
 		return []string{string(spec.Prometheus)}, true
 	case categoryClickHouse:
 		return []string{string(spec.ClickHouse)}, true
+	case categoryLoki:
+		return []string{string(spec.Loki)}, true
+	case categoryTempo:
+		return []string{string(spec.Tempo)}, true
 	case categoryMixed:
 		return []string{string(spec.ClickHouse), string(spec.Prometheus)}, true
 	}

@@ -1,0 +1,54 @@
+{
+  "prompt": "error log lines for payments in the last hour as a logs panel, from Loki",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "sample_rows",
+          "input": {
+            "datasource": "loki",
+            "table": "{service_name=\"payments\"}"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Create payments error lines",
+            "planned_panels": 1,
+            "finish": true,
+            "spec": {
+              "specVersion": "0",
+              "title": "Payments error lines",
+              "time": {
+                "from": "now-1h",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "p_payments_errors",
+                  "type": "logs",
+                  "title": "Payments error lines",
+                  "datasource": "loki",
+                  "queries": [
+                    {
+                      "query": "{service_name=\"payments\"} | severity_text=\"ERROR\""
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "expect": [
+        {
+          "is_error": false
+        }
+      ]
+    }
+  ]
+}
