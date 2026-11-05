@@ -35,6 +35,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/events/stream"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/links"
@@ -321,6 +322,13 @@ func run() error {
 	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
 	assetsClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger, CacheTTL: time.Hour, CacheBytes: 64 << 20})
 
+	grafanaCtx, stopGrafana := context.WithCancel(ctx)
+	grafanaService := grafanaconn.New(grafanaCtx, grafanaconn.Deps{
+		DB: database, Egress: egressClient, Domains: outbound, Imports: importsService, Access: folderAccess, SecretKey: cfg.SecretKey, Logger: logger,
+	})
+	defer grafanaService.Wait()
+	defer stopGrafana()
+
 	handler, err := server.New(server.Options{
 		Logger:          logger,
 		Auth:            authService,
@@ -330,6 +338,7 @@ func run() error {
 			dashboardsService,
 			folders.NewHandler(database, folderAccess, logger),
 			imports.NewHandler(importsService, folderAccess),
+			grafanaconn.NewHandler(grafanaService),
 			stream.NewHandler(broker, dashboardsService, authService, folderAccess, folderAccess.RequireDashboard(folders.NeedView), logger),
 			dashboards.NewComments(database, dashboardsService, revisionsService),
 			revisionsService,

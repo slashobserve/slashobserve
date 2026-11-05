@@ -396,6 +396,19 @@ func (s *sourceDS) autoMatch(ours []Datasource) {
 	}
 }
 
+func MatchDatasource(uid, name, pluginID string, ours []Datasource) string {
+	s := &sourceDS{key: uid, name: name, typ: pluginID, fromUID: uid != "", kind: kindOf(pluginID)}
+	if s.kind == "" {
+		return ""
+	}
+	candidates := groupOurs(ours)[s.kind]
+	for _, d := range candidates {
+		s.candidates = append(s.candidates, d.UID)
+	}
+	s.autoMatch(candidates)
+	return s.match
+}
+
 func kindOfOurs(t string) string {
 	switch t {
 	case kindPrometheus, kindClickHouse:

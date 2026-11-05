@@ -8,13 +8,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
-	"github.com/slashobserve/slashobserve/internal/config"
-	"github.com/slashobserve/slashobserve/internal/db"
-	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/egress/domains"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -25,11 +21,6 @@ const (
 
 	managedBySettings = "settings"
 	managedByConfig   = "config"
-)
-
-var (
-	errTooMany = errors.New("too many outbound domains")
-	errExists  = errors.New("outbound domain exists")
 )
 
 type entryJSON struct {
@@ -111,36 +102,12 @@ func (s *Store) add(c *gin.Context) {
 	}
 	ctx := c.Request.Context()
 	caller := httpapi.Caller(c)
-	params := dbsqlc.InsertOutboundDomainParams{Domain: pattern.String(), CreatedByName: caller.Name}
-	if params.CreatedByName == "" {
-		params.CreatedByName = caller.Email
-	}
-	if id, err := db.ParseUUID(caller.ID); err == nil {
-		params.CreatedByID = id
-	}
-	var row dbsqlc.InsertOutboundDomainRow
-	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		if err := q.LockOutboundDomains(ctx); err != nil {
-			return err
-		}
-		n, err := q.CountOutboundDomains(ctx)
-		if err != nil {
-			return err
-		}
-		if n >= config.MaxOutboundDomains {
-			return errTooMany
-		}
-		row, err = q.InsertOutboundDomain(ctx, params)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return errExists
-		}
-		return err
-	})
+	row, err := s.Add(ctx, caller, pattern)
 	switch {
-	case errors.Is(err, errTooMany):
+	case errors.Is(err, ErrTooMany):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "too_many_domains", "at most 100 outbound domains can be allowed")
 		return
-	case errors.Is(err, errExists):
+	case errors.Is(err, ErrExists):
 		httpapi.AbortError(c, http.StatusConflict, "domain_exists", "that domain is already allowed")
 		return
 	case err != nil:

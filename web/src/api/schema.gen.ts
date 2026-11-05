@@ -1311,7 +1311,7 @@ export interface paths {
         put?: never;
         /**
          * Import a Grafana dashboard as version 1 of a new dashboard.
-         * @description Takes the same body as the preview and saves the converted Spec even when some queries fail. Panels whose queries fail are marked `unverified` in the stored report with the reason; later saves of the dashboard run every query as usual. The original JSON is stored for a later re-import and is never returned. A caller has at most 1 import in flight and the instance at most 4; more answers 429 `too_many_imports`. A retried agent request that already made its dashboard without an import answers 200 with that dashboard and no `import`. The folder is `folder` from the body, else the Grafana export's `meta.folderTitle`, else the caller's default folder (a person's My Dashboards, a key's General); General and My Dashboards both mean the default. A folder that does not exist is created when the caller is an Editor or above and the caller becomes its creator. Otherwise, or when the folder exists but the caller cannot see it or create in it, the dashboard goes to the default folder and `folder_note` says so. Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder, and 404 `not_found` when a folder disappears while the dashboard is saved.
+         * @description Takes the same body as the preview and saves the converted Spec even when some queries fail. Panels whose queries fail are marked `unverified` in the stored report with the reason; later saves of the dashboard run every query as usual. The original JSON is stored for a later re-import and is never returned. A caller has at most 1 import in flight and the instance at most 4; more answers 429 `too_many_imports`. A retried agent request that already made its dashboard without an import answers 200 with that dashboard and no `import`. The folder is `folder` from the body, else the Grafana export's `meta.folderTitle`, else the caller's default folder (a person's My Dashboards, a key's General); General and My Dashboards both mean the default. A folder that does not exist is created when the caller is an Editor or above and the caller becomes its creator. Otherwise, or when the folder exists but the caller cannot see it or create in it, the dashboard goes to the default folder and `folder_note` says so. Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder, and 404 `not_found` when a folder disappears while the dashboard is saved. The record's `grafana_uid` is the dashboard's Grafana uid when no earlier import holds it, so `GET /grafana/resolve/{uid}` finds this dashboard.
          */
         post: operations["createImport"];
         delete?: never;
@@ -1354,6 +1354,193 @@ export interface paths {
          * @description Reads every file of the directory once, as the server does at startup and when a file changes, and answers the status afterwards. An unchanged file saves nothing, and a changed file adds one version. Only Admins may call this endpoint.
          */
         post: operations["runProvisioning"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grafana": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the stored Grafana connections.
+         * @description Only Admins can call this endpoint. Connections are sorted by creation time; a response never carries the token.
+         */
+        get: operations["listGrafanaConnections"];
+        put?: never;
+        /**
+         * Store a Grafana URL and service-account token.
+         * @description Only Admins can call this endpoint. The URL may be http or https on any port, and its host may resolve to a private or loopback address, because Grafana usually runs inside the network. The host must be a domain name, and it is added to the outbound allowlist when it is not allowed yet. The token is encrypted with a key derived from `SLASHOBSERVE_SECRET_KEY` and is never returned.
+         */
+        post: operations["createGrafanaConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grafana/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read one Grafana connection.
+         * @description Only Admins can call this endpoint.
+         */
+        get: operations["getGrafanaConnection"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a connection and its stored token.
+         * @description Only Admins can call this endpoint. Imported dashboards and the outbound allowlist entry stay.
+         */
+        delete: operations["deleteGrafanaConnection"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a connection's name, URL or token.
+         * @description Only Admins can call this endpoint. A new URL needs the token again, so a stored token never reaches another host. Changing the URL or the token clears the last test.
+         */
+        patch: operations["updateGrafanaConnection"];
+        trace?: never;
+    };
+    "/grafana/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check that Grafana answers with the stored token.
+         * @description Only Admins can call this endpoint. The server reads `/api/health`, `/api/folders` and the first page of `/api/search`, and stores the outcome in `last_test`. A Grafana that cannot be reached or refuses the token still answers 200, with `last_test.ok` false and a fixed message.
+         */
+        post: operations["testGrafanaConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grafana/{id}/folders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the Grafana folders and how many dashboards each holds.
+         * @description Only Admins can call this endpoint. Nested folders are titled `Parent / Child`, and dashboards outside any folder are counted under the uid `general`. Counts cover the folder itself, not its subfolders.
+         */
+        get: operations["listGrafanaFolders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grafana/{id}/datasources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the Grafana datasources and the datasource each one matches here.
+         * @description Only Admins can call this endpoint. `matched_uid` applies the importer's automatic match rules; null means the datasource needs a mapping or has no supported type.
+         */
+        get: operations["listGrafanaDatasources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grafana/{id}/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import every dashboard of the chosen folders.
+         * @description Only Admins can call this endpoint. The import runs in the background; read its progress from the `Location` header. Each dashboard becomes one import record holding its Grafana uid, in a folder named after its Grafana folder (`Parent / Child` for nested ones), or General for dashboards outside any folder. A dashboard imported before is saved as a new version only when its Grafana `version` is newer, otherwise it is skipped. One dashboard failing never stops the run. A connection runs one import at a time.
+         */
+        post: operations["startGrafanaImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grafana/{id}/imports/{sync_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sync_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read the progress of an import.
+         * @description Only Admins can call this endpoint. The server keeps the last 20 imports in memory until it restarts; the connection's `last_sync` keeps the summary of the last finished one.
+         */
+        get: operations["getGrafanaImport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grafana/resolve/{uid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Find the dashboard imported from a Grafana uid.
+         * @description Any signed-in caller can resolve a uid, so links to the old Grafana dashboard keep working. A uid whose dashboard sits in a folder the caller cannot see answers 404, like a uid nobody imported.
+         */
+        get: operations["resolveGrafanaUID"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2456,6 +2643,8 @@ export interface components {
             summary: components["schemas"]["ImportSummary"];
             datasources: components["schemas"]["ImportSourceDatasource"][];
             report: components["schemas"]["ImportReport"];
+            /** @description The Grafana dashboard uid this import answers for, or empty. Only the first import of a uid holds it, and only a uid of 1 to 40 letters, digits, `-` or `_`; a later import of the same uid, from a file or a connection, gets an empty value. */
+            grafana_uid?: string;
             created_by: components["schemas"]["Author"];
             /** Format: date-time */
             created_at: string;
@@ -2515,6 +2704,128 @@ export interface components {
                 /** Format: date-time */
                 seen_at: string;
             }[];
+        };
+        GrafanaConnectionTest: {
+            /** Format: date-time */
+            at: string;
+            ok: boolean;
+            /** @description A fixed sentence chosen by the outcome, such as the folder and dashboard counts or why Grafana could not be read. */
+            message: string;
+        };
+        GrafanaImportSummary: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description `failed` means the run could not list Grafana's dashboards; one failing dashboard only counts in `failed`.
+             * @enum {string}
+             */
+            status: "running" | "finished" | "failed" | "canceled";
+            /** @description The dashboards chosen, known once the dashboards are listed; 0 until then. */
+            total: number;
+            done: number;
+            failed: number;
+            /** @description Dashboards imported before whose Grafana version is not newer. */
+            skipped: number;
+            /** @description Why the run failed; null unless `status` is `failed`. */
+            error: string | null;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            finished_at: string | null;
+        };
+        GrafanaImportResult: {
+            /** @description The Grafana dashboard uid. */
+            uid: string;
+            title: string;
+            /** @enum {string} */
+            outcome: "imported" | "updated" | "skipped" | "failed";
+            /** Format: uuid */
+            dashboard_id: string | null;
+            unverified_panels: number;
+            placeholder_panels: number;
+            /** @description A fixed sentence chosen by the kind of failure; null unless `outcome` is `failed`. */
+            error: string | null;
+        };
+        GrafanaImport: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            connection_id: string;
+            /** @enum {string} */
+            status: "running" | "finished" | "failed" | "canceled";
+            total: number;
+            done: number;
+            failed: number;
+            skipped: number;
+            error: string | null;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            finished_at: string | null;
+            /** @description One entry per dashboard handled so far, in the order they finished. */
+            results: components["schemas"]["GrafanaImportResult"][];
+        };
+        GrafanaConnection: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @description The Grafana base URL as stored, without a trailing slash. */
+            url: string;
+            /**
+             * Format: uuid
+             * @description The id of the person or service account that stored the connection.
+             */
+            created_by: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** @description Null until the connection is tested, and again after its URL or token changes. */
+            last_test: components["schemas"]["GrafanaConnectionTest"] | null;
+            /** @description The summary of the last finished import, or null before the first one. */
+            last_sync: components["schemas"]["GrafanaImportSummary"] | null;
+        };
+        GrafanaConnectionList: {
+            connections: components["schemas"]["GrafanaConnection"][];
+        };
+        CreateGrafanaConnectionRequest: {
+            name: string;
+            /** @description The Grafana base URL, http or https, with a domain name and no user info, query or fragment. */
+            url: string;
+            /** @description A Grafana service-account token with Viewer access to the folders to import. */
+            token: string;
+        };
+        UpdateGrafanaConnectionRequest: {
+            name?: string;
+            /** @description A new URL needs `token` in the same request. */
+            url?: string;
+            token?: string;
+        };
+        StartGrafanaImportRequest: {
+            /** @description "all", or the Grafana folder uids to import, each with its subfolders; `general` names the dashboards outside any folder. */
+            folders: "all" | string[];
+            /** @description Grafana datasource uid or name to the uid of a datasource here, for the datasources the automatic match leaves open. */
+            mapping?: {
+                [key: string]: string;
+            };
+        };
+        GrafanaFolder: {
+            uid: string;
+            title: string;
+            dashboards: number;
+        };
+        GrafanaDatasource: {
+            uid: string;
+            name: string;
+            /** @description The Grafana plugin id, such as `prometheus`. */
+            type: string;
+            matched_uid: string | null;
+        };
+        GrafanaResolved: {
+            /** Format: uuid */
+            dashboard_id: string;
+            /** @description The web app path of the dashboard. */
+            url: string;
         };
     };
     responses: {
@@ -6026,6 +6337,433 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    listGrafanaConnections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The connections. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaConnectionList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createGrafanaConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGrafanaConnectionRequest"];
+            };
+        };
+        responses: {
+            /** @description The connection is stored. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaConnection"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the host (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The host is not allowed and 100 outbound domains are already allowed (`too_many_domains`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    getGrafanaConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The connection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaConnection"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteGrafanaConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The connection is deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateGrafanaConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateGrafanaConnectionRequest"];
+            };
+        };
+        responses: {
+            /** @description The changed connection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaConnection"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the new host (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description `SLASHOBSERVE_SECRET_KEY` is not set and a new token was sent (`secret_key_missing`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The new host is not allowed and 100 outbound domains are already allowed (`too_many_domains`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    testGrafanaConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The connection with its new `last_test`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaConnection"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or the stored token cannot be read with it (`token_unreadable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    listGrafanaFolders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The folders, sorted by title. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaFolder"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or the host is no longer on the outbound allowlist (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or the stored token cannot be read with it (`token_unreadable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description Grafana could not be reached, refused the token or gave an answer the server cannot read (`grafana_unavailable`); the message is fixed by the kind of failure. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listGrafanaDatasources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The datasources, sorted by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaDatasource"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or the host is no longer on the outbound allowlist (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or the stored token cannot be read with it (`token_unreadable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description Grafana could not be reached, refused the token or gave an answer the server cannot read (`grafana_unavailable`); the message is fixed by the kind of failure. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    startGrafanaImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartGrafanaImportRequest"];
+            };
+        };
+        responses: {
+            /** @description The import started. */
+            202: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaImport"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description An import from this connection is already running (`import_running`), `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or the stored token cannot be read with it (`token_unreadable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getGrafanaImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sync_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The import and every dashboard handled so far. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaImport"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    resolveGrafanaUID: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The imported dashboard. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaResolved"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
         };
     };
 }

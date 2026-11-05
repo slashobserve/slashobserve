@@ -1,12 +1,31 @@
+-- name: LockImportGrafanaUID :exec
+SELECT pg_advisory_xact_lock(hashtextextended('imports_grafana_uid:' || @grafana_uid::text, 0));
+
 -- name: InsertImport :one
 INSERT INTO imports (
   dashboard_id, version, source, importer_version, original, mapping, summary, datasources, report,
-  title, created_by_kind, created_by_id, created_by_name, created_by_email
+  title, created_by_kind, created_by_id, created_by_name, created_by_email, grafana_uid
 ) VALUES (
   @dashboard_id, @version, @source, @importer_version, @original, @mapping, @summary, @datasources, @report,
-  @title, @created_by_kind, @created_by_id, @created_by_name, @created_by_email
+  @title, @created_by_kind, @created_by_id, @created_by_name, @created_by_email,
+  CASE WHEN @grafana_uid::text ~ '^[A-Za-z0-9_-]{1,40}$'
+    AND NOT EXISTS (SELECT 1 FROM imports claimed WHERE claimed.grafana_uid = @grafana_uid::text)
+  THEN @grafana_uid::text ELSE '' END
 )
-RETURNING id, created_at;
+RETURNING id, created_at, grafana_uid;
+
+-- name: UpdateImport :execrows
+UPDATE imports
+SET version = @version, importer_version = @importer_version, original = @original, mapping = @mapping,
+  summary = @summary, datasources = @datasources, report = @report, title = @title
+WHERE dashboard_id = @dashboard_id;
+
+-- name: DashboardByGrafanaUID :one
+SELECT dashboard_id,
+  CASE WHEN jsonb_typeof(summary -> 'grafana_version') = 'number'
+    THEN (summary ->> 'grafana_version')::numeric::bigint ELSE 0 END::bigint AS grafana_version
+FROM imports
+WHERE grafana_uid = @grafana_uid::text AND grafana_uid <> '';
 
 -- name: ListImports :many
 SELECT i.id, i.dashboard_id, i.version, i.importer_version, i.title, (i.report -> 'counts')::text AS counts,
@@ -24,6 +43,6 @@ LIMIT @row_limit;
 
 -- name: GetImportByDashboard :one
 SELECT id, dashboard_id, version, source, importer_version, mapping, summary, datasources, report, title,
-  created_by_kind, created_by_id, created_by_name, created_by_email, created_at
+  created_by_kind, created_by_id, created_by_name, created_by_email, created_at, grafana_uid
 FROM imports
 WHERE dashboard_id = @dashboard_id;

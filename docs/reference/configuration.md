@@ -50,6 +50,12 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 | ------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `SLASHOBSERVE_OUTBOUND_DOMAINS` | unset   | Unset: Admins manage the allowed domains in Settings. `none`, or a comma-separated list of domains, locks the list. See [Outbound access](../operate/outbound-access.md). |
 
+## Stored secrets
+
+| Variable                  | Default | Notes                                                                                                                                                                                                                                                                       |
+| ------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SLASHOBSERVE_SECRET_KEY` | unset   | Optional. At least 32 random bytes written as hex or base64 (a value that is valid hex is read as hex), checked at startup and never logged. It encrypts the [Grafana connection](../use/switch-from-grafana.md) tokens the server stores, so adding a connection needs it. Generate one with `openssl rand -hex 32`. Changing it makes stored tokens unreadable until each connection gets its token again. |
+
 ## LLM
 
 All LLM settings are optional.

@@ -6,6 +6,7 @@ description: Import a Grafana dashboard from the web page, the CLI or MCP, and h
 You can bring a Grafana dashboard in three ways: the web page Import from Grafana, `observe import`, and the `import_grafana_dashboard` MCP tool.
 The page and `observe import` call `POST /api/v1/imports` with the dashboard JSON as pasted or uploaded, the tool runs the same import, and `POST /api/v1/imports/preview` shows the result first without saving anything.
 The JSON can be the classic dashboard model, an export that shares a dashboard externally, or the response of Grafana's dashboard API.
+To bring over every dashboard of a running Grafana in one run, with its folders, see [Switch from Grafana](switch-from-grafana.md).
 
 Each datasource the dashboard uses is matched to one of yours, in the order described under `grafanaUids` in the [datasources file](../reference/datasources-file.md).
 An import cannot be saved while a datasource has no match, and SlashObserve never guesses between two datasources of the same type; give the match with the mapping that comes with the request, or add the Grafana uid to `grafanaUids`.
@@ -39,6 +40,8 @@ Later saves keep a failing panel or variable unverified, instead of failing, for
 A save with `update_dashboard` runs every query.
 A save with `update_panels` runs only the queries it changed, unless it changes the dashboard's default `time`, which runs every query; either way a panel the save did not change stays unverified while it still fails, and an unverified panel that now returns data leaves the list.
 The original JSON is stored with the import so a newer importer can convert it again, and it is never shown to the agent.
+The import record's `grafana_uid` holds the dashboard's Grafana uid, so `GET /api/v1/grafana/resolve/{uid}` finds the dashboard from an old Grafana link.
+Only the first import of a uid holds it, and only a uid of 1 to 40 letters, digits, `-` or `_`; importing the same uid again makes a separate dashboard whose record has an empty `grafana_uid`, until the dashboard holding it is deleted.
 
 A query's min step written as a variable (`$name`, `${name}` or `[[name]]`) imports as `${name}`, so the query uses the step selected in that variable.
 A `custom` variable of durations that is single-select, has no All and is used as a min step becomes an `interval` variable, and the import report says so.
