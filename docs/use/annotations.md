@@ -5,7 +5,7 @@ description: Mark deploys, incidents and maintenance on a moment or a range of t
 
 An annotation is a note pinned to a moment or a range of time, such as a deploy, an incident or a maintenance window.
 Annotations are stored on the server beside your dashboards and never inside a dashboard's [ObserveSpec](../concepts/observespec.md), so adding one saves no version.
-Charts draw them as markers, and you add, list and delete them through the HTTP API.
+Charts draw them as markers, you add them with the CLI or the HTTP API, and you list and delete them through the HTTP API.
 
 ## Global and dashboard annotations
 
@@ -42,9 +42,22 @@ When the dashboard's annotations have tags, the top row shows an `Annotations` m
 Pick one or more tags to keep only the markers that have any of them, or `All annotations` to show every marker again.
 The choice is kept in the address as `ann=deploy,incident`, so a shared link shows the same markers.
 
+## Add one from the CLI
+
+`observe annotate` adds an annotation from a shell or a CI job, with a [service-account key](../operate/service-account-keys.md) in `OBSERVE_TOKEN`:
+
+```sh
+observe annotate "Deploy checkout v1.4.2" --tags deploy,checkout
+observe annotate "Database failover" --dashboard <dashboard id> --at now-15m
+```
+
+Without `--dashboard` the annotation is global, which needs the Editor role, and `--dashboard` puts it on one dashboard instead.
+`--at` places it in the past, as `now-15m` or as an RFC 3339 time, and without it the annotation is placed at the server's current time.
+See [CLI](cli.md) for the output and the exit codes.
+
 ## Add a deploy marker
 
-Create a [service-account key](../operate/service-account-keys.md) with the Editor role for your CI system, then add a global annotation from the deploy job:
+Without the CLI, create a [service-account key](../operate/service-account-keys.md) with the Editor role for your CI system, then add a global annotation from the deploy job:
 
 ```sh
 curl -fsS -X POST "$OBSERVE_SERVER/api/v1/annotations" \
