@@ -40,6 +40,7 @@ Decide what the data is before choosing a type: one value, a value against a lim
 ## Queries
 - Each query has `query` and, if it returns several series, a `legend` such as `{{route}}`.
 - Put related series in one panel with several queries, such as requests and errors; queries are named `A`, `B`, `C` by position; write `ref` only for a stable name.
+- For a request naming two sources, plan a panel per source on its own datasource.
 - A query may set its own `datasource`, `instant: true` for one value per series, `interval` as its minimum step (a duration, or `${name}` of an `interval` variable), `exemplar: true` to mark exemplars on a Prometheus time series, or `hide: true` to run nowhere.
 
 ## Layout
@@ -73,8 +74,9 @@ Decide what the data is before choosing a type: one value, a value against a lim
 - `ALERTS{alertstate="firing"}` lists firing alerts; a second query on `ALERTS_FOR_STATE` shows since when.
 
 ## ClickHouse (OpenTelemetry exporter tables)
-- `otel_logs` (Timestamp, ServiceName, SeverityText, Body, LogAttributes), `otel_traces` (Timestamp, ServiceName, SpanName, Duration in nanoseconds, StatusCode, SpanAttributes), `otel_metrics_*`; check columns with `get_schema`.
+- `otel_logs` (Timestamp, ServiceName, SeverityText, Body, LogAttributes), `otel_traces` (Timestamp, ServiceName, SpanName, Duration, StatusCode, SpanAttributes), `otel_metrics_*`; check columns with `get_schema`.
 - Always filter time with `$__timeFilter(Timestamp)`.
+- `otel_traces` Duration is nanoseconds: divide by 1e6 for `unit: ms`, or keep it with `unit: ns`.
 - Time series: `SELECT $__timeInterval(Timestamp) AS time, ServiceName, count() AS logs FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY time, ServiceName ORDER BY time`.
 - Filter by a variable that can select All with `$__conditionalAll(ServiceName IN (${service:singlequote}), $service)`; when All must filter by something else, put that condition before the variable: `$__conditionalAll(ServiceName IN (${service:singlequote}), ServiceName = 'api', $service)`.
 - Exactly one `SELECT` statement, no semicolon; add `LIMIT` to tables.
