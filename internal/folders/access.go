@@ -18,7 +18,7 @@ var (
 	ErrNoAccess  = errors.New("no access")
 	ErrForbidden = errors.New("forbidden")
 
-	ErrNotCreator = errors.New("only dashboards you created can move into My Dashboards")
+	ErrMoveIntoPersonal = errors.New("a dashboard cannot move into My Dashboards; duplicate it there instead")
 )
 
 type Folder struct {

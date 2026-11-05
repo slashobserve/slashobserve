@@ -498,12 +498,8 @@ func (s *Service) move(ctx context.Context, by auth.Principal, id, folderID pgty
 	if !abilities.Edit {
 		return Dashboard{}, Version{}, folders.ErrForbidden
 	}
-	current, _, err := s.store.latest(ctx, id)
-	if err != nil {
-		return Dashboard{}, Version{}, err
-	}
-	if !folders.MayMoveInto(target, createdBy(current, by)) {
-		return Dashboard{}, Version{}, folders.ErrNotCreator
+	if !folders.MayMoveInto(target) {
+		return Dashboard{}, Version{}, folders.ErrMoveIntoPersonal
 	}
 	if err := s.store.move(ctx, id, folderID); err != nil {
 		return Dashboard{}, Version{}, err
@@ -741,10 +737,6 @@ func checkSummary(summary, fallback string) (string, []spec.Issue) {
 
 func summaryIssue(message string) []spec.Issue {
 	return []spec.Issue{{Path: "/summary", Code: spec.CodeSchema, Message: message}}
-}
-
-func createdBy(d Dashboard, p auth.Principal) bool {
-	return d.Creator.Author.Kind == string(p.Kind) && d.Creator.Author.ID == p.ID
 }
 
 func authorOf(p auth.Principal) Author {

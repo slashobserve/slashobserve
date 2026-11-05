@@ -70,46 +70,47 @@ func (r *rig) folderOfDashboard(t *testing.T, id pgtype.UUID) pgtype.UUID {
 	return folder
 }
 
-func TestOnlyTheCreatorMovesADashboardIntoAPersonalFolder(t *testing.T) {
+func TestNothingMovesIntoAPersonalFolder(t *testing.T) {
 	r := newRig(t, false)
 	ada, bob := r.addPerson(t, "ada"), r.addPerson(t, "bob")
-	dash := r.createAs(t, ada, r.generalFolder(t))
-	general := r.folderOfDashboard(t, dash)
+	general := r.generalFolder(t)
+	dash := r.createAs(t, ada, general)
 
-	if _, _, err := r.service.move(t.Context(), bob.principal, dash, bob.personal); !errors.Is(err, folders.ErrNotCreator) {
-		t.Fatalf("another user's move into their own personal folder: error = %v, want ErrNotCreator", err)
+	if _, _, err := r.service.move(t.Context(), ada.principal, dash, ada.personal); !errors.Is(err, folders.ErrMoveIntoPersonal) {
+		t.Fatalf("the owner's move of their own dashboard into their personal folder: error = %v, want ErrMoveIntoPersonal", err)
+	}
+	if _, _, err := r.service.move(t.Context(), ada.principal, dash, bob.personal); !errors.Is(err, ErrFolderNotFound) {
+		t.Fatalf("a move into another person's personal folder: error = %v, want ErrFolderNotFound", err)
 	}
 	if got := r.folderOfDashboard(t, dash); got != general {
 		t.Fatalf("a refused move changed the folder to %v", got)
 	}
+}
 
-	moved, _, err := r.service.move(t.Context(), ada.principal, dash, ada.personal)
+func TestPublishingMovesAPrivateDashboardToASharedFolder(t *testing.T) {
+	r := newRig(t, false)
+	ada, bob := r.addPerson(t, "ada"), r.addPerson(t, "bob")
+	dash := r.createAs(t, ada, pgtype.UUID{})
+	if got := r.folderOfDashboard(t, dash); got != ada.personal {
+		t.Fatalf("a new dashboard landed in %v, want Ada's personal folder %v", got, ada.personal)
+	}
+	if _, err := r.service.need(t.Context(), bob.principal, dash, folders.NeedView); !errors.Is(err, folders.ErrNoAccess) {
+		t.Fatalf("another Editor's access to a private dashboard: error = %v, want ErrNoAccess", err)
+	}
+	_, before, err := r.service.Get(t.Context(), dash)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !moved.Folder.Personal || moved.Folder.ID != ada.personal {
-		t.Fatalf("moved dashboard folder = %+v, want Ada's personal folder", moved.Folder)
-	}
-	if got := r.folderOfDashboard(t, dash); got != ada.personal {
-		t.Fatalf("folder after the creator's move = %v, want %v", got, ada.personal)
-	}
 
-	if _, _, err := r.service.move(t.Context(), ada.principal, dash, general); err != nil {
-		t.Fatalf("moving out of a personal folder: %v", err)
-	}
-	if got := r.folderOfDashboard(t, dash); got != general {
-		t.Fatalf("folder after moving out = %v, want General %v", got, general)
-	}
-}
-
-func TestEachPersonMovesTheirOwnDashboardIntoTheirPersonalFolder(t *testing.T) {
-	r := newRig(t, false)
-	bob := r.addPerson(t, "bob")
-	dash := r.createAs(t, bob, r.generalFolder(t))
-	if _, _, err := r.service.move(t.Context(), bob.principal, dash, bob.personal); err != nil {
+	general := r.generalFolder(t)
+	moved, after, err := r.service.move(t.Context(), ada.principal, dash, general)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if got := r.folderOfDashboard(t, dash); got != bob.personal {
-		t.Fatalf("folder = %v, want %v", got, bob.personal)
+	if moved.ID != dash.String() || moved.Folder.ID != general || after.Number != before.Number {
+		t.Fatalf("published dashboard = %s in %v at version %d, want %s in General at version %d", moved.ID, moved.Folder.ID, after.Number, dash, before.Number)
+	}
+	if _, err := r.service.need(t.Context(), bob.principal, dash, folders.NeedView); err != nil {
+		t.Fatalf("another Editor's access after publishing: %v", err)
 	}
 }

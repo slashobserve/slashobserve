@@ -88,8 +88,8 @@ func LevelFor(role auth.Role, f Facts) Level {
 	return level
 }
 
-func MayMoveInto(target Folder, moverCreatedIt bool) bool {
-	return !target.Personal || moverCreatedIt
+func MayMoveInto(target Folder) bool {
+	return !target.Personal
 }
 
 type Abilities struct {

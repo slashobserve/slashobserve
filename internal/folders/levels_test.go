@@ -197,20 +197,17 @@ func TestParseLevel(t *testing.T) {
 
 func TestMayMoveInto(t *testing.T) {
 	cases := []struct {
-		name         string
-		target       Folder
-		moverCreated bool
-		want         bool
+		name   string
+		target Folder
+		want   bool
 	}{
-		{"a shared folder takes anyone's dashboard", Folder{Title: "Checkout"}, false, true},
-		{"a shared folder takes the creator's dashboard", Folder{Title: "Checkout"}, true, true},
-		{"General takes anyone's dashboard", Folder{Title: "General", General: true}, false, true},
-		{"a personal folder refuses a dashboard the mover did not create", Folder{Title: "My Dashboards", Personal: true}, false, false},
-		{"a personal folder takes the creator's dashboard", Folder{Title: "My Dashboards", Personal: true}, true, true},
+		{"a shared folder takes a move", Folder{Title: "Checkout"}, true},
+		{"General takes a move", Folder{Title: "General", General: true}, true},
+		{"a personal folder takes no move", Folder{Title: "My Dashboards", Personal: true}, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := MayMoveInto(tc.target, tc.moverCreated); got != tc.want {
+			if got := MayMoveInto(tc.target); got != tc.want {
 				t.Errorf("MayMoveInto = %v, want %v", got, tc.want)
 			}
 		})
