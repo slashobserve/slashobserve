@@ -197,15 +197,17 @@ func (h *ObserveHandler) createObserve(c *gin.Context) {
 	}
 	switch {
 	case req.Kind == nil || *req.Kind == kindBuild:
-		if req.PanelID != nil || req.From != nil || req.To != nil {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "panel_id, from and to need kind investigate")
-			return
-		}
+		h.createBuild(c, req, prompt)
 	case *req.Kind == kindInvestigate:
 		h.createInvestigation(c, req, prompt)
-		return
 	default:
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "kind must be build or investigate")
+	}
+}
+
+func (h *ObserveHandler) createBuild(c *gin.Context, req observeRequest, prompt string) {
+	if req.PanelID != nil || req.From != nil || req.To != nil {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "panel_id, from and to need kind investigate")
 		return
 	}
 	if req.DashboardID == nil && req.BaseVersion != nil {

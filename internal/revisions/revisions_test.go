@@ -1485,7 +1485,7 @@ func TestCleanTitleTakesOneLineOfAtMost120Runes(t *testing.T) {
 		{strings.Repeat("a", 121), "", false},
 		{"two\nlines", "", false},
 		{"   ", "", false},
-		{"bidi ‮", "", false},
+		{"bidi \u202e", "", false},
 	}
 	for _, c := range cases {
 		got, ok := revisions.CleanTitle(c.title)

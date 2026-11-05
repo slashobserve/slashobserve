@@ -2,7 +2,6 @@ package findings_test
 
 import (
 	"errors"
-	"io"
 	"log/slog"
 	"os"
 	"slices"
@@ -46,7 +45,7 @@ func newRig(t *testing.T) rig {
 	t.Helper()
 	d := dbtest.New(t)
 	access := folders.NewAccess(d.DB)
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	logger := slog.New(slog.DiscardHandler)
 	r := rig{db: d, service: findings.New(d.DB, access, annotations.New(d.DB, access), nil, logger)}
 	r.open = r.dashboard(t, "Checkout")
 	return r
