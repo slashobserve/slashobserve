@@ -553,10 +553,14 @@ func TestPlaceNewPanelWithoutARowGoesAboveTheFirstRow(t *testing.T) {
 	}
 }
 
-func TestPlaceNewPanelKeepsTheSizeOnlyWhenBothAreValid(t *testing.T) {
+func TestANewPanelKeepsEachValidSizeFieldAndTheServerChoosesTheRest(t *testing.T) {
 	base := parseBoard(t, placeStat("a", 0, 0, 24, 8))
 	sized := func(gridPos string) string {
-		return `{"id":"n","type":"stat","title":"n","gridPos":` + gridPos + `,"datasource":"` + fakeUID + `","queries":[{"query":"up"}]}`
+		panel := `{"id":"n","type":"stat","title":"n","datasource":"` + fakeUID + `","queries":[{"query":"up"}]`
+		if gridPos != "" {
+			panel += `,"gridPos":` + gridPos
+		}
+		return panel + `}`
 	}
 	tests := []struct {
 		name    string
@@ -565,13 +569,15 @@ func TestPlaceNewPanelKeepsTheSizeOnlyWhenBothAreValid(t *testing.T) {
 	}{
 		{"valid size", `{"x":0,"y":0,"w":6,"h":4}`, 6, 4},
 		{"largest size", `{"w":24,"h":100}`, 24, 100},
-		{"no size", `{"x":0,"y":0}`, 6, 4},
-		{"width too large", `{"w":25,"h":4}`, 6, 4},
-		{"height too large", `{"w":6,"h":101}`, 6, 4},
+		{"no position or size", `{"x":0,"y":0}`, 6, 4},
+		{"no gridPos", ``, 6, 4},
+		{"width only", `{"w":4}`, 4, 4},
+		{"height only", `{"h":3}`, 6, 3},
+		{"width too large and a valid height", `{"w":25,"h":3}`, 6, 3},
+		{"height too large and a valid width", `{"w":8,"h":101}`, 8, 4},
 		{"zero height", `{"w":6,"h":0}`, 6, 4},
-		{"fractional width", `{"w":6.5,"h":4}`, 6, 4},
-		{"text width", `{"w":"6","h":4}`, 6, 4},
-		{"one side only", `{"w":6}`, 6, 4},
+		{"fractional width and a valid height", `{"w":6.5,"h":3}`, 6, 3},
+		{"unreadable width", `{"w":"6","h":3}`, 6, 4},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -581,6 +587,19 @@ func TestPlaceNewPanelKeepsTheSizeOnlyWhenBothAreValid(t *testing.T) {
 				t.Errorf("size = %dx%d, want %dx%d", e.Panel.GridPos.W, e.Panel.GridPos.H, tt.w, tt.h)
 			}
 		})
+	}
+}
+
+func TestAPanelWithoutGridPosIsSizedAndPlaced(t *testing.T) {
+	base := parseBoard(t, placeRow("row_sys", 53, false, placeStat("uptime", 0, 54, 6, 4)))
+	fd := `{"id":"fd","type":"stat","title":"fd","datasource":"` + fakeUID + `","queries":[{"query":"up"}]}`
+	merged, _, res, err := mergePatch(base, upsertOf(fd), &rowRef{ID: "row_sys"})
+	if err != nil || merged == nil {
+		t.Fatalf("merge refused: %#v, %v", res.Content, err)
+	}
+	e, found := merged.FindPanel("fd")
+	if !found || e.Row == nil || e.Row.ID != "row_sys" || e.Panel.GridPos != (spec.GridPos{X: 6, Y: 54, W: 6, H: 4}) {
+		t.Errorf("fd = %+v in %+v, want (6,54,6,4) in row_sys", e.Panel.GridPos, e.Row)
 	}
 }
 

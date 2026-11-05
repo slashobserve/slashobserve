@@ -13,6 +13,7 @@ type slot struct {
 	ID       string
 	Row      string
 	RowTitle string
+	Type     spec.PanelType
 	W, H     int
 	Prefer   *spec.GridPos
 }
@@ -26,6 +27,7 @@ type layoutPlan struct {
 type layoutItem struct {
 	id        string
 	section   string
+	panelType spec.PanelType
 	isRow     bool
 	collapsed bool
 	hidden    bool
@@ -55,7 +57,7 @@ func place(d *spec.Dashboard, slots []slot) layoutPlan {
 func newWorkingLayout(d *spec.Dashboard) *workingLayout {
 	lay := &workingLayout{}
 	for _, e := range d.AllPanels() {
-		item := layoutItem{id: e.Panel.ID, isRow: e.Panel.Type == spec.Row, collapsed: e.Panel.Collapsed, pos: e.Panel.GridPos}
+		item := layoutItem{id: e.Panel.ID, panelType: e.Panel.Type, isRow: e.Panel.Type == spec.Row, collapsed: e.Panel.Collapsed, pos: e.Panel.GridPos}
 		if e.Row != nil {
 			item.section = e.Row.ID
 			item.hidden = e.Row.Collapsed
@@ -87,6 +89,10 @@ func (l *workingLayout) put(s slot, newRows map[string]spec.GridPos) {
 		}
 		base, collapsed = row.pos.Y+row.pos.H, row.collapsed
 	}
+	if s.W == 0 || s.H == 0 {
+		g := chooseSize(s.Type, size{s.W, s.H}, l.openLine(s.Row))
+		s.W, s.H = g.W, g.H
+	}
 	scan := l.scan(s.Row, base)
 	pos, ok := wantedSpot(scan, s, collapsed)
 	if !ok {
@@ -95,7 +101,34 @@ func (l *workingLayout) put(s slot, newRows map[string]spec.GridPos) {
 	if delta := pos.Y + s.H - scan.limit; !collapsed && delta > 0 {
 		l.shiftDown(s.Row, scan.limit, delta)
 	}
-	l.items = append(l.items, layoutItem{id: s.ID, section: s.Row, pos: pos})
+	l.items = append(l.items, layoutItem{id: s.ID, section: s.Row, panelType: s.Type, pos: pos})
+}
+
+type openLine struct {
+	X, Y, W, H int
+	Type       spec.PanelType
+	LastW      int
+}
+
+func (l *workingLayout) openLine(section string) openLine {
+	var last *layoutItem
+	for i := range l.items {
+		it := &l.items[i]
+		if !isMember(*it, section) {
+			continue
+		}
+		if last == nil || cmp.Or(cmp.Compare(it.pos.Y, last.pos.Y), cmp.Compare(it.pos.X, last.pos.X)) > 0 {
+			last = it
+		}
+	}
+	if last == nil {
+		return openLine{}
+	}
+	x := last.pos.X + last.pos.W
+	if x >= spec.GridColumns {
+		return openLine{}
+	}
+	return openLine{X: x, Y: last.pos.Y, W: spec.GridColumns - x, H: last.pos.H, Type: last.panelType, LastW: last.pos.W}
 }
 
 func (l *workingLayout) addRow(id string, newRows map[string]spec.GridPos) *layoutItem {

@@ -16,6 +16,10 @@ func placeStat(id string, x, y, w, h int) string {
 	return fmt.Sprintf(`{"id":%q,"type":"stat","title":%q,"gridPos":{"x":%d,"y":%d,"w":%d,"h":%d},"datasource":%q,"queries":[{"query":"up"}]}`, id, id, x, y, w, h, fakeUID)
 }
 
+func placeSeries(id string, x, y, w, h int) string {
+	return fmt.Sprintf(`{"id":%q,"type":"timeseries","title":%q,"gridPos":{"x":%d,"y":%d,"w":%d,"h":%d},"datasource":%q,"queries":[{"query":"up"}]}`, id, id, x, y, w, h, fakeUID)
+}
+
 func placeRow(id string, y int, collapsed bool, children ...string) string {
 	return fmt.Sprintf(`{"id":%q,"type":"row","title":%q,"collapsed":%t,"gridPos":{"x":0,"y":%d,"w":24,"h":1},"panels":[%s]}`, id, id, collapsed, y, strings.Join(children, ","))
 }
@@ -721,6 +725,73 @@ func TestGaps(t *testing.T) {
 			got := gaps(parseBoard(t, c.panels...))
 			if !reflect.DeepEqual(got, c.want) {
 				t.Errorf("gaps = %+v, want %+v", got, c.want)
+			}
+		})
+	}
+}
+
+func TestPlaceSizesNewPanels(t *testing.T) {
+	t.Run("a stat beside a chart and the next one after it", func(t *testing.T) {
+		board := []string{placeRow("row_cpu", 0, false, placeSeries("usage", 0, 1, 12, 8))}
+		before := parseBoard(t, board...)
+		plan := place(before, []slot{{ID: placedID, Type: spec.Stat, Row: "row_cpu"}})
+		if got, want := plan.Positions[placedID], (spec.GridPos{X: 12, Y: 1, W: 6, H: 8}); got != want {
+			t.Fatalf("first stat = %+v, want %+v", got, want)
+		}
+		applyPlacement(t, before, "row_cpu", plan)
+
+		board = []string{placeRow("row_cpu", 0, false, placeSeries("usage", 0, 1, 12, 8), placeStat("first", 12, 1, 6, 8))}
+		plan = place(parseBoard(t, board...), []slot{{ID: placedID, Type: spec.Stat, Row: "row_cpu"}})
+		if got, want := plan.Positions[placedID], (spec.GridPos{X: 18, Y: 1, W: 6, H: 8}); got != want {
+			t.Errorf("second stat = %+v, want %+v", got, want)
+		}
+	})
+	t.Run("a strip of four in a new row", func(t *testing.T) {
+		var stats []string
+		for i, want := range []spec.GridPos{{X: 0, Y: 1, W: 4, H: 4}, {X: 4, Y: 1, W: 4, H: 4}, {X: 8, Y: 1, W: 4, H: 4}, {X: 12, Y: 1, W: 4, H: 4}} {
+			s := slot{ID: placedID, Type: spec.Stat, Row: "row_new"}
+			if i == 0 {
+				s.W = 4
+			}
+			before := &spec.Dashboard{}
+			if i > 0 {
+				before = parseBoard(t, placeRow("row_new", 0, false, stats...))
+			}
+			plan := place(before, []slot{s})
+			if got := plan.Positions[placedID]; got != want {
+				t.Fatalf("stat %d = %+v, want %+v", i, got, want)
+			}
+			stats = append(stats, placeStat(fmt.Sprintf("s%d", i), want.X, want.Y, want.W, want.H))
+		}
+	})
+	t.Run("a full-width chart into an empty section", func(t *testing.T) {
+		plan := place(&spec.Dashboard{}, []slot{{ID: placedID, Type: spec.Timeseries, W: spec.GridColumns}})
+		if got, want := plan.Positions[placedID], (spec.GridPos{X: 0, Y: 0, W: 24, H: 7}); got != want {
+			t.Errorf("chart = %+v, want %+v", got, want)
+		}
+	})
+}
+
+func TestOpenLine(t *testing.T) {
+	tests := []struct {
+		name    string
+		panels  []string
+		section string
+		want    openLine
+	}{
+		{"an empty section", []string{placeRow("r", 0, false)}, "r", openLine{}},
+		{"a full line", []string{placeRow("r", 0, false, placeSeries("a", 0, 1, 12, 8), placeSeries("b", 12, 1, 12, 8))}, "r", openLine{}},
+		{"half a line", []string{placeRow("r", 0, false, placeSeries("usage", 0, 1, 12, 8))}, "r", openLine{X: 12, Y: 1, W: 12, H: 8, Type: spec.Timeseries, LastW: 12}},
+		{"a stacked section ending at column 24", []string{placeRow("r", 0, false, placeSeries("a", 0, 1, 12, 4), placeSeries("b", 12, 1, 12, 4), placeSeries("c", 0, 5, 12, 4), placeSeries("d", 12, 5, 12, 4))}, "r", openLine{}},
+		{"the last panel is the lowest and rightmost", []string{placeRow("r", 0, false, placeStat("a", 18, 1, 6, 4), placeStat("b", 0, 5, 6, 4), placeStat("c", 6, 5, 6, 4))}, "r", openLine{X: 12, Y: 5, W: 12, H: 4, Type: spec.Stat, LastW: 6}},
+		{"the top level ignores rows", []string{placeSeries("t", 0, 0, 8, 8), placeRow("r", 8, false, placeSeries("a", 0, 9, 12, 8))}, "", openLine{X: 8, Y: 0, W: 16, H: 8, Type: spec.Timeseries, LastW: 8}},
+		{"a collapsed row's children count", []string{placeRow("r", 0, true, placeSeries("a", 0, 1, 12, 8))}, "r", openLine{X: 12, Y: 1, W: 12, H: 8, Type: spec.Timeseries, LastW: 12}},
+		{"an unknown section", []string{placeRow("r", 0, false, placeSeries("a", 0, 1, 12, 8))}, "other", openLine{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := newWorkingLayout(parseBoard(t, tt.panels...)).openLine(tt.section); got != tt.want {
+				t.Errorf("open line = %+v, want %+v", got, tt.want)
 			}
 		})
 	}

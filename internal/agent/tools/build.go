@@ -800,11 +800,12 @@ func decodeNewPanel(raw json.RawMessage) (*newPanel, bool) {
 }
 
 func (np *newPanel) slot(row *rowRef, prefer *spec.GridPos) slot {
-	s := slot{ID: np.head.ID, Prefer: prefer}
+	s := slot{ID: np.head.ID, Type: np.head.Type, Prefer: prefer}
 	if row != nil {
 		s.Row, s.RowTitle = row.ID, row.Title
 	}
-	s.W, s.H = sizeOf(np.body["gridPos"], defaultSize(np.head.Type))
+	given := givenSize(np.body["gridPos"])
+	s.W, s.H = given.W, given.H
 	return s
 }
 
@@ -919,12 +920,12 @@ func (b buildPlan) layoutSlot(staged *spec.Dashboard, l spec.PanelPlacement) (sl
 		}
 	}
 	stored := e.Panel.GridPos
-	w, h := sizeOf(l.GridPos, stored)
+	w, h := givenSize(l.GridPos).or(stored)
 	prefer := preferredSpot(l.GridPos)
 	if prefer == nil && target == section {
 		prefer = &spec.GridPos{X: stored.X, Y: stored.Y}
 	}
-	return slot{ID: l.ID, Row: target, RowTitle: b.rowTitle(target), W: w, H: h, Prefer: prefer}, Result{}, true
+	return slot{ID: l.ID, Type: e.Panel.Type, Row: target, RowTitle: b.rowTitle(target), W: w, H: h, Prefer: prefer}, Result{}, true
 }
 
 func (b buildPlan) rowTarget(staged *spec.Dashboard, id string) (Result, bool) {
@@ -947,12 +948,12 @@ func (b buildPlan) resentSlot() (slot, bool) {
 		return slot{}, false
 	}
 	section := sectionOf(b.resentAt)
-	w, h := sizeOf(b.resent.body["gridPos"], stored)
+	w, h := givenSize(b.resent.body["gridPos"]).or(stored)
 	switch {
 	case b.row != nil && b.row.ID != section:
-		return slot{ID: b.resent.head.ID, Row: b.row.ID, RowTitle: b.row.Title, W: w, H: h}, true
+		return slot{ID: b.resent.head.ID, Type: b.resentAt.Panel.Type, Row: b.row.ID, RowTitle: b.row.Title, W: w, H: h}, true
 	case w != stored.W || h != stored.H:
-		return slot{ID: b.resent.head.ID, Row: section, W: w, H: h, Prefer: &spec.GridPos{X: stored.X, Y: stored.Y}}, true
+		return slot{ID: b.resent.head.ID, Type: b.resentAt.Panel.Type, Row: section, W: w, H: h, Prefer: &spec.GridPos{X: stored.X, Y: stored.Y}}, true
 	}
 	return slot{}, false
 }
@@ -1059,22 +1060,6 @@ func upsertIDs(items []json.RawMessage) []string {
 		ids = append(ids, head.ID)
 	}
 	return ids
-}
-
-func sizeOf(gridPos json.RawMessage, fallback spec.GridPos) (w, h int) {
-	var pos struct {
-		W *float64 `json:"w"`
-		H *float64 `json:"h"`
-	}
-	if json.Unmarshal(gridPos, &pos) != nil {
-		return fallback.W, fallback.H
-	}
-	w, wOK := wholeWithin(pos.W, 1, maxPanelW)
-	h, hOK := wholeWithin(pos.H, 1, maxPanelH)
-	if !wOK || !hOK {
-		return fallback.W, fallback.H
-	}
-	return w, h
 }
 
 func preferredSpot(gridPos json.RawMessage) *spec.GridPos {
