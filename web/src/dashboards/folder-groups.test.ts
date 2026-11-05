@@ -250,8 +250,7 @@ describe("accessSummary", () => {
           restricted: true,
           grantees: ["Ishan", "sre", "Priya"],
           grantee_count: 3,
-        }),
-        "u-me"
+        })
       )
     ).toBe("Restricted: Ishan, sre, Priya")
   })
@@ -263,25 +262,18 @@ describe("accessSummary", () => {
           restricted: true,
           grantees: ["a", "b", "c", "d", "e"],
           grantee_count: 8,
-        }),
-        "u-me"
+        })
       )
     ).toBe("Restricted: a, b, c, d, e, and 3 more")
   })
 
   it("says everyone by role for an open folder", () => {
-    expect(accessSummary(payments, "u-me")).toBe("Everyone, by role")
-    expect(accessSummary(general, "u-me")).toBe("Everyone, by role")
+    expect(accessSummary(payments)).toBe("Everyone, by role")
+    expect(accessSummary(general)).toBe("Everyone, by role")
   })
 
   it("says only you for the caller's own My Dashboards", () => {
-    expect(accessSummary(myDashboards(me), "u-me")).toBe("Only you")
-  })
-
-  it("says only Admins for My Dashboards whose owner is gone", () => {
-    expect(accessSummary(myDashboards(someoneElse), "u-me")).toBe(
-      "Only Admins: the owner's account was deleted"
-    )
+    expect(accessSummary(myDashboards(me))).toBe("Only you")
   })
 })
 

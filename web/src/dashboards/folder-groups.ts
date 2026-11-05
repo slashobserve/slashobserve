@@ -1,5 +1,4 @@
 import { levelLabels } from "@/folders/grants"
-import { isOrphanedPersonal } from "@/folders/personal"
 import type { Folder } from "@/folders/queries"
 
 import type { DashboardSummary } from "./dashboard-columns"
@@ -65,10 +64,7 @@ export function hasPeopleFolders(folders: Folder[]): boolean {
   return folders.some((folder) => !folder.general && !folder.personal)
 }
 
-export function accessSummary(folder: Folder, principalId: string): string {
-  if (isOrphanedPersonal(folder, principalId)) {
-    return "Only Admins: the owner's account was deleted"
-  }
+export function accessSummary(folder: Folder): string {
   if (folder.personal) return "Only you"
   if (!folder.restricted) return "Everyone, by role"
   const names = folder.grantees.join(", ")

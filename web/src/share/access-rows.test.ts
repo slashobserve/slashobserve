@@ -150,51 +150,18 @@ describe("accessRows", () => {
     )
     expect(new Set(rows.map((row) => row.key)).size).toBe(rows.length)
   })
-
-  it("shows only the owner for the caller's own My Dashboards", () => {
-    const mine = folder(
-      { kind: "user", id: "u-ishan", name: "Ishan" },
-      { personal: true, restricted: false }
-    )
-    expect(
-      accessRows(mine, { restricted: false, entries: [] }, me, null)
-    ).toEqual([
-      {
-        key: "owner",
-        name: "Ishan",
-        detail: "Owner, you",
-        level: "Edit",
-        person: true,
-      },
-    ])
-  })
-
-  it("shows only Instance admins for My Dashboards whose owner is gone", () => {
-    const orphan = folder(creatorAuthor, {
-      personal: true,
-      restricted: false,
-    })
-    const rows = accessRows(
-      orphan,
-      { restricted: false, entries: [] },
-      me,
-      null
-    )
-    expect(rows.map((row) => row.name)).toEqual(["Instance admins"])
-  })
 })
 
 describe("canManageAccess", () => {
   it.each([
-    { general: false, personal: false, canManage: true, expected: true },
-    { general: false, personal: false, canManage: false, expected: false },
-    { general: true, personal: false, canManage: true, expected: false },
-    { general: true, personal: false, canManage: false, expected: false },
-    { general: false, personal: true, canManage: true, expected: false },
+    { general: false, canManage: true, expected: true },
+    { general: false, canManage: false, expected: false },
+    { general: true, canManage: true, expected: false },
+    { general: true, canManage: false, expected: false },
   ])(
-    "general $general, personal $personal, can manage $canManage shows the link: $expected",
-    ({ general, personal, canManage, expected }) => {
-      expect(canManageAccess({ general, personal }, canManage)).toBe(expected)
+    "general $general, can manage $canManage shows the link: $expected",
+    ({ general, canManage, expected }) => {
+      expect(canManageAccess({ general }, canManage)).toBe(expected)
     }
   )
 })

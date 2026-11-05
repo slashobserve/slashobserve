@@ -16,7 +16,6 @@ type Props = {
     id: string
     title: string
     general: boolean
-    personal: boolean
   }
   canManage: boolean
   headingId: string

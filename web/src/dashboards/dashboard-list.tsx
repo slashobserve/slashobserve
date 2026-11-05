@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { Link, useRouteContext } from "@tanstack/react-router"
+import { Link } from "@tanstack/react-router"
 import { useTable } from "@tanstack/react-table"
 import {
   ChevronDownIcon,
@@ -205,7 +205,6 @@ function FolderHeaderRow({
   columnCount: number
   onToggle: () => void
 }) {
-  const { principal } = useRouteContext({ from: "/_authed" })
   const AccessIcon = folder.personal
     ? FolderLockIcon
     : folder.restricted
@@ -244,7 +243,7 @@ function FolderHeaderRow({
           ) : null}
           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <AccessIcon aria-hidden="true" className="size-3.5 flex-none" />
-            {accessSummary(folder, principal.id)}
+            {accessSummary(folder)}
           </span>
           {yourAccess === null ? null : (
             <span className="text-xs text-muted-foreground">{yourAccess}</span>

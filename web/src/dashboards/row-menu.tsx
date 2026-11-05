@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { useRouteContext } from "@tanstack/react-router"
 import { CopyIcon, EllipsisIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -17,7 +16,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { NewFolderDialog } from "@/folders/new-folder-dialog"
-import { mayMoveInto } from "@/folders/personal"
 import { foldersQuery } from "@/folders/queries"
 import { loadProblemText } from "@/service-accounts/queries"
 
@@ -56,7 +54,6 @@ export function DashboardRowMenu({
 }: {
   dashboard: DashboardSummary
 }) {
-  const { principal } = useRouteContext({ from: "/_authed" })
   const folders = useQuery(foldersQuery()).data ?? []
   const move = useMoveDashboard()
   const trigger = useRef<HTMLButtonElement>(null)
@@ -72,7 +69,8 @@ export function DashboardRowMenu({
   const targets = duplicateTargets(folders, current)
   const canDuplicate = targets.choices.length > 0
   const choices = folders.filter(
-    (folder) => folder.permissions.edit || folder.id === current
+    (folder) =>
+      (folder.permissions.edit && !folder.personal) || folder.id === current
   )
 
   useEffect(() => {
@@ -175,34 +173,20 @@ export function DashboardRowMenu({
                     if (target !== undefined) moveTo(target)
                   }}
                 >
-                  {choices.map((folder) => {
-                    const movable =
-                      folder.id === current ||
-                      mayMoveInto(
-                        folder,
-                        dashboard.creator.author,
-                        principal.id
-                      )
-                    return (
-                      <DropdownMenuRadioItem
-                        closeOnClick
-                        key={folder.id}
-                        value={folder.id}
-                        disabled={!movable}
-                      >
-                        {folder.title}
-                        {folder.id === current ? (
-                          <span className="ml-auto text-xs text-muted-foreground">
-                            Current
-                          </span>
-                        ) : movable ? null : (
-                          <span className="ml-auto text-xs text-muted-foreground">
-                            Only dashboards you created
-                          </span>
-                        )}
-                      </DropdownMenuRadioItem>
-                    )
-                  })}
+                  {choices.map((folder) => (
+                    <DropdownMenuRadioItem
+                      closeOnClick
+                      key={folder.id}
+                      value={folder.id}
+                    >
+                      {folder.title}
+                      {folder.id === current ? (
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          Current
+                        </span>
+                      ) : null}
+                    </DropdownMenuRadioItem>
+                  ))}
                 </DropdownMenuRadioGroup>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
