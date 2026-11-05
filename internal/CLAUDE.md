@@ -162,6 +162,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - The proxy's caches are shared by everyone, so a version whose queries reference `${__user.*}` is cached per principal.
   The runner that validates saves stays uncached.
 - The second exception is `GET /api/v1/observe/{id}/build/panels/{panel_id}/data` and `.../build/variables/{name}/values`: they load the requester's stored build on the server (`proxyhttp/build.go`), run under `DraftLimits`, never cache or coalesce, and refuse a bearer key (403 `user_session_required`).
+- The third exception is `POST /api/v1/datasources/{uid}/query` (`proxyhttp/explore.go`), the logs page's, trace view's and CLI's explore query: it runs the given text against one datasource as a one-query panel with no variables under `DraftLimits` (`limit` only lowers `MaxRows`), never caches, coalesces or aligns an instant range, counts against the in-flight cap and accepts service-account keys from Viewer up.
 - `spec/examples/time/resolve-cases.json` keeps the Go and TS relative time resolution in step.
 - Variable values reach queries only through `internal/datasource/macros`.
 - A Spec names a datasource by uid or as `${name}` naming a datasource variable.

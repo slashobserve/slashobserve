@@ -1,6 +1,6 @@
 ---
 title: Addresses in the web app
-description: The short addresses of dashboards, folders, chats and builds, their title slugs, and the redirects from the old forms.
+description: The short addresses of dashboards, folders, chats, builds, logs and traces, their title slugs, and the redirects from the old forms.
 ---
 
 Every page that belongs to one dashboard, folder or agent request has a short address you can paste into an incident, a runbook or a chat:
@@ -11,6 +11,11 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/f/<folder id>` | A folder's settings. |
 | `/c/<request id>` | The conversation of an agent request. |
 | `/b/<request id>` | The live view of an agent request's build. |
+| `/logs` | The logs page; `ds`, `q`, `from` and `to` in the query string reopen a search. |
+| `/traces` | The trace search. |
+| `/t/<trace id>?ds=<datasource uid>` | One trace in a Tempo or ClickHouse datasource. |
+
+[Logs and traces](logs-and-traces.md) describes the logs page, the trace search and the trace view.
 
 The lists keep their names: `/dashboards` lists dashboards and `/` is the **Observe** chat home.
 

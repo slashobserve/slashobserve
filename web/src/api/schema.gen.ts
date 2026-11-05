@@ -861,6 +861,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasources/{uid}/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run one query against a datasource and return its frames.
+         * @description The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables. `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step. The query runs with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows), and `limit` lowers the row limit. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The response has the shape of panel data, with `meta.cached` always false.
+         */
+        post: operations["exploreQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasources/{uid}/metrics": {
         parameters: {
             query?: never;
@@ -5199,6 +5221,104 @@ export interface operations {
                 };
             };
             /** @description A datasource did not answer within the draft's 15 second query timeout, or the request did not finish within 20 seconds; `ref` names the failing query when one query timed out. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    exploreQuery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    query: string;
+                    /** @enum {string} */
+                    kind: "range" | "instant";
+                    from: string;
+                    to: string;
+                    /** @description The browser's IANA time zone, used to resolve relative times such as `now/d`. */
+                    timezone?: string;
+                    /**
+                     * @description Range queries only.
+                     * @default 1000
+                     */
+                    max_data_points?: number;
+                    /** @description The most rows the query may return; lowers the 1,000 row limit. */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The frames the query returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelData"];
+                };
+            };
+            /** @description The request is malformed or fails validation (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`, with the query's `ref` `A`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds. */
             504: {
                 headers: {
                     [name: string]: unknown;

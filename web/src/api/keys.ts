@@ -186,3 +186,23 @@ export const actionKeys = {
 export const newsKeys = {
   feed: (url: string) => ["news", url] as const,
 }
+
+export type ExploreParams = {
+  query: string
+  kind: "range" | "instant"
+  from: string
+  to: string
+  limit?: number
+  maxDataPoints?: number
+}
+
+export const exploreKeys = {
+  all: ["explore"] as const,
+  query: (uid: string, params: ExploreParams) =>
+    ["explore", uid, "query", params] as const,
+  tail: (uid: string, query: string, session: number) =>
+    ["explore", uid, "tail", query, session] as const,
+  context: (uid: string, anchor: string) =>
+    ["explore", uid, "context", anchor] as const,
+  targets: (search: string) => ["explore", "targets", search] as const,
+}

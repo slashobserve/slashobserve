@@ -11,9 +11,11 @@ import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import {
   ArrowUpRightIcon,
+  ChartGanttIcon,
   DatabaseIcon,
   KeyIcon,
   LayoutDashboardIcon,
+  LogsIcon,
   Loader2Icon,
   LogOutIcon,
   SearchIcon,
@@ -40,6 +42,8 @@ import { useSignOut } from "./use-sign-out"
 const pageIcons: Record<NavPath, LucideIcon> = {
   "/": TerminalIcon,
   "/dashboards": LayoutDashboardIcon,
+  "/logs": LogsIcon,
+  "/traces": ChartGanttIcon,
   "/datasources": DatabaseIcon,
   "/keys": KeyIcon,
   "/people": UsersIcon,

@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react"
+import { useEffect, useId, useMemo, useRef, useState, type Ref } from "react"
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 
 import { zonedDateTimeMs } from "@/lib/time"
@@ -17,12 +17,13 @@ const indentStep = 12
 const rulerTicks = [0, 0.25, 0.5, 0.75, 1]
 const ErrorIcon = thresholdIcons.critical
 
-type TraceProps = {
+export type TraceViewProps = {
   model: Extract<ReturnType<typeof traceModel>, { reason: null }>
   filters: SpanFilters
   zone: string | undefined
   width: number
   height: number
+  attributes: "inline" | "pane"
 }
 
 function tickClass(tick: number): string {
@@ -137,7 +138,103 @@ function SpanRow({
   )
 }
 
-function Trace({ model, filters, zone, width, height }: TraceProps) {
+function SpanAttributes({
+  ref,
+  id,
+  span,
+  className,
+}: {
+  ref?: Ref<HTMLDListElement>
+  id?: string
+  span: Span
+  className: string
+}) {
+  return (
+    <dl
+      ref={ref}
+      id={id}
+      className={cn(
+        "m-0 grid grid-cols-[minmax(5rem,max-content)_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-xs",
+        className
+      )}
+    >
+      {span.attributes.length === 0 ? (
+        <dd className="col-span-2 text-muted-foreground">No attributes.</dd>
+      ) : (
+        span.attributes.map((attribute, index) => (
+          <div key={`${index}:${attribute.key}`} className="contents">
+            <dt className="text-muted-foreground">{attribute.key}</dt>
+            <dd className="m-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap">
+              {attribute.text}
+            </dd>
+          </div>
+        ))
+      )}
+    </dl>
+  )
+}
+
+function SpanPane({
+  id,
+  span,
+  zone,
+  formatDuration,
+}: {
+  id: string
+  span: Span | undefined
+  zone: string | undefined
+  formatDuration: (ms: number) => string
+}) {
+  return (
+    <aside
+      aria-label="Span attributes"
+      id={id}
+      className="min-w-56 shrink-0 basis-2/5 overflow-auto border-l border-border p-2 text-xs"
+    >
+      {span ? (
+        <>
+          <p className="truncate text-sm font-medium text-foreground">
+            {[span.service, span.operation].filter(Boolean).join(" ")}
+          </p>
+          <p className="flex flex-wrap gap-x-3 text-muted-foreground">
+            <span>
+              Span <span className="font-mono">{span.id}</span>
+            </span>
+            <time dateTime={new Date(span.start).toISOString()}>
+              {zonedDateTimeMs(span.start, zone)}
+            </time>
+            <span className="tabular-nums">
+              {formatDuration(span.duration)}
+            </span>
+            {span.error ? (
+              <span className="flex items-center gap-1 text-foreground">
+                <ErrorIcon
+                  className="size-3 text-status-critical"
+                  aria-hidden="true"
+                />
+                Error
+              </span>
+            ) : null}
+          </p>
+          <SpanAttributes span={span} className="mt-2" />
+        </>
+      ) : (
+        <p className="text-muted-foreground">
+          Select a span to see its attributes.
+        </p>
+      )}
+    </aside>
+  )
+}
+
+export function TraceView({
+  model,
+  filters,
+  zone,
+  width,
+  height,
+  attributes,
+}: TraceViewProps) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
   const [openId, setOpenId] = useState<string | null>(null)
   const [scrollTop, setScrollTop] = useState(0)
@@ -154,6 +251,7 @@ function Trace({ model, filters, zone, width, height }: TraceProps) {
     [filtered.spans, collapsed]
   )
   const openIndex = rows.findIndex((span) => span.id === openId)
+  const inline = attributes === "inline"
   const windowed = rows.length > windowAfter
   const range = windowed
     ? windowRows({
@@ -161,8 +259,8 @@ function Trace({ model, filters, zone, width, height }: TraceProps) {
         rowHeight,
         scrollTop,
         viewport: height,
-        openIndex,
-        detailHeight,
+        openIndex: inline ? openIndex : -1,
+        detailHeight: inline ? detailHeight : 0,
         overscan,
       })
     : { start: 0, end: rows.length, before: 0, after: 0 }
@@ -211,89 +309,80 @@ function Trace({ model, filters, zone, width, height }: TraceProps) {
           {note}
         </p>
       ))}
-      <div
-        className="min-h-0 flex-1 overflow-auto"
-        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-      >
-        <div className="sticky top-0 z-10 grid grid-cols-[minmax(12rem,40%)_minmax(0,1fr)] border-b border-border bg-background text-xs text-muted-foreground">
-          <span className="px-2 py-1">Service and operation</span>
-          <div className="relative h-6 px-2" aria-hidden="true">
-            <div className="relative h-full">
-              {rulerTicks.map((tick) => (
-                <span
-                  key={tick}
-                  className={cn(
-                    "absolute top-1 whitespace-nowrap tabular-nums",
-                    tickClass(tick)
-                  )}
-                  style={
-                    tick === 0 || tick === 1
-                      ? undefined
-                      : { left: `${tick * 100}%` }
-                  }
-                >
-                  {model.formatDuration(model.duration * tick)}
-                </span>
-              ))}
+      <div className="flex min-h-0 flex-1">
+        <div
+          className="min-h-0 min-w-0 flex-1 overflow-auto"
+          onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+        >
+          <div className="sticky top-0 z-10 grid grid-cols-[minmax(12rem,40%)_minmax(0,1fr)] border-b border-border bg-background text-xs text-muted-foreground">
+            <span className="px-2 py-1">Service and operation</span>
+            <div className="relative h-6 px-2" aria-hidden="true">
+              <div className="relative h-full">
+                {rulerTicks.map((tick) => (
+                  <span
+                    key={tick}
+                    className={cn(
+                      "absolute top-1 whitespace-nowrap tabular-nums",
+                      tickClass(tick)
+                    )}
+                    style={
+                      tick === 0 || tick === 1
+                        ? undefined
+                        : { left: `${tick * 100}%` }
+                    }
+                  >
+                    {model.formatDuration(model.duration * tick)}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
+          <ul
+            role="list"
+            aria-label="Spans"
+            data-span-count={rows.length}
+            className="m-0 list-none p-0"
+            style={{ paddingTop: range.before, paddingBottom: range.after }}
+          >
+            {rows.slice(range.start, range.end).map((span) => {
+              const open = span.id === openId
+              return (
+                <li key={span.id} className="border-b border-border">
+                  <SpanRow
+                    span={span}
+                    collapsed={collapsed.has(span.id)}
+                    open={open}
+                    matched={
+                      filtered.matched === null
+                        ? null
+                        : filtered.matched.has(span.id)
+                    }
+                    detailsId={detailsId}
+                    formatDuration={model.formatDuration}
+                    onToggle={() => toggle(span.id)}
+                    onOpen={() => setOpenId(open ? null : span.id)}
+                  />
+                  {open && attributes === "inline" ? (
+                    <SpanAttributes
+                      ref={detailRef}
+                      id={detailsId}
+                      span={span}
+                      className="border-t border-border px-2 py-2"
+                    />
+                  ) : null}
+                </li>
+              )
+            })}
+          </ul>
         </div>
-        <ul
-          role="list"
-          aria-label="Spans"
-          data-span-count={rows.length}
-          className="m-0 list-none p-0"
-          style={{ paddingTop: range.before, paddingBottom: range.after }}
-        >
-          {rows.slice(range.start, range.end).map((span) => {
-            const open = span.id === openId
-            return (
-              <li key={span.id} className="border-b border-border">
-                <SpanRow
-                  span={span}
-                  collapsed={collapsed.has(span.id)}
-                  open={open}
-                  matched={
-                    filtered.matched === null
-                      ? null
-                      : filtered.matched.has(span.id)
-                  }
-                  detailsId={detailsId}
-                  formatDuration={model.formatDuration}
-                  onToggle={() => toggle(span.id)}
-                  onOpen={() => setOpenId(open ? null : span.id)}
-                />
-                {open ? (
-                  <dl
-                    ref={detailRef}
-                    id={detailsId}
-                    className="m-0 grid grid-cols-[minmax(5rem,max-content)_minmax(0,1fr)] gap-x-3 gap-y-0.5 border-t border-border px-2 py-2 text-xs"
-                  >
-                    {span.attributes.length === 0 ? (
-                      <dd className="col-span-2 text-muted-foreground">
-                        No attributes.
-                      </dd>
-                    ) : (
-                      span.attributes.map((attribute, index) => (
-                        <div
-                          key={`${index}:${attribute.key}`}
-                          className="contents"
-                        >
-                          <dt className="text-muted-foreground">
-                            {attribute.key}
-                          </dt>
-                          <dd className="m-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap">
-                            {attribute.text}
-                          </dd>
-                        </div>
-                      ))
-                    )}
-                  </dl>
-                ) : null}
-              </li>
-            )
-          })}
-        </ul>
+        {inline ? null : (
+          <SpanPane
+            id={detailsId}
+            span={openIndex === -1 ? undefined : rows[openIndex]}
+            zone={zone}
+            formatDuration={model.formatDuration}
+          />
+        )}
       </div>
     </div>
   )
@@ -320,12 +409,13 @@ const TracesPanel: PanelRenderer = ({
     )
   }
   return (
-    <Trace
+    <TraceView
       model={model}
       filters={filters}
       zone={zone}
       width={width}
       height={height}
+      attributes="inline"
     />
   )
 }
