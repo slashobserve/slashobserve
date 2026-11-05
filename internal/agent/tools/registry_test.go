@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
@@ -313,6 +316,9 @@ func TestCallRecoversPanics(t *testing.T) {
 	if err == nil || res.Content != nil || res.IsError {
 		t.Fatalf("res = %#v err = %v", res, err)
 	}
+	if !errors.Is(err, ErrInvariant) {
+		t.Fatalf("a panic is not an invariant: %v", err)
+	}
 	if FailureCode(err) != FailurePanicked {
 		t.Fatalf("failure code = %q", FailureCode(err))
 	}
@@ -330,13 +336,93 @@ func TestCallRecoversPanics(t *testing.T) {
 	}
 }
 
-func TestCallRecoversDatasourcePanics(t *testing.T) {
+func TestADatasourcePanicReachesTheModelAsAToolError(t *testing.T) {
 	ds := &fakeDS{instantFn: func(context.Context, datasource.Query, datasource.TimeRange) ([]datasource.Frame, error) {
 		panic("driver bug")
 	}}
 	r := newTestRegistry(t, ds, nil)
 	res, err := call(t, r, nameQueryInstant, `{"datasource":"fake","query":"up"}`)
-	if err == nil || res.Content != nil {
+	if err != nil || errorCode(t, res) != FailureToolFailed {
+		t.Fatalf("res = %#v err = %v", res, err)
+	}
+	if msg := res.Content.(errorBody).Message; strings.Contains(msg, "driver bug") {
+		t.Fatalf("message leaks the panic: %q", msg)
+	}
+}
+
+func TestAHandlerToolErrorReachesTheModelWithSafeText(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"plain error", errors.New("boom at 10.0.0.5 password=hunter2"), "lint_query failed: the datasource did not answer"},
+		{"errno", fmt.Errorf("dial tcp 10.0.0.5:9090: %w", syscall.ECONNREFUSED), "lint_query failed: errno connection refused"},
+		{"wrapped twice", fmt.Errorf("outer: %w", fmt.Errorf("SELECT secret: %w", errors.New("hunter2"))), "lint_query failed: the datasource did not answer"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			r := newTestRegistry(t, &fakeDS{}, slog.New(slog.NewJSONHandler(&logs, nil)))
+			r.entries[nameLintQuery] = entry{handle: func(context.Context, json.RawMessage) (Result, error) { return Result{}, tt.err }}
+			ctx := WithRun(auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleAdmin}), Run{Mode: ModeCreate, RequestID: dashA})
+			res, err := r.Call(ctx, nameLintQuery, []byte(`{"query":"super-secret-query"}`))
+			if err != nil {
+				t.Fatalf("err = %v, want a model-visible result", err)
+			}
+			if errorCode(t, res) != FailureToolFailed || res.Content.(errorBody).Message != tt.want {
+				t.Fatalf("content = %#v, want message %q", res.Content, tt.want)
+			}
+			if res.Step != "Could not run lint_query: tool_failed" {
+				t.Fatalf("step = %q", res.Step)
+			}
+			var line map[string]any
+			if err := json.Unmarshal(logs.Bytes(), &line); err != nil {
+				t.Fatalf("want one log line, got %s", logs.String())
+			}
+			if line["msg"] != "agent tool failed" || line["tool"] != nameLintQuery || line["error_code"] != FailureToolFailed || line["agent_request_id"] != dashA {
+				t.Fatalf("log = %v", line)
+			}
+			for _, leaked := range []string{"super-secret-query", "hunter2", "10.0.0.5", "SELECT"} {
+				if strings.Contains(logs.String(), leaked) || strings.Contains(res.Content.(errorBody).Message, leaked) {
+					t.Fatalf("%q leaked: %s / %#v", leaked, logs.String(), res.Content)
+				}
+			}
+		})
+	}
+}
+
+func TestRunEndingHandlerErrorsAreInvariants(t *testing.T) {
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	tests := []struct {
+		name string
+		ctx  context.Context
+		err  error
+	}{
+		{"wrapped cancellation", context.Background(), fmt.Errorf("query: %w", context.Canceled)},
+		{"wrapped deadline", context.Background(), fmt.Errorf("query: %w", context.DeadlineExceeded)},
+		{"build lost", context.Background(), fmt.Errorf("save: %w", dashboards.ErrBuildLost)},
+		{"invalid run scope", context.Background(), fmt.Errorf("%w: no request id", errInvalidRun)},
+		{"missing dependency", context.Background(), errCommentsNotConfigured},
+		{"any error once the run is canceled", canceled, errors.New("boom")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newTestRegistry(t, &fakeDS{}, nil)
+			r.entries[nameLintQuery] = entry{handle: func(context.Context, json.RawMessage) (Result, error) { return Result{}, tt.err }}
+			res, err := r.Call(auth.WithPrincipal(tt.ctx, auth.Principal{Role: auth.RoleAdmin}), nameLintQuery, []byte(`{}`))
+			if !errors.Is(err, ErrInvariant) || !errors.Is(err, tt.err) || res.Content != nil || res.IsError {
+				t.Fatalf("res = %#v err = %v, want an invariant wrapping the cause", res, err)
+			}
+		})
+	}
+}
+
+func TestARunWithoutAPrincipalIsAnInvariant(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	res, err := r.Call(WithRun(context.Background(), Run{Mode: ModeCreate}), nameListDatasources, []byte(`{}`))
+	if !errors.Is(err, ErrInvariant) || res.Content != nil {
 		t.Fatalf("res = %#v err = %v", res, err)
 	}
 }
@@ -354,8 +440,8 @@ func TestCallResultCaps(t *testing.T) {
 		t.Fatalf("result under the cap rejected: %v", err)
 	}
 	r.entries[nameListMetrics] = entry{handle: big(maxContentBytes)}
-	if res, err := call(t, r, nameListMetrics, `{}`); err == nil || res.Content != nil || FailureCode(err) != FailureResultTooLarge {
-		t.Fatalf("oversized result accepted or misclassified: err = %v", err)
+	if res, err := call(t, r, nameListMetrics, `{}`); err != nil || errorCode(t, res) != FailureResultTooLarge {
+		t.Fatalf("oversized result accepted or misclassified: res = %#v err = %v", res, err)
 	}
 
 	if MaxModelSpecBytes != 128<<10 {
@@ -370,8 +456,46 @@ func TestCallResultCaps(t *testing.T) {
 		t.Fatalf("get_dashboard result at its cap rejected: %v", err)
 	}
 	r.entries[nameGetDashboard] = entry{handle: big(MaxModelSpecBytes)}
-	if res, err := call(t, r, nameGetDashboard, `{}`); err == nil || res.Content != nil {
-		t.Fatalf("get_dashboard result over its cap accepted: err = %v", err)
+	if res, err := call(t, r, nameGetDashboard, `{}`); err != nil || errorCode(t, res) != FailureResultTooLarge {
+		t.Fatalf("get_dashboard result over its cap accepted: res = %#v err = %v", res, err)
+	}
+}
+
+func TestAResultOverItsLimitIsTooLargeWithANarrowingHint(t *testing.T) {
+	tests := []struct {
+		tool  string
+		size  int
+		limit int
+		hint  string
+	}{
+		{nameListMetrics, 20 << 10, maxContentBytes, "pass search, or a smaller limit and the next_offset as offset"},
+		{nameQueryRange, 20 << 10, maxContentBytes, "shorten from and to, lower max_data_points, or reduce the series with a label selector or an aggregation"},
+		{nameGetDashboard, MaxModelSpecBytes + 1, MaxModelSpecBytes, "use get_panels with the panel ids you need"},
+		{nameLintQuery, 20 << 10, maxContentBytes, "narrow the request"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.tool, func(t *testing.T) {
+			var logs bytes.Buffer
+			r := newTestRegistry(t, &fakeDS{}, slog.New(slog.NewJSONHandler(&logs, nil)))
+			r.entries[tt.tool] = entry{handle: func(context.Context, json.RawMessage) (Result, error) {
+				return success("ok", map[string]string{"data": strings.Repeat("a", tt.size)}), nil
+			}}
+			res, err := call(t, r, tt.tool, `{}`)
+			if err != nil {
+				t.Fatalf("err = %v, want a model-visible result", err)
+			}
+			if errorCode(t, res) != FailureResultTooLarge || res.Step != "Result too large: "+tt.tool {
+				t.Fatalf("res = %#v", res)
+			}
+			msg := res.Content.(errorBody).Message
+			wantSize := fmt.Sprintf("%d bytes, over the %d byte limit", tt.size+len(`{"data":""}`), tt.limit)
+			if !strings.Contains(msg, wantSize) || !strings.HasSuffix(msg, "; "+tt.hint) {
+				t.Fatalf("message = %q, want %q and the hint %q", msg, wantSize, tt.hint)
+			}
+			if !strings.Contains(logs.String(), "agent tool result too large") {
+				t.Fatalf("log lacks the too-large line: %s", logs.String())
+			}
+		})
 	}
 }
 
