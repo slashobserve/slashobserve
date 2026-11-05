@@ -27,12 +27,7 @@ func NewReviser(a *Agent, steps revisions.StepRecorder) *Reviser {
 }
 
 func (r *Reviser) Revise(ctx context.Context, req revisions.Request) (revisions.Result, error) {
-	task := Task{Prompt: req.Prompt, RequestID: req.ID, Attempt: req.Attempt, Continues: req.Continues, ContinueNote: req.ContinueNote, DashboardID: req.DashboardID, PanelID: req.PanelID, Source: req.Source, Principal: req.RequestedBy}
-	if req.Source == revisions.SourceSuggest {
-		task.Suggest = true
-		task.BaseVersion = req.BaseVersion
-		task.Draft = req.Draft
-	}
+	task := taskFor(req)
 	if r.steps != nil {
 		task.Progress = func(s Step) {
 			r.steps.RecordStep(context.WithoutCancel(ctx), req, revisions.Step{
@@ -41,7 +36,7 @@ func (r *Reviser) Revise(ctx context.Context, req revisions.Request) (revisions.
 		}
 	}
 	out, err := r.agent.Run(ctx, task)
-	result := revisions.Result{Version: out.Version, Suggestion: out.Suggestion}
+	result := revisions.Result{Version: out.Version, Suggestion: out.Suggestion, FindingID: out.FindingID}
 	if out.Usage.Calls > 0 || out.FailedCalls > 0 {
 		result.Usage = &revisions.Usage{
 			Provider:         out.Provider,
@@ -78,6 +73,20 @@ func (r *Reviser) Revise(ctx context.Context, req revisions.Request) (revisions.
 	return result, nil
 }
 
+func taskFor(req revisions.Request) Task {
+	task := Task{
+		Prompt: req.Prompt, RequestID: req.ID, Attempt: req.Attempt, Continues: req.Continues, ContinueNote: req.ContinueNote,
+		DashboardID: req.DashboardID, PanelID: req.PanelID, Source: req.Source, Principal: req.RequestedBy,
+		Investigate: req.Source == revisions.SourceInvestigate, From: req.From, To: req.To,
+	}
+	if req.Source == revisions.SourceSuggest {
+		task.Suggest = true
+		task.BaseVersion = req.BaseVersion
+		task.Draft = req.Draft
+	}
+	return task
+}
+
 type fixedContextError struct {
 	message  string
 	sentinel error
@@ -103,7 +112,7 @@ func storedMessage(err error) string {
 	switch {
 	case errors.Is(err, ErrNoSave), errors.Is(err, ErrRepairExhausted), errors.Is(err, ErrRefused),
 		errors.Is(err, ErrConflict), errors.Is(err, ErrInvalidTask), errors.Is(err, llm.ErrNoFixture),
-		errors.Is(err, ErrNoSuggestion), errors.Is(err, ErrDraftInvalid), errors.Is(err, ErrNoProgress):
+		errors.Is(err, ErrNoSuggestion), errors.Is(err, ErrDraftInvalid), errors.Is(err, ErrNoProgress), errors.Is(err, ErrNoFinding):
 		return err.Error()
 	case errors.Is(err, dashboards.ErrNotFound):
 		return messageDashboardGone

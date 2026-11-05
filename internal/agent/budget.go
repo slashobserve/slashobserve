@@ -47,6 +47,11 @@ var (
 		refused: fmt.Sprintf("%d model calls passed without a save", maxCallsBeforeSave),
 		stopped: fmt.Sprintf("Stopped: the model kept reading after %d calls without a save", maxCallsBeforeSave),
 	}
+	guardFindingNow = guard{
+		message: fmt.Sprintf("%d model calls without a finding; only save_finding can run now. Save what you found and the evidence you checked.", maxCallsBeforeProposal),
+		refused: fmt.Sprintf("%d model calls passed without a finding", maxCallsBeforeProposal),
+		stopped: fmt.Sprintf("Stopped: the model kept reading after %d calls without a finding", maxCallsBeforeProposal),
+	}
 	guardProposeNow = guard{
 		message: fmt.Sprintf("%d model calls without a proposal; only a proposal can run now. Propose the panel you have checked.", maxCallsBeforeProposal),
 		refused: fmt.Sprintf("%d model calls passed without a proposal", maxCallsBeforeProposal),
@@ -73,6 +78,7 @@ const (
 
 	messageSaveNext    = "Save the next panel in your next call. From then on, reads run only in the same call as a save."
 	messageProposeNext = "Propose the panel in your next call. From then on, reads run only in the same call as a proposal."
+	messageFindingNext = "One more read at most, then call save_finding."
 )
 
 type saveWindow struct {
@@ -82,7 +88,7 @@ type saveWindow struct {
 }
 
 func windowLimit(mode tools.Mode) int {
-	if mode == tools.ModeSuggest {
+	if mode == tools.ModeSuggest || mode == tools.ModeInvestigate {
 		return maxCallsBeforeProposal
 	}
 	return maxCallsBeforeSave
@@ -92,8 +98,11 @@ func readRefusal(mode tools.Mode, w saveWindow, hasSave bool) guard {
 	if hasSave || w.diagnose || w.calls < windowLimit(mode) {
 		return guard{}
 	}
-	if mode == tools.ModeSuggest {
+	switch mode {
+	case tools.ModeSuggest:
 		return guardProposeNow
+	case tools.ModeInvestigate:
+		return guardFindingNow
 	}
 	return guardSaveNow
 }
@@ -102,8 +111,11 @@ func nudgeFor(mode tools.Mode, w saveWindow) string {
 	if w.calls != windowLimit(mode)-1 {
 		return ""
 	}
-	if mode == tools.ModeSuggest {
+	switch mode {
+	case tools.ModeSuggest:
 		return messageProposeNext
+	case tools.ModeInvestigate:
+		return messageFindingNext
 	}
 	return messageSaveNext
 }

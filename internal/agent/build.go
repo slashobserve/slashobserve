@@ -18,6 +18,7 @@ const (
 	seedContinue    seedReason = "continue"
 	seedRenewed     seedReason = "renewed"
 	seedCallTimeout seedReason = "call_timeout"
+	seedNoFinding   seedReason = "no_finding"
 )
 
 var seedSentences = map[seedReason]string{
@@ -28,6 +29,7 @@ var seedSentences = map[seedReason]string{
 	seedContinue:    "Your earlier run stopped before it finished, and the person asked you to continue it from the build above.",
 	seedRenewed:     "Your session was renewed to keep it short; the build above holds every panel you saved.",
 	seedConflict:    "Someone saved a new version while you worked; your build was discarded. Make the change again on the dashboard above.",
+	seedNoFinding:   "You answered without a tool call. Call save_finding now with your answer and the evidence you checked; your text alone is not saved.",
 }
 
 func (r seedReason) shortensConversation() bool {
