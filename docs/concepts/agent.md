@@ -57,6 +57,8 @@ The server places each new panel at the first free spot of its row, scanning fro
 In a build the server owns every position: it reads only `w` and `h` from a panel the agent sends, keeps a panel the agent sends again where it is, and places a panel again only when its size or row changes, at the spot a `layout` entry asks for when that spot is free, else at the first free spot of its row.
 The agent may leave a new panel's size out, or send only its width: the server then uses the panel type's default size, gives the panel the width of a same-type panel whose line it continues and the height of the line it joins, and a full-width time series 7 units of height.
 A size the agent sends is kept.
+When a new dashboard's build becomes a version, whether the agent finished it or a person saved what was built, the server widens the panels of every line that does not fill 24 columns, keeping their order, row and height, and puts the legend of a full-width time series with several series on the right unless the agent set one.
+A revision's lines are left as they are.
 Rows keep the place the server gave them.
 `update_dashboard` in a build keeps the build's position for every panel it already holds and places a new panel the same way.
 Each accepted save tells the model the rows of the build, the positions in the row it saved into and any gaps, within 1.5 KiB, so it never needs a read to know what exists.

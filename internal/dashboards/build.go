@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -16,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -278,6 +280,14 @@ func (s *Service) SaveStoppedBuild(ctx context.Context, by auth.Principal, reque
 }
 
 func (s *Service) commitBuild(ctx context.Context, by auth.Principal, build Build, summary string, inTx func(q *dbsqlc.Queries, dashboardID pgtype.UUID, version int) error) (Dashboard, Version, bool, error) {
+	if !build.DashboardID.Valid {
+		closed, err := closeLines(build.Spec)
+		if err != nil {
+			s.logger.ErrorContext(ctx, "could not close the lines of a build", logattrs.Failure("close_lines_failed", err, slog.String("request_id", build.RequestID.String()))...)
+		} else {
+			build.Spec = closed
+		}
+	}
 	canonical, err := json.Marshal(build.Spec)
 	if err != nil {
 		return Dashboard{}, Version{}, false, fmt.Errorf("marshal spec: %w", err)

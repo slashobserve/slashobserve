@@ -213,3 +213,32 @@ func TestAStoppedRevisionBuildOnTheBaseVersionIsTheNextVersion(t *testing.T) {
 		t.Fatalf("save: version %d, panels %d, replayed %v, err %v", ver.Number, len(ver.Spec.Panels), replayed, err)
 	}
 }
+
+func TestACommittedCreateBuildClosesItsLines(t *testing.T) {
+	r, _ := newProbeRig(t)
+	id := r.runningRequest(t, pgtype.UUID{})
+	r.saveBuild(t, id, pgtype.UUID{}, 0, "a")
+
+	_, ver, _, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	if err != nil || len(ver.Spec.Panels) != 1 || ver.Spec.Panels[0].GridPos.W != 24 {
+		t.Fatalf("commit: panels %+v, err %v, want one panel 24 wide", ver.Spec.Panels, err)
+	}
+}
+
+func TestACommittedRevisionBuildKeepsItsLines(t *testing.T) {
+	r, _ := newProbeRig(t)
+	dash := r.createDashboard(t, "rps")
+	id := r.runningRequest(t, dash)
+	r.saveBuild(t, id, dash, 1, "rps", "p99")
+	r.failRequest(t, id)
+
+	_, ver, _, err := r.service.SaveStoppedBuild(t.Context(), testUser, id)
+	if err != nil || len(ver.Spec.Panels) != 2 {
+		t.Fatalf("save: panels %d, err %v", len(ver.Spec.Panels), err)
+	}
+	for _, p := range ver.Spec.Panels {
+		if p.GridPos.W != 12 {
+			t.Errorf("panel %s is %d wide, want its 12", p.ID, p.GridPos.W)
+		}
+	}
+}
