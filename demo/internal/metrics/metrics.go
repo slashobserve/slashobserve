@@ -25,6 +25,8 @@ type Recorder struct {
 	duration        *prometheus.HistogramVec
 	ordersProcessed *prometheus.CounterVec
 	orderProcessing *prometheus.HistogramVec
+	cacheRequests   *prometheus.CounterVec
+	dbQuery         *prometheus.HistogramVec
 }
 
 func New(service, pod string) *Recorder {
@@ -47,11 +49,22 @@ func New(service, pod string) *Recorder {
 		Help:    "Time a queue worker spends processing one order.",
 		Buckets: orderProcessingBuckets,
 	}, []string{"service", "pod"})
+	cacheRequests := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "shop_product_cache_requests_total",
+		Help: "Product cache lookups, by result.",
+	}, []string{"service", "pod", "result"})
+	dbQuery := prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "shop_db_query_duration_seconds",
+		Help:    "Inventory database query duration, including the wait for a pool connection.",
+		Buckets: prometheus.DefBuckets,
+	}, []string{"service", "pod", "query"})
 	registry.MustRegister(
 		requests,
 		duration,
 		ordersProcessed,
 		orderProcessing,
+		cacheRequests,
+		dbQuery,
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
@@ -63,6 +76,8 @@ func New(service, pod string) *Recorder {
 		duration:        duration,
 		ordersProcessed: ordersProcessed,
 		orderProcessing: orderProcessing,
+		cacheRequests:   cacheRequests,
+		dbQuery:         dbQuery,
 	}
 }
 
@@ -97,6 +112,34 @@ func (r *Recorder) OrderProcessed(result string, elapsed time.Duration) {
 
 func (r *Recorder) OrderDropped() {
 	r.ordersProcessed.WithLabelValues(r.service, r.pod, OrderFailed).Inc()
+}
+
+func (r *Recorder) CacheLookup(hit bool) {
+	result := "miss"
+	if hit {
+		result = "hit"
+	}
+	r.cacheRequests.WithLabelValues(r.service, r.pod, result).Inc()
+}
+
+func (r *Recorder) WatchDBPool(inUse func() int, size int) {
+	labels := r.podLabels()
+	r.registry.MustRegister(
+		prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+			Name:        "shop_db_pool_in_use",
+			Help:        "Inventory database connections held by a query.",
+			ConstLabels: labels,
+		}, func() float64 { return float64(inUse()) }),
+		prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+			Name:        "shop_db_pool_max",
+			Help:        "Inventory database connections in the pool.",
+			ConstLabels: labels,
+		}, func() float64 { return float64(size) }),
+	)
+}
+
+func (r *Recorder) ObserveQuery(query string, elapsed time.Duration) {
+	r.dbQuery.WithLabelValues(r.service, r.pod, query).Observe(elapsed.Seconds())
 }
 
 func (r *Recorder) podLabels() prometheus.Labels {

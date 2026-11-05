@@ -141,6 +141,15 @@ func TestQueueFaultIsSetReportedAndReset(t *testing.T) {
 	}
 }
 
+func TestFaultAPIRejectsAnUnknownType(t *testing.T) {
+	h := startApp(t, Config{Service: ServicePayments, Pod: "payments-0"})
+	rec := do(t, h, http.MethodPost, "/fault?type=disk&pct=10", "")
+	want := `type must be "errors", "latency", "queue" or "slow_db"`
+	if rec.Code != http.StatusBadRequest || faultReport(t, rec)["error"] != want {
+		t.Fatalf("POST /fault?type=disk = %d %s, want 400 %q", rec.Code, rec.Body, want)
+	}
+}
+
 func TestQueueFaultBacksUpOrdersUntilReset(t *testing.T) {
 	h := startCheckout(t)
 	do(t, h, http.MethodPost, "/fault?type=queue&pct=100", "")

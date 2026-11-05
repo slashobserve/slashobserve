@@ -44,7 +44,7 @@ func (a *app) listProducts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) getProduct(w http.ResponseWriter, r *http.Request) {
-	if !sleep(r.Context(), a.rng.Between(10*time.Millisecond, 35*time.Millisecond)) {
+	if !a.lookupProduct(r.Context(), 10*time.Millisecond, 35*time.Millisecond) {
 		return
 	}
 	id, err := strconv.Atoi(r.PathValue("id"))

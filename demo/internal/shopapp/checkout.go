@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"go.opentelemetry.io/otel"
 )
 
 const (
@@ -53,7 +55,8 @@ func (a *app) checkout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	_, reserve, ok := a.work(ctx, "reserve_inventory", 20*time.Millisecond, 40*time.Millisecond)
+	reserveCtx, reserve := otel.Tracer("shop").Start(ctx, "reserve_inventory")
+	ok := a.query(reserveCtx, queryReserveStock, a.rng.Between(20*time.Millisecond, 40*time.Millisecond))
 	if failure == reserveTimeoutMsg {
 		failSpan(reserve, failure)
 	}

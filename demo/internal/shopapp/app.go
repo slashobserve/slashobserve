@@ -15,6 +15,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/slashobserve/slashobserve/demo/internal/fault"
+	"github.com/slashobserve/slashobserve/demo/internal/inventory"
 	"github.com/slashobserve/slashobserve/demo/internal/metrics"
 	"github.com/slashobserve/slashobserve/demo/internal/prng"
 	"github.com/slashobserve/slashobserve/demo/internal/queue"
@@ -105,6 +106,7 @@ type app struct {
 	alternate atomic.Uint64
 	orderSeq  atomic.Int64
 	orders    *queue.Queue[queuedOrder]
+	db        *inventory.Pool
 	mux       *http.ServeMux
 }
 
@@ -132,11 +134,13 @@ func newApp(ctx context.Context, cfg Config, logger *slog.Logger) http.Handler {
 
 	switch cfg.Service {
 	case ServiceFrontend:
+		a.openInventory()
 		a.business("GET /api/products", a.listProducts)
 		a.business("GET /api/products/{id}", a.getProduct)
 		a.business("POST /api/checkout", a.frontendCheckout)
 		a.business("GET /api/orders/{id}", a.frontendOrder)
 	case ServiceCheckout:
+		a.openInventory()
 		a.startOrdersQueue(ctx)
 		a.business("POST /checkout", a.checkout)
 		a.business("GET /orders/{id}", a.getOrder)

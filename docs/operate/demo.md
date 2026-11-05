@@ -17,12 +17,17 @@ Its metrics are in the `prom` datasource, and its logs and traces are in `ch`.
 | `shop_orders_queue_oldest_age_seconds` | gauge | `service`, `pod` | How long the oldest waiting order has waited, 0 when none waits. |
 | `shop_orders_processed_total` | counter | `service`, `pod`, `result` | Orders the queue workers finished, with `result` `ok` or `failed`. |
 | `shop_order_processing_seconds` | histogram | `service`, `pod` | How long a worker spent on one order. |
+| `shop_product_cache_requests_total` | counter | `service`, `pod`, `result` | Frontend product cache lookups, with `result` `hit` (about 85%) or `miss`. |
+| `shop_db_pool_in_use` | gauge | `service`, `pod` | Inventory database connections in use on a frontend or checkout pod. |
+| `shop_db_pool_max` | gauge | `service`, `pod` | The size of that pod's connection pool, 5. |
+| `shop_db_query_duration_seconds` | histogram | `service`, `pod`, `query` | How long a database query took, with `query` `get_product` (a cache miss) or `reserve_stock` (a checkout). |
 
 ## Logs and traces
 
 Every request logs `request handled` and has a trace that follows it from the frontend through checkout to payments.
-After checkout answers, the order waits in the pod's orders queue, and a worker processes it in a `process_order` span under the same trace.
+Checkout answers without waiting for the order: the order waits in the pod's orders queue, and a worker processes it in a `process_order` span under the same trace.
 That span logs `order processed` with `order_id`, `queue_wait_ms` and `result`.
+Every database query has a `db.query` span with `db.system=postgresql`, and a query slower than 200 ms logs `slow query` at warn level.
 
 ## Faults
 
@@ -34,5 +39,6 @@ Each fault affects one pod, the one whose fault API you call.
 | `errors` | N% of requests fail with 500 and log `database connection refused`. |
 | `latency` | N% of requests take 500 to 1500 ms longer. |
 | `queue` | N% of the pod's 4 queue workers, rounded up, stop taking orders, so the queue's depth and oldest age climb; at `PCT=30` 2 workers stop. |
+| `slow_db` | N% of the pod's database queries take 300 to 900 ms longer and keep their connection meanwhile, so the pool's connections in use climb and requests that query get slower. |
 
 `GET /fault` shows every fault's current percentage.

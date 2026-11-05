@@ -12,9 +12,10 @@ const (
 	Errors  Kind = "errors"
 	Latency Kind = "latency"
 	Queue   Kind = "queue"
+	SlowDB  Kind = "slow_db"
 )
 
-var Kinds = [...]Kind{Errors, Latency, Queue}
+var Kinds = [...]Kind{Errors, Latency, Queue, SlowDB}
 
 const DefaultPct = 30
 
@@ -28,7 +29,7 @@ func ParseKind(s string) (Kind, error) {
 			return kind, nil
 		}
 	}
-	return "", fmt.Errorf("type must be %q, %q or %q", Errors, Latency, Queue)
+	return "", fmt.Errorf("type must be %q, %q, %q or %q", Errors, Latency, Queue, SlowDB)
 }
 
 func (s *State) Set(kind Kind, pct int) error {

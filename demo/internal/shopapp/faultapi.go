@@ -13,6 +13,7 @@ type faultState struct {
 	ErrorsPct  int    `json:"errors_pct"`
 	LatencyPct int    `json:"latency_pct"`
 	QueuePct   int    `json:"queue_pct"`
+	SlowDBPct  int    `json:"slow_db_pct"`
 }
 
 func (a *app) faultState() faultState {
@@ -22,6 +23,7 @@ func (a *app) faultState() faultState {
 		ErrorsPct:  a.faults.Pct(fault.Errors),
 		LatencyPct: a.faults.Pct(fault.Latency),
 		QueuePct:   a.faults.Pct(fault.Queue),
+		SlowDBPct:  a.faults.Pct(fault.SlowDB),
 	}
 }
 
