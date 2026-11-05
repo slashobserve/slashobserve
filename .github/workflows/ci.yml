@@ -47,7 +47,20 @@ jobs:
           restore-keys: bun-${{ runner.os }}-
 
       - name: Lint, test and build
+        env:
+          COVER: "1"
         run: make ci
+
+      - name: Add coverage to the job summary
+        run: |
+          go_total="$(go tool cover -func=coverage.out | tail -1 | awk '{print $NF}')"
+          web_total="$(jq -r '.total.statements.pct' web/coverage/coverage-summary.json)%"
+          {
+            echo "| Coverage | Statements |"
+            echo "| --- | --- |"
+            echo "| Go | $go_total |"
+            echo "| Web | $web_total |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Generated files are up to date
         run: |
@@ -82,11 +95,11 @@ jobs:
       - name: Go and web dependency audit
         run: make audit
 
-  e2e:
-    name: e2e
-    if: false
+  e2e-api:
+    name: e2e-api
+    needs: check
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 45
     env:
       SLASHOBSERVE_IMAGE: slashobserve-e2e:ci
       SLASHOBSERVE_SHOP_IMAGE: slashobserve-demo-shop:ci
@@ -127,18 +140,87 @@ jobs:
           cache-dependency-path: go.sum
 
       - name: API smoke suite
-        run: scripts/e2e.sh
+        run: make e2e
+
+      - name: Collect compose logs
+        if: failure()
+        run: scripts/e2e.sh logs > e2e-compose.log 2>&1 || true
+
+      - name: Upload compose logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-logs
+          path: e2e-compose.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Tear down
+        if: always()
+        run: scripts/e2e.sh down
+
+  e2e-browser:
+    name: e2e-browser (${{ matrix.shard }}/4)
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      SLASHOBSERVE_IMAGE: slashobserve-e2e:ci
+      SLASHOBSERVE_SHOP_IMAGE: slashobserve-demo-shop:ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build server image once
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          load: true
+          tags: slashobserve-e2e:ci
+          build-args: |
+            VERSION=${{ github.sha }}
+            COMMIT=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build demo shop image once
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: demo
+          load: true
+          tags: slashobserve-demo-shop:ci
+          cache-from: type=gha,scope=demo-shop
+          cache-to: type=gha,mode=max,scope=demo-shop
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: web/package.json
 
+      - name: Read the Playwright version
+        id: playwright
+        run: echo "version=$(jq -r '.devDependencies["@playwright/test"]' web/package.json)" >> "$GITHUB_OUTPUT"
+
       - name: Cache Playwright browsers
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('web/bun.lock') }}
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
 
       - name: Install web dependencies and Chromium
         working-directory: web
@@ -146,22 +228,22 @@ jobs:
           bun install --frozen-lockfile
           bun run e2e:install --with-deps
 
-      - name: Browser suite
-        run: scripts/e2e.sh browser
+      - name: Boot the stack and run the API smoke suite
+        run: make e2e
 
-      - name: Collect compose logs
-        if: failure()
-        run: scripts/e2e.sh logs > e2e-compose.log 2>&1 || true
+      - name: Browser suite shard
+        env:
+          PW_SHARD: ${{ matrix.shard }}/4
+        run: make e2e-browser
 
-      - name: Upload e2e artifacts
+      - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: e2e-artifacts
+          name: playwright-shard-${{ matrix.shard }}
           path: |
             web/playwright-report/
             web/test-results/
-            e2e-compose.log
           retention-days: 7
           if-no-files-found: ignore
 
