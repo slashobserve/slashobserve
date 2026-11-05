@@ -126,6 +126,10 @@ paths:
     $ref: "./paths/imports.yaml#/imports-preview"
   /imports:
     $ref: "./paths/imports.yaml#/imports"
+  /provision:
+    $ref: "./paths/provision.yaml#/provision"
+  /provision/run:
+    $ref: "./paths/provision.yaml#/provision-run"
 components:
   securitySchemes:
     sessionCookie:
@@ -2433,6 +2437,54 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ImportSourceDatasource"
+    ProvisionStatus:
+      type: object
+      additionalProperties: false
+      required: [dir, dashboards, errors]
+      properties:
+        dir:
+          type: string
+          nullable: true
+          description: The value of `SLASHOBSERVE_PROVISION_DIR`, or null when provisioning is off.
+        dashboards:
+          type: array
+          description: Files that became a dashboard, including files that have since left the directory, because their dashboards stay.
+          items:
+            type: object
+            additionalProperties: false
+            required: [path, dashboard_id, folder, updated_at, last_error]
+            properties:
+              path:
+                type: string
+              dashboard_id:
+                type: string
+                format: uuid
+              folder:
+                type: string
+                description: The title of the folder the file was first provisioned into.
+              updated_at:
+                type: string
+                format: date-time
+                description: When the file's content was last saved as a version.
+              last_error:
+                type: string
+                nullable: true
+                description: Why the file's current content could not be saved; the dashboard keeps its last saved version. Null when the last save of the file worked.
+        errors:
+          type: array
+          description: Files in the directory that never became a dashboard.
+          items:
+            type: object
+            additionalProperties: false
+            required: [path, message, seen_at]
+            properties:
+              path:
+                type: string
+              message:
+                type: string
+              seen_at:
+                type: string
+                format: date-time
   responses:
     BadRequest:
       description: The request is malformed or fails validation.

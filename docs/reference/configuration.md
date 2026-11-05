@@ -37,6 +37,12 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 | ------------------------------- | ------- | ------------------------------------------------------------------------------ |
 | `SLASHOBSERVE_DATASOURCES_FILE` | unset   | Path to the [datasources file](datasources-file.md). Unset means no datasources. |
 
+## Dashboard provisioning
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `SLASHOBSERVE_PROVISION_DIR` | unset | A directory of ObserveSpec JSON files that become dashboards at startup and whenever a file changes, checked every 30 seconds. Unset turns provisioning off. See [Provisioning](../operate/provisioning.md). |
+
 ## Outbound access
 
 | Variable                        | Default | Notes                                                                                                                                                                    |

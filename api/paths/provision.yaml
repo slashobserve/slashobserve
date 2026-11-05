@@ -1,0 +1,53 @@
+provision:
+  get:
+    operationId: getProvisionStatus
+    summary: Show what the provisioning directory became.
+    description: >-
+      Lists every file that became a dashboard and every file that never did, each sorted by `path` in byte order.
+      Paths are relative to `SLASHOBSERVE_PROVISION_DIR`, with `/` between directories.
+      The lists are kept when provisioning is turned off, so they can still be read; `dir` is then null.
+      Only Admins may call this endpoint.
+    responses:
+      "200":
+        description: The provisioning status.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ProvisionStatus"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+provision-run:
+  post:
+    operationId: runProvisioning
+    summary: Provision the directory now.
+    description: >-
+      Reads every file of the directory once, as the server does at startup and when a file changes, and answers the status afterwards.
+      An unchanged file saves nothing, and a changed file adds one version.
+      Only Admins may call this endpoint.
+    responses:
+      "200":
+        description: The provisioning status after the run.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ProvisionStatus"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "409":
+        description: Provisioning is off because `SLASHOBSERVE_PROVISION_DIR` is not set (`provisioning_off`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        description: The directory cannot be read (`provision_dir_unreadable`), or the server failed (`internal`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"

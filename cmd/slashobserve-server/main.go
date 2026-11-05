@@ -38,6 +38,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/news"
 	"github.com/slashobserve/slashobserve/internal/prompts"
+	dashprovision "github.com/slashobserve/slashobserve/internal/provision"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/queryproxy/proxyhttp"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -290,6 +291,21 @@ func run() error {
 	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger, revisions.WorkerOptions{RunTimeout: cfg.Agent.RunTimeout})
 	defer stopWorkers()
 
+	provisioner := dashprovision.New(logger, dashboardsService, folderAccess, database, cfg.ProvisionDir)
+	if cfg.ProvisionDir != "" {
+		logger.Info("dashboard provisioning configured", slog.String("dir", cfg.ProvisionDir))
+	}
+	provisionCtx, stopProvisioning := context.WithCancel(ctx)
+	provisionDone := make(chan struct{})
+	go func() {
+		defer close(provisionDone)
+		provisioner.Watch(provisionCtx)
+	}()
+	defer func() {
+		stopProvisioning()
+		<-provisionDone
+	}()
+
 	outbound := allowlist.New(database, allowlist.Lock{Locked: cfg.OutboundDomainsLocked, Domains: cfg.OutboundDomains}, logger)
 	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
 	assetsClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger, CacheTTL: time.Hour, CacheBytes: 64 << 20})
@@ -314,6 +330,7 @@ func run() error {
 			news.NewHandler(egressClient, logger),
 			actions.NewHandler(dashboardsService, egressClient, folderAccess.RequireDashboard(folders.NeedEdit), logger),
 			assets.NewHandler(assetsClient, logger),
+			dashprovision.NewHandler(provisioner, logger),
 		},
 		Mounts: []server.Mount{{
 			Path:    "/mcp",
