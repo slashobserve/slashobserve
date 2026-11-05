@@ -17,7 +17,7 @@ const (
 	MaxEvidence       = 4
 	MaxWords          = 400
 	MaxMarkdownRunes  = 4000
-	maxTitleRunes     = 80
+	MaxTitleRunes     = 80
 	maxFirstLineRunes = 200
 	evidenceWidth     = 12
 	evidenceHeight    = 8
@@ -37,11 +37,11 @@ type Author struct{ Kind, ID, Name string }
 
 type Finding struct {
 	ID, AgentRequestID, DashboardID, AnnotationID string
-	Title, Markdown                                string
-	Evidence                                       []spec.Panel
-	From, To, CreatedAt                            time.Time
-	RequestTo                                      *time.Time
-	CreatedBy                                      Author
+	Title, Markdown                               string
+	Evidence                                      []spec.Panel
+	From, To, CreatedAt                           time.Time
+	RequestTo                                     *time.Time
+	CreatedBy                                     Author
 }
 
 func Title(text string) string {
@@ -49,7 +49,7 @@ func Title(text string) string {
 	if line == "" {
 		return defaultTitle
 	}
-	return cutRunes(line, maxTitleRunes)
+	return cutRunes(line, MaxTitleRunes)
 }
 
 func FirstLine(markdown string) string {

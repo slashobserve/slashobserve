@@ -194,4 +194,3 @@ func findingOf(r dbsqlc.Finding, requestTo pgtype.Timestamptz) (Finding, error) 
 	}
 	return f, nil
 }
-

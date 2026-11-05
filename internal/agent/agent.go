@@ -163,7 +163,7 @@ func New(c Config) *Agent {
 	}
 	specs := make([]llm.ToolSpec, 0)
 	for _, t := range c.Tools.List() {
-		if t.MCPOnly {
+		if !t.OfferedIn(tools.ModeCreate) {
 			continue
 		}
 		t = t.ForAgent()

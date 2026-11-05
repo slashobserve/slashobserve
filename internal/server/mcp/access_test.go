@@ -122,7 +122,7 @@ func newAccessFixture(t *testing.T) *accessFixture {
 	for _, p := range []auth.Principal{adminKey, editorKey, commenterKey, viewerKey, creatorKey} {
 		authn[bearer(p)] = p
 	}
-	f := &fixture{handler: NewHandler(reg, authn, Options{PublicURL: base, Version: "test", Logger: logger}), tools: reg.List()}
+	f := &fixture{handler: NewHandler(reg, authn, Options{PublicURL: base, Version: "test", Logger: logger}), tools: offeredOverMCP(reg)}
 	return &accessFixture{fixture: f, db: database, service: service, comments: comments}
 }
 

@@ -567,9 +567,9 @@ func TestASaveResultOverItsLimitIsTrimmedNeverAnError(t *testing.T) {
 
 func TestListSchemas(t *testing.T) {
 	wantNames := []string{
-		"create_dashboard", "get_dashboard", "get_panels", "get_schema", "get_spec_guide", "import_grafana_dashboard", "lint_query",
-		"list_comments", "list_dashboards", "list_datasources", "list_folders", "list_label_values", "list_labels", "list_metrics",
-		"query_instant", "query_range", "reply_to_comment", "resolve_comment", "sample_rows", "update_dashboard", "update_panels",
+		"create_dashboard", "create_finding", "get_dashboard", "get_panels", "get_schema", "get_spec_guide", "import_grafana_dashboard", "lint_query",
+		"list_comments", "list_dashboards", "list_datasources", "list_findings", "list_folders", "list_label_values", "list_labels", "list_metrics",
+		"query_instant", "query_range", "reply_to_comment", "resolve_comment", "sample_rows", "save_finding", "update_dashboard", "update_panels",
 	}
 	first := New(Deps{}).List()
 	var names []string
