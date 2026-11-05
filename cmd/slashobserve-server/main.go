@@ -239,6 +239,7 @@ func run() error {
 		return databaseExit(cfg.DatabaseURL, err)
 	}
 	defer database.Close()
+	serverMetrics.Pool(database.Stat)
 
 	if err := database.Migrate(ctx); err != nil {
 		return migrationExit(err)
@@ -302,7 +303,7 @@ func run() error {
 
 	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger, revisions.WorkerOptions{RunTimeout: cfg.Agent.RunTimeout})
 	defer stopWorkers()
-	stopScheduler := startScheduler(ctx, scheduler.New(logger, database, scheduler.NopMetrics{}, instanceID()), logger)
+	stopScheduler := startScheduler(ctx, scheduler.New(logger, database, serverMetrics.Scheduler(), instanceID()), logger)
 	defer stopScheduler()
 
 	provisioner := dashprovision.New(logger, dashboardsService, folderAccess, database, cfg.ProvisionDir)

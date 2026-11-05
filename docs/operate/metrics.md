@@ -27,16 +27,21 @@ The [demo stack](../get-started/quick-start.md) already scrapes its server this 
 
 A series with labels appears after its first observation, so a server that has run no agent request serves no `slashobserve_agent_runs_total` yet.
 
-| Series                                       | Type      | Labels                         | What it counts                                                                                           |
-| -------------------------------------------- | --------- | ------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| `slashobserve_http_request_duration_seconds` | histogram | `route`, `method`, `status`    | Time to answer an HTTP request.                                                                          |
-| `slashobserve_agent_runs_total`              | counter   | `kind`, `outcome`              | Agent runs that ended.                                                                                   |
-| `slashobserve_model_call_duration_seconds`   | histogram | `provider`, `model`, `outcome` | Time of one model call, including its retries.                                                           |
-| `slashobserve_model_tokens_total`            | counter   | `direction`                    | Tokens the model provider reported.                                                                      |
-| `slashobserve_proxy_query_duration_seconds`  | histogram | `datasource_type`, `outcome`   | Time of one datasource call from the query proxy, for panel data, variable values and save checks alike. |
-| `slashobserve_proxy_cache_total`             | counter   | `result`                       | Panel data lookups in the query proxy's shared result cache.                                             |
-| `slashobserve_scheduler_jobs_total`          | counter   | `job`, `outcome`               | Scheduled job runs that ended.                                                                           |
-| `slashobserve_scheduler_job_running`         | gauge     | `job`                          | Runs of a scheduled job in flight on this server.                                                        |
+| Series                                            | Type      | Labels                         | What it counts                                                                                           |
+| ------------------------------------------------- | --------- | ------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `slashobserve_http_request_duration_seconds`      | histogram | `route`, `method`, `status`    | Time to answer an HTTP request.                                                                          |
+| `slashobserve_agent_runs_total`                   | counter   | `kind`, `outcome`              | Agent runs that ended.                                                                                   |
+| `slashobserve_model_call_duration_seconds`        | histogram | `provider`, `model`, `outcome` | Time of one model call, including its retries.                                                           |
+| `slashobserve_model_tokens_total`                 | counter   | `direction`                    | Tokens the model provider reported.                                                                      |
+| `slashobserve_proxy_query_duration_seconds`       | histogram | `datasource_type`, `outcome`   | Time of one datasource call from the query proxy, for panel data, variable values and save checks alike. |
+| `slashobserve_proxy_cache_total`                  | counter   | `result`                       | Panel data lookups in the query proxy's shared result cache.                                             |
+| `slashobserve_scheduler_jobs_total`               | counter   | `job`, `outcome`               | Scheduled job runs that ended.                                                                           |
+| `slashobserve_scheduler_job_running`              | gauge     | `job`                          | Runs of a scheduled job in flight on this server.                                                        |
+| `slashobserve_db_pool_connections`                | gauge     | `state`                        | Database pool connections that are `acquired`, `idle` or `constructing`.                                 |
+| `slashobserve_db_pool_max_connections`            | gauge     |                                | The most connections the database pool opens.                                                            |
+| `slashobserve_db_pool_acquires_total`             | counter   |                                | Connections taken from the database pool.                                                                |
+| `slashobserve_db_pool_empty_acquires_total`       | counter   |                                | Acquires that waited because the pool had no idle connection.                                            |
+| `slashobserve_db_pool_acquire_wait_seconds_total` | counter   |                                | Time spent waiting to acquire a pool connection.                                                         |
 
 The Go runtime series (`go_*`) and the process series (`process_*`) come from the Prometheus client library.
 
