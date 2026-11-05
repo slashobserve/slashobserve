@@ -175,6 +175,18 @@ type Instance struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type Job struct {
+	Name           string
+	EverySeconds   int32
+	NextRunAt      pgtype.Timestamptz
+	LeasedBy       string
+	LeaseUntil     pgtype.Timestamptz
+	LastStartedAt  pgtype.Timestamptz
+	LastFinishedAt pgtype.Timestamptz
+	LastOutcome    string
+	LastError      string
+}
+
 type OidcLoginState struct {
 	StateHash    []byte
 	Nonce        string
