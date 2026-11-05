@@ -12,7 +12,7 @@ import {
 
 import { api } from "@/api/client"
 import { ApiError, maxRetryDelayMs, unwrap } from "@/api/errors"
-import { dashboardKeys, observeKeys } from "@/api/keys"
+import { type ChatListFilters, dashboardKeys, observeKeys } from "@/api/keys"
 import type { components, paths } from "@/api/schema.gen"
 import type { StatusTone } from "@/components/status-label"
 
@@ -104,15 +104,18 @@ export function requestStatusView(
   }
 }
 
-function myRequestsQuery(source: "all" | "observe", limit: number) {
+function myRequestsQuery(filters: ChatListFilters, limit: number) {
   return infiniteQueryOptions({
-    queryKey: observeKeys.mine(source, limit),
+    queryKey: observeKeys.mine(filters, limit),
     queryFn: ({ pageParam, signal }) =>
       api
         .GET("/observe", {
           params: {
             query: {
-              source: source === "observe" ? "observe" : undefined,
+              source: filters.source,
+              q: filters.q,
+              pinned: filters.pinned,
+              dashboard_id: filters.dashboardId,
               limit,
               cursor: pageParam,
             },
@@ -135,8 +138,8 @@ function myRequestsQuery(source: "all" | "observe", limit: number) {
   })
 }
 
-export function useMyRequests(source: "all" | "observe", limit = 20) {
-  const query = useInfiniteQuery(myRequestsQuery(source, limit))
+export function useMyRequests(filters: ChatListFilters, limit = 20) {
+  const query = useInfiniteQuery(myRequestsQuery(filters, limit))
   const requests = useMemo(() => {
     const seen = new Set<string>()
     const unique: RequestSummary[] = []

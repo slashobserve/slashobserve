@@ -114,7 +114,7 @@ function HistoryList({
   const { principal } = useRouteContext({ from: "/_authed" })
   const canSave = canSavePrompts(principal)
   const openPanel = usePromptPanel((state) => state.openPanel)
-  const { requests, query } = useMyRequests("all", pageSize)
+  const { requests, query } = useMyRequests({}, pageSize)
   const loadMoreFailed = query.isFetchNextPageError
   const loadMoreErrorId = useId()
   const rows = useRef<HTMLUListElement>(null)

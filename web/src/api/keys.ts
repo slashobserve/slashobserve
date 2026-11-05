@@ -68,11 +68,18 @@ export const folderKeys = {
   permissions: (id: string) => ["folders", id, "permissions"] as const,
 }
 
+export type ChatListFilters = {
+  source?: "observe" | "investigate"
+  q?: string
+  pinned?: boolean
+  dashboardId?: string
+}
+
 export const observeKeys = {
   agent: () => ["agent"] as const,
   request: (id: string) => ["observe", id] as const,
-  mine: (source: "all" | "observe", limit: number) =>
-    ["observe-mine", source, limit] as const,
+  mine: (filters: ChatListFilters, limit: number) =>
+    ["observe-mine", filters, limit] as const,
   mineAll: () => ["observe-mine"] as const,
   create: () => ["observe-create"] as const,
   build: (id: string, saves: number) => ["observe-build", id, saves] as const,

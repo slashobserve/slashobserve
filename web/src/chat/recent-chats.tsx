@@ -12,7 +12,7 @@ const recentLimit = 5
 export function RecentChats() {
   const navigate = useNavigate()
   const headingId = useId()
-  const { requests, query } = useMyRequests("observe", recentLimit)
+  const { requests, query } = useMyRequests({ source: "observe" }, recentLimit)
 
   const failed = query.data === undefined && !query.isPending
 
