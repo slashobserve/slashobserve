@@ -178,6 +178,21 @@ type OutboundDomain struct {
 	CreatedByName string
 }
 
+type ProvisionError struct {
+	Path    string
+	Message string
+	SeenAt  pgtype.Timestamptz
+}
+
+type ProvisionedDashboard struct {
+	Path          string
+	DashboardID   pgtype.UUID
+	ContentSha256 string
+	FolderTitle   string
+	LastError     string
+	UpdatedAt     pgtype.Timestamptz
+}
+
 type SavedPrompt struct {
 	ID        pgtype.UUID
 	OwnerID   pgtype.UUID
