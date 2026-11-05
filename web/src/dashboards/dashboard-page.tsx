@@ -72,6 +72,7 @@ import { downloadSpec } from "./export-spec"
 import { gridMargin } from "./fit-layout"
 import { MoreMenu } from "./more-menu"
 import { PanelContainer } from "./panel-container"
+import { mixesDatasources } from "./panel-datasources"
 import type { PanelSource } from "./panel-source"
 import type { DashboardAccess } from "./permissions"
 import {
@@ -186,6 +187,10 @@ function DashboardView({
     timezone: spec.timezone,
     urlVars: search.vars,
   })
+  const mixedDatasources = useMemo(
+    () => mixesDatasources(spec, selections),
+    [spec, selections]
+  )
 
   const retryBlocking = useRef<(() => void) | undefined>(undefined)
   useEffect(() => {
@@ -522,6 +527,7 @@ function DashboardView({
                   blockedBy={blockedBy}
                   onRetryBlocked={onRetryBlocked}
                   refreshMs={refreshMs}
+                  mixedDatasources={mixedDatasources}
                   editable={editing && canEdit}
                   layoutSession={editing}
                   openComments={

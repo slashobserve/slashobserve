@@ -16,6 +16,7 @@ import type { FieldConfig } from "../field-config"
 import { dataRenderers } from "../index"
 import { reducerLabel } from "../reducers"
 import { thresholdColor } from "../thresholds"
+import { displayLabels } from "../transforms/series-names"
 import type { CursorMember } from "../shared-cursor"
 import type { PanelRenderer, PanelRendererProps } from "../types"
 import { Unsupported } from "../unsupported"
@@ -637,16 +638,32 @@ export function TimeseriesChart({
     () => chartSeries(aligned.series, configs, slots),
     [aligned.series, configs, slots]
   )
+  const shownLabels = useMemo(() => {
+    const labels = displayLabels(
+      panel,
+      aligned.series.map(({ frame, field, label }) => ({
+        frame,
+        field,
+        name: label,
+      }))
+    )
+    return new Map(aligned.series.map(({ key }, index) => [key, labels[index]]))
+  }, [panel, aligned.series])
+  const shownLabel = useCallback(
+    (entry: { key: string; label: string }) =>
+      shownLabels.get(entry.key) ?? entry.label,
+    [shownLabels]
+  )
 
   const legendMode = effectiveLegendMode(options.legendMode, reducers)
   const order = useMemo(
     () =>
       legendOrder(
-        series.map(({ key, label, fieldValues, config }) => ({
-          key,
-          label,
-          values: fieldValues,
-          hidden: config.hideInLegend,
+        series.map((entry) => ({
+          key: entry.key,
+          label: shownLabel(entry),
+          values: entry.fieldValues,
+          hidden: entry.config.hideInLegend,
         })),
         {
           mode: legendMode,
@@ -657,7 +674,7 @@ export function TimeseriesChart({
           hideEmpty: options.legendHideEmpty,
         }
       ),
-    [series, legendMode, reducers, options]
+    [series, shownLabel, legendMode, reducers, options]
   )
   const listed = useMemo(
     () => order.map((index) => series[index]),
@@ -677,13 +694,13 @@ export function TimeseriesChart({
     if (!rightLegend || reducers.length === 0) return null
     const rem = rootFontSize()
     return legendTableWidth(
-      listed.map(({ label }) => label),
+      listed.map(shownLabel),
       reducers.map(reducerLabel),
       cells,
       textMeasure(rem),
       rem
     )
-  }, [rightLegend, listed, reducers, cells, textMeasure])
+  }, [rightLegend, listed, shownLabel, reducers, cells, textMeasure])
   const legendWidth = rightLegend
     ? rightLegendWidth(tableWidth, width, options.legendWidth)
     : 0
@@ -718,7 +735,7 @@ export function TimeseriesChart({
     return {
       state,
       entries: series.map((entry, index): TooltipSeries => ({
-        label: entry.label,
+        label: shownLabel(entry),
         color: entry.color,
         line: entry.line,
         style: entry.style,
@@ -731,7 +748,7 @@ export function TimeseriesChart({
         rowColor,
       })),
     }
-  }, [aligned.xs, ghosts, series, hidden, rowColor])
+  }, [aligned.xs, ghosts, series, shownLabel, hidden, rowColor])
 
   const exemplarLayer = useMemo(
     () =>
@@ -879,7 +896,7 @@ export function TimeseriesChart({
 
   const items: LegendItem[] = listed.map((entry) => ({
     key: entry.key,
-    label: entry.label,
+    label: shownLabel(entry),
     color: entry.color,
     line: entry.line,
     style: entry.style,
