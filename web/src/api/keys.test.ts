@@ -1,6 +1,12 @@
 import { describe, expect, test } from "vitest"
 
-import { dashboardKeys, datasourceKeys, editorKeys, observeKeys } from "./keys"
+import {
+  dashboardKeys,
+  datasourceKeys,
+  editorKeys,
+  findingKeys,
+  observeKeys,
+} from "./keys"
 
 function isPrefix(prefix: readonly unknown[], key: readonly unknown[]) {
   return prefix.every((part, index) => part === key[index])
@@ -137,5 +143,26 @@ describe("editorKeys", () => {
     expect(isPrefix(dashboardKeys.all, editorKeys.suggestion("d", "s"))).toBe(
       false
     )
+  })
+})
+
+describe("findingKeys", () => {
+  test("every finding key sits under the findings prefix", () => {
+    for (const key of [
+      findingKeys.one("f1"),
+      findingKeys.forDashboard("d1"),
+      findingKeys.panelData("f1", "p1", { from: "now-1h", to: "now" }),
+    ]) {
+      expect(isPrefix(findingKeys.all, key)).toBe(true)
+    }
+  })
+
+  test("panel data sits under its finding", () => {
+    expect(
+      isPrefix(findingKeys.one("f1"), findingKeys.panelData("f1", "p1", {}))
+    ).toBe(true)
+    expect(
+      isPrefix(findingKeys.one("f2"), findingKeys.panelData("f1", "p1", {}))
+    ).toBe(false)
   })
 })

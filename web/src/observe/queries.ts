@@ -189,7 +189,14 @@ export function usePollFailures(id: string): number {
   return query === undefined ? 0 : pollFailures(query)
 }
 
-export type ObserveInput = { prompt: string; dashboardId?: string }
+export type ObserveInput = {
+  prompt: string
+  dashboardId?: string
+  kind?: "build" | "investigate"
+  panelId?: string
+  from?: string
+  to?: string
+}
 
 function recordRequest(queryClient: QueryClient, request: ObserveRequest) {
   queryClient.setQueryData(observeKeys.request(request.id), request)
@@ -206,9 +213,25 @@ export function useCreateObserveRequest() {
   return useMutation({
     mutationKey: observeKeys.create(),
     networkMode: "always",
-    mutationFn: ({ prompt, dashboardId }: ObserveInput) =>
+    mutationFn: ({
+      prompt,
+      dashboardId,
+      kind,
+      panelId,
+      from,
+      to,
+    }: ObserveInput) =>
       api
-        .POST("/observe", { body: { prompt, dashboard_id: dashboardId } })
+        .POST("/observe", {
+          body: {
+            prompt,
+            dashboard_id: dashboardId,
+            ...(kind === undefined ? {} : { kind }),
+            ...(panelId === undefined ? {} : { panel_id: panelId }),
+            ...(from === undefined ? {} : { from }),
+            ...(to === undefined ? {} : { to }),
+          },
+        })
         .then(unwrap)
         .then((body) => body.request),
     onSuccess: (request) => recordRequest(queryClient, request),

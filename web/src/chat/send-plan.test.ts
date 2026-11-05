@@ -37,9 +37,47 @@ describe("planSend", () => {
     })
   })
 
-  it("refuses to investigate for now", () => {
+  it("investigates a dashboard panel over a window and stays in place", () => {
+    expect(
+      planSend({
+        command: "investigate",
+        text: "why did p95 jump",
+        dashboardId,
+        panelId: "latency",
+        from: "now-6h",
+        to: "now",
+      })
+    ).toEqual({
+      input: {
+        prompt: "why did p95 jump",
+        kind: "investigate",
+        dashboardId,
+        panelId: "latency",
+        from: "now-6h",
+        to: "now",
+      },
+      opens: "same",
+    })
+  })
+
+  it("opens the chat for an investigation without a dashboard", () => {
     expect(planSend({ command: "investigate", text: "why" })).toEqual({
-      error: "Investigate is not available yet.",
+      input: { prompt: "why", kind: "investigate" },
+      opens: "chat",
+    })
+  })
+
+  it("drops a panel without a dashboard and a window without both ends", () => {
+    expect(
+      planSend({
+        command: "investigate",
+        text: "why",
+        panelId: "latency",
+        from: "now-6h",
+      })
+    ).toEqual({
+      input: { prompt: "why", kind: "investigate" },
+      opens: "chat",
     })
   })
 })

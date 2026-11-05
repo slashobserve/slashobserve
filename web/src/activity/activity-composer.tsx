@@ -63,7 +63,6 @@ type Props = {
 const counterThreshold = 3500
 const commands = availableCommands({
   hasDashboard: true,
-  investigate: false,
   surface: "activity",
 })
 const panelGoneText = "That panel no longer exists. Pick another target."

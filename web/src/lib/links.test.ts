@@ -5,6 +5,8 @@ import {
   chatPath,
   dashboardLink,
   dashboardPath,
+  findingLink,
+  findingPath,
   folderPath,
   logsUrl,
   slugOf,
@@ -62,6 +64,14 @@ describe("dashboard addresses", () => {
     expect(folderPath(id)).toBe(`/f/${id}`)
     expect(chatPath(id)).toBe(`/c/${id}`)
     expect(buildPath(id)).toBe(`/b/${id}`)
+  })
+
+  it("builds the finding address", () => {
+    expect(findingPath(id)).toBe(`/findings/${id}`)
+    expect(findingLink(id)).toEqual({
+      to: "/findings/$findingId",
+      params: { findingId: id },
+    })
   })
 })
 

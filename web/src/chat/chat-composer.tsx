@@ -151,7 +151,6 @@ export function ChatComposer({
 
   const available = availableCommands({
     hasDashboard: dashboardId !== undefined,
-    investigate: false,
     surface: "chat",
   })
   const matches = matchingCommands(prompt, available)

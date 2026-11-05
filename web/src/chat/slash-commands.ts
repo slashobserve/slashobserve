@@ -48,11 +48,10 @@ export function withCommand(
 
 export function availableCommands(input: {
   hasDashboard: boolean
-  investigate: boolean
   surface: "chat" | "activity"
 }): SlashCommand[] {
   return allCommands.filter((name) => {
-    if (name === "investigate") return input.investigate
+    if (name === "investigate") return true
     if (name === "import") return input.surface === "chat"
     return input.hasDashboard
   })

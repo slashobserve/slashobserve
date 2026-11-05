@@ -207,6 +207,18 @@ export const exploreKeys = {
   targets: (search: string) => ["explore", "targets", search] as const,
 }
 
+export const findingKeys = {
+  all: ["findings"] as const,
+  one: (id: string) => ["findings", id] as const,
+  forDashboard: (dashboardId: string) =>
+    ["findings", "dashboard", dashboardId] as const,
+  panelData: (
+    id: string,
+    panelId: string,
+    params: { from?: string; to?: string; maxDataPoints?: number }
+  ) => ["findings", id, "panels", panelId, params] as const,
+}
+
 export const annotationKeys = {
   all: ["annotations"] as const,
   range: (dashboardId: string, from: string, to: string) =>

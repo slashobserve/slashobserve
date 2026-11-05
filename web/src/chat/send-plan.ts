@@ -6,18 +6,39 @@ export type Opens = "build" | "chat" | "same"
 
 export type SendPlan = { input: ObserveInput; opens: Opens }
 
-export function planSend({
-  command,
-  text,
-  dashboardId,
-}: {
+type SendContext = {
   command: SlashCommand | null
   text: string
   dashboardId?: string
-}): SendPlan | { error: string } {
+  panelId?: string
+  from?: string
+  to?: string
+}
+
+function investigation({
+  text,
+  dashboardId,
+  panelId,
+  from,
+  to,
+}: SendContext): SendPlan {
+  const input: ObserveInput = { prompt: text, kind: "investigate" }
+  if (dashboardId !== undefined) input.dashboardId = dashboardId
+  if (dashboardId !== undefined && panelId !== undefined) {
+    input.panelId = panelId
+  }
+  if (from !== undefined && to !== undefined) {
+    input.from = from
+    input.to = to
+  }
+  return { input, opens: dashboardId === undefined ? "chat" : "same" }
+}
+
+export function planSend(context: SendContext): SendPlan | { error: string } {
+  const { command, text, dashboardId } = context
   switch (command) {
     case "investigate":
-      return { error: "Investigate is not available yet." }
+      return investigation(context)
     case "import":
       return { input: { prompt: text }, opens: "build" }
     case "revise":

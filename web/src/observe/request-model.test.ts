@@ -110,6 +110,36 @@ describe("retryAction", () => {
     })
   })
 
+  it("investigates again with the same dashboard, panel and window", () => {
+    expect(
+      retryAction({
+        source: "investigate",
+        dashboard_id: id,
+        panel_id: "latency",
+        from: "2026-11-04T10:00:00Z",
+        to: "2026-11-04T11:00:00Z",
+      })
+    ).toEqual({
+      kind: "investigate",
+      dashboardId: id,
+      panelId: "latency",
+      from: "2026-11-04T10:00:00Z",
+      to: "2026-11-04T11:00:00Z",
+    })
+  })
+
+  it("investigates again without context it does not have", () => {
+    expect(
+      retryAction({
+        source: "investigate",
+        dashboard_id: null,
+        panel_id: null,
+        from: "2026-11-04T10:00:00Z",
+        to: null,
+      })
+    ).toEqual({ kind: "investigate" })
+  })
+
   it("offers no retry for comment revisions", () => {
     expect(retryAction({ source: "comment", dashboard_id: id })).toEqual({
       kind: "none",

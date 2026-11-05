@@ -16,6 +16,8 @@ import {
 import { CancelRequestButton } from "@/observe/request-actions"
 import { useSettledRefresh } from "@/observe/use-settled-refresh"
 
+import { FindingCard } from "@/findings/finding-card"
+
 import { BuildCard } from "./build-card"
 import { ResultCard } from "./result-card"
 import { RunningFor } from "./run-duration"
@@ -50,6 +52,8 @@ export type TurnSummary = {
   continues_id: string | null
   continued_by: string | null
   continue_note: string | null
+  from?: string | null
+  to?: string | null
 }
 
 type Props = {
@@ -106,9 +110,11 @@ export function RequestTurn({
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const investigates = summary.source === "investigate"
   const query = useQuery({
     ...observeRequestQuery(summary.id),
-    enabled: isActive(summary.status) || loadSteps || detailsOpen,
+    enabled:
+      isActive(summary.status) || loadSteps || detailsOpen || investigates,
   })
   const live = query.data
   const settled = !isActive(summary.status)
@@ -152,7 +158,7 @@ export function RequestTurn({
         <div className="flex min-w-0 flex-1 flex-col gap-3 pt-[3px]">
           {active ? (
             <div className="flex flex-col gap-2.5">
-              {build !== null ? (
+              {build !== null && !investigates ? (
                 <BuildCard
                   request={detail ?? request}
                   build={build}
@@ -173,11 +179,13 @@ export function RequestTurn({
                         queuePosition: detail.queue_position,
                         canceling: detail.cancel_requested_at !== null,
                       })
-                    : dashboardTitle !== undefined
-                      ? `Revising ${dashboardTitle}`
-                      : request.dashboard_id !== null
-                        ? "Revising the dashboard"
-                        : "Building the dashboard"}
+                    : investigates
+                      ? "Investigating"
+                      : dashboardTitle !== undefined
+                        ? `Revising ${dashboardTitle}`
+                        : request.dashboard_id !== null
+                          ? "Revising the dashboard"
+                          : "Building the dashboard"}
                 </span>
               )}
               {detail?.can_cancel ? (
@@ -243,7 +251,17 @@ export function RequestTurn({
               You saved what was built as version {request.result_version}.
             </p>
           ) : null}
-          {(request.status === "succeeded" || savedBuild) &&
+          {investigates && request.status === "succeeded" ? (
+            live?.finding != null ? (
+              <FindingCard finding={live.finding} showOpenLink />
+            ) : live !== undefined ? (
+              <p className="text-[13px] text-muted-foreground">
+                The run finished without a finding.
+              </p>
+            ) : null
+          ) : null}
+          {!investigates &&
+          (request.status === "succeeded" || savedBuild) &&
           request.result_version !== null &&
           request.dashboard_id !== null ? (
             <ResultCard
@@ -253,7 +271,8 @@ export function RequestTurn({
               eager={loadSteps}
             />
           ) : null}
-          {request.status === "succeeded" &&
+          {!investigates &&
+          request.status === "succeeded" &&
           (request.result_version === null || request.dashboard_id === null) ? (
             <p className="text-[13px] text-muted-foreground">
               The request finished without a dashboard.

@@ -66,13 +66,28 @@ type FailedRequest = Pick<
   ObserveRequest,
   | "source"
   | "dashboard_id"
+  | "panel_id"
   | "prompt"
   | "error"
   | "failure_code"
   | "continued_by"
->
+> &
+  Partial<Pick<ObserveRequest, "from" | "to">>
 
 export type RunOpens = "chat" | "build"
+
+function newRunPage(
+  request: Pick<ObserveRequest, "source" | "dashboard_id">,
+  opens: RunOpens
+): "/b/$requestId" | "/c/$requestId" | null {
+  if (request.source === "observe") {
+    return opens === "build" ? "/b/$requestId" : "/c/$requestId"
+  }
+  if (request.source === "investigate" && request.dashboard_id === null) {
+    return "/c/$requestId"
+  }
+  return null
+}
 
 export function useOpenNewRun(
   request: Pick<ObserveRequest, "source" | "dashboard_id">,
@@ -80,11 +95,11 @@ export function useOpenNewRun(
   opens: RunOpens = "chat"
 ): (next: ObserveRequest) => Promise<void> {
   const navigate = useNavigate()
-  const opensPage = retryAction(request).kind === "create"
+  const page = newRunPage(request, opens)
   return async (next) => {
-    if (opensPage) {
+    if (page !== null) {
       await navigate({
-        to: opens === "build" ? "/b/$requestId" : "/c/$requestId",
+        to: page,
         params: { requestId: next.id },
         replace: true,
       })
@@ -109,6 +124,17 @@ function ContinuedNote({ request }: { request: FailedRequest }) {
   )
 }
 
+function failureHeading(source: FailedRequest["source"]): string {
+  switch (source) {
+    case "observe":
+      return "The dashboard could not be built"
+    case "investigate":
+      return "The question could not be answered"
+    default:
+      return "The dashboard could not be updated"
+  }
+}
+
 export function TurnFailure({
   request,
   onRetried,
@@ -128,10 +154,22 @@ export function TurnFailure({
   async function retry() {
     setRetrying(true)
     try {
-      const next = await create.mutateAsync({
-        prompt: request.prompt,
-        dashboardId: action.kind === "revise" ? action.dashboardId : undefined,
-      })
+      const next = await create.mutateAsync(
+        action.kind === "investigate"
+          ? {
+              prompt: request.prompt,
+              kind: "investigate",
+              dashboardId: action.dashboardId,
+              panelId: action.panelId,
+              from: action.from,
+              to: action.to,
+            }
+          : {
+              prompt: request.prompt,
+              dashboardId:
+                action.kind === "revise" ? action.dashboardId : undefined,
+            }
+      )
       await openNewRun(next)
     } catch (cause) {
       toast.error(describeSubmitError(cause).message)
@@ -150,11 +188,7 @@ export function TurnFailure({
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-2.5">
         <div className="flex flex-col gap-0.5">
-          <p className="font-semibold">
-            {request.source === "observe"
-              ? "The dashboard could not be built"
-              : "The dashboard could not be updated"}
-          </p>
+          <p className="font-semibold">{failureHeading(request.source)}</p>
           <p className="wrap-anywhere text-muted-foreground">
             {explained?.meaning ??
               sentence(request.error ?? "The request failed")}

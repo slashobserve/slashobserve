@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
-import { dashboardKeys } from "@/api/keys"
+import { dashboardKeys, findingKeys } from "@/api/keys"
 
 type Settling = {
   active: boolean
@@ -24,6 +24,11 @@ export function useSettledRefresh({ active, status, dashboardId }: Settling) {
         void queryClient.invalidateQueries({
           queryKey: dashboardKeys.latest(dashboardId),
         })
+        if (status === "succeeded") {
+          void queryClient.invalidateQueries({
+            queryKey: findingKeys.forDashboard(dashboardId),
+          })
+        }
       }
     }
     wasActive.current = active
