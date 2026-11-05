@@ -38,10 +38,13 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/links"
+	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/llm/providers"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/metrics"
 	"github.com/slashobserve/slashobserve/internal/news"
 	"github.com/slashobserve/slashobserve/internal/prompts"
+	dashprovision "github.com/slashobserve/slashobserve/internal/provision"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/queryproxy/proxyhttp"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -208,11 +211,14 @@ func run() error {
 	}
 	logger.Info("datasources configured", slog.Int("count", len(cfg.Datasources)))
 
+	serverMetrics := metrics.New()
+
 	llmProvider, err := providers.New(cfg.LLM, logger)
 	if err != nil {
 		return described("llm_provider_failed", err)
 	}
 	if llmProvider != nil {
+		llmProvider = llm.WithMetrics(llmProvider, serverMetrics.ModelCalls())
 		logger.Info("llm provider configured", slog.String("provider", llmProvider.Name()), slog.String("model", llmProvider.Model()))
 	} else {
 		logger.Info("no llm provider configured; the agent is off")
@@ -250,9 +256,9 @@ func run() error {
 
 	folderAccess := folders.NewAccess(database)
 
-	runner := queryproxy.NewRunner(registry, logger)
+	runner := queryproxy.NewRunner(registry, logger, queryproxy.WithMetrics(serverMetrics.Proxy()))
 	dashboardsService := dashboards.New(database, runner, folderAccess, logger)
-	proxyRunner := queryproxy.NewRunner(registry, logger, queryproxy.WithValueCache())
+	proxyRunner := queryproxy.NewRunner(registry, logger, queryproxy.WithValueCache(), queryproxy.WithMetrics(serverMetrics.Proxy()))
 	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, dashboardsService, folderAccess, registry, logger)
 
 	importsService := imports.New(database, dashboardsService, folderAccess, registry, logger)
@@ -285,6 +291,7 @@ func run() error {
 
 			SessionRenewBytes: cfg.Agent.SessionRenewBytes,
 		}), revisions.NewSteps(database, logger))
+		reviser = agent.WithMetrics(reviser, serverMetrics.AgentRuns())
 		observeOpts.Provider, observeOpts.Model = llmProvider.Name(), llmProvider.Model()
 		observeOpts.Effort = reportedEffort(cfg.LLM)
 	}
@@ -297,6 +304,18 @@ func run() error {
 	defer stopWorkers()
 	stopScheduler := startScheduler(ctx, scheduler.New(logger, database, scheduler.NopMetrics{}, instanceID()), logger)
 	defer stopScheduler()
+
+	provisioner := dashprovision.New(logger, dashboardsService, folderAccess, database, cfg.ProvisionDir)
+	provisionCtx, stopProvisioning := context.WithCancel(ctx)
+	provisionDone := make(chan struct{})
+	go func() {
+		defer close(provisionDone)
+		provisioner.Watch(provisionCtx)
+	}()
+	defer func() {
+		stopProvisioning()
+		<-provisionDone
+	}()
 
 	outbound := allowlist.New(database, allowlist.Lock{Locked: cfg.OutboundDomainsLocked, Domains: cfg.OutboundDomains}, logger)
 	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
@@ -323,11 +342,13 @@ func run() error {
 			actions.NewHandler(dashboardsService, egressClient, folderAccess.RequireDashboard(folders.NeedEdit), logger),
 			assets.NewHandler(assetsClient, logger),
 			annotationsHandler,
+			dashprovision.NewHandler(provisioner, logger),
 		},
-		Mounts: []server.Mount{{
+		Mounts: append([]server.Mount{{
 			Path:    "/mcp",
 			Handler: mcp.NewHandler(toolRegistry, authService, mcp.Options{PublicURL: cfg.PublicURL, Version: version, Logger: logger}),
-		}},
+		}}, metricsMounts(cfg.Metrics, serverMetrics)...),
+		Metrics:       serverMetrics.HTTP(),
 		ContractCheck: cfg.APIContractCheck,
 		Readiness: []server.Check{
 			{Name: "database", Run: database.Ping},
@@ -394,6 +415,13 @@ func revisionsBuildError(err error) error {
 		return revisions.ErrDashboardNotFound
 	}
 	return err
+}
+
+func metricsMounts(enabled bool, registry *metrics.Registry) []server.Mount {
+	if !enabled {
+		return nil
+	}
+	return []server.Mount{{Path: "/metrics", Handler: registry.Handler()}}
 }
 
 func reportedEffort(llm config.LLM) string {

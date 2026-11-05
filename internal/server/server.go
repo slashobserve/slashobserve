@@ -33,6 +33,10 @@ type Mount struct {
 	Handler http.Handler
 }
 
+type RequestMetrics interface {
+	ObserveRequest(route, method string, status int, took time.Duration)
+}
+
 type DatasourceUsage interface {
 	DatasourceUsage(ctx context.Context, by auth.Principal) (map[string]int, error)
 }
@@ -46,6 +50,7 @@ type Options struct {
 	API             []Registrar
 	Mounts          []Mount
 	Redirects       Redirects
+	Metrics         RequestMetrics
 
 	ContractCheck bool
 }
@@ -54,6 +59,9 @@ func New(opts Options) (http.Handler, error) {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	engine.ForwardedByClientIP = false
+	if opts.Metrics != nil {
+		engine.Use(observeRequests(opts.Metrics))
+	}
 	engine.Use(logRequests(opts.Logger), recoverPanics(opts.Logger), securityHeaders)
 	registerHealthRoutes(engine, opts.Logger, opts.Readiness)
 	apiGroup := engine.Group(apiPrefix)
@@ -94,12 +102,20 @@ func recoverPanics(logger *slog.Logger) gin.HandlerFunc {
 	})
 }
 
+func observeRequests(m RequestMetrics) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		c.Next()
+		m.ObserveRequest(c.FullPath(), c.Request.Method, c.Writer.Status(), time.Since(start))
+	}
+}
+
 func logRequests(logger *slog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		c.Next()
 		level := slog.LevelInfo
-		if p := c.Request.URL.Path; p == "/healthz" || p == "/readyz" {
+		if p := c.Request.URL.Path; p == "/healthz" || p == "/readyz" || p == "/metrics" {
 			level = slog.LevelDebug
 		}
 		logger.LogAttrs(c.Request.Context(), level, "http request",

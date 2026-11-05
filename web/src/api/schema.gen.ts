@@ -1320,6 +1320,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/provision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show what the provisioning directory became.
+         * @description Lists every file that became a dashboard and every file that never did, each sorted by `path` in byte order. Paths are relative to `SLASHOBSERVE_PROVISION_DIR`, with `/` between directories. The lists are kept when provisioning is turned off, so they can still be read; `dir` is then null. Only Admins may call this endpoint.
+         */
+        get: operations["getProvisionStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/provision/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Provision the directory now.
+         * @description Reads every file of the directory once, as the server does at startup and when a file changes, and answers the status afterwards. An unchanged file saves nothing, and a changed file adds one version. Only Admins may call this endpoint.
+         */
+        post: operations["runProvisioning"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2449,6 +2489,32 @@ export interface components {
             /** @enum {string} */
             code: "datasources_unresolved";
             datasources: components["schemas"]["ImportSourceDatasource"][];
+        };
+        ProvisionStatus: {
+            /** @description The value of `SLASHOBSERVE_PROVISION_DIR`, or null when provisioning is off. */
+            dir: string | null;
+            /** @description Files that became a dashboard, including files that have since left the directory, because their dashboards stay. */
+            dashboards: {
+                path: string;
+                /** Format: uuid */
+                dashboard_id: string;
+                /** @description The title of the folder the file was first provisioned into. */
+                folder: string;
+                /**
+                 * Format: date-time
+                 * @description When the file's content was last saved as a version.
+                 */
+                updated_at: string;
+                /** @description Why the file's current content could not be saved; the dashboard keeps its last saved version. Null when the last save of the file worked. */
+                last_error: string | null;
+            }[];
+            /** @description Files in the directory that never became a dashboard. */
+            errors: {
+                path: string;
+                message: string;
+                /** Format: date-time */
+                seen_at: string;
+            }[];
         };
     };
     responses: {
@@ -5897,6 +5963,69 @@ export interface operations {
                 };
             };
             500: components["responses"]["Internal"];
+        };
+    };
+    getProvisionStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The provisioning status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    runProvisioning: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The provisioning status after the run. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Provisioning is off because `SLASHOBSERVE_PROVISION_DIR` is not set (`provisioning_off`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The directory cannot be read (`provision_dir_unreadable`), or the server failed (`internal`). */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
 }

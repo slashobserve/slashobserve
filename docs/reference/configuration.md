@@ -13,8 +13,9 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 | --------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `SLASHOBSERVE_HTTP_ADDR`    | `:8080` | Listen address as `host:port`; the port must be 1 to 65535. The image sets it to `:8080`.                                          |
 | `SLASHOBSERVE_DATABASE_URL` | none    | Required. A Postgres connection string (a URL or key/value form, parsed by pgx). Add `pool_max_conns=N` to size the pool above 16. |
-| `SLASHOBSERVE_LOG_LEVEL`    | `info`  | `debug`, `info`, `warn` or `error`. `/healthz` and `/readyz` requests are logged at `debug` only.                                  |
+| `SLASHOBSERVE_LOG_LEVEL`    | `info`  | `debug`, `info`, `warn` or `error`. `/healthz`, `/readyz` and `/metrics` requests are logged at `debug` only.                     |
 | `SLASHOBSERVE_LOG_FORMAT`   | `json`  | `json` or `text`. Logs go to standard error.                                                                                       |
+| `SLASHOBSERVE_METRICS`      | `true`  | `true` or `false`. `true` serves Prometheus metrics at `/metrics` without sign-in; `false` removes the route. See [Metrics](../operate/metrics.md). |
 
 ## Sign-in
 
@@ -36,6 +37,12 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 | Variable                        | Default | Notes                                                                          |
 | ------------------------------- | ------- | ------------------------------------------------------------------------------ |
 | `SLASHOBSERVE_DATASOURCES_FILE` | unset   | Path to the [datasources file](datasources-file.md). Unset means no datasources. |
+
+## Dashboard provisioning
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `SLASHOBSERVE_PROVISION_DIR` | unset | A directory of ObserveSpec JSON files that become dashboards at startup and whenever a file changes, checked every 30 seconds. Unset turns provisioning off. See [Provisioning](../operate/provisioning.md). |
 
 ## Outbound access
 

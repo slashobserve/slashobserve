@@ -110,6 +110,9 @@ const (
 
 	envAgentRunTimeout      = "SLASHOBSERVE_AGENT_RUN_TIMEOUT"
 	envAgentSessionRenewKiB = "SLASHOBSERVE_AGENT_SESSION_RENEW_KIB"
+
+	envProvisionDir = "SLASHOBSERVE_PROVISION_DIR"
+	envMetrics      = "SLASHOBSERVE_METRICS"
 )
 
 var serverEnvNames = []string{
@@ -120,6 +123,7 @@ var serverEnvNames = []string{
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
 	envLLMLogProviderErrors, envAgentRunTimeout, envAgentSessionRenewKiB,
+	envProvisionDir, envMetrics,
 }
 
 type GroupRoleSetting struct {
@@ -173,6 +177,9 @@ type Config struct {
 
 	OutboundDomainsLocked bool
 	OutboundDomains       domains.List
+
+	ProvisionDir string
+	Metrics      bool
 }
 
 func Load(lookup func(string) (string, bool)) (Config, error) {
@@ -222,17 +229,23 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		cfg.Datasources = datasources
 	}
 
-	cfg.APIContractCheck, err = loadBool(lookup, envAPIContractCheck)
+	cfg.APIContractCheck, err = loadBool(lookup, envAPIContractCheck, false)
 	if err != nil {
 		errs = append(errs, err)
 	}
 	errs = append(errs, loadLLM(lookup, &cfg)...)
-	cfg.LLM.LogProviderErrors, err = loadBool(lookup, envLLMLogProviderErrors)
+	cfg.LLM.LogProviderErrors, err = loadBool(lookup, envLLMLogProviderErrors, false)
 	if err != nil {
 		errs = append(errs, err)
 	}
 	errs = append(errs, loadAgent(lookup, &cfg)...)
 	errs = append(errs, loadOutboundDomains(lookup, &cfg)...)
+
+	cfg.ProvisionDir = get(lookup, envProvisionDir)
+	cfg.Metrics, err = loadBool(lookup, envMetrics, true)
+	if err != nil {
+		errs = append(errs, err)
+	}
 
 	return cfg, errors.Join(errs...)
 }
@@ -627,14 +640,16 @@ func HTTPAddr(lookup func(string) (string, bool)) (string, error) {
 	return addr, nil
 }
 
-func loadBool(lookup func(string) (string, bool), key string) (bool, error) {
+func loadBool(lookup func(string) (string, bool), key string, def bool) (bool, error) {
 	switch v := get(lookup, key); v {
-	case "", "false":
+	case "":
+		return def, nil
+	case "false":
 		return false, nil
 	case "true":
 		return true, nil
 	default:
-		return false, fmt.Errorf("%s: must be true or false, got %q", key, v)
+		return def, fmt.Errorf("%s: must be true or false, got %q", key, v)
 	}
 }
 
