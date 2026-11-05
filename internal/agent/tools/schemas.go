@@ -40,7 +40,7 @@ const (
 	descListFolders     = "List the folders you can see, with their id and whether you can create dashboards in each. Pass a folder id as folder_id to create_dashboard to save a dashboard there."
 	descListLabelValues = "List the values of one label or attribute key, optionally only those seen on metric. On ClickHouse pass table or metric. Use it to learn real services, routes or pods before filtering on them. " + pagingNote
 	descListLabels      = "List the label names of a datasource (OpenTelemetry attribute keys on ClickHouse), optionally only those seen on metric. On ClickHouse pass table, an otel_* table from get_schema, or metric. Use it to find the dimensions to group or filter by. " + pagingNote
-	descListMetrics     = "List the metric names of a Prometheus datasource, or the OpenTelemetry metric names of a ClickHouse datasource, optionally filtered by search. Use it to find real metric names before writing a query. " + pagingNote
+	descListMetrics     = "List the metric names of a Prometheus datasource, or the OpenTelemetry metric names of a ClickHouse datasource, optionally filtered by search; with scope, list every metric family in that scope instead. Use it to find real metric names before writing a query. " + pagingNote
 	descQueryInstant    = "Run a PromQL or ClickHouse SQL query as an instant query, PromQL evaluated once at to, and get a compact summary of the rows or series it returns. Use it to check a query with instant: true, or a table panel's query, before saving; for other panels use query_range. It takes no format or max_data_points. Pass variables for each $variable the query uses, and dashboard_title when it uses $__dashboard."
 	descQueryRange      = "Run a PromQL or ClickHouse SQL query over a time range, as a range query, and get a compact summary: up to 20 series with points, min, max and last, or the first rows of a table. This is how most panels run, a stat or gauge included; use it to check a panel query returns data before saving. Use query_instant instead for a query with instant: true or a table panel's query. Pass format as the panel's query has it, variables for each $variable the query uses, and dashboard_title when it uses $__dashboard."
 	descReplyToComment  = "Reply to a comment thread, for example to say what you changed or why you did not. A reply to a reply joins the same thread."
@@ -55,6 +55,7 @@ const (
 	propSearch        = `"search":{"type":"string","maxLength":200,"description":"Case-insensitive substring filter."}`
 	propTable         = `"table":{"type":"string","description":"ClickHouse table such as otel_logs; not used by Prometheus."}`
 	propDiscLimit     = `"limit":{"type":"integer","minimum":1,"maximum":500,"description":"Maximum items to return. Default 100."}`
+	propScope         = `"scope":{"type":"string","maxLength":256,"description":"A label selector such as {job=\"checkout\"}, or a table name on ClickHouse; returns every metric family in that scope in one result with type, unit, label keys and series count. Use it once per create run before planning."}`
 	propOffset        = `"offset":{"type":"integer","minimum":0,"maximum":499,"description":"Skip this many items; pass next_offset from an earlier result to page on."}`
 	propQuery         = `"query":{"type":"string","minLength":1,"maxLength":65536,"description":"PromQL or ClickHouse SQL. It may use $variables and the macros in the authoring guide, such as $__rate_interval or $__timeFilter(Timestamp)."}`
 	propFrom          = `"from":{"type":"string","description":"Start time such as now-1h or an RFC 3339 time. Default now-1h."}`
@@ -73,7 +74,7 @@ const (
 const (
 	schemaEmpty = `{"type":"object","properties":{},"additionalProperties":false}`
 
-	schemaListMetrics = `{"type":"object","properties":{` + propDatasource + `,` + propSearch + `,` + propDiscLimit + `,` + propOffset + `},"required":["datasource"],"additionalProperties":false}`
+	schemaListMetrics = `{"type":"object","properties":{` + propDatasource + `,` + propSearch + `,` + propScope + `,` + propDiscLimit + `,` + propOffset + `},"required":["datasource"],"additionalProperties":false}`
 
 	schemaListLabels = `{"type":"object","properties":{` + propDatasource + `,"metric":{"type":"string","description":"Only labels seen on this metric."},` + propTable + `,` + propSearch + `,` + propDiscLimit + `,` + propOffset + `},"required":["datasource"],"additionalProperties":false}`
 

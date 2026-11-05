@@ -275,6 +275,7 @@ type savedOut struct {
 	Panels           []panelOut `json:"panels"`
 	Truncated        bool       `json:"truncated,omitempty"`
 	UnverifiedPanels []string   `json:"unverified_panels,omitempty"`
+	advice
 }
 
 type invalidSpecOut struct {
@@ -391,7 +392,7 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 	if err != nil {
 		return saveFailure(err)
 	}
-	return success("Saved version "+strconv.Itoa(ver.Number), r.savedOut(dash, ver, &replayed)), nil
+	return success("Saved version "+strconv.Itoa(ver.Number), withAdvice(ctx, r.savedOut(dash, ver, &replayed), ver.Spec)), nil
 }
 
 func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -435,7 +436,7 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 	if err != nil {
 		return saveFailure(err)
 	}
-	return success("Saved version "+strconv.Itoa(ver.Number), r.savedOut(dash, ver, &replayed)), nil
+	return success("Saved version "+strconv.Itoa(ver.Number), withAdvice(ctx, r.savedOut(dash, ver, &replayed), ver.Spec)), nil
 }
 
 func (r *Registry) guardImportOnly(ctx context.Context, raw json.RawMessage, target saveTarget) (Result, bool, error) {

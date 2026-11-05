@@ -2,8 +2,10 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -283,5 +285,199 @@ func TestOtherToolsDiscoverNothing(t *testing.T) {
 	res, err := call(t, r, nameListDatasources, `{}`)
 	if err != nil || res.Discovered != nil {
 		t.Fatalf("discovered = %+v err = %v", res.Discovered, err)
+	}
+}
+
+func shopFamilies(n int) []datasource.Family {
+	families := make([]datasource.Family, n)
+	for i := range families {
+		families[i] = datasource.Family{
+			Name:   fmt.Sprintf("shop_checkout_requests_%03d_total", i),
+			Type:   "counter",
+			Help:   "Requests served by the checkout service.",
+			Labels: []string{"instance", "job", "pod", "route", "status"},
+			Series: 12,
+		}
+	}
+	return families
+}
+
+func inventoryFake(families []datasource.Family, truncated bool) *fakeDS {
+	return &fakeDS{discoverFn: func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		if req.Kind != datasource.DiscoverInventory {
+			return nil, fmt.Errorf("discover kind %q, want inventory", req.Kind)
+		}
+		return &datasource.Catalog{Families: families, FamiliesTotal: len(families), Truncated: truncated}, nil
+	}}
+}
+
+func TestListMetricsScopeFitsThreeHundredFamiliesUnderTheCap(t *testing.T) {
+	ds := inventoryFake(shopFamilies(300), false)
+	r := newTestRegistry(t, ds, nil)
+	seen := map[string]bool{}
+	offset := 0
+	for page := 0; ; page++ {
+		res, err := call(t, r, nameListMetrics, fmt.Sprintf(`{"datasource":"fake","scope":"{job=\"shop\"}","offset":%d}`, offset))
+		if err != nil || res.IsError {
+			t.Fatalf("page %d: res = %#v err = %v", page, res.Content, err)
+		}
+		out := res.Content.(inventoryOut)
+		body, err := json.Marshal(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(body) > maxContentBytes {
+			t.Fatalf("page %d is %d bytes, over the %d byte cap", page, len(body), maxContentBytes)
+		}
+		if out.FamiliesTotal != 300 || out.Scope != `{job="shop"}` || out.Datasource != "fake" {
+			t.Fatalf("page %d: families_total = %d, scope = %q, datasource = %q", page, out.FamiliesTotal, out.Scope, out.Datasource)
+		}
+		for _, f := range out.Families {
+			if seen[f.Name] {
+				t.Fatalf("page %d repeats %s", page, f.Name)
+			}
+			seen[f.Name] = true
+		}
+		if !out.Truncated {
+			break
+		}
+		if out.TruncatedBy != truncatedByBytes || out.NextOffset == nil || *out.NextOffset != offset+len(out.Families) {
+			t.Fatalf("page %d: truncation = %+v", page, out.truncation)
+		}
+		offset = *out.NextOffset
+	}
+	if len(seen) != 300 {
+		t.Fatalf("pages listed %d families, want 300", len(seen))
+	}
+	if got := ds.lastRequest(); got.Scope != `{job="shop"}` {
+		t.Fatalf("discovery scope = %q", got.Scope)
+	}
+}
+
+func TestListMetricsScopeCompactsLabelsBeforePaging(t *testing.T) {
+	tests := []struct {
+		name       string
+		families   int
+		wantOwn    []string
+		wantCommon []string
+		wantListed int
+		wantPaged  bool
+	}{
+		{"a small scope keeps every label", 10, []string{"instance", "job", "pod", "route", "status"}, nil, 10, false},
+		{"a larger scope names shared labels once", 100, nil, []string{"instance", "job", "pod", "route", "status"}, 100, false},
+		{"a large scope pages without own labels", 300, nil, []string{"instance", "job", "pod", "route", "status"}, -1, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			families := shopFamilies(tt.families)
+			if tt.families == 100 {
+				for i := range families {
+					families[i].Labels = append(slices.Clone(families[i].Labels), fmt.Sprintf("own_%d", i%2))
+				}
+			}
+			r := newTestRegistry(t, inventoryFake(families, false), nil)
+			res, err := call(t, r, nameListMetrics, `{"datasource":"fake","scope":"{job=\"shop\"}"}`)
+			if err != nil || res.IsError {
+				t.Fatalf("res = %#v err = %v", res.Content, err)
+			}
+			out := res.Content.(inventoryOut)
+			if tt.wantListed >= 0 && len(out.Families) != tt.wantListed {
+				t.Fatalf("listed %d families, want %d", len(out.Families), tt.wantListed)
+			}
+			if out.Truncated != tt.wantPaged {
+				t.Fatalf("truncated = %v, want %v", out.Truncated, tt.wantPaged)
+			}
+			if !slices.Equal(out.CommonLabels, tt.wantCommon) {
+				t.Fatalf("common_labels = %v, want %v", out.CommonLabels, tt.wantCommon)
+			}
+			switch {
+			case tt.families == 100:
+				if got := out.Families[1].Labels; !slices.Equal(got, []string{"own_1"}) {
+					t.Fatalf("labels of the second family = %v, want only its own", got)
+				}
+			case !slices.Equal(out.Families[0].Labels, tt.wantOwn):
+				t.Fatalf("labels of the first family = %v, want %v", out.Families[0].Labels, tt.wantOwn)
+			}
+			if group := out.Grouped["shop_checkout"]; len(group) != len(out.Families) {
+				t.Fatalf("grouped shop_checkout = %d names for %d listed families", len(group), len(out.Families))
+			}
+		})
+	}
+}
+
+func TestListMetricsScopeGroupsOnlyRelatedFamilies(t *testing.T) {
+	families := []datasource.Family{
+		{Name: "go_memstats_alloc_bytes", Type: "gauge", Unit: "bytes", Series: 4},
+		{Name: "go_memstats_heap_inuse_bytes", Type: "gauge", Series: 4},
+		{Name: "go_goroutines", Type: "gauge", Series: 4},
+		{Name: "up", Series: 4},
+	}
+	r := newTestRegistry(t, inventoryFake(families, false), nil)
+	res, err := call(t, r, nameListMetrics, `{"datasource":"fake","scope":"{job=\"shop\"}"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res.Content, err)
+	}
+	out := res.Content.(inventoryOut)
+	want := map[string][]string{"go_memstats": {"go_memstats_alloc_bytes", "go_memstats_heap_inuse_bytes"}}
+	if len(out.Grouped) != 1 || !slices.Equal(out.Grouped["go_memstats"], want["go_memstats"]) {
+		t.Fatalf("grouped = %v, want %v", out.Grouped, want)
+	}
+	if !reflect.DeepEqual(out.Families[0], familyOut{Name: "go_memstats_alloc_bytes", Type: "gauge", Unit: "bytes", Series: 4}) {
+		t.Fatalf("first family = %+v", out.Families[0])
+	}
+	if got := res.Discovered; got == nil || got.Of != `metric families in {job="shop"}` || len(got.Names) != 4 {
+		t.Fatalf("discovered = %+v", got)
+	}
+	if want := `Listed 4 metric families in {job="shop"} on fake`; res.Step != want {
+		t.Fatalf("step = %q, want %q", res.Step, want)
+	}
+}
+
+func TestListMetricsScopeReportsAnUpstreamCut(t *testing.T) {
+	r := newTestRegistry(t, inventoryFake(shopFamilies(3), true), nil)
+	res, err := call(t, r, nameListMetrics, `{"datasource":"fake","scope":"{job=\"shop\"}"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res.Content, err)
+	}
+	out := res.Content.(inventoryOut)
+	if !out.Truncated || out.TruncatedBy != truncatedByLimit || out.NextOffset != nil || len(out.Families) != 3 {
+		t.Fatalf("out = %+v, want every family and a limit cut without next_offset", out)
+	}
+}
+
+func TestListMetricsScopeTakesNoSearchOrLimit(t *testing.T) {
+	for _, input := range []string{
+		`{"datasource":"fake","scope":"{job=\"shop\"}","search":"http"}`,
+		`{"datasource":"fake","scope":"{job=\"shop\"}","limit":10}`,
+	} {
+		ds := &fakeDS{}
+		r := newTestRegistry(t, ds, nil)
+		res, err := call(t, r, nameListMetrics, input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if errorCode(t, res) != codeInvalidRequest || res.Content.(errorBody).Message != scopeTakesNoFilter {
+			t.Fatalf("%s: res = %#v", input, res.Content)
+		}
+		if len(ds.requests) != 0 {
+			t.Fatalf("%s: discovery ran for a rejected input", input)
+		}
+	}
+}
+
+func TestListMetricsScopeReportsTheRuntimeFamilyCount(t *testing.T) {
+	ds := &fakeDS{discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		return &datasource.Catalog{Families: shopFamilies(2), FamiliesTotal: 2, RuntimeFamilies: 43}, nil
+	}}
+	res, err := call(t, newTestRegistry(t, ds, nil), nameListMetrics, `{"datasource":"fake","scope":"{job=\"shop\"}"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res.Content, err)
+	}
+	body, err := json.Marshal(res.Content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), `"families_total":2,"runtime_families":43,`) {
+		t.Fatalf("result = %s, want families_total 2 and runtime_families 43", body)
 	}
 }

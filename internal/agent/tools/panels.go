@@ -280,7 +280,7 @@ func (r *Registry) savePatch(ctx context.Context, principal auth.Principal, targ
 	if err != nil {
 		return saveFailure(err)
 	}
-	return success("Saved version "+strconv.Itoa(ver.Number), r.savedOut(dash, ver, &replayed)), nil
+	return success("Saved version "+strconv.Itoa(ver.Number), withAdvice(ctx, r.savedOut(dash, ver, &replayed), ver.Spec)), nil
 }
 
 func patchSizeWithinLimits(p spec.PanelPatch) (Result, bool) {
