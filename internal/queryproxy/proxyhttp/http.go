@@ -223,11 +223,13 @@ func (h *Handler) serveData(c *gin.Context, p params, v loadedVersion, panelID s
 		return
 	}
 	key := dataKey(cached.id, cached.version, panelID, kind, al, selections, scope)
-	if entry, at, ok := h.caches.data.Get(key); ok {
+	entry, at, hit := h.caches.data.Get(key)
+	h.runner.RecordCacheLookup(hit)
+	if hit {
 		writeData(c, entry, true, at, sourcePanel)
 		return
 	}
-	entry, err := h.caches.dataFlights.Do(ctx, string(key[:]), func(ctx context.Context) (dataEntry, error) {
+	entry, err = h.caches.dataFlights.Do(ctx, string(key[:]), func(ctx context.Context) (dataEntry, error) {
 		return h.execute(ctx, key, d, panelID, al, selections, user)
 	})
 	if err != nil {
