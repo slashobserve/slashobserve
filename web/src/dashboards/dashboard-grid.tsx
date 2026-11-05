@@ -7,13 +7,12 @@ import type { Selections } from "@/api/keys"
 import type { Dashboard } from "@/spec"
 
 import { membershipOf, rowCompactor } from "./edit/layout"
+import { fitLayout, gridColumns, gridMargin, pixelWidth } from "./fit-layout"
 import { expandLayout, type LayoutItem } from "./rows/expand-layout"
 import { RowHeader } from "./rows/row-header"
 import { useRowStore } from "./rows/row-store"
 
-const gridColumns = 24
 export const gridRowHeight = 30
-export const gridMargin = 10
 const singleColumnBelow = 768
 
 type Size = { width: number; height: number }
@@ -31,11 +30,6 @@ type Props = {
 }
 
 const noRows: Record<string, boolean> = {}
-
-function pixelWidth(containerWidth: number, w: number): number {
-  const column = (containerWidth - (gridColumns - 1) * gridMargin) / gridColumns
-  return column * w + (w - 1) * gridMargin
-}
 
 function pixelHeight(h: number): number {
   return h * gridRowHeight + (h - 1) * gridMargin
@@ -85,15 +79,14 @@ export function DashboardGrid({
   )
 
   const stacked = width < singleColumnBelow
-  const columns = stacked ? 1 : gridColumns
   const gridItems = useMemo(() => {
-    if (!stacked) return ordered.map(({ item }) => item)
-    let y = 0
-    return ordered.map(({ item }) => {
-      const stackedItem = { ...item, x: 0, y, w: 1, minW: 1 }
-      y += item.h
-      return stackedItem
-    })
+    const items = ordered.map(({ item }) => item)
+    if (!stacked) return items
+    return fitLayout(
+      items,
+      new Map(items.map((item) => [item.i, gridColumns])),
+      new Set()
+    )
   }, [stacked, ordered])
 
   return (
@@ -104,7 +97,7 @@ export function DashboardGrid({
           layout={gridItems}
           compactor={compactor}
           gridConfig={{
-            cols: columns,
+            cols: gridColumns,
             rowHeight: gridRowHeight,
             margin: [gridMargin, gridMargin],
             containerPadding: [0, 0],
@@ -117,7 +110,7 @@ export function DashboardGrid({
           resizeConfig={{ enabled: editable && !stacked, handles: ["se"] }}
           onLayoutChange={stacked ? undefined : onLayoutChange}
         >
-          {ordered.map(({ entry, item }) => (
+          {ordered.map(({ entry }, index) => (
             <div key={entry.key}>
               {entry.kind === "row" ? (
                 <RowHeader
@@ -144,8 +137,8 @@ export function DashboardGrid({
               ) : null}
               {entry.kind === "panel"
                 ? renderPanel(entry, {
-                    width: stacked ? width : pixelWidth(width, item.w),
-                    height: pixelHeight(item.h),
+                    width: pixelWidth(width, gridItems[index].w),
+                    height: pixelHeight(gridItems[index].h),
                   })
                 : null}
             </div>

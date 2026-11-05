@@ -36,7 +36,7 @@ import {
   savedCursorSync,
   useCursorSyncShortcut,
 } from "./cursor-sync"
-import { DashboardGrid, gridMargin, gridRowHeight } from "./dashboard-grid"
+import { DashboardGrid, gridRowHeight } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardTopRow } from "./dashboard-top-row"
 import { DeleteDashboardDialog } from "./delete-dashboard-dialog"
@@ -62,6 +62,7 @@ import {
   type LiveStatus,
 } from "./live/use-dashboard-events"
 import { downloadSpec } from "./export-spec"
+import { gridMargin } from "./fit-layout"
 import { MoreMenu } from "./more-menu"
 import { PanelContainer } from "./panel-container"
 import type { PanelSource } from "./panel-source"
