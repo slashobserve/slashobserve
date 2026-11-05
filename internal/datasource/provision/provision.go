@@ -9,7 +9,9 @@ import (
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/clickhouse"
+	"github.com/slashobserve/slashobserve/internal/datasource/loki"
 	"github.com/slashobserve/slashobserve/internal/datasource/prometheus"
+	"github.com/slashobserve/slashobserve/internal/datasource/tempo"
 )
 
 // BuildError reports which datasource failed to build. Message is the part of the failure the server wrote itself,
@@ -92,6 +94,35 @@ func build(src config.Datasource) (datasource.Datasource, error) {
 			Password: c.Password,
 			TLS:      c.TLS,
 			Limits:   src.Limits,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return ds, nil
+	case src.Loki != nil:
+		l := src.Loki
+		ds, err := loki.New(loki.Options{
+			URL:               l.URL,
+			Headers:           mergeHeaders(l.Headers, l.SecretHeaders),
+			BasicAuthUser:     l.BasicAuthUser,
+			BasicAuthPassword: l.BasicAuthPassword,
+			BearerToken:       l.BearerToken,
+			TenantID:          l.TenantID,
+			Limits:            src.Limits,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return ds, nil
+	case src.Tempo != nil:
+		t := src.Tempo
+		ds, err := tempo.New(tempo.Options{
+			URL:               t.URL,
+			Headers:           mergeHeaders(t.Headers, t.SecretHeaders),
+			BasicAuthUser:     t.BasicAuthUser,
+			BasicAuthPassword: t.BasicAuthPassword,
+			BearerToken:       t.BearerToken,
+			Limits:            src.Limits,
 		})
 		if err != nil {
 			return nil, err
