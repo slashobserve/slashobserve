@@ -424,6 +424,7 @@ Time series and trend panels draw every `colorMode`, while stat, gauge, bar gaug
 Only `timeseries`, `trend` and `candlestick` panels draw the line style and axis options, so other panel types ignore them and a Grafana import reports them there.
 Thresholds ascend, and the first step may leave out `value` to act as the base color.
 A color is `ok`, `info`, `warning`, `critical`, `text` (the theme's text color, which follows the light and dark themes) or a `#rrggbb` hex value.
+Beside a stat, gauge or bar gauge value, a step colored `ok`, `info`, `warning` or `critical` is named by that word, and a step with any other color by its value in the field's unit, such as `80%`.
 A unit is any Grafana unit id such as `reqps`, `s`, `bytes`, `percentunit` or `radbq`, or custom `suffix:`, `prefix:`, `time:`, `si:`, `count:` or `currency:` text.
 The text after `time:` is a date format, `si:` a symbol that scales by 1000 with SI prefixes (`si:mF` starts at milli), `count:` text after a K, Mil or Bil scaled number, and `currency:` a symbol before a scaled number.
 The agent prompt lists only the common ids and `suffix:` and `prefix:`, but a Spec may use any of them.
