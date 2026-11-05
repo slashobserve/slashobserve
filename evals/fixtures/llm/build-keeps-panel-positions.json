@@ -1,0 +1,184 @@
+{
+  "prompt": "eval build: the System row is resent with invented positions and resized after its last panel",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Start the System row",
+            "planned_panels": 3,
+            "spec": {
+              "specVersion": "0",
+              "title": "System",
+              "time": {
+                "from": "now-1h",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "uptime",
+                  "type": "stat",
+                  "title": "Uptime",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 6,
+                    "h": 4
+                  },
+                  "datasource": "prom",
+                  "queries": [
+                    {
+                      "query": "time() - node_boot_time_seconds"
+                    }
+                  ],
+                  "unit": "s"
+                }
+              ]
+            },
+            "row": {
+              "id": "row_sys",
+              "title": "System"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Context switches",
+            "upsert": [
+              {
+                "id": "cs",
+                "type": "timeseries",
+                "title": "Context switches",
+                "gridPos": {
+                  "x": 0,
+                  "y": 0,
+                  "w": 10,
+                  "h": 4
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "rate(node_context_switches_total[$__rate_interval])"
+                  }
+                ]
+              }
+            ],
+            "row": {
+              "id": "row_sys",
+              "title": "System"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add File descriptors used",
+            "upsert": [
+              {
+                "id": "fd",
+                "type": "stat",
+                "title": "File descriptors used",
+                "gridPos": {
+                  "x": 0,
+                  "y": 0,
+                  "w": 8,
+                  "h": 4
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "node_filefd_allocated"
+                  }
+                ]
+              }
+            ],
+            "row": {
+              "id": "row_sys",
+              "title": "System"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Resend Context switches",
+            "upsert": [
+              {
+                "id": "cs",
+                "type": "timeseries",
+                "title": "Context switches",
+                "gridPos": {
+                  "x": 0,
+                  "y": 0,
+                  "w": 10,
+                  "h": 4
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "rate(node_context_switches_total[$__rate_interval])"
+                  }
+                ]
+              }
+            ],
+            "row": {
+              "id": "row_sys",
+              "title": "System"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Resize Uptime",
+            "upsert": [
+              {
+                "id": "uptime",
+                "type": "stat",
+                "title": "Uptime",
+                "gridPos": {
+                  "x": 0,
+                  "y": 30,
+                  "w": 6,
+                  "h": 8
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "time() - node_boot_time_seconds"
+                  }
+                ],
+                "unit": "s"
+              }
+            ],
+            "finish": true
+          }
+        }
+      ],
+      "expect": [
+        {
+          "is_error": false,
+          "contains": "\"layout\""
+        }
+      ]
+    }
+  ]
+}
