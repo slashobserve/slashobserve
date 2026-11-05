@@ -62,7 +62,7 @@ Colour is used only in a terminal, and setting `NO_COLOR` to any value turns it 
 It opens only `http` and `https` addresses.
 `status --wait`, `continue`, `run` and `import` accept `--open` too.
 
-A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `status`, `cancel`, `continue`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
+A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `status`, `cancel`, `continue`, `annotate`, `open`, `doctor`, `logs`, `traces`, `grafana`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
 `--timeout` (2 hours by default, so a large build can finish while you wait) stops the waiting and not the request, which keeps running on the server; `bin/observe status <request-id> --wait` waits again.
@@ -72,8 +72,8 @@ The CLI exits with these codes:
 
 | Code | When |
 | ---- | ---- |
-| `0` | The command succeeded, including when `--open` could not open the browser. |
-| `1` | The server refused or failed the request, the agent request failed, or the waiting stopped at `--timeout` or an interrupt. |
+| `0` | The command succeeded, including when `--open` could not open the browser and when `observe logs --tail` ends with Ctrl-C. |
+| `1` | The server refused or failed the request, the agent request failed, the waiting stopped at `--timeout` or an interrupt, `observe open` could not open the browser, an `observe doctor` check failed, or an `observe grafana import` had a dashboard fail. |
 | `2` | The command line is wrong: an unknown command or flag, a missing argument or an invalid id. |
 
 `bin/observe cancel <request-id>` cancels a queued or running request and prints it.
@@ -115,6 +115,103 @@ Comments on a dashboard can be worked from the terminal:
   If the thread was already resolved, `--version` is not applied and the command exits 1.
 
 Add `--json` to any of them to print the API response unchanged.
+
+`bin/observe annotate <text...>` adds an [annotation](annotations.md), such as a deploy marker, at the server's current time on every dashboard:
+
+```sh
+bin/observe annotate "Deploy checkout v1.4.2" --tags deploy,checkout
+bin/observe annotate "Database failover" --dashboard <dashboard-id> --at now-15m
+```
+
+`--tags` takes comma-separated tags, and `--dashboard` puts the annotation on one dashboard instead of every dashboard.
+`--at` places it in the past, as `now-<N>` with `s`, `m`, `h` or `d`, or as an RFC 3339 time such as `2026-11-01T10:00:00Z`.
+It prints `Added annotation <id> at <time> on every dashboard`, which `-q` hides; a global annotation needs a key with the Editor role.
+
+`bin/observe open` prints an address on the server and opens it in the browser:
+
+```sh
+bin/observe open
+bin/observe open <dashboard-id>
+bin/observe open checkout-overview
+```
+
+With no argument it opens the server itself.
+A dashboard id opens that dashboard, and so does the uid of a dashboard imported from Grafana, which the server resolves to the imported one.
+An `http` or `https` address opens only when its scheme and host are the server's.
+It needs only the server, not a key, and `--json` prints `{"url": "<address>"}` instead of the address.
+Unlike `--open`, it exits 1 when the opener is missing or fails, after printing the address.
+
+`bin/observe doctor` explains why a setup does not work, one check per row:
+
+```text
+CHECK       STATUS  DETAIL
+server      ok      https://observe.example.com is ready
+key         ok      ci-deploy (service_account)
+role        ok      editor
+version     ok      CLI v0.2.0, server v0.2.0
+datasource  ok      prom (prometheus)
+datasource  fail    logs (loki): connection refused
+model       ok      anthropic claude-haiku-5-5, effort low
+```
+
+- `server` asks `/readyz` and names the readiness checks that fail; when the server cannot be reached, every later check is `skip`.
+- `key` reads `/api/v1/me` with the saved or given key; with no key or a refused key, the later checks are `skip`.
+- `role` warns for a Viewer or Commenter key, because those roles cannot create dashboards or annotations.
+- `version` warns when the CLI and the server are different releases; a local build such as `dev` never warns.
+- `datasource` is one row per datasource with its health, and a warning when there are none.
+- `model` fails when the server has no model configured, because prompts cannot run.
+
+`doctor` exits 1 when any check fails and 0 otherwise, since a warning never fails it.
+`--json` prints `{"ok": <bool>, "checks": [{"check", "status", "detail"}]}` instead of the table, and colour marks `ok` and `fail` only in a terminal.
+
+`bin/observe logs <query> --datasource <uid>` runs a log query on a Loki or ClickHouse datasource and prints the lines oldest first:
+
+```sh
+bin/observe logs '{app="shop"} |= "error"' --datasource loki --from now-15m
+bin/observe logs '{app="shop"}' --datasource loki --tail
+```
+
+`--from` and `--to` default to `now-1h` and `now` and take the same times as a dashboard, and `--limit` keeps the newest 1 to 1000 lines (100 by default).
+Each line shows its time in UTC, its level when the lines have one, the labels whose values differ between the lines, and the message.
+The message is the first column named `body`, `message`, `msg`, `line` or `log`, else the first text column, as in the web app's logs panel.
+`--tail` keeps asking every 2 seconds and prints only the lines it has not printed, with every label, until Ctrl-C, which exits 0.
+`--json` prints the response body, or with `--tail` one JSON object per line with `time`, `level`, `labels` and `line`.
+An invalid query exits 1 with the datasource's message.
+
+`bin/observe traces <trace id> --datasource <uid>` prints the spans of one trace from a Tempo or ClickHouse datasource as a tree:
+
+```sh
+bin/observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource tempo
+bin/observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource clickhouse --from now-7d
+```
+
+The id is 16 or 32 hexadecimal characters, and `--from` and `--to` (`now-24h` and `now` by default) bound the search.
+On ClickHouse it reads the OpenTelemetry `otel_traces` table.
+It prints a header with the span count, the total duration and the root span, then one row per span with its service, its name indented under its parent, its start after the trace start, its duration and `ok`, `error` or `-`.
+A trace with no spans in the range exits 1, and `--json` prints the response body.
+
+`bin/observe grafana connect <url> --token-stdin` stores a Grafana connection for [Switch from Grafana](switch-from-grafana.md) and tests it, and needs an Admin key.
+The token comes only from standard input, so it never lands in shell history, and `--name` defaults to the URL's host:
+
+```sh
+printf '%s' "$GRAFANA_TOKEN" | bin/observe grafana connect https://grafana.example.com --token-stdin --name "Ops Grafana"
+```
+
+It prints `Connected <name>: <id>` and the test message, and `--json` prints the tested connection.
+A failed test exits 1 with the message and the connection id; the connection stays stored, and you fix or remove it on the Grafana settings page.
+
+`bin/observe grafana import <connection id>` imports dashboards from that Grafana, with `--folders` for some folders or `--all` for every one:
+
+```sh
+bin/observe grafana import <connection id>
+bin/observe grafana import <connection id> --folders general,platform
+bin/observe grafana import <connection id> --all
+```
+
+Without either flag it prints the folders as a table of uid, title and dashboard count and exits 2.
+It then waits for the import, showing `Imported <done> of <total>` on a terminal, and prints how many dashboards were done, skipped and failed, a table of the failed ones with their error, and a notice for dashboards with panels that did not verify.
+It exits 1 when any dashboard failed or the import failed or was canceled, and `--json` prints the final import.
+The server keeps an import only until it restarts, and an interrupt stops the waiting while the import continues on the server.
 
 `bin/observe completion bash`, `zsh` or `fish` prints a completion script for commands and flags.
 Load it for the current shell, or save it where your shell reads completions:

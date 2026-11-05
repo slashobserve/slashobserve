@@ -206,3 +206,10 @@ export const exploreKeys = {
     ["explore", uid, "context", anchor] as const,
   targets: (search: string) => ["explore", "targets", search] as const,
 }
+
+export const annotationKeys = {
+  all: ["annotations"] as const,
+  range: (dashboardId: string, from: string, to: string) =>
+    ["annotations", dashboardId, "range", from, to] as const,
+  tags: (dashboardId: string) => ["annotations", dashboardId, "tags"] as const,
+}

@@ -32,15 +32,16 @@ type Annotations interface {
 }
 
 type annotationJSON struct {
-	ID          string   `json:"id"`
-	DashboardID *string  `json:"dashboard_id"`
-	PanelID     *string  `json:"panel_id"`
-	TimeFrom    string   `json:"time_from"`
-	TimeTo      *string  `json:"time_to"`
-	Text        string   `json:"text"`
-	Tags        []string `json:"tags"`
-	CreatedBy   *string  `json:"created_by"`
-	CreatedAt   string   `json:"created_at"`
+	ID            string   `json:"id"`
+	DashboardID   *string  `json:"dashboard_id"`
+	PanelID       *string  `json:"panel_id"`
+	TimeFrom      string   `json:"time_from"`
+	TimeTo        *string  `json:"time_to"`
+	Text          string   `json:"text"`
+	Tags          []string `json:"tags"`
+	CreatedBy     *string  `json:"created_by"`
+	CreatedByName *string  `json:"created_by_name"`
+	CreatedAt     string   `json:"created_at"`
 }
 
 type listJSON struct {
@@ -75,14 +76,15 @@ func (h *Handler) Register(api auth.Routes) {
 
 func annotationJSONOf(a Annotation) annotationJSON {
 	out := annotationJSON{
-		ID:          a.ID,
-		DashboardID: httpapi.OptionalString(a.DashboardID),
-		PanelID:     httpapi.OptionalString(a.PanelID),
-		TimeFrom:    httpapi.FormatTime(a.From),
-		Text:        a.Text,
-		Tags:        a.Tags,
-		CreatedBy:   httpapi.OptionalString(a.CreatedBy),
-		CreatedAt:   httpapi.FormatTime(a.CreatedAt),
+		ID:            a.ID,
+		DashboardID:   httpapi.OptionalString(a.DashboardID),
+		PanelID:       httpapi.OptionalString(a.PanelID),
+		TimeFrom:      httpapi.FormatTime(a.From),
+		Text:          a.Text,
+		Tags:          a.Tags,
+		CreatedBy:     httpapi.OptionalString(a.CreatedBy),
+		CreatedByName: httpapi.OptionalString(a.CreatedByName),
+		CreatedAt:     httpapi.FormatTime(a.CreatedAt),
 	}
 	if a.To != nil {
 		to := httpapi.FormatTime(*a.To)

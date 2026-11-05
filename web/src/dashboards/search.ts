@@ -28,6 +28,7 @@ export type DashboardSearch = {
   panel?: string
   edit?: EditView
   share?: boolean
+  ann?: string[]
   vars: Record<string, string[]>
 }
 
@@ -41,6 +42,8 @@ export const ALL = "$__all"
 const panelIdPattern = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/
 const variableNamePattern = /^[A-Za-z][A-Za-z0-9_]{0,39}$/
 const versionPattern = /^[1-9][0-9]{0,8}$/
+const annotationTagPattern = /^[a-z0-9][a-z0-9_.-]{0,39}$/
+const maxAnnotationTags = 10
 export const variablePrefix = "var-"
 
 function firstString(value: unknown): string | undefined {
@@ -61,6 +64,19 @@ function stringList(value: unknown): string[] {
     else out.push(text)
   }
   return out.length === 0 && empty ? [""] : out
+}
+
+export function parseAnnotationTags(raw: unknown): string[] | undefined {
+  const text = firstString(raw)
+  if (text === undefined) return undefined
+  const tags: string[] = []
+  for (const part of text.split(",")) {
+    const tag = part.trim()
+    if (!annotationTagPattern.test(tag) || tags.includes(tag)) continue
+    tags.push(tag)
+    if (tags.length === maxAnnotationTags) break
+  }
+  return tags.length > 0 ? tags : undefined
 }
 
 export function validateDashboardSearch(
@@ -104,6 +120,9 @@ export function validateDashboardSearch(
     state.share = true
   }
 
+  const ann = parseAnnotationTags(raw.ann)
+  if (ann !== undefined) state.ann = ann
+
   for (const key of Object.keys(raw)) {
     if (!key.startsWith(variablePrefix)) continue
     const name = key.slice(variablePrefix.length)
@@ -126,6 +145,9 @@ export function searchFromState(
   if (state.panel !== undefined) out.panel = state.panel
   if (state.edit !== undefined) out.edit = state.edit
   if (state.share && state.edit === undefined) out.share = "1"
+  if (state.ann !== undefined && state.ann.length > 0) {
+    out.ann = state.ann.join(",")
+  }
   for (const [name, values] of Object.entries(state.vars)) {
     if (values.length > 0) out[`${variablePrefix}${name}`] = values
   }
@@ -182,6 +204,15 @@ const dashboardRoutePath = "/d/$dashboardId/{-$slug}"
 export function useDashboardSearch(): DashboardSearch {
   const search = useSearch({ from: dashboardRouteId })
   return useMemo(() => validateDashboardSearch(search), [search])
+}
+
+export function useAnnotationTagFilter(): string[] | undefined {
+  const joined = useSearch({
+    strict: false,
+    select: (search: Record<string, unknown>) =>
+      parseAnnotationTags(search.ann)?.join(","),
+  })
+  return useMemo(() => joined?.split(","), [joined])
 }
 
 export function useSetDashboardSearch() {

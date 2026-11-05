@@ -351,7 +351,7 @@ export interface paths {
         };
         /**
          * List annotations, newest first.
-         * @description Lists annotations ordered by `time_from` then `id`, newest first. With `dashboard_id`, returns that dashboard's annotations and the global ones; without it, only the global ones. The caller must be able to see the dashboard: a dashboard that is missing or in a folder the caller cannot see is 404 `not_found`. An annotation is in the window when it starts at or before `to` and ends, or starts when it has no end, at or after `from`.
+         * @description Lists annotations ordered by `time_from` then `id`, newest first. With `dashboard_id`, returns that dashboard's annotations and the global ones; without it, only the global ones. The caller must be able to see the dashboard: a dashboard that is missing or in a folder the caller cannot see is 404 `not_found`. An annotation is in the window when it starts at or before `to` and ends, or starts when it has no end, at or after `from`. `created_by_name` is read when the list is answered, so it follows a rename and is null once the person or service account is gone.
          */
         get: operations["listAnnotations"];
         put?: never;
@@ -1641,6 +1641,8 @@ export interface components {
             allowed_email_domains: string[];
             any_email_domain: boolean;
             session_ttl_seconds: number;
+            /** @description The server's release version, `dev` for a local build. */
+            version: string;
         };
         SessionState: {
             authenticated: boolean;
@@ -1855,6 +1857,8 @@ export interface components {
              * @description The id of the person or service account that added it.
              */
             created_by: string | null;
+            /** @description The name of the person or service account that added it; null when it is gone. */
+            created_by_name: string | null;
             /** Format: date-time */
             created_at: string;
         };

@@ -79,7 +79,19 @@ func (s *store) list(ctx context.Context, q ListQuery, limit int) ([]Annotation,
 	}
 	out := make([]Annotation, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, annotationOf(r))
+		a := annotationOf(dbsqlc.Annotation{
+			ID:          r.ID,
+			DashboardID: r.DashboardID,
+			PanelID:     r.PanelID,
+			TimeFrom:    r.TimeFrom,
+			TimeTo:      r.TimeTo,
+			Text:        r.Text,
+			Tags:        r.Tags,
+			CreatedBy:   r.CreatedBy,
+			CreatedAt:   r.CreatedAt,
+		})
+		a.CreatedByName = r.CreatedByName
+		out = append(out, a)
 	}
 	return out, nil
 }

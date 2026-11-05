@@ -2,6 +2,12 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react"
 import uPlot from "uplot"
 import "uplot/dist/uPlot.min.css"
 
+import { AnnotationLayer } from "@/annotations/annotation-layer"
+import {
+  annotationMarkersPlugin,
+  type PlotPlace,
+} from "@/annotations/markers-plugin"
+import type { Annotation } from "@/annotations/queries"
 import type { PanelDataMeta, WireFrame } from "@/dashboards/queries"
 import { stableJson } from "@/lib/json"
 import { zonedDateTime } from "@/lib/time"
@@ -102,6 +108,7 @@ type Latest = {
   width: number
   chartHeight: number
   onTimeRangeSelect: PanelRendererProps["onTimeRangeSelect"]
+  annotations: readonly Annotation[]
 }
 
 type Model = {
@@ -124,9 +131,26 @@ type PlotConfig = {
   xAxis: XAxis
   zone: string | undefined
   draw?: uPlot.Plugin
+  onPlace: (place: PlotPlace | null) => void
 }
 
 const tickEdgeGap = 24
+
+const noAnnotations: readonly Annotation[] = []
+
+function samePlace(a: PlotPlace | null, b: PlotPlace | null): boolean {
+  return (
+    a === b ||
+    (a !== null &&
+      b !== null &&
+      a.left === b.left &&
+      a.top === b.top &&
+      a.width === b.width &&
+      a.height === b.height &&
+      a.fromMs === b.fromMs &&
+      a.toMs === b.toMs)
+  )
+}
 
 function timeLabels(
   splits: (number | null)[],
@@ -265,7 +289,8 @@ function thresholdLineStroke(
 }
 
 function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
-  const { member, peerTooltip, host, latest, xAxis, zone, draw } = config
+  const { member, peerTooltip, host, latest, xAxis, zone, draw, onPlace } =
+    config
   const timed = xAxis.kind === "time"
   const customPainted = draw !== undefined
   const { model } = latest.current
@@ -304,6 +329,11 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         model.thresholds.style,
         (color) => resolveColor(thresholdColor(color))
       )
+    )
+  }
+  if (timed) {
+    plugins.push(
+      annotationMarkersPlugin(() => latest.current.annotations, onPlace)
     )
   }
   if (timed && !customPainted) {
@@ -608,6 +638,7 @@ export function TimeseriesChart({
   painted,
   rowColor,
   exemplars,
+  annotations = noAnnotations,
 }: ChartProps) {
   const { resolved: theme } = useTheme()
   const hostRef = useRef<HTMLDivElement>(null)
@@ -616,6 +647,12 @@ export function TimeseriesChart({
   const plotRef = useRef<uPlot | null>(null)
   const appliedRef = useRef<PlotState | null>(null)
   const [legendHeight, setLegendHeight] = useState(0)
+  const [place, setPlace] = useState<PlotPlace | null>(null)
+  const onPlace = useCallback(
+    (next: PlotPlace | null) =>
+      setPlace((current) => (samePlace(current, next) ? current : next)),
+    []
+  )
 
   const options = useMemo(() => timeseriesDisplay(display), [display])
   const reducers = options.legendValues
@@ -776,6 +813,7 @@ export function TimeseriesChart({
     width: chartWidth,
     chartHeight,
     onTimeRangeSelect,
+    annotations,
   })
   useLayoutEffect(() => {
     latest.current = {
@@ -787,6 +825,7 @@ export function TimeseriesChart({
       width: chartWidth,
       chartHeight,
       onTimeRangeSelect,
+      annotations,
     }
   })
 
@@ -818,6 +857,7 @@ export function TimeseriesChart({
       xAxis,
       zone,
       draw,
+      onPlace,
     })
     if (xAxis.kind === "time") {
       member.current = cursor.join((peer) => {
@@ -857,6 +897,7 @@ export function TimeseriesChart({
     panel.thresholdsStyle,
     thresholdsKey,
     model.painted,
+    onPlace,
   ])
 
   useLayoutEffect(() => {
@@ -880,6 +921,10 @@ export function TimeseriesChart({
   useLayoutEffect(() => {
     plotRef.current?.redraw(false)
   }, [exemplarLayer])
+
+  useLayoutEffect(() => {
+    plotRef.current?.redraw(false)
+  }, [annotations])
 
   useLayoutEffect(() => {
     const plot = plotRef.current
@@ -935,20 +980,28 @@ export function TimeseriesChart({
     >
       <div className="flex shrink-0 flex-col" style={{ width: chartWidth }}>
         <div
-          ref={containerRef}
-          role="img"
-          aria-label={
-            axisLabels.length > 0
-              ? `${plotName}, axes: ${axisLabels.join(", ")}`
-              : plotName
-          }
-          data-axes={axisNames.join(" ")}
-          data-series={series.length}
-          data-ghosts={ghosts.length}
-          data-stack={firstStackMode(series)}
-          className="ts-chart shrink-0 overflow-hidden"
+          className="relative shrink-0"
           style={{ width: chartWidth, height: chartHeight }}
-        />
+        >
+          <div
+            ref={containerRef}
+            role="img"
+            aria-label={
+              axisLabels.length > 0
+                ? `${plotName}, axes: ${axisLabels.join(", ")}`
+                : plotName
+            }
+            data-axes={axisNames.join(" ")}
+            data-series={series.length}
+            data-ghosts={ghosts.length}
+            data-stack={firstStackMode(series)}
+            className="ts-chart shrink-0 overflow-hidden"
+            style={{ width: chartWidth, height: chartHeight }}
+          />
+          {place && annotations.length > 0 ? (
+            <AnnotationLayer annotations={annotations} {...place} zone={zone} />
+          ) : null}
+        </div>
         {exemplarsTruncated ? (
           <p
             className="truncate text-xs leading-4 text-muted-foreground"

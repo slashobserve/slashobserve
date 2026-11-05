@@ -60,6 +60,10 @@ func (p palette) paint(code, s string) string {
 
 func (p palette) green(s string) string { return p.paint("32", s) }
 
+func (p palette) red(s string) string { return p.paint("31", s) }
+
+func (p palette) yellow(s string) string { return p.paint("33", s) }
+
 func (p palette) dim(s string) string { return p.paint("2", s) }
 
 func (o *output) body(data []byte) {

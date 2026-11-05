@@ -9,6 +9,9 @@ import {
 
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 
+import { AnnotationLayer } from "@/annotations/annotation-layer"
+import { markerSpans } from "@/annotations/markers"
+import type { Annotation } from "@/annotations/queries"
 import { Button } from "@/components/ui/button"
 import { zonedDateTime } from "@/lib/time"
 import { timeTicks } from "@/lib/time-ticks"
@@ -307,6 +310,7 @@ export function TimelineChart({
   cursor,
   stateKey,
   zone,
+  annotations,
 }: {
   model: TimelineModel
   display: Record<string, unknown>
@@ -318,6 +322,7 @@ export function TimelineChart({
   cursor: SharedCursor
   stateKey: string
   zone: string | undefined
+  annotations?: readonly Annotation[]
 }) {
   const { resolved: theme } = useTheme()
   const [hover, setHover] = useState<Hover | null>(null)
@@ -403,6 +408,13 @@ export function TimelineChart({
   const plotHeight = rowSize * rows
   const span = Math.max(1, to - from)
   const ready = rows > 0 && plotWidth > 0 && available > 0
+  const markers = useMemo(
+    () =>
+      annotations
+        ? markerSpans(annotations, { fromMs: from, toMs: to, width: plotWidth })
+        : [],
+    [annotations, from, to, plotWidth]
+  )
   const { lineRef, move: moveCursor } = useCursorLine(cursor, (x) =>
     timeToX(x, from, to, plotWidth)
   )
@@ -549,8 +561,45 @@ export function TimelineChart({
                       )
                     })
                   )}
+                  {markers.map(({ annotation, x, x2 }) => (
+                    <g key={annotation.id} pointerEvents="none">
+                      {x2 !== null ? (
+                        <rect
+                          x={x}
+                          y={0}
+                          width={x2 - x}
+                          height={plotHeight}
+                          fill="var(--threshold-info)"
+                          fillOpacity={0.1}
+                        />
+                      ) : null}
+                      {[x, ...(x2 === null ? [] : [x2])].map((at) => (
+                        <line
+                          key={at}
+                          x1={Math.round(at) + 0.5}
+                          x2={Math.round(at) + 0.5}
+                          y1={0}
+                          y2={plotHeight}
+                          stroke="var(--threshold-info)"
+                          strokeWidth={1}
+                        />
+                      ))}
+                    </g>
+                  ))}
                 </svg>
                 <CursorLine lineRef={lineRef} height={plotHeight} />
+                {annotations && annotations.length > 0 ? (
+                  <AnnotationLayer
+                    annotations={annotations}
+                    fromMs={from}
+                    toMs={to}
+                    left={0}
+                    top={0}
+                    width={plotWidth}
+                    height={plotHeight}
+                    zone={zone}
+                  />
+                ) : null}
                 {hover && hovered ? (
                   <Tooltip
                     name={hovered.name}

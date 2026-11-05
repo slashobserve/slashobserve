@@ -6,6 +6,7 @@ import {
   backFromSearch,
   dashboardSearchFromBack,
   panelEditorShowsNewerVersion,
+  parseAnnotationTags,
   searchFromState,
   validateBack,
   validateDashboardSearch,
@@ -260,5 +261,49 @@ describe("panelEditorShowsNewerVersion", () => {
     ],
   ] as const)("when %s returns %s", (_name, search, expected) => {
     expect(panelEditorShowsNewerVersion({ vars: {}, ...search })).toBe(expected)
+  })
+})
+
+describe("parseAnnotationTags", () => {
+  it("keeps a comma-separated list of valid tags in order", () => {
+    expect(parseAnnotationTags("deploy, incident,checkout")).toEqual([
+      "deploy",
+      "incident",
+      "checkout",
+    ])
+  })
+
+  it("drops duplicates", () => {
+    expect(parseAnnotationTags("deploy,deploy,incident")).toEqual([
+      "deploy",
+      "incident",
+    ])
+  })
+
+  it("drops an uppercase or over-long tag", () => {
+    expect(parseAnnotationTags(`Deploy,${"a".repeat(41)},ok`)).toEqual(["ok"])
+  })
+
+  it("answers undefined when nothing valid remains", () => {
+    expect(parseAnnotationTags("")).toBeUndefined()
+    expect(parseAnnotationTags(" , ")).toBeUndefined()
+    expect(parseAnnotationTags(undefined)).toBeUndefined()
+  })
+
+  it("keeps at most ten tags", () => {
+    const raw = Array.from({ length: 12 }, (_, i) => `t${i}`).join(",")
+    expect(parseAnnotationTags(raw)).toEqual(
+      Array.from({ length: 10 }, (_, i) => `t${i}`)
+    )
+  })
+
+  it("round-trips through the dashboard search", () => {
+    const state = validateDashboardSearch(
+      parseSearch("?ann=deploy%2Cincident&from=now-6h")
+    )
+    expect(state.ann).toEqual(["deploy", "incident"])
+    const flat = searchFromState(state)
+    expect(flat.ann).toBe("deploy,incident")
+    expect(validateDashboardSearch(flat)).toEqual(state)
   })
 })

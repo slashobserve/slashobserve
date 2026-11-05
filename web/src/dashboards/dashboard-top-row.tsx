@@ -1,6 +1,7 @@
 import { Fragment, type ReactNode } from "react"
 import { Link } from "@tanstack/react-router"
 
+import { AnnotationFilter } from "@/annotations/annotation-filter"
 import { Mark } from "@/components/brand/mark"
 
 type Props = {
@@ -83,6 +84,7 @@ export function DashboardTopRow({
       </nav>
       <div className="flex flex-wrap items-center gap-1.5">
         {editing}
+        <AnnotationFilter />
         <Items nodes={controls} />
         <Items nodes={actions} />
       </div>

@@ -8,6 +8,8 @@ import {
   type RefObject,
 } from "react"
 
+import { annotationsFor } from "@/annotations/markers"
+import { useDashboardAnnotations, type Annotation } from "@/annotations/queries"
 import type { Selections } from "@/api/keys"
 import { PanelCommentBadge } from "@/comments/panel-comment-badge"
 import { isRenderable, isStaticPanel, preloadRenderer } from "@/panels"
@@ -28,7 +30,7 @@ import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { panelDatasourceUids } from "./panel-datasources"
 import { PanelMenu } from "./panel-menu"
 import { stateScope, type PanelSource } from "./panel-source"
-import { useSetDashboardSearch } from "./search"
+import { useAnnotationTagFilter, useSetDashboardSearch } from "./search"
 import { maxDataPointsFor, usePanelData } from "./use-panel-data"
 import { useSeen } from "./use-seen"
 import { UnverifiedLabel } from "./unverified-label"
@@ -75,6 +77,7 @@ type PanelContainerProps = {
   focusOnRender: boolean
   onFocused: () => void
   composerRef: RefObject<HTMLTextAreaElement | null>
+  annotations?: readonly Annotation[]
 }
 
 export const PanelContainer = memo(function PanelContainer({
@@ -110,6 +113,7 @@ export const PanelContainer = memo(function PanelContainer({
   focusOnRender,
   onFocused,
   composerRef,
+  annotations: givenAnnotations,
 }: PanelContainerProps) {
   const panel = useMemo(
     () =>
@@ -157,6 +161,20 @@ export const PanelContainer = memo(function PanelContainer({
     refreshMs,
     enabled: dataPanel !== undefined && supported && seen && selectionsReady,
   })
+
+  const fetchedAnnotations = useDashboardAnnotations({
+    source,
+    from: rangeFrom,
+    to: rangeTo,
+    timezone,
+    refreshMs,
+  })
+  const annotationTags = useAnnotationTagFilter()
+  const allAnnotations = givenAnnotations ?? fetchedAnnotations
+  const annotations = useMemo(
+    () => annotationsFor(allAnnotations ?? [], panel.id, annotationTags),
+    [allAnnotations, panel.id, annotationTags]
+  )
 
   const fields = useMemo(
     () => (dataPanel ? createFieldResolver(dataPanel, selections) : undefined),
@@ -287,6 +305,7 @@ export const PanelContainer = memo(function PanelContainer({
             to={rangeTo}
             asTable={tableView}
             reusedFilter={reusedFilter}
+            annotations={annotations}
           />
         ) : null}
         {isStaticPanel(panel) && supported ? (

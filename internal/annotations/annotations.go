@@ -1,6 +1,7 @@
 package annotations
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"regexp"
@@ -45,15 +46,16 @@ type InvalidError struct {
 func (e *InvalidError) Error() string { return e.Message }
 
 type Annotation struct {
-	ID          string
-	DashboardID string
-	PanelID     string
-	From        time.Time
-	To          *time.Time
-	Text        string
-	Tags        []string
-	CreatedBy   string
-	CreatedAt   time.Time
+	ID            string
+	DashboardID   string
+	PanelID       string
+	From          time.Time
+	To            *time.Time
+	Text          string
+	Tags          []string
+	CreatedBy     string
+	CreatedByName string
+	CreatedAt     time.Time
 }
 
 type CreateInput struct {
@@ -103,7 +105,12 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput)
 	if err != nil {
 		return Annotation{}, ErrForbidden
 	}
-	return s.store.insert(ctx, clean, creator)
+	a, err := s.store.insert(ctx, clean, creator)
+	if err != nil {
+		return Annotation{}, err
+	}
+	a.CreatedByName = cmp.Or(by.Name, by.Email)
+	return a, nil
 }
 
 func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID) error {
