@@ -2329,7 +2329,7 @@ components:
     ImportRecord:
       type: object
       additionalProperties: false
-      required: [id, dashboard_id, version, source, importer_version, title, mapping, summary, datasources, report, grafana_uid, created_by, created_at]
+      required: [id, dashboard_id, version, source, importer_version, title, mapping, summary, datasources, report, created_by, created_at]
       properties:
         id:
           type: string

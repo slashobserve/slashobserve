@@ -2341,7 +2341,7 @@ export interface components {
             datasources: components["schemas"]["ImportSourceDatasource"][];
             report: components["schemas"]["ImportReport"];
             /** @description The Grafana dashboard uid this import answers for, or empty. Only the first import of a uid holds it, and only a uid of 1 to 40 letters, digits, `-` or `_`; a later import of the same uid, from a file or a connection, gets an empty value. */
-            grafana_uid: string;
+            grafana_uid?: string;
             created_by: components["schemas"]["Author"];
             /** Format: date-time */
             created_at: string;
