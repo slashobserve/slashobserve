@@ -238,7 +238,7 @@ function Value(props: BarProps) {
   const actions = barActions(fields, bar, reducer, scope)
   const text = <span className="truncate">{bar.text}</span>
   const group = cn(
-    "flex min-w-0 items-center tabular-nums",
+    "flex min-w-0 items-center text-foreground tabular-nums",
     orientation === "vertical" ? "justify-center gap-1" : "shrink-0 gap-1.5"
   )
   return (
