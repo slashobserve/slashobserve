@@ -52,10 +52,20 @@ func refuseBlocked(network, address string, _ syscall.RawConn) error {
 	return nil
 }
 
-func newTransport(dial dialFunc, roots *x509.CertPool) *http.Transport {
-	if dial == nil {
-		dial = (&net.Dialer{Timeout: 5 * time.Second, Control: refuseBlocked}).DialContext
+func dialer(guarded bool, target string) dialFunc {
+	d := &net.Dialer{Timeout: 5 * time.Second}
+	if guarded {
+		d.Control = refuseBlocked
 	}
+	if target == "" {
+		return d.DialContext
+	}
+	return func(ctx context.Context, network, _ string) (net.Conn, error) {
+		return d.DialContext(ctx, network, target)
+	}
+}
+
+func newTransport(dial dialFunc, roots *x509.CertPool) *http.Transport {
 	return &http.Transport{
 		Proxy:                  nil,
 		DialContext:            dial,

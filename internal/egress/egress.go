@@ -41,6 +41,7 @@ var (
 	ErrTooLarge       = errors.New("response too large")
 	ErrContentType    = errors.New("unexpected content type")
 	ErrUnavailable    = errors.New("fetch failed")
+	ErrRedirected     = errors.New("redirect refused")
 )
 
 type Allowlist interface {
@@ -52,6 +53,18 @@ type Request struct {
 	Accept   []string
 	MaxBytes int64
 }
+
+type AuthorizedRequest struct {
+	Request
+	Authorization string
+	AllowPrivate  bool
+}
+
+type StatusError struct {
+	Status int
+}
+
+func (e *StatusError) Error() string { return "unexpected status " + strconv.Itoa(e.Status) }
 
 type Response struct {
 	Body        []byte
@@ -81,6 +94,7 @@ type Client struct {
 	allow     Allowlist
 	userAgent string
 	transport *http.Transport
+	private   *http.Transport
 	hits      *ttlcache.Cache[string, visited]
 	failures  *ttlcache.Cache[string, error]
 	group     *ttlcache.Group[visited]
@@ -102,10 +116,14 @@ type job struct {
 }
 
 func New(allow Allowlist, opts Options) *Client {
-	return newClient(allow, opts, nil, nil)
+	return newClient(allow, opts, dialer(true, ""), dialer(false, ""), nil)
 }
 
-func newClient(allow Allowlist, opts Options, dial dialFunc, roots *x509.CertPool) *Client {
+func NewDialingTo(allow Allowlist, opts Options, address string, roots *x509.CertPool) *Client {
+	return newClient(allow, opts, dialer(true, address), dialer(false, address), roots)
+}
+
+func newClient(allow Allowlist, opts Options, guarded, open dialFunc, roots *x509.CertPool) *Client {
 	if opts.UserAgent == "" {
 		opts.UserAgent = defaultAgent
 	}
@@ -118,7 +136,8 @@ func newClient(allow Allowlist, opts Options, dial dialFunc, roots *x509.CertPoo
 	return &Client{
 		allow:     allow,
 		userAgent: opts.UserAgent,
-		transport: newTransport(dial, roots),
+		transport: newTransport(guarded, roots),
+		private:   newTransport(open, roots),
 		hits:      ttlcache.New[string, visited](opts.CacheTTL, opts.CacheBytes),
 		failures:  ttlcache.New[string, error](failureTTL, failureBytes),
 		group:     ttlcache.NewGroup[visited](fetchTimeout, opts.Logger),
@@ -185,7 +204,14 @@ func invalid(host string) error {
 }
 
 func hostOf(u *url.URL) (string, error) {
-	if u.Scheme != "https" || u.User != nil || (u.Port() != "" && u.Port() != "443") {
+	if u.Scheme != "https" || (u.Port() != "" && u.Port() != "443") {
+		return "", invalid(u.Hostname())
+	}
+	return anyPortHostOf(u)
+}
+
+func anyPortHostOf(u *url.URL) (string, error) {
+	if (u.Scheme != "https" && u.Scheme != "http") || u.User != nil {
 		return "", invalid(u.Hostname())
 	}
 	host, err := domains.NormalizeHost(u.Hostname())
