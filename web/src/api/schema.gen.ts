@@ -1595,6 +1595,8 @@ export interface components {
             allowed_email_domains: string[];
             any_email_domain: boolean;
             session_ttl_seconds: number;
+            /** @description The server's release version, `dev` for a local build. */
+            version: string;
         };
         SessionState: {
             authenticated: boolean;

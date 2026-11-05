@@ -241,6 +241,7 @@ components:
         - allowed_email_domains
         - any_email_domain
         - session_ttl_seconds
+        - version
       properties:
         public_url:
           type: string
@@ -264,6 +265,9 @@ components:
         session_ttl_seconds:
           type: integer
           minimum: 300
+        version:
+          type: string
+          description: The server's release version, `dev` for a local build.
     SessionState:
       type: object
       additionalProperties: false

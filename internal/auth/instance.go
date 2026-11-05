@@ -16,6 +16,7 @@ type instanceResponse struct {
 	AllowedDomains    []string `json:"allowed_email_domains"`
 	AnyEmailDomain    bool     `json:"any_email_domain"`
 	SessionTTLSeconds int64    `json:"session_ttl_seconds"`
+	Version           string   `json:"version"`
 }
 
 func (s *Service) instance(c *gin.Context) {
@@ -31,6 +32,7 @@ func (s *Service) instance(c *gin.Context) {
 		AllowedDomains:    domains,
 		AnyEmailDomain:    s.cfg.AllowAnyEmailDomain,
 		SessionTTLSeconds: int64(s.cfg.SessionTTL / time.Second),
+		Version:           s.cfg.Version,
 	})
 }
 

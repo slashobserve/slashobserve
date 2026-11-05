@@ -55,6 +55,7 @@ func TestInstanceServesOnlyPublicSettings(t *testing.T) {
 		SessionTTL:          36 * time.Hour,
 		AllowedEmailDomains: []string{"example.com", "example.org"},
 		ProviderName:        "Acme SSO",
+		Version:             "v1.4.2",
 	})
 
 	want := map[string]any{
@@ -65,6 +66,7 @@ func TestInstanceServesOnlyPublicSettings(t *testing.T) {
 		"allowed_email_domains": []any{"example.com", "example.org"},
 		"any_email_domain":      false,
 		"session_ttl_seconds":   float64(36 * 3600),
+		"version":               "v1.4.2",
 	}
 	if len(body) != len(want) {
 		t.Fatalf("fields = %v, want exactly %d", body, len(want))

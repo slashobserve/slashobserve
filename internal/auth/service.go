@@ -32,6 +32,7 @@ type Config struct {
 	AllowAnyEmailDomain bool
 	ProviderName        string
 	RolePolicy          RolePolicy
+	Version             string
 }
 
 type Service struct {

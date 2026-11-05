@@ -179,6 +179,7 @@ func newAuthService(ctx context.Context, cfg config.Config, queries *dbsqlc.Quer
 		AllowAnyEmailDomain: cfg.AllowAnyEmailDomain,
 		ProviderName:        cfg.AuthProviderName,
 		RolePolicy:          rolePolicy,
+		Version:             version,
 	}, queries, logger)
 	if err != nil {
 		return nil, withheld("auth_setup_failed", err)
