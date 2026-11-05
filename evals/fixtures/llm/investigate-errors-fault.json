@@ -1,0 +1,47 @@
+{
+  "prompt": "eval investigate: why is the checkout error rate up",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))",
+            "from": "now-1h",
+            "to": "now"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "save_finding",
+          "input": {
+            "markdown": "## The 5xx errors come from checkout-0\nThe rate of 500 responses rose on checkout-0 while the other pods kept answering 200.\nRestarting or draining checkout-0 should bring the errors back down.",
+            "evidence": [
+              {
+                "id": "evidence",
+                "type": "timeseries",
+                "title": "Requests by status",
+                "gridPos": {
+                  "x": 0,
+                  "y": 0,
+                  "w": 12,
+                  "h": 8
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

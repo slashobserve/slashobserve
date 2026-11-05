@@ -37,6 +37,8 @@ type Result struct {
 	ModelCalls     *int          `json:"model_calls"`
 	LatencySeconds *float64      `json:"latency_seconds"`
 	Panels         int           `json:"panels"`
+	FindingWords   int           `json:"finding_words,omitempty"`
+	Evidence       int           `json:"evidence,omitempty"`
 	Usage          *Usage        `json:"usage"`
 	CostUSD        *float64      `json:"cost_usd"`
 
@@ -338,7 +340,7 @@ func ratio(total int64, count int) *float64 {
 
 func withMetrics(res Result, kind string, req AgentRequest) Result {
 	switch kind {
-	case kindSuggest, kindChatImport, kindSizeGuard:
+	case kindSuggest, kindChatImport, kindSizeGuard, kindInvestigate:
 	default:
 		res.FirstPanelSeconds = firstPanelSeconds(req.CreatedAt, req.FirstSaveAt)
 	}
@@ -497,7 +499,7 @@ func renderMarkdown(report Report, gates gateOutcome) string {
 		if r.LatencySeconds != nil {
 			seconds = fmt.Sprintf("%.1fs", *r.LatencySeconds)
 		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n", r.ID, optionalSeconds(r.FirstPanelSeconds), optionalFloat(r.PanelsPerMinute), savesCell(r), refusalsCell(r), verdictOf(r), r.Category, seconds, usd(r.CostUSD), optionalScore(r.Quality), failureLabel(r), escapeCell(failedChecks(r)), escapeCell(cmp.Or(r.Error, r.Reason)))
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n", r.ID, optionalSeconds(r.FirstPanelSeconds), panelsCell(r), savesCell(r), refusalsCell(r), verdictOf(r), r.Category, seconds, usd(r.CostUSD), optionalScore(r.Quality), failureLabel(r), escapeCell(failedChecks(r)), escapeCell(cmp.Or(r.Error, r.Reason)))
 	}
 
 	if !gates.ok() {
@@ -552,6 +554,13 @@ func optionalFloat(v *float64) string {
 		return "n/a"
 	}
 	return fmt.Sprintf("%.1f", *v)
+}
+
+func panelsCell(r Result) string {
+	if r.Kind == kindInvestigate {
+		return fmt.Sprintf("%dw %dev", r.FindingWords, r.Evidence)
+	}
+	return optionalFloat(r.PanelsPerMinute)
 }
 
 func savesCell(r Result) string {

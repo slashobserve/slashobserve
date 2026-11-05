@@ -1,0 +1,7 @@
+id: investigate-latency-fault
+prompt: "eval investigate: why is checkout slow"
+kind: investigate
+suites: [replay]
+expect:
+  finding_mentions: ["checkout-0", "latency"]
+  evidence_min: 1

@@ -107,8 +107,17 @@ type AgentRequest struct {
 	FinishedAt    *time.Time `json:"finished_at"`
 	Usage         *Usage     `json:"usage"`
 	Steps         []Step     `json:"steps"`
+	Kind          string     `json:"kind"`
+	Finding       *Finding   `json:"finding"`
 
 	FirstSaveAt *time.Time `json:"-"`
+}
+
+type Finding struct {
+	ID       string            `json:"id"`
+	Markdown string            `json:"markdown"`
+	URL      string            `json:"url"`
+	Evidence []json.RawMessage `json:"evidence"`
 }
 
 func (r AgentRequest) finished() bool {
@@ -204,11 +213,15 @@ func (c *client) agent(ctx context.Context) (AgentInfo, error) {
 	return info, err
 }
 
-func (c *client) createObserve(ctx context.Context, prompt string) (AgentRequest, error) {
+func (c *client) createObserve(ctx context.Context, prompt, kind string) (AgentRequest, error) {
 	var env struct {
 		Request AgentRequest `json:"request"`
 	}
-	err := c.do(ctx, http.MethodPost, "/observe", map[string]string{"prompt": prompt}, &env)
+	body := map[string]string{"prompt": prompt}
+	if kind != "" {
+		body["kind"] = kind
+	}
+	err := c.do(ctx, http.MethodPost, "/observe", body, &env)
 	return env.Request, err
 }
 
@@ -238,10 +251,10 @@ func (c *client) whenFree(ctx context.Context, busy func(error) bool, attempt fu
 	}
 }
 
-func (c *client) createObserveWhenFree(ctx context.Context, prompt string) (AgentRequest, error) {
+func (c *client) createObserveWhenFree(ctx context.Context, prompt, kind string) (AgentRequest, error) {
 	var req AgentRequest
 	err := c.whenFree(ctx, slotsFull, func() (err error) {
-		req, err = c.createObserve(ctx, prompt)
+		req, err = c.createObserve(ctx, prompt, kind)
 		return err
 	})
 	return req, err

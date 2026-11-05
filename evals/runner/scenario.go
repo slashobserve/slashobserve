@@ -32,6 +32,7 @@ const (
 	kindSuggest       = "suggest"
 	kindChatImport    = "chat_import"
 	kindSizeGuard     = "size_guard"
+	kindInvestigate   = "investigate"
 
 	suiteReplay = "replay"
 	suiteLive   = "live"
@@ -50,10 +51,11 @@ const (
 	defaultMinPanels  = 1
 	defaultMaxPanels  = 12
 	defaultMaxSeconds = 60
+	maxEvidence       = 4
 )
 
 var (
-	kinds = []string{kindCreate, kindRevise, kindFixUnverified, kindSuggest, kindChatImport, kindSizeGuard}
+	kinds = []string{kindCreate, kindRevise, kindFixUnverified, kindSuggest, kindChatImport, kindSizeGuard, kindInvestigate}
 
 	idPattern    = regexp.MustCompile(`^[a-z0-9-]{3,64}$`)
 	suitePattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
@@ -126,6 +128,9 @@ type Expect struct {
 
 	Scope    string  `yaml:"scope" json:"scope,omitempty"`
 	Coverage float64 `yaml:"coverage" json:"coverage,omitempty"`
+
+	FindingMentions []string `yaml:"finding_mentions" json:"finding_mentions,omitempty"`
+	EvidenceMin     int      `yaml:"evidence_min" json:"evidence_min,omitempty"`
 }
 
 func decodeStrict(content []byte, out any) error {
@@ -267,8 +272,31 @@ func validateKind(sc Scenario) error {
 	if err := validateSeedUse(sc); err != nil {
 		return err
 	}
+	if err := validateFindingUse(sc); err != nil {
+		return err
+	}
 	if sc.Fault != nil {
 		return validateFault(*sc.Fault)
+	}
+	return nil
+}
+
+func validateFindingUse(sc Scenario) error {
+	ex := sc.Expect
+	expectsFinding := len(ex.FindingMentions) > 0 || ex.EvidenceMin > 0
+	if sc.Kind != kindInvestigate {
+		if expectsFinding {
+			return fmt.Errorf("expect.finding_mentions and evidence_min are for kind %s only", kindInvestigate)
+		}
+		return nil
+	}
+	switch {
+	case !expectsFinding:
+		return fmt.Errorf("a %s scenario must expect finding_mentions or evidence_min", kindInvestigate)
+	case sc.Seed != nil:
+		return fmt.Errorf("a %s scenario does not take a seed", kindInvestigate)
+	case ex.MinPanels != defaultMinPanels || ex.MaxPanels != 0 || len(ex.Metrics) > 0 || len(ex.Units) > 0 || ex.Thresholds:
+		return fmt.Errorf("a %s scenario does not take min_panels, max_panels, metrics, units or thresholds", kindInvestigate)
 	}
 	return nil
 }
@@ -348,6 +376,7 @@ func validateExpectations(sc Scenario) error {
 		{"expect.units", ex.Units},
 		{"expect.time_range_from", ex.TimeRangeFrom},
 		{"expect.changed_paths", ex.ChangedPaths},
+		{"expect.finding_mentions", ex.FindingMentions},
 	}
 	for _, l := range lists {
 		if slices.ContainsFunc(l.entries, blank) {
@@ -396,6 +425,9 @@ func validateBudgetsAndValues(ex Expect) error {
 	}
 	if ex.TargetType != "" && !spec.PanelType(ex.TargetType).IsData() {
 		return fmt.Errorf("expect.target_type %q must be a data panel type", ex.TargetType)
+	}
+	if ex.EvidenceMin < 0 || ex.EvidenceMin > maxEvidence {
+		return fmt.Errorf("expect.evidence_min must be between 0 and %d", maxEvidence)
 	}
 	if ex.ChangedPanels < 0 {
 		return errors.New("expect.changed_panels must be at least 1 when set")
