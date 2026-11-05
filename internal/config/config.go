@@ -1,6 +1,8 @@
 package config
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -60,6 +62,8 @@ const (
 
 	minAgentSessionRenewKiB = 32
 	maxAgentSessionRenewKiB = 4096
+
+	minSecretKeyBytes = 32
 )
 
 var instanceRoles = []string{"admin", "editor", "commenter", "viewer"}
@@ -110,6 +114,8 @@ const (
 
 	envAgentRunTimeout      = "SLASHOBSERVE_AGENT_RUN_TIMEOUT"
 	envAgentSessionRenewKiB = "SLASHOBSERVE_AGENT_SESSION_RENEW_KIB"
+
+	envSecretKey = "SLASHOBSERVE_SECRET_KEY" //nolint:gosec // an environment variable name, not a credential
 )
 
 var serverEnvNames = []string{
@@ -119,7 +125,7 @@ var serverEnvNames = []string{
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
-	envLLMLogProviderErrors, envAgentRunTimeout, envAgentSessionRenewKiB,
+	envLLMLogProviderErrors, envAgentRunTimeout, envAgentSessionRenewKiB, envSecretKey,
 }
 
 type GroupRoleSetting struct {
@@ -173,6 +179,8 @@ type Config struct {
 
 	OutboundDomainsLocked bool
 	OutboundDomains       domains.List
+
+	SecretKey []byte
 }
 
 func Load(lookup func(string) (string, bool)) (Config, error) {
@@ -233,6 +241,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 	}
 	errs = append(errs, loadAgent(lookup, &cfg)...)
 	errs = append(errs, loadOutboundDomains(lookup, &cfg)...)
+	errs = append(errs, loadSecretKey(lookup, &cfg)...)
 
 	return cfg, errors.Join(errs...)
 }
@@ -347,6 +356,31 @@ func loadOutboundDomains(lookup func(string) (string, bool), cfg *Config) []erro
 		errs = append(errs, fmt.Errorf("%s: at most %d entries, got %d", envOutboundDomains, MaxOutboundDomains, len(cfg.OutboundDomains)))
 	}
 	return errs
+}
+
+func loadSecretKey(lookup func(string) (string, bool), cfg *Config) []error {
+	v := get(lookup, envSecretKey)
+	if v == "" {
+		return nil
+	}
+	key, ok := decodeSecretKey(v)
+	if !ok || len(key) < minSecretKeyBytes {
+		return []error{fmt.Errorf("%s: must be at least %d bytes written as hex or base64", envSecretKey, minSecretKeyBytes)}
+	}
+	cfg.SecretKey = key
+	return nil
+}
+
+func decodeSecretKey(v string) ([]byte, bool) {
+	if key, err := hex.DecodeString(v); err == nil {
+		return key, true
+	}
+	for _, enc := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
+		if key, err := enc.DecodeString(v); err == nil {
+			return key, true
+		}
+	}
+	return nil, false
 }
 
 func loadProviderName(lookup func(string) (string, bool), cfg *Config) []error {
