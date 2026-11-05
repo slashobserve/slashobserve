@@ -1,6 +1,8 @@
 id: checkout-latency-quantiles
 prompt: checkout p50, p95 and p99 latency, last 6h
 category: prometheus
+kind: create
+suites: [live]
 done_when: true
 expect:
   datasources: [prometheus]

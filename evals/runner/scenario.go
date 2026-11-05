@@ -35,6 +35,7 @@ const (
 
 	suiteReplay = "replay"
 	suiteLive   = "live"
+	suiteSmoke  = "smoke"
 
 	tagReplaySmoke = "replay-smoke"
 
@@ -52,10 +53,10 @@ const (
 )
 
 var (
-	kinds  = []string{kindCreate, kindRevise, kindFixUnverified, kindSuggest, kindChatImport, kindSizeGuard}
-	suites = []string{suiteReplay, suiteLive}
+	kinds = []string{kindCreate, kindRevise, kindFixUnverified, kindSuggest, kindChatImport, kindSizeGuard}
 
-	idPattern = regexp.MustCompile(`^[a-z0-9-]{3,64}$`)
+	idPattern    = regexp.MustCompile(`^[a-z0-9-]{3,64}$`)
+	suitePattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
 )
 
 type Scenario struct {
@@ -195,15 +196,6 @@ func applyDefaults(sc *Scenario) {
 	if sc.Tags == nil {
 		sc.Tags = []string{}
 	}
-	if sc.Kind == "" {
-		sc.Kind = kindCreate
-	}
-	if len(sc.Suites) == 0 {
-		sc.Suites = []string{suiteLive}
-	}
-	if slices.Contains(sc.Tags, tagReplaySmoke) && !slices.Contains(sc.Suites, suiteReplay) {
-		sc.Suites = append(sc.Suites, suiteReplay)
-	}
 	if sc.Expect.MinPanels == 0 {
 		sc.Expect.MinPanels = defaultMinPanels
 	}
@@ -262,6 +254,12 @@ func validateDatasources(sc Scenario) error {
 }
 
 func validateKind(sc Scenario) error {
+	switch {
+	case sc.Kind == "":
+		return fmt.Errorf("kind is required, one of %s", strings.Join(kinds, ", "))
+	case len(sc.Suites) == 0:
+		return errors.New("suites is required, for example [live] or [live, replay]")
+	}
 	if !slices.Contains(kinds, sc.Kind) {
 		return fmt.Errorf("kind %q must be one of %s", sc.Kind, strings.Join(kinds, ", "))
 	}
@@ -304,8 +302,8 @@ func promptReadsSeed(prompt string) bool {
 
 func validateSuites(list []string) error {
 	for _, suite := range list {
-		if !slices.Contains(suites, suite) {
-			return fmt.Errorf("suites entry %q must be replay or live", suite)
+		if !suitePattern.MatchString(suite) {
+			return fmt.Errorf("suites entry %q must match %s", suite, suitePattern)
 		}
 	}
 	if dup, ok := firstDuplicate(list); ok {

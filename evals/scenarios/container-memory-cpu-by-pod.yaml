@@ -1,6 +1,8 @@
 id: container-memory-cpu-by-pod
 prompt: container memory and CPU by pod
 category: prometheus
+kind: create
+suites: [live]
 done_when: true
 expect:
   datasources: [prometheus]

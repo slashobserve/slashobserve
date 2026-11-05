@@ -1,6 +1,8 @@
 id: error-log-count-by-service
 prompt: error log count by service
 category: clickhouse
+kind: create
+suites: [live, smoke]
 done_when: true
 expect:
   datasources: [clickhouse]

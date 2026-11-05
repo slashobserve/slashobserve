@@ -80,6 +80,12 @@ var (
 	nonSlug = regexp.MustCompile(`[^a-z0-9]+`)
 )
 
+var smokeCorpusTasks = map[string]bool{
+	"corpus-change-slashobserve-demo-shop":  true,
+	"corpus-fix-slashobserve-demo-shop":     true,
+	"corpus-suggest-slashobserve-demo-shop": true,
+}
+
 var largeDashboards = []string{
 	"rfmoz/node-exporter-full.json",
 	"rfmoz/haproxy.json",
@@ -513,6 +519,9 @@ func (p *planner) scenario(taskName string, a analyzed, kind, prompt string, mar
 }
 
 func (p *planner) finish(sc Scenario, fixture *replayFixture) (*task, error) {
+	if p.suite == suiteLive && !p.k8s && smokeCorpusTasks[sc.ID] {
+		sc.Suites = append(sc.Suites, suiteSmoke)
+	}
 	applyDefaults(&sc)
 	if err := validateScenario(sc); err != nil {
 		return nil, err

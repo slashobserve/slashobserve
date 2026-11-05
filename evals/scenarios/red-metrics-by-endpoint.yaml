@@ -1,6 +1,8 @@
 id: red-metrics-by-endpoint
 prompt: demo shop RED metrics by endpoint
 category: prometheus
+kind: create
+suites: [live, replay, smoke]
 done_when: true
 tags: [replay-smoke]
 expect:

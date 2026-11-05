@@ -106,7 +106,7 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs.StringVar(&o.markdown, "markdown", "", "write the Markdown report to this file")
 	fs.Float64Var(&o.minPass, "min-pass", 0.8, "minimum share of scenarios that must pass")
 	fs.IntVar(&o.minDoneWhen, "min-done-when", defaultMinDoneWhen, "minimum done-when scenarios that must pass when all of them ran")
-	fs.StringVar(&o.suite, "suite", "", "run every scenario and corpus task of the replay or live suite; without it only the create scenarios of the live suite and those tagged "+tagReplaySmoke+" run")
+	fs.StringVar(&o.suite, "suite", "", "run every scenario and corpus task that declares this suite, such as replay, live or smoke; without it only the create scenarios of the live suite and those tagged "+tagReplaySmoke+" run")
 	fs.StringVar(&o.corpus, "corpus", "", "corpus tasks to add: all, sample or none (default all for replay, sample for live, none without --suite)")
 	fs.StringVar(&o.sampleFile, "corpus-sample", o.sampleFile, "file listing the corpus dashboards of the sample")
 	fs.StringVar(&o.matrix, "matrix", "", "run the suite once per model of this file, recreating the server between entries")
@@ -137,8 +137,8 @@ func validateOptions(o options) error {
 		return errors.New("--min-pass must be between 0 and 1")
 	case o.timeout < defaultTimeout:
 		return fmt.Errorf("--timeout must be at least %s: the evals stack's run limit of %s plus %s to report how a run ended", defaultTimeout, serverRunLimit, serverSettleMargin)
-	case o.suite != "" && !slices.Contains(suites, o.suite):
-		return errors.New("--suite must be replay or live")
+	case o.suite != "" && !suitePattern.MatchString(o.suite):
+		return fmt.Errorf("--suite %q must match %s", o.suite, suitePattern)
 	case o.corpus != "" && !slices.Contains([]string{corpusAll, corpusSample, corpusNone}, o.corpus):
 		return errors.New("--corpus must be all, sample or none")
 	case o.corpus != "" && o.corpus != corpusNone && o.suite == "":
@@ -153,8 +153,8 @@ func validateProfile(o options) error {
 	switch {
 	case o.profile != profileDefault && o.profile != profileK8s:
 		return errors.New("--profile must be default or k8s")
-	case o.profile == profileK8s && o.suite == suiteReplay:
-		return errors.New("--profile k8s runs the live suite only, not --suite replay")
+	case o.profile == profileK8s && o.suite != "" && o.suite != suiteLive:
+		return fmt.Errorf("--profile k8s runs the live suite only, not --suite %s", o.suite)
 	}
 	return nil
 }
@@ -163,17 +163,29 @@ func defaultCorpus(suite, chosen string) string {
 	switch {
 	case chosen != "":
 		return chosen
+	case suite == "":
+		return corpusNone
 	case suite == suiteReplay:
 		return corpusAll
-	case suite == suiteLive:
-		return corpusSample
 	}
-	return corpusNone
+	return corpusSample
+}
+
+func corpusSuite(suite string) string {
+	if suite == suiteReplay {
+		return suiteReplay
+	}
+	return suiteLive
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
-	if len(args) > 0 && args[0] == "prepare" {
-		return prepare(args[1:], stderr)
+	if len(args) > 0 {
+		switch args[0] {
+		case "prepare":
+			return prepare(args[1:], stderr)
+		case "list":
+			args = append([]string{"--list"}, args[1:]...)
+		}
 	}
 	o, err := parseFlags(args, stderr)
 	if err != nil {
@@ -257,7 +269,7 @@ func buildCorpusTasks(o options) ([]Scenario, error) {
 			return nil, fmt.Errorf("read the corpus sample: %w", err)
 		}
 	}
-	return build(corpusDir, sample, o.suite)
+	return build(corpusDir, sample, corpusSuite(o.suite))
 }
 
 func inSelection(sc Scenario, suite string) bool {
@@ -268,6 +280,9 @@ func inSelection(sc Scenario, suite string) bool {
 }
 
 func selectScenarios(pool []Scenario, o options) ([]Scenario, error) {
+	if o.suite != "" && !slices.ContainsFunc(pool, func(sc Scenario) bool { return slices.Contains(sc.Suites, o.suite) }) {
+		return nil, fmt.Errorf("--suite %s: no scenario or corpus task declares this suite", o.suite)
+	}
 	for _, id := range o.ids {
 		if i := slices.IndexFunc(pool, func(sc Scenario) bool { return sc.ID == id }); i >= 0 && !inSelection(pool[i], o.suite) {
 			return nil, fmt.Errorf("scenario %q is not in this selection; pass --suite %s", id, strings.Join(pool[i].Suites, " or --suite "))

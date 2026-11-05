@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,12 +21,16 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/goccy/go-yaml"
+
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const scenarioHeader = `id: sample
 prompt: sample prompt
 category: prometheus
+kind: create
+suites: [live]
 done_when: false
 `
 
@@ -1375,16 +1380,18 @@ func TestSelectionWithoutASuiteIsTodaysSet(t *testing.T) {
 		{ID: "fault-replay", Kind: kindCreate, Suites: []string{suiteReplay}},
 		{ID: "fix-live", Kind: kindFixUnverified, Suites: []string{suiteLive}},
 		{ID: "fix-both", Kind: kindFixUnverified, Suites: []string{suiteLive, suiteReplay}},
+		{ID: "revise-nightly", Kind: kindRevise, Suites: []string{suiteLive, "nightly"}},
 	}
 	cases := map[string]struct {
 		o    options
 		want []string
 	}{
-		"no suite":    {options{}, []string{"create-live", "create-smoke"}},
-		"replay":      {options{suite: suiteReplay}, []string{"create-smoke", "fault-replay", "fix-both"}},
-		"live":        {options{suite: suiteLive}, []string{"create-live", "create-smoke", "fix-live", "fix-both"}},
-		"smoke tag":   {options{tags: listFlag{tagReplaySmoke}}, []string{"create-smoke"}},
-		"id in suite": {options{suite: suiteLive, ids: listFlag{"fix-live"}}, []string{"fix-live"}},
+		"declared suite": {options{suite: "nightly"}, []string{"revise-nightly"}},
+		"no suite":       {options{}, []string{"create-live", "create-smoke"}},
+		"replay":         {options{suite: suiteReplay}, []string{"create-smoke", "fault-replay", "fix-both"}},
+		"live":           {options{suite: suiteLive}, []string{"create-live", "create-smoke", "fix-live", "fix-both", "revise-nightly"}},
+		"smoke tag":      {options{tags: listFlag{tagReplaySmoke}}, []string{"create-smoke"}},
+		"id in suite":    {options{suite: suiteLive, ids: listFlag{"fix-live"}}, []string{"fix-live"}},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -1408,6 +1415,9 @@ func TestSelectionWithoutASuiteIsTodaysSet(t *testing.T) {
 	if _, err := selectScenarios(pool, options{ids: listFlag{"missing"}}); err == nil || !strings.Contains(err.Error(), "unknown scenario id") {
 		t.Fatalf("an unknown id: %v", err)
 	}
+	if _, err := selectScenarios(pool, options{suite: "weekly"}); err == nil || !strings.Contains(err.Error(), "no scenario or corpus task declares this suite") {
+		t.Fatalf("a suite nothing declares: %v", err)
+	}
 }
 
 func TestShippedScenariosKeepTheDefaultSelection(t *testing.T) {
@@ -1428,21 +1438,75 @@ func TestShippedScenariosKeepTheDefaultSelection(t *testing.T) {
 	}
 }
 
+func TestEveryShippedScenarioFileDeclaresItsKindAndSuites(t *testing.T) {
+	paths, err := filepath.Glob(filepath.Join("..", "scenarios", "*.yaml"))
+	if err != nil || len(paths) == 0 {
+		t.Fatalf("no scenario files: %v", err)
+	}
+	for _, path := range paths {
+		var declared struct {
+			Kind   string   `yaml:"kind"`
+			Suites []string `yaml:"suites"`
+		}
+		if err := yaml.Unmarshal(readTestFile(t, path), &declared); err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		if declared.Kind == "" || len(declared.Suites) == 0 {
+			t.Errorf("%s declares kind %q and suites %v, want both", filepath.Base(path), declared.Kind, declared.Suites)
+		}
+	}
+}
+
+func TestSmokeSuiteIsTwelveLiveTasksOfTheChosenKinds(t *testing.T) {
+	files, err := loadScenarios(filepath.Join("..", "scenarios"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sample, err := loadSample(filepath.Join("..", "corpus-sample.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tasks, err := corpusTasks(testCorpusRoot, sample, corpusSuite(suiteSmoke))
+	if err != nil {
+		t.Fatal(err)
+	}
+	smoke, err := selectScenarios(append(files, tasks...), options{suite: suiteSmoke})
+	if err != nil {
+		t.Fatal(err)
+	}
+	kinds, categories := map[string]int{}, map[string]int{}
+	for _, sc := range smoke {
+		if !slices.Contains(sc.Suites, suiteLive) {
+			t.Errorf("%s is in the smoke suite but not the live suite", sc.ID)
+		}
+		kinds[sc.Kind]++
+		if sc.Kind == kindCreate {
+			categories[sc.Category]++
+		}
+	}
+	wantKinds := map[string]int{kindCreate: 6, kindRevise: 3, kindFixUnverified: 1, kindSuggest: 1, kindChatImport: 1}
+	wantCategories := map[string]int{categoryPrometheus: 3, categoryClickHouse: 2, categoryMixed: 1}
+	if len(smoke) != 12 || !maps.Equal(kinds, wantKinds) || !maps.Equal(categories, wantCategories) {
+		t.Fatalf("smoke has %d tasks, kinds %v, create categories %v; want 12, %v, %v", len(smoke), kinds, categories, wantKinds, wantCategories)
+	}
+}
+
 func TestParseFlagsSuiteCorpusAndMatrix(t *testing.T) {
 	cases := map[string]struct {
 		args       []string
 		wantCorpus string
 		wantErr    string
 	}{
-		"no suite":                    {nil, corpusNone, ""},
-		"replay defaults to all":      {[]string{"--suite", "replay"}, corpusAll, ""},
-		"live defaults to the sample": {[]string{"--suite", "live"}, corpusSample, ""},
-		"explicit corpus":             {[]string{"--suite", "replay", "--corpus", "none"}, corpusNone, ""},
-		"unknown suite":               {[]string{"--suite", "nightly"}, "", "--suite must be replay or live"},
-		"unknown corpus":              {[]string{"--suite", "live", "--corpus", "some"}, "", "--corpus must be all, sample or none"},
-		"corpus without suite":        {[]string{"--corpus", "all"}, "", "--corpus needs --suite"},
-		"matrix without out":          {[]string{"--matrix", "m.yaml"}, "", "--matrix needs --out"},
-		"matrix with out":             {[]string{"--matrix", "m.yaml", "--out", "dir"}, corpusNone, ""},
+		"no suite":                     {nil, corpusNone, ""},
+		"replay defaults to all":       {[]string{"--suite", "replay"}, corpusAll, ""},
+		"live defaults to the sample":  {[]string{"--suite", "live"}, corpusSample, ""},
+		"explicit corpus":              {[]string{"--suite", "replay", "--corpus", "none"}, corpusNone, ""},
+		"smoke defaults to the sample": {[]string{"--suite", "smoke"}, corpusSample, ""},
+		"malformed suite":              {[]string{"--suite", "Night ly"}, "", `--suite "Night ly" must match`},
+		"unknown corpus":               {[]string{"--suite", "live", "--corpus", "some"}, "", "--corpus must be all, sample or none"},
+		"corpus without suite":         {[]string{"--corpus", "all"}, "", "--corpus needs --suite"},
+		"matrix without out":           {[]string{"--matrix", "m.yaml"}, "", "--matrix needs --out"},
+		"matrix with out":              {[]string{"--matrix", "m.yaml", "--out", "dir"}, corpusNone, ""},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -1682,7 +1746,7 @@ func TestRebuildCoverageUsesTheCap(t *testing.T) {
 }
 
 func TestSizeGuardScenariosMustExpectThePromptCap(t *testing.T) {
-	base := Scenario{ID: "size-guard-demo", Kind: kindSizeGuard, Prompt: strings.Repeat("x", maxPromptRunes+1), Expect: Expect{FailureCode: failurePromptTooLong}}
+	base := Scenario{ID: "size-guard-demo", Kind: kindSizeGuard, Suites: []string{suiteLive}, Prompt: strings.Repeat("x", maxPromptRunes+1), Expect: Expect{FailureCode: failurePromptTooLong}}
 	sc := base
 	applyDefaults(&sc)
 	if err := validateScenario(sc); err != nil {
@@ -1700,7 +1764,7 @@ func TestSizeGuardScenariosMustExpectThePromptCap(t *testing.T) {
 	if err := validateScenario(none); err == nil {
 		t.Fatal("a size guard scenario with no failure code was accepted")
 	}
-	negative := Scenario{ID: "negative-cap", Prompt: "p", Category: categoryPrometheus, Expect: Expect{Datasources: []string{"prometheus"}, RebuildMetricShare: 0.25, RebuildMetricCap: -1}}
+	negative := Scenario{ID: "negative-cap", Kind: kindCreate, Suites: []string{suiteLive}, Prompt: "p", Category: categoryPrometheus, Expect: Expect{Datasources: []string{"prometheus"}, RebuildMetricShare: 0.25, RebuildMetricCap: -1}}
 	applyDefaults(&negative)
 	if err := validateScenario(negative); err == nil || !strings.Contains(err.Error(), "rebuild_metric_cap") {
 		t.Fatalf("a negative cap: %v", err)
