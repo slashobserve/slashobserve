@@ -68,6 +68,8 @@ type options struct {
 	parallel           int
 	timeout            time.Duration
 	out, markdown      string
+	compare            string
+	compareNew         string
 	minPass            float64
 	minQuality         float64
 	minDoneWhen        int
@@ -107,6 +109,7 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs.DurationVar(&o.timeout, "timeout", defaultTimeout, "how long to wait for one agent request; at least the server's run limit plus a margin, so the server reports its own failure code")
 	fs.StringVar(&o.out, "out", "", "write the JSON report to this file, or with --matrix to this directory")
 	fs.StringVar(&o.markdown, "markdown", "", "write the Markdown report to this file")
+	fs.StringVar(&o.compare, "compare", "", "compare with this base JSON report: the report named after the flags, or this run's --out, and write "+compareFile+" next to it")
 	fs.Float64Var(&o.minPass, "min-pass", 0.8, "minimum share of scenarios that must pass")
 	fs.Float64Var(&o.minQuality, "min-quality", 0, "minimum median quality score, 0 to 1, of every kind that saved a dashboard; 0 turns the gate off")
 	fs.IntVar(&o.minDoneWhen, "min-done-when", defaultMinDoneWhen, "minimum done-when scenarios that must pass when all of them ran")
@@ -126,6 +129,12 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 			o.minDoneWhenSet = true
 		}
 	})
+	if o.compare != "" {
+		if fs.NArg() > 1 {
+			return o, errors.New("--compare takes one report to compare against the base, or none to compare this run's --out")
+		}
+		o.compareNew = fs.Arg(0)
+	}
 	if err := validateOptions(o); err != nil {
 		return o, err
 	}
@@ -166,6 +175,10 @@ func validateSelection(o options) error {
 		return errors.New("--corpus needs --suite")
 	case o.matrix != "" && o.out == "":
 		return errors.New("--matrix needs --out, the directory that receives one report per model")
+	case o.compare != "" && o.matrix != "":
+		return errors.New("--compare cannot run a matrix; compare each <name>.json of its --out directory instead")
+	case o.compare != "" && o.compareNew == "" && o.out == "":
+		return errors.New("--compare needs --out, the report it compares and the directory that receives " + compareFile)
 	}
 	return nil
 }
@@ -215,7 +228,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 		return fail(stderr, err)
 	}
-	if o.verifyK8s {
+	switch {
+	case o.compareNew != "":
+		return executeCompare(o.compare, o.compareNew, stdout, stderr)
+	case o.verifyK8s:
 		return executeVerifyK8s(o, stdout, stderr)
 	}
 	all, err := loadScenarios(o.scenarios)
@@ -235,14 +251,21 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 	doneWhen := countDoneWhen(all)
+	if o.minDoneWhen, err = minDoneWhen(o, doneWhen); err != nil {
+		return fail(stderr, err)
+	}
+	return execute(o, selected, doneWhen, stdout, stderr)
+}
+
+func minDoneWhen(o options, doneWhen int) (int, error) {
 	switch {
 	case doneWhen == 0:
 	case !o.minDoneWhenSet:
-		o.minDoneWhen = min(defaultMinDoneWhen, doneWhen)
+		return min(defaultMinDoneWhen, doneWhen), nil
 	case o.minDoneWhen < 0 || o.minDoneWhen > doneWhen:
-		return fail(stderr, fmt.Errorf("--min-done-when must be between 0 and %d, the number of done_when scenarios", doneWhen))
+		return 0, fmt.Errorf("--min-done-when must be between 0 and %d, the number of done_when scenarios", doneWhen)
 	}
-	return execute(o, selected, doneWhen, stdout, stderr)
+	return o.minDoneWhen, nil
 }
 
 func listScenarios(selected []Scenario, stdout io.Writer) {
@@ -354,6 +377,11 @@ func execute(o options, selected []Scenario, doneWhen int, stdout, stderr io.Wri
 	_, _ = io.WriteString(stdout, markdown)
 	if err := writeReports(o, report, markdown); err != nil {
 		return fail(stderr, err)
+	}
+	if o.compare != "" {
+		if err := compareWith(o.compare, report, o.out, stdout); err != nil {
+			return fail(stderr, err)
+		}
 	}
 	if ctx.Err() != nil || !gates.ok() {
 		return 1
