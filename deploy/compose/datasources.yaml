@@ -14,3 +14,15 @@ datasources:
       database: otel
       username: slashobserve_ro
       passwordEnv: SLASHOBSERVE_CLICKHOUSE_PASSWORD
+  - uid: loki
+    type: loki
+    name: Loki
+    grafanaUids: [loki]
+    loki:
+      url: http://loki:3100
+  - uid: tempo
+    type: tempo
+    name: Tempo
+    grafanaUids: [tempo]
+    tempo:
+      url: http://tempo:3200

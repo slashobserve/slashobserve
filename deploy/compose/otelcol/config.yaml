@@ -31,6 +31,10 @@ exporters:
       initial_interval: 2s
       max_interval: 30s
       max_elapsed_time: 300s
+  otlp_http/loki:
+    endpoint: http://loki:3100/otlp
+  otlp_http/tempo:
+    endpoint: http://tempo:4318
 
 extensions:
   health_check:
@@ -51,8 +55,8 @@ service:
     logs:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [clickhouse]
+      exporters: [clickhouse, otlp_http/loki]
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [clickhouse]
+      exporters: [clickhouse, otlp_http/tempo]

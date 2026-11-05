@@ -348,6 +348,16 @@ func TestDeployDatasourceFilesLoad(t *testing.T) {
 			if len(got) == 0 {
 				t.Fatal("expected datasources")
 			}
+			byUID := map[string]Datasource{}
+			for _, ds := range got {
+				byUID[ds.UID] = ds
+			}
+			if l := byUID["loki"]; l.Loki == nil || l.Loki.URL != "http://loki:3100" || !slices.Equal(l.GrafanaUIDs, []string{"loki"}) {
+				t.Fatalf("loki = %+v", l)
+			}
+			if tp := byUID["tempo"]; tp.Tempo == nil || tp.Tempo.URL != "http://tempo:3200" || !slices.Equal(tp.GrafanaUIDs, []string{"tempo"}) {
+				t.Fatalf("tempo = %+v", tp)
+			}
 			if name != "datasources.e2e.yaml" {
 				return
 			}
