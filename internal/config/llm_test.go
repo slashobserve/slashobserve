@@ -206,3 +206,63 @@ func TestTimeoutSettings(t *testing.T) {
 		})
 	}
 }
+
+func TestMetricsSetting(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  bool
+		fails bool
+	}{
+		{name: "unset is on", want: true},
+		{name: "true", value: "true", want: true},
+		{name: "false turns it off", value: "false"},
+		{name: "false with spaces", value: " false "},
+		{name: "off is refused", value: "off", fails: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			set := map[string]string{}
+			if tt.value != "" {
+				set[envMetrics] = tt.value
+			}
+			cfg, err := Load(envOf(llmEnv(set)))
+			if tt.fails {
+				if err == nil || !strings.Contains(err.Error(), envMetrics+": must be true or false") {
+					t.Fatalf("expected a boolean error, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.Metrics != tt.want {
+				t.Fatalf("Metrics = %v, want %v", cfg.Metrics, tt.want)
+			}
+		})
+	}
+}
+
+func TestProvisionDirSetting(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  string
+	}{
+		{name: "unset is off", want: ""},
+		{name: "a path", value: "/provision", want: "/provision"},
+		{name: "spaces are trimmed", value: " /provision ", want: "/provision"},
+		{name: "blank is off", value: "   ", want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := Load(envOf(llmEnv(map[string]string{envProvisionDir: tt.value})))
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.ProvisionDir != tt.want {
+				t.Fatalf("ProvisionDir = %q, want %q", cfg.ProvisionDir, tt.want)
+			}
+		})
+	}
+}
