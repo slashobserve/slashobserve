@@ -362,17 +362,21 @@ func (t *panelTree) upsertPanels(edits []panelEdit) []Issue {
 			t.append(topLevel, e.body)
 			continue
 		}
-		if _, ok := e.body["gridPos"]; !ok {
-			if gridPos, ok := current["gridPos"]; ok {
-				e.body["gridPos"] = gridPos
-			}
-		}
-		if kept, ok := current["panels"]; ok && !carriesChildren {
-			e.body["panels"] = kept
-		}
+		keepWhenOmitted(e.body, current, "gridPos", "responsive", "panels")
 		t.replace(l, e.body)
 	}
 	return issues
+}
+
+func keepWhenOmitted(body, current map[string]any, keys ...string) {
+	for _, key := range keys {
+		if _, sent := body[key]; sent {
+			continue
+		}
+		if stored, ok := current[key]; ok {
+			body[key] = stored
+		}
+	}
 }
 
 func (t *panelTree) placePanels(layout []PanelPlacement, grids map[int]any) []Issue {

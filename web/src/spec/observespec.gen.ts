@@ -1760,6 +1760,10 @@ export interface DataPanel1 {
   title: string;
   description?: string;
   gridPos: GridPos;
+  /**
+   * false keeps the panel at its gridPos size at every width down to the single-column view. Absent means the view may widen and wrap the panel when it would be too narrow for its type. A save that changes an existing panel's w or h sets false.
+   */
+  responsive?: false;
   type:
     | "timeseries"
     | "stat"
@@ -1942,6 +1946,10 @@ export interface TextPanel {
   title?: string;
   description?: string;
   gridPos: GridPos;
+  /**
+   * false keeps the panel at its gridPos size at every width down to the single-column view. Absent means the view may widen and wrap the panel when it would be too narrow for its type. A save that changes an existing panel's w or h sets false.
+   */
+  responsive?: false;
   type: "text";
   transparent?: boolean;
   /**
@@ -1968,6 +1976,10 @@ export interface PlaceholderPanel {
   title?: string;
   description?: string;
   gridPos: GridPos;
+  /**
+   * false keeps the panel at its gridPos size at every width down to the single-column view. Absent means the view may widen and wrap the panel when it would be too narrow for its type. A save that changes an existing panel's w or h sets false.
+   */
+  responsive?: false;
   type: "placeholder";
   reason: string;
   sourceType?: string;
@@ -2001,6 +2013,10 @@ export interface DashlistPanel {
   title?: string;
   description?: string;
   gridPos: GridPos;
+  /**
+   * false keeps the panel at its gridPos size at every width down to the single-column view. Absent means the view may widen and wrap the panel when it would be too narrow for its type. A save that changes an existing panel's w or h sets false.
+   */
+  responsive?: false;
   type: "dashlist";
   display?: {
     query?: string;
@@ -2024,6 +2040,10 @@ export interface NewsPanel {
   title?: string;
   description?: string;
   gridPos: GridPos;
+  /**
+   * false keeps the panel at its gridPos size at every width down to the single-column view. Absent means the view may widen and wrap the panel when it would be too narrow for its type. A save that changes an existing panel's w or h sets false.
+   */
+  responsive?: false;
   type: "news";
   display?: {
     /**

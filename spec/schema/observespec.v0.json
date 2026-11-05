@@ -6598,6 +6598,11 @@
         "gridPos": {
           "$ref": "#/$defs/gridPos"
         },
+        "responsive": {
+          "x-omitFromPrompt": true,
+          "description": "false keeps the panel at its gridPos size at every width down to the single-column view. Absent means the view may widen and wrap the panel when it would be too narrow for its type. A save that changes an existing panel's w or h sets false.",
+          "const": false
+        },
         "type": {
           "enum": [
             "timeseries",
@@ -6738,6 +6743,11 @@
         "gridPos": {
           "$ref": "#/$defs/gridPos"
         },
+        "responsive": {
+          "x-omitFromPrompt": true,
+          "description": "false keeps the panel at its gridPos size at every width down to the single-column view. Absent means the view may widen and wrap the panel when it would be too narrow for its type. A save that changes an existing panel's w or h sets false.",
+          "const": false
+        },
         "type": {
           "const": "text"
         },
@@ -6810,6 +6820,11 @@
         },
         "gridPos": {
           "$ref": "#/$defs/gridPos"
+        },
+        "responsive": {
+          "x-omitFromPrompt": true,
+          "description": "false keeps the panel at its gridPos size at every width down to the single-column view. Absent means the view may widen and wrap the panel when it would be too narrow for its type. A save that changes an existing panel's w or h sets false.",
+          "const": false
         },
         "type": {
           "const": "placeholder"
@@ -7850,6 +7865,11 @@
         "gridPos": {
           "$ref": "#/$defs/gridPos"
         },
+        "responsive": {
+          "x-omitFromPrompt": true,
+          "description": "false keeps the panel at its gridPos size at every width down to the single-column view. Absent means the view may widen and wrap the panel when it would be too narrow for its type. A save that changes an existing panel's w or h sets false.",
+          "const": false
+        },
         "type": {
           "const": "dashlist"
         },
@@ -7914,6 +7934,11 @@
         },
         "gridPos": {
           "$ref": "#/$defs/gridPos"
+        },
+        "responsive": {
+          "x-omitFromPrompt": true,
+          "description": "false keeps the panel at its gridPos size at every width down to the single-column view. Absent means the view may widen and wrap the panel when it would be too narrow for its type. A save that changes an existing panel's w or h sets false.",
+          "const": false
         },
         "type": {
           "const": "news"

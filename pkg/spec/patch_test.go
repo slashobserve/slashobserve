@@ -266,6 +266,81 @@ func TestPatchKeepsTheExistingGridPosWhenOmitted(t *testing.T) {
 	}
 }
 
+func TestPatchKeepsResponsiveWhenOmitted(t *testing.T) {
+	parent := patchBase(t)
+	frozen := panelWith(t, parent, "b", func(m map[string]any) { m["responsive"] = false })
+	stored := apply(t, parent, spec.PanelPatch{Upsert: raws(frozen)})
+	edited := panelWith(t, stored, "b", func(m map[string]any) {
+		delete(m, "responsive")
+		m["title"] = "Edited"
+	})
+
+	merged := apply(t, stored, spec.PanelPatch{Upsert: raws(edited)})
+
+	b, _ := merged.FindPanel("b")
+	if b.Panel.Title != "Edited" || b.Panel.Responsive == nil || *b.Panel.Responsive {
+		t.Errorf("b = %q with responsive %v, want the new title and false", b.Panel.Title, b.Panel.Responsive)
+	}
+}
+
+func TestPatchSetsResponsiveWhenSent(t *testing.T) {
+	parent := patchBase(t)
+	if b, _ := parent.FindPanel("b"); b.Panel.Responsive != nil {
+		t.Fatalf("b starts with responsive %v, want absent", *b.Panel.Responsive)
+	}
+	frozen := panelWith(t, parent, "b", func(m map[string]any) { m["responsive"] = false })
+
+	merged := apply(t, parent, spec.PanelPatch{Upsert: raws(frozen)})
+
+	b, _ := merged.FindPanel("b")
+	if b.Panel.Responsive == nil || *b.Panel.Responsive {
+		t.Errorf("b responsive = %v, want false", b.Panel.Responsive)
+	}
+}
+
+func TestResponsiveAcceptsOnlyFalse(t *testing.T) {
+	document := func(panel string) []byte {
+		return []byte(`{"specVersion": "` + spec.Version + `", "title": "R", "time": {"from": "now-1h", "to": "now"}, "panels": [` + panel + `]}`)
+	}
+	withFlag := func(panel, value string) string {
+		return strings.Replace(panel, `"gridPos"`, `"responsive":`+value+`,"gridPos"`, 1)
+	}
+	row := rowJSON("r1", 0)
+
+	timeseries := strings.Replace(statJSON("a", 0, 0, 12, 4), `"stat"`, `"timeseries"`, 1)
+	tests := []struct {
+		name      string
+		panel     string
+		wantFails bool
+		matches   func(spec.Issue) bool
+	}{
+		{"false on a timeseries parses", withFlag(timeseries, "false"), false, nil},
+		{"true on a timeseries fails", withFlag(timeseries, "true"), true, func(i spec.Issue) bool { return strings.HasSuffix(i.Path, "/responsive") }},
+		{"false on a row fails", withFlag(row, "false"), true, func(i spec.Issue) bool { return strings.Contains(i.Message, "'responsive'") }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := spec.Parse(document(tt.panel))
+			if !tt.wantFails {
+				if err != nil {
+					t.Fatalf("Parse: %v", err)
+				}
+				return
+			}
+			var ve *spec.ValidationError
+			if !errors.As(err, &ve) {
+				t.Fatalf("err = %v, want *ValidationError", err)
+			}
+			for _, issue := range ve.Issues {
+				if tt.matches(issue) {
+					return
+				}
+			}
+			t.Errorf("issues %+v do not name responsive", ve.Issues)
+		})
+	}
+}
+
 func TestPatchKeepsTheChildrenOfAnUpsertedRow(t *testing.T) {
 	parent := patchBase(t)
 	row := `{"id":"r1","type":"row","title":"Renamed row"}`

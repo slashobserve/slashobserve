@@ -309,6 +309,7 @@ type Panel struct {
 	Title       string    `json:"title,omitempty"`
 	Description string    `json:"description,omitempty"`
 	GridPos     GridPos   `json:"gridPos"`
+	Responsive  *bool     `json:"responsive,omitempty"`
 	Datasource  string    `json:"datasource,omitempty"`
 	Queries     []Query   `json:"queries,omitempty"`
 	FieldProps
