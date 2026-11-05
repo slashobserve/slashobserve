@@ -363,6 +363,12 @@ func TestVariablesExpandIntoTraceQL(t *testing.T) {
 	if got := fake.last(t).params.Get("q"); got != `{ resource.service.name = "a\"b" }` {
 		t.Fatalf("q = %s", got)
 	}
+	if _, err := ds.QueryInstant(context.Background(), datasource.Query{Text: `{ duration > $__interval && span.window = "$__range" }`}, lastHour); err != nil {
+		t.Fatal(err)
+	}
+	if got := fake.last(t).params.Get("q"); got != `{ duration > 3s && span.window = "3600s" }` {
+		t.Fatalf("q with macros = %s", got)
+	}
 	frames, err := ds.QueryInstant(context.Background(), datasource.Query{Text: `"${trace}"`, Variables: vars}, lastHour)
 	if err != nil || len(frames) != 1 || fake.last(t).path != tracePath {
 		t.Fatalf("trace by variable = %+v, %v, path %s", frames, err, fake.last(t).path)

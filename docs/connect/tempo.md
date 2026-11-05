@@ -43,7 +43,7 @@ Tempo refuses a search longer than its own maximum search duration, 168 hours by
 
 Queries take dashboard variables, escaped as in PromQL.
 A variable that holds a trace id goes in quotes, such as `"${trace_id}"`, because a bare trace id that starts with a digit is refused.
-The `$__` macros are not available for Tempo yet.
+They also take the PromQL time macros `$__interval`, `$__interval_ms`, `$__range`, `$__range_s`, `$__range_ms`, `$__from` and `$__to`, plus `$__dashboard` and the `$__user` macros.
 
 ## Variables and discovery
 

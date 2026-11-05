@@ -41,7 +41,8 @@ Any other query, such as `sum by (service_name) (count_over_time({service_name=~
 It returns series with `Time` and `Value` fields, like a Prometheus query, and the series and points limits apply.
 
 Queries take dashboard variables, escaped for the place they appear in, as in PromQL: inside a regex matcher several values become one alternation.
-The `$__` macros, such as `$__interval` and `$__range`, are not available for Loki yet, so write range windows such as `[5m]` directly.
+They also take the PromQL time macros `$__interval`, `$__interval_ms`, `$__range`, `$__range_s`, `$__range_ms`, `$__from` and `$__to`, plus `$__dashboard` and the `$__user` macros, so `count_over_time({service_name="checkout"}[$__interval])` follows the panel's step.
+`$__rate_interval` is Prometheus only, because it depends on a scrape interval.
 
 ## Variables and discovery
 
