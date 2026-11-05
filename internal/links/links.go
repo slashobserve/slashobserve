@@ -58,6 +58,10 @@ func Build(base *url.URL, requestID string) string {
 	return join(base, "b", requestID)
 }
 
+func Finding(base *url.URL, id string) string {
+	return join(base, "findings", id)
+}
+
 func join(base *url.URL, segments ...string) string {
 	if base == nil {
 		escaped := make([]string, len(segments))
