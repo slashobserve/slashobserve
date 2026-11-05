@@ -23,11 +23,12 @@ description: What SlashObserve protects and what an operator should know.
   They never reach the browser.
   The datasources API returns health only, with no address, user or secret.
   The browser gets panel data from the server's query proxy, which runs only the queries stored in a saved dashboard and rejects any query text sent to it with `403 query_not_in_spec`.
-  There are two exceptions, and in both the browser still sends no query text.
+  There are three exceptions.
   The draft preview lets a signed-in user run an unsaved panel's queries before saving, under the same limits as the agent's tools, and service-account keys cannot.
   The build data routes (`/api/v1/observe/{id}/build/panels/{panel_id}/data` and `/api/v1/observe/{id}/build/variables/{name}/values`) run the queries of the dashboard an agent request is still assembling, which is not a saved version yet.
   Only the signed-in user who made the request can call them, and for a revision only while they can still view the dashboard; anyone else gets 404 and a service-account key gets `403 user_session_required`.
   They load the stored build on the server, run under the same limits as the agent's tools, and never cache or share results.
+  The explore query behind the logs page and trace view (`POST /api/v1/datasources/{uid}/query`) runs a query the caller writes against one datasource, for any signed-in role from Viewer and for service-account keys, under the same limits, and never caches or shares results.
   People who can see a dashboard see how far its revision has come, never the build's panels.
   The revisions list (`GET /api/v1/dashboards/{id}/revisions`) is visible to every viewer of the dashboard, and carries a stopped build's progress counts, besides the continue note a person gave; the build's title is shown only to the person who asked, and is null for everyone else.
 - **Only the requester saves a stopped build.**

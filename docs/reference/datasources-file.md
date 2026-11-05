@@ -71,7 +71,7 @@ Rules for secrets:
 Limits bound every query the server runs for that datasource.
 The defaults are a 30 second timeout, 1000 series, 1,000,000 points and 10,000 rows.
 A value you set replaces the default, up or down; a ClickHouse settings profile can still cap it further.
-The agent's and MCP's ad-hoc queries, and the draft preview in the panel editor, use tighter limits still (15 seconds, 200 series, 100,000 points and 1,000 rows), or the datasource's limits when those are lower.
+The agent's and MCP's ad-hoc queries, the draft preview in the panel editor, the logs page, the trace view and `POST /api/v1/datasources/{uid}/query` use tighter limits still (15 seconds, 200 series, 100,000 points and 1,000 rows), or the datasource's limits when those are lower.
 For ClickHouse table results (the `table` and `logs` formats, and instant queries) each row counts as one point, so the row limit bounds them.
 A Loki log query reads at most the row limit or 5,000 lines, and each line counts as one point; a Tempo query returns at most the row limit of spans or traces.
 Separate from these limits, the server refuses a Prometheus, Loki or Tempo response over 64 MiB and a ClickHouse result over 32 MiB.

@@ -88,6 +88,8 @@ paths:
     $ref: "./paths/queryproxy.yaml#/datasources-uid-lint"
   /datasources/{uid}/preview:
     $ref: "./paths/preview.yaml#/datasources-uid-preview"
+  /datasources/{uid}/query:
+    $ref: "./paths/explore.yaml#/datasources-uid-query"
   /datasources/{uid}/metrics:
     $ref: "./paths/names.yaml#/datasources-uid-metrics"
   /datasources/{uid}/labels:
