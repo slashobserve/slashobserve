@@ -32,7 +32,7 @@ const (
 	maxLayoutGaps   = 8
 
 	noBuildYet            = "this run has no build yet; call create_dashboard first with the title, time, variables and the first panel"
-	agentOnlyBuildFields  = "finish, planned_panels and row are only for the built-in agent"
+	agentOnlyBuildFields  = "finish, planned_panels and row apply only to the built-in agent's builds"
 	importInBuildRun      = "this run is building a dashboard; continue with update_panels"
 	hasBuildAlready       = "this run already has a build; add panels with update_panels"
 	buildHasNoID          = "dashboard_id must be a UUID from list_dashboards; your build has no id until you finish, so read its panels with get_panels without dashboard_id"

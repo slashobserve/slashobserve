@@ -95,7 +95,7 @@ func TestBuiltInCreateDashboardPointsAtTheGuideInInstructions(t *testing.T) {
 	}
 }
 
-func TestMissingSpecErrorNamesOnlyWhatTheCallerHas(t *testing.T) {
+func TestMissingSpecErrorIsTheSameOnBothSurfaces(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
 	for _, tool := range []string{nameCreateDashboard, nameUpdateDashboard} {
 		t.Run(tool, func(t *testing.T) {
@@ -103,21 +103,19 @@ func TestMissingSpecErrorNamesOnlyWhatTheCallerHas(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := fmt.Sprint(mcp.Content); !strings.Contains(got, "get_spec_guide") {
-				t.Errorf("MCP error = %s", got)
-			}
 			base := auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleAdmin})
 			ctx := WithRun(base, Run{Mode: ModeCreate})
 			if tool == nameUpdateDashboard {
 				ctx = WithRun(base, Run{Mode: ModeRevise, DashboardID: dashA, ParentVersion: 1})
 			}
-			res, err := r.Call(ctx, tool, []byte(`{}`))
+			inRun, err := r.Call(ctx, tool, []byte(`{}`))
 			if err != nil {
 				t.Fatal(err)
 			}
-			got := fmt.Sprint(res.Content)
-			if strings.Contains(got, "get_spec_guide") || !strings.Contains(got, "authoring guide in your instructions") {
-				t.Errorf("built-in error = %s", got)
+			for label, res := range map[string]Result{"MCP": mcp, "in-run": inRun} {
+				if got := fmt.Sprint(res.Content.(errorBody).Message); got != missingSpec {
+					t.Errorf("%s message = %q, want %q", label, got, missingSpec)
+				}
 			}
 		})
 	}

@@ -340,12 +340,9 @@ func validateRun(run Run) (pgtype.UUID, error) {
 	return pgtype.UUID{}, fmt.Errorf("%w: unknown mode %q", errInvalidRun, string(run.Mode))
 }
 
-func checkSpecPresent(raw json.RawMessage, inRun bool) (Result, bool) {
+func checkSpecPresent(raw json.RawMessage) (Result, bool) {
 	if trimmed := bytes.TrimSpace(raw); len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
-		if inRun {
-			return invalid("%s", missingSpecAgent), false
-		}
-		return invalid("%s", missingSpecMCP), false
+		return invalid("%s", missingSpec), false
 	}
 	return Result{}, true
 }
@@ -359,7 +356,7 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	if res, ok := checkSpecPresent(in.Spec, scoped); !ok {
+	if res, ok := checkSpecPresent(in.Spec); !ok {
 		return res, nil
 	}
 	if res, ok := agentOnlyFields(in.Finish, in.PlannedPanels, in.Row, inBuildRun(run, scoped)); !ok {
@@ -405,7 +402,7 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	if res, ok := checkSpecPresent(in.Spec, scoped); !ok {
+	if res, ok := checkSpecPresent(in.Spec); !ok {
 		return res, nil
 	}
 	if res, ok := agentOnlyFields(in.Finish, in.PlannedPanels, nil, inBuildRun(run, scoped)); !ok {

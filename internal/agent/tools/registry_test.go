@@ -10,14 +10,16 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
 func TestDecodeInput(t *testing.T) {
 	type sample struct {
-		Datasource string `json:"datasource"`
-		Limit      *int   `json:"limit"`
-		Count      int    `json:"count"`
+		Datasource string            `json:"datasource"`
+		Limit      *int              `json:"limit"`
+		Count      int               `json:"count"`
+		Items      []json.RawMessage `json:"items"`
 	}
 	tests := []struct {
 		name    string
@@ -59,9 +61,11 @@ func TestDecodeInput(t *testing.T) {
 		{"fractional", `{"limit":10.5}`, `field "limit" must be an integer`, nil},
 		{"fractional exponent", `{"limit":1e-1}`, `field "limit" must be an integer`, nil},
 		{"huge float", `{"limit":1e30}`, `field "limit" must be an integer`, nil},
-		{"string for integer", `{"limit":"5"}`, `field "limit" has the wrong type`, nil},
-		{"string for string field", `{"datasource":5}`, `field "datasource" has the wrong type`, nil},
-		{"float for string field", `{"datasource":1.5}`, `field "datasource" has the wrong type`, nil},
+		{"string for integer", `{"limit":"5"}`, `field "limit" must be an integer, not a string`, nil},
+		{"number for string field", `{"datasource":5}`, `field "datasource" must be a string, not a number`, nil},
+		{"float for string field", `{"datasource":1.5}`, `field "datasource" must be a string, not a number`, nil},
+		{"object for array field", `{"items":{"id":"p1"}}`, `field "items" must be an array, not an object`, nil},
+		{"string for array field", `{"items":"p1"}`, `field "items" must be an array, not a string`, nil},
 		{"array", `[]`, "input must be a JSON object", nil},
 		{"scalar", `7`, "input must be a JSON object", nil},
 		{"trailing value", `{} {}`, "input must be a single JSON object", nil},
@@ -136,6 +140,46 @@ func TestCallRejectsLooseInputWithStep(t *testing.T) {
 				t.Fatalf("step = %q, want it to carry the message", res.Step)
 			}
 		})
+	}
+}
+
+func TestUnknownFieldNamesTheFieldsOfTheCallersSurface(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	principal := auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleAdmin})
+	createRun := WithRun(principal, Run{Mode: ModeCreate, Build: true, RequestID: dashA})
+	message := func(t *testing.T, ctx context.Context, tool, input string) string {
+		t.Helper()
+		res, err := r.Call(ctx, tool, []byte(input))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if errorCode(t, res) != codeInvalidRequest {
+			t.Fatalf("content = %#v", res.Content)
+		}
+		return res.Content.(errorBody).Message
+	}
+
+	if got, want := message(t, WithRun(principal, Run{}), nameQueryInstant, `{"datasource":"fake","query":"up","format":"table"}`),
+		`unknown field "format"; query_instant takes dashboard_title, datasource, from, query, to and variables`; got != want {
+		t.Errorf("message = %q, want %q", got, want)
+	}
+	if got, want := message(t, principal, nameListDatasources, `{"x":1}`), `unknown field "x"; list_datasources takes no fields`; got != want {
+		t.Errorf("message = %q, want %q", got, want)
+	}
+	outOfRun := message(t, principal, nameUpdatePanels, `{"bogus":1}`)
+	for _, field := range []string{"dashboard_id", "parent_version"} {
+		if !strings.Contains(outOfRun, field) {
+			t.Errorf("MCP message lacks %s: %s", field, outOfRun)
+		}
+	}
+	if strings.Contains(outOfRun, "finish") {
+		t.Errorf("MCP message offers finish: %s", outOfRun)
+	}
+	inRun := message(t, createRun, nameUpdatePanels, `{"bogus":1}`)
+	for _, field := range []string{"finish", "planned_panels", "row"} {
+		if !strings.Contains(inRun, field) {
+			t.Errorf("in-run message lacks %s: %s", field, inRun)
+		}
 	}
 }
 

@@ -37,8 +37,8 @@ func TestListToolsRejectFieldsTheirSchemaDoesNotDeclare(t *testing.T) {
 			if got := errorCode(t, res); got != codeInvalidRequest {
 				t.Fatalf("code = %q, want %q", got, codeInvalidRequest)
 			}
-			if got, want := res.Content.(errorBody).Message, `unknown field "`+tt.field+`"`; got != want {
-				t.Fatalf("message = %q, want %q", got, want)
+			if got, want := res.Content.(errorBody).Message, `unknown field "`+tt.field+`"; `+tt.tool+` takes `; !strings.HasPrefix(got, want) {
+				t.Fatalf("message = %q, want prefix %q", got, want)
 			}
 			if len(ds.requests) != 0 {
 				t.Fatalf("discovery ran for a rejected input: %#v", ds.requests)

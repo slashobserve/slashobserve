@@ -80,9 +80,7 @@ var (
 	)
 )
 
-const missingSpecMCP = "spec is required; see get_spec_guide"
-
-const missingSpecAgent = "spec is required; see the authoring guide in your instructions"
+const missingSpec = "spec is required: the complete ObserveSpec document, written by the authoring guide"
 
 func (t Tool) ForAgent() Tool {
 	if t.AgentDescription != "" {

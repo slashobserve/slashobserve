@@ -156,9 +156,12 @@ type entry struct {
 	handle handler
 }
 
+type surfaceFields struct{ mcp, agent []string }
+
 type Registry struct {
 	deps    Deps
 	entries map[string]entry
+	fields  map[string]surfaceFields
 	tools   []Tool
 }
 
@@ -166,7 +169,7 @@ func New(d Deps) *Registry {
 	if d.Logger == nil {
 		d.Logger = slog.Default()
 	}
-	r := &Registry{deps: d, entries: map[string]entry{}}
+	r := &Registry{deps: d, entries: map[string]entry{}, fields: map[string]surfaceFields{}}
 	var all []entry
 	all = append(all, r.discoveryEntries()...)
 	all = append(all, r.queryEntries()...)
@@ -182,6 +185,7 @@ func New(d Deps) *Registry {
 		}
 		e.tool.AgentDescription, e.tool.AgentInputSchema = agentWording.render(e.tool)
 		e.tool.Description, e.tool.InputSchema = mcpWording.render(e.tool)
+		r.fields[e.tool.Name] = surfaceFields{mcp: propertyNames(e.tool.InputSchema), agent: propertyNames(e.tool.AgentInputSchema)}
 		r.entries[e.tool.Name] = e
 		r.tools = append(r.tools, e.tool)
 	}
@@ -225,6 +229,14 @@ func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage)
 	if err != nil {
 		return Result{}, fmt.Errorf("tool %s: %w", name, err)
 	}
+	if eb, ok := res.Content.(errorBody); ok && eb.unknownField {
+		fields := r.fields[name].mcp
+		if inRun {
+			fields = r.fields[name].agent
+		}
+		eb.Message += "; " + name + " takes " + fieldList(fields)
+		res.Content = eb
+	}
 	body, err := json.Marshal(res.Content)
 	if err != nil {
 		return Result{}, fmt.Errorf("tool %s: marshal result: %w", name, err)
@@ -264,6 +276,8 @@ func callErrorStep(tool string, eb errorBody) string {
 type errorBody struct {
 	Code    string `json:"code"`
 	Message string `json:"message,omitempty"`
+
+	unknownField bool
 }
 
 func success(step string, content any) Result {
@@ -302,7 +316,7 @@ func decodeInput(input json.RawMessage, dst any) (Result, bool) {
 	for i, key := range keys {
 		typ, ok := known[key]
 		if !ok {
-			return invalid("unknown field %q", clip(key, maxStepNameBytes)), false
+			return failure("", errorBody{Code: codeInvalidRequest, Message: fmt.Sprintf("unknown field %q", clip(key, maxStepNameBytes)), unknownField: true}), false
 		}
 		value := fields[key]
 		if isIntegerType(typ) {
@@ -379,6 +393,9 @@ func inputMessage(err error) string {
 		if typeErr.Field == "" {
 			return "input must be a JSON object"
 		}
+		if want, got := jsonTypeName(typeErr.Type), jsonValueName(typeErr.Value); want != "" && got != "" {
+			return fmt.Sprintf("field %q must be %s, not %s", typeErr.Field, want, got)
+		}
 		return fmt.Sprintf("field %q has the wrong type", typeErr.Field)
 	case errors.As(err, &syntaxErr), errors.Is(err, io.ErrUnexpectedEOF):
 		return "input is not valid JSON"
@@ -387,6 +404,68 @@ func inputMessage(err error) string {
 		return "unknown field " + msg
 	}
 	return "input is not valid"
+}
+
+func propertyNames(schema json.RawMessage) []string {
+	var parsed struct {
+		Properties map[string]json.RawMessage `json:"properties"`
+	}
+	if err := json.Unmarshal(schema, &parsed); err != nil {
+		return nil
+	}
+	return slices.Sorted(maps.Keys(parsed.Properties))
+}
+
+func fieldList(names []string) string {
+	switch len(names) {
+	case 0:
+		return "no fields"
+	case 1:
+		return names[0]
+	}
+	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
+}
+
+func jsonTypeName(t reflect.Type) string {
+	if t == nil {
+		return ""
+	}
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	switch t.Kind() {
+	case reflect.Slice, reflect.Array:
+		return "an array"
+	case reflect.Map, reflect.Struct:
+		return "an object"
+	case reflect.String:
+		return "a string"
+	case reflect.Bool:
+		return "a boolean"
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return "an integer"
+	case reflect.Float32, reflect.Float64:
+		return "a number"
+	}
+	return ""
+}
+
+func jsonValueName(v string) string {
+	word, _, _ := strings.Cut(v, " ")
+	switch word {
+	case "object":
+		return "an object"
+	case "array":
+		return "an array"
+	case "string":
+		return "a string"
+	case "number":
+		return "a number"
+	case "bool":
+		return "a boolean"
+	}
+	return ""
 }
 
 func fit[T any](items []T, budget int) ([]T, bool) {
