@@ -278,10 +278,16 @@ func (p *Provider) streamOnce(ctx, callCtx context.Context, params openai.ChatCo
 	defer func() { _ = stream.Close() }()
 	var acc openai.ChatCompletionAccumulator
 	var used openai.CompletionUsage
+	var finishReason string
 	for stream.Next() {
 		chunk := stream.Current()
 		if !acc.AddChunk(chunk) {
 			return streamed{}, fmt.Errorf("%w: openai returned a stream chunk that does not belong to the completion", llm.ErrProvider)
+		}
+		for _, choice := range chunk.Choices {
+			if choice.Index == 0 && choice.FinishReason != "" {
+				finishReason = choice.FinishReason
+			}
 		}
 		if chunk.Usage.TotalTokens > 0 || chunk.Usage.CompletionTokens > 0 {
 			used = chunk.Usage
@@ -290,7 +296,11 @@ func (p *Provider) streamOnce(ctx, callCtx context.Context, params openai.ChatCo
 	if err := stream.Err(); err != nil {
 		return streamed{}, p.sanitize(ctx, callCtx, watch, err)
 	}
-	return streamed{completion: acc.ChatCompletion, usage: used}, nil
+	completion := acc.ChatCompletion
+	if finishReason != "" && len(completion.Choices) > 0 {
+		completion.Choices[0].FinishReason = finishReason
+	}
+	return streamed{completion: completion, usage: used}, nil
 }
 
 func assistantMessage(msg openai.ChatCompletionMessage, calls []llm.ToolCall) openai.ChatCompletionMessageParamUnion {
@@ -347,7 +357,7 @@ func (p *Provider) stopReason(ctx context.Context, reason string, hasToolCalls, 
 		if llm.IsPlainToken(reason) {
 			attrs = append(attrs, slog.String("finish_reason", reason))
 		}
-		p.logger.DebugContext(ctx, "llm finish reason treated as end of turn", attrs...)
+		p.logger.WarnContext(ctx, "llm finish reason treated as end of turn", attrs...)
 		return llm.StopEndTurn
 	}
 }
