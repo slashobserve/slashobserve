@@ -104,6 +104,8 @@ type DatasourceMatch struct {
 	UID        string
 	Name       string
 	Type       string
+	Kind       string
+	Candidates []string
 	MatchedUID string
 }
 
@@ -442,7 +444,8 @@ func (s *Service) Datasources(ctx context.Context, id pgtype.UUID) ([]Datasource
 	ours := s.imports.Datasources()
 	out := make([]DatasourceMatch, 0, len(list))
 	for _, d := range list {
-		out = append(out, DatasourceMatch{UID: d.UID, Name: d.Name, Type: d.Type, MatchedUID: grafana.MatchDatasource(d.UID, d.Name, d.Type, ours)})
+		choice := grafana.ChooseDatasource(d.UID, d.Name, d.Type, ours)
+		out = append(out, DatasourceMatch{UID: d.UID, Name: d.Name, Type: d.Type, Kind: choice.Kind, Candidates: choice.Candidates, MatchedUID: choice.Match})
 	}
 	slices.SortFunc(out, func(a, b DatasourceMatch) int {
 		return cmp.Or(strings.Compare(a.Name, b.Name), strings.Compare(a.UID, b.UID))

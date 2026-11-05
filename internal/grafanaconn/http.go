@@ -101,10 +101,12 @@ type folderJSON struct {
 }
 
 type datasourceJSON struct {
-	UID        string  `json:"uid"`
-	Name       string  `json:"name"`
-	Type       string  `json:"type"`
-	MatchedUID *string `json:"matched_uid"`
+	UID        string   `json:"uid"`
+	Name       string   `json:"name"`
+	Type       string   `json:"type"`
+	Kind       *string  `json:"kind"`
+	Candidates []string `json:"candidates"`
+	MatchedUID *string  `json:"matched_uid"`
 }
 
 type resolvedJSON struct {
@@ -276,7 +278,7 @@ func (h *Handler) datasources(c *gin.Context) {
 	}
 	out := make([]datasourceJSON, 0, len(list))
 	for _, d := range list {
-		out = append(out, datasourceJSON{UID: d.UID, Name: d.Name, Type: d.Type, MatchedUID: httpapi.OptionalString(d.MatchedUID)})
+		out = append(out, datasourceJSON{UID: d.UID, Name: d.Name, Type: d.Type, Kind: httpapi.OptionalString(d.Kind), Candidates: d.Candidates, MatchedUID: httpapi.OptionalString(d.MatchedUID)})
 	}
 	c.JSON(http.StatusOK, out)
 }

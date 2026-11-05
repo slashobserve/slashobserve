@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
+import { Link, useRouteContext } from "@tanstack/react-router"
 import { CircleAlertIcon } from "lucide-react"
 
 import { PageHeader } from "@/components/page-header"
@@ -10,6 +10,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { isEditableTarget } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
 import { dashboardLink } from "@/lib/links"
+import { roleAtLeast } from "@/lib/roles"
 
 import { DatasourcesCard } from "./datasources-card"
 import { importFailure, previewFailure } from "./errors"
@@ -44,6 +45,7 @@ function hasFiles(event: DragEvent): boolean {
 }
 
 export function ImportPage() {
+  const { principal } = useRouteContext({ from: "/_authed" })
   const statusId = useId()
   const [source, setSource] = useState<Source | null>(null)
   const [mapping, setMapping] = useState<Mapping>(noMapping)
@@ -237,8 +239,18 @@ export function ImportPage() {
     )
   }
 
+  const repairQueue = roleAtLeast(principal.role, "editor") ? (
+    <Link
+      to="/import/repair"
+      className={cn(buttonVariants({ variant: "outline" }), "font-normal")}
+    >
+      Repair queue
+    </Link>
+  ) : null
+
   const actions = result ? (
     <>
+      {repairQueue}
       <Button variant="outline" className="font-normal" onClick={startOver}>
         Import another
       </Button>
@@ -251,6 +263,7 @@ export function ImportPage() {
     </>
   ) : (
     <>
+      {repairQueue}
       <Link
         to="/"
         className={cn(buttonVariants({ variant: "outline" }), "font-normal")}

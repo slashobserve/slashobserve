@@ -1547,6 +1547,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/repairs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List dashboards whose latest version still has failing or placeholder panels.
+         * @description Editors and Admins can call this endpoint. It lists every dashboard, in folders the caller can see, whose latest version has unverified panels or variables or placeholder panels, most recently updated first. A dashboard leaves the list once nothing in it fails and it holds no placeholder. `repair` is the latest repair the agent was asked for on the dashboard, by anyone, or null.
+         */
+        get: operations["listRepairs"];
+        put?: never;
+        /**
+         * Queue the agent to repair the failing panels of dashboards.
+         * @description Editors and Admins can call this endpoint. Send `dashboard_ids` to repair those dashboards, or `all` to repair every dashboard the list shows, in `folder_id` when it is set. Each dashboard gets one ordinary revision with source `prompt` and the fixed prompt "Repair every panel and variable listed as unverified so its query runs and returns data; keep every other panel unchanged and never delete an unverified panel." The agent never edits a placeholder panel, so a dashboard whose only problems are placeholders is skipped. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when it has no unverified panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         */
+        post: operations["requestRepairs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2819,7 +2843,68 @@ export interface components {
             name: string;
             /** @description The Grafana plugin id, such as `prometheus`. */
             type: string;
+            /** @description Our datasource type the importer maps it to (`prometheus` or `clickhouse`); null when SlashObserve does not query this type, and its panels import as placeholders. */
+            kind: string | null;
+            /** @description The uids of our datasources of that kind, the only valid mapping targets. */
+            candidates: string[];
             matched_uid: string | null;
+        };
+        RepairList: {
+            dashboards: components["schemas"]["RepairItem"][];
+            next_cursor: string | null;
+        };
+        RepairItem: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            /** @description The dashboard's address in the web app. */
+            url: string;
+            folder: components["schemas"]["DashboardFolder"];
+            unverified_panels: number;
+            unverified_variables: number;
+            /** @description Placeholder panels, top level or inside rows; people replace them, the agent does not. */
+            placeholder_panels: number;
+            /**
+             * Format: date-time
+             * @description When the version the dashboard's import record points at was saved; null for a dashboard that was not imported, such as a duplicate of one.
+             */
+            last_import_at: string | null;
+            repair: components["schemas"]["RepairStatus"] | null;
+        };
+        RepairStatus: {
+            /**
+             * Format: uuid
+             * @description The agent request id.
+             */
+            id: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "succeeded" | "failed";
+            /** Format: date-time */
+            finished_at: string | null;
+        };
+        RequestRepairsRequest: {
+            dashboard_ids?: string[];
+            /** @enum {boolean} */
+            all?: true;
+            /**
+             * Format: uuid
+             * @description Only with `all`.
+             */
+            folder_id?: string;
+        };
+        RepairsQueued: {
+            queued: {
+                /** Format: uuid */
+                dashboard_id: string;
+                /** Format: uuid */
+                request_id: string;
+            }[];
+            skipped: {
+                /** Format: uuid */
+                dashboard_id: string;
+                /** @enum {string} */
+                reason: "active" | "nothing_to_repair" | "not_found" | "forbidden_role" | "queue_full";
+            }[];
         };
         GrafanaResolved: {
             /** Format: uuid */
@@ -6764,6 +6849,75 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
+        };
+    };
+    listRepairs: {
+        parameters: {
+            query?: {
+                /** @description Only dashboards in this folder; a folder the caller cannot see answers 404 `not_found`. */
+                folder_id?: string;
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of dashboards to repair. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepairList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    requestRepairs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestRepairsRequest"];
+            };
+        };
+        responses: {
+            /** @description The repairs that were queued and the dashboards that were skipped. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepairsQueued"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            413: components["responses"]["TooLarge"];
+            500: components["responses"]["Internal"];
+            /** @description No LLM provider is configured (`agent_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
 }

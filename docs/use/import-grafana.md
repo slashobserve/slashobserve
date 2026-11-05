@@ -31,6 +31,7 @@ The folder is chosen before the dashboard is saved, so an import that then fails
 The request body, with the dashboard JSON as a string, can be at most 8 MiB.
 It saves the dashboard as version 1 and runs every query once.
 Failing queries mark their panels and variables unverified in the import report instead of failing the import.
+The [repair queue](switch-from-grafana.md#repair) lists every dashboard that still has unverified panels or variables and sends them to the agent.
 Below the panel list, **Show every option, block by block** opens the report grouped by block: the dashboard settings, each variable, and each panel with its queries, transformations, field config and overrides.
 Each block is collapsed until you open it, and lists every Grafana option it carried as mapped, with the ObserveSpec fields it became, excluded by decision, with the reason SlashObserve leaves it out, or not imported, with the reason.
 An option mapped without a field name is one no catalog describes yet, such as the options of legacy panels.

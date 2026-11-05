@@ -396,17 +396,24 @@ func (s *sourceDS) autoMatch(ours []Datasource) {
 	}
 }
 
-func MatchDatasource(uid, name, pluginID string, ours []Datasource) string {
+type DatasourceChoice struct {
+	Kind       string
+	Candidates []string
+	Match      string
+}
+
+func ChooseDatasource(uid, name, pluginID string, ours []Datasource) DatasourceChoice {
 	s := &sourceDS{key: uid, name: name, typ: pluginID, fromUID: uid != "", kind: kindOf(pluginID)}
 	if s.kind == "" {
-		return ""
+		return DatasourceChoice{Candidates: []string{}}
 	}
 	candidates := groupOurs(ours)[s.kind]
+	s.candidates = make([]string, 0, len(candidates))
 	for _, d := range candidates {
 		s.candidates = append(s.candidates, d.UID)
 	}
 	s.autoMatch(candidates)
-	return s.match
+	return DatasourceChoice{Kind: s.kind, Candidates: s.candidates, Match: s.match}
 }
 
 func kindOfOurs(t string) string {

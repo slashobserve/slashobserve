@@ -1,0 +1,85 @@
+repairs:
+  get:
+    operationId: listRepairs
+    summary: List dashboards whose latest version still has failing or placeholder panels.
+    description: >-
+      Editors and Admins can call this endpoint.
+      It lists every dashboard, in folders the caller can see, whose latest version has unverified panels or variables or placeholder panels, most recently updated first.
+      A dashboard leaves the list once nothing in it fails and it holds no placeholder.
+      `repair` is the latest repair the agent was asked for on the dashboard, by anyone, or null.
+    parameters:
+      - name: folder_id
+        in: query
+        description: Only dashboards in this folder; a folder the caller cannot see answers 404 `not_found`.
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+      - name: cursor
+        in: query
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of dashboards to repair.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/RepairList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  post:
+    operationId: requestRepairs
+    summary: Queue the agent to repair the failing panels of dashboards.
+    description: >-
+      Editors and Admins can call this endpoint.
+      Send `dashboard_ids` to repair those dashboards, or `all` to repair every dashboard the list shows, in `folder_id` when it is set.
+      Each dashboard gets one ordinary revision with source `prompt` and the fixed prompt "Repair every panel and variable listed as unverified so its query runs and returns data; keep every other panel unchanged and never delete an unverified panel."
+      The agent never edits a placeholder panel, so a dashboard whose only problems are placeholders is skipped.
+      A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when it has no unverified panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 repairs queued or running.
+      Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/RequestRepairsRequest"
+    responses:
+      "202":
+        description: The repairs that were queued and the dashboards that were skipped.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/RepairsQueued"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "503":
+        description: No LLM provider is configured (`agent_unavailable`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
