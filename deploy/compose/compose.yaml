@@ -116,6 +116,7 @@ services:
     environment:
       COMPOSE_PROJECT: ${COMPOSE_PROJECT_NAME}
       PROMETHEUS_BACKFILL: ${SLASHOBSERVE_PROMETHEUS_BACKFILL:-1}
+      LOADGEN_CURVE: ${SLASHOBSERVE_LOADGEN_CURVE:-daily}
     volumes:
       - ./prometheus:/etc/prometheus:ro
       - prometheus-data:/prometheus
@@ -294,6 +295,7 @@ services:
       LOADGEN_TARGET: http://frontend-0:8080
       LOADGEN_RPS: "20"
       LOADGEN_SEED: "42"
+      LOADGEN_CURVE: ${SLASHOBSERVE_LOADGEN_CURVE:-daily}
       LOADGEN_START_FILE: /prometheus/backfill-end
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     depends_on:
