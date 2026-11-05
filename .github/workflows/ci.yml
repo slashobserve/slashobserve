@@ -47,7 +47,20 @@ jobs:
           restore-keys: bun-${{ runner.os }}-
 
       - name: Lint, test and build
+        env:
+          COVER: "1"
         run: make ci
+
+      - name: Add coverage to the job summary
+        run: |
+          go_total="$(go tool cover -func=coverage.out | tail -1 | awk '{print $NF}')"
+          web_total="$(jq -r '.total.statements.pct' web/coverage/coverage-summary.json)%"
+          {
+            echo "| Coverage | Statements |"
+            echo "| --- | --- |"
+            echo "| Go | $go_total |"
+            echo "| Web | $web_total |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Generated files are up to date
         run: |

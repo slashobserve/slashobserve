@@ -18,6 +18,8 @@ EVALS_STACK_MODE ?= replay
 EVALS_MATRIX ?= evals/matrix.yaml
 EVALS_REPORT_DIR ?= evals/reports/live
 PCT ?= 30
+GO_TEST_FLAGS := -race $(if $(COVER),-coverprofile=coverage.out -covermode=atomic)
+WEB_TEST_FLAGS := $(if $(COVER),--coverage)
 # zod 3 under the shadcn CLI, a dev-only tool that pins zod ^3 and ships in no build
 WEB_AUDIT_IGNORE := GHSA-mrhx-c7xc-m3w5
 
@@ -51,9 +53,10 @@ generate: web-deps
 	cd web && bun run api:generate
 
 test: web-deps
-	go test -race ./...
+	go test $(GO_TEST_FLAGS) ./...
+	$(if $(COVER),go tool cover -func=coverage.out | tail -1)
 	cd $(SHOP_DIR) && go test -race ./...
-	cd web && bun run test
+	cd web && bun run test $(WEB_TEST_FLAGS)
 	scripts/release-scripts-test.sh
 	scripts/install-test.sh
 
@@ -142,5 +145,5 @@ evals-live:
 	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --suite live --matrix $(EVALS_MATRIX) --bootstrap-dex --out $(EVALS_REPORT_DIR)
 
 clean:
-	rm -rf bin web/dist web/playwright-report web/test-results
+	rm -rf bin web/dist web/playwright-report web/test-results web/coverage coverage.out
 	find internal/server/webdist -mindepth 1 ! -name .gitkeep -delete

@@ -14,5 +14,10 @@ export default defineConfig({
     environment: "happy-dom",
     include: ["src/**/*.test.{ts,tsx}"],
     setupFiles: ["src/test/setup.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text-summary", "json-summary"],
+      exclude: ["src/**/*.gen.ts", "src/test/**"],
+    },
   },
 })
