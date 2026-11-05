@@ -31,7 +31,7 @@ const reconnectingAfterFailures = 2
 
 export type TurnSummary = {
   id: string
-  source: "observe" | "prompt" | "comment"
+  source: "observe" | "prompt" | "comment" | "investigate"
   prompt: string
   status: "queued" | "running" | "succeeded" | "failed"
   dashboard_id: string | null
