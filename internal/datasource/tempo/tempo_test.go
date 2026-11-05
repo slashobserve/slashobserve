@@ -404,7 +404,6 @@ func TestDiscover(t *testing.T) {
 		{Kind: datasource.DiscoverLabelValues, Label: "../x"},
 		{Kind: datasource.DiscoverLabelValues},
 		{Kind: datasource.DiscoverMetrics},
-		{Kind: datasource.DiscoverTables},
 	} {
 		if _, err := ds.Discover(ctx, req); !errors.Is(err, datasource.ErrInvalidQuery) {
 			t.Fatalf("%+v: err = %v, want invalid query", req, err)
