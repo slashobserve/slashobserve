@@ -52,6 +52,8 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 		cat, err = d.discoverLabelValues(ctx, req)
 	case datasource.DiscoverSampleRows:
 		cat, err = d.discoverSampleRows(ctx, req)
+	case datasource.DiscoverInventory:
+		cat, err = d.discoverInventory(ctx, req)
 	default:
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "unsupported discover kind %q", req.Kind)
 	}
@@ -411,4 +413,59 @@ func (d *Datasource) discoverSampleRows(ctx context.Context, req datasource.Disc
 	}
 	frame := rs.tableFrame()
 	return &datasource.Catalog{Sample: &frame}, nil
+}
+
+func (d *Datasource) discoverInventory(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+	params := ch.Parameters{"limit": strconv.Itoa(maxListedTables)}
+	if req.Scope != "" {
+		params["scope"] = req.Scope
+	}
+	rs, err := d.discoverQuery(ctx,
+		"SELECT table, arraySort(groupArray(name)) FROM system.columns WHERE database = currentDatabase()"+scopePredicate(req, "table")+
+			" GROUP BY table ORDER BY table LIMIT {limit:UInt32}", params)
+	if err != nil {
+		return nil, err
+	}
+	if len(rs.rows) == 0 && req.Scope != "" {
+		return nil, datasource.Errorf(datasource.ErrNotFound, "table %q not found", req.Scope)
+	}
+	rows, err := d.tableRows(ctx, req, params)
+	if err != nil {
+		return nil, err
+	}
+	families := make([]datasource.Family, 0, len(rs.rows))
+	for _, row := range rs.rows {
+		name := stringOf(row[0])
+		columns, _ := row[1].([]string)
+		families = append(families, datasource.Family{Name: name, Type: tableKind(name), Labels: columns, Series: rows[name], Table: name})
+	}
+	total := len(families)
+	return &datasource.Catalog{
+		Families:      families[:min(total, datasource.MaxDiscoverLimit)],
+		FamiliesTotal: total,
+		Truncated:     total > datasource.MaxDiscoverLimit,
+	}, nil
+}
+
+func scopePredicate(req datasource.DiscoverRequest, column string) string {
+	if req.Scope == "" {
+		return ""
+	}
+	return " AND " + column + " = {scope:String}"
+}
+
+func (d *Datasource) tableRows(ctx context.Context, req datasource.DiscoverRequest, params ch.Parameters) (map[string]int, error) {
+	rs, err := d.discoverQuery(ctx,
+		"SELECT name, total_rows FROM system.tables WHERE database = currentDatabase() AND NOT is_temporary"+scopePredicate(req, "name")+
+			" ORDER BY name LIMIT {limit:UInt32}", params)
+	if err != nil {
+		return nil, err
+	}
+	rows := make(map[string]int, len(rs.rows))
+	for _, row := range rs.rows {
+		if n, ok := toFloat(row[1]); ok {
+			rows[stringOf(row[0])] = int(n)
+		}
+	}
+	return rows, nil
 }

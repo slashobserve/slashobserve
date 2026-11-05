@@ -84,6 +84,7 @@ const (
 	DiscoverTables      DiscoverKind = "tables"
 	DiscoverColumns     DiscoverKind = "columns"
 	DiscoverSampleRows  DiscoverKind = "sample_rows"
+	DiscoverInventory   DiscoverKind = "inventory"
 )
 
 const (
@@ -97,6 +98,7 @@ type DiscoverRequest struct {
 	Metric string
 	Table  string
 	Label  string
+	Scope  string
 	Limit  int
 }
 
@@ -118,6 +120,35 @@ type Catalog struct {
 	Tables  []Table  `json:"tables,omitempty"`
 	Columns []Column `json:"columns,omitempty"`
 	Sample  *Frame   `json:"sample,omitempty"`
+
+	Families      []Family `json:"families,omitempty"`
+	FamiliesTotal int      `json:"families_total,omitempty"`
+	Truncated     bool     `json:"truncated,omitempty"`
+}
+
+type Family struct {
+	Name   string   `json:"name"`
+	Type   string   `json:"type,omitempty"`
+	Help   string   `json:"help,omitempty"`
+	Unit   string   `json:"unit,omitempty"`
+	Labels []string `json:"labels,omitempty"`
+	Series int      `json:"series"`
+	Table  string   `json:"table,omitempty"`
+}
+
+var familySeriesSuffixes = map[string][]string{
+	"counter":        {"_total", "_created"},
+	"histogram":      {"_bucket", "_sum", "_count", "_created"},
+	"gaugehistogram": {"_bucket", "_gsum", "_gcount"},
+	"summary":        {"_sum", "_count", "_created"},
+}
+
+func (f Family) SeriesNames() []string {
+	names := []string{f.Name}
+	for _, suffix := range familySeriesSuffixes[f.Type] {
+		names = append(names, f.Name+suffix)
+	}
+	return names
 }
 
 type Metric struct {

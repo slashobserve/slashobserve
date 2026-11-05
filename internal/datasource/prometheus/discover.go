@@ -1,8 +1,10 @@
 package prometheus
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -24,6 +26,8 @@ const (
 	maxTargetedMetadata = 10
 	metricNameLabel     = "__name__"
 	variableQueryUsage  = "unsupported variable query; use label_values(...)"
+	everySeries         = `{__name__=~".+"}`
+	maxInventorySeries  = datasource.MaxDiscoverLimit * 50
 )
 
 var (
@@ -38,7 +42,7 @@ type metricMetadata struct {
 
 func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
 	switch req.Kind {
-	case datasource.DiscoverMetrics, datasource.DiscoverLabels, datasource.DiscoverLabelValues:
+	case datasource.DiscoverMetrics, datasource.DiscoverLabels, datasource.DiscoverLabelValues, datasource.DiscoverInventory:
 	default:
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "discover kind %q is not supported by prometheus", truncateText(string(req.Kind)))
 	}
@@ -59,6 +63,8 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 	}
 	limit := req.EffectiveLimit()
 	switch req.Kind {
+	case datasource.DiscoverInventory:
+		return d.discoverInventory(ctx, form, req.Scope)
 	case datasource.DiscoverMetrics:
 		return d.discoverMetrics(ctx, form, req.Search, limit)
 	case datasource.DiscoverLabels:
@@ -106,6 +112,88 @@ func (d *Datasource) discoverMetrics(ctx context.Context, form url.Values, searc
 		}
 	}
 	return &datasource.Catalog{Metrics: metrics}, nil
+}
+
+func (d *Datasource) discoverInventory(ctx context.Context, form url.Values, scope string) (*datasource.Catalog, error) {
+	selector := cmp.Or(strings.TrimSpace(scope), everySeries)
+	if _, err := promParser.ParseMetricSelector(selector); err != nil {
+		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "scope must be a series selector such as {job=\"checkout\"}: %s", truncateText(err.Error()))
+	}
+	form.Set("match[]", selector)
+	form.Set("limit", strconv.Itoa(maxInventorySeries+1))
+	metaCtx, cancelMeta := context.WithCancel(ctx)
+	defer cancelMeta()
+	var (
+		wg       sync.WaitGroup
+		metadata map[string][]metricMetadata
+	)
+	wg.Go(func() {
+		metadata = d.metadata(metaCtx, url.Values{"limit": {strconv.Itoa(maxMetadataMetrics)}})
+	})
+	raw, err := d.do(ctx, http.MethodGet, "/api/v1/series", form)
+	if err != nil {
+		cancelMeta()
+		wg.Wait()
+		return nil, err
+	}
+	var series []map[string]string
+	if err := json.Unmarshal(raw, &series); err != nil {
+		cancelMeta()
+		wg.Wait()
+		return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned an unreadable result")
+	}
+	wg.Wait()
+	truncated := len(series) > maxInventorySeries
+	families := familiesOf(series[:min(len(series), maxInventorySeries)], metadata)
+	return &datasource.Catalog{
+		Families:      families[:min(len(families), datasource.MaxDiscoverLimit)],
+		FamiliesTotal: len(families),
+		Truncated:     truncated || len(families) > datasource.MaxDiscoverLimit,
+	}, nil
+}
+
+func familiesOf(series []map[string]string, metadata map[string][]metricMetadata) []datasource.Family {
+	labels := map[string]map[string]bool{}
+	counts := map[string]int{}
+	for _, s := range series {
+		name := familyName(s[metricNameLabel], metadata)
+		if name == "" {
+			continue
+		}
+		if labels[name] == nil {
+			labels[name] = map[string]bool{}
+		}
+		for key := range s {
+			if key != metricNameLabel {
+				labels[name][key] = true
+			}
+		}
+		counts[name]++
+	}
+	families := make([]datasource.Family, 0, len(counts))
+	for _, name := range slices.Sorted(maps.Keys(counts)) {
+		family := datasource.Family{Name: name, Labels: slices.Sorted(maps.Keys(labels[name])), Series: counts[name]}
+		if md := metadata[name]; len(md) > 0 {
+			family.Type, family.Help, family.Unit = md[0].Type, md[0].Help, md[0].Unit
+		}
+		families = append(families, family)
+	}
+	return families
+}
+
+func familyName(series string, metadata map[string][]metricMetadata) string {
+	if len(metadata[series]) > 0 {
+		return series
+	}
+	cut := strings.LastIndexByte(series, '_')
+	if cut <= 0 {
+		return series
+	}
+	base := series[:cut]
+	if md := metadata[base]; len(md) > 0 && slices.Contains(datasource.Family{Name: base, Type: md[0].Type}.SeriesNames(), series) {
+		return base
+	}
+	return series
 }
 
 func (d *Datasource) completeMetadata(ctx context.Context, metadata map[string][]metricMetadata, names []string) {
