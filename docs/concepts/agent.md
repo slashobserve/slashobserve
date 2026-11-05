@@ -60,6 +60,7 @@ A size the agent sends is kept.
 Rows keep the place the server gave them.
 `update_dashboard` in a build keeps the build's position for every panel it already holds and places a new panel the same way.
 Each accepted save tells the model the rows of the build, the positions in the row it saved into and any gaps, within 1.5 KiB, so it never needs a read to know what exists.
+It also names the free end of that row's last line and its height, so the model can size the next panel to fill it.
 A revision changes one panel per `update_panels` call, so a change to many existing panels takes one call each; deletes, moves, variables and dashboard fields may go with the panel.
 Each save checks only the panel it adds or changes, so a build of 100 panels does not rerun the queries of the panels already built.
 `planned_panels`, `finish` and `row` exist only for the built-in agent; MCP clients keep one version per accepted save.

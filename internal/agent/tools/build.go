@@ -60,6 +60,7 @@ type buildOut struct {
 type layoutOut struct {
 	Rows      []string      `json:"rows"`
 	Row       *rowLayoutOut `json:"row,omitempty"`
+	Open      string        `json:"open,omitempty"`
 	Gaps      []string      `json:"gaps,omitempty"`
 	Truncated bool          `json:"truncated,omitempty"`
 }
@@ -364,7 +365,11 @@ func (c panelChanges) focus() string {
 func layoutOf(d *spec.Dashboard, focus string, holes []gap) *layoutOut {
 	out := &layoutOut{Rows: sectionSummaries(d)}
 	if e, found := d.FindPanel(focus); found {
-		out.Row = &rowLayoutOut{ID: sectionOf(e), Panels: sectionPanels(d, sectionOf(e))}
+		section := sectionOf(e)
+		out.Row = &rowLayoutOut{ID: section, Panels: sectionPanels(d, section)}
+		if o := newWorkingLayout(d).openLine(section); o.W > 0 {
+			out.Open = fmt.Sprintf("%s %s", sectionName(section), positionText(spec.GridPos{X: o.X, Y: o.Y, W: o.W, H: o.H}))
+		}
 	}
 	for _, g := range holes[:min(len(holes), maxLayoutGaps)] {
 		out.Gaps = append(out.Gaps, fmt.Sprintf("%s %s", sectionName(g.Row), positionText(g.Pos)))

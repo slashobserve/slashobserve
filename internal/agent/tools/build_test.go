@@ -1355,6 +1355,12 @@ func TestLayoutOutFitsItsBudget(t *testing.T) {
 		t.Errorf("layout of 16 rows = %d bytes, truncated %v, %d rows listed; want at most %d bytes, truncated, some rows dropped", len(raw), out.Truncated, len(out.Rows), maxLayoutBytes)
 	}
 
+	odd := manyRows(t, 16, 7)
+	out = layoutOf(odd, "r0p0", gaps(odd))
+	if raw, _ := json.Marshal(out); len(raw) > maxLayoutBytes || !out.Truncated || out.Open != "r0 x12 y25 w12 h8" {
+		t.Errorf("layout of 16 rows with an open end = %d bytes, truncated %v, open %q; want at most %d bytes, truncated, and open %q", len(raw), out.Truncated, out.Open, maxLayoutBytes, "r0 x12 y25 w12 h8")
+	}
+
 	small := parseBoard(t, buildRow("r1", "One", 0, placeStat("a", 0, 1, 12, 8)), buildRow("r2", "Two", 9, placeStat("b", 0, 10, 12, 8)), placeStat("t", 0, 20, 12, 8))
 	out = layoutOf(small, "b", gaps(small))
 	if out.Truncated || len(out.Rows) != 3 || out.Row == nil || out.Row.ID != "r2" {
@@ -1386,5 +1392,32 @@ func TestLayoutOutFocusesTheSectionOfTheLastPlacedPanel(t *testing.T) {
 	}
 	if out := layoutOf(d, panelChanges{}.focus(), nil); out.Row != nil {
 		t.Errorf("row = %+v, want none when the save changed no panel", out.Row)
+	}
+}
+
+func TestLayoutOutShowsTheOpenEndOfTheRow(t *testing.T) {
+	tests := []struct {
+		name  string
+		board []string
+		focus string
+		want  string
+	}{
+		{"half a line in a row", []string{buildRow("row_cpu", "CPU", 0, placeSeries("usage", 0, 1, 12, 8))}, "usage", "row_cpu x12 y1 w12 h8"},
+		{"the lowest line decides", []string{buildRow("row_cpu", "CPU", 0, placeSeries("a", 0, 1, 12, 8), placeSeries("b", 12, 1, 12, 8), placeStat("c", 0, 9, 6, 4))}, "c", "row_cpu x6 y9 w18 h4"},
+		{"the top level", []string{placeSeries("t", 0, 0, 8, 8)}, "t", "(top level) x8 y0 w16 h8"},
+		{"a full line", []string{buildRow("row_cpu", "CPU", 0, placeSeries("a", 0, 1, 12, 8), placeSeries("b", 12, 1, 12, 8))}, "a", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := parseBoard(t, tt.board...)
+			out := layoutOf(d, tt.focus, gaps(d))
+			if out.Open != tt.want {
+				t.Errorf("open = %q, want %q", out.Open, tt.want)
+			}
+			raw, _ := json.Marshal(out)
+			if has := strings.Contains(string(raw), `"open"`); has != (tt.want != "") {
+				t.Errorf("marshalled layout %s, want the open key present only when there is an open end", raw)
+			}
+		})
 	}
 }
