@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -39,9 +40,19 @@ func TestCompletionRejectsOtherShells(t *testing.T) {
 }
 
 func TestCompletionCompletesCommandNames(t *testing.T) {
-	stdout, _, code := runCLI("__complete", "comp")
-	if code != 0 || !strings.Contains(stdout, "completion") {
-		t.Fatalf("exit %d, stdout %q", code, stdout)
+	cases := map[string]string{
+		"comp": "completion",
+		"ann":  "annotate",
+		"doc":  "doctor",
+		"gra":  "grafana",
+		"tra":  "traces",
+		"log":  "logs",
+	}
+	for prefix, want := range cases {
+		stdout, _, code := runCLI("__complete", prefix)
+		if code != 0 || !slices.Contains(strings.Fields(stdout), want) {
+			t.Errorf("%s: exit %d, stdout %q", prefix, code, stdout)
+		}
 	}
 }
 
