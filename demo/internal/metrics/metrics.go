@@ -10,12 +10,23 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+const (
+	OrderOK     = "ok"
+	OrderFailed = "failed"
+)
+
+var orderProcessingBuckets = []float64{0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3, 5}
+
 type Recorder struct {
-	service  string
-	pod      string
-	registry *prometheus.Registry
-	requests *prometheus.CounterVec
-	duration *prometheus.HistogramVec
+	service         string
+	pod             string
+	registry        *prometheus.Registry
+	requests        *prometheus.CounterVec
+	duration        *prometheus.HistogramVec
+	ordersProcessed *prometheus.CounterVec
+	orderProcessing *prometheus.HistogramVec
+	cacheRequests   *prometheus.CounterVec
+	dbQuery         *prometheus.HistogramVec
 }
 
 func New(service, pod string) *Recorder {
@@ -29,18 +40,110 @@ func New(service, pod string) *Recorder {
 		Help:    "HTTP request duration of business routes.",
 		Buckets: prometheus.DefBuckets,
 	}, []string{"service", "route", "pod"})
+	ordersProcessed := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "shop_orders_processed_total",
+		Help: "Orders taken off the orders queue, by result.",
+	}, []string{"service", "pod", "result"})
+	orderProcessing := prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "shop_order_processing_seconds",
+		Help:    "Time a queue worker spends processing one order.",
+		Buckets: orderProcessingBuckets,
+	}, []string{"service", "pod"})
+	cacheRequests := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "shop_product_cache_requests_total",
+		Help: "Product cache lookups, by result.",
+	}, []string{"service", "pod", "result"})
+	dbQuery := prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "shop_db_query_duration_seconds",
+		Help:    "Inventory database query duration, including the wait for a pool connection.",
+		Buckets: prometheus.DefBuckets,
+	}, []string{"service", "pod", "query"})
 	registry.MustRegister(
 		requests,
 		duration,
+		ordersProcessed,
+		orderProcessing,
+		cacheRequests,
+		dbQuery,
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
-	return &Recorder{service: service, pod: pod, registry: registry, requests: requests, duration: duration}
+	return &Recorder{
+		service:         service,
+		pod:             pod,
+		registry:        registry,
+		requests:        requests,
+		duration:        duration,
+		ordersProcessed: ordersProcessed,
+		orderProcessing: orderProcessing,
+		cacheRequests:   cacheRequests,
+		dbQuery:         dbQuery,
+	}
 }
 
 func (r *Recorder) Observe(route string, status int, elapsed time.Duration) {
 	r.requests.WithLabelValues(r.service, route, strconv.Itoa(status), r.pod).Inc()
 	r.duration.WithLabelValues(r.service, route, r.pod).Observe(elapsed.Seconds())
+}
+
+func (r *Recorder) WatchOrdersQueue(depth func() int, oldestAge func() time.Duration) {
+	labels := r.podLabels()
+	r.registry.MustRegister(
+		prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+			Name:        "shop_orders_queue_depth",
+			Help:        "Orders waiting in the orders queue.",
+			ConstLabels: labels,
+		}, func() float64 { return float64(depth()) }),
+		prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+			Name:        "shop_orders_queue_oldest_age_seconds",
+			Help:        "Age of the oldest order waiting in the orders queue, 0 when it is empty.",
+			ConstLabels: labels,
+		}, func() float64 { return oldestAge().Seconds() }),
+	)
+	for _, result := range []string{OrderOK, OrderFailed} {
+		r.ordersProcessed.WithLabelValues(r.service, r.pod, result)
+	}
+}
+
+func (r *Recorder) OrderProcessed(result string, elapsed time.Duration) {
+	r.ordersProcessed.WithLabelValues(r.service, r.pod, result).Inc()
+	r.orderProcessing.WithLabelValues(r.service, r.pod).Observe(elapsed.Seconds())
+}
+
+func (r *Recorder) OrderDropped() {
+	r.ordersProcessed.WithLabelValues(r.service, r.pod, OrderFailed).Inc()
+}
+
+func (r *Recorder) CacheLookup(hit bool) {
+	result := "miss"
+	if hit {
+		result = "hit"
+	}
+	r.cacheRequests.WithLabelValues(r.service, r.pod, result).Inc()
+}
+
+func (r *Recorder) WatchDBPool(inUse func() int, size int) {
+	labels := r.podLabels()
+	r.registry.MustRegister(
+		prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+			Name:        "shop_db_pool_in_use",
+			Help:        "Inventory database connections held by a query.",
+			ConstLabels: labels,
+		}, func() float64 { return float64(inUse()) }),
+		prometheus.NewGaugeFunc(prometheus.GaugeOpts{
+			Name:        "shop_db_pool_max",
+			Help:        "Inventory database connections in the pool.",
+			ConstLabels: labels,
+		}, func() float64 { return float64(size) }),
+	)
+}
+
+func (r *Recorder) ObserveQuery(query string, elapsed time.Duration) {
+	r.dbQuery.WithLabelValues(r.service, r.pod, query).Observe(elapsed.Seconds())
+}
+
+func (r *Recorder) podLabels() prometheus.Labels {
+	return prometheus.Labels{"service": r.service, "pod": r.pod}
 }
 
 func (r *Recorder) Handler() http.Handler {

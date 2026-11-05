@@ -12,6 +12,8 @@ type faultState struct {
 	Service    string `json:"service"`
 	ErrorsPct  int    `json:"errors_pct"`
 	LatencyPct int    `json:"latency_pct"`
+	QueuePct   int    `json:"queue_pct"`
+	SlowDBPct  int    `json:"slow_db_pct"`
 }
 
 func (a *app) faultState() faultState {
@@ -20,6 +22,8 @@ func (a *app) faultState() faultState {
 		Service:    a.cfg.Service,
 		ErrorsPct:  a.faults.Pct(fault.Errors),
 		LatencyPct: a.faults.Pct(fault.Latency),
+		QueuePct:   a.faults.Pct(fault.Queue),
+		SlowDBPct:  a.faults.Pct(fault.SlowDB),
 	}
 }
 
@@ -52,7 +56,7 @@ func (a *app) setFault(w http.ResponseWriter, r *http.Request) {
 
 func (a *app) resetFault(w http.ResponseWriter, r *http.Request) {
 	a.faults.Reset()
-	for _, kind := range []fault.Kind{fault.Errors, fault.Latency} {
+	for _, kind := range fault.Kinds {
 		a.log.WarnContext(r.Context(), "fault changed", "fault.type", string(kind), "fault.pct", 0)
 	}
 	writeJSON(w, http.StatusOK, a.faultState())

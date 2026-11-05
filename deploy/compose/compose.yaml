@@ -227,6 +227,7 @@ services:
       SHOP_SERVICE: checkout
       SHOP_POD: checkout-0
       SHOP_PAYMENTS_URL: http://payments-0:8080
+      SHOP_QUEUE_WORKERS: "4"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     ports:
       - "127.0.0.1:${SLASHOBSERVE_SHOP_HOST_PORT:-8081}:8080"
@@ -237,6 +238,7 @@ services:
       SHOP_SERVICE: checkout
       SHOP_POD: checkout-1
       SHOP_PAYMENTS_URL: http://payments-0:8080
+      SHOP_QUEUE_WORKERS: "4"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
 
   payments-0:

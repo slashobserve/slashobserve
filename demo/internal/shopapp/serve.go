@@ -26,7 +26,7 @@ func Serve(ctx context.Context, lookup func(string) (string, bool)) error {
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           newApp(cfg, logger),
+		Handler:           newApp(ctx, cfg, logger),
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      10 * time.Second,
 	}
