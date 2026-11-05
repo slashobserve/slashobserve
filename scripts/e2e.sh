@@ -3154,7 +3154,7 @@ evals_smoke_suite() {
   local rc=0 flat
 
   OBSERVE_SERVER="$BASE_URL" OBSERVE_TOKEN="$API_TOKEN" \
-    bounded 600 go -C "$ROOT" run ./evals/runner --tag replay-smoke --min-pass 1 --out "$TMP/evals.json" --markdown "$TMP/evals.md" \
+    bounded 600 go -C "$ROOT" run ./evals/runner --tag replay-smoke --min-pass 1 --prometheus "$PROM_URL" --out "$TMP/evals.json" --markdown "$TMP/evals.md" \
     >"$TMP/evals.out" 2>"$TMP/evals.err" || rc=$?
   [[ "$rc" == 0 ]] || fail "the eval runner exited $rc ($(cat "$TMP/evals.err") $(cat "$TMP/evals.out"))"
   flat="$(tr -d ' \n' <"$TMP/evals.json")"

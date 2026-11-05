@@ -139,10 +139,10 @@ evals-stack-down:
 
 evals-replay:
 	scripts/evals-stack.sh up replay
-	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --suite replay --bootstrap-dex --min-pass 1
+	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --prometheus "http://localhost:$${SLASHOBSERVE_EVALS_PROMETHEUS_PORT:-29090}" --suite replay --bootstrap-dex --min-pass 1
 
 evals-live:
-	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --suite live --matrix $(EVALS_MATRIX) --bootstrap-dex --out $(EVALS_REPORT_DIR)
+	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --prometheus "http://localhost:$${SLASHOBSERVE_EVALS_PROMETHEUS_PORT:-29090}" --suite live --matrix $(EVALS_MATRIX) --bootstrap-dex --out $(EVALS_REPORT_DIR)
 
 evals-compare:
 	@test -n "$(EVALS_BASE)" -a -n "$(EVALS_NEW)" || { echo "usage: make evals-compare EVALS_BASE=<report.json> EVALS_NEW=<report.json>" >&2; exit 2; }

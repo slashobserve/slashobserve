@@ -9,5 +9,6 @@ expect:
   datasources: [prometheus]
   metrics: [http_requests_total, http_request_duration_seconds]
   scope: '{job="shop"}'
+  coverage: 0.2
   units: [reqps, rps, ops, short, s, ms]
   min_panels: 2
