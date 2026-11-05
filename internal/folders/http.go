@@ -28,10 +28,9 @@ const (
 )
 
 var (
-	errFolderGone     = errors.New("folder is gone")
-	errGeneralFolder  = errors.New("general folder")
-	errPersonalFolder = errors.New("personal folder")
-	errDuplicateUser  = errors.New("duplicate user")
+	errFolderGone    = errors.New("folder is gone")
+	errGeneralFolder = errors.New("general folder")
+	errDuplicateUser = errors.New("duplicate user")
 )
 
 type unknownUserError struct {
@@ -207,10 +206,6 @@ func (h *Handler) rename(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusConflict, "general_folder", "the General folder cannot be renamed")
 		return
 	}
-	if current.Folder.Personal {
-		httpapi.AbortError(c, http.StatusConflict, "personal_folder", "a personal folder cannot be renamed")
-		return
-	}
 	ctx := c.Request.Context()
 	row, err := h.db.Queries().RenameFolder(ctx, dbsqlc.RenameFolderParams{ID: current.Folder.ID, Title: title})
 	switch {
@@ -335,9 +330,6 @@ func (h *Handler) replacePermissions(ctx context.Context, folderID, grantedBy pg
 		if folder.General {
 			return errGeneralFolder
 		}
-		if folder.Personal {
-			return errPersonalFolder
-		}
 		grants, err := resolveGrants(ctx, q, entries)
 		if err != nil {
 			return err
@@ -364,8 +356,6 @@ func abortPermissionsRefusal(c *gin.Context, err error) bool {
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "folder not found")
 	case errors.Is(err, errGeneralFolder):
 		httpapi.AbortError(c, http.StatusConflict, "general_folder", "the General folder is open to everyone and cannot be restricted")
-	case errors.Is(err, errPersonalFolder):
-		httpapi.AbortError(c, http.StatusConflict, "personal_folder", "a personal folder is private to its owner and has no access list")
 	case errors.Is(err, errDuplicateUser):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "a user can appear only once")
 	case errors.As(err, &unknown):

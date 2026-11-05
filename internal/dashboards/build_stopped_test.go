@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
 
@@ -126,6 +127,35 @@ func TestAStoppedBuildIsSavedAsOneVersionAndTheRequestStaysFailed(t *testing.T) 
 	}
 	if _, found, err := r.service.Build(t.Context(), id); err != nil || found {
 		t.Fatalf("the build survived the save: found = %v, err %v", found, err)
+	}
+}
+
+func TestAViewersStoppedBuildIsSavedIntoTheirMyDashboards(t *testing.T) {
+	r, _ := newProbeRig(t)
+	viewer := r.addPerson(t, "vic")
+	viewer.principal.Role = auth.RoleViewer
+	row, err := r.revisions.SubmitObserve(t.Context(), viewer.principal, "build it")
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimed, err := r.db.Queries().ClaimAgentRequest(t.Context(), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2})
+	if err != nil || claimed.ID != row.ID {
+		t.Fatalf("claimed %v, want %v, err %v", claimed.ID, row.ID, err)
+	}
+	_, err = r.service.SaveBuild(t.Context(), viewer.principal, BuildSave{
+		RequestID: row.ID, Attempt: buildAttempt, BaseVersion: 0, Spec: panelsSpec("t", "a"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.failRequest(t, row.ID)
+
+	dash, _, _, err := r.service.SaveStoppedBuild(t.Context(), viewer.principal, row.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !dash.Folder.Personal || dash.Folder.ID != viewer.personal {
+		t.Fatalf("saved dashboard folder = %+v, want the Viewer's personal folder %v", dash.Folder, viewer.personal)
 	}
 }
 

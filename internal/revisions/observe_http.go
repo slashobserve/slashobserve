@@ -126,7 +126,7 @@ func (h *ObserveHandler) Register(api auth.Routes) {
 	api.GET("/observe", auth.RoleViewer, h.listObserve)
 	api.GET("/observe/:id", auth.RoleViewer, h.getObserve)
 	api.GET("/observe/:id/build", auth.RoleViewer, h.getBuild)
-	api.POST("/observe/:id/build/save", auth.RoleEditor, h.saveBuild)
+	api.POST("/observe/:id/build/save", auth.RoleViewer, h.saveBuild)
 	api.POST("/observe/:id/cancel", auth.RoleViewer, h.cancelObserve)
 	api.POST("/observe/:id/continue", auth.RoleViewer, h.continueObserve)
 }
