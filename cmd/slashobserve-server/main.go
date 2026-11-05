@@ -48,6 +48,7 @@ import (
 	dashprovision "github.com/slashobserve/slashobserve/internal/provision"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/queryproxy/proxyhttp"
+	"github.com/slashobserve/slashobserve/internal/repairs"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/scheduler"
 	"github.com/slashobserve/slashobserve/internal/server"
@@ -339,6 +340,7 @@ func run() error {
 			folders.NewHandler(database, folderAccess, logger),
 			imports.NewHandler(importsService, folderAccess),
 			grafanaconn.NewHandler(grafanaService),
+			repairs.NewHandler(repairs.New(repairs.Deps{DB: database, Access: folderAccess, Revisions: revisionsService, PublicURL: cfg.PublicURL, Logger: logger})),
 			stream.NewHandler(broker, dashboardsService, authService, folderAccess, folderAccess.RequireDashboard(folders.NeedView), logger),
 			dashboards.NewComments(database, dashboardsService, revisionsService),
 			revisionsService,

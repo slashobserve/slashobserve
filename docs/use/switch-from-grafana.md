@@ -62,6 +62,34 @@ A connection runs one import at a time.
 The server keeps the last 20 runs in memory until it restarts, and the connection's `last_sync` keeps the summary of the last finished one.
 A restart stops a running import; start it again and it continues by skipping what it already imported.
 
+## Repair
+
+`GET /api/v1/repairs` lists every dashboard, in folders you can see, whose latest version still has unverified panels or variables or placeholder panels, with their counts, when it was imported and its latest repair.
+Editors and Admins can call it, and `folder_id` limits it to one folder.
+A dashboard leaves the list once nothing in it fails.
+
+`POST /api/v1/repairs` queues the agent on the dashboards you name, or on every listed dashboard:
+
+```sh
+curl -X POST "$SERVER/api/v1/repairs" -H "Authorization: Bearer $OBSERVE_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"all":true,"folder_id":"<folder id>"}'
+```
+
+Each dashboard gets one ordinary revision with this prompt:
+
+```text
+Repair every panel and variable listed as unverified so its query runs and returns data; keep every other panel unchanged and never delete an unverified panel.
+```
+
+The answer is `202` with the `queued` request ids and the `skipped` dashboards, each with a reason:
+
+- `active`: a revision is already queued or running on it.
+- `nothing_to_repair`: it holds only placeholders, which the agent never edits.
+- `not_found`: it does not exist or is in a folder you cannot see.
+- `forbidden_role`: you can see it but not edit it.
+- `queue_full`: you already have 20 repairs queued or running; send the request again when they finish.
+
 ## What maps
 
 - Folders keep their Grafana titles, and a nested folder becomes one folder titled `Parent / Child`.
