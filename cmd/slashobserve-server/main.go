@@ -292,9 +292,6 @@ func run() error {
 	defer stopWorkers()
 
 	provisioner := dashprovision.New(logger, dashboardsService, folderAccess, database, cfg.ProvisionDir)
-	if cfg.ProvisionDir != "" {
-		logger.Info("dashboard provisioning configured", slog.String("dir", cfg.ProvisionDir))
-	}
 	provisionCtx, stopProvisioning := context.WithCancel(ctx)
 	provisionDone := make(chan struct{})
 	go func() {

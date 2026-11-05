@@ -161,6 +161,7 @@ func (p *Provisioner) Watch(ctx context.Context) {
 	if p.dir == "" {
 		return
 	}
+	p.logger.InfoContext(ctx, "dashboard provisioning configured", slog.String("dir", p.dir))
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 	var seen string
