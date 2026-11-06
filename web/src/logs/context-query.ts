@@ -15,7 +15,7 @@ LIMIT 1000`
 const clickhouseLogColumns =
   "SELECT Timestamp, SeverityText, Body, ServiceName, TraceId, SpanId, LogAttributes\nFROM otel_logs"
 
-const perLineLokiLabels = new Set([
+export const perLineLokiLabels = new Set([
   "trace_id",
   "span_id",
   "traceid",

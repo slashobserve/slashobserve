@@ -75,6 +75,10 @@ The panel has a **Table** tab, a **JSON** tab that prints the whole line, and a 
 On Elasticsearch and OpenSearch the panel is titled **Document** and the table groups **Core fields** (time, level, service, trace id, span id and document id) apart from **Other fields**, which hold the rest of the document and its index as `_index`.
 A field whose value is a JSON object, such as the ClickHouse `LogAttributes` map, shows one row per key, named `<field>.<key>`, one level deep.
 The panel offers **Show context**, **Copy line**, which copies the line's text, and **Copy link**, and an **Open trace** link when the line carries a trace id.
+Each field in the table has **Filter in** and **Filter out** buttons, shown when you hover or focus the row, that rewrite the query and run it, and Back returns to the previous query.
+On Loki a stream label goes into the stream selector and a parsed field or structured metadata value into a `|` stage at the end of the query; on ClickHouse a column or a `LogAttributes` key goes into the `WHERE` clause.
+On Elasticsearch and OpenSearch the buttons append a KQL clause to the query, **Require** adds `field:*` for a field that exists, and the buttons are disabled on a Lucene or Query DSL query; the core fields have no buttons.
+A button is disabled when the query already holds the filter, when the query has no shape the button can edit (a Loki query with no stream selector, or a ClickHouse query with no `WHERE` clause or with a subquery), or when the value is longer than 200 characters.
 
 The address keeps the search as `/logs?ds=<datasource uid>&q=<query>&from=<from>&to=<to>`, so you can share it or bookmark it.
 A query written from a question also keeps the question as `ask` beside `q`, and the link opens the query with its question above it.
