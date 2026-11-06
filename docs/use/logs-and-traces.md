@@ -83,6 +83,7 @@ A Loki line opens in the first Tempo datasource, and a ClickHouse line opens in 
 A line above the waterfall reads the root service, the root span, the duration and the span count, with the number of errors when any span failed.
 The view draws the spans as a waterfall under a ruler that steps by 1, 2, 2.5 or 5 times a power of ten, so its labels are round numbers.
 A click on a span shows its span attributes and then its resource attributes in the pane beside it, or inline under the span on a screen 760 pixels wide or narrower.
+Each span offers **Logs**, which opens the logs page on the lines carrying the trace id (and the span id when the datasource stores it) during the trace.
 On ClickHouse the view looks for the spans in the last 24 hours, or within an hour of the line when you came from the logs page; widen the time range for an older trace.
 Tempo finds a trace by its id at any time.
 **Copy link** copies the address of the trace with its datasource and time range, and **Search traces** opens the trace search on the same datasource.

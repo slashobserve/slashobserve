@@ -930,6 +930,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasources/{uid}/trace-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read the log lines that carry a trace id, or one span id, from a logs datasource.
+         * @description The trace view's path from a span to its logs; the datasource in the path must be Loki or ClickHouse. The server builds the query itself from the ids, so no query text crosses this call. On Loki it narrows the stream selector to `service` through the first of the `service_name`, `service`, `app` and `job` labels present in the window, or reads every stream when `service` is not given; it filters `trace_id` (and `span_id`) as structured metadata or parsed labels first and, when that answers no line, runs the same selector with a line filter on the id, so lines that only carry the id in their body still match. On ClickHouse it reads the logs page's columns from `otel_logs` where `TraceId` (and `SpanId`) match within the window, newest first. `from` and `to` are the trace's window, with the grammar of the explore query; the web passes the trace's start minus a minute to its end plus a minute. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests and takes one of the server's shared upstream slots, waiting at most 5 seconds for one before it answers 429 `too_many_requests` with `Retry-After`. Viewers and above may call it, service-account keys included. The response has the shape of panel data with one query `A` of kind `instant`, `meta.truncated` when the line limit was hit and `meta.oldest` and `meta.newest` as the time edges of the lines returned; an empty result is a 200 with no frames, never a 404.
+         */
+        post: operations["traceLogs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasources/{uid}/draft-query": {
         parameters: {
             query?: never;
@@ -6255,6 +6277,104 @@ export interface operations {
             };
         };
     };
+    traceLogs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    trace_id: string;
+                    /** @description Narrow the lines to one span. */
+                    span_id?: string;
+                    /** @description The span's `service.name`, used to narrow the Loki stream selector; ClickHouse ignores it. */
+                    service?: string;
+                    from: string;
+                    to: string;
+                    /** @description The browser's IANA time zone, used to resolve relative times such as `now/d`. */
+                    timezone?: string;
+                    /**
+                     * @description The most lines to return.
+                     * @default 500
+                     */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The lines of the trace, or no frames when it logged nothing in the window. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelData"];
+                };
+            };
+            /** @description The request is malformed or fails validation, or the datasource is not Loki or ClickHouse (`invalid_request`); the body carries no `ref`. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The datasource refused the query (`query_invalid`) or the result passed a limit (`limit_exceeded`); the body carries no `ref`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
     draftQuery: {
         parameters: {
             query?: never;
@@ -6398,6 +6518,12 @@ export interface operations {
                 search?: string;
                 /** @description Maximum names to return. */
                 limit?: number;
+                /** @description Start of the window the names must have been seen in, as a relative expression such as `now-6h`, epoch milliseconds or an RFC 3339 time. `from` and `to` are given together or not at all; one without the other is a 400. Without them Loki and Tempo answer their own default window, and Prometheus and ClickHouse ignore them. */
+                from?: string;
+                /** @description End of the window, with the same grammar as `from`. */
+                to?: string;
+                /** @description The browser's IANA time zone, used to resolve relative times such as `now/d`. */
+                timezone?: string;
             };
             header?: never;
             path: {
@@ -6441,6 +6567,12 @@ export interface operations {
                 search?: string;
                 /** @description Maximum names to return. */
                 limit?: number;
+                /** @description Start of the window the names must have been seen in, as a relative expression such as `now-6h`, epoch milliseconds or an RFC 3339 time. `from` and `to` are given together or not at all; one without the other is a 400. Without them Loki and Tempo answer their own default window, and Prometheus and ClickHouse ignore them. */
+                from?: string;
+                /** @description End of the window, with the same grammar as `from`. */
+                to?: string;
+                /** @description The browser's IANA time zone, used to resolve relative times such as `now/d`. */
+                timezone?: string;
             };
             header?: never;
             path: {

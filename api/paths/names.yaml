@@ -107,6 +107,30 @@ datasources-uid-labels:
           minimum: 1
           maximum: 500
           default: 100
+      - name: from
+        in: query
+        description: >-
+          Start of the window the names must have been seen in, as a relative expression such as `now-6h`, epoch milliseconds or an RFC 3339 time.
+          `from` and `to` are given together or not at all; one without the other is a 400.
+          Without them Loki and Tempo answer their own default window, and Prometheus and ClickHouse ignore them.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: to
+        in: query
+        description: End of the window, with the same grammar as `from`.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: timezone
+        in: query
+        description: The browser's IANA time zone, used to resolve relative times such as `now/d`.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
     responses:
       "200":
         description: Up to `limit` label names; `truncated` is true when there were more.
@@ -190,6 +214,30 @@ datasources-uid-labels-name-values:
           minimum: 1
           maximum: 500
           default: 100
+      - name: from
+        in: query
+        description: >-
+          Start of the window the names must have been seen in, as a relative expression such as `now-6h`, epoch milliseconds or an RFC 3339 time.
+          `from` and `to` are given together or not at all; one without the other is a 400.
+          Without them Loki and Tempo answer their own default window, and Prometheus and ClickHouse ignore them.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: to
+        in: query
+        description: End of the window, with the same grammar as `from`.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: timezone
+        in: query
+        description: The browser's IANA time zone, used to resolve relative times such as `now/d`.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
     responses:
       "200":
         description: Up to `limit` values of the label; `truncated` is true when there were more.
