@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useState,
   type ReactNode,
@@ -15,6 +16,7 @@ import { useRouteContext } from "@tanstack/react-router"
 
 import type { components } from "@/api/schema.gen"
 import { commentsQuery, useComments } from "@/comments/queries"
+import { NativeSelect } from "@/components/native-select"
 import { RoleNote } from "@/components/role-note"
 import {
   composerMode,
@@ -56,9 +58,6 @@ const showOptions: { value: TimelineShow; label: string }[] = [
   { value: "open", label: "Open comments" },
   { value: "changes", label: "Changes only" },
 ]
-
-const selectClass =
-  "h-[26px] min-w-0 max-w-[200px] rounded-[5px] border bg-background px-1.5 text-xs text-foreground"
 
 type Props = {
   dashboardId: string
@@ -149,31 +148,6 @@ function changeSignature(entry: TimelineEntry | undefined): string {
   }
 }
 
-function FilterSelect({
-  label,
-  value,
-  onChange,
-  children,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  children: ReactNode
-}) {
-  return (
-    <label className="flex min-w-0 items-center gap-1.5">
-      {label}
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className={selectClass}
-      >
-        {children}
-      </select>
-    </label>
-  )
-}
-
 export function ActivityFeed({
   dashboardId,
   apiId,
@@ -205,6 +179,8 @@ export function ActivityFeed({
   }).requests
   useResetAgentKindOnLeave(dashboardId)
   const [show, setShow] = useState<TimelineShow>("everything")
+  const showId = useId()
+  const scopeId = useId()
 
   const panelList = useMemo(() => panels ?? [], [panels])
   const titles = useMemo(
@@ -363,14 +339,19 @@ export function ActivityFeed({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center justify-between gap-2 px-4 py-2.5 text-xs text-muted-foreground">
-        <FilterSelect
-          label="Show"
+      <div className="flex items-center gap-2 border-b px-4 py-2">
+        <label htmlFor={showId} className="text-xs text-muted-foreground">
+          Show
+        </label>
+        <NativeSelect
+          id={showId}
+          size="sm"
+          aria-label="Show"
           value={show}
-          onChange={(value) =>
+          onChange={(event) =>
             setShow(
-              showOptions.find((option) => option.value === value)?.value ??
-                "everything"
+              showOptions.find((option) => option.value === event.target.value)
+                ?.value ?? "everything"
             )
           }
         >
@@ -379,11 +360,19 @@ export function ActivityFeed({
               {option.label}
             </option>
           ))}
-        </FilterSelect>
-        <FilterSelect
-          label="Panel"
+        </NativeSelect>
+        <label htmlFor={scopeId} className="text-xs text-muted-foreground">
+          Panel
+        </label>
+        <NativeSelect
+          id={scopeId}
+          size="sm"
+          aria-label="Panel"
+          className="max-w-[200px] truncate"
           value={scopePanelId ?? ""}
-          onChange={(value) => onScopeChange(value === "" ? null : value)}
+          onChange={(event) =>
+            onScopeChange(event.target.value === "" ? null : event.target.value)
+          }
         >
           <option value="">All panels</option>
           {panelList.map((panel) => (
@@ -391,7 +380,7 @@ export function ActivityFeed({
               {panel.title === "" ? "Untitled panel" : panel.title}
             </option>
           ))}
-        </FilterSelect>
+        </NativeSelect>
       </div>
       <div ref={stickRef} className="min-h-0 flex-1 overflow-y-auto">
         <TimelineList
