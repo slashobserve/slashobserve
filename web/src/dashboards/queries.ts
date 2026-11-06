@@ -16,7 +16,7 @@ import {
   userKeys,
 } from "@/api/keys"
 import type { paths } from "@/api/schema.gen"
-import { validateSpecSchema, type Dashboard } from "@/spec"
+import type { Dashboard } from "@/spec"
 
 export type DashboardEnvelope =
   paths["/dashboards/{id}"]["get"]["responses"][200]["content"]["application/json"]
@@ -26,9 +26,17 @@ export type WireFrame = PanelDataResponse["frames"][number]
 export type PanelDataMeta = PanelDataResponse["meta"]
 
 export function asDashboardSpec(raw: unknown): Dashboard {
-  const result = validateSpecSchema(raw)
-  if (!result.valid) throw new Error("Server returned an invalid Spec")
-  return result.spec
+  if (!isDashboardShape(raw)) throw new Error("Server returned an invalid Spec")
+  return raw
+}
+
+function isDashboardShape(raw: unknown): raw is Dashboard {
+  return (
+    typeof raw === "object" &&
+    raw !== null &&
+    (raw as { specVersion?: unknown }).specVersion === "0" &&
+    Array.isArray((raw as { panels?: unknown }).panels)
+  )
 }
 
 export function latestDashboardQuery(queryClient: QueryClient, id: string) {

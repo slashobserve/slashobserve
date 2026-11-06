@@ -9,6 +9,7 @@ import type { PanelSource } from "@/dashboards/panel-source"
 import { maxDataPointsFor, usePanelData } from "@/dashboards/use-panel-data"
 import { sameJson, stableJson } from "@/lib/json"
 import { describeRange } from "@/lib/time"
+import { useSpecValidator } from "@/lib/use-spec-validator"
 import { PanelBody, StaticPanelBody } from "@/panels/panel-body"
 import { noSharedCursor } from "@/panels/shared-cursor"
 import { prepareFrames } from "@/panels/transforms"
@@ -16,9 +17,9 @@ import {
   isDataPanel,
   isPanelQuery,
   reusesPanel,
-  validateSpecSchema,
   type DataPanel,
   type Dashboard,
+  type SpecValidator,
 } from "@/spec"
 
 import type { EditablePanel } from "./draft"
@@ -64,7 +65,11 @@ function useContentWidth() {
   return { ref, width }
 }
 
-function draftIsValid(spec: Dashboard, draft: DataPanel): boolean {
+function draftIsValid(
+  spec: Dashboard,
+  draft: DataPanel,
+  validate: SpecValidator
+): boolean {
   if (
     draft.queries.some(
       (query) => isPanelQuery(query) && query.query.trim() === ""
@@ -72,7 +77,7 @@ function draftIsValid(spec: Dashboard, draft: DataPanel): boolean {
   )
     return false
   const placed = withPanel(spec, draft.id, draft)
-  return placed !== null && validateSpecSchema(placed).valid
+  return placed !== null && validate(placed).valid
 }
 
 function StatusIcon({ kind }: { kind: PreviewStatus["kind"] }) {
@@ -138,7 +143,11 @@ function DataPreview({
   width,
 }: DataPreviewProps) {
   const debounced = useDebouncedValue(draft, stableJson(draft), debounceMs)
-  const valid = useMemo(() => draftIsValid(spec, debounced), [spec, debounced])
+  const validate = useSpecValidator()
+  const valid = useMemo(
+    () => validate !== undefined && draftIsValid(spec, debounced, validate),
+    [spec, debounced, validate]
+  )
   const vars = selections ?? noSelections
   const maxDataPoints = maxDataPointsFor(debounced, width)
   const ready = selections !== null && width > 0

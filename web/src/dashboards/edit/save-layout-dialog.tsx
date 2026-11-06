@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { validateSpecSchema } from "@/spec"
+import { loadSpecValidator } from "@/spec"
 
 import {
   asDashboardSpec,
@@ -57,8 +57,8 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
   const [summary, setSummary] = useState(defaultSummary)
   const [submitted, setSubmitted] = useState(false)
   const [problem, setProblem] = useState<Problem | null>(null)
-  const [reapplying, setReapplying] = useState(false)
-  const pending = save.isPending || reapplying
+  const [preparing, setPreparing] = useState(false)
+  const pending = save.isPending || preparing
   const error = summaryError(summary)
   const showError = error !== null && (submitted || summary.length > 0)
 
@@ -88,11 +88,21 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
     focusEditLayoutButton()
   }
 
-  function send() {
+  async function send() {
     const session = useLayoutStore.getState().session
     if (!session) return
+    setPreparing(true)
+    let validate
+    try {
+      validate = await loadSpecValidator()
+    } catch (failure) {
+      setProblem(saveProblemFrom(failure, rejectedHeading))
+      return
+    } finally {
+      setPreparing(false)
+    }
     const spec = applyLayout(session.baseSpec, session.layout)
-    const checked = validateSpecSchema(spec)
+    const checked = validate(spec)
     if (!checked.valid) {
       setProblem({
         kind: "invalid",
@@ -124,11 +134,11 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
     setSubmitted(true)
     if (error !== null || pending) return
     setProblem(null)
-    send()
+    void send()
   }
 
   async function reapply() {
-    setReapplying(true)
+    setPreparing(true)
     try {
       const latest = await queryClient.fetchQuery({
         ...latestDashboardQuery(queryClient, dashboardId),
@@ -139,11 +149,11 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
         .rebase(latest.version.version, asDashboardSpec(latest.version.spec))
     } catch (failure) {
       setProblem(saveProblemFrom(failure, rejectedHeading))
-      setReapplying(false)
+      setPreparing(false)
       return
     }
-    setReapplying(false)
-    send()
+    setPreparing(false)
+    await send()
   }
 
   function discard() {
