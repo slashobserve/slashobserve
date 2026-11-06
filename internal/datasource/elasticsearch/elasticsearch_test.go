@@ -111,6 +111,7 @@ func healthyServer(t *testing.T) *fakeServer {
 	f.fixed(http.MethodGet, "/", http.StatusOK, esRoot)
 	f.fixed(http.MethodGet, "/_resolve/index/logs-*", http.StatusOK, resolved)
 	f.fixed(http.MethodPost, "/logs-*/_field_caps", http.StatusOK, fieldCaps(t))
+	f.fixed(http.MethodGet, "/logs-*/_settings", http.StatusOK, `{}`)
 	return f
 }
 
@@ -284,10 +285,13 @@ func TestHealthChecksTheRequestsItSends(t *testing.T) {
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if len(f.requests) != 3 {
+	if len(f.requests) != 4 {
 		t.Fatalf("requests = %+v", f.requests)
 	}
-	resolve, caps := f.requests[1], f.requests[2]
+	resolve, caps, settings := f.requests[1], f.requests[2], f.requests[3]
+	if settings.path != "/logs-*/_settings" || settings.params.Get("filter_path") != "*.settings.index.max_result_window" {
+		t.Fatalf("settings request = %+v", settings)
+	}
 	if resolve.params.Get("expand_wildcards") != "open" {
 		t.Fatalf("resolve params = %v", resolve.params)
 	}
