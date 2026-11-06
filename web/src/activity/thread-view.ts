@@ -50,7 +50,7 @@ export function threadState(input: {
   if (gate.kind === "no-model") {
     return { kind: "note", text: `Open, waiting for ${clientName}` }
   }
-  return { kind: "note", text: "Comment" }
+  return { kind: "note", text: "Open" }
 }
 
 export function canResolveThread(request: Revision | null): boolean {

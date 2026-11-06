@@ -59,7 +59,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expectPanelsReady(page)
 
         await expect(
-          thread(teammateComment).getByText("Comment", { exact: true })
+          thread(teammateComment).getByText("Open", { exact: true })
         ).toBeVisible()
         await expect(versionEntry(page, 1)).toHaveCount(1)
         await expect(activityToggle(page, 1)).toBeVisible()
@@ -128,7 +128,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(versionButton(page)).toHaveText("Live · v2")
         await expect(activityToggle(page, 1)).toBeVisible()
         await expect(
-          thread(teammateComment).getByText("Comment", { exact: true })
+          thread(teammateComment).getByText("Open", { exact: true })
         ).toBeVisible()
       })
 

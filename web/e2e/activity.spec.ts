@@ -169,7 +169,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         entry.getByText("commented on", { exact: true })
       ).toBeVisible()
       await expect(entry.getByRole("button", { name: rpsTitle })).toBeVisible()
-      await expect(entry.getByText("Comment", { exact: true })).toBeVisible()
+      await expect(entry.getByText("Open", { exact: true })).toBeVisible()
       await expect(composerBox(page)).toHaveValue("")
       await expect(composerBox(page)).toBeFocused()
       await expect(
@@ -263,7 +263,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       ).toBeVisible()
 
       await entry.getByRole("button", { name: "Reopen", exact: true }).click()
-      await expect(entry.getByText("Comment", { exact: true })).toBeVisible()
+      await expect(entry.getByText("Open", { exact: true })).toBeVisible()
       await expect(entry.getByText(/^Resolved by/)).toHaveCount(0)
       await expect(
         page.getByRole("button", { name: "Activity, 1 open comment" })
