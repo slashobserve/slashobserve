@@ -286,6 +286,8 @@ func run() error {
 	findingURL := func(id string) string { return links.Finding(cfg.PublicURL, id) }
 	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger)
 	publicLinksHandler := public.NewHandler(publicLinks, folderAccess, logger)
+	const healthJob = "dashboard_health"
+	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
 	toolComments := dashboards.NewComments(database, dashboardsService, nil)
 	toolRegistry := tools.New(tools.Deps{
 		Datasources: registry,
@@ -329,14 +331,12 @@ func run() error {
 
 	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger, revisions.WorkerOptions{RunTimeout: cfg.Agent.RunTimeout})
 	defer stopWorkers()
-	const healthJob = "dashboard_health"
-	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, Revisions: revisionsService, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
 	jobs := scheduler.New(logger, database, serverMetrics.Scheduler(), instanceID())
 	jobs.Register(healthJob, time.Hour, healthService.Run)
 	stopScheduler := startScheduler(ctx, jobs, logger)
 	defer stopScheduler()
 	healthCtx, stopHealthRuns := context.WithCancel(ctx)
-	healthHandler := health.NewHandler(healthCtx, healthService, jobs)
+	healthHandler := health.NewHandler(healthCtx, healthService, health.NewRepairs(healthService, revisionsService), jobs)
 	defer func() {
 		stopHealthRuns()
 		healthHandler.Wait()

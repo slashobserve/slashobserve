@@ -20,8 +20,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
-	"github.com/slashobserve/slashobserve/internal/repairs"
-	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 var (
@@ -33,7 +31,6 @@ type Deps struct {
 	DB        *db.DB
 	Runner    *queryproxy.Runner
 	Access    *folders.Access
-	Revisions *revisions.Service
 	PublicURL *url.URL
 	Logger    *slog.Logger
 	Job       string
@@ -43,14 +40,13 @@ type Service struct {
 	db        *db.DB
 	runner    *queryproxy.Runner
 	access    *folders.Access
-	revisions *revisions.Service
 	publicURL *url.URL
 	logger    *slog.Logger
 	job       string
 }
 
 func New(d Deps) *Service {
-	return &Service{db: d.DB, runner: d.Runner, access: d.Access, revisions: d.Revisions, publicURL: d.PublicURL, logger: d.Logger, job: d.Job}
+	return &Service{db: d.DB, runner: d.Runner, access: d.Access, publicURL: d.PublicURL, logger: d.Logger, job: d.Job}
 }
 
 type ListParams struct {
@@ -203,107 +199,6 @@ func (s *Service) RecordView(ctx context.Context, by auth.Principal, dashboardID
 		return nil
 	}
 	return err
-}
-
-func (s *Service) Repair(ctx context.Context, by auth.Principal, ids []pgtype.UUID) (repairs.Outcome, error) {
-	if !s.revisions.Available() {
-		return repairs.Outcome{}, revisions.ErrUnavailable
-	}
-	requester, err := db.ParseUUID(by.ID)
-	if err != nil {
-		return repairs.Outcome{}, fmt.Errorf("requester id: %w", err)
-	}
-	levels, err := s.access.Levels(ctx, by)
-	if err != nil {
-		return repairs.Outcome{}, err
-	}
-	out := repairs.Outcome{Queued: []repairs.Queued{}, Skipped: []repairs.Skipped{}}
-	seen := make(map[pgtype.UUID]bool, len(ids))
-	for _, id := range ids {
-		if seen[id] {
-			continue
-		}
-		seen[id] = true
-		if err := s.repairOne(ctx, by, requester, levels, id, &out); err != nil {
-			return repairs.Outcome{}, err
-		}
-	}
-	return out, nil
-}
-
-func (s *Service) repairOne(ctx context.Context, by auth.Principal, requester pgtype.UUID, levels folders.Levels, id pgtype.UUID, out *repairs.Outcome) error {
-	var reason string
-	var queued dbsqlc.AgentRequest
-	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		latest, prompt, why, err := repairTarget(ctx, q, requester, levels, id)
-		if err != nil || why != "" {
-			reason = why
-			return err
-		}
-		queued, err = s.revisions.Enqueue(ctx, q, revisions.EnqueueParams{
-			DashboardID: id,
-			Source:      revisions.SourcePrompt,
-			Prompt:      prompt,
-			BaseVersion: latest,
-			By:          by,
-		})
-		return err
-	})
-	switch {
-	case db.IsForeignKeyViolation(err):
-		reason = repairs.ReasonNotFound
-	case err != nil:
-		return err
-	}
-	if reason != "" {
-		out.Skipped = append(out.Skipped, repairs.Skipped{DashboardID: id.String(), Reason: reason})
-		return nil
-	}
-	out.Queued = append(out.Queued, repairs.Queued{DashboardID: id.String(), RequestID: queued.ID.String()})
-	return nil
-}
-
-func repairTarget(ctx context.Context, q *dbsqlc.Queries, requester pgtype.UUID, levels folders.Levels, id pgtype.UUID) (int, string, string, error) {
-	if err := q.LockAgentRequestsForDashboard(ctx, id); err != nil {
-		return 0, "", "", fmt.Errorf("lock agent requests: %w", err)
-	}
-	target, err := q.HealthRepairTarget(ctx, id)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, "", repairs.ReasonNotFound, nil
-	}
-	if err != nil {
-		return 0, "", "", fmt.Errorf("read health repair target: %w", err)
-	}
-	abilities := levels.Of(target.FolderID)
-	if !abilities.View {
-		return 0, "", repairs.ReasonNotFound, nil
-	}
-	if !abilities.Edit {
-		return 0, "", repairs.ReasonForbidden, nil
-	}
-	active, err := q.CountActiveAgentRequests(ctx, id)
-	if err != nil {
-		return 0, "", "", fmt.Errorf("count active agent requests: %w", err)
-	}
-	if active > 0 {
-		return 0, "", repairs.ReasonActive, nil
-	}
-	problems, err := decodeProblems(target.Issues)
-	if err != nil {
-		return 0, "", "", err
-	}
-	prompt, ok := repairPrompt(problems)
-	if !ok {
-		return 0, "", repairs.ReasonNothingToRepair, nil
-	}
-	mine, err := q.CountActiveHealthRepairsBy(ctx, dbsqlc.CountActiveHealthRepairsByParams{RequesterID: requester, PromptPrefix: repairPromptPrefix})
-	if err != nil {
-		return 0, "", "", fmt.Errorf("count active health repairs: %w", err)
-	}
-	if mine >= repairs.MaxActivePerRequester {
-		return 0, "", repairs.ReasonQueueFull, nil
-	}
-	return int(target.LatestVersion), prompt, "", nil
 }
 
 func decodeProblems(raw []byte) ([]Problem, error) {
