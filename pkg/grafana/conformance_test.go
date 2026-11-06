@@ -41,6 +41,8 @@ var conformanceOptions = Options{Datasources: []Datasource{
 	{UID: "ch", Type: "clickhouse"},
 	{UID: "loki", Type: "loki"},
 	{UID: "tempo", Type: "tempo"},
+	{UID: "es", Type: "elasticsearch"},
+	{UID: "os", Type: "opensearch"},
 }}
 
 type conformanceEntry struct {

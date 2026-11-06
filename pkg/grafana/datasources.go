@@ -15,6 +15,10 @@ const (
 	kindClickHouse = "clickhouse"
 	kindLoki       = "loki"
 	kindTempo      = "tempo"
+	kindElastic    = "elasticsearch"
+	kindOpenSearch = "opensearch"
+
+	openSearchPlugin = "grafana-opensearch-datasource"
 
 	unmatchedUID  = "unmatched"
 	defaultSource = "default"
@@ -32,6 +36,8 @@ var kinds = map[string]kindTraits{
 	kindClickHouse: {"ClickHouse", true, true},
 	kindLoki:       {"Loki", true, false},
 	kindTempo:      {"Tempo", false, false},
+	kindElastic:    {"Elasticsearch", true, true},
+	kindOpenSearch: {"OpenSearch", true, true},
 }
 
 var tempoQueryTypes = []string{"traceql", "traceqlSearch", "nativeSearch", "serviceMap", "traceId", "upload"}
@@ -99,17 +105,18 @@ func kindOf(pluginID string) string {
 		return kindLoki
 	case pluginID == kindTempo:
 		return kindTempo
+	case pluginID == kindElastic:
+		return kindElastic
+	case pluginID == openSearchPlugin:
+		return kindOpenSearch
 	}
 	return ""
 }
 
 func inferType(samples []map[string]any) string {
 	for _, t := range samples {
-		if slices.Contains(tempoQueryTypes, asString(t["queryType"])) {
-			return kindTempo
-		}
-		if _, ok := t["maxLines"]; ok || spec.LogQLReturnsLines(asString(t["expr"])) {
-			return kindLoki
+		if kind := inferObservabilityKind(t); kind != "" {
+			return kind
 		}
 	}
 	for _, t := range samples {
@@ -126,6 +133,19 @@ func inferType(samples []map[string]any) string {
 		if t["query"] != nil && (t["dateTimeColDataType"] != nil || t["table"] != nil) {
 			return "vertamedia-clickhouse-datasource"
 		}
+	}
+	return ""
+}
+
+func inferObservabilityKind(t map[string]any) string {
+	switch {
+	case slices.Contains(tempoQueryTypes, asString(t["queryType"])):
+		return kindTempo
+	case t["bucketAggs"] != nil:
+		return kindElastic
+	}
+	if _, ok := t["maxLines"]; ok || spec.LogQLReturnsLines(asString(t["expr"])) {
+		return kindLoki
 	}
 	return ""
 }

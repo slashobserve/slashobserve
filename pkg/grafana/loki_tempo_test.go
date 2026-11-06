@@ -111,12 +111,12 @@ func TestSourcesWithoutATypeInferLokiAndTempo(t *testing.T) {
 }
 
 func TestUnknownPluginsKeepTheirReason(t *testing.T) {
-	res := convertDoc(t, panelOn(`{"type":"elasticsearch","uid":"es"}`, "table", `{"refId":"A","query":"service:web"}`))
+	res := convertDoc(t, panelOn(`{"type":"influxdb","uid":"flux"}`, "table", `{"refId":"A","query":"SELECT mean(value) FROM cpu"}`))
 	entry, _ := res.Spec.FindPanel("p1")
-	if entry.Panel.Type != spec.Placeholder || entry.Panel.Reason != "Elasticsearch is not supported yet." {
+	if entry.Panel.Type != spec.Placeholder || entry.Panel.Reason != "Influxdb is not supported yet." {
 		t.Fatalf("panel = %+v", entry.Panel)
 	}
-	if s := sourceNamed(t, res, "es"); s.Kind != nil || !slices.Equal(s.Candidates, []string{}) {
+	if s := sourceNamed(t, res, "flux"); s.Kind != nil || !slices.Equal(s.Candidates, []string{}) {
 		t.Fatalf("source = %+v", s)
 	}
 }
@@ -407,11 +407,11 @@ func TestQueryVariableOnAKindWithNoConfiguredDatasource(t *testing.T) {
 
 func TestQueryVariableOnAnUnsupportedPluginKeepsItsNote(t *testing.T) {
 	res := convertVariables(t,
-		`{"name":"f","type":"query","datasource":{"uid":"other","type":"elasticsearch"},"query":"x","options":[{"value":"a"}]}`,
-		`{"name":"g","type":"query","datasource":{"uid":"other","type":"elasticsearch"},"query":"x"}`,
+		`{"name":"f","type":"query","datasource":{"uid":"other","type":"influxdb"},"query":"x","options":[{"value":"a"}]}`,
+		`{"name":"g","type":"query","datasource":{"uid":"other","type":"influxdb"},"query":"x"}`,
 	)
-	wantNote(t, res, "f", "It queries Elasticsearch, which is not supported yet; its saved values are kept as a fixed list.")
-	wantNote(t, res, "g", "It queries Elasticsearch, which is not supported yet, and it has no saved values to keep.")
+	wantNote(t, res, "f", "It queries Influxdb, which is not supported yet; its saved values are kept as a fixed list.")
+	wantNote(t, res, "g", "It queries Influxdb, which is not supported yet, and it has no saved values to keep.")
 }
 
 func TestAdhocFiltersOnLokiAreDropped(t *testing.T) {

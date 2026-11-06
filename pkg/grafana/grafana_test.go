@@ -13,6 +13,8 @@ var testDatasources = []Datasource{
 	{UID: "ch", Type: "clickhouse"},
 	{UID: "loki", Type: "loki"},
 	{UID: "tempo", Type: "tempo"},
+	{UID: "es", Type: "elasticsearch"},
+	{UID: "os", Type: "opensearch"},
 }
 
 func dashboardJSON(extra string, panels ...string) string {

@@ -12053,6 +12053,145 @@
    }
   }
  },
+ "query:elastic": {
+  "alias": {
+   "fields": [
+    "legend"
+   ],
+   "values": {
+    "s:{{field}}": [
+     "legend"
+    ],
+    "s:{{term host}}": [
+     "legend"
+    ]
+   }
+  },
+  "bucketAggs": {
+   "fields": [
+    "query"
+   ]
+  },
+  "bucketAggs[].settings.missing": {
+   "fields": [
+    "query"
+   ],
+   "values": {
+    "s:none": [
+     "query"
+    ]
+   }
+  },
+  "bucketAggs[].settings.order": {
+   "fields": [
+    "query"
+   ],
+   "values": {
+    "s:asc": [
+     "query"
+    ]
+   }
+  },
+  "bucketAggs[].settings.orderBy": {
+   "fields": [
+    "query"
+   ],
+   "values": {
+    "s:_term": [
+     "query"
+    ]
+   }
+  },
+  "bucketAggs[].settings.size": {
+   "fields": [
+    "query"
+   ],
+   "values": {
+    "s:0": [
+     "query"
+    ]
+   }
+  },
+  "hide": {
+   "fields": [
+    "hide"
+   ],
+   "values": {
+    "b:true": [
+     "hide"
+    ]
+   }
+  },
+  "luceneQueryType": {
+   "fields": [
+    "instant",
+    "query"
+   ],
+   "values": {
+    "s:Logs": [
+     "instant",
+     "query"
+    ],
+    "s:Raw Data": [
+     "instant",
+     "query"
+    ],
+    "s:Raw Document": [
+     "instant",
+     "query"
+    ]
+   }
+  },
+  "metrics": {
+   "fields": [
+    "instant",
+    "query"
+   ]
+  },
+  "query": {
+   "fields": [
+    "query"
+   ],
+   "values": {
+    "s:": [
+     "query"
+    ],
+    "s:level:error": [
+     "query"
+    ]
+   }
+  },
+  "queryType": {
+   "fields": [
+    "instant",
+    "query"
+   ],
+   "values": {
+    "s:logs": [
+     "instant",
+     "query"
+    ],
+    "s:raw_data": [
+     "instant",
+     "query"
+    ],
+    "s:raw_document": [
+     "instant",
+     "query"
+    ]
+   }
+  },
+  "refId": {
+   "fields": [
+    "ref"
+   ],
+   "values": {
+    "s:B": [
+     "ref"
+    ]
+   }
+  }
+ },
  "query:expression": {
   "": {
    "fields": [
@@ -14203,7 +14342,15 @@
     "datasource"
    ],
    "values": {
+    "type:elasticsearch": [
+     "applyToAll",
+     "datasource"
+    ],
     "type:grafana-clickhouse-datasource": [
+     "applyToAll",
+     "datasource"
+    ],
+    "type:grafana-opensearch-datasource": [
      "applyToAll",
      "datasource"
     ]
@@ -14787,11 +14934,20 @@
   },
   "datasource": {
    "fields": [
-    "datasource"
+    "datasource",
+    "query"
    ],
    "values": {
+    "type:elasticsearch": [
+     "datasource",
+     "query"
+    ],
     "type:grafana-clickhouse-datasource": [
      "datasource"
+    ],
+    "type:grafana-opensearch-datasource": [
+     "datasource",
+     "query"
     ],
     "type:loki": [
      "datasource"
@@ -14863,6 +15019,9 @@
   },
   "query": {
    "fields": [
+    "datasource",
+    "default",
+    "options[]",
     "query"
    ],
    "values": {
@@ -14879,6 +15038,12 @@
      "query"
     ],
     "s:query_result(count by (job) (up))": [
+     "query"
+    ],
+    "s:{\"find\": \"terms\", \"field\": \"host\", \"size\": 50}": [
+     "datasource",
+     "default",
+     "options[]",
      "query"
     ]
    }
