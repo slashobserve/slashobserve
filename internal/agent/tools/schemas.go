@@ -15,6 +15,7 @@ const (
 	nameListLabelValues = "list_label_values"
 	nameListLabels      = "list_labels"
 	nameListMetrics     = "list_metrics"
+	nameLogsForTrace    = "logs_for_trace"
 	nameQueryInstant    = "query_instant"
 	nameQueryRange      = "query_range"
 	nameReplyToComment  = "reply_to_comment"
@@ -41,6 +42,7 @@ const (
 	descListLabelValues = "List the values of one label or attribute key, optionally only those seen on metric, a stream selector on Loki or a TraceQL filter such as { span.http.method = \"POST\" } on Tempo. On ClickHouse pass table or metric. Use it to learn real services, routes or pods before filtering on them. Pass from and to to see only names seen in that range. " + pagingNote
 	descListLabels      = "List the label names of a datasource: stream labels on Loki, TraceQL attributes on Tempo, OpenTelemetry attribute keys on ClickHouse, optionally only those seen on metric, a stream selector on Loki or a TraceQL filter on Tempo. On ClickHouse pass table, an otel_* table from get_schema, or metric. Use it to find the dimensions to group or filter by. Pass from and to to see only names seen in that range. " + pagingNote
 	descListMetrics     = "List the metric names of a Prometheus datasource, or the OpenTelemetry metric names of a ClickHouse datasource, optionally filtered by search; with scope, list every metric family in that scope instead, or every stream label key on Loki. Use it to find real metric names before writing a query. " + pagingNote
+	descLogsForTrace    = "Read the log lines that carry a trace id, or one span id, from a Loki or ClickHouse logs datasource over a time window. Use it after get_trace or a TraceQL query to see what the services logged while the trace ran; pass the trace's start and end as from and to."
 	descQueryInstant    = "Run a PromQL, LogQL, TraceQL or ClickHouse SQL query as an instant query, PromQL evaluated once at to, and get a compact summary of the rows or series it returns. Use it to check a query with instant: true, or a table panel's query, before saving; for other panels use query_range. It takes no format or max_data_points. Pass variables for each $variable the query uses, and dashboard_title when it uses $__dashboard."
 	descQueryRange      = "Run a PromQL, LogQL, TraceQL or ClickHouse SQL query over a time range, as a range query, and get a compact summary: up to 20 series with points, min, max and last, or the first rows of a table. This is how most panels run, a stat or gauge included; use it to check a panel query returns data before saving. Use query_instant instead for a query with instant: true or a table panel's query. Pass format as the panel's query has it, variables for each $variable the query uses, and dashboard_title when it uses $__dashboard."
 	descReplyToComment  = "Reply to a comment thread, for example to say what you changed or why you did not. A reply to a reply joins the same thread."
@@ -91,6 +93,8 @@ const (
 	schemaQueryRange = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,"max_data_points":{"type":"integer","minimum":10,"maximum":1000,"description":"Target points per series. Default 200."},` + propFormat + `,` + propVariables + `,` + propDashTitle + `},"required":["datasource","query"],"additionalProperties":false}`
 
 	schemaQueryInstant = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propVariables + `,` + propDashTitle + `},"required":["datasource","query"],"additionalProperties":false}`
+
+	schemaLogsForTrace = `{"type":"object","properties":{` + propDatasource + `,"trace_id":{"type":"string","description":"The trace id, 16 or 32 hex characters."},"span_id":{"type":"string","description":"Only the lines of this span, 16 hex characters."},"service":{"type":"string","description":"The span's service name, to narrow the Loki stream selector; ClickHouse ignores it."},` + propFrom + `,` + propTo + `,"limit":{"type":"integer","minimum":1,"maximum":200,"description":"Lines to return. Default 50."}},"required":["datasource","trace_id"],"additionalProperties":false}`
 
 	schemaImportGrafana = `{"type":"object","additionalProperties":false,"required":["json"],"properties":{"json":{"type":"string","minLength":1,"description":"The Grafana dashboard JSON text."},"mapping":{"type":"object","maxProperties":50,"additionalProperties":{"type":"string","minLength":1,"maxLength":200},"description":"Grafana datasource key (uid, name or ${DS_X}) to our datasource uid."},"folder":{"type":"string","minLength":1,"maxLength":100,"description":"Folder title for the new dashboard. Default the folder named in the Grafana export, else your default folder."}}}`
 

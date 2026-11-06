@@ -281,6 +281,7 @@ func (r *Registry) baseEntries() []entry {
 	all = append(all, r.healthEntries()...)
 	all = append(all, r.annotationEntries()...)
 	all = append(all, r.draftEntries()...)
+	all = append(all, r.traceLogEntries()...)
 	return all
 }
 
