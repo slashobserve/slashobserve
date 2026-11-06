@@ -114,6 +114,14 @@ type DashboardComment struct {
 	ResolvedByVersion pgtype.Int4
 }
 
+type DashboardHealth struct {
+	DashboardID pgtype.UUID
+	Version     int32
+	CheckedAt   pgtype.Timestamptz
+	Skipped     string
+	Issues      []byte
+}
+
 type DashboardVersion struct {
 	DashboardID    pgtype.UUID
 	Version        int32
@@ -131,6 +139,12 @@ type DashboardVersion struct {
 	OriginClient   pgtype.Text
 	DatasourceUids []string
 	Unverified     []byte
+}
+
+type DashboardView struct {
+	UserID      pgtype.UUID
+	DashboardID pgtype.UUID
+	ViewedAt    pgtype.Timestamptz
 }
 
 type Finding struct {

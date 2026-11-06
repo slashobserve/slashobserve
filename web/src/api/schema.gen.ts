@@ -657,6 +657,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboards/{id}/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record that the caller opened the dashboard.
+         * @description Needs View on the dashboard. The web app calls it once each time it loads a dashboard page. It keeps the caller's latest open, at most once every 10 minutes, and the dashboard health list reads it to find dashboards nobody opens. A service-account key gets 204 and nothing is written, because only people count as opens.
+         */
+        post: operations["recordDashboardView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboards/{id}/import": {
         parameters: {
             query?: never;
@@ -1704,6 +1726,66 @@ export interface paths {
          * @description Editors and Admins can call this endpoint. Send `dashboard_ids` to repair those dashboards, or `all` to repair every dashboard the list shows, in `folder_id` when it is set. Each dashboard gets one ordinary revision with source `prompt` and the fixed prompt "Repair every panel and variable listed as unverified so its query runs and returns data; keep every other panel unchanged and never delete an unverified panel." The agent never edits a placeholder panel, so a dashboard whose only problems are placeholders is skipped. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when it has no unverified panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["requestRepairs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List dashboards with health problems.
+         * @description Anyone with a role can call this endpoint. It lists every dashboard, in folders the caller can see, with at least one problem, most recently updated first. `no_data`, `query_failed` and `variable_failed` come from the last health check of the dashboard: an hourly job checks each dashboard about once a day, oldest check first, running every panel and variable query of its latest version over the last 7 days with no viewer. `duplicate_title` means another dashboard in the same folder has the same title, compared case-insensitively, and `unopened` means nobody opened the dashboard in the last 90 days, counting from its creation when nobody ever did; both are computed on every read. A dashboard whose queries read the viewer (`${__user.*}`) is not checked and has `skipped` set to `depends_on_viewer`. `job` is the state of the health job.
+         */
+        get: operations["listDashboardHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/repairs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue the agent to repair the failing panels and variables the health check found.
+         * @description Editors and Admins can call this endpoint. Each dashboard gets one ordinary revision with source `prompt` whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 health repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         */
+        post: operations["requestHealthRepairs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a health run now.
+         * @description Admins only. The run starts in the background and checks the dashboards that are due, as the hourly run does; when a run is already going, nothing more starts. Read `job` from `GET /health` to follow it.
+         */
+        post: operations["runDashboardHealth"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3145,6 +3227,58 @@ export interface components {
             dashboard_id: string;
             /** @description The web app path of the dashboard. */
             url: string;
+        };
+        /** @enum {string} */
+        HealthProblemKind: "no_data" | "query_failed" | "variable_failed" | "duplicate_title" | "unopened";
+        HealthProblem: {
+            kind: components["schemas"]["HealthProblemKind"];
+            /** @description The panel the problem is in, or null for a variable or a dashboard-wide problem. */
+            panel_id: string | null;
+            panel_title: string | null;
+            /** @description The variable that resolves to nothing, for `variable_failed`. */
+            variable: string | null;
+            /** @description The check's issue code, such as `query_empty`, or `check_failed` when the check itself could not run; null for `duplicate_title` and `unopened`. */
+            code: string | null;
+            message: string | null;
+        };
+        HealthItem: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            /** @description The dashboard's address in the web app. */
+            url: string;
+            folder: components["schemas"]["DashboardFolder"];
+            /** @description Whether the caller may edit the dashboard, and so ask for a repair. */
+            can_edit: boolean;
+            /** @description The version the last health check ran on; null before the first check. */
+            checked_version: number | null;
+            /** Format: date-time */
+            checked_at: string | null;
+            /**
+             * Format: date-time
+             * @description The latest time anyone opened the dashboard; null when nobody did since opens are recorded.
+             */
+            last_viewed_at: string | null;
+            /**
+             * @description Why the last check ran no query.
+             * @enum {string|null}
+             */
+            skipped: "depends_on_viewer" | null;
+            problems: components["schemas"]["HealthProblem"][];
+        };
+        HealthJob: {
+            /** Format: date-time */
+            last_started_at: string | null;
+            /** Format: date-time */
+            last_finished_at: string | null;
+            /** @enum {string|null} */
+            last_outcome: "succeeded" | "failed" | "interrupted" | null;
+            running: boolean;
+        };
+        HealthList: {
+            dashboards: components["schemas"]["HealthItem"][];
+            next_cursor: string | null;
+            job: components["schemas"]["HealthJob"];
         };
     };
     responses: {
@@ -4809,6 +4943,31 @@ export interface operations {
                         changes: components["schemas"]["SpecChange"][];
                     };
                 };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    recordDashboardView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The open is recorded, or there was nothing to record. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
@@ -7555,6 +7714,98 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    listDashboardHealth: {
+        parameters: {
+            query?: {
+                /** @description Only dashboards in this folder; a folder the caller cannot see answers 404 `not_found`. */
+                folder_id?: string;
+                /** @description Only dashboards with this kind of problem, and only problems of this kind. */
+                kind?: components["schemas"]["HealthProblemKind"];
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of dashboards with problems. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    requestHealthRepairs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    dashboard_ids: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description The repairs that were queued and the dashboards that were skipped. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepairsQueued"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["TooLarge"];
+            500: components["responses"]["Internal"];
+            /** @description No LLM provider is configured (`agent_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    runDashboardHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The run is starting. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
 }

@@ -37,6 +37,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
+	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/links"
@@ -312,8 +313,18 @@ func run() error {
 
 	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger, revisions.WorkerOptions{RunTimeout: cfg.Agent.RunTimeout})
 	defer stopWorkers()
-	stopScheduler := startScheduler(ctx, scheduler.New(logger, database, serverMetrics.Scheduler(), instanceID()), logger)
+	const healthJob = "dashboard_health"
+	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, Revisions: revisionsService, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
+	jobs := scheduler.New(logger, database, serverMetrics.Scheduler(), instanceID())
+	jobs.Register(healthJob, time.Hour, healthService.Run)
+	stopScheduler := startScheduler(ctx, jobs, logger)
 	defer stopScheduler()
+	healthCtx, stopHealthRuns := context.WithCancel(ctx)
+	healthHandler := health.NewHandler(healthCtx, healthService, jobs)
+	defer func() {
+		stopHealthRuns()
+		healthHandler.Wait()
+	}()
 
 	provisioner := dashprovision.New(logger, dashboardsService, folderAccess, database, cfg.ProvisionDir)
 	provisionCtx, stopProvisioning := context.WithCancel(ctx)
@@ -364,6 +375,7 @@ func run() error {
 			assets.NewHandler(assetsClient, logger),
 			annotationsHandler,
 			dashprovision.NewHandler(provisioner, logger),
+			healthHandler,
 		},
 		Mounts: append([]server.Mount{{
 			Path:    "/mcp",
