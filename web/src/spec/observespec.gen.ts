@@ -1416,7 +1416,7 @@ export interface DatasourceVariable {
    */
   skipUrlSync?: boolean;
   type: "datasource";
-  datasourceType: "prometheus" | "clickhouse" | "loki" | "tempo";
+  datasourceType: "prometheus" | "clickhouse" | "loki" | "tempo" | "elasticsearch" | "opensearch";
   regex?: string;
   default?: DatasourceUid;
 }
