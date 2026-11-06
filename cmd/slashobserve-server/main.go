@@ -47,6 +47,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/news"
 	"github.com/slashobserve/slashobserve/internal/prompts"
 	dashprovision "github.com/slashobserve/slashobserve/internal/provision"
+	"github.com/slashobserve/slashobserve/internal/public"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/queryproxy/proxyhttp"
 	"github.com/slashobserve/slashobserve/internal/repairs"
@@ -269,6 +270,8 @@ func run() error {
 	annotationsHandler := annotations.NewHandler(annotationsService, logger)
 	findingsService := findings.New(database, folderAccess, annotationsService, dashboardsService, logger)
 	findingURL := func(id string) string { return links.Finding(cfg.PublicURL, id) }
+	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger)
+	publicLinksHandler := public.NewHandler(publicLinks, folderAccess, logger)
 	toolComments := dashboards.NewComments(database, dashboardsService, nil)
 	toolRegistry := tools.New(tools.Deps{
 		Datasources: registry,
@@ -364,7 +367,9 @@ func run() error {
 			assets.NewHandler(assetsClient, logger),
 			annotationsHandler,
 			dashprovision.NewHandler(provisioner, logger),
+			publicLinksHandler,
 		},
+		Public: []server.PublicRegistrar{publicLinksHandler, proxyhttp.NewPublicData(proxyHandler, publicLinks)},
 		Mounts: append([]server.Mount{{
 			Path:    "/mcp",
 			Handler: mcp.NewHandler(toolRegistry, authService, mcp.Options{PublicURL: cfg.PublicURL, Version: version, Logger: logger}),

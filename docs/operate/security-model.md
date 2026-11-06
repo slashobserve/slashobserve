@@ -19,6 +19,13 @@ description: What SlashObserve protects and what an operator should know.
   A My Dashboards folder is hidden from everyone but its owner, Admins included.
 - **Share links need sign-in.**
   The Share pane copies a dashboard or panel address with the time range and variable values, and grants nothing: someone without access to the folder sees "You don't have access to this dashboard" after they sign in.
+- **Public links open one dashboard without sign-in.**
+  Someone who manages a dashboard's folder can create a [public link](../use/public-links.md), the one way to show data to people with no session.
+  Its token is 32 random bytes, shown once and stored only as a SHA-256 hash with a 12 character prefix, and request logs replace it with `:token`.
+  The routes under `/api/v1/public/` take no query text: they return the latest version's Spec with every query's text left out, and run only that dashboard's saved queries, under the proxy's limits, with 8 requests in flight per link.
+  A free link accepts a variable value only when it is one of the options the server lists for it.
+  Links are refused for dashboards in My Dashboards and for dashboards whose queries read the viewer's identity, revoking deletes the link at once, and the server answers every public route with `Cache-Control: no-store`.
+  A public link cannot be embedded in another site, because framing stays refused.
 - **Datasource credentials stay on the server.**
   They never reach the browser.
   The datasources API returns health only, with no address, user or secret.

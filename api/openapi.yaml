@@ -164,6 +164,16 @@ paths:
     $ref: "./paths/grafana.yaml#/grafana-resolve-uid"
   /repairs:
     $ref: "./paths/repairs.yaml#/repairs"
+  /dashboards/{id}/public-links:
+    $ref: "./paths/public.yaml#/dashboards-id-public-links"
+  /dashboards/{id}/public-links/{link_id}:
+    $ref: "./paths/public.yaml#/dashboards-id-public-links-link-id"
+  /public/{token}:
+    $ref: "./paths/public.yaml#/public-token"
+  /public/{token}/panels/{panel_id}/data:
+    $ref: "./paths/public.yaml#/public-token-panels-panel-id-data"
+  /public/{token}/variables/{name}/values:
+    $ref: "./paths/public.yaml#/public-token-variables-name-values"
 components:
   securitySchemes:
     sessionCookie:
@@ -3108,6 +3118,125 @@ components:
         url:
           type: string
           description: The web app path of the dashboard.
+    PublicLinkSelections:
+      type: object
+      description: Variable selections by variable name; `$__all` selects All.
+      additionalProperties:
+        type: array
+        maxItems: 100
+        items:
+          type: string
+    PublicLink:
+      type: object
+      additionalProperties: false
+      required: [id, prefix, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable]
+      properties:
+        id:
+          type: string
+          format: uuid
+        prefix:
+          type: string
+          description: The first 12 characters of the token, to tell links apart; the token itself is never shown again.
+        variables:
+          type: string
+          enum: [frozen, free]
+        selections:
+          $ref: "#/components/schemas/PublicLinkSelections"
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_by:
+          type: object
+          additionalProperties: false
+          required: [kind, id, name]
+          properties:
+            kind:
+              type: string
+              enum: [user, service_account]
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        created_at:
+          type: string
+          format: date-time
+        last_viewed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the link was last opened, recorded at most once a minute.
+        expired:
+          type: boolean
+        usable:
+          type: boolean
+          description: False when the link is expired or the dashboard's latest version reads the viewer's identity.
+    CreatePublicLinkRequest:
+      type: object
+      additionalProperties: false
+      required: [variables]
+      properties:
+        variables:
+          type: string
+          enum: [frozen, free]
+        selections:
+          $ref: "#/components/schemas/PublicLinkSelections"
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the link stops working; null or absent for no expiry.
+    CreatedPublicLink:
+      type: object
+      additionalProperties: false
+      required: [link, token, url]
+      properties:
+        link:
+          $ref: "#/components/schemas/PublicLink"
+        token:
+          type: string
+          description: "`pub_` plus 43 base64url characters, returned only in this response."
+        url:
+          type: string
+          description: The address that opens the link, `<SLASHOBSERVE_PUBLIC_URL>/p/<token>`.
+    PublicDashboard:
+      type: object
+      additionalProperties: false
+      required: [dashboard_id, title, version, spec, variables, selections, expires_at, datasources]
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        spec:
+          type: object
+          additionalProperties: true
+          description: The latest version's ObserveSpec without query text.
+        variables:
+          type: string
+          enum: [frozen, free]
+        selections:
+          $ref: "#/components/schemas/PublicLinkSelections"
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        datasources:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [uid, type]
+            properties:
+              uid:
+                type: string
+              type:
+                type: string
   responses:
     BadRequest:
       description: The request is malformed or fails validation.

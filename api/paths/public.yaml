@@ -1,0 +1,366 @@
+dashboards-id-public-links:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: listPublicLinks
+    summary: List the public links of a dashboard.
+    description: >-
+      Lists at most 100 links, newest first.
+      Only someone who manages the dashboard's folder may list them; anyone else with access gets 403 `forbidden_role`,
+      and a dashboard in My Dashboards answers 409 `personal_folder`, because it cannot have links.
+      `expired` is true once `expires_at` has passed, and `usable` is false when the link is expired or the dashboard's latest version reads the viewer's identity (`${__user.*}`).
+    responses:
+      "200":
+        description: The links, without their tokens.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [public_links]
+              properties:
+                public_links:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/PublicLink"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The dashboard is in My Dashboards (`personal_folder`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  post:
+    operationId: createPublicLink
+    summary: Create a public link that opens the dashboard read-only without sign-in.
+    description: >-
+      Needs Manage on the dashboard's folder, because the link widens access beyond the folder's permission list; service-account keys with that level may call it too.
+      The link always shows the dashboard's latest version.
+      The response carries the token and the link's URL once; the server keeps only the token's SHA-256 and a 12 character prefix, so a lost token cannot be shown again.
+      `frozen` variables always use `selections`; `free` variables let the viewer choose values of query, custom, interval and datasource variables among the options the server computes, starting from `selections`.
+      A dashboard has at most 20 links.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/CreatePublicLinkRequest"
+    responses:
+      "201":
+        description: The link is created.
+        headers:
+          Location:
+            required: true
+            description: "`/api/v1/dashboards/{id}/public-links/{link_id}` of the new link."
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/CreatedPublicLink"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The dashboard is in My Dashboards (`personal_folder`); move it to a shared folder first.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: >-
+          The latest version reads the viewer's identity (`user_scoped`), `expires_at` is not in the future (`invalid_expiry`),
+          `selections` names a variable the latest version does not declare (`unknown_variable`), or the dashboard already has 20 links (`too_many_links`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+dashboards-id-public-links-link-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: link_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  delete:
+    operationId: deletePublicLink
+    summary: Revoke a public link.
+    description: >-
+      Deletes the link, so its URL stops working at once.
+      Needs Manage on the dashboard's folder, like creating it.
+    responses:
+      "204":
+        description: The link is revoked.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        description: The dashboard or the link does not exist (`not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "409":
+        description: The dashboard is in My Dashboards (`personal_folder`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+public-token:
+  parameters:
+    - name: token
+      in: path
+      required: true
+      description: The public link's token, the only credential of this request.
+      schema:
+        type: string
+  get:
+    operationId: getPublicDashboard
+    summary: Read the dashboard a public link shows.
+    security: []
+    description: >-
+      Needs no session or key: the token in the path is the only credential.
+      Returns the latest version's Spec without query text: every panel query's `query` and every variable's `query` are left out.
+      `datasources` lists the uid and type of each datasource the Spec can reach, so the page needs no other call.
+      A token that is malformed, unknown, revoked or expired, or whose dashboard's latest version reads the viewer's identity, answers 404 `not_found`.
+      Opening the link records its last view, at most once a minute.
+    responses:
+      "200":
+        description: The dashboard to render.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PublicDashboard"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+public-token-panels-panel-id-data:
+  parameters:
+    - name: token
+      in: path
+      required: true
+      description: The public link's token, the only credential of this request.
+      schema:
+        type: string
+    - name: panel_id
+      in: path
+      required: true
+      schema:
+        type: string
+  get:
+    operationId: getPublicPanelData
+    summary: Run the saved queries of one panel of a public link's dashboard.
+    security: []
+    description: >-
+      Needs no session or key: the token in the path is the only credential.
+      Behaves like the panel data of a dashboard version, for the link's latest version, with the same parameters, query-text refusal, limits and cache.
+      A `frozen` link ignores every `var-<name>` parameter and uses its stored selections.
+      A `free` link accepts a value for a query, custom, interval or datasource variable only when it is one of the options the server lists for it under the choices of the variables before it, `$__all` when the variable includes All, and answers 400 `selection_not_allowed` otherwise;
+      textbox, adhoc, group by and constant variables always use the stored selections or the dashboard's defaults.
+      Each link may have at most 8 requests in flight.
+    parameters:
+      - name: from
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: to
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: tz
+        in: query
+        description: The browser's IANA time zone, as for panel data.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      - name: max_data_points
+        in: query
+        schema:
+          type: integer
+          minimum: 10
+          maximum: 11000
+          default: 1000
+    responses:
+      "200":
+        description: The frames the saved queries returned.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelData"
+      "400":
+        description: The request is malformed, a variable selection is invalid, or a free variable value is not one of its options (`selection_not_allowed`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "403":
+        description: The request carried query text; the code is `query_not_in_spec`.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: The link does not work (`not_found`), or the dashboard has no such panel (`panel_not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "422":
+        description: A query or a variable cannot run, as for panel data.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        description: The server failed to handle the request.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "502":
+        description: A datasource is unavailable.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "504":
+        description: A datasource did not answer within the query timeout.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+public-token-variables-name-values:
+  parameters:
+    - name: token
+      in: path
+      required: true
+      description: The public link's token, the only credential of this request.
+      schema:
+        type: string
+    - name: name
+      in: path
+      required: true
+      schema:
+        type: string
+  get:
+    operationId: getPublicVariableValues
+    summary: List the values of one variable of a public link's dashboard.
+    security: []
+    description: >-
+      Needs no session or key: the token in the path is the only credential.
+      Behaves like the variable values of a dashboard version, for the link's latest version.
+      The `var-<name>` selections of earlier variables follow the link's rule, as for panel data, and a selection for the listed variable or a later one is ignored.
+    parameters:
+      - name: from
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: to
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: tz
+        in: query
+        description: The browser's IANA time zone, as for panel data.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+    responses:
+      "200":
+        description: Up to 1000 values; `truncated` is true when there were more.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/VariableValues"
+      "400":
+        description: The request is malformed, or a free variable value is not one of its options (`selection_not_allowed`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "403":
+        description: The request carried query text; the code is `query_not_in_spec`.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: The link does not work (`not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "422":
+        description: The variable's query cannot run, as for variable values.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        description: The server failed to handle the request.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "502":
+        description: A datasource is unavailable.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "504":
+        description: A datasource did not answer within the query timeout.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
