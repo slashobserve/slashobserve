@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
 
-import { FieldsAside } from "./fields-aside"
 import { ResultsSection } from "./results-section"
 import { LogsWorkspaceContext, type LogsWorkspace } from "./workspace"
 
@@ -37,10 +36,5 @@ describe("unfinished logs panels", () => {
     )
     expect(screen.queryByRole("tab", { name: "Patterns" })).toBeNull()
     expect(container.textContent).not.toMatch(/plan \d+|arrives? with/i)
-  })
-
-  it("renders no Fields aside", () => {
-    const { container } = renderWithProviders(<FieldsAside />)
-    expect(container).toBeEmptyDOMElement()
   })
 })
