@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from "react"
+import { useId, useRef, useState, type FormEvent, type Ref } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { Button } from "@/components/ui/button"
@@ -8,13 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { labelValuesQuery } from "@/panel-editor/queries"
 
-import type { TraceSearch } from "./search"
+import type { TraceFormSearch, TraceSearch } from "./search"
 import { parseDuration } from "./search-query"
-
-type FormSearch = Pick<
-  TraceSearch,
-  "service" | "span" | "min" | "max" | "errors" | "q"
->
 
 const durationProblem = "Use a number and a unit, like 250ms or 1.5s."
 const maxNameLength = 200
@@ -31,6 +26,7 @@ function durationInvalid(text: string): boolean {
 }
 
 function TextField({
+  ref,
   id,
   label,
   value,
@@ -39,6 +35,7 @@ function TextField({
   problem,
   list,
 }: {
+  ref?: Ref<HTMLInputElement>
   id: string
   label: string
   value: string
@@ -53,6 +50,7 @@ function TextField({
         {label}
       </Label>
       <Input
+        ref={ref}
         id={id}
         value={value}
         placeholder={placeholder}
@@ -89,13 +87,20 @@ export function TraceSearchForm({
   uid,
   value,
   onSubmit,
+  answered = false,
+  onEdited,
+  serviceRef,
 }: {
   type: string
   uid: string
   value: TraceSearch
-  onSubmit: (next: FormSearch) => void
+  onSubmit: (next: TraceFormSearch) => void
+  answered?: boolean
+  onEdited?: () => void
+  serviceRef?: Ref<HTMLInputElement>
 }) {
   const ids = useId()
+  const editReported = useRef(false)
   const [service, setService] = useState(value.service ?? "")
   const [span, setSpan] = useState(value.span ?? "")
   const [min, setMin] = useState(value.min ?? "")
@@ -107,6 +112,15 @@ export function TraceSearchForm({
   const clickhouse = type === "clickhouse"
   const minProblem = checked && durationInvalid(min) ? durationProblem : null
   const maxProblem = checked && durationInvalid(max) ? durationProblem : null
+
+  function edited<Value>(set: (next: Value) => void) {
+    return (next: Value) => {
+      set(next)
+      if (!answered || editReported.current) return
+      editReported.current = true
+      onEdited?.()
+    }
+  }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -131,23 +145,24 @@ export function TraceSearchForm({
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <TextField
+          ref={serviceRef}
           id={`${ids}-service`}
           label="Service"
           value={service}
-          onChange={setService}
+          onChange={edited(setService)}
           list={clickhouse ? `${ids}-services` : undefined}
         />
         <TextField
           id={`${ids}-span`}
           label="Span name"
           value={span}
-          onChange={setSpan}
+          onChange={edited(setSpan)}
         />
         <TextField
           id={`${ids}-min`}
           label="Min duration"
           value={min}
-          onChange={setMin}
+          onChange={edited(setMin)}
           placeholder="250ms"
           problem={minProblem}
         />
@@ -155,17 +170,14 @@ export function TraceSearchForm({
           id={`${ids}-max`}
           label="Max duration"
           value={max}
-          onChange={setMax}
-          placeholder="250ms"
+          onChange={edited(setMax)}
+          placeholder="2s"
           problem={maxProblem}
         />
       </div>
       {clickhouse ? <ServiceOptions id={`${ids}-services`} uid={uid} /> : null}
       <Label className="gap-2 text-[13px] font-normal">
-        <Checkbox
-          checked={errors}
-          onCheckedChange={(next) => setErrors(next)}
-        />
+        <Checkbox checked={errors} onCheckedChange={edited(setErrors)} />
         Errors only
       </Label>
       {tempo ? (
@@ -180,7 +192,7 @@ export function TraceSearchForm({
             maxLength={maxQueryLength}
             aria-describedby={`${ids}-q-help`}
             className="font-mono"
-            onChange={(event) => setQ(event.target.value)}
+            onChange={(event) => edited(setQ)(event.target.value)}
           />
           <p id={`${ids}-q-help`} className="text-xs text-muted-foreground">
             Leave empty to search with the fields above.

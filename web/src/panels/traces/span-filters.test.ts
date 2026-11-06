@@ -33,7 +33,7 @@ const trace = (): Span[] => [
   span("auth", "root", 0, 20, {
     depth: 1,
     service: "auth",
-    attributes: [{ key: "http.status", text: "401" }],
+    attributes: [{ key: "http.status", text: "401", source: "span" }],
   }),
   span("db", "root", 10, 40, {
     depth: 1,

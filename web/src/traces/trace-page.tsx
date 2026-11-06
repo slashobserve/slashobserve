@@ -1,9 +1,10 @@
-import { useId, useMemo } from "react"
+import { useId, useMemo, useSyncExternalStore } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useNavigate, useSearch } from "@tanstack/react-router"
 
 import { CopyButton } from "@/components/copy-button"
 import { PageHeader } from "@/components/page-header"
+import { StatusLabel } from "@/components/status-label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -23,7 +24,7 @@ import { usePrepared } from "@/logs/prepared"
 import { useElementSize } from "@/logs/use-element-size"
 import { spanFilters } from "@/panels/traces/span-filters"
 import { traceModel } from "@/panels/traces/trace-model"
-import { TraceView } from "@/panels/traces/traces-panel"
+import { TraceView, type TraceViewProps } from "@/panels/traces/traces-panel"
 import type { DataPanel } from "@/spec"
 
 import {
@@ -33,9 +34,25 @@ import {
   type TraceViewSearch,
 } from "./search"
 import { traceByIdParams } from "./search-query"
+import { countText } from "./trace-rows"
 
 const noFilters = spanFilters({})
 const skeletonRows = [0, 1, 2, 3, 4, 5]
+const phoneQuery = "(max-width: 760px)"
+
+function subscribePhone(onChange: () => void) {
+  const media = window.matchMedia(phoneQuery)
+  media.addEventListener("change", onChange)
+  return () => media.removeEventListener("change", onChange)
+}
+
+function usePhone(): boolean {
+  return useSyncExternalStore(
+    subscribePhone,
+    () => window.matchMedia(phoneQuery).matches,
+    () => false
+  )
+}
 
 function useTraceViewSearch() {
   const search = useSearch({ from: "/_authed/_shell/t/$traceId" })
@@ -72,8 +89,18 @@ function TraceForId({ id }: { id: string }) {
   return (
     <>
       <PageHeader
-        title={`Trace ${id.slice(0, 8)}`}
-        description={<span className="font-mono">{id}</span>}
+        title="Trace"
+        description={
+          <span className="inline-flex items-center gap-1">
+            <span className="font-mono">{id.slice(0, 8)}</span>
+            <CopyButton
+              variant="ghost"
+              size="icon-xs"
+              text={id}
+              label="Copy trace id"
+            />
+          </span>
+        }
         actions={
           <>
             <TimeRangeControl value={range} onChange={update} />
@@ -205,24 +232,46 @@ function TraceWaterfall({
     [prepared.frames, prepared.fields]
   )
   const { ref, width, height } = useElementSize<HTMLDivElement>()
+  const attributes = usePhone() ? "inline" : "pane"
   const empty = model.reason !== null || model.spans.length === 0
   return (
-    <div
-      ref={ref}
-      className="h-[calc(100dvh-16rem)] min-h-96 min-w-0 rounded-card border border-border"
-    >
-      {empty ? (
-        <p className="p-4 text-[13px] text-muted-foreground">{missing}</p>
-      ) : width > 0 && height > 0 ? (
-        <TraceView
-          model={model}
-          filters={noFilters}
-          zone={undefined}
-          width={width}
-          height={height}
-          attributes="pane"
-        />
-      ) : null}
+    <div className="flex flex-col gap-2">
+      {model.reason === null && !empty ? <TraceSummary model={model} /> : null}
+      <div
+        ref={ref}
+        className="h-[calc(100dvh-18rem)] min-h-96 min-w-0 rounded-card border border-border"
+      >
+        {empty ? (
+          <p className="p-4 text-[13px] text-muted-foreground">{missing}</p>
+        ) : width > 0 && height > 0 ? (
+          <TraceView
+            model={model}
+            filters={noFilters}
+            zone={undefined}
+            width={width}
+            height={height}
+            attributes={attributes}
+          />
+        ) : null}
+      </div>
     </div>
+  )
+}
+
+function TraceSummary({ model }: { model: TraceViewProps["model"] }) {
+  const errors = model.spans.filter((span) => span.error).length
+  const parts = [
+    model.rootService,
+    model.rootOperation,
+    model.formatDuration(model.duration),
+    countText(model.spans.length, "span"),
+  ].filter(Boolean)
+  return (
+    <p className="flex flex-wrap items-center gap-x-3 text-[13px]">
+      <span>{parts.join(" · ")}</span>
+      {errors > 0 ? (
+        <StatusLabel tone="critical">{countText(errors, "error")}</StatusLabel>
+      ) : null}
+    </p>
   )
 }

@@ -260,14 +260,33 @@ describe("traceModel attributes", () => {
       ])
     )
     expect(spans[0].attributes).toEqual([
-      { key: "a", text: "x" },
-      { key: "http", text: "GET" },
-      { key: "ok", text: "true" },
-      { key: "region", text: "eu" },
-      { key: "z", text: "1" },
+      { key: "a", text: "x", source: "span" },
+      { key: "http", text: "GET", source: "span" },
+      { key: "ok", text: "true", source: "span" },
+      { key: "region", text: "eu", source: "resource" },
+      { key: "z", text: "1", source: "span" },
     ])
-    expect(spans[1].attributes).toEqual([{ key: "nested", text: '{"deep":1}' }])
-    expect(spans[2].attributes).toEqual([{ key: "k", text: "false" }])
+    expect(spans[1].attributes).toEqual([
+      { key: "nested", text: '{"deep":1}', source: "span" },
+    ])
+    expect(spans[2].attributes).toEqual([
+      { key: "k", text: "false", source: "resource" },
+    ])
+  })
+
+  it("tells span attributes from resource attributes by their column", () => {
+    const spans = spansOf(
+      model([
+        field("SpanId", "string", ["a"]),
+        field("Timestamp", "time", [1]),
+        field("SpanAttributes", "other", [{ "http.route": "/pay" }]),
+        field("ResourceAttributes", "other", [{ "service.name": "checkout" }]),
+      ])
+    )
+    expect(spans[0].attributes).toEqual([
+      { key: "http.route", text: "/pay", source: "span" },
+      { key: "service.name", text: "checkout", source: "resource" },
+    ])
   })
 
   it("keeps markup in attributes as plain text", () => {

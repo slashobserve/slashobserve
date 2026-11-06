@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { styleForSlot } from "../colors"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
+import { niceTicks } from "./ruler"
 import { filterSpans, spanFilters, type SpanFilters } from "./span-filters"
 import { traceModel, visibleSpans, windowRows, type Span } from "./trace-model"
 
@@ -14,7 +15,6 @@ const rowHeight = 28
 const windowAfter = 200
 const overscan = 10
 const indentStep = 12
-const rulerTicks = [0, 0.25, 0.5, 0.75, 1]
 const ErrorIcon = thresholdIcons.critical
 
 export type TraceViewProps = {
@@ -26,9 +26,9 @@ export type TraceViewProps = {
   attributes: "inline" | "pane"
 }
 
-function tickClass(tick: number): string {
+function tickClass(tick: number, duration: number): string {
   if (tick === 0) return "left-0"
-  if (tick === 1) return "right-0"
+  if (tick >= duration) return "right-0"
   return "-translate-x-1/2"
 }
 
@@ -138,39 +138,63 @@ function SpanRow({
   )
 }
 
+const attributeGroups = [
+  { source: "span", title: "Span attributes" },
+  { source: "resource", title: "Resource attributes" },
+] as const
+
 function SpanAttributes({
   ref,
   id,
   span,
   className,
 }: {
-  ref?: Ref<HTMLDListElement>
+  ref?: Ref<HTMLDivElement>
   id?: string
   span: Span
   className: string
 }) {
+  const headingId = useId()
+  const groups = attributeGroups.flatMap((group) => {
+    const items = span.attributes.filter(
+      (attribute) => attribute.source === group.source
+    )
+    return items.length === 0 ? [] : [{ ...group, items }]
+  })
   return (
-    <dl
+    <div
       ref={ref}
       id={id}
-      className={cn(
-        "m-0 grid grid-cols-[minmax(5rem,max-content)_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-xs",
-        className
-      )}
+      className={cn("flex flex-col gap-2 text-xs", className)}
     >
-      {span.attributes.length === 0 ? (
-        <dd className="col-span-2 text-muted-foreground">No attributes.</dd>
+      {groups.length === 0 ? (
+        <p className="text-muted-foreground">No attributes.</p>
       ) : (
-        span.attributes.map((attribute, index) => (
-          <div key={`${index}:${attribute.key}`} className="contents">
-            <dt className="text-muted-foreground">{attribute.key}</dt>
-            <dd className="m-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap">
-              {attribute.text}
-            </dd>
+        groups.map((group) => (
+          <div key={group.source} className="flex flex-col gap-1">
+            <p
+              id={`${headingId}-${group.source}`}
+              className="text-xs font-medium text-muted-foreground"
+            >
+              {group.title}
+            </p>
+            <dl
+              aria-labelledby={`${headingId}-${group.source}`}
+              className="m-0 grid grid-cols-[minmax(5rem,max-content)_minmax(0,1fr)] gap-x-3 gap-y-0.5"
+            >
+              {group.items.map((attribute, index) => (
+                <div key={`${index}:${attribute.key}`} className="contents">
+                  <dt className="text-muted-foreground">{attribute.key}</dt>
+                  <dd className="m-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap">
+                    {attribute.text}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </div>
         ))
       )}
-    </dl>
+    </div>
   )
 }
 
@@ -239,7 +263,7 @@ export function TraceView({
   const [openId, setOpenId] = useState<string | null>(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [detailHeight, setDetailHeight] = useState(0)
-  const detailRef = useRef<HTMLDListElement>(null)
+  const detailRef = useRef<HTMLDivElement>(null)
   const detailsId = useId()
 
   const filtered = useMemo(
@@ -250,6 +274,7 @@ export function TraceView({
     () => visibleSpans(filtered.spans, collapsed),
     [filtered.spans, collapsed]
   )
+  const ticks = niceTicks(model.duration)
   const openIndex = rows.findIndex((span) => span.id === openId)
   const inline = attributes === "inline"
   const windowed = rows.length > windowAfter
@@ -318,20 +343,20 @@ export function TraceView({
             <span className="px-2 py-1">Service and operation</span>
             <div className="relative h-6 px-2" aria-hidden="true">
               <div className="relative h-full">
-                {rulerTicks.map((tick) => (
+                {ticks.map((tick) => (
                   <span
                     key={tick}
                     className={cn(
                       "absolute top-1 whitespace-nowrap tabular-nums",
-                      tickClass(tick)
+                      tickClass(tick, model.duration)
                     )}
                     style={
-                      tick === 0 || tick === 1
+                      tick === 0 || tick >= model.duration
                         ? undefined
-                        : { left: `${tick * 100}%` }
+                        : { left: `${(tick / model.duration) * 100}%` }
                     }
                   >
-                    {model.formatDuration(model.duration * tick)}
+                    {model.formatDuration(tick)}
                   </span>
                 ))}
               </div>

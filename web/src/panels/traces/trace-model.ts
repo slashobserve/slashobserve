@@ -8,7 +8,9 @@ export const maxSpans = 5000
 export const missingColumnsReason =
   "A traces panel needs one row per span with traceID, spanID, parentSpanID, startTime and duration columns."
 
-type SpanAttribute = { key: string; text: string }
+type AttributeSource = "span" | "resource"
+
+type SpanAttribute = { key: string; text: string; source: AttributeSource }
 
 export type Span = {
   id: string
@@ -56,7 +58,7 @@ type Columns = {
   start: PreparedField
   duration?: PreparedField
   status?: PreparedField
-  attributes: PreparedField[]
+  attributes: { field: PreparedField; source: AttributeSource }[]
 }
 
 type SpanRow = {
@@ -78,11 +80,11 @@ const serviceNames = new Set(["servicename"])
 const startNames = new Set(["starttime", "timestamp"])
 const durationNames = new Set(["duration"])
 const statusNames = new Set(["statuscode"])
-const attributeNames = new Set([
-  "tags",
-  "servicetags",
-  "spanattributes",
-  "resourceattributes",
+const attributeSources = new Map<string, AttributeSource>([
+  ["tags", "span"],
+  ["spanattributes", "span"],
+  ["servicetags", "resource"],
+  ["resourceattributes", "resource"],
 ])
 const errorStatuses = new Set(["2", "status_code_error", "error"])
 const nanosecondsColumn = "Duration"
@@ -108,9 +110,10 @@ function columnsOf(frame: PreparedFrame): Columns | null {
     start,
     duration: named(frame, durationNames),
     status: named(frame, statusNames),
-    attributes: frame.fields.filter((field) =>
-      attributeNames.has(field.name.toLowerCase())
-    ),
+    attributes: frame.fields.flatMap((field) => {
+      const source = attributeSources.get(field.name.toLowerCase())
+      return source ? [{ field, source }] : []
+    }),
   }
 }
 
@@ -140,12 +143,12 @@ function parseJson(text: string): unknown {
   }
 }
 
-function pairsOf(value: unknown): SpanAttribute[] {
+function pairsOf(value: unknown, source: AttributeSource): SpanAttribute[] {
   const parsed = typeof value === "string" ? parseJson(value) : value
   if (Array.isArray(parsed)) {
     return parsed.flatMap((tag) =>
       isRecord(tag) && "key" in tag
-        ? [{ key: String(tag.key), text: textOf(tag.value) }]
+        ? [{ key: String(tag.key), text: textOf(tag.value), source }]
         : []
     )
   }
@@ -153,6 +156,7 @@ function pairsOf(value: unknown): SpanAttribute[] {
     return Object.entries(parsed).map(([key, item]) => ({
       key,
       text: textOf(item),
+      source,
     }))
   }
   return []
@@ -199,7 +203,7 @@ function rowsOf(frame: PreparedFrame, columns: Columns) {
           status !== undefined &&
           errorStatuses.has(String(status).toLowerCase()),
         attributes: columns.attributes
-          .flatMap((field) => pairsOf(field.values[index]))
+          .flatMap(({ field, source }) => pairsOf(field.values[index], source))
           .sort(compareKeys),
       },
     })

@@ -18,6 +18,7 @@ describe("validateTraceSearch", () => {
       max: "2s",
       errors: "1",
       q: "{}",
+      ask: "checkout requests slower than 2s",
       from: "now-6h",
       to: "now",
     }
@@ -30,6 +31,8 @@ describe("validateTraceSearch", () => {
     ["an unreadable duration", { min: "fast" }, "min"],
     ["errors other than 1", { errors: "true" }, "errors"],
     ["an empty TraceQL", { q: "" }, "q"],
+    ["a question with a control character", { ask: "slow\u0000" }, "ask"],
+    ["an empty question", { ask: "" }, "ask"],
   ] as const)("drops %s", (_, raw, key) => {
     expect(validateTraceSearch(raw)[key]).toBeUndefined()
   })
