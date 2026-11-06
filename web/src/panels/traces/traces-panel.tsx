@@ -138,39 +138,63 @@ function SpanRow({
   )
 }
 
+const attributeGroups = [
+  { source: "span", title: "Span attributes" },
+  { source: "resource", title: "Resource attributes" },
+] as const
+
 function SpanAttributes({
   ref,
   id,
   span,
   className,
 }: {
-  ref?: Ref<HTMLDListElement>
+  ref?: Ref<HTMLDivElement>
   id?: string
   span: Span
   className: string
 }) {
+  const headingId = useId()
+  const groups = attributeGroups.flatMap((group) => {
+    const items = span.attributes.filter(
+      (attribute) => attribute.source === group.source
+    )
+    return items.length === 0 ? [] : [{ ...group, items }]
+  })
   return (
-    <dl
+    <div
       ref={ref}
       id={id}
-      className={cn(
-        "m-0 grid grid-cols-[minmax(5rem,max-content)_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-xs",
-        className
-      )}
+      className={cn("flex flex-col gap-2 text-xs", className)}
     >
-      {span.attributes.length === 0 ? (
-        <dd className="col-span-2 text-muted-foreground">No attributes.</dd>
+      {groups.length === 0 ? (
+        <p className="text-muted-foreground">No attributes.</p>
       ) : (
-        span.attributes.map((attribute, index) => (
-          <div key={`${index}:${attribute.key}`} className="contents">
-            <dt className="text-muted-foreground">{attribute.key}</dt>
-            <dd className="m-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap">
-              {attribute.text}
-            </dd>
+        groups.map((group) => (
+          <div key={group.source} className="flex flex-col gap-1">
+            <p
+              id={`${headingId}-${group.source}`}
+              className="text-xs font-medium text-muted-foreground"
+            >
+              {group.title}
+            </p>
+            <dl
+              aria-labelledby={`${headingId}-${group.source}`}
+              className="m-0 grid grid-cols-[minmax(5rem,max-content)_minmax(0,1fr)] gap-x-3 gap-y-0.5"
+            >
+              {group.items.map((attribute, index) => (
+                <div key={`${index}:${attribute.key}`} className="contents">
+                  <dt className="text-muted-foreground">{attribute.key}</dt>
+                  <dd className="m-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap">
+                    {attribute.text}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </div>
         ))
       )}
-    </dl>
+    </div>
   )
 }
 
@@ -239,7 +263,7 @@ export function TraceView({
   const [openId, setOpenId] = useState<string | null>(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [detailHeight, setDetailHeight] = useState(0)
-  const detailRef = useRef<HTMLDListElement>(null)
+  const detailRef = useRef<HTMLDivElement>(null)
   const detailsId = useId()
 
   const filtered = useMemo(
