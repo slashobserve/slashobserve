@@ -123,6 +123,23 @@ func TestLogPatternsReadsLokisIndexWhenItAnswers(t *testing.T) {
 	}
 }
 
+func TestLogPatternsNamesElasticWhenItsCategoriesAnswer(t *testing.T) {
+	ds := &fakePatternDS{fakeLineDS: &fakeLineDS{fakeDS: &fakeDS{typ: "elasticsearch"}}}
+	ds.patternsFn = func(datasource.PatternRequest) ([]datasource.NativePattern, error) {
+		return []datasource.NativePattern{{Pattern: "payment failed for order", Samples: []datasource.PatternSample{{At: anchorTime, Count: 9}}}}, nil
+	}
+	res, err := call(t, newPatternRegistry(t, ds), nameLogPatterns, `{"datasource":"fake","query":"message:payment","from":"now-6h","to":"now"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v, err = %v", res.Content, err)
+	}
+	if want := "Found 1 pattern on fake (from Elastic)"; res.Step != want {
+		t.Fatalf("step = %q, want %q", res.Step, want)
+	}
+	if out := res.Content.(toolPatterns); out.Source != "elasticsearch" || out.LinesMatched != 9 {
+		t.Fatalf("patterns = %+v", out)
+	}
+}
+
 func TestLogPatternsSamplesLinesWhenTheDatasourceHasNoIndexAndClipsSamples(t *testing.T) {
 	long := strings.Repeat("y", 300)
 	ds := &fakeLineDS{fakeDS: &fakeDS{typ: "clickhouse"}}
@@ -188,7 +205,7 @@ func TestLogPatternsRefusesDatasourcesWithoutLines(t *testing.T) {
 	if errorCode(t, res) != codeInvalidRequest {
 		t.Fatalf("res = %#v", res.Content)
 	}
-	if want := "log_patterns works on Loki and ClickHouse datasources; fake is a prometheus datasource"; res.Content.(errorBody).Message != want {
+	if want := "log_patterns works on Loki, ClickHouse, Elasticsearch and OpenSearch datasources; fake is a prometheus datasource"; res.Content.(errorBody).Message != want {
 		t.Fatalf("message = %q, want %q", res.Content.(errorBody).Message, want)
 	}
 }

@@ -54,7 +54,7 @@ func (r *Registry) logsForTrace(ctx context.Context, input json.RawMessage) (Res
 	}
 	source, supported := inst.Datasource.(datasource.TraceLogSource)
 	if !supported {
-		return invalid("%s is a %s datasource; logs_for_trace reads Loki and ClickHouse datasources", inst.UID, typeOf(inst)), nil
+		return invalid("%s is a %s datasource; logs_for_trace reads Loki, ClickHouse, Elasticsearch and OpenSearch datasources", inst.UID, typeOf(inst)), nil
 	}
 	rng, res, ok := resolveRange(in.From, in.To, time.Now())
 	if !ok {

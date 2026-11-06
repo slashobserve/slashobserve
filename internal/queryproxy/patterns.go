@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	PatternSourceLoki   = "loki"
-	PatternSourceServer = "server"
+	PatternSourceLoki          = "loki"
+	PatternSourceElasticsearch = "elasticsearch"
+	PatternSourceServer        = "server"
 
 	patternSteps      = 60
 	patternBodyField  = "Body"

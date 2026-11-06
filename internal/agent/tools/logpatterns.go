@@ -14,7 +14,7 @@ import (
 
 const (
 	nameLogPatterns = "log_patterns"
-	descLogPatterns = "Group the lines a logs query matches into patterns with counts, from Loki's pattern index when it has one, otherwise from the newest sampled lines, on Loki or ClickHouse. Use it to see what a noisy service is saying before reading single lines."
+	descLogPatterns = "Group the lines a logs query matches into patterns with counts, from Loki's pattern index or Elastic's categorize_text when it has one, otherwise from the newest sampled lines, on Loki, ClickHouse, Elastic or OpenSearch. Use it to see what a noisy service is saying before reading single lines."
 
 	propPatternLimit  = `"limit":{"type":"integer","minimum":1,"maximum":30,"description":"Patterns to return, the most frequent first. Default 10."}`
 	schemaLogPatterns = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propPatternLimit + `},"required":["datasource","query"],"additionalProperties":false}`
@@ -23,7 +23,7 @@ const (
 	maxPatternLimit      = 30
 	defaultPatternSample = 2000
 	patternsBudget       = 12 << 10
-	patternsWorkOn       = "log_patterns works on Loki and ClickHouse datasources; %s is a %s datasource"
+	patternsWorkOn       = "log_patterns works on Loki, ClickHouse, Elasticsearch and OpenSearch datasources; %s is a %s datasource"
 )
 
 type logPatternsInput struct {
@@ -120,9 +120,12 @@ func (r *Registry) logPatterns(ctx context.Context, input json.RawMessage) (Resu
 	out.Patterns, cut = fit(out.Patterns, patternsBudget)
 	out.Truncated = out.Truncated || cut
 	step := fmt.Sprintf("Found %s on %s", plural(len(out.Patterns), "pattern", "patterns"), inst.UID)
-	if out.Source == queryproxy.PatternSourceLoki {
+	switch out.Source {
+	case queryproxy.PatternSourceLoki:
 		step += " (from Loki)"
-	} else {
+	case queryproxy.PatternSourceElasticsearch:
+		step += " (from Elastic)"
+	default:
 		step += fmt.Sprintf(" (from %s)", plural(out.LinesSampled, "sampled line", "sampled lines"))
 	}
 	return success(step, out), nil
