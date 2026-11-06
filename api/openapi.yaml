@@ -96,6 +96,10 @@ paths:
     $ref: "./paths/explore.yaml#/datasources-uid-log-volume"
   /datasources/{uid}/log-facets:
     $ref: "./paths/log-facets.yaml#/datasources-uid-log-facets"
+  /datasources/{uid}/traces/{trace_id}:
+    $ref: "./paths/traces.yaml#/datasources-uid-traces-trace-id"
+  /datasources/{uid}/trace-stats:
+    $ref: "./paths/traces.yaml#/datasources-uid-trace-stats"
   /datasources/{uid}/draft-query:
     $ref: "./paths/draft-query.yaml#/datasources-uid-draft-query"
   /datasources/{uid}/metrics:
@@ -1477,6 +1481,66 @@ components:
         truncated:
           type: boolean
           description: More fields exist than the 50 returned.
+    TraceStats:
+      type: object
+      additionalProperties: false
+      required: [step_ms, partial, spans, errors, buckets, histogram]
+      properties:
+        step_ms:
+          type: integer
+          description: The width of every bucket in milliseconds, a whole number of seconds and at least one.
+        partial:
+          type: boolean
+          description: True when Tempo did not search every block, so the counts are a lower bound; always false on ClickHouse.
+        spans:
+          type: integer
+          description: The sum of every bucket's spans.
+        errors:
+          type: integer
+          description: The sum of every bucket's errors.
+        buckets:
+          type: array
+          description: Every bucket of the aligned range, oldest first, empty buckets included.
+          items:
+            $ref: "#/components/schemas/TraceStatsBucket"
+        histogram:
+          type: array
+          description: The duration distribution of every matched span, ascending by `le_ms`, empty when nothing matched.
+          items:
+            $ref: "#/components/schemas/DurationBucket"
+    TraceStatsBucket:
+      type: object
+      additionalProperties: false
+      required: [start, spans, errors, p50_ms, p95_ms, p99_ms]
+      properties:
+        start:
+          type: string
+          format: date-time
+          description: The bucket covers this instant up to, but not including, `start` plus `step_ms`.
+        spans:
+          type: integer
+        errors:
+          type: integer
+        p50_ms:
+          type: number
+          nullable: true
+          description: The median span duration in milliseconds, null when the bucket has no spans.
+        p95_ms:
+          type: number
+          nullable: true
+        p99_ms:
+          type: number
+          nullable: true
+    DurationBucket:
+      type: object
+      additionalProperties: false
+      required: [le_ms, count]
+      properties:
+        le_ms:
+          type: number
+          description: The upper edge of the bucket in milliseconds; the bucket holds the spans whose duration is at most this value and above the previous edge.
+        count:
+          type: integer
     PanelData:
       type: object
       additionalProperties: false
