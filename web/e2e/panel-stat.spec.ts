@@ -2,7 +2,7 @@ import type { APIRequestContext, Locator, Page } from "@playwright/test"
 
 import { createDashboard, loadSpec, uniqueTitle } from "./api"
 import { expectPanelsReady, openDashboard } from "./dashboards"
-import { expect, test } from "./fixtures"
+import { expect, switchTheme, test } from "./fixtures"
 
 async function createStats(request: APIRequestContext) {
   const spec = loadSpec("panel-stat")
@@ -75,7 +75,7 @@ test.describe("theme switch", () => {
     await expect(tile).toHaveAttribute("data-threshold", "info")
     await expect.poll(() => style(tile, "color")).toBe("rgb(255, 255, 255)")
 
-    await page.getByRole("button", { name: "Switch theme" }).click()
+    await switchTheme(page)
     await expect(page.locator("html")).toHaveClass(/\bdark\b/)
 
     await expect.poll(() => style(tile, "color")).toBe("rgb(10, 10, 10)")

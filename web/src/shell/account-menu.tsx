@@ -8,12 +8,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { providerDisplayName } from "@/people/sign-in-policy"
 
 import { initials } from "./initials"
+import { ThemeMenu } from "./theme-switch"
 import { useSignOut } from "./use-sign-out"
 
 export function AccountMenu({ collapsed }: { collapsed: boolean }) {
@@ -63,6 +65,8 @@ export function AccountMenu({ collapsed }: { collapsed: boolean }) {
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start">
+        <ThemeMenu />
+        <DropdownMenuSeparator />
         <DropdownMenuItem disabled={pending} onClick={signOut}>
           <LogOutIcon aria-hidden="true" />
           Sign out
