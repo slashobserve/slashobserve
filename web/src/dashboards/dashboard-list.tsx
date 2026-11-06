@@ -306,6 +306,9 @@ function sectionRows(
             {row.getAllCells().map((cell) => (
               <Cell
                 key={cell.id}
+                data-cell={
+                  cell.column.id === actionsColumn.id ? "action" : undefined
+                }
                 className={cell.column.columnDef.meta?.cellClassName}
               >
                 <table.FlexRender cell={cell} />
@@ -486,7 +489,12 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
       ) : null}
       {showTable ? (
         <>
-          <TableCard minWidth={820} labelledBy={labelledBy} ref={regionRef}>
+          <TableCard
+            minWidth={820}
+            labelledBy={labelledBy}
+            ref={regionRef}
+            stackOnNarrow
+          >
             <thead>
               {table.getHeaderGroups().map((group) => (
                 <tr key={group.id}>
