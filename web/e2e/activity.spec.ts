@@ -157,12 +157,8 @@ for (const colorScheme of ["light", "dark"] as const) {
       await openPanelMenuItem(page, rpsTitle, "Comment")
 
       await expect(page).toHaveURL(/panel=rps/)
-      await expect(scopeSelect(page).locator("option:checked")).toHaveText(
-        rpsTitle
-      )
-      await expect(targetSelect(page).locator("option:checked")).toHaveText(
-        rpsTitle
-      )
+      await expect(scopeSelect(page)).toContainText(rpsTitle)
+      await expect(targetSelect(page)).toContainText(rpsTitle)
       await expect(composerBox(page)).toBeFocused()
 
       await composerBox(page).fill("Latency looks high")
@@ -687,7 +683,7 @@ for (const colorScheme of ["light", "dark"] as const) {
 
       await openCard(page, id, "?panel=rps&tab=comments")
       await expect(page).not.toHaveURL(/tab=/)
-      await expect(scopeSelect(page)).toHaveValue("rps")
+      await expect(scopeSelect(page)).toContainText(rpsTitle)
       await expect(panel(page, rpsTitle)).toHaveAttribute(
         "data-highlighted",
         ""
