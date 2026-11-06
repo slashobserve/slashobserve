@@ -6,6 +6,7 @@ import {
   traceQLAttribute,
   traceQLFor,
   traceSearchParams,
+  traceStatsFilter,
   type TraceForm,
 } from "./search-query"
 
@@ -118,6 +119,44 @@ describe("traceSearchParams", () => {
     expect(
       traceSearchParams("tempo", { service: "x", errors: "1" }).query
     ).toBe('{resource.service.name = "x" && status = error}')
+  })
+})
+
+describe("traceStatsFilter", () => {
+  it("filters Tempo spans with the TraceQL the search runs", () => {
+    expect(
+      traceStatsFilter("tempo", { service: "checkout", min: "250ms" })
+    ).toBe('{resource.service.name = "checkout" && duration >= 250ms}')
+  })
+
+  it("prefers the written TraceQL on Tempo", () => {
+    expect(
+      traceStatsFilter("tempo", { q: "{ .http.status_code = 500 }", min: "1s" })
+    ).toBe("{ .http.status_code = 500 }")
+  })
+
+  it("filters ClickHouse spans with a boolean expression", () => {
+    expect(traceStatsFilter("clickhouse", { errors: "1" })).toBe(
+      "lower(StatusCode) IN ('error', 'status_code_error')"
+    )
+    expect(
+      traceStatsFilter("clickhouse", {
+        service: "o'neil",
+        span: "pay",
+        min: "250ms",
+        max: "1.5s",
+        errors: "1",
+      })
+    ).toBe(
+      "ServiceName = 'o\\'neil' AND SpanName = 'pay' AND Duration >= 250000000 AND Duration <= 1500000000 AND lower(StatusCode) IN ('error', 'status_code_error')"
+    )
+  })
+
+  it.each([
+    ["tempo", "{}"],
+    ["clickhouse", ""],
+  ])("matches every span on %s with an empty form", (type, filter) => {
+    expect(traceStatsFilter(type, {})).toBe(filter)
   })
 })
 
