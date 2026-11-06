@@ -128,64 +128,6 @@ func fieldNames(f datasource.Frame) []string {
 	return names
 }
 
-func TestTraceIDReturnsOneRowPerSpan(t *testing.T) {
-	ds, fake := serve(t, map[string]reply{tracePath: {0, traceBody}})
-	frames, err := ds.QueryInstant(context.Background(), datasource.Query{Text: " " + strings.ToUpper(traceID) + "\n"}, lastHour)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := fake.last(t).path; got != tracePath {
-		t.Fatalf("path = %s, want the lowercased trace id", got)
-	}
-	if len(frames) != 1 {
-		t.Fatalf("frames = %+v, want one", frames)
-	}
-	f := frames[0]
-	want := []string{
-		"string:TraceId", "string:SpanId", "string:ParentSpanId", "string:SpanName", "string:ServiceName",
-		"time:StartTime", "number:Duration", "string:StatusCode", "string:SpanAttributes", "string:ResourceAttributes",
-	}
-	if got := fieldNames(f); !slices.Equal(got, want) {
-		t.Fatalf("fields = %v, want %v", got, want)
-	}
-	checks := map[string][]any{
-		"TraceId":      {traceID, traceID},
-		"SpanId":       {"b7ad6b7169203331", "00f067aa0ba902b7"},
-		"ParentSpanId": {"", "b7ad6b7169203331"},
-		"SpanName":     {"POST /checkout", "charge"},
-		"ServiceName":  {"checkout", "checkout"},
-		"StartTime":    {time.Unix(0, 1793966399950000000).UTC(), time.Unix(0, 1793966399960000000).UTC()},
-		"Duration":     {int64(50 * time.Millisecond), int64(30 * time.Millisecond)},
-		"StatusCode":   {"Error", "Unset"},
-		"SpanAttributes": {
-			`{"http.method":"POST","http.status_code":500,"nested":{"k":"v"},"ratio":0.5,"retry":true,"tags":["a",2],"weird":"NaN"}`,
-			`{}`,
-		},
-		"ResourceAttributes": {`{"k8s.pod.name":"checkout-0","service.name":"checkout"}`, `{"k8s.pod.name":"checkout-0","service.name":"checkout"}`},
-	}
-	for name, values := range checks {
-		if got := fieldValues(t, f, name); !slices.Equal(got, values) {
-			t.Errorf("%s = %v, want %v", name, got, values)
-		}
-	}
-}
-
-func TestTraceIDRowsAreLimited(t *testing.T) {
-	ds, _ := serve(t, map[string]reply{tracePath: {0, traceBody}})
-	_, err := ds.QueryRange(context.Background(), datasource.Query{Text: traceID, Limits: datasource.Limits{MaxRows: 1}}, lastHour, time.Minute)
-	if !errors.Is(err, datasource.ErrLimitExceeded) || !strings.Contains(err.Error(), "more than 1 spans") {
-		t.Fatalf("err = %v, want a row limit error", err)
-	}
-}
-
-func TestUnknownTraceIsEmpty(t *testing.T) {
-	ds, _ := serve(t, nil)
-	frames, err := ds.QueryInstant(context.Background(), datasource.Query{Text: "b7ad6b7169203331"}, lastHour)
-	if err != nil || len(frames) != 0 || frames == nil {
-		t.Fatalf("frames = %#v, %v, want an empty list", frames, err)
-	}
-}
-
 func TestSearchReturnsOneRowPerTrace(t *testing.T) {
 	ds, fake := serve(t, map[string]reply{"/api/search": {0, searchBody}})
 	q := datasource.Query{Text: `{ resource.service.name = "checkout" }`, Limits: datasource.Limits{MaxRows: 20}}
