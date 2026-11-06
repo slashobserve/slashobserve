@@ -1,15 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router"
 
 import { HealthPage } from "@/health/health-page"
-import { isHealthKind, type HealthKind } from "@/health/health-labels"
+import { isHealthFilter, type HealthFilter } from "@/health/health-labels"
 import { useDocumentTitle } from "@/lib/document-title"
 
-type HealthSearch = { kind?: HealthKind; folder?: string }
+type HealthSearch = { kind?: HealthFilter; folder?: string }
 
 export const Route = createFileRoute("/_authed/_shell/health")({
   staticData: { crumbs: [{ label: "Health" }] },
   validateSearch: (search: Record<string, unknown>): HealthSearch => ({
-    kind: isHealthKind(search.kind) ? search.kind : undefined,
+    kind: isHealthFilter(search.kind) ? search.kind : undefined,
     folder:
       typeof search.folder === "string" && search.folder !== ""
         ? search.folder
