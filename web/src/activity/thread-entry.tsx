@@ -1,10 +1,19 @@
-import { useCallback, useRef, useState, type ComponentProps } from "react"
+import { useCallback, useRef, useState } from "react"
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  ReplyIcon,
+  RotateCcwIcon,
+} from "lucide-react"
 
 import { useSetCommentStatus } from "@/comments/queries"
 import { cn } from "@/lib/utils"
 
 import type { AgentGate } from "./agent-gate"
 import {
+  avatarFor,
+  EntryAction,
   EntryBody,
   EntryFrame,
   EntryMeta,
@@ -28,17 +37,8 @@ type Props = {
   clientName: string
 }
 
-function MetaButton({ className, ...props }: ComponentProps<"button">) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        "rounded-sm underline outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-disabled:opacity-50",
-        className
-      )}
-      {...props}
-    />
-  )
+function replyCount(count: number): string {
+  return count === 1 ? "1 reply" : `${count} replies`
 }
 
 export function ThreadEntry({
@@ -54,18 +54,24 @@ export function ThreadEntry({
   const { thread, request, panelId, askedAgent } = entry
   const { root, replies } = thread
   const [replying, setReplying] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const replyButton = useRef<HTMLButtonElement>(null)
+  const statusButton = useRef<HTMLButtonElement | null>(null)
+  const toggleButton = useRef<HTMLButtonElement>(null)
   const setStatus = useSetCommentStatus(dashboardId)
   const resolved = root.status === "resolved"
+  const folded = resolved && !expanded
   const verb = threadVerbText(askedAgent, panelId, panelTitle)
   const panel =
     panelId !== null && panelTitle !== null
       ? { title: panelTitle, onSelect: () => onSelectPanel(panelId) }
       : undefined
 
-  const resolveButton = useCallback((node: HTMLButtonElement | null) => {
+  const statusRef = useCallback((node: HTMLButtonElement | null) => {
+    statusButton.current = node
     if (node === null) return
     return () => {
+      statusButton.current = null
       if (document.activeElement === node) replyButton.current?.focus()
     }
   }, [])
@@ -73,6 +79,33 @@ export function ThreadEntry({
   function closeReply() {
     setReplying(false)
     replyButton.current?.focus()
+  }
+
+  function openReply() {
+    setExpanded(true)
+    setReplying(true)
+  }
+
+  function toggleStatus() {
+    if (setStatus.isPending) return
+    const status = resolved ? "open" : "resolved"
+    setStatus.mutate(
+      { commentId: root.id, status },
+      {
+        onSuccess: () => {
+          if (status === "open") {
+            setExpanded(true)
+            return
+          }
+          const focusedOnStatus =
+            document.activeElement !== null &&
+            document.activeElement === statusButton.current
+          setExpanded(false)
+          setReplying(false)
+          if (focusedOnStatus) toggleButton.current?.focus()
+        },
+      }
+    )
   }
 
   const view = threadState({ root, request, gate, clientName })
@@ -94,48 +127,22 @@ export function ThreadEntry({
 
   return (
     <EntryFrame
-      avatar={{ kind: "person", name: root.author.name }}
+      avatar={avatarFor(root.author)}
       who={root.author.name}
       verb={verb}
       panel={panel}
       at={root.created_at}
     >
-      <EntryBody>{root.body}</EntryBody>
-      <EntryMeta>
-        {state}
-        {canComment ? (
-          <MetaButton
-            ref={replyButton}
-            aria-expanded={replying}
-            onClick={() => setReplying(true)}
-          >
-            Reply
-          </MetaButton>
-        ) : null}
-        {canComment && canResolveThread(request) ? (
-          <MetaButton
-            ref={resolveButton}
-            aria-disabled={setStatus.isPending || undefined}
-            aria-busy={setStatus.isPending || undefined}
-            onClick={() => {
-              if (setStatus.isPending) return
-              setStatus.mutate({
-                commentId: root.id,
-                status: resolved ? "open" : "resolved",
-              })
-            }}
-          >
-            {resolved ? "Reopen" : "Resolve"}
-          </MetaButton>
-        ) : null}
-      </EntryMeta>
-      {replies.length === 0 ? null : (
-        <ol className="mt-1 flex flex-col border-l pl-3">
+      <EntryBody className={cn(folded && "line-clamp-1 text-muted-foreground")}>
+        {root.body}
+      </EntryBody>
+      {folded || replies.length === 0 ? null : (
+        <ol className="mt-1 flex flex-col">
           {replies.map((reply) => (
             <EntryFrame
               key={reply.id}
               nested
-              avatar={{ kind: "person", name: reply.author.name }}
+              avatar={avatarFor(reply.author)}
               who={reply.author.name}
               verb="replied"
               at={reply.created_at}
@@ -145,7 +152,7 @@ export function ThreadEntry({
           ))}
         </ol>
       )}
-      {canComment && replying ? (
+      {canComment && replying && !folded ? (
         <ReplyForm
           dashboardId={dashboardId}
           rootId={root.id}
@@ -154,6 +161,57 @@ export function ThreadEntry({
           onClose={closeReply}
         />
       ) : null}
+      <EntryMeta>
+        {state}
+        {folded && replies.length > 0 ? (
+          <span>{replyCount(replies.length)}</span>
+        ) : null}
+        <span className="flex flex-wrap items-center gap-0.5">
+          {canComment ? (
+            <EntryAction
+              ref={replyButton}
+              icon={<ReplyIcon aria-hidden="true" />}
+              aria-expanded={replying && !folded}
+              onClick={openReply}
+            >
+              Reply
+            </EntryAction>
+          ) : null}
+          {canComment && canResolveThread(request) ? (
+            <EntryAction
+              ref={statusRef}
+              icon={
+                resolved ? (
+                  <RotateCcwIcon aria-hidden="true" />
+                ) : (
+                  <CheckIcon aria-hidden="true" />
+                )
+              }
+              aria-disabled={setStatus.isPending || undefined}
+              aria-busy={setStatus.isPending || undefined}
+              onClick={toggleStatus}
+            >
+              {resolved ? "Reopen" : "Resolve"}
+            </EntryAction>
+          ) : null}
+          {resolved ? (
+            <EntryAction
+              ref={toggleButton}
+              icon={
+                folded ? (
+                  <ChevronDownIcon aria-hidden="true" />
+                ) : (
+                  <ChevronUpIcon aria-hidden="true" />
+                )
+              }
+              aria-expanded={!folded}
+              onClick={() => setExpanded(folded)}
+            >
+              {folded ? "Show thread" : "Hide thread"}
+            </EntryAction>
+          ) : null}
+        </span>
+      </EntryMeta>
     </EntryFrame>
   )
 }

@@ -83,9 +83,9 @@ function state(
 }
 
 describe("threadState", () => {
-  it("reads Comment for an open thread with the built-in agent", () => {
-    expect(state({ gate: allowed })).toEqual({ kind: "note", text: "Comment" })
-    expect(state({ gate: blocked })).toEqual({ kind: "note", text: "Comment" })
+  it("reads Open for an open thread with the built-in agent", () => {
+    expect(state({ gate: allowed })).toEqual({ kind: "note", text: "Open" })
+    expect(state({ gate: blocked })).toEqual({ kind: "note", text: "Open" })
   })
 
   it("names the client when there is no built-in agent", () => {

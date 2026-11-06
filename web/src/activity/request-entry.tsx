@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router"
 import { tookText } from "@/chat/turn-model"
 
 import {
+  avatarFor,
   EntryBody,
   EntryFrame,
   EntryMeta,
@@ -34,7 +35,7 @@ function SavedVersionLink({
       search={
         version > 1 ? { from: version - 1, to: version } : { to: version }
       }
-      className="rounded-sm text-foreground underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="rounded-sm text-foreground underline-offset-3 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
     >
       <ResolvedState text={`Saved as version ${version}`} />
     </Link>
@@ -85,7 +86,7 @@ export function RequestEntry({
 
   return (
     <EntryFrame
-      avatar={{ kind: "person", name: request.requested_by.name }}
+      avatar={avatarFor(request.requested_by)}
       who={request.requested_by.name}
       verb={verb}
       panel={panel}
