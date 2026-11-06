@@ -9,9 +9,10 @@ import {
   type RefObject,
 } from "react"
 import { createPortal } from "react-dom"
-import { XIcon } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
+import { useActivityStore, usePanelLayout } from "@/activity/activity-store"
+import { DockHeader } from "@/components/dock/dock-header"
+import { DockPanel } from "@/components/dock/dock-panel"
 
 export const PanelHostContext = createContext<HTMLElement | null>(null)
 
@@ -50,6 +51,8 @@ function PanelCard({
   const asideRef = useRef<HTMLElement>(null)
   const ownTitleRef = useRef<HTMLHeadingElement>(null)
   const titleRef = titleRefProp ?? ownTitleRef
+  const layout = usePanelLayout()
+  const setPanelWidth = useActivityStore((state) => state.setPanelWidth)
 
   useEffect(() => {
     const previous = document.activeElement
@@ -73,45 +76,33 @@ function PanelCard({
   }
 
   return (
-    <aside
+    <DockPanel
       ref={asideRef}
       hidden={hidden}
-      aria-labelledby={titleId}
+      labelledBy={titleId}
       onKeyDown={onKeyDown}
-      className="flex max-h-full min-h-0 max-w-full min-w-0 flex-[0_1_440px] flex-col border-l bg-background @max-[1000px]:max-h-none @max-[1000px]:grow @max-[1000px]:border-t @max-[1000px]:border-l-0"
+      width={layout.width}
+      bounds={layout.bounds}
+      onWidthChange={setPanelWidth}
+      stacked={layout.stacked}
     >
-      <div className="flex items-start justify-between gap-2 border-b pt-4 pr-3 pb-3.5 pl-[18px]">
-        <div className="flex min-w-0 flex-col gap-[3px]">
-          <h2
-            id={titleId}
-            ref={titleRef}
-            tabIndex={-1}
-            className="text-[15px] font-semibold outline-none"
-          >
-            {title}
-          </h2>
-          {description ? (
-            <p className="text-[13px] text-muted-foreground">{description}</p>
-          ) : null}
-        </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Close"
-          disabled={closeDisabled}
-          onClick={onClose}
-        >
-          <XIcon aria-hidden="true" className="size-[15px]" strokeWidth={1.8} />
-        </Button>
-      </div>
-      <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-[18px] py-4">
+      <DockHeader
+        headingId={titleId}
+        headingRef={titleRef}
+        title={title}
+        description={description}
+        onClose={onClose}
+        closeLabel="Close"
+        closeDisabled={closeDisabled}
+      />
+      <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-4">
         {children}
       </div>
       {footer ? (
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t px-[18px] pt-3 pb-3.5">
+        <div className="flex flex-none flex-wrap items-center justify-end gap-2 border-t px-4 pt-3 pb-3.5">
           {footer}
         </div>
       ) : null}
-    </aside>
+    </DockPanel>
   )
 }
