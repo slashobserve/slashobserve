@@ -1,4 +1,4 @@
-import { useEffect, useId } from "react"
+import { useId } from "react"
 import { useQuery } from "@tanstack/react-query"
 import {
   createFileRoute,
@@ -11,7 +11,6 @@ import { PageHeader } from "@/components/page-header"
 import { StatusLabel } from "@/components/status-label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDocumentTitle } from "@/lib/document-title"
-import { roleAtLeast } from "@/lib/roles"
 import { useAgentInfo } from "@/observe/queries"
 import { domainList } from "@/people/sign-in-policy"
 import { loadProblemText } from "@/service-accounts/queries"
@@ -22,14 +21,18 @@ import {
   sessionLength,
 } from "@/settings/format"
 import { GrafanaSettings } from "@/settings/grafana/grafana-settings"
-import { connectionsQuery } from "@/settings/grafana/queries"
 import { OutboundAccessCard } from "@/settings/outbound-access-card"
+import {
+  selectedSectionId,
+  settingsSections,
+  type SettingsSectionId,
+} from "@/settings/sections"
 import {
   SettingsCard,
   SettingsProblem,
   SettingsRow,
 } from "@/settings/settings-card"
-import { SettingsIndex, type SettingsSection } from "@/settings/settings-index"
+import { SettingsNav } from "@/settings/settings-nav"
 
 type SettingsSearch = { connection?: string; sync?: string }
 
@@ -46,20 +49,6 @@ export const Route = createFileRoute("/_authed/_shell/settings/")({
   component: SettingsPage,
 })
 
-const grafanaSectionId = "grafana"
-
-const everyoneSections: readonly SettingsSection[] = [
-  { id: "agent", label: "Agent" },
-  { id: "server", label: "This server" },
-  { id: "sign-in", label: "Sign-in" },
-  { id: "outbound-access", label: "Outbound access" },
-]
-
-const adminSections: readonly SettingsSection[] = [
-  ...everyoneSections,
-  { id: grafanaSectionId, label: "Grafana connection" },
-]
-
 function Pending() {
   return <Skeleton className="h-4 w-32" />
 }
@@ -67,44 +56,49 @@ function Pending() {
 function SettingsPage() {
   useDocumentTitle("Settings - SlashObserve")
   const { principal } = useRouteContext({ from: "/_authed" })
-  const isAdmin = roleAtLeast(principal.role, "admin")
+  const hash = useLocation({ select: (location) => location.hash })
+  const sections = settingsSections(principal.role)
+  const selected = selectedSectionId(sections, hash)
   return (
     <div className="flex items-start gap-8">
-      <SettingsIndex sections={isAdmin ? adminSections : everyoneSections} />
+      <SettingsNav sections={sections} selected={selected} placement="side" />
       <div className="max-w-[720px] min-w-0 flex-1">
         <PageHeader
           title="Settings"
           description="How this server is set up. Most values come from its environment."
         />
-        <AgentCard />
-        <ServerCard />
-        <SignInCard />
-        <OutboundAccessCard />
-        {isAdmin ? <GrafanaSection /> : null}
+        <SettingsNav sections={sections} selected={selected} placement="top" />
+        <SelectedSection id={selected} />
       </div>
     </div>
   )
+}
+
+function SelectedSection({ id }: { id: SettingsSectionId }) {
+  switch (id) {
+    case "agent":
+      return <AgentCard />
+    case "server":
+      return <ServerCard />
+    case "sign-in":
+      return <SignInCard />
+    case "outbound-access":
+      return <OutboundAccessCard />
+    case "grafana":
+      return <GrafanaSection />
+  }
 }
 
 function GrafanaSection() {
   const headingId = useId()
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
-  const hash = useLocation({ select: (location) => location.hash })
-  const settled = !useQuery(connectionsQuery()).isPending
-  useEffect(() => {
-    if (hash !== grafanaSectionId || !settled) return
-    document
-      .getElementById(grafanaSectionId)
-      ?.scrollIntoView({ block: "start" })
-  }, [hash, settled])
-
   const running =
     search.connection !== undefined && search.sync !== undefined
       ? { connectionId: search.connection, syncId: search.sync }
       : null
   return (
-    <section id={grafanaSectionId} aria-labelledby={headingId} className="pt-2">
+    <section aria-labelledby={headingId}>
       <div className="mb-3">
         <h2 id={headingId} className="text-sm font-semibold">
           Grafana connection
@@ -118,7 +112,7 @@ function GrafanaSection() {
         onStarted={(connectionId, syncId) =>
           void navigate({
             search: { connection: connectionId, sync: syncId },
-            hash: grafanaSectionId,
+            hash: "grafana" satisfies SettingsSectionId,
           })
         }
       />
@@ -132,7 +126,7 @@ function AgentCard() {
 
   if (query.isError && query.data === undefined) {
     return (
-      <SettingsCard id="agent" title="Agent" hint={hint}>
+      <SettingsCard title="Agent" hint={hint}>
         <SettingsProblem
           title="Could not load the agent settings"
           detail={loadProblemText(query.error)}
@@ -145,7 +139,7 @@ function AgentCard() {
 
   const agent = query.data
   return (
-    <SettingsCard id="agent" title="Agent" hint={hint}>
+    <SettingsCard title="Agent" hint={hint}>
       <SettingsRow label="Provider">
         {agent ? providerName(agent.provider) : <Pending />}
       </SettingsRow>
@@ -186,7 +180,7 @@ function ServerCard() {
 
   if (query.isError && query.data === undefined) {
     return (
-      <SettingsCard id="server" title="This server" hint={hint}>
+      <SettingsCard title="This server" hint={hint}>
         <SettingsProblem
           title="Could not load the server settings"
           detail={loadProblemText(query.error)}
@@ -199,7 +193,7 @@ function ServerCard() {
 
   const instance = query.data
   return (
-    <SettingsCard id="server" title="This server" hint={hint}>
+    <SettingsCard title="This server" hint={hint}>
       <SettingsRow label="Public URL" mono copy={instance?.public_url ?? null}>
         {instance ? instance.public_url : <Pending />}
       </SettingsRow>
@@ -216,7 +210,7 @@ function SignInCard() {
 
   if (query.isError && query.data === undefined) {
     return (
-      <SettingsCard id="sign-in" title="Sign-in" hint={hint}>
+      <SettingsCard title="Sign-in" hint={hint}>
         <SettingsProblem
           title="Could not load the sign-in settings"
           detail={loadProblemText(query.error)}
@@ -229,7 +223,7 @@ function SignInCard() {
 
   const instance = query.data
   return (
-    <SettingsCard id="sign-in" title="Sign-in" hint={hint}>
+    <SettingsCard title="Sign-in" hint={hint}>
       <SettingsRow label="Identity provider" mono>
         {instance ? instance.oidc_issuer_url : <Pending />}
       </SettingsRow>

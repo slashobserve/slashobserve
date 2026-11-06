@@ -47,6 +47,7 @@ export function SignInBanner() {
       </span>
       <Link
         to="/settings"
+        hash="sign-in"
         className={cn(buttonVariants({ variant: "outline" }), "font-normal")}
       >
         Sign-in settings

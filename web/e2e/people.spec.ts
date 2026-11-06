@@ -117,7 +117,7 @@ test("states who can sign in", async ({ page }) => {
     "Anyone with a verified email at example.com can sign in through Dex."
   )
   await page.getByRole("link", { name: "Sign-in settings" }).click()
-  await expect(page).toHaveURL(/\/settings$/)
+  await expect(page).toHaveURL(/\/settings#sign-in$/)
 })
 
 test("signs another person out everywhere", async ({ page }) => {

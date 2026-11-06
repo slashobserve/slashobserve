@@ -32,7 +32,7 @@ The home page lists the dashboards you can see below the chat composer, with **I
 An Admin stores a Grafana URL and a service-account token once and lets the server import every dashboard from that Grafana, instead of importing one file at a time.
 Each dashboard goes through the same importer as [Import Grafana dashboards](import-grafana.md), with the same datasource matching, the same report and one import record per dashboard.
 
-Open Settings and scroll to the Grafana connection section; only Admins see it.
+Open Settings and choose Grafana connection in its section list; only Admins see it.
 Give the connection a name, the Grafana URL and the service account token, and choose Add connection.
 The token is stored encrypted and is never shown again, not in the web app and not in the API.
 Choose Test on the connection to check it: the outcome names how many top-level folders and dashboards the server found, for example `Connected: 12 top-level folders, 340 dashboards.`

@@ -5,12 +5,10 @@ import { LoadProblem } from "@/components/load-problem"
 import { cn } from "@/lib/utils"
 
 export function SettingsCard({
-  id,
   title,
   hint,
   children,
 }: {
-  id?: string
   title: string
   hint: string
   children: ReactNode
@@ -18,7 +16,6 @@ export function SettingsCard({
   const headingId = useId()
   return (
     <section
-      id={id}
       aria-labelledby={headingId}
       className="mb-4 max-w-[860px] rounded-card border bg-background"
     >

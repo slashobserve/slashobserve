@@ -1,13 +1,6 @@
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type FormEvent,
-  type RefObject,
-} from "react"
+import { useId, useRef, useState, type FormEvent, type RefObject } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { useLocation, useRouteContext } from "@tanstack/react-router"
+import { useRouteContext } from "@tanstack/react-router"
 import { LoaderCircleIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -32,25 +25,14 @@ import {
 } from "./outbound-domains"
 import { SettingsCard, SettingsProblem, SettingsRow } from "./settings-card"
 
-const outboundAccessId = "outbound-access"
-
 const hint =
   "Sites the server may fetch for dashboards, such as news feeds. Nothing else is fetched."
 
 export function OutboundAccessCard() {
   const query = useQuery(outboundDomainsQuery())
-  const hash = useLocation({ select: (location) => location.hash })
-  const settled = !query.isPending
-  useEffect(() => {
-    if (hash !== outboundAccessId || !settled) return
-    document
-      .getElementById(outboundAccessId)
-      ?.scrollIntoView({ block: "start" })
-  }, [hash, settled])
-
   if (query.isError && query.data === undefined) {
     return (
-      <SettingsCard id={outboundAccessId} title="Outbound access" hint={hint}>
+      <SettingsCard title="Outbound access" hint={hint}>
         <SettingsProblem
           title="Could not load outbound access"
           detail={loadProblemText(query.error)}
@@ -64,7 +46,7 @@ export function OutboundAccessCard() {
   const list = query.data
   if (list === undefined) {
     return (
-      <SettingsCard id={outboundAccessId} title="Outbound access" hint={hint}>
+      <SettingsCard title="Outbound access" hint={hint}>
         <SettingsRow label="Allowed domains">
           <Skeleton className="h-4 w-32" />
         </SettingsRow>
@@ -73,7 +55,7 @@ export function OutboundAccessCard() {
   }
 
   return (
-    <SettingsCard id={outboundAccessId} title="Outbound access" hint={hint}>
+    <SettingsCard title="Outbound access" hint={hint}>
       <AllowedDomains list={list} />
     </SettingsCard>
   )
