@@ -33,12 +33,19 @@ type healthProblem struct {
 	Variable   *string `json:"variable"`
 }
 
+type healthRepair struct {
+	State   string  `json:"state"`
+	Version *int    `json:"version"`
+	Error   *string `json:"error"`
+}
+
 type healthDashboard struct {
 	ID        string          `json:"id"`
 	Title     string          `json:"title"`
 	Folder    healthFolder    `json:"folder"`
 	CheckedAt *string         `json:"checked_at"`
 	Problems  []healthProblem `json:"problems"`
+	Repair    *healthRepair   `json:"repair"`
 }
 
 type healthJob struct {
@@ -125,7 +132,7 @@ func (a *app) runHealth(cmd *cobra.Command, _ []string) error {
 	if len(list.Dashboards) == 0 {
 		out.line("No dashboard has a health problem.")
 	} else {
-		out.table([]string{"ID", "DASHBOARD", "FOLDER", "KIND", "PANEL OR VARIABLE", "CHECKED"}, healthRows(list.Dashboards))
+		out.table([]string{"ID", "DASHBOARD", "FOLDER", "KIND", "PANEL OR VARIABLE", "CHECKED", "REPAIR"}, healthRows(list.Dashboards))
 	}
 	out.line("%s", jobLine(list.Job))
 	if list.NextCursor != nil {
@@ -141,11 +148,24 @@ func healthRows(dashboards []healthDashboard) [][]string {
 		if d.CheckedAt != nil {
 			checked = when(*d.CheckedAt)
 		}
+		repair := repairState(d.Repair)
 		for _, p := range d.Problems {
-			rows = append(rows, []string{text(d.ID), text(d.Title), text(d.Folder.Title), text(p.Kind), problemTarget(p), checked})
+			rows = append(rows, []string{text(d.ID), text(d.Title), text(d.Folder.Title), text(p.Kind), problemTarget(p), checked, repair})
 		}
 	}
 	return rows
+}
+
+func repairState(r *healthRepair) string {
+	switch {
+	case r == nil:
+		return "-"
+	case r.State == "succeeded" && r.Version != nil:
+		return "repaired in version " + strconv.Itoa(*r.Version)
+	case r.State == "failed" && r.Error != nil:
+		return "repair failed: " + text(*r.Error)
+	}
+	return "repair " + text(r.State)
 }
 
 func problemTarget(p healthProblem) string {

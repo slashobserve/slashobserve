@@ -20,17 +20,38 @@ func TestHealthRowsListOneRowPerProblem(t *testing.T) {
 				{Kind: "variable_failed", Variable: strPtr("pod")},
 				{Kind: "query_failed", PanelID: strPtr("p_err")},
 			},
+			Repair: &healthRepair{State: "running"},
 		},
 		{ID: "d2", Title: "Old\x1b[31m", Folder: healthFolder{Title: "General"}, Problems: []healthProblem{{Kind: "unopened"}}},
 	})
 	want := [][]string{
-		{"d1", "Checkout", "Shop", "no_data", "Requests (p_rps)", "2026-11-06T03:00Z"},
-		{"d1", "Checkout", "Shop", "variable_failed", "$pod", "2026-11-06T03:00Z"},
-		{"d1", "Checkout", "Shop", "query_failed", "p_err", "2026-11-06T03:00Z"},
-		{"d2", "Old [31m", "General", "unopened", "-", "-"},
+		{"d1", "Checkout", "Shop", "no_data", "Requests (p_rps)", "2026-11-06T03:00Z", "repair running"},
+		{"d1", "Checkout", "Shop", "variable_failed", "$pod", "2026-11-06T03:00Z", "repair running"},
+		{"d1", "Checkout", "Shop", "query_failed", "p_err", "2026-11-06T03:00Z", "repair running"},
+		{"d2", "Old [31m", "General", "unopened", "-", "-", "-"},
 	}
 	if !slices.EqualFunc(rows, want, slices.Equal[[]string]) {
 		t.Errorf("rows = %q\nwant %q", rows, want)
+	}
+}
+
+func TestRepairStateSaysWhereTheLatestRepairIs(t *testing.T) {
+	seven := 7
+	cases := []struct {
+		repair *healthRepair
+		want   string
+	}{
+		{nil, "-"},
+		{&healthRepair{State: "queued"}, "repair queued"},
+		{&healthRepair{State: "running"}, "repair running"},
+		{&healthRepair{State: "succeeded", Version: &seven}, "repaired in version 7"},
+		{&healthRepair{State: "failed", Error: strPtr("the agent could not\x1b[31m fix it")}, "repair failed: the agent could not [31m fix it"},
+		{&healthRepair{State: "failed"}, "repair failed"},
+	}
+	for _, c := range cases {
+		if got := repairState(c.repair); got != c.want {
+			t.Errorf("repairState(%+v) = %q, want %q", c.repair, got, c.want)
+		}
 	}
 }
 
