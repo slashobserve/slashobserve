@@ -98,19 +98,9 @@ func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r dat
 	lim := d.opts.Limits.Tighten(q.Limits)
 	ctx, cancel := bound(ctx, lim.Timeout)
 	defer cancel()
-	exp, err := macros.Expand(macros.TraceQL, q.Text, macros.Env{
-		Range:     r,
-		Interval:  max(time.Second, (r.To.Sub(r.From) / 1000).Truncate(time.Second), q.MinInterval),
-		Variables: q.Variables,
-		Dashboard: q.Dashboard,
-		User:      q.User,
-	})
+	text, err := expandQuery(q, r)
 	if err != nil {
 		return nil, err
-	}
-	text := strings.TrimSpace(exp.Text)
-	if text == "" {
-		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "%s", emptyQuery)
 	}
 	if id, ok := traceIDOf(text); ok {
 		f, err := d.trace(ctx, id, r, lim.MaxRows)
@@ -136,19 +126,62 @@ func traceIDOf(text string) (string, bool) {
 	return strings.ToLower(text), true
 }
 
+func expandQuery(q datasource.Query, r datasource.TimeRange) (string, error) {
+	exp, err := macros.Expand(macros.TraceQL, q.Text, macros.Env{
+		Range:     r,
+		Interval:  max(time.Second, (r.To.Sub(r.From) / 1000).Truncate(time.Second), q.MinInterval),
+		Variables: q.Variables,
+		Dashboard: q.Dashboard,
+		User:      q.User,
+	})
+	if err != nil {
+		return "", err
+	}
+	text := strings.TrimSpace(exp.Text)
+	if text == "" {
+		return "", datasource.Errorf(datasource.ErrInvalidQuery, "%s", emptyQuery)
+	}
+	return text, nil
+}
+
 func (d *Datasource) search(ctx context.Context, text string, r datasource.TimeRange, lim datasource.Limits) ([]datasource.Frame, error) {
+	rows, metrics, err := d.searchRows(ctx, text, r, lim.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) > lim.MaxRows {
+		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "row limit exceeded: more than %d traces", lim.MaxRows)
+	}
+	if len(rows) == 0 {
+		return []datasource.Frame{}, nil
+	}
+	f := traceFrame(rows)
+	if truncated, partial := len(rows) == lim.MaxRows, metrics.partial(); truncated || partial || metrics.TotalJobs > 0 {
+		f.Meta = searchMeta(metrics, truncated)
+	}
+	return []datasource.Frame{f}, nil
+}
+
+func searchMeta(metrics searchMetrics, truncated bool) *datasource.FrameMeta {
+	return &datasource.FrameMeta{
+		Truncated:      truncated,
+		Partial:        metrics.partial(),
+		JobsDone:       metrics.CompletedJobs,
+		JobsTotal:      metrics.TotalJobs,
+		InspectedBytes: metrics.inspectedBytes(),
+	}
+}
+
+func (d *Datasource) searchRows(ctx context.Context, text string, r datasource.TimeRange, limit int) ([]spanRow, searchMetrics, error) {
 	params := url.Values{
 		"q":     {text},
 		"start": {strconv.FormatInt(r.From.Unix(), 10)},
 		"end":   {strconv.FormatInt(ceilSeconds(r.To), 10)},
-		"limit": {strconv.Itoa(lim.MaxRows)},
+		"limit": {strconv.Itoa(limit)},
 	}
 	var resp searchResponse
 	if err := d.getJSON(ctx, "/api/search", params, &resp); err != nil {
-		return nil, err
-	}
-	if len(resp.Traces) > lim.MaxRows {
-		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "row limit exceeded: more than %d traces", lim.MaxRows)
+		return nil, searchMetrics{}, err
 	}
 	rows := make([]spanRow, 0, len(resp.Traces))
 	for _, t := range resp.Traces {
@@ -174,23 +207,10 @@ func (d *Datasource) search(ctx context.Context, text string, r datasource.TimeR
 		}
 		rows = append(rows, row)
 	}
-	if len(rows) == 0 {
-		return []datasource.Frame{}, nil
-	}
 	slices.SortStableFunc(rows, func(a, b spanRow) int {
 		return cmp.Or(b.start.Compare(a.start), strings.Compare(a.traceID, b.traceID))
 	})
-	f := traceFrame(rows)
-	if truncated, partial := len(rows) == lim.MaxRows, resp.Metrics.partial(); truncated || partial || resp.Metrics.TotalJobs > 0 {
-		f.Meta = &datasource.FrameMeta{
-			Truncated:      truncated,
-			Partial:        partial,
-			JobsDone:       resp.Metrics.CompletedJobs,
-			JobsTotal:      resp.Metrics.TotalJobs,
-			InspectedBytes: resp.Metrics.inspectedBytes(),
-		}
-	}
-	return []datasource.Frame{f}, nil
+	return rows, resp.Metrics, nil
 }
 
 func ceilSeconds(t time.Time) int64 {
