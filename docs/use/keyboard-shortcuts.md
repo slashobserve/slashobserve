@@ -1,6 +1,6 @@
 ---
 title: Keyboard shortcuts
-description: The keys that view, edit and inspect a panel, move the time range, refresh a dashboard and start TV mode, where to see them in the app, and the keys of the logs page.
+description: The keys that view, edit and inspect a panel, move the time range, refresh a dashboard and start TV mode, where to see them in the app, and the keys of the logs page and the trace search.
 ---
 
 A dashboard answers a few keys, the same ones Grafana uses.
@@ -50,3 +50,13 @@ The logs page answers two keys of its own, described in [Logs and traces](logs-a
 | --- | --- |
 | `⌘I` or `Ctrl+I` | Switch between Ask and Query, from anywhere on the page. |
 | `⌘Enter` or `Ctrl+Enter` | Run the query, from the query editor. |
+
+## Trace search keys
+
+The trace search answers keys of its own too, described in [Logs and traces](logs-and-traces.md).
+
+| Keys | What they do |
+| --- | --- |
+| `⌘I` or `Ctrl+I` | Switch between Ask and Query, from anywhere on the page. |
+| `Enter` | Ask the question, or run the search from Service, Span name or a duration field. |
+| `Shift+Enter` | Add a line to the question. |
