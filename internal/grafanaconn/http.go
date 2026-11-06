@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
@@ -369,11 +369,11 @@ func (h *Handler) resolve(c *gin.Context) {
 		h.fail(c, "resolve grafana uid", err)
 		return
 	}
-	c.JSON(http.StatusOK, resolvedJSON{DashboardID: id.String(), URL: dashboardPath(id)})
+	c.JSON(http.StatusOK, resolvedJSON{DashboardID: id.String(), URL: dashboardPath(id.String())})
 }
 
-func dashboardPath(id pgtype.UUID) string {
-	return "/dashboards/" + id.String()
+func dashboardPath(id string) string {
+	return links.Dashboard(nil, id, "")
 }
 
 func (h *Handler) fail(c *gin.Context, action string, err error) {
