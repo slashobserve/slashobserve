@@ -1,4 +1,5 @@
 import type { ExploreParams } from "@/api/keys"
+import { defaultPageSize } from "@/lib/paging"
 import { matcherInsert } from "@/panel-editor/insert-text"
 
 import type { Selection } from "./scatter"
@@ -212,12 +213,10 @@ export function clickhouseTraceSearch(form: TraceForm): string {
   const conditions = clickhouseConditions(form, "otel_traces.")
     .map((condition) => ` AND ${condition}`)
     .join("")
-  return `SELECT TraceId, min(Timestamp) AS StartTime, argMax(otel_traces.ServiceName, otel_traces.Duration) AS ServiceName, argMax(otel_traces.SpanName, otel_traces.Duration) AS SpanName, max(otel_traces.Duration) AS Duration, count() AS Spans, countIf(${clickhouseErrorStatus}) AS Errors
+  return `SELECT TraceId, min(otel_traces.Timestamp) AS StartTime, min(otel_traces.Timestamp) AS Timestamp, argMax(otel_traces.ServiceName, otel_traces.Duration) AS ServiceName, argMax(otel_traces.SpanName, otel_traces.Duration) AS SpanName, max(otel_traces.Duration) AS Duration, count() AS Spans, countIf(${clickhouseErrorStatus}) AS Errors
 FROM otel_traces
-WHERE $__timeFilter(Timestamp)${conditions}
-GROUP BY TraceId
-ORDER BY StartTime DESC
-LIMIT 100`
+WHERE $__timeFilter(otel_traces.Timestamp)${conditions}
+GROUP BY TraceId`
 }
 
 export function traceStatsFilter(type: string, search: TraceSearch): string {
@@ -225,8 +224,6 @@ export function traceStatsFilter(type: string, search: TraceSearch): string {
   if (type === "tempo") return search.q ?? traceQLFor(form)
   return clickhouseConditions(form, "").join(" AND ")
 }
-
-const traceSearchRows = 100
 
 export function traceSearchParams(
   type: string,
@@ -240,6 +237,14 @@ export function traceSearchParams(
         : clickhouseTraceSearch(form),
     kind: "instant",
     ...tracesTimeRange(search),
-    limit: traceSearchRows,
+    pageSize: search.size ?? defaultPageSize,
+    page: search.page ?? 1,
   }
+}
+
+export function traceSearchParamsWithCursor(
+  params: ExploreParams,
+  cursor: string | undefined
+): ExploreParams {
+  return cursor === undefined ? params : { ...params, cursor }
 }

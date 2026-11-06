@@ -34,7 +34,6 @@ import {
   type TraceSortKey,
 } from "./trace-rows"
 
-const pageSize = 20
 const rowsP95Label = "p95 of these traces"
 
 type Column = {
@@ -301,7 +300,6 @@ function SortedTraceTable({
 } & TraceP95 &
   TraceSelection) {
   const [sort, setSort] = useState<TraceSort | null>(defaultTraceSort)
-  const [shown, setShown] = useState(pageSize)
   const [highlighted, setHighlighted] = useState<string | null>(null)
   const listed = useMemo(
     () => (selection === null ? rows : selectedRows(rows, selection)),
@@ -327,7 +325,11 @@ function SortedTraceTable({
       (column.key !== "spans" || spans) &&
       (column.key !== "errors" || status)
   )
-  const visible = sorted.slice(0, shown)
+  const footer =
+    footerNote ??
+    (p95 === null
+      ? null
+      : `The tick on each bar is the ${durationText(p95)} ${p95Label}.`)
   const plotted =
     window !== null &&
     rows.some((row) => row.start !== null && row.durationMs !== null)
@@ -368,7 +370,9 @@ function SortedTraceTable({
             {rows.length.toLocaleString("en")}.
           </p>
         ) : null}
-        <p className="text-muted-foreground">{sortHint(sort)}</p>
+        <p className="text-muted-foreground">
+          {sortHint(sort)} Sorting applies to this page.
+        </p>
         <ColumnsMenu hidden={hidden} onToggle={onToggleColumn} />
       </div>
       <TableCard label="Traces" stackOnNarrow minWidth={760}>
@@ -385,7 +389,7 @@ function SortedTraceTable({
           </tr>
         </thead>
         <tbody onPointerLeave={() => setHighlighted(null)}>
-          {visible.map((row) => (
+          {sorted.map((row) => (
             <tr
               key={row.traceId}
               onPointerEnter={() => setHighlighted(row.traceId)}
@@ -410,26 +414,9 @@ function SortedTraceTable({
           ))}
         </tbody>
       </TableCard>
-      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-        <p>
-          {Math.min(shown, listed.length)} of {listed.length} traces shown.
-          {footerNote !== undefined
-            ? ` ${footerNote}`
-            : p95 !== null
-              ? ` The tick on each bar is the ${durationText(p95)} ${p95Label}.`
-              : null}
-        </p>
-        {shown < listed.length ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            onClick={() => setShown((count) => count + pageSize)}
-          >
-            Show {pageSize} more
-          </Button>
-        ) : null}
-      </div>
+      {footer !== null ? (
+        <p className="text-xs text-muted-foreground">{footer}</p>
+      ) : null}
     </div>
   )
 }

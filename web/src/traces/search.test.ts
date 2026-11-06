@@ -37,6 +37,33 @@ describe("validateTraceSearch", () => {
     expect(validateTraceSearch(raw)[key]).toBeUndefined()
   })
 
+  it.each([
+    ["a page and size from the address", { page: "3", size: "100" }, 3, 100],
+    ["a page and size already numbers", { page: 2, size: 250 }, 2, 250],
+    [
+      "page 1 and the default size as absent",
+      { page: "1", size: "50" },
+      undefined,
+      undefined,
+    ],
+    [
+      "an invalid page and size",
+      { page: "0", size: "75" },
+      undefined,
+      undefined,
+    ],
+    [
+      "a page that is not a whole number",
+      { page: "1.5", size: "x" },
+      undefined,
+      undefined,
+    ],
+  ])("reads %s", (_, raw, page, size) => {
+    const search = validateTraceSearch(raw)
+    expect(search.page).toBe(page)
+    expect(search.size).toBe(size)
+  })
+
   it("defaults the search range to the last hour", () => {
     expect(tracesTimeRange(validateTraceSearch({ from: "now-1d" }))).toEqual({
       from: "now-1h",
