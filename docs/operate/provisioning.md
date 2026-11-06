@@ -12,6 +12,7 @@ The server reads the directory once at startup and then checks it every 30 secon
 Each file whose name ends in `.json` is one dashboard, written as an [ObserveSpec](../concepts/observespec.md) document.
 A file directly in the directory goes to General.
 A file in a subdirectory goes to the folder named like its first subdirectory, which is created when no folder has that title; `team/payments/api.json` goes to the `team` folder too, because folders are flat.
+A directory name cannot hold `/`, so a folder title is written with `%` as `%25` and `/` as `%2F`, and nothing else changes: the directory `Team %2F Payments` is the folder `Team / Payments`.
 A subdirectory named General or My Dashboards, or one whose name is not a valid folder title, puts its files in General.
 Files and directories whose names start with `.` are skipped, so `.git` is never read, and files with other extensions are ignored.
 
