@@ -451,15 +451,6 @@ function LogsWorkspace({
   const notRunId = `${ids}-not-run`
   const editorShown =
     mode === "query" || answer !== null || fromQuestion !== null
-  const modeToggle = (
-    <div className="absolute top-2 right-2 z-10">
-      <InputModeToggle
-        mode={mode}
-        agentAvailable={agentAvailable}
-        onChange={switchMode}
-      />
-    </div>
-  )
 
   return (
     <>
@@ -509,26 +500,33 @@ function LogsWorkspace({
         }
       />
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <ExploreDatasourcePicker
-            id={`${ids}-datasource`}
-            types={logsDatasourceTypes}
-            value={uid}
-            onChange={(next) =>
-              update({ ds: next, q: undefined, ask: undefined })
-            }
-            label="Datasource"
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <InputModeToggle
+            mode={mode}
+            agentAvailable={agentAvailable}
+            onChange={switchMode}
           />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            aria-expanded={browserOpen}
-            aria-controls={`${ids}-labels`}
-            onClick={() => setBrowserOpen((open) => !open)}
-          >
-            Label browser
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <ExploreDatasourcePicker
+              id={`${ids}-datasource`}
+              types={logsDatasourceTypes}
+              value={uid}
+              onChange={(next) =>
+                update({ ds: next, q: undefined, ask: undefined })
+              }
+              label="Datasource"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-expanded={browserOpen}
+              aria-controls={`${ids}-labels`}
+              onClick={() => setBrowserOpen((open) => !open)}
+            >
+              Label browser
+            </Button>
+          </div>
         </div>
         {browserOpen ? (
           <div
@@ -547,8 +545,7 @@ function LogsWorkspace({
           </div>
         ) : null}
         {mode === "ask" ? (
-          <div className="relative">
-            {modeToggle}
+          <div className="[&_textarea]:pr-2.5">
             <AskField
               ref={askFieldRef}
               signal="logs"
@@ -603,26 +600,17 @@ function LogsWorkspace({
         {editorShown ? (
           <div
             onKeyDownCapture={onEditorKeyDown}
-            className="relative rounded-card border border-border"
+            className={cn(mode === "ask" && "[&_.cm-editor]:max-h-44!")}
           >
-            {mode === "query" ? modeToggle : null}
-            <div
-              className={cn(
-                mode === "query"
-                  ? "[&_.cm-content]:pr-36!"
-                  : "[&_.cm-editor]:max-h-44!"
-              )}
-            >
-              <CodeEditor
-                value={draft}
-                onChange={onDraftChange}
-                datasource={{ type, uid }}
-                readOnly={false}
-                ariaLabel="Log query"
-                onLint={ignoreLint}
-                editorRef={editorRef}
-              />
-            </div>
+            <CodeEditor
+              value={draft}
+              onChange={onDraftChange}
+              datasource={{ type, uid }}
+              readOnly={false}
+              ariaLabel="Log query"
+              onLint={ignoreLint}
+              editorRef={editorRef}
+            />
           </div>
         ) : null}
         {draftProblem ? (
@@ -631,15 +619,19 @@ function LogsWorkspace({
           </p>
         ) : null}
         {editorShown ? (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
               variant={mode === "ask" ? "outline" : "default"}
               title="Run query (Ctrl+Enter or Cmd+Enter)"
+              aria-keyshortcuts="Control+Enter Meta+Enter"
               onClick={run}
             >
               Run query
             </Button>
+            <span className="text-xs text-muted-foreground">
+              or press Ctrl+Enter or Cmd+Enter
+            </span>
           </div>
         ) : null}
         {tail.error ? (
