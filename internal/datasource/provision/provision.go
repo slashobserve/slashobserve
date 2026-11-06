@@ -9,6 +9,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/clickhouse"
+	"github.com/slashobserve/slashobserve/internal/datasource/elasticsearch"
 	"github.com/slashobserve/slashobserve/internal/datasource/loki"
 	"github.com/slashobserve/slashobserve/internal/datasource/prometheus"
 	"github.com/slashobserve/slashobserve/internal/datasource/tempo"
@@ -128,7 +129,38 @@ func build(src config.Datasource) (datasource.Datasource, error) {
 			return nil, err
 		}
 		return ds, nil
+	case src.Elasticsearch != nil:
+		return newSearch(elasticsearch.Elasticsearch, src.Elasticsearch, src.Limits)
+	case src.OpenSearch != nil:
+		return newSearch(elasticsearch.OpenSearch, src.OpenSearch, src.Limits)
 	default:
 		return nil, errors.New("no datasource block configured")
 	}
+}
+
+func newSearch(flavor elasticsearch.Flavor, s *config.SearchDatasource, limits datasource.Limits) (datasource.Datasource, error) {
+	ds, err := elasticsearch.New(elasticsearch.Options{
+		Flavor:            flavor,
+		URL:               s.URL,
+		Headers:           mergeHeaders(s.Headers, s.SecretHeaders),
+		BasicAuthUser:     s.BasicAuthUser,
+		BasicAuthPassword: s.BasicAuthPassword,
+		BearerToken:       s.BearerToken,
+		APIKey:            s.APIKey,
+		Index:             s.Index,
+		TimeField:         s.TimeField,
+		QueryLanguage:     s.QueryLanguage,
+		Fields: elasticsearch.FieldRoles{
+			Message: s.Fields.Message,
+			Level:   s.Fields.Level,
+			Service: s.Fields.Service,
+			TraceID: s.Fields.TraceID,
+			SpanID:  s.Fields.SpanID,
+		},
+		Limits: limits,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return ds, nil
 }
