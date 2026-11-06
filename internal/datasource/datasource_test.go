@@ -2,6 +2,8 @@ package datasource_test
 
 import (
 	"errors"
+	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -81,5 +83,54 @@ func TestFrameIsSeries(t *testing.T) {
 				t.Fatalf("IsSeries = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestSortFacetsOrdersExactLowCardinalityFieldsAndTopValuesFirst(t *testing.T) {
+	f := datasource.Facets{Fields: []datasource.FacetField{
+		{Name: "pod", Kind: "field", Cardinality: 2},
+		{Name: "route", Kind: "field", Cardinality: 2},
+		{Name: "service_name", Kind: "label", Exact: true, Cardinality: 3, Values: []datasource.FacetValue{
+			{Value: "checkout", Count: 9931}, {Value: "frontend", Count: 48210}, {Value: "cart", Count: 9931},
+		}},
+		{Name: "level", Kind: "label", Exact: true, Cardinality: 1},
+		{Name: "http_request_method", Kind: "field", Cardinality: 1},
+	}}
+	datasource.SortFacets(&f)
+	var names []string
+	for _, field := range f.Fields {
+		names = append(names, field.Name)
+	}
+	if want := []string{"level", "service_name", "http_request_method", "pod", "route"}; !slices.Equal(names, want) {
+		t.Fatalf("fields = %v, want %v", names, want)
+	}
+	if want := []datasource.FacetValue{{Value: "frontend", Count: 48210}, {Value: "cart", Count: 9931}, {Value: "checkout", Count: 9931}}; !slices.Equal(f.Fields[1].Values, want) {
+		t.Fatalf("values = %v, want %v", f.Fields[1].Values, want)
+	}
+}
+
+func TestTrimFacetsCapsFieldsAndValuesAndSaysSo(t *testing.T) {
+	values := func(n int) []datasource.FacetValue {
+		out := make([]datasource.FacetValue, n)
+		for i := range out {
+			out[i] = datasource.FacetValue{Value: strconv.Itoa(i), Count: int64(n - i)}
+		}
+		return out
+	}
+	f := datasource.Facets{Fields: []datasource.FacetField{{Name: "a", Values: values(3)}, {Name: "b", Values: values(2)}, {Name: "c"}}}
+	datasource.TrimFacets(&f, 2, 2)
+	if len(f.Fields) != 2 || !f.Truncated {
+		t.Fatalf("fields = %+v, truncated %v", f.Fields, f.Truncated)
+	}
+	if a := f.Fields[0]; len(a.Values) != 2 || !a.Truncated {
+		t.Fatalf("field a = %+v", a)
+	}
+	if b := f.Fields[1]; len(b.Values) != 2 || b.Truncated {
+		t.Fatalf("field b = %+v", b)
+	}
+	same := datasource.Facets{Fields: []datasource.FacetField{{Name: "a", Values: values(2)}}}
+	datasource.TrimFacets(&same, 1, 2)
+	if same.Truncated || same.Fields[0].Truncated {
+		t.Fatalf("a facet within the caps was marked truncated: %+v", same)
 	}
 }
