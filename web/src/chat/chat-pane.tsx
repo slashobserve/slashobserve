@@ -3,6 +3,8 @@ import { useId, useRef } from "react"
 import { useActivityStore, useChatPaneLayout } from "@/activity/activity-store"
 import { DockHeader } from "@/components/dock/dock-header"
 import { DockPanel } from "@/components/dock/dock-panel"
+import { runStateText } from "@/observe/build-page-model"
+import { useObserveRequest } from "@/observe/queries"
 
 import { Conversation } from "./conversation"
 
@@ -17,6 +19,7 @@ export function ChatPane({
   const setChatWidth = useActivityStore((state) => state.setChatWidth)
   const headingId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
+  const request = useObserveRequest(requestId).data
   return (
     <DockPanel
       labelledBy={headingId}
@@ -29,6 +32,7 @@ export function ChatPane({
         headingId={headingId}
         headingRef={heading}
         title="Chat"
+        description={request === undefined ? undefined : runStateText(request)}
         onClose={onClose}
         closeLabel="Close panel"
       />
