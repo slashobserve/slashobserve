@@ -159,11 +159,6 @@ export function AskField({
           ) : null}
           {pending ? "Writing query" : "Ask"}
         </Button>
-        {pending ? (
-          <Button type="button" variant="ghost" onClick={onCancel}>
-            Cancel
-          </Button>
-        ) : null}
       </div>
     </div>
   )
