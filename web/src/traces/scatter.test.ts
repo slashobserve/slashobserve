@@ -5,8 +5,7 @@ import {
   durationTicks,
   durationTickText,
   scatterPoints,
-  timeTicks,
-  timeTickText,
+  windowTicks,
 } from "./scatter"
 import type { TraceRow } from "./trace-rows"
 
@@ -104,32 +103,21 @@ describe("scatterPoints", () => {
   })
 })
 
-describe("timeTicks", () => {
+describe("windowTicks", () => {
   it("picks the finest step that fits the tick budget, aligned to the step", () => {
     const start = Date.UTC(2026, 10, 7, 13, 17)
-    const end = Date.UTC(2026, 10, 7, 14, 17)
-    const ticks = timeTicks({ start, end }, 6)
-    expect(ticks).toEqual([
+    const end = Date.UTC(2026, 10, 7, 13, 47)
+    expect(windowTicks({ start, end }, 6)).toEqual([
       Date.UTC(2026, 10, 7, 13, 20),
+      Date.UTC(2026, 10, 7, 13, 25),
       Date.UTC(2026, 10, 7, 13, 30),
+      Date.UTC(2026, 10, 7, 13, 35),
       Date.UTC(2026, 10, 7, 13, 40),
-      Date.UTC(2026, 10, 7, 13, 50),
-      Date.UTC(2026, 10, 7, 14, 0),
-      Date.UTC(2026, 10, 7, 14, 10),
+      Date.UTC(2026, 10, 7, 13, 45),
     ])
   })
 
   it("is empty for an empty range", () => {
-    expect(timeTicks({ start: 5, end: 5 }, 6)).toEqual([])
-  })
-})
-
-describe("timeTickText", () => {
-  it("shows the clock time inside a day and the date beyond it", () => {
-    const at = Date.UTC(2026, 10, 7, 13, 20)
-    const hour = { start: at, end: at + 3_600_000 }
-    const week = { start: at, end: at + 7 * 86_400_000 }
-    expect(timeTickText(at, hour)).toMatch(/^\d\d:\d\d$/)
-    expect(timeTickText(at, week)).toMatch(/^\d\d-\d\d \d\d:\d\d$/)
+    expect(windowTicks({ start: 5, end: 5 }, 6)).toEqual([])
   })
 })

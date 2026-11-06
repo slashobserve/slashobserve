@@ -87,13 +87,8 @@ export function openTraceLabel(row: TraceRow): string {
 }
 
 export type TraceSortKey =
-  | "start"
-  | "service"
-  | "span"
-  | "duration"
-  | "spans"
-  | "errors"
-export type TraceSortDirection = "ascending" | "descending"
+  "start" | "service" | "span" | "duration" | "spans" | "errors"
+type TraceSortDirection = "ascending" | "descending"
 export type TraceSort = { key: TraceSortKey; direction: TraceSortDirection }
 
 export const defaultTraceSort: TraceSort = {
@@ -101,7 +96,10 @@ export const defaultTraceSort: TraceSort = {
   direction: "descending",
 }
 
-const sortValues: Record<TraceSortKey, (row: TraceRow) => number | string | null> = {
+const sortValues: Record<
+  TraceSortKey,
+  (row: TraceRow) => number | string | null
+> = {
   start: (row) => row.start,
   service: (row) => row.service || null,
   span: (row) => row.span || null,

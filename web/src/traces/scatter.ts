@@ -1,5 +1,3 @@
-import { zonedDateTime } from "@/lib/time"
-
 import type { TraceRow } from "./trace-rows"
 
 export type ScatterPoint = {
@@ -84,24 +82,20 @@ const timeSteps = [
   7 * day,
 ]
 
-export function timeTicks(range: TimeWindow, maxTicks: number): number[] {
+export function windowTicks(range: TimeWindow, maxTicks: number): number[] {
   const span = range.end - range.start
   if (!(span > 0)) return []
   const step =
     timeSteps.find((candidate) => span / candidate <= maxTicks) ??
     timeSteps[timeSteps.length - 1]!
+  const offset = -new Date(range.start).getTimezoneOffset() * minute
   const ticks: number[] = []
   for (
-    let tick = Math.ceil(range.start / step) * step;
+    let tick = Math.ceil((range.start + offset) / step) * step - offset;
     tick <= range.end;
     tick += step
   ) {
     ticks.push(tick)
   }
   return ticks
-}
-
-export function timeTickText(ms: number, range: TimeWindow): string {
-  const text = zonedDateTime(ms, undefined)
-  return range.end - range.start > day ? text.slice(5, 16) : text.slice(11, 16)
 }

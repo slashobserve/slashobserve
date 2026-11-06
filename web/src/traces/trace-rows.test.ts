@@ -268,7 +268,10 @@ describe("sortTraceRows", () => {
 
 describe("nextSort", () => {
   it("opens slowest first and cycles duration through descending, ascending, none", () => {
-    expect(defaultTraceSort).toEqual({ key: "duration", direction: "descending" })
+    expect(defaultTraceSort).toEqual({
+      key: "duration",
+      direction: "descending",
+    })
     const first = nextSort(null, "duration")
     expect(first).toEqual({ key: "duration", direction: "descending" })
     const second = nextSort(first, "duration")
