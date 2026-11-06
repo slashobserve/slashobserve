@@ -132,10 +132,11 @@ Without a model, the page stays out of Ask, and the Ask segment is disabled and 
 
 ## Context around a line
 
-Open a line and choose **Context** to see the 50 lines before it and the 50 lines after it.
+Open a line and choose **Context** (**Surrounding documents** on Elasticsearch and OpenSearch) to see the 50 lines before it and the 50 lines after it, with the line itself marked between them.
 The server reads both sides in one request, anchored on the line's nanosecond time, so the context is exact: the lines just before are the newest ones older than the line, the lines just after are the oldest ones newer than it, within an hour on each side.
-The lines come from the same query the page ran.
-Each side says when more lines exist in its hour than it shows.
+The lines come from the same stream labels on Loki, the same `ServiceName` on ClickHouse, and the whole index on Elasticsearch and OpenSearch.
+When more lines exist on a side than it shows, **Load 10 older** or **Load 10 newer** adds 10 to that side, up to 500.
+**Window** widens the search from an hour to 10 minutes or 24 hours, and a side with nothing in the window says so.
 On an Elasticsearch or OpenSearch time field of type `date`, which keeps milliseconds, context is exact to the millisecond, and the lines in the anchor's own millisecond are left out on both sides.
 Scripts call the same endpoint, `POST /api/v1/datasources/{uid}/log-context`, with the line's `TimeNs` as `anchor`.
 
