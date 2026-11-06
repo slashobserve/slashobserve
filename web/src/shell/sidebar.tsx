@@ -75,12 +75,12 @@ function HomeLink({
       aria-label="/observe home"
       aria-current={undefined}
       className={cn(
-        "mb-3.5 flex min-h-[34px] items-center rounded-control px-2.5 no-underline",
+        "mb-3.5 flex items-center rounded-control no-underline",
         focusRing,
-        collapsed && "justify-center px-0"
+        collapsed ? "h-8 justify-center" : "min-h-[34px] px-2.5"
       )}
     >
-      {collapsed ? <Mark size={18} /> : <Wordmark size={17} />}
+      {collapsed ? <Mark size={16} /> : <Wordmark size={17} />}
     </a>
   )
 }
