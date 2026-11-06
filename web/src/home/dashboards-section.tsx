@@ -59,6 +59,7 @@ export function DashboardsSection() {
         </Link>
       </div>
       <div className="flex flex-col gap-3">
+        <DashboardSearch />
         {stars.isPending ? (
           <PendingRows />
         ) : stars.isError ? (
@@ -100,7 +101,7 @@ export function DashboardsSection() {
           <PendingRows />
         ) : first.data === undefined ? null : (
           <DashboardRows
-            label="Start here"
+            label="Suggested"
             rows={first.data.map((dashboard) => ({
               id: dashboard.id,
               title: dashboard.title,
@@ -108,7 +109,6 @@ export function DashboardsSection() {
             }))}
           />
         )}
-        <DashboardSearch />
       </div>
     </section>
   )

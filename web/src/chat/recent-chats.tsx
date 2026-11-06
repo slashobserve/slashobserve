@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router"
+import { useNavigate } from "@tanstack/react-router"
 import { useId } from "react"
 import { LayoutDashboardIcon } from "lucide-react"
 
@@ -21,20 +21,12 @@ export function RecentChats() {
 
   return (
     <section aria-labelledby={headingId} className="mt-7 w-full max-w-[720px]">
-      <div className="flex items-center justify-between px-0.5 pb-2">
-        <h2
-          id={headingId}
-          className="text-[13px] font-medium text-muted-foreground"
-        >
-          Recent chats
-        </h2>
-        <Link
-          to="/dashboards"
-          className="rounded-control text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          All dashboards
-        </Link>
-      </div>
+      <h2
+        id={headingId}
+        className="px-0.5 pb-2 text-[13px] font-medium text-muted-foreground"
+      >
+        Recent chats
+      </h2>
       {failed ? (
         <div className="flex items-center gap-3 rounded-card border bg-background px-3.5 py-2.5">
           <p className="text-xs text-muted-foreground">

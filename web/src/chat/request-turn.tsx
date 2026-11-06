@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { Link, useRouteContext } from "@tanstack/react-router"
+import { useRouteContext } from "@tanstack/react-router"
 import { useState } from "react"
 
 import { AgentMark } from "@/components/agent-mark"
@@ -132,6 +132,7 @@ export function RequestTurn({
   const steps = live?.steps ?? []
   const savedBuild =
     request.status === "failed" && request.build_saved_at !== null
+  const inPane = opensRunsIn === "build"
 
   useSettledRefresh({
     active,
@@ -197,6 +198,8 @@ export function RequestTurn({
                 steps={steps}
                 working={showsWorkingRow(request, stalled)}
                 reconnecting={reconnecting}
+                requestId={summary.id}
+                pane={inPane}
               />
               {request.status === "running" ? (
                 <RunningFor startedAt={request.started_at} />
@@ -221,12 +224,14 @@ export function RequestTurn({
                       tookText(request.started_at, request.finished_at)
                     )}
               </summary>
-              <div className="pt-2.5 pl-0.5">
+              <div className="flex flex-col gap-2.5 pt-2.5 pl-0.5">
                 {live !== undefined ? (
                   <StepTimeline
                     steps={steps}
                     working={false}
                     reconnecting={false}
+                    requestId={summary.id}
+                    pane={inPane}
                   />
                 ) : query.isError ? (
                   <div className="flex flex-wrap items-center gap-3 text-[13px] text-muted-foreground">
@@ -294,13 +299,6 @@ export function RequestTurn({
               compact={buildOnScreen}
             />
           ) : null}
-          <Link
-            to="/c/$requestId"
-            params={{ requestId: summary.id }}
-            className="self-start rounded-control text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Request {shortRequestId(summary.id)}
-          </Link>
         </div>
       </div>
     </section>

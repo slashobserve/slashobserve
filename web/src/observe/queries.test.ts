@@ -176,22 +176,25 @@ describe("requestStatusView", () => {
     })
   })
 
-  it("shows a succeeded request with the dashboard title", () => {
+  it("shows a succeeded request with its saved version", () => {
     expect(
       requestStatusView({
         ...base,
         status: "succeeded",
         dashboard_title: "Checkout health",
-        result_version: 1,
+        result_version: 3,
       })
-    ).toEqual({ tone: "ok", text: "Checkout health" })
+    ).toEqual({ tone: "ok", text: "Saved version 3" })
   })
 
-  it("falls back to a generic saved text without a title", () => {
-    expect(requestStatusView({ ...base, status: "succeeded" })).toEqual({
-      tone: "ok",
-      text: "Dashboard saved",
-    })
+  it("shows a succeeded request without a version as saved", () => {
+    expect(
+      requestStatusView({
+        ...base,
+        status: "succeeded",
+        dashboard_title: "Checkout health",
+      })
+    ).toEqual({ tone: "ok", text: "Saved" })
   })
 
   it("shows a failed request with the error as a sentence", () => {

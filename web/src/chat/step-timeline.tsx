@@ -1,6 +1,9 @@
+import { Link } from "@tanstack/react-router"
 import { useId, useState } from "react"
 
+import { CopyButton } from "@/components/copy-button"
 import { StatusIcon } from "@/components/status-label"
+import { shortRequestId } from "@/observe/conversation"
 import {
   timelinePhases,
   type Step,
@@ -23,6 +26,8 @@ type Props = {
   working: boolean
   reconnecting: boolean
   latest?: number
+  requestId?: string
+  pane?: boolean
 }
 
 function toolText(tools: readonly ToolCount[]): string {
@@ -40,6 +45,31 @@ function StepMessages({ id, steps }: { id?: string; steps: Step[] }) {
         </li>
       ))}
     </ul>
+  )
+}
+
+function RequestIdLine({ id, pane }: { id: string; pane: boolean }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+      <span className="font-mono">Request {shortRequestId(id)}</span>
+      <CopyButton
+        variant="ghost"
+        size="icon-xs"
+        text={id}
+        label="Copy request ID"
+      />
+      {pane ? (
+        <Link
+          to="/c/$requestId"
+          params={{ requestId: id }}
+          target="_blank"
+          rel="noopener"
+          className="rounded-control outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Open in a new tab
+        </Link>
+      ) : null}
+    </div>
   )
 }
 
@@ -97,7 +127,14 @@ function PhaseItem({
   )
 }
 
-export function StepTimeline({ steps, working, reconnecting, latest }: Props) {
+export function StepTimeline({
+  steps,
+  working,
+  reconnecting,
+  latest,
+  requestId,
+  pane = false,
+}: Props) {
   const [expanded, setExpanded] = useState(noneExpanded)
   const [showAll, setShowAll] = useState(false)
   const runs = timelinePhases(steps)
@@ -150,6 +187,9 @@ export function StepTimeline({ steps, working, reconnecting, latest }: Props) {
           Show all steps
         </button>
       ) : null}
+      {requestId === undefined ? null : (
+        <RequestIdLine id={requestId} pane={pane} />
+      )}
     </>
   )
 }
