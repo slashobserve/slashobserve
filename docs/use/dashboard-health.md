@@ -57,8 +57,41 @@ It checks the dashboards that are due, as the hourly run does, and when a run is
 
 ## API
 
-`GET /api/v1/health` lists the dashboards with a problem in folders the caller can see, most recently updated first.
-It takes `folder_id`, `kind` (one of the kinds above), `limit` (up to 100) and `cursor`, and answers the state of the job beside the list:
+`GET /api/v1/health` lists the dashboards with a problem in folders the caller can see.
+It takes `folder_id`, `kind` (one of the kinds above), `limit` (up to 100) and `cursor`, and answers the state of the job beside the list.
+
+The list is ranked, so the dashboards most worth fixing come first:
+
+| Rank | Dashboards |
+| --- | --- |
+| 0 | a `query_failed` or `variable_failed` problem |
+| 1 | a `no_data` problem |
+| 2 | a `duplicate_title` problem |
+| 3 | only `unopened` |
+
+Inside a rank, the most recently opened dashboard comes first, never-opened dashboards come last, and ties go by title.
+A `kind` filter keeps each dashboard's rank, so the same order holds inside one kind.
+`next_cursor` pages through that order.
+A cursor from an older server, which ordered by last update, answers 400 `invalid_request`, and the client starts again from the first page.
+
+The first page, sent without `cursor`, carries `summary`, and later pages have `summary` set to null.
+Each count in it is of dashboards, not problems, over every dashboard in the folders the caller can see, narrowed by `folder_id` and never by `kind` or the page:
+
+| Count | Dashboards |
+| --- | --- |
+| `dashboards` | with any problem |
+| `failing` | with a `query_failed` or `variable_failed` problem |
+| `query_failed`, `variable_failed`, `no_data` | with that problem |
+| `duplicate_titles` | with a `duplicate_title` problem |
+| `unopened` | with an `unopened` problem |
+
+Each dashboard carries `repair`, its latest health repair whatever its age, or null when it never had one.
+Its `state` is `queued`, `running`, `succeeded` or `failed`.
+`version` is the version a succeeded repair saved, `error` is the sentence a failed repair ended with, and both are null in the other states.
+`updated_at` is when the repair finished, else when it started, else when it was queued.
+`request_id` is the revision request, which `GET /api/v1/dashboards/{id}/revisions/{revision_id}` reads.
+
+```json
 
 ```json
 {
@@ -82,10 +115,26 @@ It takes `folder_id`, `kind` (one of the kinds above), `limit` (up to 100) and `
           "code": "query_empty",
           "message": "query returned no data for the dashboard's default time range and variable values"
         }
-      ]
+      ],
+      "repair": {
+        "state": "succeeded",
+        "request_id": "0a1b2c3d-0000-4000-8000-0000000000a1",
+        "version": 5,
+        "error": null,
+        "updated_at": "2026-11-06T03:12:40Z"
+      }
     }
   ],
   "next_cursor": null,
+  "summary": {
+    "dashboards": 1,
+    "failing": 0,
+    "query_failed": 0,
+    "variable_failed": 0,
+    "no_data": 1,
+    "duplicate_titles": 0,
+    "unopened": 0
+  },
   "job": {
     "last_started_at": "2026-11-06T03:00:00Z",
     "last_finished_at": "2026-11-06T03:04:31Z",
@@ -102,10 +151,12 @@ It answers 503 `agent_unavailable` when no LLM provider is configured.
 
 ## From the CLI
 
-`observe health` lists the same problems in a terminal, `observe health repair <dashboard-id>...` queues repairs and `observe health run` starts a check; see [CLI](cli.md).
+`observe health` lists the same problems in a terminal, in the same ranked order, `observe health repair <dashboard-id>...` queues repairs and `observe health run` starts a check; see [CLI](cli.md).
+Its `REPAIR` column shows each dashboard's latest health repair: `repair queued`, `repair running`, `repaired in version N`, `repair failed: <error>`, `repair failed` when the failure has no sentence, or `-` when it never had one.
 
 ## From MCP clients
 
-MCP clients call `list_dashboard_health` with a Viewer key or higher: it takes `folder_id`, `kind`, `limit` (up to 50) and `cursor`, and answers the same dashboards and problems with the state of the job.
+MCP clients call `list_dashboard_health` with a Viewer key or higher: it takes `folder_id`, `kind`, `limit` (up to 50) and `cursor`, and answers the same dashboards and problems in the same ranked order, with the state of the job.
+The first page also carries the same `summary` counts, and each dashboard with a health repair carries its `state`, with `version` when it succeeded and `error` when it failed.
 A client fixes a failing panel with its own model, reading the panel with `get_panels` and saving the fix with `update_panels`, so the repair needs no LLM provider on the server.
 See [MCP](mcp.md).
