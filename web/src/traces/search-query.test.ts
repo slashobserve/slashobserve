@@ -9,6 +9,7 @@ import {
   traceQLAttribute,
   traceQLFor,
   traceSearchParams,
+  traceSearchParamsWithCursor,
   traceStatsFilter,
   withDurationBounds,
   type TraceForm,
@@ -74,14 +75,18 @@ describe("traceQLFor", () => {
 })
 
 describe("clickhouseTraceSearch", () => {
-  it("lists the newest traces without conditions", () => {
+  it("selects the per-trace start as Timestamp and leaves ordering and limits to the pager", () => {
+    const query = clickhouseTraceSearch(empty)
+    expect(query).toContain("min(otel_traces.Timestamp) AS Timestamp")
+    expect(query).not.toMatch(/ORDER BY|LIMIT/)
+  })
+
+  it("lists the traces without conditions", () => {
     expect(clickhouseTraceSearch(empty))
-      .toBe(`SELECT TraceId, min(Timestamp) AS StartTime, argMax(otel_traces.ServiceName, otel_traces.Duration) AS ServiceName, argMax(otel_traces.SpanName, otel_traces.Duration) AS SpanName, max(otel_traces.Duration) AS Duration, count() AS Spans, countIf(lower(StatusCode) IN ('error', 'status_code_error')) AS Errors
+      .toBe(`SELECT TraceId, min(otel_traces.Timestamp) AS StartTime, min(otel_traces.Timestamp) AS Timestamp, argMax(otel_traces.ServiceName, otel_traces.Duration) AS ServiceName, argMax(otel_traces.SpanName, otel_traces.Duration) AS SpanName, max(otel_traces.Duration) AS Duration, count() AS Spans, countIf(lower(StatusCode) IN ('error', 'status_code_error')) AS Errors
 FROM otel_traces
-WHERE $__timeFilter(Timestamp)
-GROUP BY TraceId
-ORDER BY StartTime DESC
-LIMIT 100`)
+WHERE $__timeFilter(otel_traces.Timestamp)
+GROUP BY TraceId`)
   })
 
   it("adds every condition with durations in nanoseconds and escaped quotes", () => {
@@ -94,12 +99,10 @@ LIMIT 100`)
         errors: true,
       })
     )
-      .toBe(`SELECT TraceId, min(Timestamp) AS StartTime, argMax(otel_traces.ServiceName, otel_traces.Duration) AS ServiceName, argMax(otel_traces.SpanName, otel_traces.Duration) AS SpanName, max(otel_traces.Duration) AS Duration, count() AS Spans, countIf(lower(StatusCode) IN ('error', 'status_code_error')) AS Errors
+      .toBe(`SELECT TraceId, min(otel_traces.Timestamp) AS StartTime, min(otel_traces.Timestamp) AS Timestamp, argMax(otel_traces.ServiceName, otel_traces.Duration) AS ServiceName, argMax(otel_traces.SpanName, otel_traces.Duration) AS SpanName, max(otel_traces.Duration) AS Duration, count() AS Spans, countIf(lower(StatusCode) IN ('error', 'status_code_error')) AS Errors
 FROM otel_traces
-WHERE $__timeFilter(Timestamp) AND otel_traces.ServiceName = 'o\\'neil' AND otel_traces.SpanName = 'pay' AND otel_traces.Duration >= 250000000 AND otel_traces.Duration <= 1500000000 AND lower(StatusCode) IN ('error', 'status_code_error')
-GROUP BY TraceId
-ORDER BY StartTime DESC
-LIMIT 100`)
+WHERE $__timeFilter(otel_traces.Timestamp) AND otel_traces.ServiceName = 'o\\'neil' AND otel_traces.SpanName = 'pay' AND otel_traces.Duration >= 250000000 AND otel_traces.Duration <= 1500000000 AND lower(StatusCode) IN ('error', 'status_code_error')
+GROUP BY TraceId`)
   })
 })
 
@@ -115,8 +118,15 @@ describe("traceSearchParams", () => {
       kind: "instant",
       from: "now-1h",
       to: "now",
-      limit: 100,
+      pageSize: 50,
+      page: 1,
     })
+  })
+
+  it("asks for the page and size in the address and never a limit", () => {
+    const params = traceSearchParams("clickhouse", { page: 3, size: 250 })
+    expect(params).toMatchObject({ pageSize: 250, page: 3 })
+    expect(params).not.toHaveProperty("limit")
   })
 
   it("builds TraceQL from the fields when none is written", () => {
@@ -361,5 +371,20 @@ describe("attributeFilter", () => {
     expect(
       attributeFilter("clickhouse", {}, "span.payments.provider", "acquirer-b")
     ).toBeNull()
+  })
+})
+
+describe("traceSearchParamsWithCursor", () => {
+  const params = traceSearchParams("tempo", { page: 2 })
+
+  it("adds the cursor of the page before", () => {
+    expect(traceSearchParamsWithCursor(params, "abc")).toEqual({
+      ...params,
+      cursor: "abc",
+    })
+  })
+
+  it("leaves the first page without a cursor", () => {
+    expect(traceSearchParamsWithCursor(params, undefined)).toBe(params)
   })
 })

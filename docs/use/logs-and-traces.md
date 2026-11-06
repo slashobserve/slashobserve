@@ -166,23 +166,25 @@ The page opens on the last datasource you used in this browser, else Tempo when 
 Durations take a number and a unit, such as `250ms` or `1.5s`.
 On Tempo you can also write TraceQL, which replaces the fields.
 Press **Search traces**, or Enter in Service, Span name or a duration field, to run it; Enter in the TraceQL field adds a line.
-The page shows at most 100 traces; a count line above the results says how many were found, and when the list is cut it says the newest 100 are shown.
+A count line above the results says how many traces are on the page.
 A scatter above the table plots each trace's duration over time on a log scale, red for traces with errors, with the p95 as a dashed line; a dot opens its trace on click, and hovering a dot highlights its row.
 That p95 is of every trace the search matches in the range, not only the listed ones: the page asks the server for the duration distribution of the matching spans and reads the p95 as the upper edge of the bucket that holds it, so a service filter changes it.
 While that answer is loading, or when it fails, the line and the ticks fall back to the p95 of the listed traces, and a failed answer shows a warning icon beside the count line with the reason.
 The table opens slowest first, and a column header sorts by that column, ascending, descending, then back to the original order.
 Each row shows **Root service**, **Root span**, **Duration** with a bar scaled to the slowest trace shown and a tick at the same p95 as the scatter's line, **Spans**, **Errors** and **Started**, which opens the trace.
-**Columns** hides a column, and **Show 20 more** extends the list, which starts at 20 rows.
+**Columns** hides a column.
 **Errors** reads OK, or Failed with the number of error spans.
 **Spans** and **Errors** show only when every row carries the count.
-ClickHouse lists the newest 100 traces with a matching span, shows each trace's longest matching span, and counts only the matching spans.
+ClickHouse lists the newest traces with a matching span, shows each trace's longest matching span, and counts only the matching spans.
 Tempo shows the root span of each trace, and sums the span and error span counts from Tempo's per-service stats; when Tempo does not report those stats, both columns are left out.
 When Tempo stopped searching at its time limit, a note says older traces may be missing and which times the found traces cover, with **Keep only** to narrow the range to them.
 On a phone the table becomes a list.
 
-The results page 100 traces at a time, and the page size goes from 50 to 500.
-On ClickHouse the page shows the exact count of matching traces and jumps to any page number.
-On Tempo the pages follow time, newest first, so the count reads "at least N" until the last page makes it exact, a page is reached through the page before it, and the count is unknown while a search is partial.
+The table pages 50 traces at a time, and the bar under it sets 50, 100, 250 or 500 per page.
+ClickHouse offers numbered pages and an exact total of matching traces.
+Tempo pages by start time from the last trace shown, with **Previous** and **Next** and a running total that reads "at least N" until the last page makes it exact, and no total while a search is partial.
+The page and size are in the address as `page` and `size`, and sorting a column sorts only the traces on the current page.
+A Tempo address beyond page 1 reopens on page 1 with a note, because a Tempo page is reached through the page before it.
 
 Drag across the duration scatter to select traces by time and duration; the dots outside the selection fade, and the selection's start, end and duration floor are handles that the arrow keys move.
 The table then shows only the selection, and **Keep only the selection** turns it into the search: the time range and the duration bounds go into the fields, or on Tempo into the written TraceQL, where the button is disabled when the query has no spanset to add them to.

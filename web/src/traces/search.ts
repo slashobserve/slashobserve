@@ -7,6 +7,13 @@ import {
   validRange,
 } from "@/logs/search"
 
+import {
+  defaultPageSize,
+  validPage,
+  validPageSize,
+  type PageSize,
+} from "@/lib/paging"
+
 import { parseDuration } from "./search-query"
 
 export type TraceSearch = {
@@ -20,6 +27,8 @@ export type TraceSearch = {
   ask?: string
   from?: string
   to?: string
+  page?: number
+  size?: PageSize
 }
 
 export type TraceFormSearch = Pick<
@@ -62,6 +71,10 @@ function validDuration(value: unknown): string | undefined {
   return text !== undefined && parseDuration(text) !== null ? text : undefined
 }
 
+function unlessStandard<T>(value: T | undefined, standard: T): T | undefined {
+  return value === standard ? undefined : value
+}
+
 export function validateTraceSearch(raw: Record<string, unknown>): TraceSearch {
   return {
     ds: validDatasource(raw.ds),
@@ -73,6 +86,8 @@ export function validateTraceSearch(raw: Record<string, unknown>): TraceSearch {
     q: validQuery(raw.q),
     ask: validAsk(raw.ask),
     ...validRange(raw),
+    page: unlessStandard(validPage(raw.page), 1),
+    size: unlessStandard(validPageSize(raw.size), defaultPageSize),
   }
 }
 

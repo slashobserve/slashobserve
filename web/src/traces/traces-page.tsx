@@ -8,6 +8,7 @@ import { nextMode, useInputMode, type InputMode } from "@/ask/input-mode"
 import { InputModeToggle } from "@/ask/input-mode-toggle"
 import { useAsk } from "@/ask/use-ask"
 import { useInputModeShortcut } from "@/ask/use-input-mode-shortcut"
+import { PageBar } from "@/components/page-bar"
 import { PageHeader } from "@/components/page-header"
 import { StatusLabel } from "@/components/status-label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -18,15 +19,23 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import type { PanelDataResponse } from "@/dashboards/queries"
 import { TimeRangeControl } from "@/dashboards/time-range-picker"
 import {
   rememberDatasource,
   rememberedDatasource,
 } from "@/datasources/datasource-memory"
 import { useDatasources, type DatasourceStatus } from "@/datasources/queries"
+import {
+  defaultPageSize,
+  pagesByOffset,
+  pageStateOf,
+  type PageSize,
+} from "@/lib/paging"
 import { isModEnter } from "@/lib/shortcuts"
 import { lowerFirst } from "@/lib/text"
 import { describeRange } from "@/lib/time"
+import { usePageCursors } from "@/lib/use-page-cursors"
 import {
   eligibleDatasources,
   ExploreDatasourcePicker,
@@ -46,6 +55,7 @@ import {
   attributeFilter,
   keepSelectionSearch,
   traceSearchParams,
+  traceSearchParamsWithCursor,
   traceStatsFilter,
 } from "./search-query"
 import { TraceSearchForm } from "./trace-search-form"
@@ -62,13 +72,24 @@ const skeletonRows = [0, 1, 2, 3, 4]
 const askPlaceholder =
   "Ask in plain language, like: checkout requests slower than 2s with errors"
 
+const tempoPagingNote =
+  "Tempo pages by start time from the last trace shown, so there is no page count."
+
 type FocusRequest = { target: InputMode; count: number }
+
+type UpdateSearch = (
+  next: Partial<TraceSearch>,
+  options?: { replace?: boolean }
+) => void
 
 function useTraceSearch() {
   const search = useSearch({ from: "/_authed/_shell/traces" })
   const navigate = useNavigate({ from: "/traces" })
-  const update = (next: Partial<TraceSearch>) =>
-    void navigate({ search: (state) => ({ ...state, ...next }) })
+  const update: UpdateSearch = (next, options) =>
+    void navigate({
+      search: (state) => ({ ...state, page: undefined, ...next }),
+      replace: options?.replace,
+    })
   return { search, update }
 }
 
@@ -165,7 +186,7 @@ function TraceSearchWorkspace({
 }: {
   datasource: DatasourceStatus
   search: TraceSearch
-  update: (next: Partial<TraceSearch>) => void
+  update: UpdateSearch
 }) {
   const formId = useId()
   const uid = datasource.uid
@@ -358,6 +379,8 @@ function ResultSkeleton() {
   )
 }
 
+type LoadedPage = { scope: string; data: PanelDataResponse }
+
 function TraceResults({
   datasource,
   search,
@@ -365,10 +388,29 @@ function TraceResults({
 }: {
   datasource: DatasourceStatus
   search: TraceSearch
-  update: (next: Partial<TraceSearch>) => void
+  update: UpdateSearch
 }) {
   const range = tracesTimeRange(search)
-  const params = traceSearchParams(datasource.type, search)
+  const byOffset = pagesByOffset(datasource.type)
+  const pageSize: PageSize = search.size ?? defaultPageSize
+  const base = traceSearchParams(datasource.type, {
+    ...search,
+    page: undefined,
+  })
+  const scope = JSON.stringify([
+    datasource.uid,
+    base.query,
+    base.from,
+    base.to,
+    pageSize,
+  ])
+  const cursors = usePageCursors(scope, byOffset)
+  const requested = search.page ?? 1
+  const page = cursors.reachable(requested) ? requested : 1
+  const params = traceSearchParamsWithCursor(
+    { ...base, page },
+    byOffset ? undefined : cursors.cursorFor(page)
+  )
   const results = useQuery(exploreQuery(datasource.uid, params))
   const stats = useQuery(
     traceStatsQuery(datasource.uid, {
@@ -376,37 +418,88 @@ function TraceResults({
       ...range,
     })
   )
+  const [lastGood, setLastGood] = useState<LoadedPage | null>(null)
+  const [lost, setLost] = useState<{ scope: string; page: number } | null>(null)
+  const fresh =
+    results.data !== undefined && !results.isPlaceholderData
+      ? results.data
+      : undefined
+  if (fresh !== undefined && lastGood?.data !== fresh) {
+    setLastGood({ scope, data: fresh })
+  }
+  if (page !== requested && lost?.scope !== scope) {
+    setLost({ scope, page: requested })
+  }
+  const nextCursor = fresh?.meta.page?.next
+  const freshPage = fresh?.meta.page?.page
+  const { remember } = cursors
 
-  if (results.fetchStatus === "paused" && !results.data) {
+  useEffect(() => {
+    if (page !== requested) update({ page: undefined }, { replace: true })
+  }, [page, requested, update])
+
+  useEffect(() => {
+    if (freshPage !== undefined) remember(freshPage, nextCursor)
+  }, [freshPage, nextCursor, remember])
+
+  const data =
+    results.data ??
+    (results.isError && lastGood?.scope === scope ? lastGood.data : undefined)
+
+  if (results.fetchStatus === "paused" && !data) {
     return <p className="text-[13px] text-muted-foreground">{offlineText}</p>
   }
-  if (results.isError) {
-    return (
-      <Alert variant="destructive">
-        <AlertDescription className="flex flex-col items-start gap-2">
-          {exploreErrorText(results.error)}
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            onClick={() => void results.refetch()}
-          >
-            Retry
-          </Button>
-        </AlertDescription>
-      </Alert>
-    )
-  }
-  if (!results.data) return <ResultSkeleton />
-  const rows = traceRows(results.data.frames)
+  const failure = results.isError ? (
+    <Alert variant="destructive">
+      <AlertDescription className="flex flex-col items-start gap-2">
+        {exploreErrorText(results.error)}
+        <Button
+          type="button"
+          variant="outline"
+          size="xs"
+          onClick={() => void results.refetch()}
+        >
+          Retry
+        </Button>
+      </AlertDescription>
+    </Alert>
+  ) : null
+  if (!data) return failure ?? <ResultSkeleton />
+  const rows = traceRows(data.frames)
+  const meta = data.meta
+  const state = pageStateOf(meta.page, rows.length, byOffset, {
+    page,
+    pageSize,
+    truncated: meta.truncated,
+  })
+  const pageBar = (
+    <PageBar
+      state={state}
+      noun="traces"
+      qualifier=" in range"
+      note={datasource.type === "tempo" ? tempoPagingNote : undefined}
+      label="Trace pages"
+      busy={results.isFetching}
+      onPage={(next) => {
+        setLost(null)
+        update({ page: next })
+      }}
+      onPageSize={(size) =>
+        update({ size: size === defaultPageSize ? undefined : size })
+      }
+    />
+  )
   if (rows.length === 0) {
     return (
-      <p className="text-[13px] text-muted-foreground">
-        No traces match in {lowerFirst(describeRange(range.from, range.to))}.
-      </p>
+      <div className="flex flex-col gap-2">
+        {failure}
+        <p className="text-[13px] text-muted-foreground">
+          No traces match in {lowerFirst(describeRange(range.from, range.to))}.
+        </p>
+        {state.hasPrev ? pageBar : null}
+      </div>
     )
   }
-  const meta = results.data.meta
   const p95 =
     stats.data === undefined || stats.isError
       ? undefined
@@ -415,13 +508,14 @@ function TraceResults({
   const covered = meta.partial ? partialNote(rows, undefined) : null
   return (
     <div className="flex flex-col gap-2">
+      {failure}
+      {lost !== null && lost.scope === scope ? (
+        <p role="status" className="text-[13px] text-muted-foreground">
+          Page {lost.page} could not be restored; showing page 1
+        </p>
+      ) : null}
       <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-        <span>
-          {countText(meta.rows, "trace")}
-          {meta.truncated
-            ? ". Showing the newest 100 traces. Narrow the search."
-            : null}
-        </span>
+        <span>{countText(meta.rows, "trace")}</span>
         {stats.isError ? (
           <Tooltip>
             <TooltipTrigger
@@ -461,7 +555,7 @@ function TraceResults({
         </Alert>
       ) : null}
       <SelectableTraceTable
-        key={JSON.stringify(params)}
+        key={`${scope}:${state.page}`}
         datasource={datasource}
         search={search}
         update={update}
@@ -469,6 +563,7 @@ function TraceResults({
         p95={p95}
         label={label}
       />
+      {pageBar}
     </div>
   )
 }
@@ -518,7 +613,7 @@ function SelectableTraceTable({
 }: {
   datasource: DatasourceStatus
   search: TraceSearch
-  update: (next: Partial<TraceSearch>) => void
+  update: UpdateSearch
   rows: TraceRow[]
   p95: number | null | undefined
   label: string
