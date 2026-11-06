@@ -63,8 +63,8 @@ type macroDef struct {
 }
 
 var (
-	allDatasources = []DatasourceType{Prometheus, ClickHouse, Loki, Tempo}
-	promQLLike     = []DatasourceType{Prometheus, Loki, Tempo}
+	allDatasources = []DatasourceType{Prometheus, ClickHouse, Loki, Tempo, Elasticsearch, OpenSearch}
+	promQLLike     = []DatasourceType{Prometheus, Loki, Tempo, Elasticsearch, OpenSearch}
 	clickHouseOnly = []DatasourceType{ClickHouse}
 )
 

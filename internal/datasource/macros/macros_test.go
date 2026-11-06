@@ -122,6 +122,49 @@ func TestPromQLVariables(t *testing.T) {
 	})
 }
 
+func TestSearchVariables(t *testing.T) {
+	adhoc := datasource.Variable{Name: "f", Adhoc: true, Filters: []datasource.AdhocFilter{{Key: "a", Op: "=", Value: "b"}}}
+	runExpandCases(t, []expandCase{
+		{name: "one value in code is quoted", d: macros.Elasticsearch, query: `service.name:$svc`, env: envWith(val("svc", "checkout")), want: `service.name:"checkout"`},
+		{name: "two values in code become an or group", d: macros.Elasticsearch, query: `service.name:$svc`, env: envWith(val("svc", "a", "b")), want: `service.name:("a" or "b")`},
+		{name: "all with values in code", d: macros.Elasticsearch, query: `service.name:$svc`, env: envWith(all("svc", "a", "b")), want: `service.name:("a" or "b")`},
+		{name: "quote and backslash are escaped in code", d: macros.Elasticsearch, query: `message:${m}`, env: envWith(val("m", `a"b\c`)), want: `message:"a\"b\\c"`},
+		{name: "opensearch shares the rules", d: macros.OpenSearch, query: `service.name:$svc`, env: envWith(val("svc", "a", "b")), want: `service.name:("a" or "b")`},
+		{name: "one value inside a string", d: macros.Elasticsearch, query: `message:"$x"`, env: envWith(val("x", `it "quoted"`)), want: `message:"it \"quoted\""`},
+		{name: "two values inside a string are refused", d: macros.Elasticsearch, query: `message:"$x"`, env: envWith(val("x", "a", "b")), err: true},
+		{name: "pipe format inside a string", d: macros.Elasticsearch, query: `message:"${x:pipe}"`, env: envWith(val("x", "a", "b")), want: `message:"a|b"`},
+		{name: "csv format in code checks each value", d: macros.Elasticsearch, query: `fields:${x:csv}`, env: envWith(val("x", "a", "b.c")), want: `fields:a,b.c`},
+		{name: "csv format in code refuses a space", d: macros.Elasticsearch, query: `fields:${x:csv}`, env: envWith(val("x", "a b")), err: true},
+		{name: "wildcard allValue in code", d: macros.Elasticsearch, query: `service.name:$svc`, env: envWith(datasource.Variable{Name: "svc", Values: []string{"*"}, AllValue: true}), want: `service.name:*`},
+		{name: "no value selected", d: macros.Elasticsearch, query: `service.name:$svc`, env: envWith(val("svc")), err: true},
+		{name: "unknown variable", d: macros.Elasticsearch, query: `service.name:$svc`, env: envWith(), err: true},
+		{name: "control character in a value", d: macros.Elasticsearch, query: `service.name:$svc`, env: envWith(val("svc", "a\nb")), err: true},
+		{name: "adhoc variable is refused", d: macros.Elasticsearch, query: `$f and status:200`, env: envWith(adhoc), err: true},
+		{name: "unterminated string", d: macros.Elasticsearch, query: `message:"$x`, env: envWith(val("x", "a")), err: true},
+		{name: "escaped quote does not end the string", d: macros.Elasticsearch, query: `message:"a\" $x" and $y`, env: envWith(val("x", "b"), val("y", "c")), want: `message:"a\" b" and "c"`},
+		{name: "single quotes are code", d: macros.Elasticsearch, query: `message:'$x'`, env: envWith(val("x", "b")), want: `message:'"b"'`},
+		{name: "hash is not a comment", d: macros.Elasticsearch, query: `tag:#$x`, env: envWith(val("x", "b")), want: `tag:#"b"`},
+		{name: "regex format in code is refused", d: macros.Elasticsearch, query: `a:${x:regex}`, env: envWith(val("x", "b")), err: true},
+	})
+}
+
+func TestSearchMacros(t *testing.T) {
+	env := macros.Env{Range: testRange, Interval: 30 * time.Second, Dashboard: "Checkout", User: datasource.QueryUser{Login: "ada"}}
+	from, to := strconv.FormatInt(testRange.From.UnixMilli(), 10), strconv.FormatInt(testRange.To.UnixMilli(), 10)
+	runExpandCases(t, []expandCase{
+		{name: "interval", d: macros.Elasticsearch, query: `$__interval`, env: env, want: `30s`},
+		{name: "interval ms", d: macros.OpenSearch, query: `$__interval_ms`, env: env, want: `30000`},
+		{name: "range", d: macros.Elasticsearch, query: `$__range`, env: env, want: `21600s`},
+		{name: "range seconds", d: macros.Elasticsearch, query: `$__range_s`, env: env, want: `21600`},
+		{name: "from and to are epoch milliseconds", d: macros.Elasticsearch, query: `@timestamp >= $__from and @timestamp <= $__to`, env: env, want: `@timestamp >= ` + from + ` and @timestamp <= ` + to},
+		{name: "to with a date format", d: macros.Elasticsearch, query: `@timestamp <= "${__to:date:seconds}"`, env: env, want: `@timestamp <= "` + strconv.FormatInt(testRange.To.Unix(), 10) + `"`},
+		{name: "dashboard in code is quoted", d: macros.Elasticsearch, query: `dashboard:$__dashboard`, env: env, want: `dashboard:"Checkout"`},
+		{name: "user login in a string", d: macros.OpenSearch, query: `user:"${__user.login}"`, env: env, want: `user:"ada"`},
+		{name: "rate interval is prometheus only", d: macros.Elasticsearch, query: `$__rate_interval`, env: env, err: true},
+		{name: "clickhouse macro is unknown", d: macros.Elasticsearch, query: `$__timeFilter(ts)`, env: env, err: true},
+	})
+}
+
 func TestClickHouseVariables(t *testing.T) {
 	runExpandCases(t, []expandCase{
 		{name: "code default sqlstring single", d: macros.ClickHouse, query: `SELECT 1 WHERE svc IN ($svc)`, env: envWith(val("svc", "it's")), want: `SELECT 1 WHERE svc IN ('it''s')`},
@@ -347,6 +390,8 @@ func TestEveryValueMacroOfTheTableExpands(t *testing.T) {
 	}{
 		{"promql", macros.PromQL, spec.Prometheus, func(m string) string { return `up{a="` + m + `"}` }},
 		{"clickhouse", macros.ClickHouse, spec.ClickHouse, func(m string) string { return "SELECT '" + m + "'" }},
+		{"elasticsearch", macros.Elasticsearch, spec.Elasticsearch, func(m string) string { return `message:"` + m + `"` }},
+		{"opensearch", macros.OpenSearch, spec.OpenSearch, func(m string) string { return `message:"` + m + `"` }},
 	}
 	for _, d := range dialects {
 		for _, m := range spec.Macros(d.ds) {

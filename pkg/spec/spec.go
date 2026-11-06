@@ -22,10 +22,12 @@ const (
 type DatasourceType string
 
 const (
-	Prometheus DatasourceType = "prometheus"
-	ClickHouse DatasourceType = "clickhouse"
-	Loki       DatasourceType = "loki"
-	Tempo      DatasourceType = "tempo"
+	Prometheus    DatasourceType = "prometheus"
+	ClickHouse    DatasourceType = "clickhouse"
+	Loki          DatasourceType = "loki"
+	Tempo         DatasourceType = "tempo"
+	Elasticsearch DatasourceType = "elasticsearch"
+	OpenSearch    DatasourceType = "opensearch"
 )
 
 type WeekStart string

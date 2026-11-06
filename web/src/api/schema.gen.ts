@@ -2512,6 +2512,10 @@ export interface components {
             uid: string;
             type: string;
             name: string;
+            /** @description The index pattern an Elasticsearch or OpenSearch datasource reads; absent on other types. */
+            index?: string;
+            /** @description The time field of an Elasticsearch or OpenSearch datasource; absent on other types. */
+            time_field?: string;
             healthy: boolean;
             message?: string;
             /**

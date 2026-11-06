@@ -24,14 +24,22 @@ const (
 
 	overflowSuffix = "( overflow )"
 
-	typePrometheus = "prometheus"
-	typeClickHouse = "clickhouse"
-	typeLoki       = "loki"
-	typeTempo      = "tempo"
+	typePrometheus    = "prometheus"
+	typeClickHouse    = "clickhouse"
+	typeLoki          = "loki"
+	typeTempo         = "tempo"
+	typeElasticsearch = "elasticsearch"
+	typeOpenSearch    = "opensearch"
 
 	maxGrafanaUIDs     = 20
 	maxGrafanaUIDBytes = 100
+
+	maxIndexBytes     = 1024
+	maxFieldNameBytes = 256
+	allIndices        = "_all"
 )
+
+var queryLanguages = []string{"kql", "lucene"}
 
 type Datasource struct {
 	UID, Type, Name string
@@ -40,6 +48,8 @@ type Datasource struct {
 	ClickHouse      *ClickHouseDatasource
 	Loki            *LokiDatasource
 	Tempo           *TempoDatasource
+	Elasticsearch   *SearchDatasource
+	OpenSearch      *SearchDatasource
 	Limits          datasource.Limits
 }
 
@@ -71,6 +81,19 @@ type TempoDatasource struct {
 	HTTPConnection
 }
 
+type SearchDatasource struct {
+	HTTPConnection
+	APIKey        datasource.Secret
+	Index         string
+	TimeField     string
+	QueryLanguage string
+	Fields        FieldRoles
+}
+
+type FieldRoles struct {
+	Message, Level, Service, TraceID, SpanID string
+}
+
 type ClickHouseDatasource struct {
 	Addr, Database, Username string
 	Password                 datasource.Secret
@@ -82,15 +105,17 @@ type datasourcesFile struct {
 }
 
 type fileDatasource struct {
-	UID         yamlString      `yaml:"uid"`
-	Type        string          `yaml:"type"`
-	Name        yamlString      `yaml:"name"`
-	GrafanaUIDs []yamlString    `yaml:"grafanaUids"`
-	Prometheus  *filePrometheus `yaml:"prometheus"`
-	ClickHouse  *fileClickHouse `yaml:"clickhouse"`
-	Loki        *fileLoki       `yaml:"loki"`
-	Tempo       *fileHTTP       `yaml:"tempo"`
-	Limits      fileLimits      `yaml:"limits"`
+	UID           yamlString      `yaml:"uid"`
+	Type          string          `yaml:"type"`
+	Name          yamlString      `yaml:"name"`
+	GrafanaUIDs   []yamlString    `yaml:"grafanaUids"`
+	Prometheus    *filePrometheus `yaml:"prometheus"`
+	ClickHouse    *fileClickHouse `yaml:"clickhouse"`
+	Loki          *fileLoki       `yaml:"loki"`
+	Tempo         *fileHTTP       `yaml:"tempo"`
+	Elasticsearch *fileSearch     `yaml:"elasticsearch"`
+	OpenSearch    *fileSearch     `yaml:"opensearch"`
+	Limits        fileLimits      `yaml:"limits"`
 }
 
 type yamlString struct {
@@ -123,6 +148,24 @@ type filePrometheus struct {
 type fileLoki struct {
 	HTTP     fileHTTP `yaml:",inline"`
 	TenantID string   `yaml:"tenantId"`
+}
+
+type fileSearch struct {
+	HTTP          fileHTTP       `yaml:",inline"`
+	Index         string         `yaml:"index"`
+	TimeField     string         `yaml:"timeField"`
+	QueryLanguage string         `yaml:"queryLanguage"`
+	Fields        fileFieldRoles `yaml:"fields"`
+	APIKeyEnv     string         `yaml:"apiKeyEnv"`
+	APIKeyFile    string         `yaml:"apiKeyFile"`
+}
+
+type fileFieldRoles struct {
+	Message string `yaml:"message"`
+	Level   string `yaml:"level"`
+	Service string `yaml:"service"`
+	TraceID string `yaml:"traceId"`
+	SpanID  string `yaml:"spanId"`
 }
 
 type fileHTTP struct {
@@ -301,13 +344,15 @@ func convertDatasource(path string, raw fileDatasource, lookup func(string) (str
 	ds.Limits = limits
 
 	present := map[string]bool{
-		typePrometheus: raw.Prometheus != nil,
-		typeClickHouse: raw.ClickHouse != nil,
-		typeLoki:       raw.Loki != nil,
-		typeTempo:      raw.Tempo != nil,
+		typePrometheus:    raw.Prometheus != nil,
+		typeClickHouse:    raw.ClickHouse != nil,
+		typeLoki:          raw.Loki != nil,
+		typeTempo:         raw.Tempo != nil,
+		typeElasticsearch: raw.Elasticsearch != nil,
+		typeOpenSearch:    raw.OpenSearch != nil,
 	}
 	if _, known := present[raw.Type]; !known {
-		fail("type", "must be %s, %s, %s or %s, got %q", typePrometheus, typeClickHouse, typeLoki, typeTempo, raw.Type)
+		fail("type", "must be %s, %s, %s, %s, %s or %s, got %q", typePrometheus, typeClickHouse, typeLoki, typeTempo, typeElasticsearch, typeOpenSearch, raw.Type)
 		return ds, errs
 	}
 	for _, block := range slices.Sorted(maps.Keys(present)) {
@@ -335,8 +380,84 @@ func convertDatasource(path string, raw fileDatasource, lookup func(string) (str
 	case typeTempo:
 		conn, cErrs := convertHTTP(block, *raw.Tempo, lookup)
 		ds.Tempo, blockErrs = &TempoDatasource{HTTPConnection: conn}, cErrs
+	case typeElasticsearch:
+		s, sErrs := convertSearch(block, *raw.Elasticsearch, lookup)
+		ds.Elasticsearch, blockErrs = &s, sErrs
+	case typeOpenSearch:
+		s, sErrs := convertSearch(block, *raw.OpenSearch, lookup)
+		ds.OpenSearch, blockErrs = &s, sErrs
 	}
 	return ds, append(errs, blockErrs...)
+}
+
+func convertSearch(path string, raw fileSearch, lookup func(string) (string, bool)) (SearchDatasource, []error) {
+	conn, errs := convertHTTP(path, raw.HTTP, lookup)
+	out := SearchDatasource{
+		HTTPConnection: conn,
+		Index:          raw.Index,
+		TimeField:      raw.TimeField,
+		QueryLanguage:  raw.QueryLanguage,
+		Fields:         FieldRoles{Message: raw.Fields.Message, Level: raw.Fields.Level, Service: raw.Fields.Service, TraceID: raw.Fields.TraceID, SpanID: raw.Fields.SpanID},
+	}
+	if problem := indexProblem(raw.Index); problem != "" {
+		errs = append(errs, fmt.Errorf("%s.index: %s", path, problem))
+	}
+	for _, f := range []struct{ field, value string }{
+		{"timeField", raw.TimeField},
+		{"fields.message", raw.Fields.Message},
+		{"fields.level", raw.Fields.Level},
+		{"fields.service", raw.Fields.Service},
+		{"fields.traceId", raw.Fields.TraceID},
+		{"fields.spanId", raw.Fields.SpanID},
+	} {
+		if problem := fieldNameProblem(f.value); problem != "" {
+			errs = append(errs, fmt.Errorf("%s.%s: %s", path, f.field, problem))
+		}
+	}
+	if raw.QueryLanguage != "" && !slices.Contains(queryLanguages, raw.QueryLanguage) {
+		errs = append(errs, fmt.Errorf("%s.queryLanguage: must be %s", path, strings.Join(queryLanguages, " or ")))
+	}
+	hasAPIKey := raw.APIKeyEnv != "" || raw.APIKeyFile != ""
+	if hasAPIKey && raw.HTTP.BasicAuth != nil {
+		errs = append(errs, fmt.Errorf("%s: apiKey and basicAuth are mutually exclusive", path))
+	}
+	if hasAPIKey && (raw.HTTP.BearerTokenEnv != "" || raw.HTTP.BearerTokenFile != "") {
+		errs = append(errs, fmt.Errorf("%s: apiKey and bearerToken are mutually exclusive", path))
+	}
+	if hasAPIKey {
+		secret, secretErrs := resolveSecret(path, "apiKey", raw.APIKeyEnv, raw.APIKeyFile, false, lookup)
+		errs = append(errs, secretErrs...)
+		out.APIKey = secret
+	}
+	return out, errs
+}
+
+func indexProblem(index string) string {
+	switch {
+	case index == "":
+		return "required"
+	case index == allIndices:
+		return "index must name a pattern narrower than " + allIndices
+	case len(index) > maxIndexBytes:
+		return fmt.Sprintf("must be at most %d bytes", maxIndexBytes)
+	case strings.ContainsFunc(index, unicode.IsSpace):
+		return "must not contain whitespace"
+	case index[0] == '-' || index[0] == '_':
+		return "must not start with - or _"
+	}
+	return ""
+}
+
+func fieldNameProblem(name string) string {
+	switch {
+	case name == "":
+		return ""
+	case len(name) > maxFieldNameBytes:
+		return fmt.Sprintf("must be at most %d bytes", maxFieldNameBytes)
+	case strings.ContainsFunc(name, unicode.IsSpace):
+		return "must not contain whitespace"
+	}
+	return ""
 }
 
 type grafanaAlias struct {
