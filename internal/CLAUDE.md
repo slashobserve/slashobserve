@@ -10,6 +10,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `config`: the only reader of `SLASHOBSERVE_*` environment variables (`config.Load`).
 - `logattrs`: turns an error into log attributes that are safe to write.
 - `logvolume`: level words to kinds and the volume histogram the logs volume endpoint returns.
+- `logpatterns`: the pure token masking and line clustering the log patterns endpoint runs when a datasource has no pattern index.
 - `db`: pgx pool, goose `migrations/`, sqlc `queries/`, generated `dbsqlc/`.
   `dbtest` gives each test its own migrated database from one Postgres testcontainer per test binary (`dbtest.Main` in `TestMain`, `dbtest.New(t)`; skipped under `-short`).
 - `tctest`: retry for testcontainers starts that fail on testcontainers-go v0.44.0 reaper (ryuk) start errors; every container start in tests goes through it.
@@ -194,6 +195,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `POST /api/v1/datasources/{uid}/log-facets` (`proxyhttp/facets.go`) and the `log_facets` tool count the top values of a logs query's fields through `datasource.LogFacetSource` (Loki and ClickHouse), a direct datasource call under `DraftLimits` and one upstream slot, in which the adapter fans out at most 4 calls at a time; Loki index labels count bytes from the index volume API and say `unit: bytes`, every other field says whether it is exact or sampled.
 - `POST /api/v1/datasources/{uid}/log-context` (`proxyhttp/context.go`) and the `log_context` tool read the lines just before and just after one line through `datasource.LineSource` (Loki and ClickHouse), anchored on the line's `TimeNs`, as two `Lines` calls at once under `DraftLimits`, each with one upstream slot; the endpoint counts against the explore slots.
   `GET /api/v1/datasources/{uid}/tail` (`tailhttp`) polls the same `Lines` forward from the newest `TimeNs` plus one nanosecond, so a line is sent once.
+- `POST /api/v1/datasources/{uid}/log-patterns` (`proxyhttp/patterns.go`) and the `log_patterns` tool share `Runner.LogPatterns`: a `datasource.LogPatternSource` (Loki, its pattern API, a bare stream selector only) answers `source: loki`, and `ErrNotFound` from it, or no such source (ClickHouse), reads the newest `sample` lines through `LineSource` and clusters them with `logpatterns` as `source: server`; one upstream slot per call, under `DraftLimits`.
 - `spec/examples/time/resolve-cases.json` keeps the Go and TS relative time resolution in step.
 - Variable values reach queries only through `internal/datasource/macros`.
 - A Spec names a datasource by uid or as `${name}` naming a datasource variable.

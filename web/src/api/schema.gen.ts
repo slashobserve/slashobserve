@@ -1064,6 +1064,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasources/{uid}/log-patterns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Group the lines a logs query matches over a range into patterns with counts.
+         * @description A pattern is a line template with the variable tokens replaced by `<*>`, with the number of lines it covers, ordered by count descending then by pattern. On Loki with the pattern ingester enabled and a query that is a bare stream selector, the patterns come from Loki's pattern index over the whole range (`source` `loki`): `count` sums Loki's samples over the range, `first` and `last` are the first and last sample buckets, `sample` is empty and `lines_sampled` is 0. Otherwise, on a Loki without the pattern ingester, a Loki query with filters or stages, or ClickHouse, the server reads the newest `sample` lines of the query and clusters them itself (`source` `server`): `count` is the lines of the sample in that pattern, `sample` the newest of them, `first` and `last` the times of its oldest and newest sampled lines, and `lines_sampled` the lines read. `lines_matched` is the sum of every pattern's count, before the `limit` cut, and `truncated` says more patterns exist than `limit`. The Loki query must be a log query that starts with a stream selector; the ClickHouse query one SELECT that selects `Timestamp` and `Body`, whose top-level `ORDER BY` and `LIMIT` the server replaces. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+         */
+        post: operations["logPatterns"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasources/{uid}/tail": {
         parameters: {
             query?: never;
@@ -2940,6 +2962,33 @@ export interface components {
             frames: components["schemas"]["Frame"][];
             /** @description More lines exist in the window on this side than were asked for. */
             truncated: boolean;
+        };
+        LogPatterns: {
+            /**
+             * @description `loki` when Loki's pattern index answered, `server` when the patterns were computed from a sample of the newest lines.
+             * @enum {string}
+             */
+            source: "loki" | "server";
+            /** @description The lines the server read to compute the patterns; 0 when the datasource's index answered. */
+            lines_sampled: number;
+            /** @description The sum of every pattern's count, before the `limit` cut. */
+            lines_matched: number;
+            /** @description The top patterns by count descending, then by pattern. */
+            patterns: components["schemas"]["LogPattern"][];
+            /** @description More patterns exist than `limit`. */
+            truncated: boolean;
+        };
+        LogPattern: {
+            /** @description The line template, with every variable token written `<*>`. */
+            pattern: string;
+            /** @description The lines the pattern covers, over the range from Loki's index or within the sample. */
+            count: number;
+            /** @description The newest sampled line of the pattern; empty when the index answered. */
+            sample: string;
+            /** @description RFC 3339 time of the first sample bucket or oldest sampled line; empty when the time is unknown. */
+            first: string;
+            /** @description RFC 3339 time of the last sample bucket or newest sampled line; empty when the time is unknown. */
+            last: string;
         };
         PanelData: {
             frames: components["schemas"]["Frame"][];
@@ -7060,6 +7109,106 @@ export interface operations {
             };
             413: components["responses"]["TooLarge"];
             /** @description The query cannot run: `query_invalid` for a Loki metric query, a ClickHouse query without `Timestamp` or with a top-level set operator, or an upstream rejection such as an unknown column; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query; the body carries no `ref`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    logPatterns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The logs query the page runs. */
+                    query: string;
+                    from: string;
+                    to: string;
+                    /** @description The browser's IANA time zone, used to resolve relative times such as `now/d`. */
+                    timezone?: string;
+                    /**
+                     * @description The most patterns to return.
+                     * @default 20
+                     */
+                    limit?: number;
+                    /**
+                     * @description The newest lines to read when the server computes the patterns itself.
+                     * @default 2000
+                     */
+                    sample?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The top patterns of the query over the range. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPatterns"];
+                };
+            };
+            /** @description The request is malformed or fails validation, `limit` or `sample` is out of range, or the datasource is not Loki or ClickHouse (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The query cannot run: `query_invalid` for a Loki metric query, a ClickHouse query that does not select `Timestamp` or `Body`, or an upstream rejection; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query; the body carries no `ref`. */
             422: {
                 headers: {
                     [name: string]: unknown;
