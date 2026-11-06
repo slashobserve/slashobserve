@@ -142,7 +142,6 @@ export function DetailDrawer({
   const traceId = traceIdOf(entry)
   const blocker = contextBlocker(datasource, entry)
   const groups = documentGroups(entry.details)
-  const shownTab: DetailTab = tab === "context" && searchFamily ? "table" : tab
   const description = [
     searchFamily ? indexName(selection) : undefined,
     entry.time === null ? undefined : zonedDateTimeMs(entry.time, undefined),
@@ -206,7 +205,7 @@ export function DetailDrawer({
           </div>
         ) : null}
         <Tabs
-          value={shownTab}
+          value={tab}
           onValueChange={(next) => {
             const chosen = tabs.find((candidate) => candidate === next)
             if (chosen !== undefined) onTabChange(chosen)
@@ -216,9 +215,7 @@ export function DetailDrawer({
           <TabsList variant="line">
             <TabsTrigger value="table">Table</TabsTrigger>
             <TabsTrigger value="json">JSON</TabsTrigger>
-            {searchFamily ? null : (
-              <TabsTrigger value="context">Context</TabsTrigger>
-            )}
+            <TabsTrigger value="context">Context</TabsTrigger>
           </TabsList>
           <TabsContent value="table" className="flex flex-col gap-3">
             <p className="font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap">

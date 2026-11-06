@@ -291,7 +291,7 @@ describe("DetailDrawer", () => {
       within(drawer)
         .getByRole("button", { name: "Surrounding documents" })
         .hasAttribute("disabled")
-    ).toBe(true)
+    ).toBe(false)
     expect(
       within(drawer).getByText(/^logs-2026\.11\.06, .+:\d\d\.641, Error$/)
     ).toBeTruthy()

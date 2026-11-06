@@ -11,9 +11,8 @@ import type { LogEntry, LogsDisplay } from "@/panels/logs/logs-model"
 import { LogsView, type LogSelection } from "@/panels/logs/logs-panel"
 import type { DataPanel } from "@/spec"
 
-import { serviceNameOf } from "./context-query"
+import { anchorNs, serviceNameOf } from "./context-query"
 import { usePrepared } from "./prepared"
-import { isSearchFamily } from "./search"
 import { traceIdOf, traceRangeAround } from "./trace-link"
 import { useElementSize } from "./use-element-size"
 
@@ -106,10 +105,7 @@ export function contextBlocker(
   datasource: DatasourceStatus,
   entry: LogEntry
 ): string | undefined {
-  if (isSearchFamily(datasource.type)) {
-    return "Surrounding documents are not available on this datasource type yet."
-  }
-  if (entry.time === null) return "This line has no time."
+  if (anchorNs(entry) === null) return "This line has no time."
   if (datasource.type === "clickhouse" && serviceNameOf(entry) === null) {
     return "This line has no ServiceName."
   }
