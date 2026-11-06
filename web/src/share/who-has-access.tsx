@@ -82,6 +82,7 @@ export function WhoHasAccess({ folder, canManage, headingId }: Props) {
         <Link
           to="/f/$folderId"
           params={{ folderId: folder.id }}
+          search={{ settings: "1" }}
           className={cn(
             buttonVariants({ variant: "outline" }),
             "self-start no-underline"

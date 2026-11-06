@@ -174,7 +174,7 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(cells.nth(1)).toContainText(maker)
       await expect(cells.nth(1)).toContainText("· Web")
       await expect(cells.nth(2)).toContainText("prom")
-      await expect(cells.nth(3)).toHaveText("None")
+      await expect(cells.nth(3)).toHaveText("")
       await expect(cells.nth(4)).toHaveText("v1")
 
       const card = dashboardsCard(page)
