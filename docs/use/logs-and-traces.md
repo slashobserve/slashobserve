@@ -1,6 +1,6 @@
 ---
 title: Logs and traces
-description: Search logs from Loki or ClickHouse, follow a line to its trace, tail new lines and keep a query as a dashboard panel.
+description: Search logs from Loki or ClickHouse with a query or a plain-language question, follow a line to its trace, tail new lines and keep a query as a dashboard panel.
 ---
 
 The logs page and the trace view let you look at raw lines and spans without building a dashboard first.
@@ -9,16 +9,51 @@ They read from the datasources an Admin configured, as described in [Connect Lok
 ## Logs page
 
 Open **Logs** in the sidebar and pick a Loki or ClickHouse datasource.
-On Loki, write a LogQL query such as `{service_name="checkout"} |= "error"`.
-On ClickHouse, the editor starts with a template that reads `otel_logs`; keep `$__timeFilter(Timestamp)` in the `WHERE` clause and a `LIMIT` at the end.
+The picker names each one with its type, such as "checkout-logs (ClickHouse)", or only "ClickHouse" when the name is the type.
+The page starts as soon as it opens.
+On ClickHouse it runs a template that reads `otel_logs` and shows the newest 1,000 lines of the time range at once.
+On Loki it opens **Label browser** and waits for a stream selector.
 **Label browser** lists the labels of the datasource and their values, and a click inserts a matcher at the cursor.
+With a model configured on the server, the query box opens in Ask mode, as [Ask on the logs page](#ask-on-the-logs-page) describes.
+
+In Query mode you write the query yourself.
+On Loki, write a LogQL query such as `{service_name="checkout"} |= "error"`.
+On ClickHouse, the editor holds the template; keep `$__timeFilter(Timestamp)` in the `WHERE` clause and a `LIMIT` at the end.
 Press **Run query**, or Ctrl+Enter or Cmd+Enter in the editor, to run it over the time range at the top of the page.
 The page shows at most 1,000 lines, newest first.
+On Loki the query must start with a stream selector.
+When a selector matches more streams than the server allows, the page says "More than N streams match. Narrow the selector." and **Open label browser** opens the label browser to narrow it.
+**Live tail** and **Add to dashboard** stay disabled until a query has run, and say "Run a query first."
+
 The volume strip above the lines counts every line the query matches over the whole time range by level, not only the lines shown.
-On Loki the query must start with a stream selector, and a line's level is the first of its `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, including a `level` that a `| json` or `| logfmt` stage extracts.
+It comes from its own log volume request, so the lines never wait for it, and it hides when that request fails or while live tail shows its lines.
+On Loki a line's level is the first of its `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, including a `level` that a `| json` or `| logfmt` stage extracts.
 On ClickHouse the level is the `SeverityText` column, counted per `Timestamp`, so the strip hides when the query does not select both.
 Levels such as `err`, `fatal` and `critical` count as errors, `warn` as warnings, `info` and `notice` as info, and anything else, or no level, as other.
+
+Open a line to see its details in the panel on the right, or inline under the line on a screen 760 pixels wide or narrower.
+A field whose value is a JSON object, such as the ClickHouse `LogAttributes` map, shows one row per key, named `<field>.<key>`, one level deep.
+The details offer **Show context**, **Open trace** and **Copy line**, which copies the line's text.
+
 The address keeps the search as `/logs?ds=<datasource uid>&q=<query>&from=<from>&to=<to>`, so you can share it or bookmark it.
+A query written from a question also keeps the question as `ask` beside `q`, and the link opens the query with its question above it.
+
+## Ask on the logs page
+
+The **Ask** and **Query** toggle in the top right corner of the query box switches between a question and a query.
+Ctrl+I or Cmd+I switches it from anywhere on the page, the editor included.
+The page remembers the mode you last chose with the toggle, the shortcut or **Ask again**, and opens in Query when the address carries a query.
+Write a question and press Enter or **Ask**, and press Shift+Enter to add a line.
+Esc cancels a question that is still running.
+The server writes the query as [Ask in plain language](#ask-in-plain-language) describes, and the page runs it at once.
+The explanation and any warnings show under the question, and the query shows in the editor below them, where you can still change it.
+Editing the query switches to Query, with a "From: <question>" line and **Ask again**, which brings the question back.
+A label from the label browser also switches to Query.
+When the model cannot turn the question into a query, the page says "I could not turn that into a query." with the reason, and switches to Query.
+While the field is empty it lists your 5 latest questions under **Recent**, and Up at the start of the field steps back through earlier ones.
+This browser keeps the recent questions, apart from the chat's.
+Without a model, the page stays in Query, and the Ask side of the toggle is disabled and says "Add a model key to ask in plain language".
+[LLM providers](../connect/llm-providers.md) describes how to configure one.
 
 ## Context around a line
 
@@ -75,7 +110,7 @@ Without a model configured on the server, Ask is off.
 
 ## Who can use them and limits
 
-Every signed-in role from Viewer can use the logs page, the trace view and the trace search.
+Every signed-in role from Viewer can use the logs page, the trace view, the trace search and Ask.
 Each query stops after 15 seconds and returns at most 1,000 rows.
 The queries run on the server, so datasource credentials never reach the browser.
 
