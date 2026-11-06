@@ -5,6 +5,7 @@ import {
   targetFor,
   validateByTitleSearch,
 } from "@/dashboards/by-title"
+import { dashboardLink } from "@/lib/links"
 
 export const Route = createFileRoute("/_authed/dashboards/by-title")({
   validateSearch: validateByTitleSearch,
@@ -14,8 +15,7 @@ export const Route = createFileRoute("/_authed/dashboards/by-title")({
     const target = targetFor(title, candidates)
     if (target.kind === "dashboard") {
       throw redirect({
-        to: "/dashboards/$dashboardId",
-        params: { dashboardId: target.id },
+        ...dashboardLink(target.id, title),
         search: carried,
         replace: true,
       })

@@ -64,7 +64,7 @@ folders:
       "403":
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "409":
-        description: A folder with that title already exists (`folder_exists`), ignoring case.
+        description: A folder with that title already exists (`folder_exists`), ignoring case, or the title is `My Dashboards`, which every person's personal folder uses.
         content:
           application/json:
             schema:

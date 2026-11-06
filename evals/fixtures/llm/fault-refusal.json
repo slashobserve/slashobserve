@@ -1,0 +1,10 @@
+{
+  "prompt": "eval fault: the model declines the request",
+  "turns": [
+    {
+      "fault": {
+        "kind": "refusal"
+      }
+    }
+  ]
+}

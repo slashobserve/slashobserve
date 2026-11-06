@@ -1,3 +1,4 @@
+import { dashboardPath } from "@/lib/links"
 import type { ResolvedLink } from "@/panels/field-config"
 import type { DashboardLink } from "@/spec"
 
@@ -34,7 +35,10 @@ export function linkedDashboards<T extends Listed>(
     .sort((a, b) => a.title.localeCompare(b.title))
 }
 
-function dashboardHref(id: string, search: DashboardSearchParams): string {
+function dashboardHref(
+  dashboard: Listed,
+  search: DashboardSearchParams
+): string {
   const query = new URLSearchParams()
   for (const [key, value] of Object.entries(search)) {
     if (value === undefined) continue
@@ -43,7 +47,7 @@ function dashboardHref(id: string, search: DashboardSearchParams): string {
     }
   }
   const text = query.toString()
-  const path = `/dashboards/${encodeURIComponent(id)}`
+  const path = dashboardPath(dashboard.id, dashboard.title)
   return text === "" ? path : `${path}?${text}`
 }
 
@@ -55,7 +59,7 @@ export function taggedLinks(
 ): ResolvedLink[] {
   return linkedDashboards(link, listed, currentId).map((dashboard) => ({
     title: dashboard.title,
-    href: dashboardHref(dashboard.id, search),
+    href: dashboardHref(dashboard, search),
     newTab: link.newTab === true,
     ...(link.tooltip ? { tooltip: link.tooltip } : {}),
   }))

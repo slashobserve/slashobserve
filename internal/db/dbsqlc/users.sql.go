@@ -30,13 +30,20 @@ SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
   coalesce(kc.n, 0)::integer AS key_count,
   coalesce(sc.n, 0)::integer AS session_count
 FROM users u
-LEFT JOIN (SELECT author_id, count(*) AS n FROM dashboard_versions
-  WHERE version = 1 AND author_kind = 'user' GROUP BY author_id) dc ON dc.author_id = u.id
+LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
+  JOIN dashboards d ON d.id = v.dashboard_id
+  WHERE v.version = 1 AND v.author_kind = 'user' AND d.folder_id = ANY($1::uuid[])
+  GROUP BY v.author_id) dc ON dc.author_id = u.id
 LEFT JOIN (SELECT created_by, count(*) AS n FROM service_account_keys
   WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()) GROUP BY created_by) kc ON kc.created_by = u.id
 LEFT JOIN (SELECT user_id, count(*) AS n FROM sessions WHERE expires_at > now() GROUP BY user_id) sc ON sc.user_id = u.id
-WHERE u.id = $1
+WHERE u.id = $2
 `
+
+type GetPersonParams struct {
+	Folders []pgtype.UUID
+	ID      pgtype.UUID
+}
 
 type GetPersonRow struct {
 	ID               pgtype.UUID
@@ -54,8 +61,8 @@ type GetPersonRow struct {
 	SessionCount     int32
 }
 
-func (q *Queries) GetPerson(ctx context.Context, id pgtype.UUID) (GetPersonRow, error) {
-	row := q.db.QueryRow(ctx, getPerson, id)
+func (q *Queries) GetPerson(ctx context.Context, arg GetPersonParams) (GetPersonRow, error) {
+	row := q.db.QueryRow(ctx, getPerson, arg.Folders, arg.ID)
 	var i GetPersonRow
 	err := row.Scan(
 		&i.ID,
@@ -146,18 +153,21 @@ SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
   coalesce(kc.n, 0)::integer AS key_count,
   coalesce(sc.n, 0)::integer AS session_count
 FROM users u
-LEFT JOIN (SELECT author_id, count(*) AS n FROM dashboard_versions
-  WHERE version = 1 AND author_kind = 'user' GROUP BY author_id) dc ON dc.author_id = u.id
+LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
+  JOIN dashboards d ON d.id = v.dashboard_id
+  WHERE v.version = 1 AND v.author_kind = 'user' AND d.folder_id = ANY($1::uuid[])
+  GROUP BY v.author_id) dc ON dc.author_id = u.id
 LEFT JOIN (SELECT created_by, count(*) AS n FROM service_account_keys
   WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()) GROUP BY created_by) kc ON kc.created_by = u.id
 LEFT JOIN (SELECT user_id, count(*) AS n FROM sessions WHERE expires_at > now() GROUP BY user_id) sc ON sc.user_id = u.id
-WHERE $1::timestamptz IS NULL
-  OR (u.created_at, u.id) < ($1::timestamptz, $2::uuid)
+WHERE $2::timestamptz IS NULL
+  OR (u.created_at, u.id) < ($2::timestamptz, $3::uuid)
 ORDER BY u.created_at DESC, u.id DESC
-LIMIT $3
+LIMIT $4
 `
 
 type ListUsersParams struct {
+	Folders         []pgtype.UUID
 	CursorCreatedAt pgtype.Timestamptz
 	CursorID        pgtype.UUID
 	RowLimit        int32
@@ -180,7 +190,12 @@ type ListUsersRow struct {
 }
 
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
-	rows, err := q.db.Query(ctx, listUsers, arg.CursorCreatedAt, arg.CursorID, arg.RowLimit)
+	rows, err := q.db.Query(ctx, listUsers,
+		arg.Folders,
+		arg.CursorCreatedAt,
+		arg.CursorID,
+		arg.RowLimit,
+	)
 	if err != nil {
 		return nil, err
 	}

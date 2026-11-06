@@ -17,6 +17,7 @@ func TestPickImportFolder(t *testing.T) {
 		{Folder: Folder{ID: checkout, Title: "Checkout"}, Abilities: can},
 		{Folder: Folder{ID: reports, Title: "Reports"}, Abilities: cannot},
 		{Folder: Folder{ID: uuidOf(1), Title: "General", General: true}, Abilities: can},
+		{Folder: Folder{ID: uuidOf(5), Title: "My Dashboards", Personal: true}, Abilities: can},
 	}
 	none := pgtype.UUID{}
 	hidden := uuidOf(9)
@@ -40,6 +41,11 @@ func TestPickImportFolder(t *testing.T) {
 		{"General maps to the default folder", "general", none, auth.RoleEditor, importChoice{action: importDefault}},
 		{"title too long", strings.Repeat("x", 101), none, auth.RoleEditor, importChoice{action: importDefault}},
 		{"title with a control character", "Pay\nments", none, auth.RoleEditor, importChoice{action: importDefault}},
+		{"My Dashboards means the default folder for a viewer", "My Dashboards", none, auth.RoleViewer, importChoice{action: importDefault}},
+		{"my dashboards in any case means the default folder", "my dashboards", none, auth.RoleEditor, importChoice{action: importDefault}},
+		{"my dashboards means the default folder for an admin", "my dashboards", none, auth.RoleAdmin, importChoice{action: importDefault}},
+		{"my dashboards means the default folder for a key", "My Dashboards", none, auth.RoleEditor, importChoice{action: importDefault}},
+		{"General in any case means the default folder", "GENERAL", none, auth.RoleAdmin, importChoice{action: importDefault}},
 		{"title that is not UTF-8", "Pay\xffments", none, auth.RoleEditor, importChoice{action: importDefault}},
 	}
 	for _, tt := range cases {

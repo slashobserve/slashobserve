@@ -1,0 +1,127 @@
+{
+  "prompt": "eval fault: the run is compacted after a call timeout and again when its history outgrows the session",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "lint_query",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))"
+          }
+        }
+      ]
+    },
+    {
+      "fault": {
+        "kind": "call_timeout"
+      },
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Start the shop errors dashboard",
+            "planned_panels": 2,
+            "spec": {
+              "specVersion": "0",
+              "title": "Shop errors",
+              "time": {
+                "from": "now-1h",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "req_rate",
+                  "type": "timeseries",
+                  "title": "Request rate by route",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 8
+                  },
+                  "datasource": "prom",
+                  "queries": [
+                    {
+                      "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))",
+                      "legend": "{{route}}"
+                    }
+                  ],
+                  "unit": "reqps"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "get_spec_guide",
+          "input": {}
+        },
+        {
+          "name": "get_spec_guide",
+          "input": {}
+        },
+        {
+          "name": "get_spec_guide",
+          "input": {}
+        },
+        {
+          "name": "get_spec_guide",
+          "input": {}
+        },
+        {
+          "name": "get_spec_guide",
+          "input": {}
+        },
+        {
+          "name": "get_spec_guide",
+          "input": {}
+        },
+        {
+          "name": "get_spec_guide",
+          "input": {}
+        },
+        {
+          "name": "get_spec_guide",
+          "input": {}
+        },
+        {
+          "name": "get_spec_guide",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add the error ratio",
+            "upsert": [
+              {
+                "id": "error_ratio",
+                "type": "timeseries",
+                "title": "Error ratio by route",
+                "gridPos": {
+                  "x": 12,
+                  "y": 0,
+                  "w": 12,
+                  "h": 8
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "sum by (route) (rate(http_requests_total{status=~\"5..\"}[$__rate_interval])) / sum by (route) (rate(http_requests_total[$__rate_interval]))",
+                    "legend": "{{route}}"
+                  }
+                ],
+                "unit": "percentunit"
+              }
+            ],
+            "finish": true
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -31,6 +31,7 @@ const (
 	maxSummaryLength     = 500
 	maxInt32             = math.MaxInt32
 	defaultCreateSummary = "Create dashboard"
+	defaultUpdateSummary = "Update dashboard"
 )
 
 var (
@@ -73,13 +74,17 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, folderID pgtype
 }
 
 func (s *Service) AddVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string) (Dashboard, Version, bool, error) {
-	return s.saveVersion(ctx, by, id, parent, rawSpec, summary, pgtype.UUID{})
+	return s.saveVersion(ctx, by, id, parent, rawSpec, summary, pgtype.UUID{}, s.checkSave)
 }
 
 // A request id makes the save exactly-once: a second save for the same id returns the version the first one
 // created, whatever spec or parent it carries.
 func (s *Service) AddRequestVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
-	return s.saveVersion(ctx, by, id, parent, rawSpec, summary, requestID)
+	return s.saveVersion(ctx, by, id, parent, rawSpec, summary, requestID, s.checkSave)
+}
+
+func (s *Service) AddChangedVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
+	return s.saveVersion(ctx, by, id, parent, rawSpec, summary, requestID, s.checkChangedSave)
 }
 
 func (s *Service) CreateRequestDashboard(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
@@ -179,19 +184,21 @@ func (s *Service) create(ctx context.Context, by auth.Principal, folderID pgtype
 	return dash, ver, nil
 }
 
-func (s *Service) saveVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
+type saveCheck func(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, parsed *spec.Dashboard) (Unverified, error)
+
+func (s *Service) saveVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string, requestID pgtype.UUID, check saveCheck) (Dashboard, Version, bool, error) {
 	access, err := s.need(ctx, by, id, folders.NeedEdit)
 	if err != nil {
 		return Dashboard{}, Version{}, false, err
 	}
-	dash, ver, replayed, err := s.persistVersion(ctx, by, id, parent, rawSpec, summary, requestID)
+	dash, ver, replayed, err := s.persistVersion(ctx, by, id, parent, rawSpec, summary, requestID, check)
 	if err != nil {
 		return Dashboard{}, Version{}, false, err
 	}
 	return withAccess(dash, access), ver, replayed, nil
 }
 
-func (s *Service) persistVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
+func (s *Service) persistVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string, requestID pgtype.UUID, check saveCheck) (Dashboard, Version, bool, error) {
 	if requestID.Valid {
 		if dash, ver, found, err := s.store.savedByRequest(ctx, requestID, id); err != nil || found {
 			return dash, ver, found, err
@@ -205,10 +212,21 @@ func (s *Service) persistVersion(ctx context.Context, by auth.Principal, id pgty
 	if err != nil {
 		return Dashboard{}, Version{}, false, err
 	}
+	if parent >= 1 && parent <= latest {
+		prev, err := s.VersionSpec(ctx, id, parent)
+		if err != nil {
+			return Dashboard{}, Version{}, false, err
+		}
+		if freezeResized(prev, parsed) {
+			if canonical, err = json.Marshal(parsed); err != nil {
+				return Dashboard{}, Version{}, false, fmt.Errorf("marshal spec: %w", err)
+			}
+		}
+	}
 	if latest != parent {
 		return s.replayOrConflict(ctx, by, id, parent, canonical, requestID)
 	}
-	carried, err := s.checkSave(ctx, by, id, parent, parsed)
+	carried, err := check(ctx, by, id, parent, parsed)
 	if err != nil {
 		return Dashboard{}, Version{}, false, err
 	}
@@ -426,7 +444,7 @@ func nextCursor(last ListItem, byFolder bool) string {
 	if !byFolder {
 		return httpapi.EncodeTimeCursor(last.UpdatedAt, last.ID)
 	}
-	return encodeFolderCursor(last.Folder.General, last.sortTitle, last.Folder.ID, last.UpdatedAt, last.ID)
+	return encodeFolderCursor(last.Folder.Personal, last.Folder.General, last.sortTitle, last.Folder.ID, last.UpdatedAt, last.ID)
 }
 
 func (s *Service) DatasourceUsage(ctx context.Context, by auth.Principal) (map[string]int, error) {
@@ -466,11 +484,6 @@ func (s *Service) Tags(ctx context.Context, by auth.Principal) ([]TagCount, erro
 	return tags, nil
 }
 
-func (s *Service) Move(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Dashboard, error) {
-	dash, _, err := s.move(ctx, by, id, folderID)
-	return dash, err
-}
-
 func (s *Service) move(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Dashboard, Version, error) {
 	if _, err := s.need(ctx, by, id, folders.NeedEdit); err != nil {
 		return Dashboard{}, Version{}, err
@@ -484,6 +497,9 @@ func (s *Service) move(ctx context.Context, by auth.Principal, id, folderID pgty
 	}
 	if !abilities.Edit {
 		return Dashboard{}, Version{}, folders.ErrForbidden
+	}
+	if !folders.MayMoveInto(target) {
+		return Dashboard{}, Version{}, folders.ErrMoveIntoPersonal
 	}
 	if err := s.store.move(ctx, id, folderID); err != nil {
 		return Dashboard{}, Version{}, err
@@ -585,17 +601,47 @@ func (s *Service) checkSave(ctx context.Context, by auth.Principal, id pgtype.UU
 		return Unverified{}, err
 	}
 	if prevUnverified.Empty() {
-		return Unverified{}, s.checkQueries(ctx, by, parsed)
+		return s.verify(ctx, by, nil, prevUnverified, parsed, false)
 	}
 	prev, err := s.VersionSpec(ctx, id, parent)
 	if err != nil {
 		return Unverified{}, err
 	}
-	issues, err := s.runner.CheckSpec(ctx, parsed, time.Now(), queryproxy.UserFor(by))
+	return s.verify(ctx, by, prev, prevUnverified, parsed, false)
+}
+
+func (s *Service) checkChangedSave(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, parsed *spec.Dashboard) (Unverified, error) {
+	prev, err := s.VersionSpec(ctx, id, parent)
 	if err != nil {
 		return Unverified{}, err
 	}
-	carried, blocking := CarryUnverified(prev, prevUnverified, parsed, issues)
+	prevUnverified, err := s.store.unverified(ctx, id, parent)
+	if err != nil {
+		return Unverified{}, err
+	}
+	return s.verify(ctx, by, prev, prevUnverified, parsed, true)
+}
+
+func (s *Service) verify(ctx context.Context, by auth.Principal, prev *spec.Dashboard, prevUnverified Unverified, next *spec.Dashboard, partial bool) (Unverified, error) {
+	if partial && prev != nil && !needsFullCheck(prev, next) {
+		panels, variables := ChangedSince(prev, next)
+		issues, err := s.runner.CheckChanged(ctx, next, time.Now(), queryproxy.UserFor(by), panels, variables)
+		if err != nil {
+			return Unverified{}, err
+		}
+		if len(issues) > 0 {
+			return Unverified{}, &InvalidSpecError{Issues: issues}
+		}
+		return CarryUnchanged(prev, prevUnverified, next, panels, variables), nil
+	}
+	if prev == nil || prevUnverified.Empty() {
+		return Unverified{}, s.checkQueries(ctx, by, next)
+	}
+	issues, err := s.runner.CheckSpec(ctx, next, time.Now(), queryproxy.UserFor(by))
+	if err != nil {
+		return Unverified{}, err
+	}
+	carried, blocking := CarryUnverified(prev, prevUnverified, next, issues)
 	if len(blocking) > 0 {
 		return Unverified{}, &InvalidSpecError{Issues: blocking}
 	}

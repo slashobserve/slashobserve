@@ -224,6 +224,31 @@ function seriesDetails(frame: PreparedFrame): LogDetail[] {
     : [{ name: "__name__", text: frame.name }, ...details]
 }
 
+function jsonObjectOf(value: unknown): Record<string, unknown> | null {
+  if (typeof value !== "string" || !value.trimStart().startsWith("{")) {
+    return null
+  }
+  try {
+    const parsed: unknown = JSON.parse(value)
+    return typeof parsed === "object" &&
+      parsed !== null &&
+      !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null
+  } catch {
+    return null
+  }
+}
+
+function expandJsonDetail(detail: LogDetail, value: unknown): LogDetail[] {
+  const object = jsonObjectOf(value)
+  if (object === null) return [detail]
+  return Object.entries(object).map(([key, item]) => ({
+    name: `${detail.name}.${key}`,
+    text: typeof item === "string" ? item : JSON.stringify(item),
+  }))
+}
+
 export function detailText(
   fields: FieldResolver,
   detail: LogDetail,
@@ -377,13 +402,15 @@ export function logsModel(
       labels,
       repeats,
       details: [
-        ...frame.fields.map((field) => ({
-          name: field.name,
-          field,
-          frame,
-          index: row,
-        })),
-        ...seriesDetails(frame),
+        ...frame.fields.flatMap((field) =>
+          expandJsonDetail(
+            { name: field.name, field, frame, index: row },
+            field.values[row]
+          )
+        ),
+        ...seriesDetails(frame).flatMap((detail) =>
+          "text" in detail ? expandJsonDetail(detail, detail.text) : [detail]
+        ),
       ],
     }
   })

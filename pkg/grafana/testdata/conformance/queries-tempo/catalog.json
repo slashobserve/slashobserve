@@ -1,0 +1,30 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "packages/grafana-schema/src/raw/composable/tempo/dataquery/x/TempoDataQuery_types.gen.ts",
+    "packages/grafana-data/src/types/dataQuery.ts"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    { "id": "targets[0].query=duration-filter", "path": "targets[0].query", "value": "{ duration > 1s }" },
+    { "id": "targets[0].queryType=traceId", "path": "targets[0].queryType", "value": "traceId", "with": {"targets[0].query": "4bf92f3577b34da6a3ce929d0e0e4736"}, "expect": "bookkeeping" },
+    { "id": "targets[1]=search-builder", "path": "targets[1]", "value": {"refId": "B", "queryType": "traceqlSearch", "filters": [{"id": "service-name", "tag": "service.name", "operator": "=", "scope": "resource", "value": ["checkout"]}]}, "expect": "excluded" },
+    { "id": "targets[1]=native-search", "path": "targets[1]", "value": {"refId": "B", "queryType": "nativeSearch", "serviceName": "checkout"}, "expect": "excluded" },
+    { "id": "targets[1]=service-map", "path": "targets[1]", "value": {"refId": "B", "queryType": "serviceMap"}, "expect": "excluded" },
+    { "id": "targets[1]=upload", "path": "targets[1]", "value": {"refId": "B", "queryType": "upload"}, "expect": "excluded" },
+    { "id": "targets[1]=traceql-metrics", "path": "targets[1]", "value": {"refId": "B", "queryType": "traceql", "query": "{resource.service.name=\"checkout\"} | rate()"}, "expect": "excluded" },
+    { "id": "targets[0].limit=50", "path": "targets[0].limit", "value": 50, "expect": "excluded" },
+    { "id": "targets[0].limit=20", "path": "targets[0].limit", "value": 20, "expect": "bookkeeping" },
+    { "id": "targets[0].spss=10", "path": "targets[0].spss", "value": 10, "expect": "excluded" },
+    { "id": "targets[0].tableType=spans", "path": "targets[0].tableType", "value": "spans", "expect": "excluded" },
+    { "id": "targets[0].tableType=raw", "path": "targets[0].tableType", "value": "raw", "expect": "excluded" },
+    { "id": "targets[0].filters=state", "path": "targets[0].filters", "value": [{"id": "service-name", "tag": "service.name", "operator": "=", "scope": "resource", "value": ["checkout"]}], "expect": "bookkeeping" },
+    { "id": "targets[0].groupBy=state", "path": "targets[0].groupBy", "value": [{"id": "group", "tag": "status", "scope": "span"}], "expect": "bookkeeping" },
+    { "id": "targets[0].serviceMapQuery=state", "path": "targets[0].serviceMapQuery", "value": "{client=\"checkout\"}", "expect": "bookkeeping" },
+    { "id": "targets[0].metricsQueryType=range", "path": "targets[0].metricsQueryType", "value": "range", "expect": "bookkeeping" },
+    { "id": "targets[0].step=1m", "path": "targets[0].step", "value": "1m", "expect": "bookkeeping" },
+    { "id": "targets[0].exemplars=5", "path": "targets[0].exemplars", "value": 5, "expect": "bookkeeping" },
+    { "id": "targets[0].hide=true", "path": "targets[0].hide", "value": true },
+    { "id": "targets[0].refId=B", "path": "targets[0].refId", "value": "B" }
+  ]
+}

@@ -12,7 +12,11 @@ import { loadProblemText } from "@/service-accounts/queries"
 import { accessRows, canManageAccess, type AccessRow } from "./access-rows"
 
 type Props = {
-  folder: { id: string; title: string; general: boolean }
+  folder: {
+    id: string
+    title: string
+    general: boolean
+  }
   canManage: boolean
   headingId: string
 }
@@ -76,8 +80,9 @@ export function WhoHasAccess({ folder, canManage, headingId }: Props) {
       )}
       {canManageAccess(folder, canManage) ? (
         <Link
-          to="/folders/$folderId"
+          to="/f/$folderId"
           params={{ folderId: folder.id }}
+          search={{ settings: "1" }}
           className={cn(
             buttonVariants({ variant: "outline" }),
             "self-start no-underline"

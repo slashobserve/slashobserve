@@ -21,9 +21,10 @@ type creatorJSON struct {
 }
 
 type dashboardFolderJSON struct {
-	ID      string `json:"id"`
-	Title   string `json:"title"`
-	General bool   `json:"general"`
+	ID       string `json:"id"`
+	Title    string `json:"title"`
+	General  bool   `json:"general"`
+	Personal bool   `json:"personal"`
 }
 
 type dashboardJSON struct {
@@ -121,7 +122,7 @@ func newDashboardJSON(d Dashboard) dashboardJSON {
 }
 
 func newDashboardFolderJSON(f folders.Folder) dashboardFolderJSON {
-	return dashboardFolderJSON{ID: f.ID.String(), Title: f.Title, General: f.General}
+	return dashboardFolderJSON{ID: f.ID.String(), Title: f.Title, General: f.General, Personal: f.Personal}
 }
 
 func newCreatorJSON(c Creator) creatorJSON {

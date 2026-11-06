@@ -1,6 +1,12 @@
 import type { Route } from "@playwright/test"
 
-import { expect, failedResourceLogged, test, type Page } from "./fixtures"
+import {
+  expect,
+  failedResourceLogged,
+  switchTheme,
+  test,
+  type Page,
+} from "./fixtures"
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] })
 
@@ -22,11 +28,20 @@ function value(page: Page, cardName: string, label: string) {
   return row(page, cardName, label).locator(":scope > span").nth(1)
 }
 
-async function openSettings(page: Page) {
-  await page.goto("/settings")
+async function openSettings(page: Page, section?: string) {
+  await page.goto(section === undefined ? "/settings" : `/settings#${section}`)
   await expect(
     page.getByRole("heading", { level: 1, name: "Settings" })
   ).toBeVisible()
+}
+
+function sectionNav(page: Page) {
+  return page.getByRole("navigation", { name: "Settings sections" })
+}
+
+async function selectSection(page: Page, name: string) {
+  await sectionNav(page).getByRole("link", { name, exact: true }).click()
+  await expect(card(page, name)).toBeVisible()
 }
 
 async function mockAgent(page: Page, body: Record<string, unknown>) {
@@ -62,11 +77,13 @@ test("shows the server's settings", async ({ page }) => {
     value(page, "Agent", "Status").locator('[data-status="ok"]')
   ).toHaveText("Connected")
 
+  await selectSection(page, "This server")
   await expect(value(page, "This server", "Public URL")).toHaveText(serverURL())
   await expect(value(page, "This server", "MCP URL")).toHaveText(
     `${serverURL()}/mcp`
   )
 
+  await selectSection(page, "Sign-in")
   await expect(value(page, "Sign-in", "Allowed email domains")).toHaveText(
     "example.com"
   )
@@ -90,7 +107,7 @@ test("keeps the row height when the server settings load", async ({ page }) => {
       await route.continue()
     }
   )
-  await page.goto("/settings")
+  await page.goto("/settings#server")
 
   const mcp = row(page, "This server", "MCP URL")
   await expect(mcp).toBeVisible()
@@ -106,33 +123,54 @@ test("keeps the row height when the server settings load", async ({ page }) => {
   ).toBeLessThanOrEqual(0.5)
 })
 
-test("left-aligns the cards in the scroll area and caps them at 860px", async ({
+test("puts the section list at the inset and the cards beside it", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1800, height: 900 })
   await openSettings(page)
 
   const main = await page.locator("main").boundingBox()
+  const index = await sectionNav(page).boundingBox()
   const heading = await page
     .getByRole("heading", { level: 1, name: "Settings" })
     .boundingBox()
   expect(main).not.toBeNull()
+  expect(index).not.toBeNull()
   expect(heading).not.toBeNull()
-  const inset = (heading?.x ?? 0) - (main?.x ?? 0)
-  expect(Math.abs(inset - 25)).toBeLessThanOrEqual(1)
+  expect(Math.abs((index?.x ?? 0) - (main?.x ?? 0) - 25)).toBeLessThanOrEqual(1)
+  const indexRight = (index?.x ?? 0) + (index?.width ?? 0)
+  expect(heading?.x ?? 0).toBeGreaterThan(indexRight)
 
   const mainRight = (main?.x ?? 0) + (main?.width ?? 0)
-  for (const name of ["Agent", "This server", "Sign-in", "Appearance"]) {
+  for (const name of ["Agent", "This server", "Sign-in", "Outbound access"]) {
+    await selectSection(page, name)
     const box = await card(page, name).boundingBox()
     expect(box).not.toBeNull()
-    expect(Math.abs((box?.x ?? 0) - (main?.x ?? 0) - 25)).toBeLessThanOrEqual(1)
-    expect(box?.width).toBeLessThanOrEqual(860)
+    expect(Math.abs((box?.x ?? 0) - (heading?.x ?? 0))).toBeLessThanOrEqual(1)
+    expect(box?.width).toBeLessThanOrEqual(720)
     expect(mainRight - ((box?.x ?? 0) + (box?.width ?? 0))).toBeGreaterThan(200)
   }
 })
 
-test("copies the MCP URL", async ({ page }) => {
+test("shows only the selected section", async ({ page }) => {
   await openSettings(page)
+  const headings = page.getByRole("main").getByRole("heading", { level: 2 })
+  await expect(headings).toHaveText(["Agent"])
+  await expect(
+    sectionNav(page).getByRole("link", { name: "Agent", exact: true })
+  ).toHaveAttribute("aria-current", "page")
+
+  await selectSection(page, "Outbound access")
+  await expect(page).toHaveURL(/\/settings#outbound-access$/)
+  await expect(headings).toHaveText(["Outbound access"])
+  await expect(
+    sectionNav(page).getByRole("link", { name: "Outbound access" })
+  ).toHaveAttribute("aria-current", "page")
+  await expect(sectionNav(page).locator('[aria-current="page"]')).toHaveCount(1)
+})
+
+test("copies the MCP URL", async ({ page }) => {
+  await openSettings(page, "server")
   await page.getByRole("button", { name: "Copy MCP URL" }).click()
   await expect(
     row(page, "This server", "MCP URL").getByRole("status")
@@ -182,7 +220,7 @@ test("keeps working when the server settings fail", async ({
     })
   const instance = (url: URL) => url.pathname === "/api/v1/instance"
   await page.route(instance, fail)
-  await openSettings(page)
+  await openSettings(page, "server")
 
   const server = card(page, "This server")
   await expect(
@@ -191,9 +229,7 @@ test("keeps working when the server settings fail", async ({
   await expect(server.getByRole("button", { name: "Retry" })).toBeVisible()
   failedResourceLogged(consoleErrors, "500")
 
-  const theme = page.getByRole("combobox", { name: "Theme" })
-  await theme.click()
-  await page.getByRole("option", { name: "Dark", exact: true }).click()
+  await switchTheme(page)
   await expect(page.locator("html")).toHaveClass(/\bdark\b/)
 
   await page.unroute(instance, fail)
@@ -218,7 +254,7 @@ test("hides the identity provider line when its name is unknown", async ({
   page,
 }) => {
   await mockInstance(page, { oidc_provider_name: "" })
-  await openSettings(page)
+  await openSettings(page, "server")
   await expect(value(page, "This server", "MCP URL")).toHaveText(
     `${serverURL()}/mcp`
   )

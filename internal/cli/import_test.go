@@ -308,7 +308,7 @@ func TestImportSendsTheFolderAndShowsWhereTheDashboardWent(t *testing.T) {
 	if s.path != "/api/v1/imports" || s.posted != `{"json":"{\"title\":\"Shop\"}","folder":"Payments"}` {
 		t.Fatalf("posted %s to %s", s.posted, s.path)
 	}
-	if !strings.HasSuffix(strings.TrimSpace(stdout), "/dashboards/d1") {
+	if !strings.HasSuffix(strings.TrimSpace(stdout), "/d/d1") {
 		t.Fatalf("stdout = %q, want the dashboard address alone", stdout)
 	}
 	if !strings.Contains(stderr, "\nFolder: Payments\n") || strings.Contains(stderr, "not available") {
@@ -347,7 +347,7 @@ func TestQuietImportHidesTheFolderLineButKeepsTheFolderNote(t *testing.T) {
 			if stderr != tt.want {
 				t.Fatalf("stderr = %q, want %q", stderr, tt.want)
 			}
-			if !strings.HasSuffix(strings.TrimSpace(stdout), "/dashboards/d1") {
+			if !strings.HasSuffix(strings.TrimSpace(stdout), "/d/d1") {
 				t.Fatalf("stdout = %q, want the dashboard address", stdout)
 			}
 		})

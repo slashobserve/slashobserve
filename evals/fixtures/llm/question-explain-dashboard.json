@@ -1,0 +1,23 @@
+{
+  "prompt": "explain what the Demo shop overview dashboard shows",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "list_dashboards",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "save_finding",
+          "input": {
+            "markdown": "The Demo shop overview dashboard shows the shop's health at a glance: requests per second, server errors and p95 latency at the top, then whether traffic is healthy, whether orders are flowing, whether the database keeps up and what the checkout logs say.\n\n- Traffic: requests per second, the server error ratio and p95 latency by route.\n- Orders: orders processed per minute, processing time and orders waiting by pod.\n- Database: pool connections in use, p95 query time and the product cache hit ratio.\n- Logs: checkout log lines by severity, the top checkout errors and the slowest checkouts."
+          }
+        }
+      ]
+    }
+  ]
+}

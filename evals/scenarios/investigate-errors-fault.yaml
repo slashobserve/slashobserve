@@ -1,0 +1,7 @@
+id: investigate-errors-fault
+prompt: "eval investigate: why is the checkout error rate up"
+kind: investigate
+suites: [replay]
+expect:
+  finding_mentions: ["checkout-0", "errors"]
+  evidence_min: 1

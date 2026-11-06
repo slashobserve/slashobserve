@@ -207,6 +207,10 @@ func (st store) delete(ctx context.Context, id pgtype.UUID, by Author) error {
 }
 
 func (st store) addVersion(ctx context.Context, in newVersion) (Dashboard, Version, error) {
+	return st.addVersionWith(ctx, in, nil)
+}
+
+func (st store) addVersionWith(ctx context.Context, in newVersion, inTx func(q *dbsqlc.Queries, dash Dashboard, ver Version) error) (Dashboard, Version, error) {
 	var dash Dashboard
 	var ver Version
 	err := st.db.InTx(ctx, func(q *dbsqlc.Queries) error {
@@ -227,7 +231,10 @@ func (st store) addVersion(ctx context.Context, in newVersion) (Dashboard, Versi
 			return err
 		}
 		dash, ver = dashboardFromRow(row, in.author), Version{VersionMeta: meta, Spec: in.spec, Unverified: in.unverified}
-		return nil
+		if inTx == nil {
+			return nil
+		}
+		return inTx(q, dash, ver)
 	})
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == requestVersionConstraint {
@@ -337,7 +344,7 @@ func (st store) latest(ctx context.Context, id pgtype.UUID) (Dashboard, Version,
 	}
 	v := row.DashboardVersion
 	dash := dashboardFromRow(row.Dashboard, authorFromRow(v.AuthorKind, v.AuthorID, v.AuthorName, v.AuthorEmail))
-	dash.Folder = folderOf(row.Dashboard.FolderID, row.FolderTitle, row.FolderGeneral)
+	dash.Folder = folderOf(row.Dashboard.FolderID, row.FolderTitle, row.FolderGeneral, row.FolderPersonal)
 	ver, err := versionFromRow(v)
 	return dash, ver, err
 }
@@ -351,7 +358,7 @@ func (st store) version(ctx context.Context, id pgtype.UUID, number int) (Dashbo
 		return Dashboard{}, Version{}, fmt.Errorf("get dashboard version: %w", err)
 	}
 	dash := dashboardFromRow(row.Dashboard, authorFromRow(row.UpdatedByKind, row.UpdatedByID, row.UpdatedByName, row.UpdatedByEmail))
-	dash.Folder = folderOf(row.Dashboard.FolderID, row.FolderTitle, row.FolderGeneral)
+	dash.Folder = folderOf(row.Dashboard.FolderID, row.FolderTitle, row.FolderGeneral, row.FolderPersonal)
 	ver, err := versionFromRow(row.DashboardVersion)
 	return dash, ver, err
 }
@@ -421,6 +428,7 @@ func (st store) listByFolder(ctx context.Context, after *folderCursor, limit, of
 	}
 	if after != nil {
 		params.CFolder = after.FolderID
+		params.CPersonal = pgtype.Bool{Bool: after.Personal, Valid: true}
 		params.CGeneral = pgtype.Bool{Bool: after.General, Valid: true}
 		params.CTitle = pgtype.Text{String: after.Title, Valid: true}
 		params.CUpdatedAt = pgtype.Timestamptz{Time: after.UpdatedAt, Valid: true}
@@ -445,7 +453,7 @@ func listItemsOf(rows []dbsqlc.ListDashboardsRow) []ListItem {
 			uids = []string{}
 		}
 		dash := dashboardFromRow(r.Dashboard, authorFromRow(r.UpdatedByKind, r.UpdatedByID, r.UpdatedByName, r.UpdatedByEmail))
-		dash.Folder = folderOf(r.Dashboard.FolderID, r.FolderTitle, r.FolderGeneral)
+		dash.Folder = folderOf(r.Dashboard.FolderID, r.FolderTitle, r.FolderGeneral, r.FolderPersonal)
 		items = append(items, ListItem{
 			Dashboard:      dash,
 			Description:    r.Description,
@@ -457,8 +465,8 @@ func listItemsOf(rows []dbsqlc.ListDashboardsRow) []ListItem {
 	return items
 }
 
-func folderOf(id pgtype.UUID, title string, general bool) folders.Folder {
-	return folders.Folder{ID: id, Title: title, General: general}
+func folderOf(id pgtype.UUID, title string, general, personal bool) folders.Folder {
+	return folders.Folder{ID: id, Title: title, General: general, Personal: personal}
 }
 
 func (st store) count(ctx context.Context, f dbsqlc.CountDashboardsParams) (int, error) {

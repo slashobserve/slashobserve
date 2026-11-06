@@ -13,7 +13,7 @@ func scopeTestSource(t *testing.T) *source {
 	official := map[string]any{"type": "grafana-clickhouse-datasource", "uid": "ch2"}
 	expression := map[string]any{"type": "__expr__", "uid": "__expr__"}
 	dashboard := map[string]any{"type": "datasource", "uid": "-- Dashboard --"}
-	loki := map[string]any{"type": "loki", "uid": "loki"}
+	elasticsearch := map[string]any{"type": "elasticsearch", "uid": "es"}
 	pos := func(y int) map[string]any { return map[string]any{"x": 0, "y": y, "w": 12, "h": 4} }
 	panels := []any{
 		map[string]any{
@@ -36,7 +36,7 @@ func scopeTestSource(t *testing.T) *source {
 				map[string]any{"refId": "B", "datasource": expression, "type": "math", "expression": "$A"},
 				map[string]any{"refId": "C", "datasource": official, "rawSql": "select 1"},
 				map[string]any{"refId": "D", "datasource": dashboard, "panelId": 1},
-				map[string]any{"refId": "E", "datasource": loki, "expr": "{a=\"b\"}"},
+				map[string]any{"refId": "E", "datasource": elasticsearch, "query": "service:web"},
 			},
 		},
 	}
@@ -97,7 +97,7 @@ func TestScopeOf(t *testing.T) {
 		{"expression target", "panels[2].targets[1].expression", scopedPath{"query:expression", "panels[2].targets[1]", "expression"}},
 		{"clickhouse target", "panels[2].targets[2].rawSql", scopedPath{"query:clickhouse", "panels[2].targets[2]", "rawSql"}},
 		{"dashboard target", "panels[2].targets[3].panelId", scopedPath{"query:dashboard", "panels[2].targets[3]", "panelId"}},
-		{"unsupported target", "panels[2].targets[4].expr", scopedPath{"query:unsupported", "panels[2].targets[4]", "expr"}},
+		{"unsupported target", "panels[2].targets[4].query", scopedPath{"query:unsupported", "panels[2].targets[4]", "query"}},
 		{"target past the list", "panels[0].targets[7].expr", scopedPath{"query:unsupported", "panels[0].targets[7]", "expr"}},
 		{"panels[1] does not capture panels[10]", "panels[10].options.content", scopedPath{"panel:text", "panels[10]", "options.content"}},
 		{"graph panel is scoped by its source type", "panels[11].legend.show", scopedPath{"panel:graph", "panels[11]", "legend.show"}},

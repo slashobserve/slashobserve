@@ -1,0 +1,47 @@
+{
+  "prompt": "eval investigate: why are orders waiting in the queue",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))",
+            "from": "now-1h",
+            "to": "now"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "save_finding",
+          "input": {
+            "markdown": "## Orders wait in the queue because the order route slowed down\nThe rate of requests on the orders route dropped while new orders kept arriving, so the queue grew.\nThe queue drains once the orders route recovers.",
+            "evidence": [
+              {
+                "id": "evidence",
+                "type": "timeseries",
+                "title": "Request rate by route",
+                "gridPos": {
+                  "x": 0,
+                  "y": 0,
+                  "w": 12,
+                  "h": 8
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

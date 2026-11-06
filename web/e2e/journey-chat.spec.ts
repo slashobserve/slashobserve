@@ -1,13 +1,15 @@
 import type { Locator, Page } from "@playwright/test"
 
 import { card } from "./activity"
+import { holdRequestPollsUntilFinished } from "./builds"
 import { expectPanelsReady } from "./dashboards"
 import { expect, test } from "./fixtures"
 
 const agentTimeout = 90_000
 const askPrompt = "demo shop RED metrics by endpoint"
 const followUpPrompt = "Show this per route"
-const requestPath = /\/observe\/([0-9a-f-]{36})$/
+const requestPath = /\/c\/([0-9a-f-]{36})$/
+const buildPath = /\/b\/([0-9a-f-]{36})$/
 const dashboardTitle = "Demo shop RED metrics"
 const refinedDashboardTitle = "E2E dashboard"
 
@@ -24,8 +26,7 @@ function composer(page: Page) {
 function historyRows(page: Page): Locator {
   return page
     .getByRole("complementary", { name: "History" })
-    .getByRole("list")
-    .getByRole("button")
+    .locator("[data-chat-row]")
 }
 
 for (const colorScheme of ["light", "dark"] as const) {
@@ -40,6 +41,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       let dashboardId = ""
       const firstTurn = turnWith(page, askPrompt)
       const secondTurn = turnWith(page, followUpPrompt)
+      const release = await holdRequestPollsUntilFinished(page)
 
       await test.step("ask", async () => {
         await page.goto("/")
@@ -52,16 +54,31 @@ for (const colorScheme of ["light", "dark"] as const) {
         await composer(page).fill(askPrompt)
         await composer(page).press("Enter")
 
-        await expect(page).toHaveURL(requestPath)
-        firstId = requestPath.exec(page.url())?.[1] ?? ""
+        await expect(page).toHaveURL(buildPath)
+        firstId = buildPath.exec(page.url())?.[1] ?? ""
         expect(firstId).not.toBe("")
       })
 
-      await test.step("watch the steps", async () => {
-        await expect(firstTurn).toBeVisible()
-        await expect(firstTurn.getByText(/Saved as version 1/)).toBeVisible({
+      await test.step("watch the build open the dashboard", async () => {
+        await expect(
+          page
+            .getByRole("complementary", { name: "Chat" })
+            .getByText(askPrompt, { exact: true })
+        ).toBeVisible()
+        await release(firstId)
+        await expect(page).toHaveURL(/\/d\/[0-9a-f-]{36}/, {
           timeout: agentTimeout,
         })
+        await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+          dashboardTitle
+        )
+        await expectPanelsReady(page)
+      })
+
+      await test.step("watch the steps", async () => {
+        await page.goto(`/c/${firstId}`)
+        await expect(firstTurn).toBeVisible()
+        await expect(firstTurn.getByText(/Saved as version 1/)).toBeVisible()
         await expect(
           firstTurn.getByRole("link", { name: /^Open dashboard/ })
         ).toBeVisible()
@@ -88,7 +105,9 @@ for (const colorScheme of ["light", "dark"] as const) {
 
       await test.step("open the dashboard", async () => {
         await firstTurn.getByRole("link", { name: /^Open dashboard/ }).click()
-        await expect(page).toHaveURL(new RegExp(`/dashboards/${dashboardId}$`))
+        await expect(page).toHaveURL(
+          new RegExp(`/d/${dashboardId}(/[a-z0-9-]+)?$`)
+        )
         await expect(page.getByRole("heading", { level: 1 })).toHaveText(
           dashboardTitle
         )
@@ -110,7 +129,7 @@ for (const colorScheme of ["light", "dark"] as const) {
           timeout: agentTimeout,
         })
         await expect(secondTurn.getByText(/^Ran \d+ steps?/)).toBeVisible()
-        await expect(page).toHaveURL(new RegExp(`/observe/${firstId}$`))
+        await expect(page).toHaveURL(new RegExp(`/c/${firstId}$`))
         const turns = page.getByRole("region", { name: /^Request / })
         await expect(turns.first()).toContainText(askPrompt)
         await expect(turns.last()).toContainText(followUpPrompt)
@@ -155,7 +174,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         )
 
         await rows.nth(order.current).click()
-        await expect(page).toHaveURL(new RegExp(`/observe/${firstId}$`))
+        await expect(page).toHaveURL(new RegExp(`/c/${firstId}$`))
         await expect(rows.nth(order.current)).toHaveAttribute(
           "aria-current",
           "true"
@@ -170,7 +189,7 @@ for (const colorScheme of ["light", "dark"] as const) {
           .first()
         await expect(row).toBeVisible()
         await row.click()
-        await expect(page).toHaveURL(new RegExp(`/observe/${firstId}$`))
+        await expect(page).toHaveURL(new RegExp(`/c/${firstId}$`))
       })
 
       await test.step("theme", async () => {

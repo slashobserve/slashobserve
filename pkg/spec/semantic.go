@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func checkSemantics(d *Dashboard) []Issue {
+func checkSemantics(d *Dashboard, touched map[string]bool) []Issue {
 	var issues []Issue
 	entries := d.AllPanels()
 	issues = append(issues, checkPanelCount(d)...)
@@ -19,7 +19,7 @@ func checkSemantics(d *Dashboard) []Issue {
 	issues = append(issues, checkDuplicateVariableNames(d.Variables)...)
 	issues = append(issues, checkVariableDefinitions(d.Variables)...)
 	issues = append(issues, checkGridOverflow(entries)...)
-	issues = append(issues, checkGridOverlap(d)...)
+	issues = append(issues, checkGridOverlap(d, touched)...)
 	issues = append(issues, checkTime(d.Time)...)
 	issues = append(issues, checkTimezone(d.Timezone)...)
 	issues = append(issues, checkThresholds(entries)...)
@@ -286,14 +286,14 @@ func gridsOverlap(a, b GridPos) bool {
 	return a.X < b.X+b.W && b.X < a.X+a.W && a.Y < b.Y+b.H && b.Y < a.Y+a.H
 }
 
-func checkGridOverlap(d *Dashboard) []Issue {
+func checkGridOverlap(d *Dashboard, touched map[string]bool) []Issue {
 	var layout []PanelEntry
 	for _, e := range d.AllPanels() {
 		if e.Row == nil || !e.Row.Collapsed {
 			layout = append(layout, e)
 		}
 	}
-	issues := overlaps(layout)
+	issues := overlaps(layout, touched)
 	for i := range d.Panels {
 		row := &d.Panels[i]
 		if row.Type != Row || !row.Collapsed {
@@ -307,27 +307,40 @@ func checkGridOverlap(d *Dashboard) []Issue {
 				Row:     row,
 			})
 		}
-		issues = append(issues, overlaps(children)...)
+		issues = append(issues, overlaps(children, touched)...)
 	}
 	return issues
 }
 
-func overlaps(set []PanelEntry) []Issue {
+func overlaps(set []PanelEntry, touched map[string]bool) []Issue {
 	var issues []Issue
+	blamedSet := map[string]bool{}
 	for j, pj := range set {
 		for i := range j {
 			if !gridsOverlap(set[i].Panel.GridPos, pj.Panel.GridPos) {
 				continue
 			}
+			blamed, other := pj, set[i]
+			if touched[other.Panel.ID] && !touched[blamed.Panel.ID] {
+				blamed, other = other, blamed
+			}
+			if blamedSet[blamed.Pointer] {
+				continue
+			}
+			blamedSet[blamed.Pointer] = true
 			issues = append(issues, Issue{
-				Path:    pj.Pointer + "/gridPos",
-				Code:    CodeGridOverlap,
-				Message: fmt.Sprintf("panel %q overlaps panel %q at %s; move one of them to free grid cells", pj.Panel.ID, set[i].Panel.ID, set[i].Pointer),
+				Path: blamed.Pointer + "/gridPos",
+				Code: CodeGridOverlap,
+				Message: fmt.Sprintf("panel %q at %s overlaps panel %q at %s; move or resize %q so they share no grid cell",
+					blamed.Panel.ID, gridText(blamed.Panel.GridPos), other.Panel.ID, gridText(other.Panel.GridPos), blamed.Panel.ID),
 			})
-			break
 		}
 	}
 	return issues
+}
+
+func gridText(g GridPos) string {
+	return fmt.Sprintf("x%d y%d w%d h%d", g.X, g.Y, g.W, g.H)
 }
 
 var columnPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$`)

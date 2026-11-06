@@ -1,6 +1,8 @@
 id: checkout-top-error-messages
 prompt: top 10 log messages for checkout errors
 category: clickhouse
+kind: create
+suites: [live]
 done_when: true
 expect:
   datasources: [clickhouse]

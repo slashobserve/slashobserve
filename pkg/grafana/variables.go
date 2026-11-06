@@ -456,10 +456,17 @@ func allowsCustomValue(raw map[string]any) bool {
 func (c *converter) queryVariable(raw map[string]any, path, name string) (spec.Variable, bool) {
 	subject := "variable " + name
 	ref := c.reg.lookup(raw["datasource"])
-	if !ref.supported() {
-		return c.fixedVariable(raw, path, name, ref)
+	if clause := variableQueryGap(ref); clause != "" {
+		return c.fixedVariable(raw, path, name, clause)
 	}
 	text := variableQueryText(raw["query"])
+	if ref.src.kind == kindLoki && strings.TrimSpace(text) == "" {
+		if object, ok := asObject(raw["query"]); ok {
+			if text = lokiLabelValuesQuery(object); text == "" {
+				return c.fixedVariable(raw, path, name, "This Loki variable query is not supported yet")
+			}
+		}
+	}
 	if strings.TrimSpace(text) == "" {
 		c.dropVariable(subject, path+".query", "It has no query.")
 		return spec.Variable{}, false
@@ -486,6 +493,33 @@ func (c *converter) queryVariable(raw map[string]any, path, name string) (spec.V
 	c.listFlags(&v, raw, path, subject)
 	v.Default = c.variableDefault(raw, path, subject, &v, nil)
 	return v, true
+}
+
+func variableQueryGap(ref dsRef) string {
+	if missing, ok := ref.unconfiguredKind(); ok {
+		return fmt.Sprintf("It queries %s, and no %s datasource is configured", ref.label(), missing.label)
+	}
+	if !ref.supported() {
+		return fmt.Sprintf("It queries %s, which is not supported yet", ref.label())
+	}
+	if traits := kinds[ref.src.kind]; !traits.variableQueries {
+		return fmt.Sprintf("Query variables on %s are not supported yet", traits.label)
+	}
+	return ""
+}
+
+const lokiLabelValuesType = 1
+
+func lokiLabelValuesQuery(query map[string]any) string {
+	kind, ok := asInt(query["type"])
+	label := strings.TrimSpace(asString(query["label"]))
+	if !ok || kind != lokiLabelValuesType || label == "" {
+		return ""
+	}
+	if stream := strings.TrimSpace(asString(query["stream"])); stream != "" {
+		return "label_values(" + stream + ", " + label + ")"
+	}
+	return "label_values(" + label + ")"
 }
 
 func staticOrderOf(raw map[string]any) string {
@@ -569,7 +603,7 @@ func (c *converter) variableRegex(v *spec.Variable, raw map[string]any, path, su
 	v.Regex = regex
 }
 
-func (c *converter) fixedVariable(raw map[string]any, path, name string, ref dsRef) (spec.Variable, bool) {
+func (c *converter) fixedVariable(raw map[string]any, path, name, clause string) (spec.Variable, bool) {
 	subject := "variable " + name
 	var saved []string
 	list, _ := asArray(raw["options"])
@@ -592,10 +626,10 @@ func (c *converter) fixedVariable(raw map[string]any, path, name string, ref dsR
 	}
 	options := c.cleanOptions(spec.PlainOptions(saved...), subject, path)
 	if len(options) == 0 {
-		c.dropVariable(subject, path, fmt.Sprintf("It queries %s, which is not supported yet, and it has no saved values to keep.", ref.label()))
+		c.dropVariable(subject, path, clause+", and it has no saved values to keep.")
 		return spec.Variable{}, false
 	}
-	c.note(subject, fmt.Sprintf("It queries %s, which is not supported yet; its saved values are kept as a fixed list.", ref.label()), path+".datasource")
+	c.note(subject, clause+"; its saved values are kept as a fixed list.", path+".datasource")
 	v := spec.Variable{Type: spec.CustomVariable, Options: options}
 	c.listFlags(&v, raw, path, subject)
 	v.Default = c.variableDefault(raw, path, subject, &v, spec.OptionValues(options))
@@ -817,6 +851,10 @@ func (c *converter) datasourceVariable(raw map[string]any, path, name string) (s
 		c.dropVariable(subject, path+".query", fmt.Sprintf("Datasource variables of type %q are not supported yet.", pluginID))
 		return spec.Variable{}, false
 	}
+	if src := c.reg.byKey["${"+name+"}"]; src != nil && !src.available() {
+		c.dropVariable(subject, path+".query", dsRef{kind: refSource, src: src}.unsupportedReason())
+		return spec.Variable{}, false
+	}
 	v := spec.Variable{Type: spec.DatasourceVariable, DatasourceType: spec.DatasourceType(kind)}
 	c.variableRegex(&v, raw, path, subject)
 	if truthy(raw["multi"]) || truthy(raw["includeAll"]) {
@@ -844,6 +882,10 @@ func (c *converter) adhocVariable(raw map[string]any, path, name string) (spec.V
 	ref := c.reg.lookup(raw["datasource"])
 	if !ref.supported() {
 		c.dropVariable(subject, path+".datasource", fmt.Sprintf("It filters %s, which is not supported yet.", ref.label()))
+		return spec.Variable{}, false
+	}
+	if traits := kinds[ref.src.kind]; !traits.adhoc {
+		c.dropVariable(subject, path+".datasource", fmt.Sprintf("Ad hoc filters on %s are not supported yet.", traits.label))
 		return spec.Variable{}, false
 	}
 	c.adhocSources[name] = ref.src

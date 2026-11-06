@@ -21,9 +21,18 @@ function isFakeDashboardRequest(url: URL): boolean {
   return url.pathname.startsWith(`${listPath}/`) && fakeIds.has(id)
 }
 
-test.beforeEach(({ page }) =>
-  page.route(isFakeDashboardRequest, (route) => route.fulfill({ json: {} }))
-)
+type FolderRef = { id: string; title: string; general: boolean }
+
+let generalFolder: FolderRef
+
+test.beforeEach(async ({ page, request }) => {
+  await page.route(isFakeDashboardRequest, (route) =>
+    route.fulfill({ json: {} })
+  )
+  const listed = await request.get("/api/v1/folders")
+  const body = (await listed.json()) as { folders: FolderRef[] }
+  generalFolder = body.folders.find((folder) => folder.general)!
+})
 
 type Summary = ReturnType<typeof fakeSummary>
 
@@ -56,6 +65,17 @@ function fakeSummary(
     },
     datasource_uids: ["prom"],
     open_comment_count: 0,
+    folder: {
+      id: generalFolder.id,
+      title: generalFolder.title,
+      general: true,
+    },
+    permissions: {
+      comment: true,
+      edit: true,
+      manage: true,
+      create: true,
+    },
     ...overrides,
   }
 }
@@ -67,6 +87,8 @@ function listBody(dashboards: Summary[], nextCursor: string | null = null) {
     total_count: dashboards.length,
   }
 }
+
+const headerAndFolderRows = 2
 
 function dashboardsCard(page: Page) {
   return page.getByRole("region", { name: "Dashboards" })
@@ -85,7 +107,9 @@ function rowFor(page: Page, title: string) {
 async function filterByTitle(page: Page, title: string) {
   await filterBox(page).fill(title)
   await expect(rowFor(page, title)).toBeVisible()
-  await expect(dashboardsCard(page).getByRole("row")).toHaveCount(2)
+  await expect(dashboardsCard(page).getByRole("row")).toHaveCount(
+    headerAndFolderRows + 1
+  )
 }
 
 function searchParam(page: Page, name: string) {
@@ -121,6 +145,7 @@ test("lists dashboards newest first", async ({ page, request }) => {
     "Open comments",
     "Version",
     "Updated",
+    "Actions",
   ])
 })
 
@@ -146,9 +171,10 @@ for (const scheme of ["light", "dark"] as const) {
       await page.goto("/dashboards")
       await filterByTitle(page, title)
       const cells = rowFor(page, title).getByRole("cell")
-      await expect(cells.nth(1)).toHaveText(maker)
+      await expect(cells.nth(1)).toContainText(maker)
+      await expect(cells.nth(1)).toContainText("· Web")
       await expect(cells.nth(2)).toContainText("prom")
-      await expect(cells.nth(3)).toHaveText("None")
+      await expect(cells.nth(3)).toHaveText("")
       await expect(cells.nth(4)).toHaveText("v1")
 
       const card = dashboardsCard(page)
@@ -188,13 +214,13 @@ test("opens a dashboard in the same tab and from the arrow in a new tab", async 
     context.waitForEvent("page"),
     arrow.click(),
   ])
-  await expect(popup).toHaveURL(new RegExp(`/dashboards/${created.id}`))
+  await expect(popup).toHaveURL(new RegExp(`/d/${created.id}`))
   await expect(popup.getByRole("heading", { level: 1 })).toHaveText(title)
   await expect(page).toHaveURL(/\/dashboards(\?.*)?$/)
   await popup.close()
 
   await link.click()
-  await expect(page).toHaveURL(new RegExp(`/dashboards/${created.id}`))
+  await expect(page).toHaveURL(new RegExp(`/d/${created.id}`))
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(title)
 })
 
@@ -279,10 +305,14 @@ test("counts matches", async ({ page, request }) => {
   await page.goto("/dashboards")
 
   await filterByTitle(page, title)
-  await expect(page.getByText("1 dashboard", { exact: true })).toBeVisible()
+  await expect(
+    page.getByText("1 dashboard in 1 folder", { exact: true })
+  ).toBeVisible()
 
   await filterBox(page).fill(`${title} no such dashboard`)
-  await expect(page.getByText("0 dashboards", { exact: true })).toBeVisible()
+  await expect(
+    page.getByText("0 dashboards in 0 folders", { exact: true })
+  ).toBeVisible()
 })
 
 function filteredList(
@@ -331,7 +361,9 @@ test("keeps the no match state while a longer search loads", async ({
   await expect(noDashboards).toHaveCount(0)
 
   release()
-  await expect(page.getByText("0 dashboards", { exact: true })).toBeVisible()
+  await expect(
+    page.getByText("0 dashboards in 0 folders", { exact: true })
+  ).toBeVisible()
   await expect(noMatch).toBeVisible()
 
   await page.getByRole("button", { name: "Clear filters" }).click()
@@ -386,7 +418,7 @@ test.describe("on a phone", () => {
     ).toBe(true)
     expect(
       await dashboardsCard(page).evaluate(
-        (element) => element.scrollWidth > element.clientWidth
+        (element) => element.scrollWidth <= element.clientWidth
       )
     ).toBe(true)
   })
@@ -503,7 +535,28 @@ test("keeps the new tab arrow with the last word of a wrapped title", async ({
   expect(placement.onLastLine).toBe(true)
 })
 
+type ListedFolder = {
+  general: boolean
+  personal: boolean
+  dashboard_count: number
+}
+
+async function showOnlyBuiltInFolders(page: Page) {
+  await page.route(
+    (url) => url.pathname === "/api/v1/folders",
+    async (route) => {
+      const response = await route.fetch()
+      const body = (await response.json()) as { folders: ListedFolder[] }
+      const folders = body.folders
+        .filter((folder) => folder.general || folder.personal)
+        .map((folder) => ({ ...folder, dashboard_count: 0 }))
+      await route.fulfill({ response, json: { ...body, folders } })
+    }
+  )
+}
+
 test("shows the empty state", async ({ page }) => {
+  await showOnlyBuiltInFolders(page)
   await page.route(isListRequest, (route) =>
     route.fulfill({ json: listBody([]) })
   )
@@ -557,6 +610,7 @@ test("keeps the empty state and a busy Retry when a refetch fails", async ({
   consoleErrors,
 }) => {
   await page.clock.install()
+  await showOnlyBuiltInFolders(page)
   let mode: "empty" | "fail" | "slow" = "empty"
   let release!: () => void
   const gate = new Promise<void>((resolve) => (release = resolve))

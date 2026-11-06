@@ -1,5 +1,5 @@
 import { useId, useState } from "react"
-import { TriangleAlertIcon } from "lucide-react"
+import { ChevronDownIcon, ChevronUpIcon, TriangleAlertIcon } from "lucide-react"
 
 import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,13 @@ import { filterLines, statusLabel } from "@/import/report"
 import { countsText } from "@/import/record-summary"
 
 import type { AgentGate } from "./agent-gate"
-import { boxClass, EntryFrame } from "./entry-frame"
+import {
+  avatarFor,
+  boxClass,
+  EntryAction,
+  EntryFrame,
+  panelLinkClass,
+} from "./entry-frame"
 import type { TimelineEntry } from "./timeline-model"
 
 type Props = {
@@ -37,7 +43,7 @@ export function ImportEntry({
 
   return (
     <EntryFrame
-      avatar={{ kind: "person", name: record.created_by.name }}
+      avatar={avatarFor(record.created_by)}
       who={record.created_by.name}
       verb="imported this dashboard from Grafana"
       at={entry.at}
@@ -61,7 +67,7 @@ export function ImportEntry({
                 >
                   <button
                     type="button"
-                    className="self-start rounded-sm text-left font-medium wrap-anywhere underline decoration-border underline-offset-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className={cn(panelLinkClass, "self-start")}
                     onClick={() => onSelectPanel(panel.panelId)}
                   >
                     {panel.title}
@@ -89,15 +95,21 @@ export function ImportEntry({
             No panel is unverified in the latest version.
           </p>
         ) : null}
-        <button
-          type="button"
+        <EntryAction
+          icon={
+            showReport ? (
+              <ChevronUpIcon aria-hidden="true" />
+            ) : (
+              <ChevronDownIcon aria-hidden="true" />
+            )
+          }
           aria-expanded={showReport}
           aria-controls={reportId}
-          className="mt-2 rounded-sm text-xs text-muted-foreground underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          className="mt-2 -ml-2"
           onClick={() => setShowReport((open) => !open)}
         >
           {showReport ? "Hide the report" : "Show the report"}
-        </button>
+        </EntryAction>
         <ul id={reportId} hidden={!showReport} className="divide-y">
           {lines.map((line) => {
             const status = statusLabel(line.status)

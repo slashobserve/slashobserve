@@ -27,6 +27,9 @@ func TestLevelFor(t *testing.T) {
 		{"creator of an unrestricted folder", Facts{Creator: true}, want{LevelView, LevelComment, LevelAdmin, LevelAdmin}},
 		{"creator with a view row", Facts{Restricted: true, Creator: true, Grants: []Level{LevelView}}, want{LevelView, LevelComment, LevelAdmin, LevelAdmin}},
 		{"creator with an edit row", Facts{Restricted: true, Creator: true, Grants: []Level{LevelEdit}}, want{LevelEdit, LevelEdit, LevelAdmin, LevelAdmin}},
+		{"owner of a personal folder", Facts{Personal: true, Owner: true}, want{LevelEdit, LevelEdit, LevelEdit, LevelEdit}},
+		{"someone else's personal folder", Facts{Personal: true}, want{LevelNone, LevelNone, LevelNone, LevelNone}},
+		{"someone else's personal folder, creator and granted", Facts{Personal: true, Creator: true, Restricted: true, Grants: []Level{LevelAdmin}}, want{LevelNone, LevelNone, LevelNone, LevelNone}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -46,7 +49,7 @@ func TestLevelFor(t *testing.T) {
 }
 
 func TestLevelForRefusesAnUnknownRole(t *testing.T) {
-	facts := []Facts{{Creator: true}, {Restricted: true, Grants: []Level{LevelEdit}}}
+	facts := []Facts{{Creator: true}, {Restricted: true, Grants: []Level{LevelEdit}}, {Personal: true, Owner: true}}
 	for _, role := range []auth.Role{"", "owner"} {
 		for _, f := range facts {
 			if got := LevelFor(role, f); got != LevelNone {
@@ -189,5 +192,24 @@ func TestParseLevel(t *testing.T) {
 		if ok && got.String() != tc.in {
 			t.Errorf("String() of ParseLevel(%q) = %q", tc.in, got.String())
 		}
+	}
+}
+
+func TestMayMoveInto(t *testing.T) {
+	cases := []struct {
+		name   string
+		target Folder
+		want   bool
+	}{
+		{"a shared folder takes a move", Folder{Title: "Checkout"}, true},
+		{"General takes a move", Folder{Title: "General", General: true}, true},
+		{"a personal folder takes no move", Folder{Title: "My Dashboards", Personal: true}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := MayMoveInto(tc.target); got != tc.want {
+				t.Errorf("MayMoveInto = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }

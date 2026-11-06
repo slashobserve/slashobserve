@@ -1,0 +1,26 @@
+{
+  "prompt": "how many requests per second is each shop service handling right now?",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "query_instant",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (service) (rate(http_requests_total{job=\"shop\"}[5m]))"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "save_finding",
+          "input": {
+            "markdown": "Each shop service's current request rate is the per-service sum of rate(http_requests_total{job=\"shop\"}[5m]) over the last five minutes."
+          }
+        }
+      ]
+    }
+  ]
+}

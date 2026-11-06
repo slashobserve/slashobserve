@@ -44,6 +44,8 @@ type Facts struct {
 	Restricted bool
 	Grants     []Level
 	Creator    bool
+	Personal   bool
+	Owner      bool
 }
 
 func roleLevels(role auth.Role) (base, creator Level) {
@@ -58,7 +60,17 @@ func roleLevels(role auth.Role) (base, creator Level) {
 	return LevelNone, LevelNone
 }
 
+func personalLevel(role auth.Role, f Facts) Level {
+	if f.Owner && role.AtLeast(auth.RoleViewer) {
+		return LevelEdit
+	}
+	return LevelNone
+}
+
 func LevelFor(role auth.Role, f Facts) Level {
+	if f.Personal {
+		return personalLevel(role, f)
+	}
 	if role == auth.RoleAdmin {
 		return LevelAdmin
 	}
@@ -74,6 +86,10 @@ func LevelFor(role auth.Role, f Facts) Level {
 		level = max(level, creator)
 	}
 	return level
+}
+
+func MayMoveInto(target Folder) bool {
+	return !target.Personal
 }
 
 type Abilities struct {

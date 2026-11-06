@@ -1,16 +1,16 @@
 -- name: CreateServiceAccount :one
 INSERT INTO service_accounts (name, description, created_by, role) VALUES (@name, @description, @created_by, @role)
-RETURNING id, name, description, created_by, created_at, role;
+RETURNING id, name, description, created_by, created_at, role, provisioned;
 
 -- name: ListServiceAccounts :many
-SELECT id, name, description, created_by, created_at, role FROM service_accounts ORDER BY name;
+SELECT id, name, description, created_by, created_at, role, provisioned FROM service_accounts ORDER BY name;
 
 -- name: GetServiceAccount :one
-SELECT id, name, description, created_by, created_at, role FROM service_accounts WHERE id = $1;
+SELECT id, name, description, created_by, created_at, role, provisioned FROM service_accounts WHERE id = $1;
 
 -- name: SetServiceAccountRole :one
 UPDATE service_accounts SET role = @role WHERE id = @id
-RETURNING id, name, description, created_by, created_at, role;
+RETURNING id, name, description, created_by, created_at, role, provisioned;
 
 -- name: CreateServiceAccountKey :one
 INSERT INTO service_account_keys (service_account_id, name, display_prefix, token_hash, created_by, expires_at)
@@ -36,3 +36,27 @@ WHERE id = $1 AND (last_used_at IS NULL OR last_used_at < now() - interval '5 mi
 
 -- name: GetServiceAccountPrincipal :one
 SELECT id, name, role FROM service_accounts WHERE id = $1;
+
+-- name: GetServiceAccountByName :one
+SELECT id, name, description, created_by, created_at, role, provisioned FROM service_accounts WHERE name = $1;
+
+-- name: UpsertProvisionedServiceAccount :one
+INSERT INTO service_accounts (name, description, role, provisioned) VALUES (@name, @description, @role, true)
+ON CONFLICT (name) DO UPDATE SET role = EXCLUDED.role, description = EXCLUDED.description
+WHERE service_accounts.provisioned
+RETURNING id, name, description, created_by, created_at, role, provisioned;
+
+-- name: ActiveKeyByName :one
+SELECT id, token_hash FROM service_account_keys
+WHERE service_account_id = @service_account_id AND name = @name
+  AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())
+ORDER BY created_at DESC
+LIMIT 1;
+
+-- name: ReplaceProvisionedKey :exec
+WITH revoked AS (
+  UPDATE service_account_keys SET revoked_at = now()
+  WHERE service_account_id = @service_account_id AND name = @name AND revoked_at IS NULL
+)
+INSERT INTO service_account_keys (service_account_id, name, display_prefix, token_hash)
+VALUES (@service_account_id, @name, @display_prefix, @token_hash);

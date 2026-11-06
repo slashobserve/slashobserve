@@ -34,6 +34,7 @@ export type Gauge = {
   value: number | null
   meterValue: number
   text: string
+  compact: string
   color: string | null
   threshold: ThresholdState
   fraction: number
@@ -98,6 +99,43 @@ export function arcPath(
 export function valueFontSize(text: string, withMoreLinks = false): number {
   const textWidth = Math.max(text.length, 3) * valueCharWidth
   return valueFit / (textWidth + (withMoreLinks ? moreLinksWidth : 0))
+}
+
+const compactLength = 6
+const compactMaxDecimals = 3
+
+function plainUnit(unit: string | undefined): boolean {
+  return unit === undefined || unit === "" || unit === "none"
+}
+
+function readsAsZero(text: string): boolean {
+  return !/[1-9]/.test(text)
+}
+
+function compactValueText(
+  value: number | null,
+  shown: { text: string; mapped: boolean },
+  config: Pick<FieldConfig, "unit" | "decimals">
+): string {
+  if (shown.text.length <= compactLength) return shown.text
+  if (shown.mapped || value === null || !Number.isFinite(value)) {
+    return shown.text
+  }
+  const units = plainUnit(config.unit) ? [config.unit, "short"] : [config.unit]
+  const most = Math.min(
+    config.decimals ?? compactMaxDecimals,
+    compactMaxDecimals
+  )
+  let shortest = shown.text
+  for (const unit of units) {
+    for (let decimals = most; decimals >= 0; decimals--) {
+      const text = formatValue(value, unit, decimals)
+      if (value !== 0 && readsAsZero(text)) continue
+      if (text.length <= compactLength) return text
+      if (text.length < shortest.length) shortest = text
+    }
+  }
+  return shortest
 }
 
 function dataRange(sources: Source[]): { min?: number; max?: number } {
@@ -248,6 +286,7 @@ export function gaugeModel(
         value,
         meterValue: clamp(value ?? min, min, max),
         text: shown.text,
+        compact: compactValueText(value, shown, config),
         color: shown.color,
         threshold: thresholdColored ? shown.threshold : thresholdFor(null),
         fraction,

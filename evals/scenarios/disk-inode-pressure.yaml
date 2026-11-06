@@ -1,6 +1,8 @@
 id: disk-inode-pressure
 prompt: disk usage and inode pressure per node
 category: prometheus
+kind: create
+suites: [live]
 done_when: true
 expect:
   datasources: [prometheus]

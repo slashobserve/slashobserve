@@ -1,0 +1,136 @@
+provision:
+  get:
+    operationId: getProvisionStatus
+    summary: Show what the provisioning directory became.
+    description: >-
+      Lists every file that became a dashboard and every file that never did, each sorted by `path` in byte order.
+      Paths are relative to `SLASHOBSERVE_PROVISION_DIR`, with `/` between directories.
+      The lists are kept when provisioning is turned off, so they can still be read; `dir` is then null.
+      Only Admins may call this endpoint.
+    responses:
+      "200":
+        description: The provisioning status.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ProvisionStatus"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+provision-run:
+  post:
+    operationId: runProvisioning
+    summary: Provision the directory now.
+    description: >-
+      Reads every file of the directory once, as the server does at startup and when a file changes, and answers the status afterwards.
+      An unchanged file saves nothing, and a changed file adds one version.
+      Only Admins may call this endpoint.
+    responses:
+      "200":
+        description: The provisioning status after the run.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ProvisionStatus"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "409":
+        description: Provisioning is off because `SLASHOBSERVE_PROVISION_DIR` is not set (`provisioning_off`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        description: The directory cannot be read (`provision_dir_unreadable`), or the server failed (`internal`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+provision-apply:
+  post:
+    operationId: applyDashboardFile
+    summary: Save one dashboard file from a dashboards-as-code directory.
+    description: >-
+      Editors and Admins can call this endpoint; `observe dashboards apply` calls it once per file.
+      `path` is the file's path relative to the applied directory, with `/` between directories: a file name, or a folder directory and a file name.
+      The directory names the folder, with `%` written as `%25` and `/` as `%2F`, and a file at the root goes to General.
+      A path that was applied before saves into the same dashboard.
+      Otherwise the one dashboard in that folder whose title matches the Spec's title, compared case-insensitively, is adopted, and the path is bound to it; when no dashboard matches a new one is created, with the folder when it does not exist yet.
+      A version is saved as the caller, with the summary `Applied from <path>`, only when the file changed since it was last applied and differs from the latest version.
+      Apply never deletes a dashboard.
+      It answers 409 `ambiguous` when more than one dashboard in the folder has the title, 409 `provisioned` when the dashboard comes from the server's provisioning directory, and 409 `version_conflict` when another save landed during the apply.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [path, spec]
+            properties:
+              path:
+                type: string
+                maxLength: 512
+              spec:
+                type: object
+                additionalProperties: true
+                description: The ObserveSpec document of the file.
+    responses:
+      "200":
+        description: What the file became.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ApplyResult"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/Conflict"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/InvalidSpec"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+provision-applied:
+  get:
+    operationId: listAppliedDashboards
+    summary: List the file paths bound to the dashboards of a folder.
+    description: >-
+      Anyone with a role can call this endpoint for a folder they can see; `observe dashboards export` reads it to keep the file names a folder was applied from.
+      Each entry is a path that `POST /provision/apply` bound to a dashboard now in the folder, sorted by `path` in byte order.
+    parameters:
+      - name: folder_id
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      "200":
+        description: The bound paths.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AppliedList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

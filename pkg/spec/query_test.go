@@ -185,6 +185,12 @@ func TestMacrosAndFormats(t *testing.T) {
 	if got, want := names(spec.Macros(spec.Prometheus)), wantPrometheus; !slices.Equal(got, want) {
 		t.Errorf("prometheus macros = %v, want %v", got, want)
 	}
+	wantLogsAndTraces := []string{"__interval", "__interval_ms", "__range", "__range_s", "__range_ms", "__from", "__to", "__dashboard", "__user.login", "__user.email", "__user.name", "__user.id"}
+	for _, typ := range []spec.DatasourceType{spec.Loki, spec.Tempo} {
+		if got := names(spec.Macros(typ)); !slices.Equal(got, wantLogsAndTraces) {
+			t.Errorf("%s macros = %v, want %v", typ, got, wantLogsAndTraces)
+		}
+	}
 	wantClickHouse := append(append([]string{"__interval"}, globals...), "__timeFilter", "__timeFilter_ms", "__timeGroup", "__dateFilter", "__dateTimeFilter", "__dt", "__fromTime", "__toTime", "__fromTime_ms", "__toTime_ms", "__interval_s", "__timeInterval", "__timeInterval_ms", "__conditionalAll")
 	if got, want := names(spec.Macros(spec.ClickHouse)), wantClickHouse; !slices.Equal(got, want) {
 		t.Errorf("clickhouse macros = %v, want %v", got, want)
@@ -471,5 +477,24 @@ func TestScanQueryManyClosedConditionalAlls(t *testing.T) {
 	deep := strings.Repeat("$__conditionalAll(", 5000) + "a" + strings.Repeat(", $v)", 5000)
 	if _, err := spec.ScanQuery(deep); err != nil {
 		t.Fatalf("deeply nested: %v", err)
+	}
+}
+
+func TestLogQLReturnsLines(t *testing.T) {
+	cases := []struct {
+		text string
+		want bool
+	}{
+		{`{a="b"}`, true},
+		{"  \n\t{a=\"b\"} |= \"x\"", true},
+		{"# lines\n  # more\n{a=\"b\"}", true},
+		{`rate({a="b"}[5m])`, false},
+		{"# only a comment", false},
+		{"", false},
+	}
+	for _, c := range cases {
+		if got := spec.LogQLReturnsLines(c.text); got != c.want {
+			t.Errorf("LogQLReturnsLines(%q) = %v, want %v", c.text, got, c.want)
+		}
 	}
 }

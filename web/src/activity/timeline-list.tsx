@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
+import { nextDayStart, withDayBreaks } from "./day-label"
 import { firstNewVersion, type TimelineEntry } from "./timeline-model"
 
 const stickThresholdPx = 48
@@ -59,6 +60,18 @@ export function useStickToBottom(depsKey: string) {
   return setElement
 }
 
+function useToday(): number {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setNow(Date.now()),
+      nextDayStart(now) - Date.now()
+    )
+    return () => clearTimeout(timer)
+  }, [now])
+  return now
+}
+
 function Message({ children, role }: { children: ReactNode; role?: "alert" }) {
   return (
     <div
@@ -83,6 +96,7 @@ export function TimelineList({
   const loadButton = useRef<HTMLButtonElement>(null)
   const knownVersions = useRef<ReadonlySet<number> | null>(null)
   const { fetching } = older
+  const today = useToday()
 
   useEffect(() => {
     const known = knownVersions.current
@@ -136,9 +150,16 @@ export function TimelineList({
   if (entries.length === 0) {
     return (
       <Message>
-        {filtered
-          ? "No activity matches these filters."
-          : "Nothing here yet. Comments, agent requests and versions show up here."}
+        {filtered ? (
+          "No activity matches these filters."
+        ) : (
+          <>
+            <p>No activity yet.</p>
+            <p className="mt-1 text-xs">
+              Comment on a panel from its menu, or write below.
+            </p>
+          </>
+        )}
       </Message>
     )
   }
@@ -171,9 +192,20 @@ export function TimelineList({
         aria-label="Activity"
         className="flex flex-col px-4 pt-1 pb-4"
       >
-        {entries.map((entry) => (
-          <Fragment key={entry.key}>{renderEntry(entry)}</Fragment>
-        ))}
+        {withDayBreaks(entries, today).map((row) =>
+          row.kind === "day" ? (
+            <li
+              key={row.key}
+              data-day
+              className="flex items-center gap-2 pt-3 pb-1 text-xs text-muted-foreground"
+            >
+              {row.label}
+              <span aria-hidden="true" className="h-px flex-1 bg-border" />
+            </li>
+          ) : (
+            <Fragment key={row.entry.key}>{renderEntry(row.entry)}</Fragment>
+          )
+        )}
       </ol>
     </>
   )

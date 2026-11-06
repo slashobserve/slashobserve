@@ -30,6 +30,8 @@ export const dashboardKeys = {
   titles: () => ["dashboards", "titles"] as const,
   tags: () => ["dashboards", "tags"] as const,
   tagged: (tags: string[]) => ["dashboards", "list", "tagged", tags] as const,
+  inFolder: (folderId: string) =>
+    ["dashboards", "list", "folder", folderId] as const,
   latest: (id: string) => ["dashboards", id, "latest"] as const,
   version: (id: string, version: number) =>
     ["dashboards", id, "versions", version] as const,
@@ -68,13 +70,33 @@ export const folderKeys = {
   permissions: (id: string) => ["folders", id, "permissions"] as const,
 }
 
+export type ChatListFilters = {
+  source?: "observe" | "investigate"
+  q?: string
+  pinned?: boolean
+  dashboardId?: string
+}
+
 export const observeKeys = {
   agent: () => ["agent"] as const,
   request: (id: string) => ["observe", id] as const,
-  mine: (source: "all" | "observe", limit: number) =>
-    ["observe-mine", source, limit] as const,
+  mine: (filters: ChatListFilters, limit: number) =>
+    ["observe-mine", filters, limit] as const,
   mineAll: () => ["observe-mine"] as const,
   create: () => ["observe-create"] as const,
+  build: (id: string, saves: number) => ["observe-build", id, saves] as const,
+  buildPanelData: (
+    id: string,
+    panelId: string,
+    fingerprint: string,
+    params: PanelDataParams
+  ) => ["observe-build", id, "panels", panelId, fingerprint, params] as const,
+  buildVariableValues: (
+    id: string,
+    name: string,
+    fingerprint: string,
+    params: VariableValuesParams
+  ) => ["observe-build", id, "variables", name, fingerprint, params] as const,
 }
 
 export const serviceAccountKeys = {
@@ -141,6 +163,29 @@ export const importKeys = {
   forDashboard: (id: string) => ["imports", "dashboard", id] as const,
 }
 
+export const grafanaKeys = {
+  all: ["grafana"] as const,
+  connections: () => ["grafana", "connections"] as const,
+  folders: (connectionId: string) =>
+    ["grafana", connectionId, "folders"] as const,
+  datasources: (connectionId: string) =>
+    ["grafana", connectionId, "datasources"] as const,
+  sync: (connectionId: string, syncId: string) =>
+    ["grafana", connectionId, "imports", syncId] as const,
+}
+
+export const repairKeys = {
+  all: ["repairs"] as const,
+  list: (folderId: string | null) =>
+    ["repairs", "list", folderId ?? "all"] as const,
+}
+
+export const healthKeys = {
+  all: ["health"] as const,
+  list: (kind: string | null, folderId: string | null) =>
+    ["health", "list", kind ?? "all", folderId ?? "all"] as const,
+}
+
 export const outboundDomainKeys = {
   list: () => ["outbound-domains"] as const,
 }
@@ -155,4 +200,75 @@ export const actionKeys = {
 
 export const newsKeys = {
   feed: (url: string) => ["news", url] as const,
+}
+
+export type ExploreParams = {
+  query: string
+  kind: "range" | "instant"
+  from: string
+  to: string
+  limit?: number
+  maxDataPoints?: number
+}
+
+export const exploreKeys = {
+  all: ["explore"] as const,
+  query: (uid: string, params: ExploreParams) =>
+    ["explore", uid, "query", params] as const,
+  tail: (uid: string, query: string, session: number) =>
+    ["explore", uid, "tail", query, session] as const,
+  context: (uid: string, anchor: string) =>
+    ["explore", uid, "context", anchor] as const,
+  targets: (search: string) => ["explore", "targets", search] as const,
+}
+
+export const findingKeys = {
+  all: ["findings"] as const,
+  one: (id: string) => ["findings", id] as const,
+  forDashboard: (dashboardId: string) =>
+    ["findings", "dashboard", dashboardId] as const,
+  panelData: (
+    id: string,
+    panelId: string,
+    params: { from?: string; to?: string; maxDataPoints?: number }
+  ) => ["findings", id, "panels", panelId, params] as const,
+}
+
+export const annotationKeys = {
+  all: ["annotations"] as const,
+  range: (dashboardId: string, from: string, to: string) =>
+    ["annotations", dashboardId, "range", from, to] as const,
+  tags: (dashboardId: string) => ["annotations", dashboardId, "tags"] as const,
+}
+
+export type HomeSearch = { q?: string; tag: string[] }
+
+export const starKeys = {
+  all: ["stars"] as const,
+  list: () => ["stars", "list"] as const,
+}
+
+export const homeKeys = {
+  firstDashboards: () => ["dashboards", "list", "home-first"] as const,
+  search: (search: HomeSearch) =>
+    ["dashboards", "list", "home-search", search] as const,
+}
+
+export const publicKeys = {
+  links: (dashboardId: string) => ["public-links", dashboardId] as const,
+  dashboard: (token: string) => ["public", token] as const,
+  panelData: (
+    token: string,
+    version: number,
+    panelId: string,
+    params: PanelDataParams
+  ) =>
+    ["public", token, "versions", version, "panels", panelId, params] as const,
+  variableValues: (
+    token: string,
+    version: number,
+    name: string,
+    params: VariableValuesParams
+  ) =>
+    ["public", token, "versions", version, "variables", name, params] as const,
 }

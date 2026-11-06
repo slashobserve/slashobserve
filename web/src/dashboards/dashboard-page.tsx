@@ -1,52 +1,59 @@
 import {
-  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type ReactNode,
-  type RefObject,
 } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
+import { ArrowLeftIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import type { Selections } from "@/api/keys"
 import { ActivityCard, activityCardId } from "@/activity/activity-card"
 import type { EditGuard } from "@/activity/edit-pane"
-import { useActivityLayout, useActivityStore } from "@/activity/activity-store"
-import { PanelCommentBadge } from "@/comments/panel-comment-badge"
+import {
+  useActivityLayout,
+  useActivityStore,
+  useChatPaneLayout,
+} from "@/activity/activity-store"
+import { dashboardKeys } from "@/api/keys"
+import { ChatPane } from "@/chat/chat-pane"
 import { useComments } from "@/comments/queries"
 import { openThreadCount, openThreadsByPanel } from "@/comments/threads"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
 import { foldersQuery } from "@/folders/queries"
-import { cn } from "@/lib/utils"
-import { refreshToMs, timeOptionsFor } from "@/lib/time"
-import { madeByBreadcrumb } from "@/lib/origin"
-import { isRenderable, isStaticPanel, preloadRenderer } from "@/panels"
-import { createFieldResolver, panelLinks } from "@/panels/field-config"
-import { ActionProvider } from "@/panels/actions/action-context"
-import { linkScopeFor, PanelBody, StaticPanelBody } from "@/panels/panel-body"
-import { panelHasData } from "@/panels/panel-has-data"
-import { reusedFilterOf, reusePanel } from "@/panels/transforms/reuse-panel"
+import { StarToggle } from "@/home/star-toggle"
 import {
-  createSharedCursor,
-  type CursorSync,
-  type SharedCursor,
-} from "@/panels/shared-cursor"
+  InspectPane,
+  inspectPaneId,
+  type InspectTarget,
+} from "@/inspect/inspect-pane"
+import { displayZone, refreshToMs, timeOptionsFor } from "@/lib/time"
+import { shift, zoomOut } from "@/lib/time-shift"
+import { madeByBreadcrumb } from "@/lib/origin"
+import { cn } from "@/lib/utils"
+import { isEditablePanel } from "@/panel-editor/draft"
+import { isRenderable } from "@/panels"
+import { ActionProvider } from "@/panels/actions/action-context"
+import { createSharedCursor, type CursorSync } from "@/panels/shared-cursor"
 import { ShareToggle } from "@/share/share-pane"
-import { ThemeSwitch } from "@/shell/theme-switch"
+import { Sidebar } from "@/shell/sidebar"
+import { ShortcutsDialog } from "@/shortcuts/shortcuts-dialog"
+import {
+  shortcutPanelId,
+  useDashboardShortcuts,
+} from "@/shortcuts/use-dashboard-shortcuts"
 import {
   findPanel,
   isDataPanel,
   panelTitle,
   sourcePanelOf,
+  type Dashboard,
   type DataPanel,
   type LayoutPanel,
-  type Variable,
 } from "@/spec"
 
 import { ActivityToggle } from "./activity-toggle"
@@ -57,8 +64,9 @@ import {
   savedCursorSync,
   useCursorSyncShortcut,
 } from "./cursor-sync"
-import { DashboardGrid, gridMargin, gridRowHeight } from "./dashboard-grid"
+import { DashboardGrid, type PanelItem } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
+import { DashboardPageSkeleton, pageClass } from "./dashboard-page-skeleton"
 import { DashboardTopRow } from "./dashboard-top-row"
 import { DeleteDashboardDialog } from "./delete-dashboard-dialog"
 import { duplicateBlockReason, duplicateTargets } from "./duplicate"
@@ -77,31 +85,43 @@ import {
   useLayoutStore,
 } from "./edit/layout-store"
 import { LayoutAnnouncer } from "./edit/panel-move-handle"
+import { saveProblemFrom } from "./edit/save-problem"
 import { UnsavedChangesGuard } from "./edit/unsaved-changes-guard"
 import {
   useDashboardEvents,
   type LiveStatus,
 } from "./live/use-dashboard-events"
 import { downloadSpec } from "./export-spec"
+import { KioskHint } from "./kiosk/kiosk-hint"
+import { useKiosk } from "./kiosk/use-kiosk"
+import {
+  requestFullscreen,
+  useKioskFullscreen,
+} from "./kiosk/use-kiosk-fullscreen"
 import { MoreMenu } from "./more-menu"
-import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
-import { panelDatasourceUids } from "./panel-datasources"
-import { PanelMenu } from "./panel-menu"
+import { noNewPanels, panelsAddedSince, type SeenVersion } from "./new-panels"
+import { PanelContainer } from "./panel-container"
+import { mixesDatasources } from "./panel-datasources"
+import type { PanelSource } from "./panel-source"
 import type { DashboardAccess } from "./permissions"
 import {
   asDashboardSpec,
   dashboardVersionQuery,
   forgetDashboard,
   latestDashboardQuery,
+  useAddVersion,
   type DashboardEnvelope,
 } from "./queries"
 import { RefreshPicker } from "./refresh-picker"
+import { withResponsive } from "./responsive"
+import { interpolateTitle } from "./rows/interpolate-title"
 import { useRowStore } from "./rows/row-store"
 import {
   backFromSearch,
   panelEditorShowsNewerVersion,
   useDashboardSearch,
   useSetDashboardSearch,
+  type DashboardSearch,
 } from "./search"
 import {
   effectiveRefresh,
@@ -109,18 +129,14 @@ import {
   pickerRefreshOptions,
 } from "./time-picker-settings"
 import { TimeRangePicker } from "./time-range-picker"
-import { maxDataPointsFor, usePanelData } from "./use-panel-data"
-import { useSeen } from "./use-seen"
-import { UnverifiedLabel } from "./unverified-label"
 import { unverifiedReasons } from "./unverified"
 import { useVariables } from "./use-variables"
 import { VariablesBar } from "./variables-bar"
 import { VersionMenu } from "./version-menu"
-import { VariableLoadError } from "./variables"
 
-function scrollCardIntoView() {
+function scrollPaneIntoView(id: string) {
   requestAnimationFrame(() =>
-    document.getElementById(activityCardId)?.scrollIntoView({
+    document.getElementById(id)?.scrollIntoView({
       block: "nearest",
       behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
         ? "auto"
@@ -129,274 +145,73 @@ function scrollCardIntoView() {
   )
 }
 
-function focusPanel(root: HTMLElement | null) {
-  const article = root?.querySelector<HTMLElement>("article")
-  if (!article) return
-  article.tabIndex = -1
-  article.scrollIntoView({ block: "center", behavior: "auto" })
-  article.focus({ preventScroll: true })
+function expandRowOf(spec: Dashboard, dashboardId: string, panelId: string) {
+  const row = findPanel(spec, panelId)?.row
+  if (row === undefined) return
+  const { collapsed, toggle } = useRowStore.getState()
+  const initial = row.collapsed ?? false
+  if (collapsed[dashboardId]?.[row.id] ?? initial) {
+    toggle(dashboardId, row.id, initial)
+  }
 }
 
-function pageClass(stacked: boolean) {
-  return cn(
-    "flex bg-background text-foreground",
-    stacked
-      ? "min-h-svh flex-wrap"
-      : "h-svh flex-nowrap narrow:h-auto narrow:min-h-svh"
-  )
+function layoutPanelOf(spec: Dashboard, id: string | undefined) {
+  if (id === undefined) return undefined
+  const panel = findPanel(spec, id)?.panel
+  return panel === undefined || panel.type === "row" ? undefined : panel
 }
 
-type PanelContainerProps = {
-  dashboardId: string
-  cursor: SharedCursor
-  version: number
-  panel: LayoutPanel
-  reused: DataPanel | undefined
-  variables: readonly Variable[]
-  title: string
-  repeatOf: string | undefined
-  width: number
-  height: number
-  from: string | undefined
-  to: string | undefined
-  timezone: string | undefined
-  rangeFrom: string
-  rangeTo: string
-  selections: Selections
-  selectionsReady: boolean
-  blockedBy: string | undefined
-  onRetryBlocked: () => void
-  refreshMs: number | null
-  editable: boolean
-  layoutSession: boolean
-  openComments: number
-  unverifiedReason: string | undefined
-  highlighted: boolean
-  editingPanel: boolean
-  canComment: boolean
-  canEdit: boolean
-  focusOnRender: boolean
-  onFocused: () => void
-  composerRef: RefObject<HTMLTextAreaElement | null>
+function inspectablePanelOf(
+  spec: Dashboard,
+  id: string | undefined
+): DataPanel | undefined {
+  const panel = layoutPanelOf(spec, id)
+  return panel !== undefined && isDataPanel(panel) && isRenderable(panel.type)
+    ? panel
+    : undefined
 }
 
-const PanelContainer = memo(function PanelContainer({
-  dashboardId,
-  cursor,
-  version,
-  panel: sourcePanel,
-  reused,
-  variables,
-  title,
-  repeatOf,
-  width,
-  height,
-  from,
-  to,
-  timezone,
-  rangeFrom,
-  rangeTo,
-  selections,
-  selectionsReady,
-  blockedBy,
-  onRetryBlocked,
-  refreshMs,
-  editable,
-  layoutSession,
-  openComments,
-  unverifiedReason,
-  highlighted,
-  editingPanel,
-  canComment,
-  canEdit,
-  focusOnRender,
-  onFocused,
-  composerRef,
-}: PanelContainerProps) {
-  const panel = useMemo(
-    () =>
-      title === panelTitle(sourcePanel)
-        ? sourcePanel
-        : { ...sourcePanel, title },
-    [sourcePanel, title]
-  )
-  const ref = useRef<HTMLDivElement>(null)
-  const seen = useSeen(ref)
-  const [tableView, setTableView] = useState(false)
-  const setSearch = useSetDashboardSearch()
-  const body = panelBodySize(Math.floor(width), Math.floor(height))
-  const dataPanel = useMemo(
-    () => (isDataPanel(panel) ? reusePanel(panel, reused) : undefined),
-    [panel, reused]
-  )
-  const reusedFilter = useMemo(
-    () =>
-      isDataPanel(panel)
-        ? reusedFilterOf(panel, reused, variables, selections)
-        : undefined,
-    [panel, reused, variables, selections]
-  )
-  const supported = isRenderable(panel.type)
+function withoutKiosk(state: DashboardSearch): DashboardSearch {
+  return { ...state, kiosk: undefined, cycle: undefined, interval: undefined }
+}
 
-  useEffect(() => {
-    if (seen) preloadRenderer(panel.type)
-  }, [seen, panel.type])
+type Size = { width: number; height: number }
 
-  useEffect(() => {
-    if (!focusOnRender) return
-    focusPanel(ref.current)
-    onFocused()
-  }, [focusOnRender, onFocused])
-
-  const query = usePanelData({
-    dashboardId,
-    version,
-    panel,
-    from,
-    to,
-    timezone,
-    vars: selections,
-    maxDataPoints: maxDataPointsFor(dataPanel ?? panel, body.width),
-    refreshMs,
-    enabled: dataPanel !== undefined && supported && seen && selectionsReady,
-  })
-
-  const fields = useMemo(
-    () => (dataPanel ? createFieldResolver(dataPanel, selections) : undefined),
-    [dataPanel, selections]
-  )
-
-  const populated = useMemo(
-    () =>
-      dataPanel !== undefined &&
-      fields !== undefined &&
-      query.data !== undefined &&
-      panelHasData(
-        dataPanel,
-        query.data.frames,
-        fields,
-        reusedFilter,
-        selections
-      ),
-    [dataPanel, fields, query.data, reusedFilter, selections]
-  )
-  const links = useMemo(
-    () =>
-      dataPanel && fields
-        ? panelLinks(
-            dataPanel,
-            linkScopeFor({
-              vars: selections,
-              from: rangeFrom,
-              to: rangeTo,
-              fields,
-              meta: query.data?.meta,
-            })
-          )
-        : [],
-    [dataPanel, fields, selections, rangeFrom, rangeTo, query.data?.meta]
-  )
-
-  const onTimeRangeSelect = useCallback(
-    (fromMs: number, toMs: number) =>
-      setSearch((state) => ({
-        ...state,
-        from: String(Math.round(fromMs)),
-        to: String(Math.round(toMs)),
-      })),
-    [setSearch]
-  )
-
-  let state: PanelState = "loading"
-  if (!supported) state = "unsupported"
-  else if (!dataPanel) state = "ready"
-  else if (query.data) state = populated ? "ready" : "empty"
-  else if (blockedBy !== undefined) state = "error"
-  else if (query.isError) state = "error"
-
-  const blockedError = useMemo(
-    () =>
-      blockedBy === undefined ? undefined : new VariableLoadError(blockedBy),
-    [blockedBy]
-  )
-
+function ViewedPanel({
+  onBack,
+  children,
+}: {
+  onBack: () => void
+  children: (size: Size) => ReactNode
+}) {
+  const box = useRef<HTMLDivElement>(null)
+  const [size, setSize] = useState<Size | null>(null)
+  useLayoutEffect(() => {
+    const element = box.current
+    if (!element) return
+    const observer = new ResizeObserver(([entry]) =>
+      setSize({
+        width: Math.floor(entry.contentRect.width),
+        height: Math.floor(entry.contentRect.height),
+      })
+    )
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
   return (
-    <div ref={ref} className="size-full">
-      <PanelChrome
-        panel={panel}
-        state={state}
-        error={query.data ? query.error : (blockedError ?? query.error)}
-        refreshing={query.isFetching && query.data !== undefined}
-        staleError={query.isError && query.data ? query.error : undefined}
-        onRetry={() => (blockedError ? onRetryBlocked() : void query.refetch())}
-        dragHandle={editable}
-        highlighted={highlighted}
-        editing={editingPanel}
-        repeatOf={repeatOf}
-        datasourceLabel={panelDatasourceUids(
-          dataPanel ?? panel,
-          selections
-        ).join(", ")}
-        links={links}
-        badge={
-          <>
-            {unverifiedReason ? (
-              <UnverifiedLabel
-                title={panelTitle(panel)}
-                reason={unverifiedReason}
-              />
-            ) : null}
-            <PanelCommentBadge
-              panelId={panel.id}
-              title={panelTitle(panel)}
-              count={openComments}
-              disabled={layoutSession}
-            />
-          </>
-        }
-        menu={
-          <PanelMenu
-            panel={panel}
-            tableView={tableView}
-            onToggleTableView={() => setTableView((current) => !current)}
-            inspectable={!layoutSession}
-            canComment={canComment}
-            canEdit={canEdit}
-            composerRef={composerRef}
-          />
-        }
-      >
-        {dataPanel && query.data ? (
-          <PanelBody
-            panel={dataPanel}
-            data={query.data}
-            width={body.width}
-            height={body.height}
-            stateScope={dashboardId}
-            cursor={cursor}
-            onTimeRangeSelect={onTimeRangeSelect}
-            vars={selections}
-            timezone={timezone}
-            from={rangeFrom}
-            to={rangeTo}
-            asTable={tableView}
-            reusedFilter={reusedFilter}
-          />
-        ) : null}
-        {isStaticPanel(panel) && supported ? (
-          <StaticPanelBody
-            panel={panel}
-            width={body.width}
-            height={body.height}
-            vars={selections}
-            from={rangeFrom}
-            to={rangeTo}
-          />
-        ) : null}
-      </PanelChrome>
+    <div className="flex h-full min-h-[70svh] flex-col gap-2">
+      <div>
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          <ArrowLeftIcon aria-hidden="true" />
+          Back to dashboard
+        </Button>
+      </div>
+      <div ref={box} className="min-h-0 flex-1">
+        {size ? children(size) : null}
+      </div>
     </div>
   )
-})
+}
 
 function DashboardView({
   dashboardId,
@@ -450,15 +265,22 @@ function DashboardView({
   const variables = useMemo(() => spec.variables ?? [], [spec])
   const timeOptions = useMemo(() => timeOptionsFor(spec), [spec])
 
+  const source = useMemo<PanelSource>(
+    () => ({ kind: "version", dashboardId, version }),
+    [dashboardId, version]
+  )
   const { states, selections, values, ready, blocking, select } = useVariables({
-    dashboardId,
-    version,
+    source,
     variables,
     from: search.from,
     to: search.to,
     timezone: spec.timezone,
     urlVars: search.vars,
   })
+  const mixedDatasources = useMemo(
+    () => mixesDatasources(spec, selections),
+    [spec, selections]
+  )
 
   const retryBlocking = useRef<(() => void) | undefined>(undefined)
   useEffect(() => {
@@ -487,12 +309,77 @@ function DashboardView({
   const refreshMs = refreshToMs(refreshValue)
 
   const pinned = search.version !== undefined
+  const [seen, setSeen] = useState<{
+    latest: SeenVersion | undefined
+    fresh: ReadonlySet<string>
+  }>({ latest: undefined, fresh: noNewPanels })
+  if (envelopeVersion !== seen.latest?.version) {
+    const next = { version: envelopeVersion, spec: envelopeSpec }
+    setSeen({
+      latest: next,
+      fresh:
+        pinned || editing ? noNewPanels : panelsAddedSince(seen.latest, next),
+    })
+  }
+  const { mutate: saveVersion } = useAddVersion(dashboardId)
+  const toggleResponsive = useCallback(
+    (panel: LayoutPanel) => {
+      const fixed = panel.responsive === false
+      const title = panelTitle(panel)
+      saveVersion(
+        {
+          spec: withResponsive(spec, panel.id, fixed),
+          summary: fixed
+            ? `Make "${title}" responsive`
+            : `Keep the size of "${title}"`,
+          parent_version: version,
+        },
+        {
+          onSuccess: (saved) =>
+            toast.success(`Saved version ${saved.version.version}`),
+          onError: (failure) => {
+            const problem = saveProblemFrom(
+              failure,
+              "Could not change the panel's size setting"
+            )
+            if (problem.kind === "conflict") {
+              toast.error(
+                "The dashboard changed since you opened it; reload and try again"
+              )
+            } else {
+              toast.error(
+                problem.kind === "invalid" ? problem.heading : problem.message
+              )
+            }
+          },
+        }
+      )
+    },
+    [saveVersion, spec, version]
+  )
   const open = useActivityStore((state) => state.open)
   const setOpen = useActivityStore((state) => state.setOpen)
+  const kiosk = search.kiosk === true
+  const viewed = layoutPanelOf(spec, search.viewPanel)
+  const inspectPanel = inspectablePanelOf(spec, search.inspect)
+  const inspecting = inspectPanel !== undefined && !editing
   const panelInUrl = search.edit !== undefined && search.panel !== undefined
   const editingPanel = permissions.edit && panelInUrl
-  const cardVisible = (open || panelInUrl || search.share === true) && !editing
+  const chatRequestId =
+    panelInUrl || search.share === true || editing || inspecting || kiosk
+      ? undefined
+      : search.chat
+  const cardVisible =
+    (open || panelInUrl || search.share === true) &&
+    !editing &&
+    !inspecting &&
+    !kiosk &&
+    chatRequestId === undefined
   const cardLayout = useActivityLayout(editingPanel)
+  const chatLayout = useChatPaneLayout()
+  const inspectLayout = useActivityLayout(false)
+  const [inspectTarget, setInspectTarget] = useState<InspectTarget | null>(null)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const editGuard = useRef<EditGuard>(null)
   const [cursor] = useState(createSharedCursor)
@@ -525,22 +412,49 @@ function DashboardView({
 
   const [linkedPanel, setLinkedPanel] = useState(search.panel)
   const clearLinkedPanel = useCallback(() => setLinkedPanel(undefined), [])
+  const [focusesLinkedPanel] = useState(search.edit === undefined)
   useEffect(() => {
-    if (linkedPanel === undefined) return
-    const row = findPanel(spec, linkedPanel)?.row
-    if (row === undefined) return
-    const { collapsed, toggle } = useRowStore.getState()
-    const initial = row.collapsed ?? false
-    if (collapsed[dashboardId]?.[row.id] ?? initial) {
-      toggle(dashboardId, row.id, initial)
-    }
+    if (linkedPanel !== undefined) expandRowOf(spec, dashboardId, linkedPanel)
   }, [linkedPanel, spec, dashboardId])
+
+  const inspectedId = inspectPanel?.id
+  const inspectStacked = inspectLayout.stacked
+  useEffect(() => {
+    if (inspectedId === undefined) return
+    expandRowOf(spec, dashboardId, inspectedId)
+    if (inspectStacked) {
+      scrollPaneIntoView(inspectPaneId)
+      return
+    }
+    requestAnimationFrame(() =>
+      document
+        .querySelector(`[data-panel-id="${CSS.escape(inspectedId)}"]`)
+        ?.scrollIntoView({ block: "nearest" })
+    )
+  }, [inspectedId, inspectStacked, spec, dashboardId])
+
+  const dropView = search.viewPanel !== undefined && viewed === undefined
+  const dropInspect = search.inspect !== undefined && inspectPanel === undefined
+  useEffect(() => {
+    if (!dropView && !dropInspect) return
+    setSearch(
+      (state) => ({
+        ...state,
+        viewPanel: dropView ? undefined : state.viewPanel,
+        inspect: dropInspect ? undefined : state.inspect,
+        inspectTab: dropInspect ? undefined : state.inspectTab,
+      }),
+      { replace: true }
+    )
+  }, [dropView, dropInspect, setSearch])
 
   const layoutEditingWithPanel =
     editing &&
     (search.panel !== undefined ||
       search.edit !== undefined ||
-      search.share === true)
+      search.share === true ||
+      search.viewPanel !== undefined ||
+      search.inspect !== undefined)
   useEffect(() => {
     if (!layoutEditingWithPanel) return
     setSearch(
@@ -549,17 +463,112 @@ function DashboardView({
         panel: undefined,
         edit: undefined,
         share: false,
+        viewPanel: undefined,
+        inspect: undefined,
+        inspectTab: undefined,
       }),
       { replace: true }
     )
   }, [layoutEditingWithPanel, setSearch])
+
+  const closeInspect = useCallback(
+    () =>
+      setSearch((state) => ({
+        ...state,
+        inspect: undefined,
+        inspectTab: undefined,
+      })),
+    [setSearch]
+  )
+  const closeView = useCallback(
+    () => setSearch((state) => ({ ...state, viewPanel: undefined })),
+    [setSearch]
+  )
+
+  useKiosk({ dashboardId, folderId: access.folder.id, search, grid: gridBox })
+  const { offerFullscreen, leave: leaveKiosk } = useKioskFullscreen(kiosk, () =>
+    setSearch(withoutKiosk)
+  )
+  const enterKiosk = (update: (state: DashboardSearch) => DashboardSearch) => {
+    requestFullscreen()
+    setSearch(update)
+  }
+
+  const timeHidden = spec.timePicker?.hidden === true
+  const moveRange = (
+    move: (now: number) => { from: string; to: string } | null
+  ): (() => void) | undefined =>
+    timeHidden
+      ? undefined
+      : () => {
+          const next = move(Date.now())
+          if (next) setSearch((state) => ({ ...state, ...next }))
+        }
+  const shortcutPanel = () =>
+    layoutPanelOf(spec, shortcutPanelId() ?? undefined)
+  useDashboardShortcuts({
+    view: () => {
+      if (viewed !== undefined) return closeView()
+      const panel = shortcutPanel()
+      if (panel && !editing) {
+        setSearch((state) => ({ ...state, viewPanel: panel.id }))
+      }
+    },
+    edit:
+      permissions.edit && !editing
+        ? () => {
+            const panel = shortcutPanel()
+            if (!panel || !isEditablePanel(panel)) return
+            setOpen(true)
+            setSearch((state) => ({ ...state, panel: panel.id, edit: "query" }))
+          }
+        : undefined,
+    inspect: () => {
+      const panel = inspectablePanelOf(spec, shortcutPanelId() ?? undefined)
+      if (!panel || editing) return
+      if (panel.id === search.inspect) return closeInspect()
+      setSearch((state) => ({
+        ...state,
+        edit: undefined,
+        share: false,
+        inspect: panel.id,
+        inspectTab: undefined,
+      }))
+    },
+    close: inspecting
+      ? closeInspect
+      : viewed !== undefined
+        ? closeView
+        : kiosk
+          ? leaveKiosk
+          : undefined,
+    zoomOut: moveRange((now) =>
+      zoomOut(effectiveFrom, effectiveTo, now, timeOptions)
+    ),
+    shiftBack: moveRange((now) =>
+      shift(effectiveFrom, effectiveTo, now, -1, timeOptions)
+    ),
+    shiftForward: moveRange((now) =>
+      shift(effectiveFrom, effectiveTo, now, 1, timeOptions)
+    ),
+    refresh: () =>
+      void queryClient.invalidateQueries({
+        queryKey: dashboardKeys.panels(dashboardId, version),
+      }),
+    tvMode: kiosk
+      ? undefined
+      : () => enterKiosk((state) => ({ ...state, kiosk: true })),
+    fullscreen: offerFullscreen ? requestFullscreen : undefined,
+    help: () => setShortcutsOpen(true),
+  })
 
   const closeCard = useCallback(() => {
     setOpen(false)
     if (
       search.panel === undefined &&
       search.edit === undefined &&
-      search.share !== true
+      search.share !== true &&
+      search.chat === undefined
     ) {
       return
     }
@@ -568,8 +577,9 @@ function DashboardView({
       panel: undefined,
       edit: undefined,
       share: false,
+      chat: undefined,
     }))
-  }, [setOpen, setSearch, search.panel, search.edit, search.share])
+  }, [setOpen, setSearch, search.panel, search.edit, search.share, search.chat])
 
   const toggleCard = useCallback(() => {
     if (cardVisible) {
@@ -577,14 +587,24 @@ function DashboardView({
       return
     }
     setOpen(true)
-    if (cardLayout.stacked) scrollCardIntoView()
-  }, [cardVisible, closeCard, setOpen, cardLayout.stacked])
+    if (search.chat !== undefined) {
+      setSearch((state) => ({ ...state, chat: undefined }))
+    }
+    if (cardLayout.stacked) scrollPaneIntoView(activityCardId)
+  }, [
+    cardVisible,
+    closeCard,
+    setOpen,
+    setSearch,
+    search.chat,
+    cardLayout.stacked,
+  ])
 
   const toggleShare = useCallback(() => {
     const sharing = search.share === true
     const apply = () => {
       setSearch((state) => ({ ...state, edit: undefined, share: !sharing }))
-      if (!sharing && cardLayout.stacked) scrollCardIntoView()
+      if (!sharing && cardLayout.stacked) scrollPaneIntoView(activityCardId)
     }
     if (editGuard.current) editGuard.current.leaveThen(apply)
     else apply()
@@ -632,7 +652,6 @@ function DashboardView({
     </div>,
   ]
   const actions: ReactNode[] = [
-    <ThemeSwitch key="theme" />,
     <MoreMenu
       key="more"
       mayEdit={permissions.edit}
@@ -658,9 +677,21 @@ function DashboardView({
       }
       onDelete={() => setDeleting(true)}
       onExport={() => downloadSpec(spec, spec.title, version)}
+      onTvMode={() => enterKiosk((state) => ({ ...state, kiosk: true }))}
+      onTvModeFolder={
+        access.folder.personal
+          ? null
+          : () =>
+              enterKiosk((state) => ({
+                ...state,
+                kiosk: true,
+                cycle: "folder",
+              }))
+      }
       cursorSync={cursorSync}
       onCursorSyncChange={chooseCursorSync}
     />,
+    <StarToggle key="star" dashboardId={dashboardId} />,
     <ShareToggle
       key="share"
       pressed={search.share === true && !editing}
@@ -676,167 +707,235 @@ function DashboardView({
     />,
   ]
 
+  const renderPanel = (item: PanelItem, size: Size, viewing = false) => (
+    <PanelContainer
+      source={source}
+      cursor={cursor}
+      panel={item.panel}
+      reused={
+        isDataPanel(item.panel) ? sourcePanelOf(spec, item.panel) : undefined
+      }
+      variables={variables}
+      title={item.title}
+      repeatOf={item.key === item.panel.id ? undefined : item.panel.id}
+      width={size.width}
+      height={size.height}
+      from={search.from}
+      to={search.to}
+      timezone={spec.timezone}
+      rangeFrom={effectiveFrom}
+      rangeTo={effectiveTo}
+      selections={item.selections}
+      selectionsReady={ready}
+      blockedBy={blockedBy}
+      onRetryBlocked={onRetryBlocked}
+      refreshMs={refreshMs}
+      mixedDatasources={mixedDatasources}
+      editable={editing && canEdit}
+      layoutSession={editing}
+      openComments={item.first ? (openByPanel.get(item.panel.id) ?? 0) : 0}
+      unverifiedReason={unverified.panels.get(item.panel.id)}
+      highlighted={item.panel.id === search.panel || item.panel.id === flashed}
+      editingPanel={
+        editingPanel && item.first && item.panel.id === search.panel
+      }
+      canComment={permissions.comment}
+      canEdit={permissions.edit}
+      onToggleResponsive={
+        permissions.edit && !editing && !pinned ? toggleResponsive : undefined
+      }
+      focusOnRender={
+        focusesLinkedPanel && item.first && item.panel.id === linkedPanel
+      }
+      onFocused={clearLinkedPanel}
+      composerRef={composerRef}
+      viewing={viewing}
+      inspected={inspecting && item.first && item.panel.id === inspectedId}
+      onInspectTarget={setInspectTarget}
+    />
+  )
+
   return (
-    <div className={pageClass(cardVisible && cardLayout.stacked)}>
-      <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
-        <DashboardTopRow
-          title={spec.title}
-          folder={access.folder}
-          madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
-          versionControl={
-            <VersionMenu
-              dashboardId={dashboardId}
-              version={version}
-              latest={latestVersion}
-              current={envelope.version}
-              pinned={pinned}
-              editing={editing}
-              status={liveStatus}
-              back={backFromSearch(search)}
-            />
-          }
-          controls={controls}
-          editing={<EditControls dashboardId={dashboardId} pinned={pinned} />}
-          actions={actions}
-        />
-        {editing ? (
-          <NewerVersionNotice
-            dashboardId={dashboardId}
-            baseVersion={session.baseVersion}
-            latestVersion={latestVersion}
-          />
-        ) : null}
-        <VariablesBar
-          states={states}
-          unverified={unverified.variables}
-          onSelect={select}
-        />
-        <DashboardLinks
-          links={spec.links}
-          dashboardId={dashboardId}
-          timeOptions={timeOptions}
-          scope={{ vars: selections, from: effectiveFrom, to: effectiveTo }}
-        />
-        <LayoutAnnouncer />
-        <main
-          ref={gridBox}
-          className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4"
-        >
-          <ActionProvider value={actionContext}>
-            <DashboardGrid
-              dashboardId={dashboardId}
-              spec={spec}
-              selections={selections}
-              values={values}
-              editable={editing && canEdit}
-              layout={editing ? session.layout : undefined}
-              onLayoutChange={editing ? setLayout : undefined}
-              renderPanel={(item, size) => (
-                <PanelContainer
+    <div className="flex min-h-svh bg-chrome">
+      {kiosk ? null : <Sidebar rail />}
+      <div
+        className={cn(
+          pageClass(
+            (cardVisible && cardLayout.stacked) ||
+              (chatRequestId !== undefined && chatLayout.stacked) ||
+              (inspecting && inspectLayout.stacked)
+          ),
+          "min-w-0 flex-1"
+        )}
+      >
+        <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
+          {kiosk ? null : (
+            <DashboardTopRow
+              title={spec.title}
+              folder={access.folder}
+              madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
+              versionControl={
+                <VersionMenu
                   dashboardId={dashboardId}
-                  cursor={cursor}
                   version={version}
-                  panel={item.panel}
-                  reused={
-                    isDataPanel(item.panel)
-                      ? sourcePanelOf(spec, item.panel)
-                      : undefined
+                  latest={latestVersion}
+                  current={envelope.version}
+                  pinned={pinned}
+                  editing={editing}
+                  status={liveStatus}
+                  back={backFromSearch(search)}
+                />
+              }
+              controls={controls}
+              editing={
+                <EditControls dashboardId={dashboardId} pinned={pinned} />
+              }
+              actions={actions}
+            />
+          )}
+          {editing ? (
+            <NewerVersionNotice
+              dashboardId={dashboardId}
+              baseVersion={session.baseVersion}
+              latestVersion={latestVersion}
+            />
+          ) : null}
+          {kiosk ? null : (
+            <>
+              <VariablesBar
+                states={states}
+                unverified={unverified.variables}
+                onSelect={select}
+              />
+              <DashboardLinks
+                links={spec.links}
+                dashboardId={dashboardId}
+                timeOptions={timeOptions}
+                scope={{
+                  vars: selections,
+                  from: effectiveFrom,
+                  to: effectiveTo,
+                }}
+              />
+            </>
+          )}
+          <LayoutAnnouncer />
+          <main
+            ref={gridBox}
+            className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4"
+          >
+            <ActionProvider value={actionContext}>
+              {viewed ? (
+                <ViewedPanel onBack={closeView}>
+                  {(size) =>
+                    renderPanel(
+                      {
+                        kind: "panel",
+                        key: viewed.id,
+                        panel: viewed,
+                        title: interpolateTitle(panelTitle(viewed), selections),
+                        selections,
+                        first: true,
+                        gridPos: viewed.gridPos,
+                      },
+                      size,
+                      true
+                    )
                   }
-                  variables={variables}
-                  title={item.title}
-                  repeatOf={
-                    item.key === item.panel.id ? undefined : item.panel.id
-                  }
-                  width={size.width}
-                  height={size.height}
-                  from={search.from}
-                  to={search.to}
-                  timezone={spec.timezone}
-                  rangeFrom={effectiveFrom}
-                  rangeTo={effectiveTo}
-                  selections={item.selections}
-                  selectionsReady={ready}
-                  blockedBy={blockedBy}
-                  onRetryBlocked={onRetryBlocked}
-                  refreshMs={refreshMs}
+                </ViewedPanel>
+              ) : (
+                <DashboardGrid
+                  dashboardId={dashboardId}
+                  spec={spec}
+                  selections={selections}
+                  values={values}
                   editable={editing && canEdit}
-                  layoutSession={editing}
-                  openComments={
-                    item.first ? (openByPanel.get(item.panel.id) ?? 0) : 0
-                  }
-                  unverifiedReason={unverified.panels.get(item.panel.id)}
-                  highlighted={
-                    item.panel.id === search.panel || item.panel.id === flashed
-                  }
-                  editingPanel={
-                    editingPanel && item.first && item.panel.id === search.panel
-                  }
-                  canComment={permissions.comment}
-                  canEdit={permissions.edit}
-                  focusOnRender={item.first && item.panel.id === linkedPanel}
-                  onFocused={clearLinkedPanel}
-                  composerRef={composerRef}
+                  layout={editing ? session.layout : undefined}
+                  onLayoutChange={editing ? setLayout : undefined}
+                  newPanelIds={editing ? undefined : seen.fresh}
+                  renderPanel={(item, size) => renderPanel(item, size)}
                 />
               )}
-            />
-          </ActionProvider>
-        </main>
-      </div>
-      {cardVisible ? (
-        <ActivityCard
+            </ActionProvider>
+          </main>
+        </div>
+        {cardVisible ? (
+          <ActivityCard
+            dashboardId={dashboardId}
+            apiId={envelope.dashboard.id}
+            spec={spec}
+            version={version}
+            latestVersion={latestVersion}
+            pinned={pinned}
+            canEdit={permissions.edit}
+            folder={access.folder}
+            canManage={permissions.manage}
+            madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
+            back={backFromSearch(search)}
+            timeRange={timeRange}
+            selections={ready ? selections : null}
+            composerRef={composerRef}
+            guardRef={editGuard}
+            onSelectPanel={onSelectPanel}
+            onClose={closeCard}
+          />
+        ) : null}
+        {chatRequestId !== undefined ? (
+          <ChatPane requestId={chatRequestId} onClose={closeCard} />
+        ) : null}
+        {inspecting ? (
+          <InspectPane
+            title={panelTitle(inspectPanel)}
+            tab={search.inspectTab ?? "data"}
+            target={
+              inspectTarget?.panel.id === inspectPanel.id ? inspectTarget : null
+            }
+            variables={variables}
+            zone={displayZone(inspectPanel.timezone, spec.timezone)}
+            onClose={closeInspect}
+          />
+        ) : null}
+        {kiosk ? <KioskHint offerFullscreen={offerFullscreen} /> : null}
+        <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+        <DetailsDialog
           dashboardId={dashboardId}
-          apiId={envelope.dashboard.id}
-          spec={spec}
-          version={version}
-          latestVersion={latestVersion}
-          pinned={pinned}
-          canEdit={permissions.edit}
-          folder={access.folder}
-          canManage={permissions.manage}
-          madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
-          back={backFromSearch(search)}
-          timeRange={timeRange}
-          selections={ready ? selections : null}
-          composerRef={composerRef}
-          guardRef={editGuard}
-          onSelectPanel={onSelectPanel}
-          onClose={closeCard}
+          spec={envelopeSpec}
+          version={envelopeVersion}
+          open={detailsOpen}
+          onOpenChange={setDetailsOpen}
+          finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
         />
-      ) : null}
-      <DetailsDialog
-        dashboardId={dashboardId}
-        spec={envelopeSpec}
-        version={envelopeVersion}
-        open={detailsOpen}
-        onOpenChange={setDetailsOpen}
-        finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
-      />
-      <DuplicateDashboardDialog
-        source={{ id: dashboardId, title: spec.title, version: latestVersion }}
-        targets={duplicate}
-        open={duplicating}
-        onOpenChange={setDuplicating}
-        finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
-      />
-      <DeleteDashboardDialog
-        dashboard={{
-          id: dashboardId,
-          title: spec.title,
-          versions: latestVersion,
-        }}
-        open={deleting}
-        onOpenChange={setDeleting}
-        finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
-        onDeleted={async (alreadyGone) => {
-          toast.success(
-            alreadyGone
-              ? `${spec.title} was already deleted`
-              : `Deleted ${spec.title}`
-          )
-          await navigate({ to: "/dashboards", ignoreBlocker: true })
-          forgetDashboard(queryClient, dashboardId)
-        }}
-      />
+        <DuplicateDashboardDialog
+          source={{
+            id: dashboardId,
+            title: spec.title,
+            version: latestVersion,
+          }}
+          targets={duplicate}
+          open={duplicating}
+          onOpenChange={setDuplicating}
+          finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
+        />
+        <DeleteDashboardDialog
+          dashboard={{
+            id: dashboardId,
+            title: spec.title,
+            versions: latestVersion,
+          }}
+          open={deleting}
+          onOpenChange={setDeleting}
+          finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
+          onDeleted={async (alreadyGone) => {
+            toast.success(
+              alreadyGone
+                ? `${spec.title} was already deleted`
+                : `Deleted ${spec.title}`
+            )
+            await navigate({ to: "/dashboards", ignoreBlocker: true })
+            forgetDashboard(queryClient, dashboardId)
+          }}
+        />
+      </div>
     </div>
   )
 }
@@ -909,55 +1008,5 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
       <UnsavedChangesGuard />
       {content}
     </>
-  )
-}
-
-const skeletonPanels = [
-  "min-[800px]:col-span-12 row-span-8",
-  "min-[800px]:col-span-6 row-span-4",
-  "min-[800px]:col-span-6 row-span-4",
-  "min-[800px]:col-span-24 row-span-8",
-]
-
-export function DashboardPageSkeleton() {
-  const open = useActivityStore((state) => state.open)
-  const layout = useActivityLayout(false)
-  return (
-    <div className={pageClass(open && layout.stacked)} aria-busy="true">
-      <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-3 pr-2.5 pb-2.5 pl-4">
-          <Skeleton className="h-[30px] w-64 animate-none motion-safe:animate-pulse" />
-          <Skeleton className="h-[30px] w-48 animate-none motion-safe:animate-pulse" />
-        </div>
-        <div className="pr-2.5 pb-2.5 pl-4">
-          <Skeleton className="h-7 w-48 animate-none motion-safe:animate-pulse" />
-        </div>
-        <main className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4">
-          <div
-            className="grid grid-cols-1 min-[800px]:grid-cols-24"
-            style={{ gridAutoRows: gridRowHeight, gap: gridMargin }}
-          >
-            {skeletonPanels.map((span, index) => (
-              <Skeleton
-                key={index}
-                className={`${span} animate-none motion-safe:animate-pulse`}
-              />
-            ))}
-          </div>
-        </main>
-      </div>
-      {open ? (
-        <div
-          aria-hidden="true"
-          style={{ "--activity-w": `${layout.width}px` } as CSSProperties}
-          className={cn(
-            "rounded-card border",
-            layout.stacked
-              ? "mr-2.5 mb-2.5 ml-4 h-[70svh] flex-[1_1_100%]"
-              : "m-2 ml-0.5 flex-[0_0_var(--activity-w)]"
-          )}
-        />
-      ) : null}
-    </div>
   )
 }

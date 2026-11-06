@@ -1,0 +1,34 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: slashobserve-demo
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+    kubeadmConfigPatches:
+      - |
+        kind: ClusterConfiguration
+        controllerManager:
+          extraArgs:
+            - name: bind-address
+              value: 0.0.0.0
+        scheduler:
+          extraArgs:
+            - name: bind-address
+              value: 0.0.0.0
+      - |
+        kind: KubeProxyConfiguration
+        metricsBindAddress: 0.0.0.0:10249
+    extraPortMappings:
+      - containerPort: 30081
+        hostPort: ${SLASHOBSERVE_DEMO_K8S_SHOP_PORT}
+        listenAddress: 127.0.0.1
+      - containerPort: 30082
+        hostPort: ${SLASHOBSERVE_DEMO_K8S_SHOP1_PORT}
+        listenAddress: 127.0.0.1
+      - containerPort: 30090
+        hostPort: ${SLASHOBSERVE_DEMO_K8S_PROMETHEUS_PORT}
+        listenAddress: 127.0.0.1
+  - role: worker
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+  - role: worker
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5

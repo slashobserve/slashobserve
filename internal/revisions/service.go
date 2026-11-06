@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -26,6 +27,8 @@ const (
 	uniqueViolationCode     = "23505"
 	runningDashboardIndex   = "agent_requests_running_dashboard_idx"
 	maxEventAuthorNameRunes = 256
+	pinnedCursorPrefix      = "p."
+	unpinnedCursorPrefix    = "u."
 )
 
 type Service struct {
@@ -34,13 +37,15 @@ type Service struct {
 	logger  *slog.Logger
 	panels  PanelChecker
 	specs   SpecReader
+	builds  Builds
 
 	principals Principals
 	access     *folders.Access
+	leaseTTL   time.Duration
 }
 
 func NewService(database *db.DB, reviser Reviser, logger *slog.Logger, opts ...Option) *Service {
-	s := &Service{db: database, reviser: reviser, logger: logger}
+	s := &Service{db: database, reviser: reviser, logger: logger, leaseTTL: LeaseTTL}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -59,6 +64,9 @@ type EnqueueParams struct {
 	PanelID     string
 	BaseVersion int
 	By          auth.Principal
+
+	ContinuesID  pgtype.UUID
+	ContinueNote string
 }
 
 func (s *Service) Submit(ctx context.Context, p EnqueueParams) (dbsqlc.AgentRequest, error) {
@@ -116,6 +124,8 @@ func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		RequestedByEmail: pgtype.Text{String: p.By.Email, Valid: p.By.Email != ""},
 		Origin:           originKind,
 		OriginClient:     originClient,
+		ContinuesID:      p.ContinuesID,
+		ContinueNote:     pgtype.Text{String: p.ContinueNote, Valid: p.ContinueNote != ""},
 	})
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue agent request: %w", err)
@@ -156,15 +166,8 @@ func (s *Service) SubmitFollowUp(ctx context.Context, dashboardID pgtype.UUID, b
 		return dbsqlc.AgentRequest{}, err
 	}
 	if panelID != "" {
-		if s.panels == nil {
-			return dbsqlc.AgentRequest{}, fmt.Errorf("check panel: no panel checker configured")
-		}
-		known, err := s.panels.HasPanel(ctx, dashboardID, latest, panelID)
-		if err != nil {
-			return dbsqlc.AgentRequest{}, fmt.Errorf("check panel: %w", err)
-		}
-		if !known {
-			return dbsqlc.AgentRequest{}, ErrUnknownPanel
+		if err := s.checkPanel(ctx, dashboardID, latest, panelID); err != nil {
+			return dbsqlc.AgentRequest{}, err
 		}
 	}
 	return s.submit(ctx, EnqueueParams{
@@ -207,48 +210,152 @@ func (s *Service) SubmitObserve(ctx context.Context, by auth.Principal, prompt s
 	if err := s.checkRun(ctx, SourceObserve, pgtype.UUID{}, by); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
+	var row dbsqlc.AgentRequest
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		var err error
+		row, err = s.enqueueObserve(ctx, q, by, prompt, pgtype.UUID{}, "")
+		return err
+	})
+	return row, err
+}
+
+func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, prompt string, continuesID pgtype.UUID, note string) (dbsqlc.AgentRequest, error) {
 	requesterID, err := db.ParseUUID(by.ID)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("requester id: %w", err)
 	}
 	originKind, originClient := origin.From(ctx).Columns()
+	if err := q.LockObserveRequests(ctx); err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("lock observe requests: %w", err)
+	}
+	mine, err := q.CountActiveObserveRequestsBy(ctx, requesterID)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("count active observe requests of requester: %w", err)
+	}
+	if mine >= MaxActiveObservePerPrincipal {
+		return dbsqlc.AgentRequest{}, ErrTooManyRequests
+	}
+	all, err := q.CountActiveObserveRequests(ctx)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("count active observe requests: %w", err)
+	}
+	if all >= MaxActiveObserve {
+		return dbsqlc.AgentRequest{}, ErrAgentBusy
+	}
+	row, err := q.EnqueueObserveRequest(ctx, dbsqlc.EnqueueObserveRequestParams{
+		Prompt:           prompt,
+		RequestedByKind:  string(by.Kind),
+		RequestedByID:    requesterID,
+		RequestedByName:  by.Name,
+		RequestedByEmail: pgtype.Text{String: by.Email, Valid: by.Email != ""},
+		Origin:           originKind,
+		OriginClient:     originClient,
+		ContinuesID:      continuesID,
+		ContinueNote:     pgtype.Text{String: note, Valid: note != ""},
+	})
+	if err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue observe request: %w", err)
+	}
+	if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("notify workers: %w", err)
+	}
+	return row, nil
+}
+
+type InvestigateParams struct {
+	DashboardID pgtype.UUID
+	PanelID     string
+	Prompt      string
+	From, To    *time.Time
+	By          auth.Principal
+}
+
+func (s *Service) SubmitInvestigate(ctx context.Context, p InvestigateParams) (dbsqlc.AgentRequest, error) {
+	if !s.Available() {
+		return dbsqlc.AgentRequest{}, ErrUnavailable
+	}
+	if err := s.checkRun(ctx, SourceInvestigate, p.DashboardID, p.By); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
+	if p.PanelID != "" {
+		latest, _, err := s.baseVersionFor(ctx, p.DashboardID, nil)
+		if err != nil {
+			return dbsqlc.AgentRequest{}, err
+		}
+		if err := s.checkPanel(ctx, p.DashboardID, latest, p.PanelID); err != nil {
+			return dbsqlc.AgentRequest{}, err
+		}
+	}
+	requesterID, err := db.ParseUUID(p.By.ID)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("requester id: %w", err)
+	}
 	var row dbsqlc.AgentRequest
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		if err := q.LockObserveRequests(ctx); err != nil {
 			return fmt.Errorf("lock observe requests: %w", err)
 		}
-		mine, err := q.CountActiveObserveRequestsBy(ctx, requesterID)
+		mine, err := q.CountActiveInvestigateRequestsBy(ctx, requesterID)
 		if err != nil {
-			return fmt.Errorf("count active observe requests of requester: %w", err)
+			return fmt.Errorf("count active investigations of requester: %w", err)
 		}
-		if mine >= MaxActiveObservePerPrincipal {
-			return ErrTooManyRequests
+		if mine >= MaxActiveInvestigatePerPrincipal {
+			return ErrTooManyInvestigations
 		}
-		all, err := q.CountActiveObserveRequests(ctx)
+		all, err := q.CountActiveInvestigateRequests(ctx)
 		if err != nil {
-			return fmt.Errorf("count active observe requests: %w", err)
+			return fmt.Errorf("count active investigations: %w", err)
 		}
-		if all >= MaxActiveObserve {
+		if all >= MaxActiveInvestigate {
 			return ErrAgentBusy
 		}
-		row, err = q.EnqueueObserveRequest(ctx, dbsqlc.EnqueueObserveRequestParams{
-			Prompt:           prompt,
-			RequestedByKind:  string(by.Kind),
+		originKind, originClient := origin.From(ctx).Columns()
+		row, err = q.EnqueueInvestigateRequest(ctx, dbsqlc.EnqueueInvestigateRequestParams{
+			DashboardID:      p.DashboardID,
+			Prompt:           p.Prompt,
+			PanelID:          pgtype.Text{String: p.PanelID, Valid: p.PanelID != ""},
+			ContextFrom:      timestamp(p.From),
+			ContextTo:        timestamp(p.To),
+			RequestedByKind:  string(p.By.Kind),
 			RequestedByID:    requesterID,
-			RequestedByName:  by.Name,
-			RequestedByEmail: pgtype.Text{String: by.Email, Valid: by.Email != ""},
+			RequestedByName:  p.By.Name,
+			RequestedByEmail: pgtype.Text{String: p.By.Email, Valid: p.By.Email != ""},
 			Origin:           originKind,
 			OriginClient:     originClient,
 		})
 		if err != nil {
-			return fmt.Errorf("enqueue observe request: %w", err)
+			return fmt.Errorf("enqueue investigate request: %w", err)
 		}
 		if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
 			return fmt.Errorf("notify workers: %w", err)
 		}
 		return nil
 	})
+	if db.IsForeignKeyViolation(err) {
+		return dbsqlc.AgentRequest{}, ErrDashboardNotFound
+	}
 	return row, err
+}
+
+func (s *Service) checkPanel(ctx context.Context, dashboardID pgtype.UUID, latest int, panelID string) error {
+	if s.panels == nil {
+		return fmt.Errorf("check panel: no panel checker configured")
+	}
+	known, err := s.panels.HasPanel(ctx, dashboardID, latest, panelID)
+	if err != nil {
+		return fmt.Errorf("check panel: %w", err)
+	}
+	if !known {
+		return ErrUnknownPanel
+	}
+	return nil
+}
+
+func timestamp(t *time.Time) pgtype.Timestamptz {
+	if t == nil {
+		return pgtype.Timestamptz{}
+	}
+	return pgtype.Timestamptz{Time: t.UTC(), Valid: true}
 }
 
 func (s *Service) GetByID(ctx context.Context, id pgtype.UUID) (dbsqlc.AgentRequest, error) {
@@ -313,8 +420,15 @@ func (s *Service) List(ctx context.Context, dashboardID pgtype.UUID, limit int, 
 	return items, next, nil
 }
 
-func (s *Service) ListMine(ctx context.Context, by auth.Principal, source string, limit int, cursor string) ([]dbsqlc.ListAgentRequestsByRow, string, error) {
-	after, ok := httpapi.DecodeTimeCursor(cursor)
+type ListFilter struct {
+	Source      string
+	DashboardID pgtype.UUID
+	Pinned      *bool
+	Query       string
+}
+
+func (s *Service) ListMine(ctx context.Context, by auth.Principal, filter ListFilter, limit int, cursor string) ([]dbsqlc.ListAgentRequestsByRow, string, error) {
+	afterPinned, after, ok := decodeListCursor(cursor)
 	if !ok {
 		return nil, "", ErrInvalidCursor
 	}
@@ -322,15 +436,29 @@ func (s *Service) ListMine(ctx context.Context, by auth.Principal, source string
 	if err != nil {
 		return nil, "", fmt.Errorf("requester id: %w", err)
 	}
+	levels, err := s.access.Levels(ctx, by)
+	switch {
+	case errors.Is(err, folders.ErrForbidden):
+		return nil, "", ErrForbidden
+	case err != nil:
+		return nil, "", fmt.Errorf("list agent requests of requester: %w", err)
+	}
 	params := dbsqlc.ListAgentRequestsByParams{
 		RequestedByKind: string(by.Kind),
 		RequestedByID:   requesterID,
-		Source:          pgtype.Text{String: source, Valid: source != ""},
+		Folders:         levels.Visible(),
+		Source:          pgtype.Text{String: filter.Source, Valid: filter.Source != ""},
+		DashboardID:     filter.DashboardID,
+		Pattern:         pgtype.Text{String: "%" + escapeLike(filter.Query) + "%", Valid: filter.Query != ""},
 		RowLimit:        httpapi.Int32(limit + 1),
+	}
+	if filter.Pinned != nil {
+		params.Pinned = pgtype.Bool{Bool: *filter.Pinned, Valid: true}
 	}
 	if after != nil {
 		params.CursorCreatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
 		params.CursorID = after.ID
+		params.CursorPinned = afterPinned
 	}
 	rows, err := s.db.Queries().ListAgentRequestsBy(ctx, params)
 	if err != nil {
@@ -339,9 +467,64 @@ func (s *Service) ListMine(ctx context.Context, by auth.Principal, source string
 	next := ""
 	if len(rows) > limit {
 		rows = rows[:limit]
-		next = httpapi.EncodeTimeCursor(rows[limit-1].CreatedAt.Time, rows[limit-1].ID.String())
+		last := rows[limit-1]
+		next = encodeListCursor(last.PinnedAt.Valid, last.CreatedAt.Time, last.ID.String())
 	}
 	return rows, next, nil
+}
+
+func encodeListCursor(pinned bool, createdAt time.Time, id string) string {
+	prefix := unpinnedCursorPrefix
+	if pinned {
+		prefix = pinnedCursorPrefix
+	}
+	return prefix + httpapi.EncodeTimeCursor(createdAt, id)
+}
+
+func decodeListCursor(raw string) (bool, *httpapi.TimeCursor, bool) {
+	pinned := false
+	if rest, found := strings.CutPrefix(raw, pinnedCursorPrefix); found {
+		pinned, raw = true, rest
+	} else {
+		raw = strings.TrimPrefix(raw, unpinnedCursorPrefix)
+	}
+	after, ok := httpapi.DecodeTimeCursor(raw)
+	return pinned, after, ok
+}
+
+func escapeLike(s string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
+}
+
+func (s *Service) UpdateListFields(ctx context.Context, id pgtype.UUID, by auth.Principal, title *string, clearTitle bool, pinned *bool) (dbsqlc.AgentRequest, error) {
+	if _, err := s.requesterRow(ctx, id, by); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
+	params := dbsqlc.UpdateAgentRequestListFieldsParams{ID: id, SetTitle: title != nil || clearTitle}
+	if title != nil {
+		params.Title = pgtype.Text{String: *title, Valid: true}
+	}
+	if pinned != nil {
+		params.Pinned = pgtype.Bool{Bool: *pinned, Valid: true}
+	}
+	row, err := s.db.Queries().UpdateAgentRequestListFields(ctx, params)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbsqlc.AgentRequest{}, ErrRequestNotFound
+	}
+	if err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("update agent request list fields: %w", err)
+	}
+	return row, nil
+}
+
+func (s *Service) Archive(ctx context.Context, id pgtype.UUID, by auth.Principal) error {
+	if _, err := s.requesterRow(ctx, id, by); err != nil {
+		return err
+	}
+	if _, err := s.db.Queries().ArchiveAgentRequest(ctx, id); err != nil {
+		return fmt.Errorf("archive agent request: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) {
@@ -355,6 +538,7 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 		if err != nil {
 			return fmt.Errorf("fail exhausted agent requests: %w", err)
 		}
+		s.deleteExpiredBuilds(ctx, savepoint)
 		for _, row := range exhausted {
 			if err := notifyRevision(ctx, q, row); err != nil {
 				return err
@@ -363,7 +547,7 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 				s.resolveThread(ctx, savepoint, row)
 			}
 		}
-		row, err := q.ClaimAgentRequest(ctx, MaxAttempts)
+		row, err := q.ClaimAgentRequest(ctx, dbsqlc.ClaimAgentRequestParams{LeaseSeconds: s.leaseTTL.Seconds(), MaxAttempts: MaxAttempts})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
@@ -381,11 +565,36 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 	return claimed, found, err
 }
 
+func (s *Service) deleteExpiredBuilds(ctx context.Context, savepoint db.Savepoint) {
+	err := savepoint(func(q *dbsqlc.Queries) error {
+		_, err := q.DeleteExpiredAgentRequestBuilds(ctx, BuildRetentionDays)
+		return err
+	})
+	if err != nil {
+		s.logger.WarnContext(ctx, "delete expired agent request builds", logattrs.Failure("agent_request_build_cleanup_failed", err)...)
+	}
+}
+
+func (s *Service) renewLease(ctx context.Context, claimed dbsqlc.AgentRequest) (canceled bool, err error) {
+	cancelRequestedAt, err := s.db.Queries().RenewAgentRequestLease(ctx, dbsqlc.RenewAgentRequestLeaseParams{
+		LeaseSeconds: s.leaseTTL.Seconds(), ID: claimed.ID, Attempts: claimed.Attempts,
+	})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return false, ErrLeaseLost
+	case err != nil:
+		return false, fmt.Errorf("renew agent request lease: %w", err)
+	}
+	return cancelRequestedAt.Valid, nil
+}
+
 type outcome struct {
 	version    *int
 	suggestion json.RawMessage
+	finding    bool
 	message    string
 	code       string
+	failure    FailureCode
 	cause      error
 	usage      *Usage
 }
@@ -408,13 +617,17 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 			row, err = q.SucceedSuggestRequest(ctx, dbsqlc.SucceedSuggestRequestParams{
 				ID: claimed.ID, Attempts: claimed.Attempts, Suggestion: o.suggestion, RunUsage: usage,
 			})
+		case o.finding:
+			row, err = q.SucceedFindingRequest(ctx, dbsqlc.SucceedFindingRequestParams{
+				ID: claimed.ID, Attempts: claimed.Attempts, RunUsage: usage,
+			})
 		case o.version != nil:
 			row, err = q.SucceedAgentRequest(ctx, dbsqlc.SucceedAgentRequestParams{
 				ID: claimed.ID, Attempts: claimed.Attempts, ResultVersion: httpapi.Int32(*o.version), RunUsage: usage,
 			})
 		default:
 			row, err = q.FailAgentRequest(ctx, dbsqlc.FailAgentRequestParams{
-				ID: claimed.ID, Attempts: claimed.Attempts, Error: truncateError(o.message), RunUsage: usage,
+				ID: claimed.ID, Attempts: claimed.Attempts, Error: truncateError(o.message), FailureCode: failureText(o.failure), RunUsage: usage,
 			})
 		}
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -433,6 +646,10 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 		return nil
 	})
 	return finished, err
+}
+
+func failureText(code FailureCode) pgtype.Text {
+	return pgtype.Text{String: string(code), Valid: code != ""}
 }
 
 func (s *Service) release(ctx context.Context, claimed dbsqlc.AgentRequest, checkFailed bool) (bool, error) {
@@ -462,8 +679,19 @@ func (s *Service) existingVersion(ctx context.Context, claimed dbsqlc.AgentReque
 	return int(saved.Version), true, nil
 }
 
+func (s *Service) hasFinding(ctx context.Context, claimed dbsqlc.AgentRequest) (bool, error) {
+	_, err := s.db.Queries().GetFindingByAgentRequest(ctx, claimed.ID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("get finding of agent request: %w", err)
+	}
+	return true, nil
+}
+
 func notifyRevision(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) error {
-	if !row.DashboardID.Valid || row.Source == string(SourceSuggest) {
+	if !row.DashboardID.Valid || row.Source == string(SourceSuggest) || row.Source == string(SourceInvestigate) {
 		return nil
 	}
 	ev := events.Event{
@@ -568,6 +796,12 @@ func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 	}
 	rev.StartedAt = optionalTime(row.StartedAt)
 	rev.FinishedAt = optionalTime(row.FinishedAt)
+	rev.FailureCode = row.FailureCode.String
+	rev.BuildSavedAt = optionalTime(row.BuildSavedAt)
+	rev.ContinueNote = row.ContinueNote.String
+	if row.ContinuesID.Valid {
+		rev.ContinuesID = row.ContinuesID.String()
+	}
 	return rev
 }
 

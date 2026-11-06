@@ -35,7 +35,7 @@ export function card(page: Page) {
 export function entries(page: Page) {
   return card(page)
     .getByRole("list", { name: "Activity" })
-    .locator(":scope > li")
+    .locator(":scope > li:not([data-day])")
 }
 
 export function entryWith(page: Page, text: string) {

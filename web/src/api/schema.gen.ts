@@ -137,7 +137,7 @@ export interface paths {
         head?: never;
         /**
          * Change the role a service account's keys act with.
-         * @description Service accounts cannot call this endpoint.
+         * @description Service accounts cannot call this endpoint. An account from the service-accounts file answers 409 `provisioned`, because its role comes from the file.
          */
         patch: operations["updateServiceAccountRole"];
         trace?: never;
@@ -175,7 +175,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Revoke a key of a service account. */
+        /**
+         * Revoke a key of a service account.
+         * @description A key of an account from the service-accounts file answers 409 `provisioned`; rotate the file key by writing a new key to its file and restarting the server.
+         */
         delete: operations["revokeServiceAccountKey"];
         options?: never;
         head?: never;
@@ -342,6 +345,52 @@ export interface paths {
         patch: operations["updateSavedPrompt"];
         trace?: never;
     };
+    "/annotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List annotations, newest first.
+         * @description Lists annotations ordered by `time_from` then `id`, newest first. With `dashboard_id`, returns that dashboard's annotations and the global ones; without it, only the global ones. The caller must be able to see the dashboard: a dashboard that is missing or in a folder the caller cannot see is 404 `not_found`. An annotation is in the window when it starts at or before `to` and ends, or starts when it has no end, at or after `from`. `created_by_name` is read when the list is answered, so it follows a rename and is null once the person or service account is gone.
+         */
+        get: operations["listAnnotations"];
+        put?: never;
+        /**
+         * Add an annotation.
+         * @description Adds an annotation to one dashboard, or a global one shown on every dashboard when `dashboard_id` is absent or null. A dashboard annotation needs Edit on the dashboard's folder, and a global one needs the Editor role or higher; otherwise 403 `forbidden_role`. A dashboard that is missing or in a folder the caller cannot see is 404 `not_found`. `time_from` defaults to the server's current time.
+         */
+        post: operations["createAnnotation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/annotations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an annotation.
+         * @description Deletes an annotation the caller created, or any annotation for an Admin; anyone else gets 403 `not_creator`. An annotation that is missing, or on a dashboard the caller cannot see, is 404 `not_found`.
+         */
+        delete: operations["deleteAnnotation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasources": {
         parameters: {
             query?: never;
@@ -499,7 +548,7 @@ export interface paths {
         head?: never;
         /**
          * Move a dashboard to another folder.
-         * @description Needs Edit on the dashboard and on the target folder. A move creates no version, does not change `updated_at` and sends no event.
+         * @description Needs Edit on the dashboard and on the target folder. A personal folder (My Dashboards) takes no moves; moving into one answers 409 `personal_folder`. Moving a dashboard out of My Dashboards into a shared folder is how it is published. A move creates no version, does not change `updated_at` and sends no event.
          */
         patch: operations["moveDashboard"];
         trace?: never;
@@ -611,6 +660,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboards/{id}/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record that the caller opened the dashboard.
+         * @description Needs View on the dashboard. The web app calls it once each time it loads a dashboard page. It keeps the caller's latest open, at most once every 10 minutes, and the dashboard health list reads it to find dashboards nobody opens. A service-account key gets 204 and nothing is written, because only people count as opens.
+         */
+        post: operations["recordDashboardView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboards/{id}/import": {
         parameters: {
             query?: never;
@@ -666,7 +737,7 @@ export interface paths {
         };
         /**
          * Stream live events for one dashboard as Server-Sent Events.
-         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) and `comment_id` (for a revision requested by a comment); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
+         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
          */
         get: operations["streamDashboardEvents"];
         put?: never;
@@ -815,6 +886,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasources/{uid}/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run one query against a datasource and return its frames.
+         * @description The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables. `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step. The query runs with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows), and `limit` lowers the row limit. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The response has the shape of panel data, with `meta.cached` always false.
+         */
+        post: operations["exploreQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/log-volume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Count the log lines a logs query matches over a range, by level.
+         * @description The counts cover every line the query matches over the whole range, not only the lines the logs page shows. The server picks a whole-second step of at least one second so the range fits in at most `buckets` buckets, aligns the range to it, and returns every bucket, oldest first. Each line is filed as `error`, `warning`, `info` or `other` by its level word: err, eror, error, emerg, fatal, alert, crit, critical and panic are errors; warn and warning are warnings; info, information, informational and notice are info; anything else, or no level, is other. For Loki the query must be a log query that starts with a stream selector; the server counts it with `count_over_time` by the first of the `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, so a pipeline that extracts `level` with `| json` or `| logfmt` is honored. For ClickHouse the query must be one SELECT; the server drops its top-level `ORDER BY` and `LIMIT` and groups the rows it matches by the result columns `Timestamp` and `SeverityText`, the columns the logs page selects. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+         */
+        post: operations["logVolume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/draft-query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Turn a question into a checked log query, TraceQL query or trace filters for one datasource.
+         * @description The server reads the datasource's labels, attributes or columns first, then asks the model once with the question and those facts, capped at 12 KiB. The answer is checked with the lint and one sample run over the last 15 minutes of the range under the agent tools' limits; the full query is never run. Only when that check fails does the server make a second model call in the same session to correct it, so a draft spends at most two model calls, and a second failure answers `cannot_translate`. The whole draft has a 60 second deadline. Each caller may have 3 drafts in flight and each server process 10. Loki answers LogQL, ClickHouse logs answer ClickHouse SQL, ClickHouse traces answer trace filters, and Tempo answers trace filters or, when the question needs more, TraceQL. `signal` defaults to `logs` on Loki and `traces` on Tempo, and ClickHouse requires it. `from` and `to` default to `now-1h` and `now` and take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. Viewers and above may call it, service-account keys included. Without a configured model it answers 503 `agent_unavailable`.
+         */
+        post: operations["draftQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasources/{uid}/metrics": {
         parameters: {
             query?: never;
@@ -896,7 +1033,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the agent to revise a dashboard with a follow-up prompt.
-         * @description The request is queued and answers 202 at once; the agent saves the result as a new version of the dashboard. Watch the dashboard's event stream for `revision.updated` and `version.created` (the version arrives first, then `revision.updated` with status `succeeded`; do not depend on their order), or poll the revision. The agent revises the latest version of the dashboard; `base_version` is the version the caller was looking at and only gives the agent context. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. At most 5 revisions may be queued or running per dashboard. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`. With `panel_id` the agent focuses on that panel. With `comment_id` the request is about a comment thread; on success the thread is resolved with the saved version.
+         * @description The request is queued and answers 202 at once; the agent saves the result as a new version of the dashboard. A prompt that only asks a question may instead end with a finding, and then the revision succeeds with `result_version` null. Watch the dashboard's event stream for `revision.updated` and `version.created` (the version arrives first, then `revision.updated` with status `succeeded`; do not depend on their order), or poll the revision. The agent revises the latest version of the dashboard; `base_version` is the version the caller was looking at and only gives the agent context. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. At most 5 revisions may be queued or running per dashboard. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`. With `panel_id` the agent focuses on that panel. With `comment_id` the request is about a comment thread; on success the thread is resolved with the saved version.
          */
         post: operations["createDashboardRevision"];
         delete?: never;
@@ -999,13 +1136,13 @@ export interface paths {
         };
         /**
          * List the caller's own agent requests, newest first.
-         * @description Only requests the caller made are listed; a user sees their own and a service account its own. `source` narrows the list to new-dashboard requests (`observe`), follow-up prompts (`prompt`) or comment revisions (`comment`). A new-dashboard request that failed has no dashboard and lives only in this list. Progress steps are not included; read `GET /observe/{id}` for them.
+         * @description Only requests the caller made are listed; a user sees their own and a service account its own. `source` narrows the list to new-dashboard requests (`observe`), follow-up prompts (`prompt`), comment revisions (`comment`) or investigations (`investigate`). `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, and `dashboard_id` keeps the requests about one dashboard. Archived requests are left out, and pinned requests come first, most recently pinned first. A new-dashboard request that failed has no dashboard and lives only in this list. Progress steps are not included; read `GET /observe/{id}` for them.
          */
         get: operations["listObserveRequests"];
         put?: never;
         /**
-         * Ask the agent to build a new dashboard, or to revise an existing one with a follow-up prompt.
-         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * Ask the agent to build a new dashboard, revise an existing one with a follow-up prompt, or investigate a question.
+         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` and `url` set and `dashboard_id` and `result_version` null, and `kind` stays `build`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` and `url` set, keeps its `dashboard_id`, and `result_version` stays null. With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). `panel_id`, `from` and `to` need `kind` `investigate`, `kind` must be `build` or `investigate`, `base_version` is not allowed for an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["createObserveRequest"];
         delete?: never;
@@ -1025,9 +1162,260 @@ export interface paths {
         };
         /**
          * Read one agent request with its progress steps and usage.
-         * @description Works for any agent request, including comment and prompt revisions. A request that has no dashboard yet, or never got one, is readable only by the principal that made it; anyone else gets 404. Clients poll it once a second until the status is `succeeded` or `failed`. After a shutdown release the re-claimed run reuses its attempt number with a fresh step list, so a client detects a restarted list by each step's `at`, not by `attempt` alone.
+         * @description Works for any agent request, including comment and prompt revisions. A request that has no dashboard yet, or never got one, is readable only by the principal that made it; anyone else gets 404. Clients poll it once a second until the status is `succeeded` or `failed`. After a shutdown release the re-claimed run reuses its attempt number and keeps the steps already recorded, so a client detects a restarted run by each step's `at`, not by `attempt` alone. `build` reports the progress of the dashboard the agent is assembling for the request, without its Spec, to everyone who can see the request; it is null when there is no build. A `failed` request keeps its build for 7 days after it finished; `build_saved_at` is set once the requester saved it as a version.
          */
         get: operations["getObserveRequest"];
+        put?: never;
+        post?: never;
+        /**
+         * Archive one of your agent requests so it leaves your list.
+         * @description Only the principal that made the request may archive it (403 `forbidden`); a request hidden from the caller answers 404. The request stays readable through `GET /observe/{id}`, and archiving it again changes nothing.
+         */
+        delete: operations["archiveObserveRequest"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename or pin one of your agent requests.
+         * @description Only the principal that made the request may change it (403 `forbidden`); a request hidden from the caller answers 404. A `title` string is trimmed and must be 1 to 120 characters on one line; `null` clears it back to the default taken from the prompt. `pinned` true pins the request to the top of `GET /observe`, false unpins it.
+         */
+        patch: operations["updateObserveRequest"];
+        trace?: never;
+    };
+    "/observe/{id}/build": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read the dashboard an agent request has built so far, with its ObserveSpec.
+         * @description Only the principal that made the request can read its build, and for a revision only while that principal can still view the dashboard; everyone else gets 404, as does a request without a build. A new-dashboard request builds a dashboard that is not in any folder or list until it finishes. Clients read `build` of `GET /observe/{id}` once a second and fetch this operation when its `saves` changes.
+         */
+        get: operations["getObserveRequestBuild"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observe/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a queued or running agent request.
+         * @description Only the principal that made the request may call it; no editor and no administrator may cancel another principal's request. Someone else gets 403 `forbidden` on a revision they can see, and 404 on a new-dashboard request or a suggestion request. A queued request becomes `failed` with the failure code `canceled` at once. A running request keeps running until its worker sees the cancel flag, within about 5 seconds plus the time the in-flight model or tool call takes to return; it then ends `failed` with the failure code `canceled`. The build is kept, so the requester can still save it or continue it. A run that saved its version before the cancel took effect ends `succeeded`, because a saved version always wins. Canceling a request that is already canceled answers 200 with the request; any other finished request answers 409 `request_finished`.
+         */
+        post: operations["cancelObserveRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observe/{id}/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Continue a stopped agent request in a new request that takes over its build.
+         * @description The new request copies the stopped request's source, dashboard, comment, panel, prompt and base version, records `continues_id`, and takes the build, so the agent continues from the panels already built with its own model-call budget. The stopped request gains `continued_by` and can no longer be saved or continued. A request is continuable when it is `failed`, its build was not saved, it still has its build, and nothing continues it yet; otherwise the call answers 409 `not_continuable`. Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request. Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request. A revision whose dashboard has a newer version than the build's base answers 409 `version_conflict` with `latest_version`. The new request counts against the same caps as `POST /observe`. The optional `note` is stored on the new request as `continue_note` and given to the agent in every seed of that run, including its restarts. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         */
+        post: operations["continueObserveRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observe/{id}/build/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save the build of a failed agent request as one version.
+         * @description Only the principal that made the request may call it; a revision also needs edit access on its dashboard; anyone else gets 404. A new-dashboard request becomes version 1 of a new dashboard in the requester's default folder (a person's My Dashboards, a key's General); a revision becomes the next version of its dashboard and fails with 409 `version_conflict` when someone saved a version after the build started, leaving the build in place. No query runs: every build save was checked when the agent made it, and panels that were unverified then stay unverified. The request stays `failed` with its `failure_code`; it gains `result_version`, `dashboard_id` and `build_saved_at`, and the build is deleted. A repeat call answers 200 with `replayed` true and the version already saved. A `queued` or `running` request answers 409 `build_running`, a build without panels 409 `build_empty`, and a request that is no longer failed with an unsaved build 409 `build_not_savable`. A request without a build, an expired build, or a request of someone else answers 404.
+         */
+        post: operations["saveObserveRequestBuild"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observe/{id}/build/panels/{panel_id}/data": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                panel_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Run the queries of one panel of an agent request's build and return their frames.
+         * @description The queries come from the stored build, so the request names a panel and never carries query text, as for saved versions. This is the second exception to the rule that the proxy runs only saved panel queries: the build is not a version yet. Only signed-in users who made the request may call it, and a service-account key gets 403 `user_session_required`; anyone else gets 404. The queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows), nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `tz`, `max_data_points` and the `var-<name>` selections behave as for panel data of a saved version, and `from` and `to` default to the build's `time`. The response has the shape of panel data, with `meta.cached` always false.
+         */
+        get: operations["getBuildPanelData"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observe/{id}/build/variables/{name}/values": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the values of one variable of an agent request's build.
+         * @description Behaves as the values of a saved version's variable, over the stored build, with the same access rule as the build's panel data: signed-in users who made the request only, 403 `user_session_required` for a key, 404 for anyone else. Nothing is cached, and the call counts against the caller's 8 in-flight query requests.
+         */
+        get: operations["getBuildVariableValues"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the findings the caller can read, newest first.
+         * @description A finding on a dashboard is listed for anyone who can view that dashboard, and a finding without one only for the person who made it and Admins. With `dashboard_id` only that dashboard's findings are listed, and a dashboard the caller cannot view gives 404.
+         */
+        get: operations["listFindings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/findings/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read one finding.
+         * @description Anyone who can view the finding's dashboard may read it; a finding without a dashboard is readable by the person who made it and Admins. A finding the caller cannot read gives 404, never 403.
+         */
+        get: operations["getFinding"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/findings/{id}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pin a finding to its dashboard as an annotation.
+         * @description The annotation's text is the finding's first line and a link to it, tagged `finding`, at the end of the finding's window; pinning needs Edit on the dashboard. Pinning a finding that is already pinned answers 200 with the same annotation.
+         */
+        post: operations["pinFinding"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/findings/{id}/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save a finding's evidence panels as a new dashboard.
+         * @description Anyone who can read the finding may call it; the dashboard lands in the caller's My Dashboards and every evidence query is run again before it is saved. A finding without evidence gives 409 `finding_has_no_evidence`.
+         */
+        post: operations["saveFindingAsDashboard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/findings/{id}/panels/{panel_id}/data": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                panel_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Run the queries of one evidence panel of a finding and return their frames.
+         * @description Runs one evidence panel of a finding. Only browser sessions may call it; a key gets 403 `user_session_required`. Evidence queries are stored with the finding and were checked when it was saved. Anyone who can read the finding may call it, `from` and `to` default to the finding's window, nothing is cached, and the response has the shape of panel data.
+         */
+        get: operations["getFindingPanelData"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1131,9 +1519,526 @@ export interface paths {
         put?: never;
         /**
          * Import a Grafana dashboard as version 1 of a new dashboard.
-         * @description Takes the same body as the preview and saves the converted Spec even when some queries fail. Panels whose queries fail are marked `unverified` in the stored report with the reason; later saves of the dashboard run every query as usual. The original JSON is stored for a later re-import and is never returned. A caller has at most 1 import in flight and the instance at most 4; more answers 429 `too_many_imports`. A retried agent request that already made its dashboard without an import answers 200 with that dashboard and no `import`. The folder is `folder` from the body, else the Grafana export's `meta.folderTitle`, else the caller's default folder (the last folder they created in, or General); `General` means the default. A folder that does not exist is created when the caller is an Editor or above and the caller becomes its creator. Otherwise, or when the folder exists but the caller cannot see it or create in it, the dashboard goes to the default folder and `folder_note` says so. Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder, and 404 `not_found` when a folder disappears while the dashboard is saved.
+         * @description Takes the same body as the preview and saves the converted Spec even when some queries fail. Panels whose queries fail are marked `unverified` in the stored report with the reason; later saves of the dashboard run every query as usual. The original JSON is stored for a later re-import and is never returned. A caller has at most 1 import in flight and the instance at most 4; more answers 429 `too_many_imports`. A retried agent request that already made its dashboard without an import answers 200 with that dashboard and no `import`. The folder is `folder` from the body, else the Grafana export's `meta.folderTitle`, else the caller's default folder (a person's My Dashboards, a key's General); General and My Dashboards both mean the default. A folder that does not exist is created when the caller is an Editor or above and the caller becomes its creator. Otherwise, or when the folder exists but the caller cannot see it or create in it, the dashboard goes to the default folder and `folder_note` says so. Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder, and 404 `not_found` when a folder disappears while the dashboard is saved. The record's `grafana_uid` is the dashboard's Grafana uid when no earlier import holds it, so `GET /grafana/resolve/{uid}` finds this dashboard.
          */
         post: operations["createImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/provision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show what the provisioning directory became.
+         * @description Lists every file that became a dashboard and every file that never did, each sorted by `path` in byte order. Paths are relative to `SLASHOBSERVE_PROVISION_DIR`, with `/` between directories. The lists are kept when provisioning is turned off, so they can still be read; `dir` is then null. Only Admins may call this endpoint.
+         */
+        get: operations["getProvisionStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/provision/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Provision the directory now.
+         * @description Reads every file of the directory once, as the server does at startup and when a file changes, and answers the status afterwards. An unchanged file saves nothing, and a changed file adds one version. Only Admins may call this endpoint.
+         */
+        post: operations["runProvisioning"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/provision/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save one dashboard file from a dashboards-as-code directory.
+         * @description Editors and Admins can call this endpoint; `observe dashboards apply` calls it once per file. `path` is the file's path relative to the applied directory, with `/` between directories: a file name, or a folder directory and a file name. The directory names the folder, with `%` written as `%25` and `/` as `%2F`, and a file at the root goes to General. A path that was applied before saves into the same dashboard. Otherwise the one dashboard in that folder whose title matches the Spec's title, compared case-insensitively, is adopted, and the path is bound to it; when no dashboard matches a new one is created, with the folder when it does not exist yet. A version is saved as the caller, with the summary `Applied from <path>`, only when the file changed since it was last applied and differs from the latest version. Apply never deletes a dashboard. It answers 409 `ambiguous` when more than one dashboard in the folder has the title, 409 `provisioned` when the dashboard comes from the server's provisioning directory, and 409 `version_conflict` when another save landed during the apply.
+         */
+        post: operations["applyDashboardFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/provision/applied": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the file paths bound to the dashboards of a folder.
+         * @description Anyone with a role can call this endpoint for a folder they can see; `observe dashboards export` reads it to keep the file names a folder was applied from. Each entry is a path that `POST /provision/apply` bound to a dashboard now in the folder, sorted by `path` in byte order.
+         */
+        get: operations["listAppliedDashboards"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grafana": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the stored Grafana connections.
+         * @description Only Admins can call this endpoint. Connections are sorted by creation time; a response never carries the token.
+         */
+        get: operations["listGrafanaConnections"];
+        put?: never;
+        /**
+         * Store a Grafana URL and service-account token.
+         * @description Only Admins can call this endpoint. The URL may be http or https on any port, and its host may resolve to a private or loopback address, because Grafana usually runs inside the network. The host must be a domain name, and it is added to the outbound allowlist when it is not allowed yet. The token is encrypted with a key derived from `SLASHOBSERVE_SECRET_KEY` and is never returned.
+         */
+        post: operations["createGrafanaConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grafana/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read one Grafana connection.
+         * @description Only Admins can call this endpoint.
+         */
+        get: operations["getGrafanaConnection"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a connection and its stored token.
+         * @description Only Admins can call this endpoint. Imported dashboards and the outbound allowlist entry stay.
+         */
+        delete: operations["deleteGrafanaConnection"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a connection's name, URL or token.
+         * @description Only Admins can call this endpoint. A new URL needs the token again, so a stored token never reaches another host. Changing the URL or the token clears the last test.
+         */
+        patch: operations["updateGrafanaConnection"];
+        trace?: never;
+    };
+    "/grafana/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check that Grafana answers with the stored token.
+         * @description Only Admins can call this endpoint. The server reads `/api/health`, `/api/folders` and the first page of `/api/search`, and stores the outcome in `last_test`. A Grafana that cannot be reached or refuses the token still answers 200, with `last_test.ok` false and a fixed message.
+         */
+        post: operations["testGrafanaConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grafana/{id}/folders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the Grafana folders and how many dashboards each holds.
+         * @description Only Admins can call this endpoint. Nested folders are titled `Parent / Child`, and dashboards outside any folder are counted under the uid `general`. Counts cover the folder itself, not its subfolders.
+         */
+        get: operations["listGrafanaFolders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grafana/{id}/datasources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the Grafana datasources and the datasource each one matches here.
+         * @description Only Admins can call this endpoint. `matched_uid` applies the importer's automatic match rules; null means the datasource needs a mapping or has no supported type.
+         */
+        get: operations["listGrafanaDatasources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grafana/{id}/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import every dashboard of the chosen folders.
+         * @description Only Admins can call this endpoint. The import runs in the background; read its progress from the `Location` header. Each dashboard becomes one import record holding its Grafana uid, in a folder named after its Grafana folder (`Parent / Child` for nested ones), or General for dashboards outside any folder. A dashboard imported before is saved as a new version only when its Grafana `version` is newer, otherwise it is skipped. One dashboard failing never stops the run. A connection runs one import at a time.
+         */
+        post: operations["startGrafanaImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grafana/{id}/imports/{sync_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sync_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read the progress of an import.
+         * @description Only Admins can call this endpoint. The server keeps the last 20 imports in memory until it restarts; the connection's `last_sync` keeps the summary of the last finished one.
+         */
+        get: operations["getGrafanaImport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/grafana/resolve/{uid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Find the dashboard imported from a Grafana uid.
+         * @description Any signed-in caller can resolve a uid, so links to the old Grafana dashboard keep working. A uid whose dashboard sits in a folder the caller cannot see answers 404, like a uid nobody imported.
+         */
+        get: operations["resolveGrafanaUID"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repairs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List dashboards whose latest version still has failing or placeholder panels.
+         * @description Editors and Admins can call this endpoint. It lists every dashboard, in folders the caller can see, whose latest version has unverified panels or variables or placeholder panels, most recently updated first. A dashboard leaves the list once nothing in it fails and it holds no placeholder. `repair` is the latest repair the agent was asked for on the dashboard, by anyone, or null.
+         */
+        get: operations["listRepairs"];
+        put?: never;
+        /**
+         * Queue the agent to repair the failing panels of dashboards.
+         * @description Editors and Admins can call this endpoint. Send `dashboard_ids` to repair those dashboards, or `all` to repair every dashboard the list shows, in `folder_id` when it is set. Each dashboard gets one ordinary revision with source `prompt` and the fixed prompt "Repair every panel and variable listed as unverified so its query runs and returns data; keep every other panel unchanged and never delete an unverified panel." The agent never edits a placeholder panel, so a dashboard whose only problems are placeholders is skipped. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when it has no unverified panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         */
+        post: operations["requestRepairs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboards/{id}/star": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Star a dashboard for the signed-in person.
+         * @description Stars belong to one person and follow them across browsers. Starring a dashboard that is already starred changes nothing. Only signed-in people may star: a service-account key gets 403 `user_session_required`.
+         */
+        put: operations["starDashboard"];
+        post?: never;
+        /**
+         * Remove the signed-in person's star from a dashboard.
+         * @description Removing a star that does not exist changes nothing. A service-account key gets 403 `user_session_required`.
+         */
+        delete: operations["unstarDashboard"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the signed-in person's starred dashboards, newest star first.
+         * @description Lists at most 200 stars, and only dashboards in folders the caller can see. A service-account key gets 403 `user_session_required`.
+         */
+        get: operations["listStars"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboards/{id}/public-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the public links of a dashboard.
+         * @description Lists at most 100 links, newest first. Only someone who manages the dashboard's folder may list them; anyone else with access gets 403 `forbidden_role`, and a dashboard in My Dashboards answers 409 `personal_folder`, because it cannot have links. `expired` is true once `expires_at` has passed, and `usable` is false when the link is expired or the dashboard's latest version reads the viewer's identity (`${__user.*}`).
+         */
+        get: operations["listPublicLinks"];
+        put?: never;
+        /**
+         * Create a public link that opens the dashboard read-only without sign-in.
+         * @description Needs Manage on the dashboard's folder, because the link widens access beyond the folder's permission list; service-account keys with that level may call it too. The link always shows the dashboard's latest version. The response carries the token and the link's URL once; the server keeps only the token's SHA-256 and a 12 character prefix, so a lost token cannot be shown again. `frozen` variables always use `selections`; `free` variables let the viewer choose values of query, custom, interval and datasource variables among the options the server computes, starting from `selections`. A dashboard has at most 20 links.
+         */
+        post: operations["createPublicLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboards/{id}/public-links/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke a public link.
+         * @description Deletes the link, so its URL stops working at once. Needs Manage on the dashboard's folder, like creating it.
+         */
+        delete: operations["deletePublicLink"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public link's token, the only credential of this request. */
+                token: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read the dashboard a public link shows.
+         * @description Needs no session or key: the token in the path is the only credential. Returns the latest version's Spec without query text: every panel query's `query` and every variable's `query` are left out. `datasources` lists the uid and type of each datasource the Spec can reach, so the page needs no other call. A token that is malformed, unknown, revoked or expired, or whose dashboard's latest version reads the viewer's identity, answers 404 `not_found`. Opening the link records its last view, at most once a minute.
+         */
+        get: operations["getPublicDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/{token}/panels/{panel_id}/data": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public link's token, the only credential of this request. */
+                token: string;
+                panel_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Run the saved queries of one panel of a public link's dashboard.
+         * @description Needs no session or key: the token in the path is the only credential. Behaves like the panel data of a dashboard version, for the link's latest version, with the same parameters, query-text refusal, limits and cache. A `frozen` link ignores every `var-<name>` parameter and uses its stored selections. A `free` link accepts a value for a query, custom, interval or datasource variable only when it is one of the options the server lists for it under the choices of the variables before it, `$__all` when the variable includes All, and answers 400 `selection_not_allowed` otherwise; textbox, adhoc, group by and constant variables always use the stored selections or the dashboard's defaults. Each link may have at most 8 requests in flight.
+         */
+        get: operations["getPublicPanelData"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/{token}/variables/{name}/values": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public link's token, the only credential of this request. */
+                token: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the values of one variable of a public link's dashboard.
+         * @description Needs no session or key: the token in the path is the only credential. Behaves like the variable values of a dashboard version, for the link's latest version. The `var-<name>` selections of earlier variables follow the link's rule, as for panel data, and a selection for the listed variable or a later one is ignored.
+         */
+        get: operations["getPublicVariableValues"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List dashboards with health problems.
+         * @description Anyone with a role can call this endpoint. It lists every dashboard, in folders the caller can see, with at least one problem. `no_data`, `query_failed` and `variable_failed` come from the last health check of the dashboard: an hourly job checks each dashboard about once a day, oldest check first, running every panel and variable query of its latest version over the last 7 days with no viewer. `duplicate_title` means another dashboard in the same folder has the same title, compared case-insensitively, and `unopened` means nobody opened the dashboard in the last 90 days, counting from its creation when nobody ever did; both are computed on every read. A dashboard whose queries read the viewer (`${__user.*}`) is not checked and has `skipped` set to `depends_on_viewer`. Dashboards are ranked: 0 with a `query_failed` or `variable_failed` problem, 1 with `no_data`, 2 with `duplicate_title`, 3 with only `unopened`. The list is ordered by rank, then by `last_viewed_at` newest first with never-opened dashboards last, then by title; a `kind` filter keeps each dashboard's rank, so the same order holds inside one kind. `next_cursor` pages through that order; a cursor from a server before this order answers 400 `invalid_request` and the client restarts from the first page. The first page, sent without `cursor`, carries `summary`: counts of dashboards, not problems, over every dashboard in folders the caller can see, narrowed by `folder_id` and never by `kind`; later pages have `summary` null. Each dashboard carries `repair`, its latest health repair (a revision whose prompt starts as `POST /health/repairs` writes it) whatever its age, or null when it never had one. `job` is the state of the health job.
+         */
+        get: operations["listDashboardHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/repairs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue the agent to repair the failing panels and variables the health check found.
+         * @description Editors and Admins can call this endpoint. Each dashboard gets one ordinary revision with source `prompt` whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 health repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         */
+        post: operations["requestHealthRepairs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a health run now.
+         * @description Admins only. The run starts in the background and checks the dashboards that are due, as the hourly run does; when a run is already going, nothing more starts. Read `job` from `GET /health` to follow it.
+         */
+        post: operations["runDashboardHealth"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1188,6 +2093,8 @@ export interface components {
             allowed_email_domains: string[];
             any_email_domain: boolean;
             session_ttl_seconds: number;
+            /** @description The server's release version, `dev` for a local build. */
+            version: string;
         };
         SessionState: {
             authenticated: boolean;
@@ -1203,6 +2110,8 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             role: components["schemas"]["Role"];
+            /** @description The account comes from the server's service-accounts file (`SLASHOBSERVE_SERVICE_ACCOUNTS_FILE`); its role, description and file key change only there. */
+            provisioned: boolean;
         };
         ServiceAccountList: {
             items: components["schemas"]["ServiceAccount"][];
@@ -1261,7 +2170,7 @@ export interface components {
              * @description Updated at most once a minute while a session is used; seen within the last 2 minutes means online now.
              */
             last_seen_at: string;
-            /** @description Dashboards whose first version this person saved, either directly or through an agent request they sent. Dashboards created with a service-account key are not counted. */
+            /** @description Dashboards whose first version this person saved, either directly or through an agent request they sent. Dashboards created with a service-account key are not counted. Only dashboards in folders you can see are counted, so another person's My Dashboards is left out. */
             dashboard_count: number;
             /** @description Unrevoked, unexpired service-account keys this person created. */
             key_count: number;
@@ -1316,6 +2225,8 @@ export interface components {
             title: string;
             /** @description True for the General folder, which holds dashboards without a folder of their own and is never restricted, renamed or deleted. */
             general: boolean;
+            /** @description True for the caller's own My Dashboards folder, which only they see, Admins included. It is never restricted, renamed or shared, takes new dashboards but no moves, and lists first. */
+            personal: boolean;
             /** @description True when the folder lists people or groups; false means open to everyone by instance role. */
             restricted: boolean;
             /** @description All dashboards in the folder, including ones the caller cannot see when the caller manages it. */
@@ -1324,10 +2235,10 @@ export interface components {
             grantees: string[];
             /** @description How many people and groups are listed. */
             grantee_count: number;
-            /** @description Null for General and for folders made before creators were recorded. */
+            /** @description Null for General and for folders made before creators were recorded. For a personal folder, its owner. */
             created_by: components["schemas"]["Author"] | null;
             permissions: components["schemas"]["Permissions"];
-            /** @description The caller's level on this folder and on every dashboard in it, the higher of what their role gives and their highest matching entry. Admins always have `admin`. */
+            /** @description The caller's level on this folder and on every dashboard in it, the higher of what their role gives and their highest matching entry. Admins have `admin` on every folder except other people's personal folders, and a personal folder's owner has `edit`. */
             level: components["schemas"]["FolderLevel"];
         };
         FolderPermissionEntry: {
@@ -1376,6 +2287,38 @@ export interface components {
         };
         SavedPromptList: {
             prompts: components["schemas"]["SavedPrompt"][];
+        };
+        Annotation: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: uuid
+             * @description Null for a global annotation, shown on every dashboard.
+             */
+            dashboard_id: string | null;
+            panel_id: string | null;
+            /** Format: date-time */
+            time_from: string;
+            /**
+             * Format: date-time
+             * @description The end of a range annotation; null for a single instant.
+             */
+            time_to: string | null;
+            text: string;
+            tags: string[];
+            /**
+             * Format: uuid
+             * @description The id of the person or service account that added it.
+             */
+            created_by: string | null;
+            /** @description The name of the person or service account that added it; null when it is gone. */
+            created_by_name: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AnnotationList: {
+            annotations: components["schemas"]["Annotation"][];
+            next_cursor: string | null;
         };
         NewsItem: {
             /** @description Plain text, never markup. */
@@ -1463,6 +2406,8 @@ export interface components {
             title: string;
             /** @description True for the General folder. */
             general: boolean;
+            /** @description True when the dashboard is in a personal folder. */
+            personal: boolean;
         };
         DashboardSummary: {
             /** Format: uuid */
@@ -1685,6 +2630,25 @@ export interface components {
             /** @description The query that failed, when one query's run failed. */
             ref?: string;
         };
+        LogVolume: {
+            /** @description The width of every bucket in milliseconds, a whole number of seconds and at least one. */
+            step_ms: number;
+            /** @description The sum of every count in every bucket. */
+            total: number;
+            /** @description Every bucket of the aligned range, oldest first, empty buckets included. */
+            buckets: components["schemas"]["LogVolumeBucket"][];
+        };
+        LogVolumeBucket: {
+            /**
+             * Format: date-time
+             * @description The bucket covers this instant up to, but not including, `start` plus `step_ms`.
+             */
+            start: string;
+            error: number;
+            warning: number;
+            info: number;
+            other: number;
+        };
         PanelData: {
             frames: components["schemas"]["Frame"][];
             /** @description Present only when at least one query asked for exemplars, and then possibly empty. Each frame is one series' exemplars, its `ref` naming the query and its `labels` the series labels; the fields are `Time` (epoch milliseconds), `Value`, then one string field per exemplar label key. */
@@ -1736,10 +2700,31 @@ export interface components {
             /** @enum {string} */
             status: "queued" | "running" | "succeeded" | "failed";
             attempts: number;
-            /** @description The version the revision saved, set when the status is `succeeded`. */
+            /** @description The version the revision saved, set when the status is `succeeded` unless the agent answered with a finding. */
             result_version: number | null;
             /** @description Why the revision failed, set when the status is `failed`. */
             error: string | null;
+            /** @description Why the request failed, as one code (the codes of `AgentRequest.failure_code`), set when the status is `failed` and null otherwise. Clients must tolerate codes they do not know. */
+            failure_code: string | null;
+            /** @description Progress of the build the agent assembles for this request, null when there is none. */
+            build: components["schemas"]["AgentBuildProgress"] | null;
+            /**
+             * Format: date-time
+             * @description When the requester saved the stopped build of a `failed` request as a version; null otherwise.
+             */
+            build_saved_at: string | null;
+            /**
+             * Format: uuid
+             * @description The stopped request this one continues.
+             */
+            continues_id: string | null;
+            /**
+             * Format: uuid
+             * @description The request that continues this one; its build moved there.
+             */
+            continued_by: string | null;
+            /** @description The note given when continuing a stopped request, null when none was given or this request continues nothing. */
+            continue_note: string | null;
             requested_by: components["schemas"]["Author"];
             /**
              * @description Where the request came from; `web` is a signed-in browser, `cli` the observe CLI, `mcp` an MCP client, `api` any other bearer-key caller. Null for requests made before origins were recorded. A label only, never used for access decisions.
@@ -1780,6 +2765,10 @@ export interface components {
             } | null;
             /** @description Why the suggestion failed, set only when the status is `failed`. */
             error: string | null;
+            /** @description Why the suggestion failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired` or `no_progress`. Clients must tolerate codes they do not know. */
+            failure_code: string | null;
+            /** @description Tokens, model calls and timings of the attempt that finished the suggestion. Null when no model call was attempted. */
+            usage: components["schemas"]["AgentUsage"] | null;
             requested_by: components["schemas"]["Author"];
             /**
              * @description Where the request came from. A label only, never used for access decisions.
@@ -1810,7 +2799,7 @@ export interface components {
         AgentStep: {
             /** Format: date-time */
             at: string;
-            /** @description The attempt that ran the step. A shutdown release gives the attempt back and deletes its steps, so the re-claimed run reuses the same attempt number with a fresh step list. Clients detect a restarted list by each step's `at`, not by `attempt` alone. */
+            /** @description The attempt that ran the step. A shutdown release gives the attempt back and keeps its steps, so the re-claimed run continues the same step list; an attempt keeps its most recent 1000 steps. Clients detect a restarted list by each step's `at`, not by `attempt` alone. */
             attempt: number;
             /** @enum {string} */
             phase: "discover" | "lint" | "query" | "save" | "repair";
@@ -1830,12 +2819,88 @@ export interface components {
             cache_write_tokens: number;
             model_calls: number;
             repair_rounds: number;
+            /** @description Tool calls the model made. */
+            tool_calls: number;
+            /** @description Model calls that failed. The call that ended a failed run counts here, so a run that fails on its first call reports `model_calls` 0 and `failed_calls` 1. */
+            failed_calls: number;
+            /** @description Extra HTTP attempts made inside model calls after a retryable answer or an idle or first-token timeout, including the resend after an answer cut off at the output limit. */
+            retries: number;
+            /** @description Wall-clock milliseconds spent waiting on the model, retries included. */
+            model_ms: number;
+            /** @description Wall-clock milliseconds spent running tools; tools of one turn that run in parallel count once. */
+            tool_ms: number;
+            /** @description The largest output token count of any model turn that contained a save, or 0 when no turn did. */
+            max_save_output_tokens: number;
+            /** @description Accepted saves into the request's build during the run, counted across every session of the run. */
+            build_saves: number;
+            /** @description Compactions made because the session's history passed the renewal size after an accepted save; also counted in `compactions`. */
+            renewals: number;
+            /** @description Times the run compacted its session history (on renewal, on the first cut-off answer, or when the model answered without a tool call while the build held fewer panels than planned). */
+            compactions: number;
+            /** @description Steering messages sent one call before the save-now rule refuses reads. */
+            nudges: number;
+            /** @description Read calls refused because six model calls passed without a save (or twelve without a proposal in a suggest run). */
+            save_now_refusals: number;
+            /** @description Turns in which the agent answered no call because every call was refused. */
+            stalled_turns: number;
+            /** @description Saves refused for adding or changing more than one panel. */
+            one_panel_refusals: number;
+        };
+        /** @description How far a request's build has come, without its Spec; the build title is for the requester only. */
+        AgentBuildProgress: {
+            /** @description Accepted build saves so far; a client refetches the build when it changes. */
+            saves: number;
+            /** @description Panels in the build, row children included and rows themselves excluded. */
+            panels: number;
+            /** @description Panels the agent expects the finished dashboard to have, rows not counted; 0 when it gave no estimate. It is an estimate, so `panels` can exceed it. */
+            planned_panels: number;
+            /** @description The build's current dashboard title; null for anyone but the principal that made the request, because a build is visible only to its requester. */
+            title: string | null;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        AgentBuild: {
+            /** Format: uuid */
+            request_id: string;
+            /**
+             * Format: uuid
+             * @description The dashboard being revised; null for a new-dashboard request.
+             */
+            dashboard_id: string | null;
+            /** @description The version the revision started from; null for a new-dashboard request. */
+            base_version: number | null;
+            saves: number;
+            panels: number;
+            /** @description Panels the agent expects the finished dashboard to have, rows not counted; 0 when it gave no estimate. It is an estimate, so `panels` can exceed it. */
+            planned_panels: number;
+            /** @description The ObserveSpec document as built so far, checked like a version. */
+            spec: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            updated_at: string;
+        };
+        AgentBuildSaved: {
+            /** Format: uuid */
+            dashboard_id: string;
+            version: number;
+            /** @description The address of the dashboard, empty when the server has no public URL configured. */
+            url: string;
+            /** @description True when the request had already saved a version, so this call changed nothing. */
+            replayed: boolean;
         };
         AgentRequest: {
             /** Format: uuid */
             id: string;
+            /**
+             * @description `investigate` for an investigation that ends with a finding, `build` for every other request, including one that answered a question with a finding.
+             * @enum {string}
+             */
+            kind: "build" | "investigate";
+            /** @description The title the requester gave the request, or the start of its prompt when they gave none. */
+            title: string;
             /** @enum {string} */
-            source: "comment" | "prompt" | "observe";
+            source: "comment" | "prompt" | "observe" | "investigate";
             prompt: string;
             /**
              * Format: uuid
@@ -1850,15 +2915,47 @@ export interface components {
             /** @enum {string} */
             status: "queued" | "running" | "succeeded" | "failed";
             attempts: number;
-            /** @description The version the request saved, set when the status is `succeeded`. */
+            /** @description The version the request saved, set when the status is `succeeded` unless the agent answered with a finding and, once the requester saved a stopped build, when it is `failed`. */
             result_version: number | null;
-            /** @description The address of the dashboard, set when the status is `succeeded`. */
+            /** @description The address of the dashboard, or of the finding for an investigation or a request that answered a question, set when the status is `succeeded`. */
             url: string | null;
             /** @description Why the request failed, set when the status is `failed`. */
             error: string | null;
+            /** @description Why the request failed, as one code, set when the status is `failed` and null otherwise. One of `run_timeout`, `call_timeout`, `rate_limited`, `provider_error`, `output_limit`, `no_tool_call`, `refused`, `validation_exhausted`, `conflict`, `invalid_task`, `not_found`, `draft_invalid`, `canceled`, `load_failed`, `context_failed`, `tool_failed`, `result_too_large`, `tool_panicked`, `malformed_result`, `internal`, `no_fixture`, `requester_gone`, `requester_forbidden`, `check_failed`, `crashed`, `no_suggestion`, `no_finding`, `lease_expired` or `no_progress`. Clients must tolerate codes they do not know. */
+            failure_code: string | null;
             steps: components["schemas"]["AgentStep"][];
-            /** @description Tokens, model calls and repair rounds of the attempt that finished the request. */
+            /** @description Tokens, model calls, repair rounds and timings of the attempt that finished the request. Null when no model call was attempted. */
             usage: components["schemas"]["AgentUsage"] | null;
+            /** @description Progress of the build the agent assembles for this request, null when there is none. Shown to everyone who can see the request; the build's Spec is readable only by the requester through `GET /observe/{id}/build`. */
+            build: components["schemas"]["AgentBuildProgress"] | null;
+            /**
+             * Format: date-time
+             * @description When the requester saved the stopped build of a `failed` request as a version; null otherwise. The request stays `failed` with its `failure_code`.
+             */
+            build_saved_at: string | null;
+            /** @description 1-based place among queued requests in claim order, null unless queued. The worker skips a request whose dashboard already has a running revision, so the order can shift. */
+            queue_position: number | null;
+            /**
+             * Format: date-time
+             * @description When the requester asked to cancel the request; null when they did not. A running request keeps running until its worker sees the flag, then ends `failed` with the `canceled` failure code and keeps its build.
+             */
+            cancel_requested_at: string | null;
+            /** @description Who asked to cancel the request; the email is never set. */
+            canceled_by: components["schemas"]["Author"] | null;
+            /** @description Whether the caller may cancel this request now. Only the requester may, while it is queued or running. */
+            can_cancel: boolean;
+            /**
+             * Format: uuid
+             * @description The stopped request this one continues.
+             */
+            continues_id: string | null;
+            /** @description The note given when continuing a stopped request, null when none was given or this request continues nothing. */
+            continue_note: string | null;
+            /**
+             * Format: uuid
+             * @description The request that continues this one; its build moved there.
+             */
+            continued_by: string | null;
             requested_by: components["schemas"]["Author"];
             /**
              * @description Where the request came from; `web` is a signed-in browser, `cli` the observe CLI, `mcp` an MCP client, `api` any other bearer-key caller. Null for requests made before origins were recorded. A label only, never used for access decisions.
@@ -1873,23 +2970,75 @@ export interface components {
             started_at: string | null;
             /** Format: date-time */
             finished_at: string | null;
+            /**
+             * Format: date-time
+             * @description When the requester pinned the request; null when it is not pinned.
+             */
+            pinned_at: string | null;
+            /**
+             * Format: date-time
+             * @description When the requester archived the request; an archived request is left out of `GET /observe`.
+             */
+            archived_at: string | null;
+            /**
+             * Format: date-time
+             * @description The start of the window an investigation was asked to look at; null when none was given.
+             */
+            from: string | null;
+            /**
+             * Format: date-time
+             * @description The end of the window an investigation was asked to look at; null when none was given.
+             */
+            to: string | null;
+            /** @description The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved. */
+            finding: components["schemas"]["Finding"] | null;
         };
         RequestSummary: {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            source: "comment" | "prompt" | "observe";
+            source: "comment" | "prompt" | "observe" | "investigate";
             prompt: string;
             /** @enum {string} */
             status: "queued" | "running" | "succeeded" | "failed";
             /** Format: uuid */
             dashboard_id: string | null;
-            /** @description The dashboard's current title; null when the request has no dashboard. */
+            /** @description The dashboard's current title; null when the request has no dashboard or the dashboard is in a folder you cannot see. */
             dashboard_title: string | null;
             panel_id: string | null;
             result_version: number | null;
             url: string | null;
             error: string | null;
+            /** @description Why the request failed, as one code (the codes of `AgentRequest.failure_code`), set when the status is `failed` and null otherwise. Clients must tolerate codes they do not know. */
+            failure_code: string | null;
+            /** @description Progress of the build the agent assembles for this request, null when there is none. */
+            build: components["schemas"]["AgentBuildProgress"] | null;
+            /**
+             * Format: date-time
+             * @description When the requester saved the stopped build of a `failed` request as a version; null otherwise.
+             */
+            build_saved_at: string | null;
+            /** @enum {string} */
+            kind: "build" | "investigate";
+            /** @description The title the requester gave the request, or the start of its prompt when they gave none. */
+            title: string;
+            /**
+             * Format: date-time
+             * @description When the requester pinned the request; pinned requests come first in the list.
+             */
+            pinned_at: string | null;
+            /**
+             * Format: uuid
+             * @description The stopped request this one continues.
+             */
+            continues_id: string | null;
+            /**
+             * Format: uuid
+             * @description The request that continues this one; its build moved there.
+             */
+            continued_by: string | null;
+            /** @description The note given when continuing a stopped request, null when none was given or this request continues nothing. */
+            continue_note: string | null;
             /** @enum {string|null} */
             origin: "web" | "cli" | "mcp" | "api" | null;
             origin_client: string | null;
@@ -1900,8 +3049,65 @@ export interface components {
             /** Format: date-time */
             finished_at: string | null;
         };
+        ContinueObserveRequest: {
+            /** @description An instruction for the continued run, trimmed; 1 to 4000 characters without control or bidirectional override characters, the same rule as a prompt. */
+            note?: string | null;
+        };
         AgentRequestEnvelope: {
             request: components["schemas"]["AgentRequest"];
+        };
+        FindingAuthor: {
+            /** @enum {string} */
+            kind: "user" | "service_account";
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        Finding: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: uuid
+             * @description The investigation that saved the finding; null for a finding saved over MCP, or after the request was deleted.
+             */
+            agent_request_id: string | null;
+            /**
+             * Format: uuid
+             * @description The dashboard the finding is about; null when it is about none.
+             */
+            dashboard_id: string | null;
+            title: string;
+            /** @description The finding as Markdown of at most 400 words. */
+            markdown: string;
+            /** @description Up to 4 panel Specs whose queries were checked when the finding was saved, with ids `evidence-1` to `evidence-4`. */
+            evidence: Record<string, never>[];
+            /**
+             * Format: date-time
+             * @description The start of the window the evidence shows.
+             */
+            from: string;
+            /**
+             * Format: date-time
+             * @description The end of the window the evidence shows.
+             */
+            to: string;
+            /**
+             * Format: uuid
+             * @description The annotation the finding was pinned as; null until it is pinned.
+             */
+            annotation_id: string | null;
+            created_by: components["schemas"]["FindingAuthor"];
+            /** Format: date-time */
+            created_at: string;
+            /** @description The address of the finding, empty when the server has no public URL configured. */
+            url: string;
+        };
+        FindingEnvelope: {
+            finding: components["schemas"]["Finding"];
+        };
+        FindingList: {
+            findings: components["schemas"]["Finding"][];
+            next_cursor: string | null;
         };
         ImportRequest: {
             /** @description The Grafana dashboard JSON text, exactly as pasted or uploaded. */
@@ -1930,7 +3136,7 @@ export interface components {
             name: string | null;
             /** @description The Grafana datasource type. */
             type: string | null;
-            /** @description Our datasource type it needs (`prometheus` or `clickhouse`); null for a built-in datasource. */
+            /** @description Our datasource type it needs (`prometheus`, `clickhouse`, `loki` or `tempo`); null for a built-in datasource. A kind with no configured datasource has no candidates, does not block the import, and its panels import as placeholders. */
             kind: string | null;
             panels: number;
             /** @description The uid of our datasource it will use; null while unmatched. */
@@ -2051,6 +3257,8 @@ export interface components {
             summary: components["schemas"]["ImportSummary"];
             datasources: components["schemas"]["ImportSourceDatasource"][];
             report: components["schemas"]["ImportReport"];
+            /** @description The Grafana dashboard uid this import answers for, or empty. Only the first import of a uid holds it, and only a uid of 1 to 40 letters, digits, `-` or `_`; a later import of the same uid, from a file or a connection, gets an empty value. */
+            grafana_uid?: string;
             created_by: components["schemas"]["Author"];
             /** Format: date-time */
             created_at: string;
@@ -2084,6 +3292,419 @@ export interface components {
             /** @enum {string} */
             code: "datasources_unresolved";
             datasources: components["schemas"]["ImportSourceDatasource"][];
+        };
+        ProvisionStatus: {
+            /** @description The value of `SLASHOBSERVE_PROVISION_DIR`, or null when provisioning is off. */
+            dir: string | null;
+            /** @description Files that became a dashboard, including files that have since left the directory, because their dashboards stay. */
+            dashboards: {
+                path: string;
+                /** Format: uuid */
+                dashboard_id: string;
+                /** @description The title of the folder the file was first provisioned into. */
+                folder: string;
+                /**
+                 * Format: date-time
+                 * @description When the file's content was last saved as a version.
+                 */
+                updated_at: string;
+                /** @description Why the file's current content could not be saved; the dashboard keeps its last saved version. Null when the last save of the file worked. */
+                last_error: string | null;
+            }[];
+            /** @description Files in the directory that never became a dashboard. */
+            errors: {
+                path: string;
+                message: string;
+                /** Format: date-time */
+                seen_at: string;
+            }[];
+        };
+        GrafanaConnectionTest: {
+            /** Format: date-time */
+            at: string;
+            ok: boolean;
+            /** @description A fixed sentence chosen by the outcome, such as the folder and dashboard counts or why Grafana could not be read. */
+            message: string;
+        };
+        GrafanaImportSummary: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description `failed` means the run could not list Grafana's dashboards; one failing dashboard only counts in `failed`.
+             * @enum {string}
+             */
+            status: "running" | "finished" | "failed" | "canceled";
+            /** @description The dashboards chosen, known once the dashboards are listed; 0 until then. */
+            total: number;
+            done: number;
+            failed: number;
+            /** @description Dashboards imported before whose Grafana version is not newer. */
+            skipped: number;
+            /** @description Why the run failed; null unless `status` is `failed`. */
+            error: string | null;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            finished_at: string | null;
+        };
+        GrafanaImportResult: {
+            /** @description The Grafana dashboard uid. */
+            uid: string;
+            title: string;
+            /** @enum {string} */
+            outcome: "imported" | "updated" | "skipped" | "failed";
+            /** Format: uuid */
+            dashboard_id: string | null;
+            unverified_panels: number;
+            placeholder_panels: number;
+            /** @description A fixed sentence chosen by the kind of failure; null unless `outcome` is `failed`. */
+            error: string | null;
+        };
+        GrafanaImport: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            connection_id: string;
+            /** @enum {string} */
+            status: "running" | "finished" | "failed" | "canceled";
+            total: number;
+            done: number;
+            failed: number;
+            skipped: number;
+            error: string | null;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            finished_at: string | null;
+            /** @description One entry per dashboard handled so far, in the order they finished. */
+            results: components["schemas"]["GrafanaImportResult"][];
+        };
+        GrafanaConnection: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @description The Grafana base URL as stored, without a trailing slash. */
+            url: string;
+            /**
+             * Format: uuid
+             * @description The id of the person or service account that stored the connection.
+             */
+            created_by: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** @description Null until the connection is tested, and again after its URL or token changes. */
+            last_test: components["schemas"]["GrafanaConnectionTest"] | null;
+            /** @description The summary of the last finished import, or null before the first one. */
+            last_sync: components["schemas"]["GrafanaImportSummary"] | null;
+        };
+        GrafanaConnectionList: {
+            connections: components["schemas"]["GrafanaConnection"][];
+        };
+        CreateGrafanaConnectionRequest: {
+            name: string;
+            /** @description The Grafana base URL, http or https, with a domain name and no user info, query or fragment. */
+            url: string;
+            /** @description A Grafana service-account token with Viewer access to the folders to import. */
+            token: string;
+        };
+        UpdateGrafanaConnectionRequest: {
+            name?: string;
+            /** @description A new URL needs `token` in the same request. */
+            url?: string;
+            token?: string;
+        };
+        StartGrafanaImportRequest: {
+            /** @description "all", or the Grafana folder uids to import, each with its subfolders; `general` names the dashboards outside any folder. */
+            folders: "all" | string[];
+            /** @description Grafana datasource uid or name to the uid of a datasource here, for the datasources the automatic match leaves open. */
+            mapping?: {
+                [key: string]: string;
+            };
+        };
+        GrafanaFolder: {
+            uid: string;
+            title: string;
+            dashboards: number;
+        };
+        GrafanaDatasource: {
+            uid: string;
+            name: string;
+            /** @description The Grafana plugin id, such as `prometheus`. */
+            type: string;
+            /** @description Our datasource type the importer maps it to (`prometheus`, `clickhouse`, `loki` or `tempo`); null when SlashObserve does not query this type, and its panels import as placeholders. A kind with no configured datasource has no candidates, and its panels also import as placeholders. */
+            kind: string | null;
+            /** @description The uids of our datasources of that kind, the only valid mapping targets. */
+            candidates: string[];
+            matched_uid: string | null;
+        };
+        RepairList: {
+            dashboards: components["schemas"]["RepairItem"][];
+            next_cursor: string | null;
+        };
+        RepairItem: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            /** @description The dashboard's address in the web app. */
+            url: string;
+            folder: components["schemas"]["DashboardFolder"];
+            unverified_panels: number;
+            unverified_variables: number;
+            /** @description Placeholder panels, top level or inside rows; people replace them, the agent does not. */
+            placeholder_panels: number;
+            /**
+             * Format: date-time
+             * @description When the version the dashboard's import record points at was saved; null for a dashboard that was not imported, such as a duplicate of one.
+             */
+            last_import_at: string | null;
+            repair: components["schemas"]["RepairStatus"] | null;
+        };
+        RepairStatus: {
+            /**
+             * Format: uuid
+             * @description The agent request id.
+             */
+            id: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "succeeded" | "failed";
+            /** Format: date-time */
+            finished_at: string | null;
+        };
+        RequestRepairsRequest: {
+            dashboard_ids?: string[];
+            /** @enum {boolean} */
+            all?: true;
+            /**
+             * Format: uuid
+             * @description Only with `all`.
+             */
+            folder_id?: string;
+        };
+        RepairsQueued: {
+            queued: {
+                /** Format: uuid */
+                dashboard_id: string;
+                /** Format: uuid */
+                request_id: string;
+            }[];
+            skipped: {
+                /** Format: uuid */
+                dashboard_id: string;
+                /** @enum {string} */
+                reason: "active" | "nothing_to_repair" | "not_found" | "forbidden_role" | "queue_full";
+            }[];
+        };
+        GrafanaResolved: {
+            /** Format: uuid */
+            dashboard_id: string;
+            /** @description The web app path of the dashboard. */
+            url: string;
+        };
+        /** @description Variable selections by variable name; `$__all` selects All. */
+        PublicLinkSelections: {
+            [key: string]: string[];
+        };
+        PublicLink: {
+            /** Format: uuid */
+            id: string;
+            /** @description The first 12 characters of the token, to tell links apart; the token itself is never shown again. */
+            prefix: string;
+            /** @enum {string} */
+            variables: "frozen" | "free";
+            selections: components["schemas"]["PublicLinkSelections"];
+            /** Format: date-time */
+            expires_at: string | null;
+            created_by: {
+                /** @enum {string} */
+                kind: "user" | "service_account";
+                /** Format: uuid */
+                id: string;
+                name: string;
+            };
+            /** Format: date-time */
+            created_at: string;
+            /**
+             * Format: date-time
+             * @description When the link was last opened, recorded at most once a minute.
+             */
+            last_viewed_at: string | null;
+            expired: boolean;
+            /** @description False when the link is expired or the dashboard's latest version reads the viewer's identity. */
+            usable: boolean;
+        };
+        CreatePublicLinkRequest: {
+            /** @enum {string} */
+            variables: "frozen" | "free";
+            selections?: components["schemas"]["PublicLinkSelections"];
+            /**
+             * Format: date-time
+             * @description When the link stops working; null or absent for no expiry.
+             */
+            expires_at?: string | null;
+        };
+        CreatedPublicLink: {
+            link: components["schemas"]["PublicLink"];
+            /** @description `pub_` plus 43 base64url characters, returned only in this response. */
+            token: string;
+            /** @description The address that opens the link, `<SLASHOBSERVE_PUBLIC_URL>/p/<token>`. */
+            url: string;
+        };
+        PublicDashboard: {
+            /** Format: uuid */
+            dashboard_id: string;
+            title: string;
+            version: number;
+            /** @description The latest version's ObserveSpec without query text. */
+            spec: {
+                [key: string]: unknown;
+            };
+            /** @enum {string} */
+            variables: "frozen" | "free";
+            selections: components["schemas"]["PublicLinkSelections"];
+            /** Format: date-time */
+            expires_at: string | null;
+            datasources: {
+                uid: string;
+                type: string;
+            }[];
+        };
+        /** @enum {string} */
+        HealthProblemKind: "no_data" | "query_failed" | "variable_failed" | "duplicate_title" | "unopened";
+        HealthProblem: {
+            kind: components["schemas"]["HealthProblemKind"];
+            /** @description The panel the problem is in, or null for a variable or a dashboard-wide problem. */
+            panel_id: string | null;
+            panel_title: string | null;
+            /** @description The variable that resolves to nothing, for `variable_failed`. */
+            variable: string | null;
+            /** @description The check's issue code, such as `query_empty`, or `check_failed` when the check itself could not run; null for `duplicate_title` and `unopened`. */
+            code: string | null;
+            message: string | null;
+        };
+        HealthItem: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            /** @description The dashboard's address in the web app. */
+            url: string;
+            folder: components["schemas"]["DashboardFolder"];
+            /** @description Whether the caller may edit the dashboard, and so ask for a repair. */
+            can_edit: boolean;
+            /** @description The version the last health check ran on; null before the first check. */
+            checked_version: number | null;
+            /** Format: date-time */
+            checked_at: string | null;
+            /**
+             * Format: date-time
+             * @description The latest time anyone opened the dashboard; null when nobody did since opens are recorded.
+             */
+            last_viewed_at: string | null;
+            /**
+             * @description Why the last check ran no query.
+             * @enum {string|null}
+             */
+            skipped: "depends_on_viewer" | null;
+            problems: components["schemas"]["HealthProblem"][];
+            /** @description The dashboard's latest health repair, whatever its age; null when it never had one. */
+            repair: components["schemas"]["HealthRepair"] | null;
+        };
+        HealthRepair: {
+            /** @enum {string} */
+            state: "queued" | "running" | "succeeded" | "failed";
+            /**
+             * Format: uuid
+             * @description The revision request of the repair.
+             */
+            request_id: string;
+            /** @description The version a succeeded repair saved; null in any other state. */
+            version: number | null;
+            /** @description The failure sentence of a failed repair; null in any other state. */
+            error: string | null;
+            /**
+             * Format: date-time
+             * @description When the repair finished, else when it started, else when it was queued.
+             */
+            updated_at: string;
+        };
+        HealthJob: {
+            /** Format: date-time */
+            last_started_at: string | null;
+            /** Format: date-time */
+            last_finished_at: string | null;
+            /** @enum {string|null} */
+            last_outcome: "succeeded" | "failed" | "interrupted" | null;
+            running: boolean;
+        };
+        HealthList: {
+            dashboards: components["schemas"]["HealthItem"][];
+            next_cursor: string | null;
+            /** @description Counts over every dashboard in the visible folders, narrowed by `folder_id` and never by `kind`; set on the first page and null when `cursor` is sent. */
+            summary: components["schemas"]["HealthSummary"] | null;
+            job: components["schemas"]["HealthJob"];
+        };
+        /** @description Each count is of dashboards, not problems. */
+        HealthSummary: {
+            /** @description Dashboards with any problem. */
+            dashboards: number;
+            /** @description Dashboards with a `query_failed` or `variable_failed` problem. */
+            failing: number;
+            query_failed: number;
+            variable_failed: number;
+            no_data: number;
+            /** @description Dashboards with a `duplicate_title` problem. */
+            duplicate_titles: number;
+            unopened: number;
+        };
+        ApplyResult: {
+            path: string;
+            /** @enum {string} */
+            outcome: "created" | "updated" | "unchanged";
+            /** Format: uuid */
+            dashboard_id: string;
+            /** @description The version saved, or the latest version when nothing changed. */
+            version: number;
+        };
+        AppliedList: {
+            applied: {
+                path: string;
+                /** Format: uuid */
+                dashboard_id: string;
+            }[];
+        };
+        DraftQueryRequest: {
+            question: string;
+            from?: string;
+            to?: string;
+            /** @enum {string} */
+            signal?: "logs" | "traces";
+        };
+        DraftQuery: {
+            /** @description LogQL, ClickHouse SQL or TraceQL; empty when `language` is `filters`. */
+            query: string;
+            /** @enum {string} */
+            language: "logql" | "clickhouse_sql" | "traceql" | "filters";
+            /** @description The Traces form's fields; null unless `language` is `filters`. */
+            trace_filters: components["schemas"]["TraceFilters"] | null;
+            explanation: string;
+            warnings: string[];
+        };
+        /** @description Each field is present only when set. */
+        TraceFilters: {
+            service?: string;
+            span?: string;
+            /** @description A duration such as `250ms`. */
+            min?: string;
+            /** @description A duration such as `2s`. */
+            max?: string;
+            errors?: boolean;
+        };
+        CannotTranslate: {
+            error: string;
+            /** @enum {string} */
+            code: "cannot_translate";
+            reason: string;
         };
     };
     responses: {
@@ -2425,6 +4046,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The account comes from the service-accounts file (`provisioned`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };
@@ -2509,6 +4139,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The account comes from the service-accounts file (`provisioned`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };
@@ -2888,6 +4527,147 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    listAnnotations: {
+        parameters: {
+            query?: {
+                dashboard_id?: string;
+                /** @description RFC 3339 start of the window. */
+                from?: string;
+                /** @description RFC 3339 end of the window, not before `from`. */
+                to?: string;
+                /** @description Comma-separated tags; an annotation matches when it has any of them. */
+                tags?: string;
+                /** @description The `next_cursor` of the previous page. */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of annotations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnotationList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The dashboard is missing or the caller cannot see it (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    createAnnotation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    dashboard_id?: string | null;
+                    /** @description A panel of the dashboard; needs `dashboard_id`. */
+                    panel_id?: string;
+                    /** Format: date-time */
+                    time_from?: string;
+                    /**
+                     * Format: date-time
+                     * @description The end of a range annotation, not before `time_from`.
+                     */
+                    time_to?: string | null;
+                    /** @description 1 to 2000 characters once trimmed, without control or bidirectional override characters. */
+                    text: string;
+                    tags?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description The annotation is added. */
+            201: {
+                headers: {
+                    /** @description `/api/v1/annotations/{id}` of the new annotation. */
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Annotation"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The dashboard is missing or the caller cannot see it (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The text is empty, longer than 2000 characters or holds control characters (`invalid_text`), a tag is not valid or there are more than 10 (`invalid_tags`), a time is not RFC 3339, is before 1970 or `time_to` is before `time_from` (`invalid_time`), or `panel_id` is too long or has no `dashboard_id` (`invalid_panel_id`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteAnnotation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The annotation is deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller did not create the annotation and is not an Admin (`not_creator`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
     listDatasources: {
         parameters: {
             query?: never;
@@ -2964,7 +4744,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description A folder with that title already exists (`folder_exists`), ignoring case. */
+            /** @description A folder with that title already exists (`folder_exists`), ignoring case, or the title is `My Dashboards`, which every person's personal folder uses. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3234,7 +5014,7 @@ export interface operations {
                     summary?: string;
                     /**
                      * Format: uuid
-                     * @description The folder to create the dashboard in. Missing means the caller's last used folder they can still create in, else General. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
+                     * @description The folder to create the dashboard in. Missing means the caller's default folder: a person's My Dashboards, a service-account key's General. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
                      */
                     folder_id?: string;
                 };
@@ -3380,6 +5160,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             500: components["responses"]["Internal"];
         };
     };
@@ -3552,7 +5333,7 @@ export interface operations {
                     title: string;
                     /**
                      * Format: uuid
-                     * @description The folder to create the dashboard in. Missing means the caller's last used folder they can still create in, else General. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
+                     * @description The folder to create the dashboard in. Missing means the caller's default folder: a person's My Dashboards, a service-account key's General. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
                      */
                     folder_id?: string;
                 };
@@ -3606,6 +5387,31 @@ export interface operations {
                         changes: components["schemas"]["SpecChange"][];
                     };
                 };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    recordDashboardView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The open is recorded, or there was nothing to record. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
@@ -4240,6 +6046,290 @@ export interface operations {
             };
         };
     };
+    exploreQuery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    query: string;
+                    /** @enum {string} */
+                    kind: "range" | "instant";
+                    from: string;
+                    to: string;
+                    /** @description The browser's IANA time zone, used to resolve relative times such as `now/d`. */
+                    timezone?: string;
+                    /**
+                     * @description Range queries only.
+                     * @default 1000
+                     */
+                    max_data_points?: number;
+                    /** @description The most rows the query may return; lowers the 1,000 row limit. */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The frames the query returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelData"];
+                };
+            };
+            /** @description The request is malformed or fails validation (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`, with the query's `ref` `A`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    logVolume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The query the logs page runs. */
+                    query: string;
+                    from: string;
+                    to: string;
+                    /**
+                     * @description The most buckets wanted.
+                     * @default 60
+                     */
+                    buckets?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The line counts by level per bucket. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogVolume"];
+                };
+            };
+            /** @description The request is malformed or fails validation, `buckets` is out of range, or the datasource is not Loki or ClickHouse (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The query cannot run: `query_invalid` for a Loki metric query, a ClickHouse query with a top-level UNION, INTERSECT, EXCEPT or LIMIT BY, or an upstream rejection such as an unknown column; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    draftQuery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftQueryRequest"];
+            };
+        };
+        responses: {
+            /** @description The checked draft; `trace_filters` is null unless `language` is `filters`, and `query` is empty when it is. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftQuery"];
+                };
+            };
+            /** @description The body is malformed or fails validation, the signal does not fit the datasource type, or the datasource type has no drafts (`invalid_request`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The question could not be turned into a query (`cannot_translate`); `reason` says why in one sentence. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CannotTranslate"];
+                };
+            };
+            /** @description Too many drafts are in flight (`too_many_requests` for the caller, `agent_busy` for the server process). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description The model provider failed (`provider_error`), or every read of the datasource failed, with the datasource's own code such as `datasource_unavailable`. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No model is configured on this server (`agent_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The draft did not finish within its 60 second deadline (`draft_timeout`). */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     listDatasourceMetrics: {
         parameters: {
             query?: {
@@ -4637,7 +6727,10 @@ export interface operations {
     listObserveRequests: {
         parameters: {
             query?: {
-                source?: "observe" | "prompt" | "comment";
+                source?: "observe" | "prompt" | "comment" | "investigate";
+                q?: string;
+                pinned?: boolean;
+                dashboard_id?: string;
                 limit?: number;
                 cursor?: string;
             };
@@ -4682,6 +6775,17 @@ export interface operations {
                     dashboard_id?: string;
                     /** @description A version that exists on the dashboard; only allowed together with `dashboard_id`. */
                     base_version?: number;
+                    /**
+                     * @default build
+                     * @enum {string}
+                     */
+                    kind?: "build" | "investigate";
+                    /** @description The panel an investigation is about; needs `dashboard_id`. */
+                    panel_id?: string;
+                    /** @description The start of the window an investigation looks at, a relative time like `now-1h` or epoch milliseconds. */
+                    from?: string;
+                    /** @description The end of the window an investigation looks at, a relative time like `now` or epoch milliseconds. */
+                    to?: string;
                 };
             };
         };
@@ -4746,6 +6850,642 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
+        };
+    };
+    archiveObserveRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request is archived; nothing is returned. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateObserveRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    title?: string | null;
+                    pinned?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description The agent request as changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRequestEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getObserveRequestBuild: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The build. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        build: components["schemas"]["AgentBuild"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    cancelObserveRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request, with `cancel_requested_at` set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRequestEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The request already finished and was not canceled (`request_finished`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    continueObserveRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ContinueObserveRequest"];
+            };
+        };
+        responses: {
+            /** @description The queued request that continues the stopped one. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRequestEnvelope"];
+                };
+            };
+            /** @description The note breaks the prompt rule (`invalid_request`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The request cannot be continued: `not_continuable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["VersionConflict"];
+                };
+            };
+            /** @description Too many agent requests are queued or running (`too_many_requests` for the caller, `agent_busy` for the instance, `too_many_revisions` for the dashboard). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description No LLM provider is configured (`agent_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    saveObserveRequestBuild: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request had already saved a version; nothing changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentBuildSaved"];
+                };
+            };
+            /** @description The build became a version. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentBuildSaved"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["VersionConflict"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    getBuildPanelData: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                tz?: string;
+                max_data_points?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                panel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The frames the build's queries returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelData"];
+                };
+            };
+            /** @description The request is malformed or fails validation. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The request carried query text (`query_not_in_spec`), or the caller is not a signed-in user (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description There is no such build for the caller (`not_found`), or the build has no such panel (`panel_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A query or a variable cannot run, with the codes of panel data. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource did not answer within the query timeout. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    getBuildVariableValues: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                tz?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to 1000 values; `truncated` is true when there were more. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VariableValues"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The request carried query text (`query_not_in_spec`), or the caller is not a signed-in user (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description There is no such build for the caller (`not_found`), or it has no such variable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The variable's query cannot run, with the codes of variable values of a saved version. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["Internal"];
+            /** @description A datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource did not answer within the query timeout. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    listFindings: {
+        parameters: {
+            query?: {
+                dashboard_id?: string;
+                limit?: number;
+                /** @description The `next_cursor` of the previous page. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of findings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindingList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getFinding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The finding. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindingEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    pinFinding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The finding was already pinned; this is its annotation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Annotation"];
+                };
+            };
+            /** @description The annotation made for the finding. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Annotation"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The finding has no dashboard to pin to (`finding_has_no_dashboard`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    saveFindingAsDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The new dashboard and its first version. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The finding has no evidence panels (`finding_has_no_evidence`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getFindingPanelData: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                tz?: string;
+                max_data_points?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                panel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The frames the evidence panel's queries returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelData"];
+                };
+            };
+            /** @description The request is malformed or fails validation. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The request carried query text (`query_not_in_spec`), or the caller is not a signed-in user (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description There is no such finding for the caller (`not_found`), or the finding has no such evidence panel (`panel_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A query or a variable cannot run, with the codes of panel data. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource did not answer within the query timeout. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
         };
     };
     getNewsFeed: {
@@ -5045,6 +7785,1175 @@ export interface operations {
                 };
             };
             500: components["responses"]["Internal"];
+        };
+    };
+    getProvisionStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The provisioning status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    runProvisioning: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The provisioning status after the run. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Provisioning is off because `SLASHOBSERVE_PROVISION_DIR` is not set (`provisioning_off`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The directory cannot be read (`provision_dir_unreadable`), or the server failed (`internal`). */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    applyDashboardFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    path: string;
+                    /** @description The ObserveSpec document of the file. */
+                    spec: {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description What the file became. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplyResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["TooLarge"];
+            422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listAppliedDashboards: {
+        parameters: {
+            query: {
+                folder_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The bound paths. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppliedList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listGrafanaConnections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The connections. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaConnectionList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createGrafanaConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGrafanaConnectionRequest"];
+            };
+        };
+        responses: {
+            /** @description The connection is stored. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaConnection"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the host (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The host is not allowed and 100 outbound domains are already allowed (`too_many_domains`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    getGrafanaConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The connection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaConnection"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteGrafanaConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The connection is deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateGrafanaConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateGrafanaConnectionRequest"];
+            };
+        };
+        responses: {
+            /** @description The changed connection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaConnection"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the new host (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description `SLASHOBSERVE_SECRET_KEY` is not set and a new token was sent (`secret_key_missing`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The new host is not allowed and 100 outbound domains are already allowed (`too_many_domains`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    testGrafanaConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The connection with its new `last_test`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaConnection"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or the stored token cannot be read with it (`token_unreadable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    listGrafanaFolders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The folders, sorted by title. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaFolder"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or the host is no longer on the outbound allowlist (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or the stored token cannot be read with it (`token_unreadable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description Grafana could not be reached, refused the token or gave an answer the server cannot read (`grafana_unavailable`); the message is fixed by the kind of failure. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listGrafanaDatasources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The datasources, sorted by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaDatasource"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or the host is no longer on the outbound allowlist (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or the stored token cannot be read with it (`token_unreadable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description Grafana could not be reached, refused the token or gave an answer the server cannot read (`grafana_unavailable`); the message is fixed by the kind of failure. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    startGrafanaImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartGrafanaImportRequest"];
+            };
+        };
+        responses: {
+            /** @description The import started. */
+            202: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaImport"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description An import from this connection is already running (`import_running`), `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or the stored token cannot be read with it (`token_unreadable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getGrafanaImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sync_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The import and every dashboard handled so far. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaImport"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    resolveGrafanaUID: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The imported dashboard. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrafanaResolved"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listRepairs: {
+        parameters: {
+            query?: {
+                /** @description Only dashboards in this folder; a folder the caller cannot see answers 404 `not_found`. */
+                folder_id?: string;
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of dashboards to repair. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepairList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    requestRepairs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestRepairsRequest"];
+            };
+        };
+        responses: {
+            /** @description The repairs that were queued and the dashboards that were skipped. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepairsQueued"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            413: components["responses"]["TooLarge"];
+            500: components["responses"]["Internal"];
+            /** @description No LLM provider is configured (`agent_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    starDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The dashboard is starred. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`), or cannot see the dashboard (`forbidden_role`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    unstarDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The dashboard is not starred. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`), or cannot see the dashboard (`forbidden_role`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listStars: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The starred dashboards. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            title: string;
+                            /** Format: uuid */
+                            folder_id: string;
+                            folder_title: string;
+                            /** Format: date-time */
+                            starred_at: string;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    listPublicLinks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The links, without their tokens. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_links: components["schemas"]["PublicLink"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The dashboard is in My Dashboards (`personal_folder`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    createPublicLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePublicLinkRequest"];
+            };
+        };
+        responses: {
+            /** @description The link is created. */
+            201: {
+                headers: {
+                    /** @description `/api/v1/dashboards/{id}/public-links/{link_id}` of the new link. */
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedPublicLink"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The dashboard is in My Dashboards (`personal_folder`); move it to a shared folder first. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The latest version reads the viewer's identity (`user_scoped`), `expires_at` is not in the future (`invalid_expiry`), `selections` names a variable the latest version does not declare (`unknown_variable`), or the dashboard already has 20 links (`too_many_links`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    deletePublicLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The link is revoked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The dashboard or the link does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The dashboard is in My Dashboards (`personal_folder`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    getPublicDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public link's token, the only credential of this request. */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The dashboard to render. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicDashboard"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getPublicPanelData: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                /** @description The browser's IANA time zone, as for panel data. */
+                tz?: string;
+                max_data_points?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The public link's token, the only credential of this request. */
+                token: string;
+                panel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The frames the saved queries returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelData"];
+                };
+            };
+            /** @description The request is malformed, a variable selection is invalid, or a free variable value is not one of its options (`selection_not_allowed`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The request carried query text; the code is `query_not_in_spec`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The link does not work (`not_found`), or the dashboard has no such panel (`panel_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A query or a variable cannot run, as for panel data. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource did not answer within the query timeout. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    getPublicVariableValues: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                /** @description The browser's IANA time zone, as for panel data. */
+                tz?: string;
+            };
+            header?: never;
+            path: {
+                /** @description The public link's token, the only credential of this request. */
+                token: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to 1000 values; `truncated` is true when there were more. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VariableValues"];
+                };
+            };
+            /** @description The request is malformed, or a free variable value is not one of its options (`selection_not_allowed`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The request carried query text; the code is `query_not_in_spec`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The link does not work (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The variable's query cannot run, as for variable values. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource did not answer within the query timeout. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    listDashboardHealth: {
+        parameters: {
+            query?: {
+                /** @description Only dashboards in this folder; a folder the caller cannot see answers 404 `not_found`. */
+                folder_id?: string;
+                /** @description Only dashboards with this kind of problem, and only problems of this kind. */
+                kind?: components["schemas"]["HealthProblemKind"];
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of dashboards with problems. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    requestHealthRepairs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    dashboard_ids: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description The repairs that were queued and the dashboards that were skipped. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepairsQueued"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["TooLarge"];
+            500: components["responses"]["Internal"];
+            /** @description No LLM provider is configured (`agent_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    runDashboardHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The run is starting. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
 }

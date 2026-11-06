@@ -16,10 +16,14 @@ function compareText(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0
 }
 
-export function stepSummary(steps: readonly { phase: string }[]): string {
+export function stepSummary(
+  steps: readonly { phase: string }[],
+  took?: string
+): string {
   if (steps.length === 0) return "No steps recorded"
   const repairs = steps.filter((step) => step.phase === "repair").length
-  const ran = `Ran ${steps.length} ${steps.length === 1 ? "step" : "steps"}`
+  const counted = `Ran ${steps.length} ${steps.length === 1 ? "step" : "steps"}`
+  const ran = took === undefined ? counted : `${counted} in ${took}`
   return repairs === 0
     ? ran
     : `${ran}, repaired ${repairs} ${repairs === 1 ? "query" : "queries"}`

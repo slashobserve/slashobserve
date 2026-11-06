@@ -358,7 +358,7 @@ test("asks before discarding unsaved changes", async ({ page, request }) => {
   ).toBeFocused()
   await dialog.getByRole("button", { name: "Keep editing" }).click()
   await expect(dialog).toHaveCount(0)
-  await expect(page).toHaveURL(new RegExp(`/dashboards/${id}$`))
+  await expect(page).toHaveURL(new RegExp(`/d/${id}(/[a-z0-9-]+)?$`))
   await expect(page.getByText("Unsaved changes")).toBeVisible()
 
   await page.getByRole("button", { name: "Cancel" }).click()
@@ -491,7 +491,7 @@ test("keeps the other version's layout changes when reapplying", async ({
   expect(gridPos(saved.spec, "logs").h).toBe(12)
 })
 
-test("shows no edit controls on a pinned version and keeps the edits", async ({
+test("keeps the edits when Back is refused and shows no edit controls on the pinned version after discarding", async ({
   page,
   request,
 }) => {
@@ -507,7 +507,20 @@ test("shows no edit controls on a pinned version and keeps the edits", async ({
   await page.keyboard.press("ArrowRight")
   await expect(page.getByText("Unsaved changes")).toBeVisible()
 
+  const dialog = page.getByRole("alertdialog", {
+    name: "Discard unsaved layout changes?",
+  })
   await page.goBack()
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole("button", { name: "Keep editing" }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page).not.toHaveURL(/version=1/)
+  await expect(page.getByRole("button", { name: "Save layout" })).toBeEnabled()
+  await expect(page.getByText("Unsaved changes")).toBeVisible()
+
+  await page.goBack()
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole("button", { name: "Discard" }).click()
   await expect(page).toHaveURL(/version=1/)
   await expect(versionButton(page)).toHaveText("v1 of 2")
   await editLayoutButton(page).click()
@@ -525,13 +538,8 @@ test("shows no edit controls on a pinned version and keeps the edits", async ({
 
   await openLatest(page)
   await expect(page).not.toHaveURL(/version=1/)
-  await expect(page.getByRole("button", { name: "Save layout" })).toBeEnabled()
-  await expect(page.getByText("Unsaved changes")).toBeVisible()
-  await moveHandle(page, errorRateTitle).focus()
-  await page.keyboard.press("ArrowRight")
-  await expect(liveRegion(page)).toHaveText(
-    `${errorRateTitle}: column 15, row 1, 6 by 4`
-  )
+  await expect(page.getByRole("button", { name: "Save layout" })).toHaveCount(0)
+  await expect(page.getByText("Unsaved changes")).toHaveCount(0)
 })
 
 test("offers Try again when the server cannot check the layout right now", async ({

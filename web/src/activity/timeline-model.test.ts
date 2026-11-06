@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { Comment } from "@/comments/queries"
+import type { Finding } from "@/findings/queries"
 import type { VersionMeta } from "@/history/use-version-history"
 import type { Revision } from "@/revisions/queries"
 
@@ -11,6 +12,7 @@ import {
   firstNewVersion,
   showsVersions,
   type ImportedDashboard,
+  type RunningRequest,
   type TimelineEntry,
 } from "./timeline-model"
 
@@ -58,6 +60,12 @@ function request(overrides: Partial<Revision> & { id: string }): Revision {
     created_at: at(0),
     started_at: null,
     finished_at: null,
+    failure_code: null,
+    build: null,
+    build_saved_at: null,
+    continues_id: null,
+    continued_by: null,
+    continue_note: null,
     ...overrides,
   }
 }
@@ -116,6 +124,36 @@ function imported(
     created_at: createdAt,
   }
   return { record, unverified }
+}
+
+function finding(id: string, createdAt: string): Finding {
+  return {
+    id,
+    agent_request_id: null,
+    dashboard_id: "d1",
+    title: "Checkout errors rose after the deploy",
+    markdown: "The error rate doubled at 10:02.",
+    evidence: [],
+    from: at(0),
+    to: at(10),
+    annotation_id: null,
+    created_by: { kind: "user", id: "u1", name: "Ada" },
+    created_at: createdAt,
+    url: "",
+  }
+}
+
+function investigation(
+  overrides: Partial<RunningRequest> & { id: string }
+): RunningRequest {
+  return {
+    status: "running",
+    dashboard_id: "d1",
+    panel_id: null,
+    created_at: at(0),
+    started_at: at(0),
+    ...overrides,
+  }
 }
 
 function keys(entries: readonly TimelineEntry[]): string[] {
@@ -643,5 +681,66 @@ describe("currentStep", () => {
 
   it("keeps steps that share a timestamp together", () => {
     expect(currentStep([step(1, 1), step(1, 1), step(1, 1)])).toBe(3)
+  })
+})
+
+describe("findings and investigations", () => {
+  it("places each finding by when it was found, among the other entries", () => {
+    const entries = buildTimeline({
+      ...none,
+      comments: [comment({ id: "c1", created_at: at(1) })],
+      versions: [version(1, at(3))],
+      findings: [finding("f2", at(4)), finding("f1", at(2))],
+    })
+    expect(keys(entries)).toEqual([
+      "thread:c1",
+      "finding:f1",
+      "version:1",
+      "finding:f2",
+    ])
+  })
+
+  it("orders a finding after a version saved at the same moment", () => {
+    const entries = buildTimeline({
+      ...none,
+      versions: [version(2, at(5))],
+      findings: [finding("f1", at(5))],
+    })
+    expect(keys(entries)).toEqual(["version:2", "finding:f1"])
+  })
+
+  it("adds a running entry only for an investigation still queued or running", () => {
+    const entries = buildTimeline({
+      ...none,
+      investigations: [
+        investigation({ id: "queued", status: "queued", started_at: null }),
+        investigation({ id: "running", panel_id: "p1" }),
+        investigation({ id: "done", status: "succeeded" }),
+        investigation({ id: "failed", status: "failed" }),
+      ],
+    })
+    expect(
+      entries.map((entry) => [entry.kind, entry.key, entry.panelId])
+    ).toEqual([
+      ["running", "running:queued", null],
+      ["running", "running:running", "p1"],
+    ])
+  })
+
+  it("keeps findings for everything and changes, not for open comments or a panel", () => {
+    const entries = buildTimeline({
+      ...none,
+      comments: [comment({ id: "c1", created_at: at(1) })],
+      findings: [finding("f1", at(2))],
+    })
+    expect(keys(filterTimeline(entries, "everything", null))).toEqual([
+      "thread:c1",
+      "finding:f1",
+    ])
+    expect(keys(filterTimeline(entries, "changes", null))).toEqual([
+      "finding:f1",
+    ])
+    expect(keys(filterTimeline(entries, "open", null))).toEqual(["thread:c1"])
+    expect(keys(filterTimeline(entries, "everything", "p1"))).toEqual([])
   })
 })

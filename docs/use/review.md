@@ -22,8 +22,8 @@ Entries are sorted by time and come in four kinds:
   Choosing the panel name scrolls to the panel and highlights it.
   A comment on a panel that no longer exists reads "on a removed panel".
 - **Agent requests** show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
-  While the agent works, the entry reads "Agent is working on it" with its latest step and the step number, or "Waiting to start" while it is queued.
-  **Details** opens the full conversation at `/observe/<id>` in a new tab.
+  While the agent works, the entry reads "Agent is working on it" with its latest step and the step number, "Queued, position N" while it is queued, or "Canceling" after its requester cancels it.
+  **Details** opens the full conversation at `/c/<id>` in a new tab.
 - **Versions** show who saved: "Agent saved", "`<name>` saved" or "`<client>` saved over MCP", then "Version N" with its summary, or "No summary".
   **See changes** opens the comparison with the previous version.
   The card loads the 50 newest versions first.
@@ -109,7 +109,7 @@ While a version is pinned, the dashboard is read-only: you cannot edit the layou
 Open the latest version first.
 When someone saves a newer version, a toast reads "Version N is available" with **View latest**; on the latest version the page switches by itself and says "Updated to version N".
 
-**Compare versions** in the menu opens the history page, `/dashboards/<id>/versions`, headed "`<title>`: history".
+**Compare versions** in the menu opens the history page, `/d/<id>/versions`, headed "`<title>`: history".
 It lists every version in a table with Version, Summary, Author, Saved and Actions, 50 at a time with **Load more**.
 Badges mark "Latest" and "Restored from v2" for a version created by a restore.
 **View** opens the dashboard at that version.

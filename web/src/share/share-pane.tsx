@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { searchFromState, type DashboardSearch } from "@/dashboards/search"
 import { describeRange } from "@/lib/time"
+import { PublicLinksSection } from "@/public/public-links-section"
 import type { Dashboard } from "@/spec"
 
 import {
@@ -15,13 +16,19 @@ import {
   panelShareUrl,
   type ShareOptions,
 } from "./share-links"
+import { PublishSection } from "./publish-section"
 import { WhoHasAccess } from "./who-has-access"
 
 type Props = {
   dashboardId: string
   spec: Dashboard
   search: DashboardSearch
-  folder: { id: string; title: string; general: boolean }
+  folder: {
+    id: string
+    title: string
+    general: boolean
+    personal: boolean
+  }
   canManage: boolean
 }
 
@@ -45,6 +52,7 @@ export function SharePane({
   const to = search.to ?? spec.time.to
   const current = { ...searchFromState(search), from, to }
   const origin = window.location.origin
+  const dashboard = { id: dashboardId, title: spec.title }
   const variableNames = Object.keys(search.vars)
 
   const choices = panelChoices(spec)
@@ -72,12 +80,11 @@ export function SharePane({
             setOptions((prev) => ({ ...prev, variables }))
           }
         />
-        <LinkRow
-          url={dashboardShareUrl(origin, dashboardId, current, options)}
-        />
+        <LinkRow url={dashboardShareUrl(origin, dashboard, current, options)} />
         <p className="text-xs text-muted-foreground">
-          Links need sign-in. Someone without access to the folder sees
-          &quot;You don&apos;t have access to this dashboard&quot;.
+          {folder.personal
+            ? "Only you can open this link until you publish the dashboard."
+            : 'Links need sign-in. Someone without access to the folder sees "You don\'t have access to this dashboard".'}
         </p>
       </section>
       {selected === undefined ? null : (
@@ -101,7 +108,7 @@ export function SharePane({
             <CopyButton
               text={panelShareUrl(
                 origin,
-                dashboardId,
+                dashboard,
                 selected,
                 current,
                 options
@@ -115,7 +122,18 @@ export function SharePane({
           </div>
         </section>
       )}
-      <WhoHasAccess folder={folder} canManage={canManage} headingId={whoId} />
+      {folder.personal ? (
+        <PublishSection dashboardId={dashboardId} headingId={whoId} />
+      ) : (
+        <WhoHasAccess folder={folder} canManage={canManage} headingId={whoId} />
+      )}
+      {canManage && !folder.personal ? (
+        <PublicLinksSection
+          dashboardId={dashboardId}
+          variables={spec.variables}
+          vars={search.vars}
+        />
+      ) : null}
     </div>
   )
 }

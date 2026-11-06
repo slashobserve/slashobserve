@@ -23,7 +23,7 @@ import {
 
 import { OpenDashboardLink } from "./turn-failure"
 
-const thumbnailColumns = 4
+export const thumbnailColumns = 4
 const nearViewportMargin = "600px"
 
 const sparklineColors = [
@@ -41,7 +41,7 @@ function sparkline(seed: number, dips: boolean): string {
   }).join(" ")
 }
 
-function thumbnailSpan(panel: Panel): number {
+export function thumbnailSpan(panel: Panel): number {
   return Math.min(
     thumbnailColumns,
     Math.max(1, Math.round(panel.gridPos.w / 6))
@@ -64,13 +64,13 @@ function thumbnails(panels: Panel[]): Panel[] {
   return shown
 }
 
-function Thumbnail({ panel, index }: { panel: Panel; index: number }) {
+export function Thumbnail({ panel, index }: { panel: Panel; index: number }) {
   return (
     <div
       style={{ gridColumn: `span ${thumbnailSpan(panel)}` }}
       className="flex h-[52px] min-w-0 flex-col justify-between rounded-[5px] border p-1.5"
     >
-      <span className="truncate text-[10px] text-muted-foreground">
+      <span className="truncate text-xs text-muted-foreground">
         {panelTitle(panel)}
       </span>
       <svg
@@ -147,7 +147,11 @@ function CardBody({ data, dashboardId, version, finishedAt }: BodyProps) {
             {hint}
           </span>
         </div>
-        <OpenDashboardLink dashboardId={dashboardId} variant="primary" />
+        <OpenDashboardLink
+          dashboardId={dashboardId}
+          title={spec?.title}
+          variant="primary"
+        />
       </div>
       <div className="flex items-center gap-1.5 border-t px-3.5 py-[9px] text-xs text-muted-foreground">
         <StatusIcon tone="ok" />

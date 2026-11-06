@@ -11,6 +11,8 @@ import (
 var testDatasources = []Datasource{
 	{UID: "prom", Type: "prometheus"},
 	{UID: "ch", Type: "clickhouse"},
+	{UID: "loki", Type: "loki"},
+	{UID: "tempo", Type: "tempo"},
 }
 
 func dashboardJSON(extra string, panels ...string) string {

@@ -56,8 +56,8 @@ Below it a result card shows the dashboard title, how many panels it has and whi
 Choose **Open dashboard** on the result card.
 The dashboard opens in the same tab with the version button reading "Live · v1".
 
-A new dashboard goes into the folder you last created a dashboard in.
-If you have not created one, or can no longer create there, it goes to General, and if you cannot create in General either, to the first folder where you can.
+A new dashboard goes into your My Dashboards, where only you can see it.
+To share it, open **Share** and publish it to a folder where you have Edit.
 In the Dashboards page's **Made by** column it shows your name, then your email and "Agent".
 See [Folders](../teams/folders.md).
 

@@ -38,11 +38,15 @@ const solo: Entry = {
   level: "view",
 }
 
-function folder(createdBy: Folder["created_by"]): Folder {
+function folder(
+  createdBy: Folder["created_by"],
+  extra: Partial<Folder> = {}
+): Folder {
   return {
     id: "f-1",
     title: "Checkout",
     general: false,
+    personal: false,
     restricted: true,
     dashboard_count: 3,
     grantees: [],
@@ -50,6 +54,7 @@ function folder(createdBy: Folder["created_by"]): Folder {
     created_by: createdBy,
     permissions: { comment: true, edit: true, manage: true, create: true },
     level: "admin",
+    ...extra,
   }
 }
 

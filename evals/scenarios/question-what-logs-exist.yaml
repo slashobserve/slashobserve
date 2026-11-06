@@ -1,0 +1,7 @@
+id: question-what-logs-exist
+prompt: "what all logs are available?"
+kind: question
+suites: [live, replay]
+done_when: false
+expect:
+  finding_mentions: [checkout, payments]

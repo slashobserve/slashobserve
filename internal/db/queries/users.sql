@@ -5,8 +5,10 @@ SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
   coalesce(kc.n, 0)::integer AS key_count,
   coalesce(sc.n, 0)::integer AS session_count
 FROM users u
-LEFT JOIN (SELECT author_id, count(*) AS n FROM dashboard_versions
-  WHERE version = 1 AND author_kind = 'user' GROUP BY author_id) dc ON dc.author_id = u.id
+LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
+  JOIN dashboards d ON d.id = v.dashboard_id
+  WHERE v.version = 1 AND v.author_kind = 'user' AND d.folder_id = ANY(@folders::uuid[])
+  GROUP BY v.author_id) dc ON dc.author_id = u.id
 LEFT JOIN (SELECT created_by, count(*) AS n FROM service_account_keys
   WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()) GROUP BY created_by) kc ON kc.created_by = u.id
 LEFT JOIN (SELECT user_id, count(*) AS n FROM sessions WHERE expires_at > now() GROUP BY user_id) sc ON sc.user_id = u.id
@@ -22,8 +24,10 @@ SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
   coalesce(kc.n, 0)::integer AS key_count,
   coalesce(sc.n, 0)::integer AS session_count
 FROM users u
-LEFT JOIN (SELECT author_id, count(*) AS n FROM dashboard_versions
-  WHERE version = 1 AND author_kind = 'user' GROUP BY author_id) dc ON dc.author_id = u.id
+LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
+  JOIN dashboards d ON d.id = v.dashboard_id
+  WHERE v.version = 1 AND v.author_kind = 'user' AND d.folder_id = ANY(@folders::uuid[])
+  GROUP BY v.author_id) dc ON dc.author_id = u.id
 LEFT JOIN (SELECT created_by, count(*) AS n FROM service_account_keys
   WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()) GROUP BY created_by) kc ON kc.created_by = u.id
 LEFT JOIN (SELECT user_id, count(*) AS n FROM sessions WHERE expires_at > now() GROUP BY user_id) sc ON sc.user_id = u.id

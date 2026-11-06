@@ -1,6 +1,8 @@
 package config
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -45,18 +47,31 @@ const (
 	LLMProviderReplay    = "replay"
 
 	defaultLLMModel          = "claude-sonnet-5-5"
-	defaultLLMEffort         = "medium"
 	defaultLLMMaxTokens      = 16000
 	minLLMMaxTokens          = 1024
 	maxLLMMaxTokens          = 64000
-	defaultLLMRequestTimeout = 120 * time.Second
+	defaultLLMRequestTimeout = 10 * time.Minute
 	minLLMRequestTimeout     = 10 * time.Second
-	maxLLMRequestTimeout     = 10 * time.Minute
+	maxLLMRequestTimeout     = 60 * time.Minute
+	defaultLLMIdleTimeout    = 180 * time.Second
+	minLLMIdleTimeout        = 10 * time.Second
+	maxLLMIdleTimeout        = 60 * time.Minute
+
+	defaultAgentRunTimeout = 0
+	minAgentRunTimeout     = time.Minute
+
+	minAgentSessionRenewKiB = 32
+	maxAgentSessionRenewKiB = 4096
+
+	minSecretKeyBytes = 32
 )
 
 var instanceRoles = []string{"admin", "editor", "commenter", "viewer"}
 
-var llmEfforts = []string{"low", "medium", "high", "xhigh", "max"}
+var llmEfforts = map[string][]string{
+	LLMProviderAnthropic: {"low", "medium", "high", "xhigh", "max"},
+	LLMProviderOpenAI:    {"none", "minimal", "low", "medium", "high", "xhigh"},
+}
 
 var emailDomainPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$`)
 
@@ -77,6 +92,8 @@ const (
 
 	envDatasourcesFile = "SLASHOBSERVE_DATASOURCES_FILE"
 
+	envServiceAccountsFile = "SLASHOBSERVE_SERVICE_ACCOUNTS_FILE"
+
 	envAPIContractCheck = "SLASHOBSERVE_API_CONTRACT_CHECK"
 
 	envOutboundDomains = "SLASHOBSERVE_OUTBOUND_DOMAINS"
@@ -92,7 +109,19 @@ const (
 	envLLMEffort         = "SLASHOBSERVE_LLM_EFFORT"
 	envLLMMaxTokens      = "SLASHOBSERVE_LLM_MAX_TOKENS" //nolint:gosec // an environment variable name, not a credential
 	envLLMRequestTimeout = "SLASHOBSERVE_LLM_REQUEST_TIMEOUT"
+	envLLMIdleTimeout    = "SLASHOBSERVE_LLM_IDLE_TIMEOUT"
 	envLLMReplayDir      = "SLASHOBSERVE_LLM_REPLAY_DIR"
+
+	envLLMLogProviderErrors = "SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS"
+
+	envAgentRunTimeout      = "SLASHOBSERVE_AGENT_RUN_TIMEOUT"
+	envAgentSessionRenewKiB = "SLASHOBSERVE_AGENT_SESSION_RENEW_KIB"
+
+	envAgentLogToolInputs = "SLASHOBSERVE_AGENT_LOG_TOOL_INPUTS"
+
+	envProvisionDir = "SLASHOBSERVE_PROVISION_DIR"
+	envMetrics      = "SLASHOBSERVE_METRICS"
+	envSecretKey    = "SLASHOBSERVE_SECRET_KEY"
 )
 
 var serverEnvNames = []string{
@@ -101,7 +130,9 @@ var serverEnvNames = []string{
 	envSessionTTL, envAllowedEmailDomain, envAuthProviderName, envDatasourcesFile, envAPIContractCheck, envOutboundDomains,
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
-	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMReplayDir,
+	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
+	envLLMLogProviderErrors, envAgentRunTimeout, envAgentSessionRenewKiB, envAgentLogToolInputs,
+	envProvisionDir, envMetrics, envSecretKey, envServiceAccountsFile,
 }
 
 type GroupRoleSetting struct {
@@ -117,7 +148,16 @@ type LLM struct {
 	Effort         string
 	MaxTokens      int
 	RequestTimeout time.Duration
+	IdleTimeout    time.Duration
 	ReplayDir      string
+
+	LogProviderErrors bool
+}
+
+type Agent struct {
+	RunTimeout        time.Duration
+	SessionRenewBytes int
+	LogToolInputs     bool
 }
 
 type Config struct {
@@ -141,11 +181,19 @@ type Config struct {
 	DatasourcesFile string
 	Datasources     []Datasource
 
+	ServiceAccountsFile string
+	ServiceAccounts     []ServiceAccount
+
 	APIContractCheck bool
 	LLM              LLM
+	Agent            Agent
 
 	OutboundDomainsLocked bool
 	OutboundDomains       domains.List
+
+	ProvisionDir string
+	Metrics      bool
+	SecretKey    []byte
 }
 
 func Load(lookup func(string) (string, bool)) (Config, error) {
@@ -195,17 +243,37 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		cfg.Datasources = datasources
 	}
 
-	if v := get(lookup, envAPIContractCheck); v != "" {
-		switch v {
-		case "true":
-			cfg.APIContractCheck = true
-		case "false":
-		default:
-			errs = append(errs, fmt.Errorf("%s: must be true or false, got %q", envAPIContractCheck, v))
+	if path := get(lookup, envServiceAccountsFile); path != "" {
+		cfg.ServiceAccountsFile = path
+		accounts, err := loadServiceAccounts(path)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", envServiceAccountsFile, err))
 		}
+		cfg.ServiceAccounts = accounts
+	}
+
+	cfg.APIContractCheck, err = loadBool(lookup, envAPIContractCheck, false)
+	if err != nil {
+		errs = append(errs, err)
 	}
 	errs = append(errs, loadLLM(lookup, &cfg)...)
+	cfg.LLM.LogProviderErrors, err = loadBool(lookup, envLLMLogProviderErrors, false)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	errs = append(errs, loadAgent(lookup, &cfg)...)
+	cfg.Agent.LogToolInputs, err = loadBool(lookup, envAgentLogToolInputs, false)
+	if err != nil {
+		errs = append(errs, err)
+	}
 	errs = append(errs, loadOutboundDomains(lookup, &cfg)...)
+	errs = append(errs, loadSecretKey(lookup, &cfg)...)
+
+	cfg.ProvisionDir = get(lookup, envProvisionDir)
+	cfg.Metrics, err = loadBool(lookup, envMetrics, true)
+	if err != nil {
+		errs = append(errs, err)
+	}
 
 	return cfg, errors.Join(errs...)
 }
@@ -322,6 +390,31 @@ func loadOutboundDomains(lookup func(string) (string, bool), cfg *Config) []erro
 	return errs
 }
 
+func loadSecretKey(lookup func(string) (string, bool), cfg *Config) []error {
+	v := get(lookup, envSecretKey)
+	if v == "" {
+		return nil
+	}
+	key, ok := decodeSecretKey(v)
+	if !ok || len(key) < minSecretKeyBytes {
+		return []error{fmt.Errorf("%s: must be at least %d bytes written as hex or base64", envSecretKey, minSecretKeyBytes)}
+	}
+	cfg.SecretKey = key
+	return nil
+}
+
+func decodeSecretKey(v string) ([]byte, bool) {
+	if key, err := hex.DecodeString(v); err == nil {
+		return key, true
+	}
+	for _, enc := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
+		if key, err := enc.DecodeString(v); err == nil {
+			return key, true
+		}
+	}
+	return nil, false
+}
+
 func loadProviderName(lookup func(string) (string, bool), cfg *Config) []error {
 	name := get(lookup, envAuthProviderName)
 	if utf8.RuneCountInString(name) > maxProviderName {
@@ -387,9 +480,9 @@ func loadGroupRoles(lookup func(string) (string, bool), cfg *Config) []error {
 
 func loadLLM(lookup func(string) (string, bool), cfg *Config) []error {
 	llm := LLM{
-		Effort:         defaultLLMEffort,
 		MaxTokens:      defaultLLMMaxTokens,
 		RequestTimeout: defaultLLMRequestTimeout,
+		IdleTimeout:    defaultLLMIdleTimeout,
 		Model:          get(lookup, envLLMModel),
 		ReplayDir:      get(lookup, envLLMReplayDir),
 	}
@@ -416,9 +509,9 @@ func loadLLM(lookup func(string) (string, bool), cfg *Config) []error {
 		}
 	}
 
-	if v := strings.ToLower(get(lookup, envLLMEffort)); v != "" {
-		if !slices.Contains(llmEfforts, v) {
-			errs = append(errs, fmt.Errorf("%s: must be one of %s, got %q", envLLMEffort, strings.Join(llmEfforts, ", "), v))
+	if v, allowed := strings.ToLower(get(lookup, envLLMEffort)), llmEfforts[llm.Provider]; v != "" && allowed != nil {
+		if !slices.Contains(allowed, v) {
+			errs = append(errs, fmt.Errorf("%s: for provider %s must be one of %s, got %q", envLLMEffort, llm.Provider, strings.Join(allowed, ", "), v))
 		} else {
 			llm.Effort = v
 		}
@@ -433,21 +526,58 @@ func loadLLM(lookup func(string) (string, bool), cfg *Config) []error {
 		}
 	}
 
-	if v := get(lookup, envLLMRequestTimeout); v != "" {
-		d, err := time.ParseDuration(v)
-		switch {
-		case err != nil:
-			errs = append(errs, fmt.Errorf("%s: %w", envLLMRequestTimeout, err))
-		case d < minLLMRequestTimeout || d > maxLLMRequestTimeout:
-			errs = append(errs, fmt.Errorf("%s: must be between %s and %s, got %q", envLLMRequestTimeout, minLLMRequestTimeout, maxLLMRequestTimeout, v))
-		default:
-			llm.RequestTimeout = d
-		}
+	timeout, err := loadTimeout(lookup, envLLMRequestTimeout, defaultLLMRequestTimeout, minLLMRequestTimeout, maxLLMRequestTimeout)
+	if err != nil {
+		errs = append(errs, err)
 	}
+	llm.RequestTimeout = timeout
+
+	idle, err := loadTimeout(lookup, envLLMIdleTimeout, defaultLLMIdleTimeout, minLLMIdleTimeout, maxLLMIdleTimeout)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	llm.IdleTimeout = idle
 
 	errs = append(errs, requireLLMSettings(&llm)...)
 	cfg.LLM = llm
 	return errs
+}
+
+func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
+	timeout, err := loadTimeout(lookup, envAgentRunTimeout, defaultAgentRunTimeout, minAgentRunTimeout, 0)
+	cfg.Agent.RunTimeout = timeout
+	var errs []error
+	if err != nil {
+		errs = append(errs, err)
+	}
+	if v := get(lookup, envAgentSessionRenewKiB); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < minAgentSessionRenewKiB || n > maxAgentSessionRenewKiB {
+			errs = append(errs, fmt.Errorf("%s: must be a number of KiB between %d and %d, got %q", envAgentSessionRenewKiB, minAgentSessionRenewKiB, maxAgentSessionRenewKiB, v))
+		} else {
+			cfg.Agent.SessionRenewBytes = n << 10
+		}
+	}
+	return errs
+}
+
+func loadTimeout(lookup func(string) (string, bool), name string, def, minimum, maximum time.Duration) (time.Duration, error) {
+	v := get(lookup, name)
+	if v == "" {
+		return def, nil
+	}
+	d, err := time.ParseDuration(v)
+	switch {
+	case err != nil:
+		return def, fmt.Errorf("%s: %w", name, err)
+	case d == 0:
+		return 0, nil
+	case maximum > 0 && (d < minimum || d > maximum):
+		return def, fmt.Errorf("%s: must be 0 or between %s and %s, got %q", name, minimum, maximum, v)
+	case d < minimum:
+		return def, fmt.Errorf("%s: must be 0 or at least %s, got %q", name, minimum, v)
+	}
+	return d, nil
 }
 
 func requireLLMSettings(llm *LLM) []error {
@@ -561,6 +691,19 @@ func HTTPAddr(lookup func(string) (string, bool)) (string, error) {
 		return addr, fmt.Errorf("%s: port must be a number between 1 and 65535, got %q", envHTTPAddr, port)
 	}
 	return addr, nil
+}
+
+func loadBool(lookup func(string) (string, bool), key string, def bool) (bool, error) {
+	switch v := get(lookup, key); v {
+	case "":
+		return def, nil
+	case "false":
+		return false, nil
+	case "true":
+		return true, nil
+	default:
+		return def, fmt.Errorf("%s: must be true or false, got %q", key, v)
+	}
 }
 
 func get(lookup func(string) (string, bool), key string) string {

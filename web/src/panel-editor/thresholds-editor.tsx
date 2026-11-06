@@ -1,6 +1,7 @@
 import { useId, useState, type Dispatch } from "react"
-import { XIcon } from "lucide-react"
+import { PlusIcon, XIcon } from "lucide-react"
 
+import { NativeSelect } from "@/components/native-select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { sameJson } from "@/lib/json"
@@ -8,7 +9,6 @@ import { thresholdColor, thresholdIcons } from "@/panels/thresholds"
 import type { Threshold } from "@/spec"
 
 import type { DraftAction } from "./draft"
-import { NativeSelect } from "./field-controls"
 import {
   addRow,
   maxThresholds,
@@ -78,7 +78,8 @@ export function ThresholdsEditor({
               aria-label={`Color of threshold ${index + 1}`}
               value={row.color}
               disabled={readOnly}
-              className="min-w-0 flex-1 px-2"
+              wrapperClassName="flex-1"
+              className="w-full"
               onChange={(event) =>
                 edit(row.key, (current) =>
                   setRowColor(current, event.target.value as ThresholdColor)
@@ -147,12 +148,13 @@ export function ThresholdsEditor({
         </p>
       )}
       <Button
-        variant="link"
+        variant="outline"
         size="xs"
-        className="h-auto self-start px-0 text-xs font-normal text-muted-foreground underline"
+        className="self-start"
         disabled={readOnly || rows.length >= maxThresholds}
         onClick={() => update(addRow(rows))}
       >
+        <PlusIcon aria-hidden="true" />
         Add threshold
       </Button>
     </div>

@@ -1,0 +1,19 @@
+{
+  "prompt": "slow checkout requests over 500 ms",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "submit_query",
+          "input": {
+            "trace_filters": {
+              "service": "checkout",
+              "min": "500ms"
+            },
+            "explanation": "Matches checkout service traces with duration of at least 500 ms within the time range."
+          }
+        }
+      ]
+    }
+  ]
+}

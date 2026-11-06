@@ -1,6 +1,5 @@
 import { PuzzleIcon } from "lucide-react"
 
-import { StatusLabel } from "@/components/status-label"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import {
   Select,
@@ -46,7 +45,10 @@ function Choice({
   const kind = datasourceKindLabel(datasource.kind)
   if (datasource.candidates.length === 0) {
     return (
-      <StatusLabel tone="critical">No {kind} datasource configured</StatusLabel>
+      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+        <PuzzleIcon aria-hidden="true" className="size-3.5 flex-none" />
+        No {kind} datasource configured, shown as placeholders
+      </span>
     )
   }
   const items = datasource.candidates.map((uid) => ({

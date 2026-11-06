@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
+
+	"github.com/slashobserve/slashobserve/internal/links"
 )
 
 const defaultPageSize = 50
@@ -77,11 +79,11 @@ type versionList struct {
 func (a *app) dashboardsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dashboards",
-		Short: "List, inspect and delete dashboards",
+		Short: "List, inspect, delete, export and apply dashboards",
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.listCommand(), a.showCommand(), a.versionsCommand(), a.deleteCommand())
+	cmd.AddCommand(a.listCommand(), a.showCommand(), a.versionsCommand(), a.deleteCommand(), a.exportCommand(), a.applyCommand())
 	return cmd
 }
 
@@ -185,7 +187,7 @@ func (a *app) runShow(cmd *cobra.Command, args []string) error {
 	out.fields([][2]string{
 		{"Title", text(shown.Dashboard.Title)},
 		{"ID", text(shown.Dashboard.ID)},
-		{"URL", c.base.JoinPath("dashboards", shown.Dashboard.ID).String()},
+		{"URL", links.Dashboard(c.base, shown.Dashboard.ID, shown.Dashboard.Title)},
 		{"Version", strconv.Itoa(shown.Version.Version)},
 		{"Author", text(shown.Version.Author.Name)},
 		{"Summary", text(shown.Version.Summary)},

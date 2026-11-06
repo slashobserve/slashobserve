@@ -1,0 +1,9 @@
+id: fault-stall-without-save
+prompt: "eval fault: the model keeps reading and never saves"
+category: prometheus
+kind: create
+suites: [replay]
+expect:
+  datasources: [prometheus]
+  failure_code: no_progress
+  usage: {nudges: 1, save_now_refusals: 2, stalled_turns: 2}

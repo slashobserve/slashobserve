@@ -1,0 +1,128 @@
+{
+  "prompt": "eval build: three node panels where the model ends with text after the last save",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Start Node Exporter Full",
+            "planned_panels": 3,
+            "spec": {
+              "specVersion": "0",
+              "title": "Node Exporter Full",
+              "time": {
+                "from": "now-1h",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "row_cpu",
+                  "type": "row",
+                  "title": "CPU",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 24,
+                    "h": 1
+                  },
+                  "panels": [
+                    {
+                      "id": "cpu_busy",
+                      "type": "timeseries",
+                      "title": "CPU Busy",
+                      "gridPos": {
+                        "x": 0,
+                        "y": 1,
+                        "w": 12,
+                        "h": 8
+                      },
+                      "datasource": "prom",
+                      "queries": [
+                        {
+                          "query": "sum(rate(node_cpu_seconds_total{mode!=\"idle\"}[$__rate_interval]))"
+                        }
+                      ],
+                      "unit": "percentunit"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add CPU Iowait",
+            "upsert": [
+              {
+                "id": "cpu_iowait",
+                "type": "timeseries",
+                "title": "CPU Iowait",
+                "gridPos": {
+                  "x": 0,
+                  "y": 0,
+                  "w": 12,
+                  "h": 8
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "sum(rate(node_cpu_seconds_total{mode=\"iowait\"}[$__rate_interval]))"
+                  }
+                ],
+                "unit": "percentunit"
+              }
+            ],
+            "row": {
+              "id": "row_cpu",
+              "title": "CPU"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Memory Available",
+            "upsert": [
+              {
+                "id": "mem_available",
+                "type": "timeseries",
+                "title": "Memory Available",
+                "gridPos": {
+                  "x": 0,
+                  "y": 0,
+                  "w": 12,
+                  "h": 8
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "node_memory_MemAvailable_bytes"
+                  }
+                ],
+                "unit": "bytes"
+              }
+            ],
+            "row": {
+              "id": "row_memory",
+              "title": "Memory"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "text": "The dashboard has its three panels."
+    }
+  ]
+}

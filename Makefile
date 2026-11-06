@@ -11,10 +11,15 @@ SQLC := go tool -modfile=tools/sqlc/go.mod sqlc
 GOLANGCI_LINT := go tool -modfile=tools/golangci-lint/go.mod golangci-lint
 COMPOSE := docker compose -f deploy/compose/compose.yaml
 COMPOSE_BUILD := $(COMPOSE) -f deploy/compose/compose.build.yaml
-SHOP_DIR := demo/shop
-SHOP_LINT := go tool -modfile=../../tools/golangci-lint/go.mod golangci-lint
+SHOP_DIR := demo
+SHOP_LINT := go tool -modfile=../tools/golangci-lint/go.mod golangci-lint
 TYPE ?= errors
+EVALS_STACK_MODE ?= replay
+EVALS_MATRIX ?= evals/matrix.yaml
+EVALS_REPORT_DIR ?= evals/reports/live
 PCT ?= 30
+GO_TEST_FLAGS := -race -timeout 20m $(if $(COVER),-coverprofile=coverage.out -covermode=atomic)
+WEB_TEST_FLAGS := $(if $(COVER),--coverage)
 # zod 3 under the shadcn CLI, a dev-only tool that pins zod ^3 and ships in no build
 WEB_AUDIT_IGNORE := GHSA-mrhx-c7xc-m3w5
 
@@ -25,7 +30,7 @@ define DEMO_BANNER
 	@echo "Sign in as admin@example.com / password (Dex, development only)"
 endef
 
-.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-down demo-reset demo-fault demo-fault-reset e2e e2e-browser e2e-all evals golden tidy-check clean
+.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down helm-kind helm-kind-down e2e e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
 
 build: web
 	$(MAKE) server cli
@@ -48,9 +53,10 @@ generate: web-deps
 	cd web && bun run api:generate
 
 test: web-deps
-	go test -race ./...
+	go test $(GO_TEST_FLAGS) ./...
+	$(if $(COVER),go tool cover -func=coverage.out | tail -1)
 	cd $(SHOP_DIR) && go test -race ./...
-	cd web && bun run test
+	cd web && bun run test $(WEB_TEST_FLAGS)
 	scripts/release-scripts-test.sh
 	scripts/install-test.sh
 
@@ -58,8 +64,8 @@ lint: web-deps
 	$(GOLANGCI_LINT) config verify
 	$(GOLANGCI_LINT) fmt --diff
 	$(GOLANGCI_LINT) run ./...
-	cd $(SHOP_DIR) && $(SHOP_LINT) fmt --config ../../.golangci.yaml --diff
-	cd $(SHOP_DIR) && $(SHOP_LINT) run --config ../../.golangci.yaml ./...
+	cd $(SHOP_DIR) && $(SHOP_LINT) fmt --config ../.golangci.yaml --diff
+	cd $(SHOP_DIR) && $(SHOP_LINT) run --config ../.golangci.yaml ./...
 	$(SQLC) diff
 	cd web && bun run typecheck
 	cd web && bun run spec:check
@@ -67,6 +73,8 @@ lint: web-deps
 	cd web && bun run lint
 	cd web && bun run knip
 	cd web && bun run format:check
+	scripts/docs-lint.sh
+	scripts/helm-check.sh
 
 golden:
 	go test ./pkg/grafana -run 'TestCorpusGoldens|TestOptionMapIsCurrent' -update
@@ -81,7 +89,7 @@ ci:
 
 audit:
 	go tool -modfile=tools/govulncheck/go.mod govulncheck ./...
-	cd $(SHOP_DIR) && go tool -modfile=../../tools/govulncheck/go.mod govulncheck ./...
+	cd $(SHOP_DIR) && go tool -modfile=../tools/govulncheck/go.mod govulncheck ./...
 	cd web && bun audit --prod
 	cd web && bun audit --audit-level=high $(addprefix --ignore=,$(WEB_AUDIT_IGNORE))
 
@@ -105,6 +113,19 @@ demo-fault:
 demo-fault-reset:
 	curl -fsS -X DELETE "http://localhost:$${SLASHOBSERVE_SHOP_HOST_PORT:-8081}/fault"
 
+demo-k8s:
+	scripts/demo-k8s.sh up
+
+demo-k8s-down:
+	scripts/demo-k8s.sh down
+
+helm-kind:
+	scripts/helm-kind.sh up
+	scripts/helm-kind.sh check
+
+helm-kind-down:
+	scripts/helm-kind.sh down
+
 e2e:
 	scripts/e2e.sh
 
@@ -118,6 +139,23 @@ e2e-all:
 evals:
 	go run ./evals/runner $(EVALS_ARGS)
 
+evals-stack-up:
+	scripts/evals-stack.sh up $(EVALS_STACK_MODE)
+
+evals-stack-down:
+	scripts/evals-stack.sh down
+
+evals-replay:
+	scripts/evals-stack.sh up replay
+	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --prometheus "http://localhost:$${SLASHOBSERVE_EVALS_PROMETHEUS_PORT:-29090}" --suite replay --bootstrap-dex --min-pass 1
+
+evals-live:
+	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --prometheus "http://localhost:$${SLASHOBSERVE_EVALS_PROMETHEUS_PORT:-29090}" --suite live --matrix $(EVALS_MATRIX) --bootstrap-dex --out $(EVALS_REPORT_DIR)
+
+evals-compare:
+	@test -n "$(EVALS_BASE)" -a -n "$(EVALS_NEW)" || { echo "usage: make evals-compare EVALS_BASE=<report.json> EVALS_NEW=<report.json>" >&2; exit 2; }
+	go run ./evals/runner --compare "$(EVALS_BASE)" "$(EVALS_NEW)"
+
 clean:
-	rm -rf bin web/dist web/playwright-report web/test-results
+	rm -rf bin web/dist web/playwright-report web/test-results web/coverage coverage.out
 	find internal/server/webdist -mindepth 1 ! -name .gitkeep -delete

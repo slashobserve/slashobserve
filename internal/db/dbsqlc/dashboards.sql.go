@@ -212,7 +212,7 @@ func (q *Queries) DeleteDashboard(ctx context.Context, id pgtype.UUID) (int64, e
 }
 
 const getDashboard = `-- name: GetDashboard :one
-SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client, v.datasource_uids, v.unverified, f.title AS folder_title, f.general AS folder_general
+SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client, v.datasource_uids, v.unverified, f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 JOIN folders f ON f.id = d.folder_id
@@ -224,6 +224,7 @@ type GetDashboardRow struct {
 	DashboardVersion DashboardVersion
 	FolderTitle      string
 	FolderGeneral    bool
+	FolderPersonal   bool
 }
 
 func (q *Queries) GetDashboard(ctx context.Context, id pgtype.UUID) (GetDashboardRow, error) {
@@ -262,6 +263,7 @@ func (q *Queries) GetDashboard(ctx context.Context, id pgtype.UUID) (GetDashboar
 		&i.DashboardVersion.Unverified,
 		&i.FolderTitle,
 		&i.FolderGeneral,
+		&i.FolderPersonal,
 	)
 	return i, err
 }
@@ -281,7 +283,7 @@ const getDashboardVersion = `-- name: GetDashboardVersion :one
 SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client, v.datasource_uids, v.unverified,
   lv.author_kind AS updated_by_kind, lv.author_id AS updated_by_id,
   lv.author_name AS updated_by_name, lv.author_email AS updated_by_email,
-  f.title AS folder_title, f.general AS folder_general
+  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal
 FROM dashboards d
 JOIN folders f ON f.id = d.folder_id
 JOIN dashboard_versions lv ON lv.dashboard_id = d.id AND lv.version = d.latest_version
@@ -303,6 +305,7 @@ type GetDashboardVersionRow struct {
 	UpdatedByEmail   pgtype.Text
 	FolderTitle      string
 	FolderGeneral    bool
+	FolderPersonal   bool
 }
 
 func (q *Queries) GetDashboardVersion(ctx context.Context, arg GetDashboardVersionParams) (GetDashboardVersionRow, error) {
@@ -345,6 +348,7 @@ func (q *Queries) GetDashboardVersion(ctx context.Context, arg GetDashboardVersi
 		&i.UpdatedByEmail,
 		&i.FolderTitle,
 		&i.FolderGeneral,
+		&i.FolderPersonal,
 	)
 	return i, err
 }
@@ -571,7 +575,7 @@ SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.cr
   coalesce(v.spec ->> 'description', '')::text AS description,
   (SELECT count(*) FROM dashboard_comments c
     WHERE c.dashboard_id = d.id AND c.parent_id IS NULL AND c.status = 'open') AS open_comment_count,
-  f.title AS folder_title, f.general AS folder_general, lower(f.title)::text AS folder_sort_title
+  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 JOIN folders f ON f.id = d.folder_id
@@ -621,6 +625,7 @@ type ListDashboardsRow struct {
 	OpenCommentCount int64
 	FolderTitle      string
 	FolderGeneral    bool
+	FolderPersonal   bool
 	FolderSortTitle  string
 }
 
@@ -672,6 +677,7 @@ func (q *Queries) ListDashboards(ctx context.Context, arg ListDashboardsParams) 
 			&i.OpenCommentCount,
 			&i.FolderTitle,
 			&i.FolderGeneral,
+			&i.FolderPersonal,
 			&i.FolderSortTitle,
 		); err != nil {
 			return nil, err
@@ -692,32 +698,33 @@ SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.cr
   coalesce(v.spec ->> 'description', '')::text AS description,
   (SELECT count(*) FROM dashboard_comments c
     WHERE c.dashboard_id = d.id AND c.parent_id IS NULL AND c.status = 'open') AS open_comment_count,
-  f.title AS folder_title, f.general AS folder_general, lower(f.title)::text AS folder_sort_title
+  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 JOIN folders f ON f.id = d.folder_id
 WHERE ($1::uuid IS NULL
-    OR (f.general, lower(f.title), f.id) > ($2::boolean, $3::text, $1::uuid)
-    OR ((f.general, lower(f.title), f.id) = ($2::boolean, $3::text, $1::uuid)
-      AND (d.updated_at, d.id) < ($4::timestamptz, $5::uuid)))
-  AND d.folder_id = ANY($6::uuid[])
-  AND ($7::uuid IS NULL OR d.folder_id = $7::uuid)
-  AND ($8::text IS NULL
-    OR (d.created_by_kind = $8::text AND d.created_by_id = $9::uuid))
-  AND (NOT $10::boolean OR d.created_via = 'agent')
-  AND (NOT $11::boolean OR d.created_origin = 'mcp')
-  AND ($12::text IS NULL OR d.created_origin_client = $12::text)
-  AND ($13::text IS NULL OR v.datasource_uids @> ARRAY[$13::text])
-  AND ($14::text[] IS NULL OR d.tags @> $14::text[])
-  AND ($15::text IS NULL
-    OR strpos(lower(d.title), lower($15::text)) > 0
-    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($15::text)) > 0)
-ORDER BY f.general, lower(f.title), f.id, d.updated_at DESC, d.id DESC
-LIMIT $17 OFFSET $16
+    OR (NOT f.personal, f.general, lower(f.title), f.id) > (NOT $2::boolean, $3::boolean, $4::text, $1::uuid)
+    OR ((NOT f.personal, f.general, lower(f.title), f.id) = (NOT $2::boolean, $3::boolean, $4::text, $1::uuid)
+      AND (d.updated_at, d.id) < ($5::timestamptz, $6::uuid)))
+  AND d.folder_id = ANY($7::uuid[])
+  AND ($8::uuid IS NULL OR d.folder_id = $8::uuid)
+  AND ($9::text IS NULL
+    OR (d.created_by_kind = $9::text AND d.created_by_id = $10::uuid))
+  AND (NOT $11::boolean OR d.created_via = 'agent')
+  AND (NOT $12::boolean OR d.created_origin = 'mcp')
+  AND ($13::text IS NULL OR d.created_origin_client = $13::text)
+  AND ($14::text IS NULL OR v.datasource_uids @> ARRAY[$14::text])
+  AND ($15::text[] IS NULL OR d.tags @> $15::text[])
+  AND ($16::text IS NULL
+    OR strpos(lower(d.title), lower($16::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($16::text)) > 0)
+ORDER BY NOT f.personal, f.general, lower(f.title), f.id, d.updated_at DESC, d.id DESC
+LIMIT $18 OFFSET $17
 `
 
 type ListDashboardsByFolderParams struct {
 	CFolder     pgtype.UUID
+	CPersonal   pgtype.Bool
 	CGeneral    pgtype.Bool
 	CTitle      pgtype.Text
 	CUpdatedAt  pgtype.Timestamptz
@@ -747,12 +754,14 @@ type ListDashboardsByFolderRow struct {
 	OpenCommentCount int64
 	FolderTitle      string
 	FolderGeneral    bool
+	FolderPersonal   bool
 	FolderSortTitle  string
 }
 
 func (q *Queries) ListDashboardsByFolder(ctx context.Context, arg ListDashboardsByFolderParams) ([]ListDashboardsByFolderRow, error) {
 	rows, err := q.db.Query(ctx, listDashboardsByFolder,
 		arg.CFolder,
+		arg.CPersonal,
 		arg.CGeneral,
 		arg.CTitle,
 		arg.CUpdatedAt,
@@ -801,6 +810,7 @@ func (q *Queries) ListDashboardsByFolder(ctx context.Context, arg ListDashboards
 			&i.OpenCommentCount,
 			&i.FolderTitle,
 			&i.FolderGeneral,
+			&i.FolderPersonal,
 			&i.FolderSortTitle,
 		); err != nil {
 			return nil, err

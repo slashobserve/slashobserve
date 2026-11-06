@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Link, useNavigate } from "@tanstack/react-router"
+import { Link, useRouteContext } from "@tanstack/react-router"
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { RefObject } from "react"
 
@@ -19,7 +19,7 @@ import {
 } from "@/observe/queries"
 import { revisionsQuery } from "@/revisions/queries"
 
-import { ChatComposer } from "./chat-composer"
+import { ChatComposer, useOpenSent } from "./chat-composer"
 import { RequestTurn, type TurnSummary } from "./request-turn"
 import { RetryButton } from "./turn-failure"
 
@@ -170,8 +170,43 @@ function LoadError({
 
 type Turn = { id: string; summary: TurnSummary }
 
+export type ConversationLayout = "page" | "pane"
+
+function PageTitle({ title }: { title: string }) {
+  useDocumentTitle(title)
+  return null
+}
+
+function PageHeading({ heading }: { heading: string }) {
+  const title = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    title.current?.focus({ preventScroll: true })
+  }, [])
+  return (
+    <h1 ref={title} tabIndex={-1} className="sr-only outline-none">
+      {heading}
+    </h1>
+  )
+}
+
+function PaneHeading({ requestId }: { requestId: string }) {
+  return (
+    <div className="flex w-full items-center justify-between gap-2 pb-2">
+      <h2 className="text-sm font-semibold">Chat</h2>
+      <Link
+        to="/c/$requestId"
+        params={{ requestId }}
+        className="rounded-sm text-xs text-muted-foreground underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        Open the chat page
+      </Link>
+    </div>
+  )
+}
+
 type ViewProps = {
   requestId: string
+  layout: ConversationLayout
   dashboardId: string | null
   dashboardTitle: string | undefined
   turns: Turn[]
@@ -184,6 +219,7 @@ type ViewProps = {
 
 function ConversationView({
   requestId,
+  layout,
   dashboardId,
   dashboardTitle,
   turns,
@@ -193,19 +229,15 @@ function ConversationView({
   historyBusy,
   onSent,
 }: ViewProps) {
-  const navigate = useNavigate()
+  const { principal } = useRouteContext({ from: "/_authed" })
   const agent = useAgentInfo()
   const list = useRef<HTMLDivElement>(null)
-  const title = useRef<HTMLHeadingElement>(null)
+  const pane = layout === "pane"
   const [initialTarget, setInitialTarget] = useState<string | null>(null)
   if (ready && initialTarget === null) {
     setInitialTarget(turns.at(-1)?.id === requestId ? "" : requestId)
   }
   const pinToEnd = useChatScroll(list, initialTarget)
-
-  useEffect(() => {
-    title.current?.focus({ preventScroll: true })
-  }, [])
 
   const root = turns.find((turn) => turn.id === requestId)
   const heading = dashboardTitle ?? root?.summary.prompt ?? ""
@@ -214,14 +246,21 @@ function ConversationView({
     [...heading].length > titlePromptLength
       ? `${[...heading].slice(0, titlePromptLength).join("")}...`
       : heading
-  useDocumentTitle(
-    active ? "Observing - SlashObserve" : `${clipped} - SlashObserve`
-  )
+  const pageTitle = active
+    ? "Observing - SlashObserve"
+    : `${clipped} - SlashObserve`
+  const runningRequestId = turns.findLast(
+    (turn) =>
+      isActiveStatus(turn.summary.status) &&
+      turn.summary.requested_by.id === principal.id
+  )?.id
 
   function appended(request: ObserveRequest) {
     pinToEnd()
     onSent(request)
   }
+
+  const openSent = useOpenSent(dashboardId === null ? undefined : appended)
 
   const agentOff = agent.data?.available === false
   const hasDashboard = dashboardId !== null
@@ -231,12 +270,20 @@ function ConversationView({
 
   return (
     <div className="flex min-h-full flex-col items-center">
-      <h1 ref={title} tabIndex={-1} className="sr-only outline-none">
-        {heading}
-      </h1>
+      {pane ? (
+        <PaneHeading requestId={requestId} />
+      ) : (
+        <>
+          <PageTitle title={pageTitle} />
+          <PageHeading heading={heading} />
+        </>
+      )}
       <div
         ref={list}
-        className="flex w-full max-w-[760px] flex-1 flex-col gap-[18px] pt-2 pb-6"
+        className={cn(
+          "flex w-full flex-1 flex-col gap-[18px] pt-2 pb-6",
+          !pane && "max-w-[760px]"
+        )}
       >
         {historyFailed ? (
           <div className="flex flex-wrap items-center gap-3 text-[13px] text-muted-foreground">
@@ -250,36 +297,45 @@ function ConversationView({
           <TurnSkeleton />
         ) : (
           turns.map((turn, index) => (
-            <RequestTurn
+            <div
               key={turn.id}
-              summary={turn.summary}
-              dashboardTitle={dashboardTitle}
-              loadSteps={index >= loadFrom || turn.id === requestId}
-              onRetried={appended}
-            />
+              style={
+                index === turns.length - 1
+                  ? { viewTransitionName: "chat-prompt" }
+                  : undefined
+              }
+            >
+              <RequestTurn
+                summary={turn.summary}
+                dashboardTitle={dashboardTitle}
+                loadSteps={index >= loadFrom || turn.id === requestId}
+                onRetried={appended}
+                buildOnScreen={pane && turn.id === requestId}
+                opensRunsIn={pane ? "build" : "chat"}
+              />
+            </div>
           ))
         )}
       </div>
-      <div className="sticky -bottom-7 w-full max-w-[760px] bg-background pt-2 pb-1">
+      <div
+        style={{ viewTransitionName: "chat-composer" }}
+        className={cn(
+          "sticky w-full bg-background pt-2 pb-1",
+          pane ? "bottom-0" : "-bottom-7 max-w-[760px]"
+        )}
+      >
         <ChatComposer
           rows={2}
           disabled={waitingForDashboard}
           dashboardId={dashboardId ?? undefined}
+          dashboardTitle={dashboardTitle}
+          runningRequestId={runningRequestId}
           placeholder={
             hasDashboard
               ? `Ask for another change to ${dashboardTitle ?? "this dashboard"}`
               : "Describe a dashboard, like: checkout health by pod, last 6h"
           }
-          onSent={(request) => {
-            if (hasDashboard) {
-              appended(request)
-              return
-            }
-            return navigate({
-              to: "/observe/$requestId",
-              params: { requestId: request.id },
-            })
-          }}
+          onSent={openSent}
         />
         {!agentOff && (hasDashboard || waitingForDashboard) ? (
           <p className="mt-1.5 text-center text-xs text-muted-foreground">
@@ -293,7 +349,13 @@ function ConversationView({
   )
 }
 
-export function Conversation({ requestId }: { requestId: string }) {
+export function Conversation({
+  requestId,
+  layout,
+}: {
+  requestId: string
+  layout: ConversationLayout
+}) {
   const queryClient = useQueryClient()
   const root = useObserveRequest(requestId)
   const [sent, setSent] = useState<ObserveRequest[]>([])
@@ -347,6 +409,7 @@ export function Conversation({ requestId }: { requestId: string }) {
   return (
     <ConversationView
       requestId={requestId}
+      layout={layout}
       dashboardId={dashboardId}
       dashboardTitle={latest.data?.dashboard.title}
       turns={turns}

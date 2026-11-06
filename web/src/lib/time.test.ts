@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import resolveCasesText from "../../../spec/examples/time/resolve-cases.json?raw"
 import {
@@ -170,6 +170,48 @@ describe("formatting", () => {
     expect(describeRange("now-2h", "2026-10-17T09:00:00Z")).toBe(
       "now-2h to 2026-10-17T09:00:00Z"
     )
+  })
+
+  describe("between two RFC 3339 times", () => {
+    const local = (...parts: [number, number, number, number, number]) =>
+      new Date(...parts).toISOString()
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it("names the day once for a range within one day", () => {
+      vi.useFakeTimers({ now: new Date(2026, 10, 6, 18, 0) })
+      expect(
+        describeRange(local(2026, 10, 6, 13, 30), local(2026, 10, 6, 15, 0))
+      ).toBe("Nov 6, 13:30 to 15:00")
+    })
+
+    it("names both days for a range across midnight", () => {
+      vi.useFakeTimers({ now: new Date(2026, 10, 7, 9, 0) })
+      expect(
+        describeRange(local(2026, 10, 6, 23, 15), local(2026, 10, 7, 1, 5))
+      ).toBe("Nov 6, 23:15 to Nov 7, 01:05")
+    })
+
+    it("adds the year when the range is not in the current year", () => {
+      vi.useFakeTimers({ now: new Date(2026, 0, 2, 9, 0) })
+      expect(
+        describeRange(local(2025, 11, 31, 23, 0), local(2026, 0, 1, 1, 0))
+      ).toBe("Dec 31, 2025, 23:00 to Jan 1, 2026, 01:00")
+    })
+
+    it("reads times with and without a fraction", () => {
+      vi.useFakeTimers({ now: new Date(2026, 10, 6, 18, 0) })
+      const from = new Date(2026, 10, 6, 13, 30)
+      const to = new Date(2026, 10, 6, 15, 0, 0, 560)
+      expect(
+        describeRange(
+          from.toISOString().replace(".000Z", "Z"),
+          to.toISOString()
+        )
+      ).toBe("Nov 6, 13:30 to 15:00")
+    })
   })
 
   it("formats epoch ranges as local times", () => {

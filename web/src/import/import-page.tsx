@@ -9,6 +9,7 @@ import { StatusLabel } from "@/components/status-label"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { isEditableTarget } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
+import { dashboardLink } from "@/lib/links"
 
 import { DatasourcesCard } from "./datasources-card"
 import { importFailure, previewFailure } from "./errors"
@@ -186,15 +187,16 @@ export function ImportPage() {
     ? { message: refusal, retry: false }
     : previewError
 
-  let statusLine: string | null = null
-  if (!previewData) statusLine = "Choose a Grafana dashboard to import."
-  else if (!previewData.ready) {
-    statusLine =
-      blockingReason(previewData.datasources) ??
-      "Some datasources are not configured."
-  }
+  const notReadyReason =
+    previewData && !previewData.ready
+      ? (blockingReason(previewData.datasources) ??
+        "Some datasources are not configured.")
+      : null
   const importDisabled =
-    statusLine !== null || stale || importDashboard.isPending
+    !previewData ||
+    notReadyReason !== null ||
+    stale ||
+    importDashboard.isPending
 
   let status
   if (result) {
@@ -228,10 +230,10 @@ export function ImportPage() {
         {importError.message}
       </p>
     )
-  } else if (statusLine) {
+  } else if (notReadyReason) {
     status = (
       <p id={statusId} className="text-xs text-muted-foreground">
-        {statusLine}
+        {notReadyReason}
       </p>
     )
   }
@@ -242,8 +244,7 @@ export function ImportPage() {
         Import another
       </Button>
       <Link
-        to="/dashboards/$dashboardId"
-        params={{ dashboardId: result.dashboard.id }}
+        {...dashboardLink(result.dashboard.id, result.dashboard.title)}
         className={cn(buttonVariants())}
       >
         Open dashboard
@@ -260,7 +261,7 @@ export function ImportPage() {
       <Button
         disabled={importDisabled}
         aria-busy={importDashboard.isPending || undefined}
-        aria-describedby={statusLine ? statusId : undefined}
+        aria-describedby={notReadyReason ? statusId : undefined}
         onClick={runImport}
       >
         {importDashboard.isPending ? "Importing..." : "Import as new dashboard"}
@@ -269,45 +270,35 @@ export function ImportPage() {
   )
 
   return (
-    <>
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4">
       <PageHeader
         title="Import from Grafana"
-        description="Every panel is kept. What we cannot render yet becomes a placeholder and is listed in the report."
-        actions={actions}
+        description="Every panel is kept; what cannot render yet becomes a placeholder listed in the report."
       />
-      {status ? <div className="-mt-2.5 mb-4">{status}</div> : null}
-      <div
-        className="grid items-start gap-4"
-        style={{
-          gridTemplateColumns:
-            "repeat(auto-fit, minmax(min(380px, 100%), 1fr))",
-        }}
-      >
-        <div className="flex flex-col gap-4">
-          <SourceCard
-            source={source}
-            hint={
-              previewData
-                ? summaryLine(previewData.summary)
-                : previewError
-                  ? ""
-                  : "Reading the dashboard..."
-            }
-            dragging={dragging}
-            error={sourceError}
-            onFile={(file) => void acceptFile(file)}
-            onText={acceptText}
-            onRetry={() => void preview.refetch()}
+      <SourceCard
+        source={source}
+        hint={
+          previewData
+            ? summaryLine(previewData.summary)
+            : previewError
+              ? ""
+              : "Reading the dashboard..."
+        }
+        dragging={dragging}
+        error={sourceError}
+        onFile={(file) => void acceptFile(file)}
+        onText={acceptText}
+        onRetry={() => void preview.refetch()}
+      />
+      {source ? (
+        <>
+          <FolderCard
+            choices={choices}
+            value={requestedFolder(folder, choices) ?? automaticFolder}
+            failed={folders.isError}
+            disabled={result !== null || importDashboard.isPending}
+            onChange={setFolder}
           />
-          {source ? (
-            <FolderCard
-              choices={choices}
-              value={requestedFolder(folder, choices) ?? automaticFolder}
-              failed={folders.isError}
-              disabled={result !== null || importDashboard.isPending}
-              onChange={setFolder}
-            />
-          ) : null}
           {datasources ? (
             <DatasourcesCard
               datasources={datasources}
@@ -317,16 +308,22 @@ export function ImportPage() {
               busy={stale}
             />
           ) : null}
-        </div>
-        {report && source ? (
-          <ReportCard
-            key={result ? "imported" : source.id}
-            report={report}
-            imported={result !== null}
-            busy={stale}
-          />
-        ) : null}
-      </div>
-    </>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            {status ? <div className="min-w-0 flex-1">{status}</div> : null}
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              {actions}
+            </div>
+          </div>
+          {report ? (
+            <ReportCard
+              key={result ? "imported" : source.id}
+              report={report}
+              imported={result !== null}
+              busy={stale}
+            />
+          ) : null}
+        </>
+      ) : null}
+    </div>
   )
 }

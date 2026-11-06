@@ -63,24 +63,25 @@ type macroDef struct {
 }
 
 var (
-	bothDatasources = []DatasourceType{Prometheus, ClickHouse}
-	clickHouseOnly  = []DatasourceType{ClickHouse}
+	allDatasources = []DatasourceType{Prometheus, ClickHouse, Loki, Tempo}
+	promQLLike     = []DatasourceType{Prometheus, Loki, Tempo}
+	clickHouseOnly = []DatasourceType{ClickHouse}
 )
 
 var macroTable = []macroDef{
-	{Macro{Name: "__interval"}, bothDatasources},
-	{Macro{Name: "__interval_ms"}, bothDatasources},
-	{Macro{Name: "__range"}, []DatasourceType{Prometheus}},
-	{Macro{Name: "__range_s"}, bothDatasources},
-	{Macro{Name: "__range_ms"}, bothDatasources},
+	{Macro{Name: "__interval"}, allDatasources},
+	{Macro{Name: "__interval_ms"}, allDatasources},
+	{Macro{Name: "__range"}, promQLLike},
+	{Macro{Name: "__range_s"}, allDatasources},
+	{Macro{Name: "__range_ms"}, allDatasources},
 	{Macro{Name: "__rate_interval"}, []DatasourceType{Prometheus}},
-	{Macro{Name: "__from", Formats: TimeFormatsAllowed}, bothDatasources},
-	{Macro{Name: "__to", Formats: TimeFormatsAllowed}, bothDatasources},
-	{Macro{Name: "__dashboard", Formats: VariableFormatsAllowed, Global: true, PerDashboard: true}, bothDatasources},
-	{Macro{Name: "__user.login", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, bothDatasources},
-	{Macro{Name: "__user.email", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, bothDatasources},
-	{Macro{Name: "__user.name", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, bothDatasources},
-	{Macro{Name: "__user.id", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, bothDatasources},
+	{Macro{Name: "__from", Formats: TimeFormatsAllowed}, allDatasources},
+	{Macro{Name: "__to", Formats: TimeFormatsAllowed}, allDatasources},
+	{Macro{Name: "__dashboard", Formats: VariableFormatsAllowed, Global: true, PerDashboard: true}, allDatasources},
+	{Macro{Name: "__user.login", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, allDatasources},
+	{Macro{Name: "__user.email", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, allDatasources},
+	{Macro{Name: "__user.name", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, allDatasources},
+	{Macro{Name: "__user.id", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, allDatasources},
 	{Macro{Name: "__timeFilter", Args: OneColumn}, clickHouseOnly},
 	{Macro{Name: "__timeFilter_ms", Args: OneColumn}, clickHouseOnly},
 	{Macro{Name: "__timeGroup", Args: OneColumn}, clickHouseOnly},
@@ -105,6 +106,23 @@ func Macros(t DatasourceType) []Macro {
 		}
 	}
 	return out
+}
+
+func LogQLReturnsLines(text string) bool {
+	i := 0
+	for i < len(text) {
+		switch text[i] {
+		case ' ', '\t', '\n', '\r':
+			i++
+		case '#':
+			for i < len(text) && text[i] != '\n' {
+				i++
+			}
+		default:
+			return text[i] == '{'
+		}
+	}
+	return false
 }
 
 func knownMacro(name string) bool {

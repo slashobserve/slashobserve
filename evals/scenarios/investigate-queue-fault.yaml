@@ -1,0 +1,7 @@
+id: investigate-queue-fault
+prompt: "eval investigate: why are orders waiting in the queue"
+kind: investigate
+suites: [replay]
+expect:
+  finding_mentions: ["queue", "orders"]
+  evidence_min: 1

@@ -7,11 +7,15 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
@@ -80,6 +84,10 @@ func (r *Registry) instance(uid string) (datasource.Instance, Result, bool) {
 	return inst, Result{}, true
 }
 
+func typeOf(inst datasource.Instance) spec.DatasourceType {
+	return spec.DatasourceType(inst.Datasource.Type())
+}
+
 func (r *Registry) discover(ctx context.Context, uid string, req datasource.DiscoverRequest, failStep string) (*datasource.Catalog, Result, bool, error) {
 	inst, res, ok := r.instance(uid)
 	if !ok {
@@ -127,7 +135,9 @@ func checkLength(field, value string, limit int) (Result, bool) {
 type listMetricsInput struct {
 	Datasource string `json:"datasource"`
 	Search     string `json:"search"`
+	Scope      string `json:"scope"`
 	Limit      *int   `json:"limit"`
+	Offset     *int   `json:"offset"`
 }
 
 type listLabelsInput struct {
@@ -136,6 +146,7 @@ type listLabelsInput struct {
 	Table      string `json:"table"`
 	Search     string `json:"search"`
 	Limit      *int   `json:"limit"`
+	Offset     *int   `json:"offset"`
 }
 
 type listLabelValuesInput struct {
@@ -145,6 +156,7 @@ type listLabelValuesInput struct {
 	Table      string `json:"table"`
 	Search     string `json:"search"`
 	Limit      *int   `json:"limit"`
+	Offset     *int   `json:"offset"`
 }
 
 func namesLimit(p *int) int {
@@ -152,6 +164,21 @@ func namesLimit(p *int) int {
 		return 0
 	}
 	return cmp.Or(*p, -1)
+}
+
+func pagedNamesLimit(p *int, offset int) int {
+	limit := namesLimit(p)
+	if limit == 0 {
+		limit = queryproxy.DefaultNamesLimit
+	}
+	if limit < 1 || limit > queryproxy.MaxNamesLimit {
+		return limit
+	}
+	return min(limit+offset, queryproxy.MaxNamesLimit)
+}
+
+func offsetOf(p *int) (int, Result, bool) {
+	return boundedInt(p, 0, 0, queryproxy.MaxNamesLimit-1, "offset")
 }
 
 func (r *Registry) listNames(ctx context.Context, req queryproxy.NamesRequest, noun string) (queryproxy.Names, Result, bool, error) {
@@ -173,10 +200,22 @@ func (r *Registry) listNames(ctx context.Context, req queryproxy.NamesRequest, n
 	return queryproxy.Names{}, res, false, err
 }
 
+func discovered(res Result, datasource, of string, names []string) Result {
+	res.Discovered = &Discovery{Datasource: datasource, Of: of, Names: names}
+	return res
+}
+
+func described(noun, joiner, part string) string {
+	if part == "" {
+		return noun
+	}
+	return noun + " " + joiner + " " + clip(part, maxStepNameBytes)
+}
+
 type metricsOut struct {
 	Datasource string              `json:"datasource"`
 	Metrics    []datasource.Metric `json:"metrics"`
-	Truncated  bool                `json:"truncated"`
+	truncation
 }
 
 func (r *Registry) listMetrics(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -184,28 +223,171 @@ func (r *Registry) listMetrics(ctx context.Context, input json.RawMessage) (Resu
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
+	offset, res, ok := offsetOf(in.Offset)
+	if !ok {
+		return res, nil
+	}
+	if in.Scope != "" {
+		return r.listInventory(ctx, in, offset)
+	}
 	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
 		Datasource: in.Datasource,
 		Kind:       datasource.DiscoverMetrics,
 		Search:     in.Search,
-		Limit:      namesLimit(in.Limit),
+		Limit:      pagedNamesLimit(in.Limit, offset),
 	}, "metrics")
 	if !ok || err != nil {
 		return res, err
 	}
-	metrics, cut := fit(names.Metrics, listBudget)
-	return success(fmt.Sprintf("Listed %s on %s", plural(len(metrics), "metric", "metrics"), names.Datasource), metricsOut{Datasource: names.Datasource, Metrics: metrics, Truncated: names.Truncated || cut}), nil
+	metrics, cut := page(names.Metrics, offset, names.Truncated, listBudget)
+	listed := make([]string, len(metrics))
+	for i, m := range metrics {
+		listed[i] = m.Name
+	}
+	res = success(fmt.Sprintf("Listed %s on %s", plural(len(metrics), "metric", "metrics"), names.Datasource), metricsOut{Datasource: names.Datasource, Metrics: metrics, truncation: cut})
+	return discovered(res, names.Datasource, described("metrics", "matching", in.Search), listed), nil
+}
+
+type familyOut struct {
+	Name   string   `json:"name"`
+	Type   string   `json:"type,omitempty"`
+	Unit   string   `json:"unit,omitempty"`
+	Labels []string `json:"labels,omitempty"`
+	Series int      `json:"series"`
+}
+
+type inventoryOut struct {
+	Datasource      string              `json:"datasource"`
+	Scope           string              `json:"scope"`
+	FamiliesTotal   int                 `json:"families_total"`
+	RuntimeFamilies int                 `json:"runtime_families"`
+	Families        []familyOut         `json:"families"`
+	CommonLabels    []string            `json:"common_labels,omitempty"`
+	Grouped         map[string][]string `json:"grouped"`
+	truncation
+}
+
+const scopeTakesNoFilter = "scope returns every family in one result; leave out search and limit"
+
+func (r *Registry) listInventory(ctx context.Context, in listMetricsInput, offset int) (Result, error) {
+	if in.Search != "" || in.Limit != nil {
+		return invalid("%s", scopeTakesNoFilter), nil
+	}
+	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{Datasource: in.Datasource, Kind: datasource.DiscoverMetrics, Scope: in.Scope}, "metric families")
+	if !ok || err != nil {
+		return res, err
+	}
+	if inst, ok := r.deps.Datasources.Get(names.Datasource); !ok || typeOf(inst) != spec.Loki {
+		inventories.put(ctx, names.Families)
+	}
+	out := compactInventory(inventoryOut{Datasource: names.Datasource, Scope: in.Scope, FamiliesTotal: names.FamiliesTotal, RuntimeFamilies: names.RuntimeFamilies}, names.Families, offset, names.Truncated)
+	listed := make([]string, len(out.Families))
+	for i, f := range out.Families {
+		listed[i] = f.Name
+	}
+	of := described("metric families", "in", in.Scope)
+	res = success(fmt.Sprintf("Listed %s in %s on %s", plural(len(listed), "metric family", "metric families"), clip(in.Scope, maxStepNameBytes), names.Datasource), out)
+	return discovered(res, names.Datasource, of, listed), nil
+}
+
+type inventoryShape func(base inventoryOut, families []datasource.Family) inventoryOut
+
+var inventoryShapes = []inventoryShape{withEveryLabel, withSharedLabelsOnce, withSharedLabelsOnly}
+
+func compactInventory(base inventoryOut, families []datasource.Family, offset int, upstreamCut bool) inventoryOut {
+	window := families[min(offset, len(families)):]
+	for _, shape := range inventoryShapes {
+		if out := shape(base, window); inventoryFits(out) {
+			if upstreamCut {
+				out.truncation = truncation{Truncated: true, TruncatedBy: truncatedByLimit}
+			}
+			return out
+		}
+	}
+	kept := sort.Search(len(window), func(n int) bool { return !inventoryFits(withSharedLabelsOnly(base, window[:n+1])) })
+	out := withSharedLabelsOnly(base, window[:kept])
+	out.truncation = truncation{Truncated: true, TruncatedBy: truncatedByBytes}
+	if next := offset + kept; next < queryproxy.MaxNamesLimit {
+		out.NextOffset = &next
+	}
+	return out
+}
+
+func inventoryFits(out inventoryOut) bool {
+	body, err := json.Marshal(out)
+	return err == nil && len(body) <= listBudget
+}
+
+func withEveryLabel(base inventoryOut, families []datasource.Family) inventoryOut {
+	return inventoryOf(base, families, nil, true)
+}
+
+func withSharedLabelsOnce(base inventoryOut, families []datasource.Family) inventoryOut {
+	return inventoryOf(base, families, sharedLabels(families), true)
+}
+
+func withSharedLabelsOnly(base inventoryOut, families []datasource.Family) inventoryOut {
+	return inventoryOf(base, families, sharedLabels(families), false)
+}
+
+func inventoryOf(base inventoryOut, families []datasource.Family, shared []string, ownLabels bool) inventoryOut {
+	out := base
+	out.Families = make([]familyOut, len(families))
+	out.CommonLabels = shared
+	out.Grouped = map[string][]string{}
+	members := map[string][]string{}
+	for i, f := range families {
+		out.Families[i] = familyOut{Name: f.Name, Type: f.Type, Unit: f.Unit, Series: f.Series}
+		if ownLabels {
+			out.Families[i].Labels = slices.DeleteFunc(slices.Clone(f.Labels), func(l string) bool { return slices.Contains(shared, l) })
+		}
+		prefix := familyPrefix(f.Name)
+		members[prefix] = append(members[prefix], f.Name)
+	}
+	for prefix, names := range members {
+		if len(names) > 1 {
+			out.Grouped[prefix] = names
+		}
+	}
+	return out
+}
+
+func sharedLabels(families []datasource.Family) []string {
+	if len(families) < 2 {
+		return nil
+	}
+	shared := slices.Clone(families[0].Labels)
+	for _, f := range families[1:] {
+		shared = slices.DeleteFunc(shared, func(l string) bool { return !slices.Contains(f.Labels, l) })
+	}
+	return shared
+}
+
+func familyPrefix(name string) string {
+	first := strings.IndexByte(name, '_')
+	if first < 0 {
+		return name
+	}
+	second := strings.IndexByte(name[first+1:], '_')
+	if second < 0 {
+		return name
+	}
+	return name[:first+1+second]
 }
 
 type labelsOut struct {
 	Datasource string   `json:"datasource"`
 	Labels     []string `json:"labels"`
-	Truncated  bool     `json:"truncated"`
+	truncation
 }
 
 func (r *Registry) listLabels(ctx context.Context, input json.RawMessage) (Result, error) {
 	var in listLabelsInput
 	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	offset, res, ok := offsetOf(in.Offset)
+	if !ok {
 		return res, nil
 	}
 	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
@@ -214,25 +396,30 @@ func (r *Registry) listLabels(ctx context.Context, input json.RawMessage) (Resul
 		Search:     in.Search,
 		Metric:     in.Metric,
 		Table:      in.Table,
-		Limit:      namesLimit(in.Limit),
+		Limit:      pagedNamesLimit(in.Limit, offset),
 	}, "labels")
 	if !ok || err != nil {
 		return res, err
 	}
-	labels, cut := fit(names.Labels, listBudget)
-	return success(fmt.Sprintf("Listed %s on %s", plural(len(labels), "label", "labels"), names.Datasource), labelsOut{Datasource: names.Datasource, Labels: labels, Truncated: names.Truncated || cut}), nil
+	labels, cut := page(names.Labels, offset, names.Truncated, listBudget)
+	res = success(fmt.Sprintf("Listed %s on %s", plural(len(labels), "label", "labels"), names.Datasource), labelsOut{Datasource: names.Datasource, Labels: labels, truncation: cut})
+	return discovered(res, names.Datasource, described("labels", "of", cmp.Or(in.Metric, in.Table)), labels), nil
 }
 
 type labelValuesOut struct {
 	Datasource string   `json:"datasource"`
 	Label      string   `json:"label"`
 	Values     []string `json:"values"`
-	Truncated  bool     `json:"truncated"`
+	truncation
 }
 
 func (r *Registry) listLabelValues(ctx context.Context, input json.RawMessage) (Result, error) {
 	var in listLabelValuesInput
 	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	offset, res, ok := offsetOf(in.Offset)
+	if !ok {
 		return res, nil
 	}
 	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
@@ -242,38 +429,40 @@ func (r *Registry) listLabelValues(ctx context.Context, input json.RawMessage) (
 		Metric:     in.Metric,
 		Label:      in.Label,
 		Table:      in.Table,
-		Limit:      namesLimit(in.Limit),
+		Limit:      pagedNamesLimit(in.Limit, offset),
 	}, "label values")
 	if !ok || err != nil {
 		return res, err
 	}
-	values, cut := fit(names.Values, listBudget)
-	return success(fmt.Sprintf("Listed %s on %s", plural(len(values), "label value", "label values"), names.Datasource), labelValuesOut{Datasource: names.Datasource, Label: names.Label, Values: values, Truncated: names.Truncated || cut}), nil
+	values, cut := page(names.Values, offset, names.Truncated, listBudget)
+	res = success(fmt.Sprintf("Listed %s on %s", plural(len(values), "label value", "label values"), names.Datasource), labelValuesOut{Datasource: names.Datasource, Label: names.Label, Values: values, truncation: cut})
+	of := described("values", "of", names.Label)
+	if in.Metric != "" {
+		of += " on " + clip(in.Metric, maxStepNameBytes)
+	}
+	return discovered(res, names.Datasource, of, values), nil
 }
 
-func cutList[T any](items []T, limit int) ([]T, bool) {
-	truncated := len(items) > limit
-	if truncated {
-		items = items[:limit]
-	}
-	items, cut := fit(items, listBudget)
-	return items, truncated || cut
+func pageSchema[T any](items []T, offset int) ([]T, truncation) {
+	end := offset + maxDiscoverItems
+	return page(items[:min(len(items), end)], offset, len(items) > end, listBudget)
 }
 
 type schemaInput struct {
 	Datasource string `json:"datasource"`
 	Table      string `json:"table"`
+	Offset     *int   `json:"offset"`
 }
 
 type tablesOut struct {
-	Tables    []datasource.Table `json:"tables"`
-	Truncated bool               `json:"truncated,omitempty"`
+	Tables []datasource.Table `json:"tables"`
+	truncation
 }
 
 type columnsOut struct {
-	Table     string              `json:"table"`
-	Columns   []datasource.Column `json:"columns"`
-	Truncated bool                `json:"truncated,omitempty"`
+	Table   string              `json:"table"`
+	Columns []datasource.Column `json:"columns"`
+	truncation
 }
 
 func (r *Registry) getSchema(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -284,20 +473,88 @@ func (r *Registry) getSchema(ctx context.Context, input json.RawMessage) (Result
 	if res, ok := checkLength("table", in.Table, maxNameBytes); !ok {
 		return res, nil
 	}
+	offset, res, ok := offsetOf(in.Offset)
+	if !ok {
+		return res, nil
+	}
+	inst, res, ok := r.instance(in.Datasource)
+	if !ok {
+		return res, nil
+	}
+	if typeOf(inst) == spec.Tempo {
+		return r.spanSchema(ctx, in, offset)
+	}
+	limit := offset + maxDiscoverItems + 1
 	if in.Table == "" {
-		cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverTables, Limit: maxDiscoverItems + 1}, "Listing tables")
+		cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverTables, Limit: limit}, "Listing tables")
 		if !ok || err != nil {
 			return res, err
 		}
-		tables, truncated := cutList(append([]datasource.Table{}, cat.Tables...), maxDiscoverItems)
-		return success(fmt.Sprintf("Listed %s on %s", plural(len(tables), "table", "tables"), in.Datasource), tablesOut{Tables: tables, Truncated: truncated}), nil
+		tables, cut := pageSchema(cat.Tables, offset)
+		names := make([]string, len(tables))
+		for i, t := range tables {
+			names[i] = t.Name
+		}
+		res = success(fmt.Sprintf("Listed %s on %s", plural(len(tables), "table", "tables"), in.Datasource), tablesOut{Tables: tables, truncation: cut})
+		return discovered(res, in.Datasource, "tables", names), nil
 	}
-	cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverColumns, Table: in.Table, Limit: maxDiscoverItems + 1}, "Reading the "+clip(in.Table, maxStepNameBytes)+" schema")
+	cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverColumns, Table: in.Table, Limit: limit}, "Reading the "+clip(in.Table, maxStepNameBytes)+" schema")
 	if !ok || err != nil {
 		return res, err
 	}
-	columns, truncated := cutList(append([]datasource.Column{}, cat.Columns...), maxDiscoverItems)
-	return success(fmt.Sprintf("Read the %s schema on %s", clip(in.Table, maxStepNameBytes), in.Datasource), columnsOut{Table: in.Table, Columns: columns, Truncated: truncated}), nil
+	columns, cut := pageSchema(cat.Columns, offset)
+	names := make([]string, len(columns))
+	for i, c := range columns {
+		names[i] = c.Name
+	}
+	res = success(fmt.Sprintf("Read the %s schema on %s", clip(in.Table, maxStepNameBytes), in.Datasource), columnsOut{Table: in.Table, Columns: columns, truncation: cut})
+	return discovered(res, in.Datasource, described("columns", "of", in.Table), names), nil
+}
+
+type spanSchemaOut struct {
+	Datasource string   `json:"datasource"`
+	Columns    []string `json:"columns"`
+	Rows       [][]any  `json:"rows"`
+	Attributes []string `json:"attributes"`
+	Truncated  bool     `json:"truncated,omitempty"`
+}
+
+func (r *Registry) spanSchema(ctx context.Context, in schemaInput, offset int) (Result, error) {
+	if in.Table != "" || offset > 0 {
+		return invalid("tempo has no tables; leave out table and offset"), nil
+	}
+	cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverTables}, "Listing services and span names")
+	if !ok || err != nil {
+		return res, err
+	}
+	rows := frameRows(cat.Sample, maxDiscoverItems)
+	attributes, cut := fit(cat.Labels, listBudget-sampleRowsBudget)
+	out := spanSchemaOut{
+		Datasource: in.Datasource,
+		Columns:    rows.Columns,
+		Rows:       rows.Rows,
+		Attributes: attributes,
+		Truncated:  rows.Truncated || cut || cat.Truncated,
+	}
+	services, spanNames := distinctColumns(rows.Rows)
+	names := slices.Concat(services, spanNames, attributes)
+	res = success(fmt.Sprintf("Listed %s and their span names on %s", plural(len(services), "service", "services"), in.Datasource), out)
+	return discovered(res, in.Datasource, "services, span names and attributes", names), nil
+}
+
+func distinctColumns(rows [][]any) (first, second []string) {
+	add := func(seen []string, v any) []string {
+		if s, ok := v.(string); ok && !slices.Contains(seen, s) {
+			return append(seen, s)
+		}
+		return seen
+	}
+	for _, row := range rows {
+		if len(row) >= 2 {
+			first, second = add(first, row[0]), add(second, row[1])
+		}
+	}
+	return first, second
 }
 
 type sampleInput struct {
@@ -322,19 +579,24 @@ func (r *Registry) sampleRows(ctx context.Context, input json.RawMessage) (Resul
 	if !ok {
 		return res, nil
 	}
-	if in.Table == "" {
-		return invalid("table is required"), nil
-	}
 	if res, ok := checkLength("table", in.Table, maxNameBytes); !ok {
 		return res, nil
 	}
-	cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverSampleRows, Table: in.Table, Limit: limit}, "Sampling "+clip(in.Table, maxStepNameBytes))
+	inst, res, ok := r.instance(in.Datasource)
+	if !ok {
+		return res, nil
+	}
+	if in.Table == "" && typeOf(inst) != spec.Loki {
+		return invalid("table is required"), nil
+	}
+	source := clip(cmp.Or(in.Table, "every stream"), maxStepNameBytes)
+	cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverSampleRows, Table: in.Table, Limit: limit}, "Sampling "+source)
 	if !ok || err != nil {
 		return res, err
 	}
 	out := frameRows(cat.Sample, limit)
 	out.Table = in.Table
-	return success(fmt.Sprintf("Sampled %s from %s on %s", plural(len(out.Rows), "row", "rows"), clip(in.Table, maxStepNameBytes), in.Datasource), out), nil
+	return success(fmt.Sprintf("Sampled %s from %s on %s", plural(len(out.Rows), "row", "rows"), source, in.Datasource), out), nil
 }
 
 func frameRows(f *datasource.Frame, limit int) sampleOut {

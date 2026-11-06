@@ -331,6 +331,7 @@ const fieldLabels: { [K in FieldKey]: string } = {
   id: "id",
   transparent: "transparent background",
   titleHidden: "title visibility",
+  responsive: "responsive size",
   mode: "content mode",
   code: "code options",
 }

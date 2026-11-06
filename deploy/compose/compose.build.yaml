@@ -7,7 +7,7 @@ services:
 
   frontend-0:
     build:
-      context: ../../demo/shop
+      context: ../../demo
     pull_policy: build
 
   checkout-0:

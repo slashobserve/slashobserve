@@ -1,0 +1,101 @@
+dashboards-id-star:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  put:
+    operationId: starDashboard
+    summary: Star a dashboard for the signed-in person.
+    description: >-
+      Stars belong to one person and follow them across browsers.
+      Starring a dashboard that is already starred changes nothing.
+      Only signed-in people may star: a service-account key gets 403 `user_session_required`.
+    responses:
+      "204":
+        description: The dashboard is starred.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not a signed-in person (`user_session_required`), or cannot see the dashboard (`forbidden_role`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: unstarDashboard
+    summary: Remove the signed-in person's star from a dashboard.
+    description: Removing a star that does not exist changes nothing. A service-account key gets 403 `user_session_required`.
+    responses:
+      "204":
+        description: The dashboard is not starred.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not a signed-in person (`user_session_required`), or cannot see the dashboard (`forbidden_role`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+stars:
+  get:
+    operationId: listStars
+    summary: List the signed-in person's starred dashboards, newest star first.
+    description: >-
+      Lists at most 200 stars, and only dashboards in folders the caller can see.
+      A service-account key gets 403 `user_session_required`.
+    responses:
+      "200":
+        description: The starred dashboards.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  maxItems: 200
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [id, title, folder_id, folder_title, starred_at]
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      title:
+                        type: string
+                      folder_id:
+                        type: string
+                        format: uuid
+                      folder_title:
+                        type: string
+                      starred_at:
+                        type: string
+                        format: date-time
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not a signed-in person (`user_session_required`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

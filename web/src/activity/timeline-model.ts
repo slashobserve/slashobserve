@@ -1,7 +1,9 @@
 import type { components } from "@/api/schema.gen"
 import { groupThreads, type Thread } from "@/comments/threads"
 import type { Comment } from "@/comments/queries"
+import type { Finding } from "@/findings/queries"
 import type { VersionMeta } from "@/history/use-version-history"
+import type { RequestSummary } from "@/observe/queries"
 import { isActive, type Revision } from "@/revisions/queries"
 
 type ImportRecord = components["schemas"]["ImportRecord"]
@@ -16,6 +18,11 @@ export type ImportedDashboard = {
   record: ImportRecord
   unverified: readonly UnverifiedPanel[]
 }
+
+export type RunningRequest = Pick<
+  RequestSummary,
+  "id" | "status" | "dashboard_id" | "panel_id" | "created_at" | "started_at"
+>
 
 export type TimelineEntry =
   | {
@@ -39,7 +46,7 @@ export type TimelineEntry =
       key: string
       at: string
       panelId: string | null
-      request: Revision
+      request: RunningRequest
     }
   | {
       kind: "version"
@@ -55,6 +62,13 @@ export type TimelineEntry =
       panelId: null
       record: ImportRecord
       unverified: readonly UnverifiedPanel[]
+    }
+  | {
+      kind: "finding"
+      key: string
+      at: string
+      panelId: null
+      finding: Finding
     }
 
 type StepStamp = Pick<components["schemas"]["AgentStep"], "attempt" | "at">
@@ -87,6 +101,7 @@ const kindOrder: Record<TimelineEntry["kind"], number> = {
   running: 2,
   version: 3,
   import: 4,
+  finding: 5,
 }
 
 const sameSendWindowMs = 2000
@@ -153,10 +168,20 @@ function askedAgentWithComment(
   )
 }
 
-function runningAt(request: Revision): string {
+function runningAt(request: RunningRequest): string {
   const raw = request.started_at ?? request.created_at
   const start = Date.parse(raw)
   return Number.isNaN(start) ? raw : new Date(start + 1).toISOString()
+}
+
+function runningEntry(request: RunningRequest): TimelineEntry {
+  return {
+    kind: "running",
+    key: `running:${request.id}`,
+    at: runningAt(request),
+    panelId: request.panel_id,
+    request,
+  }
 }
 
 export function buildTimeline(input: {
@@ -164,6 +189,8 @@ export function buildTimeline(input: {
   requests: readonly Revision[]
   versions: readonly VersionMeta[]
   imported?: ImportedDashboard | null
+  investigations?: readonly RunningRequest[]
+  findings?: readonly Finding[]
 }): TimelineEntry[] {
   const entries: TimelineEntry[] = []
 
@@ -202,15 +229,21 @@ export function buildTimeline(input: {
         request,
       })
     }
-    if (isActive(request.status)) {
-      entries.push({
-        kind: "running",
-        key: `running:${request.id}`,
-        at: runningAt(request),
-        panelId: request.panel_id,
-        request,
-      })
-    }
+    if (isActive(request.status)) entries.push(runningEntry(request))
+  }
+
+  for (const request of input.investigations ?? []) {
+    if (isActive(request.status)) entries.push(runningEntry(request))
+  }
+
+  for (const finding of input.findings ?? []) {
+    entries.push({
+      kind: "finding",
+      key: `finding:${finding.id}`,
+      at: finding.created_at,
+      panelId: null,
+      finding,
+    })
   }
 
   for (const version of input.versions) {

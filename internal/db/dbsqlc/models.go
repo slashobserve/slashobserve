@@ -9,32 +9,79 @@ import (
 )
 
 type AgentRequest struct {
-	ID               pgtype.UUID
-	DashboardID      pgtype.UUID
-	Source           string
-	CommentID        pgtype.UUID
-	Prompt           string
-	PanelID          pgtype.Text
-	BaseVersion      pgtype.Int4
-	Status           string
-	Attempts         int32
-	CheckFailures    int32
-	LeaseUntil       pgtype.Timestamptz
-	ResultVersion    pgtype.Int4
-	Error            pgtype.Text
-	RequestedByKind  string
-	RequestedByID    pgtype.UUID
-	RequestedByName  string
-	RequestedByEmail pgtype.Text
-	CreatedAt        pgtype.Timestamptz
-	StartedAt        pgtype.Timestamptz
-	FinishedAt       pgtype.Timestamptz
-	Steps            []byte
-	RunUsage         []byte
-	Origin           pgtype.Text
-	OriginClient     pgtype.Text
-	Draft            []byte
-	Suggestion       []byte
+	ID                pgtype.UUID
+	DashboardID       pgtype.UUID
+	Source            string
+	CommentID         pgtype.UUID
+	Prompt            string
+	PanelID           pgtype.Text
+	BaseVersion       pgtype.Int4
+	Status            string
+	Attempts          int32
+	CheckFailures     int32
+	LeaseUntil        pgtype.Timestamptz
+	ResultVersion     pgtype.Int4
+	Error             pgtype.Text
+	RequestedByKind   string
+	RequestedByID     pgtype.UUID
+	RequestedByName   string
+	RequestedByEmail  pgtype.Text
+	CreatedAt         pgtype.Timestamptz
+	StartedAt         pgtype.Timestamptz
+	FinishedAt        pgtype.Timestamptz
+	Steps             []byte
+	RunUsage          []byte
+	Origin            pgtype.Text
+	OriginClient      pgtype.Text
+	Draft             []byte
+	Suggestion        []byte
+	FailureCode       pgtype.Text
+	BuildSavedAt      pgtype.Timestamptz
+	CancelRequestedAt pgtype.Timestamptz
+	CanceledByKind    pgtype.Text
+	CanceledByID      pgtype.UUID
+	CanceledByName    pgtype.Text
+	ContinuesID       pgtype.UUID
+	ContinueNote      pgtype.Text
+	ContextFrom       pgtype.Timestamptz
+	ContextTo         pgtype.Timestamptz
+	Title             pgtype.Text
+	PinnedAt          pgtype.Timestamptz
+	ArchivedAt        pgtype.Timestamptz
+}
+
+type AgentRequestBuild struct {
+	AgentRequestID pgtype.UUID
+	DashboardID    pgtype.UUID
+	BaseVersion    pgtype.Int4
+	Spec           []byte
+	Unverified     []byte
+	Summary        string
+	Saves          int32
+	Panels         int32
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	PlannedPanels  int32
+}
+
+type Annotation struct {
+	ID          pgtype.UUID
+	DashboardID pgtype.UUID
+	PanelID     string
+	TimeFrom    pgtype.Timestamptz
+	TimeTo      pgtype.Timestamptz
+	Text        string
+	Tags        []string
+	CreatedBy   pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+}
+
+type AppliedDashboard struct {
+	Path          string
+	DashboardID   pgtype.UUID
+	ContentSha256 string
+	AppliedByID   pgtype.UUID
+	UpdatedAt     pgtype.Timestamptz
 }
 
 type Dashboard struct {
@@ -75,6 +122,39 @@ type DashboardComment struct {
 	ResolvedByVersion pgtype.Int4
 }
 
+type DashboardHealth struct {
+	DashboardID pgtype.UUID
+	Version     int32
+	CheckedAt   pgtype.Timestamptz
+	Skipped     string
+	Issues      []byte
+}
+
+type DashboardHealthStatus struct {
+	ID             pgtype.UUID
+	Title          string
+	CreatedAt      pgtype.Timestamptz
+	FolderID       pgtype.UUID
+	FolderTitle    string
+	FolderGeneral  bool
+	FolderPersonal bool
+	CheckedVersion pgtype.Int4
+	CheckedAt      pgtype.Timestamptz
+	Skipped        string
+	Issues         []byte
+	QueryFailed    bool
+	NoData         bool
+	VariableFailed bool
+	LastViewedAt   pgtype.Timestamptz
+	DuplicateTitle bool
+}
+
+type DashboardStar struct {
+	UserID      pgtype.UUID
+	DashboardID pgtype.UUID
+	StarredAt   pgtype.Timestamptz
+}
+
 type DashboardVersion struct {
 	DashboardID    pgtype.UUID
 	Version        int32
@@ -94,6 +174,28 @@ type DashboardVersion struct {
 	Unverified     []byte
 }
 
+type DashboardView struct {
+	UserID      pgtype.UUID
+	DashboardID pgtype.UUID
+	ViewedAt    pgtype.Timestamptz
+}
+
+type Finding struct {
+	ID             pgtype.UUID
+	AgentRequestID pgtype.UUID
+	DashboardID    pgtype.UUID
+	Title          string
+	Markdown       string
+	Evidence       []byte
+	TimeFrom       pgtype.Timestamptz
+	TimeTo         pgtype.Timestamptz
+	CreatedByKind  string
+	CreatedByID    pgtype.UUID
+	CreatedByName  string
+	AnnotationID   pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+}
+
 type Folder struct {
 	ID            pgtype.UUID
 	Title         string
@@ -103,6 +205,8 @@ type Folder struct {
 	CreatedByName pgtype.Text
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
+	Personal      bool
+	OwnerID       pgtype.UUID
 }
 
 type FolderPermission struct {
@@ -112,6 +216,20 @@ type FolderPermission struct {
 	Level       string
 	CreatedByID pgtype.UUID
 	CreatedAt   pgtype.Timestamptz
+}
+
+type GrafanaConnection struct {
+	ID              pgtype.UUID
+	Name            string
+	Url             string
+	TokenCiphertext []byte
+	CreatedBy       pgtype.UUID
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	LastTestAt      pgtype.Timestamptz
+	LastTestOk      bool
+	LastTestMessage string
+	LastSync        []byte
 }
 
 type Import struct {
@@ -131,12 +249,25 @@ type Import struct {
 	CreatedByName   string
 	CreatedByEmail  pgtype.Text
 	CreatedAt       pgtype.Timestamptz
+	GrafanaUid      string
 }
 
 type Instance struct {
 	Singleton bool
 	ID        pgtype.UUID
 	CreatedAt pgtype.Timestamptz
+}
+
+type Job struct {
+	Name           string
+	EverySeconds   int32
+	NextRunAt      pgtype.Timestamptz
+	LeasedBy       string
+	LeaseUntil     pgtype.Timestamptz
+	LastStartedAt  pgtype.Timestamptz
+	LastFinishedAt pgtype.Timestamptz
+	LastOutcome    string
+	LastError      string
 }
 
 type OidcLoginState struct {
@@ -152,6 +283,36 @@ type OutboundDomain struct {
 	CreatedAt     pgtype.Timestamptz
 	CreatedByID   pgtype.UUID
 	CreatedByName string
+}
+
+type ProvisionError struct {
+	Path    string
+	Message string
+	SeenAt  pgtype.Timestamptz
+}
+
+type ProvisionedDashboard struct {
+	Path          string
+	DashboardID   pgtype.UUID
+	ContentSha256 string
+	FolderTitle   string
+	LastError     string
+	UpdatedAt     pgtype.Timestamptz
+}
+
+type PublicLink struct {
+	ID            pgtype.UUID
+	DashboardID   pgtype.UUID
+	TokenHash     []byte
+	DisplayPrefix string
+	Variables     string
+	Selections    []byte
+	ExpiresAt     pgtype.Timestamptz
+	CreatedByKind string
+	CreatedByID   pgtype.UUID
+	CreatedByName string
+	CreatedAt     pgtype.Timestamptz
+	LastViewedAt  pgtype.Timestamptz
 }
 
 type SavedPrompt struct {
@@ -171,6 +332,7 @@ type ServiceAccount struct {
 	CreatedBy   pgtype.UUID
 	CreatedAt   pgtype.Timestamptz
 	Role        string
+	Provisioned bool
 }
 
 type ServiceAccountKey struct {

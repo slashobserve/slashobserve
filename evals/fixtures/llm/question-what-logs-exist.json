@@ -1,0 +1,32 @@
+{
+  "prompt": "what all logs are available?",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "list_labels",
+          "input": {
+            "datasource": "loki"
+          }
+        },
+        {
+          "name": "list_label_values",
+          "input": {
+            "datasource": "loki",
+            "label": "service_name"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "save_finding",
+          "input": {
+            "markdown": "Loki holds the shop's logs, one stream set per service_name: checkout, frontend and payments.\n\n- checkout: the checkout service's logs\n- frontend: the frontend service's logs\n- payments: the payments service's logs"
+          }
+        }
+      ]
+    }
+  ]
+}

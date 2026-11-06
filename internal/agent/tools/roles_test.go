@@ -11,6 +11,7 @@ func TestToolRoles(t *testing.T) {
 	want := map[string]auth.Role{
 		nameListDashboards:  auth.RoleViewer,
 		nameGetDashboard:    auth.RoleViewer,
+		nameGetPanels:       auth.RoleViewer,
 		nameGetSpecGuide:    auth.RoleViewer,
 		nameListComments:    auth.RoleViewer,
 		nameListFolders:     auth.RoleViewer,
@@ -27,7 +28,16 @@ func TestToolRoles(t *testing.T) {
 		nameQueryInstant:    auth.RoleEditor,
 		nameCreateDashboard: auth.RoleEditor,
 		nameUpdateDashboard: auth.RoleEditor,
+		nameUpdatePanels:    auth.RoleEditor,
 		nameImportGrafana:   auth.RoleEditor,
+		nameSaveFinding:     auth.RoleEditor,
+		nameCreateFinding:   auth.RoleEditor,
+		nameListFindings:    auth.RoleViewer,
+
+		nameListDashboardHealth: auth.RoleViewer,
+		nameListAnnotations:     auth.RoleViewer,
+		nameCreateAnnotation:    auth.RoleEditor,
+		nameDraftQuery:          auth.RoleViewer,
 	}
 	listed := newTestRegistry(t, &fakeDS{}, nil).List()
 	if len(listed) != len(want) {

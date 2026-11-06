@@ -1,0 +1,84 @@
+image:
+  repository: ghcr.io/slashobserve/slashobserve
+  tag: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+replicaCount: 1
+
+publicURL: ""
+
+database:
+  existingSecret: ""
+  urlKey: url
+
+oidc:
+  issuerURL: ""
+  clientID: ""
+  existingSecret: ""
+  clientSecretKey: client-secret
+
+auth:
+  allowedEmailDomains: []
+  adminEmails: []
+
+secretKey:
+  existingSecret: ""
+  key: secret-key
+
+logLevel: info
+logFormat: json
+
+llm:
+  provider: ""
+  model: ""
+  effort: ""
+  apiKey:
+    existingSecret: ""
+    key: api-key
+
+outboundDomains: []
+
+env: []
+
+datasources:
+  existingConfigMap: ""
+  key: datasources.yaml
+  datasources: []
+
+serviceAccounts:
+  existingSecret: ""
+  fileKey: service-accounts.yaml
+
+provisioning:
+  internals: true
+  folders: []
+
+metrics:
+  enabled: true
+  podAnnotations: true
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    labels: {}
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  tlsSecretName: ""
+
+serviceAccount:
+  create: true
+  name: ""
+
+podAnnotations: {}
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

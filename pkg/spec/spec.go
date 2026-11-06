@@ -24,6 +24,8 @@ type DatasourceType string
 const (
 	Prometheus DatasourceType = "prometheus"
 	ClickHouse DatasourceType = "clickhouse"
+	Loki       DatasourceType = "loki"
+	Tempo      DatasourceType = "tempo"
 )
 
 type WeekStart string
@@ -309,6 +311,7 @@ type Panel struct {
 	Title       string    `json:"title,omitempty"`
 	Description string    `json:"description,omitempty"`
 	GridPos     GridPos   `json:"gridPos"`
+	Responsive  *bool     `json:"responsive,omitempty"`
 	Datasource  string    `json:"datasource,omitempty"`
 	Queries     []Query   `json:"queries,omitempty"`
 	FieldProps

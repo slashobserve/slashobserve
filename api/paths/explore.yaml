@@ -1,0 +1,206 @@
+datasources-uid-query:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+  post:
+    operationId: exploreQuery
+    summary: Run one query against a datasource and return its frames.
+    description: >-
+      The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables.
+      `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step.
+      The query runs with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows), and `limit` lowers the row limit.
+      Nothing is cached, and the call counts against the caller's 8 in-flight query requests.
+      Viewers and above may call it, service-account keys included.
+      `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+      The response has the shape of panel data, with `meta.cached` always false.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [query, kind, from, to]
+            properties:
+              query:
+                type: string
+                minLength: 1
+                maxLength: 65536
+              kind:
+                type: string
+                enum: [range, instant]
+              from:
+                type: string
+                minLength: 1
+                maxLength: 128
+              to:
+                type: string
+                minLength: 1
+                maxLength: 128
+              timezone:
+                type: string
+                minLength: 1
+                maxLength: 64
+                description: The browser's IANA time zone, used to resolve relative times such as `now/d`.
+              max_data_points:
+                type: integer
+                minimum: 10
+                maximum: 11000
+                default: 1000
+                description: Range queries only.
+              limit:
+                type: integer
+                minimum: 1
+                maximum: 1000
+                description: The most rows the query may return; lowers the 1,000 row limit.
+    responses:
+      "200":
+        description: The frames the query returned.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelData"
+      "400":
+        description: The request is malformed or fails validation (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        description: The datasource does not exist (`not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: >-
+          The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`, with the query's `ref` `A`.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        description: The server failed to handle the request, including a datasource call that failed without a classified cause.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "502":
+        description: The datasource is unavailable.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "504":
+        description: The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+datasources-uid-log-volume:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+  post:
+    operationId: logVolume
+    summary: Count the log lines a logs query matches over a range, by level.
+    description: >-
+      The counts cover every line the query matches over the whole range, not only the lines the logs page shows.
+      The server picks a whole-second step of at least one second so the range fits in at most `buckets` buckets, aligns the range to it, and returns every bucket, oldest first.
+      Each line is filed as `error`, `warning`, `info` or `other` by its level word: err, eror, error, emerg, fatal, alert, crit, critical and panic are errors; warn and warning are warnings; info, information, informational and notice are info; anything else, or no level, is other.
+      For Loki the query must be a log query that starts with a stream selector; the server counts it with `count_over_time` by the first of the `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, so a pipeline that extracts `level` with `| json` or `| logfmt` is honored.
+      For ClickHouse the query must be one SELECT; the server drops its top-level `ORDER BY` and `LIMIT` and groups the rows it matches by the result columns `Timestamp` and `SeverityText`, the columns the logs page selects.
+      The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests.
+      Viewers and above may call it, service-account keys included.
+      `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [query, from, to]
+            properties:
+              query:
+                type: string
+                minLength: 1
+                maxLength: 65536
+                description: The query the logs page runs.
+              from:
+                type: string
+                minLength: 1
+                maxLength: 128
+              to:
+                type: string
+                minLength: 1
+                maxLength: 128
+              buckets:
+                type: integer
+                minimum: 1
+                maximum: 200
+                default: 60
+                description: The most buckets wanted.
+    responses:
+      "200":
+        description: The line counts by level per bucket.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/LogVolume"
+      "400":
+        description: >-
+          The request is malformed or fails validation, `buckets` is out of range, or the datasource is not Loki or ClickHouse (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        description: The datasource does not exist (`not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: >-
+          The query cannot run: `query_invalid` for a Loki metric query, a ClickHouse query with a top-level UNION, INTERSECT, EXCEPT or LIMIT BY, or an upstream rejection such as an unknown column; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        description: The server failed to handle the request, including a datasource call that failed without a classified cause.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "502":
+        description: The datasource is unavailable.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "504":
+        description: The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"

@@ -1,4 +1,13 @@
-import { memo, useCallback, useId, useMemo, useState } from "react"
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react"
 
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -7,6 +16,7 @@ import { cn } from "@/lib/utils"
 import type { FieldResolver } from "../field-config"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
+import { logWindow, rowOffsets } from "./log-window"
 import {
   detailText,
   formatLogTime,
@@ -53,6 +63,11 @@ const dedupOptions: { value: DedupStrategy; label: string }[] = [
 
 type ViewState = Pick<LogsDisplay, "order" | "wrap" | "showTime" | "dedup">
 
+type DetailActions = (entry: LogEntry, streamLabels: Labels) => ReactNode
+
+const windowAfter = 200
+const overscan = 10
+
 type DetailsMode = "off" | "inline" | "sidebar"
 
 function labelText(labels: Labels): string {
@@ -79,26 +94,39 @@ function LogDetails({
   fields,
   zone,
   id,
+  actions,
 }: {
   entry: LogEntry
   fields: FieldResolver
   zone: string | undefined
   id: string
+  actions: ReactNode
 }) {
   return (
-    <dl
-      id={id}
-      className="grid grid-cols-[minmax(5rem,max-content)_minmax(0,1fr)] gap-x-3 gap-y-0.5 px-2 pt-0.5 pb-2"
-    >
-      {entry.details.map((detail, index) => (
-        <div key={`${index}:${detail.name}`} className="contents">
-          <dt className="text-muted-foreground">{detail.name}</dt>
-          <dd className="font-mono [overflow-wrap:anywhere] whitespace-pre-wrap">
-            {detailText(fields, detail, zone)}
-          </dd>
+    <>
+      {actions ? (
+        <div
+          role="group"
+          aria-label="Line actions"
+          className="flex flex-wrap gap-2 px-2 pt-1.5"
+        >
+          {actions}
         </div>
-      ))}
-    </dl>
+      ) : null}
+      <dl
+        id={id}
+        className="grid grid-cols-[minmax(5rem,max-content)_minmax(0,1fr)] gap-x-3 gap-y-0.5 px-2 pt-0.5 pb-2"
+      >
+        {entry.details.map((detail, index) => (
+          <div key={`${index}:${detail.name}`} className="contents">
+            <dt className="text-muted-foreground">{detail.name}</dt>
+            <dd className="font-mono [overflow-wrap:anywhere] whitespace-pre-wrap">
+              {detailText(fields, detail, zone)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </>
   )
 }
 
@@ -116,6 +144,11 @@ type RowProps = {
   selected: boolean
   sidebarId: string
   onSelect: (key: string | null) => void
+  marked: boolean
+  detailActions: DetailActions | undefined
+  commonLabels: Labels
+  setSize: number | undefined
+  posInSet: number | undefined
 }
 
 const rowButtonClasses =
@@ -135,6 +168,11 @@ const LogRow = memo(function LogRow({
   selected,
   sidebarId,
   onSelect,
+  marked,
+  detailActions,
+  commonLabels,
+  setSize,
+  posInSet,
 }: RowProps) {
   const [open, setOpen] = useState(false)
   const detailsId = useId()
@@ -190,6 +228,7 @@ const LogRow = memo(function LogRow({
       >
         <Message text={entry.message} highlight={highlight} />
       </span>
+      {marked ? <span className="sr-only">Selected line</span> : null}
       {entry.repeats > 1 ? (
         <span
           data-logs-repeats=""
@@ -203,7 +242,16 @@ const LogRow = memo(function LogRow({
   return (
     <li
       data-level={kind}
-      className="border-b border-border [contain-intrinsic-size:auto_28px] [content-visibility:auto]"
+      data-key={entry.key}
+      data-marked={marked ? "" : undefined}
+      aria-setsize={setSize}
+      aria-posinset={posInSet}
+      className={cn(
+        "border-b border-border",
+        setSize === undefined &&
+          "[contain-intrinsic-size:auto_28px] [content-visibility:auto]",
+        marked && "bg-selection"
+      )}
     >
       {detailsMode === "off" ? (
         <div className={rowButtonClasses}>{line}</div>
@@ -232,7 +280,13 @@ const LogRow = memo(function LogRow({
         </button>
       )}
       {detailsMode === "inline" && open ? (
-        <LogDetails entry={entry} fields={fields} zone={zone} id={detailsId} />
+        <LogDetails
+          entry={entry}
+          fields={fields}
+          zone={zone}
+          id={detailsId}
+          actions={detailActions?.(entry, { ...commonLabels, ...entry.labels })}
+        />
       ) : null}
     </li>
   )
@@ -308,7 +362,7 @@ function ControlsBar({
   )
 }
 
-type ViewProps = {
+export type LogsViewProps = {
   panelTitle: string
   frames: Parameters<typeof logsModel>[0]
   fields: FieldResolver
@@ -316,9 +370,82 @@ type ViewProps = {
   display: LogsDisplay
   width: number
   height: number
+  detailActions?: DetailActions
+  isMarked?: (entry: LogEntry) => boolean
 }
 
-function LogsView({
+function useRowHeights(enabled: boolean) {
+  const [heights, setHeights] = useState<ReadonlyMap<string, number>>(
+    () => new Map()
+  )
+  const observerRef = useRef<ResizeObserver | null>(null)
+  const observed = useRef(new Set<Element>())
+  useEffect(() => {
+    if (!enabled) return
+    const pending = new Map<string, number>()
+    let frame = 0
+    const observer = new ResizeObserver((records) => {
+      for (const record of records) {
+        const key = (record.target as HTMLElement).dataset.key
+        const height = record.borderBoxSize?.[0]?.blockSize
+        if (key !== undefined && height !== undefined) pending.set(key, height)
+      }
+      if (frame !== 0 || pending.size === 0) return
+      frame = requestAnimationFrame(() => {
+        frame = 0
+        const batch = new Map(pending)
+        pending.clear()
+        setHeights((current) => {
+          let changed = false
+          for (const [key, height] of batch) {
+            if (current.get(key) !== height) changed = true
+          }
+          return changed ? new Map([...current, ...batch]) : current
+        })
+      })
+    })
+    const elements = observed.current
+    observerRef.current = observer
+    return () => {
+      cancelAnimationFrame(frame)
+      observer.disconnect()
+      elements.clear()
+      observerRef.current = null
+    }
+  }, [enabled])
+  const observeRows = useCallback((list: HTMLUListElement | null) => {
+    const observer = observerRef.current
+    if (!observer || !list) return
+    for (const element of observed.current) {
+      if (!element.isConnected) {
+        observer.unobserve(element)
+        observed.current.delete(element)
+      }
+    }
+    for (const element of list.children) {
+      if (!observed.current.has(element)) {
+        observer.observe(element)
+        observed.current.add(element)
+      }
+    }
+  }, [])
+  return { heights, observeRows }
+}
+
+function useViewportHeight(element: HTMLDivElement | null) {
+  const [height, setHeight] = useState(0)
+  useEffect(() => {
+    if (!element) return
+    const observer = new ResizeObserver(([record]) =>
+      setHeight(record.contentRect.height)
+    )
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [element])
+  return height
+}
+
+export function LogsView({
   panelTitle,
   frames,
   fields,
@@ -326,7 +453,9 @@ function LogsView({
   display,
   width,
   height,
-}: ViewProps) {
+  detailActions,
+  isMarked,
+}: LogsViewProps) {
   const [view, setView] = useState<ViewState>({
     order: display.order,
     wrap: display.wrap,
@@ -374,6 +503,34 @@ function LogsView({
       : "inline"
   const selected = entries.find((entry) => entry.key === selectedKey)
   const commonText = labelText(commonLabels)
+  const windowed = entries.length > windowAfter
+  const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(
+    null
+  )
+  const [scrollTop, setScrollTop] = useState(0)
+  const viewport = useViewportHeight(scrollElement)
+  const { heights, observeRows } = useRowHeights(windowed)
+  const listRef = useRef<HTMLUListElement>(null)
+  const keys = useMemo(() => entries.map((entry) => entry.key), [entries])
+  const offsets = useMemo(
+    () => (windowed ? rowOffsets(keys, heights) : []),
+    [windowed, keys, heights]
+  )
+  const range = windowed
+    ? logWindow({ offsets, scrollTop, viewport, overscan })
+    : { start: 0, end: entries.length, before: 0, after: 0 }
+  const firstMarkedKey = isMarked ? entries.find(isMarked)?.key : undefined
+
+  useEffect(() => {
+    if (windowed) observeRows(listRef.current)
+  })
+
+  useEffect(() => {
+    if (firstMarkedKey === undefined) return
+    listRef.current
+      ?.querySelector<HTMLElement>("[data-marked]")
+      ?.scrollIntoView({ block: "center" })
+  }, [firstMarkedKey])
 
   return (
     <div
@@ -402,14 +559,28 @@ function LogsView({
         </p>
       ) : null}
       <div className="flex min-h-0 flex-1">
-        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+        <div
+          ref={setScrollElement}
+          className="min-h-0 min-w-0 flex-1 overflow-auto"
+          onScroll={
+            windowed
+              ? (event) => setScrollTop(event.currentTarget.scrollTop)
+              : undefined
+          }
+        >
           <ul
+            ref={listRef}
             role="list"
             aria-label={`${panelTitle} log lines`}
             data-logs-count={entries.length}
             className="m-0 list-none p-0"
+            style={
+              windowed
+                ? { paddingTop: range.before, paddingBottom: range.after }
+                : undefined
+            }
           >
-            {entries.map((entry) => (
+            {entries.slice(range.start, range.end).map((entry, offset) => (
               <LogRow
                 key={entry.key}
                 entry={entry}
@@ -425,6 +596,11 @@ function LogsView({
                 selected={entry.key === selected?.key}
                 sidebarId={sidebarId}
                 onSelect={setSelectedKey}
+                marked={isMarked?.(entry) ?? false}
+                detailActions={detailActions}
+                commonLabels={commonLabels}
+                setSize={windowed ? entries.length : undefined}
+                posInSet={windowed ? range.start + offset + 1 : undefined}
               />
             ))}
           </ul>
@@ -439,6 +615,10 @@ function LogsView({
               fields={fields}
               zone={zone}
               id={sidebarId}
+              actions={detailActions?.(selected, {
+                ...commonLabels,
+                ...selected.labels,
+              })}
             />
           </aside>
         ) : null}

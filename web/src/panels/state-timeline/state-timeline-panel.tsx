@@ -15,6 +15,7 @@ const StateTimelinePanel: PanelRenderer = ({
   cursor,
   stateScope,
   panel,
+  annotations,
 }) => {
   const from = Date.parse(meta.from)
   const to = Date.parse(meta.to)
@@ -34,6 +35,7 @@ const StateTimelinePanel: PanelRenderer = ({
       cursor={cursor}
       stateKey={`${stateScope}:${panel.id}`}
       zone={zone}
+      annotations={annotations}
     />
   )
 }

@@ -1,0 +1,119 @@
+health:
+  get:
+    operationId: listDashboardHealth
+    summary: List dashboards with health problems.
+    description: >-
+      Anyone with a role can call this endpoint.
+      It lists every dashboard, in folders the caller can see, with at least one problem.
+      `no_data`, `query_failed` and `variable_failed` come from the last health check of the dashboard: an hourly job checks each dashboard about once a day, oldest check first, running every panel and variable query of its latest version over the last 7 days with no viewer.
+      `duplicate_title` means another dashboard in the same folder has the same title, compared case-insensitively, and `unopened` means nobody opened the dashboard in the last 90 days, counting from its creation when nobody ever did; both are computed on every read.
+      A dashboard whose queries read the viewer (`${__user.*}`) is not checked and has `skipped` set to `depends_on_viewer`.
+      Dashboards are ranked: 0 with a `query_failed` or `variable_failed` problem, 1 with `no_data`, 2 with `duplicate_title`, 3 with only `unopened`.
+      The list is ordered by rank, then by `last_viewed_at` newest first with never-opened dashboards last, then by title; a `kind` filter keeps each dashboard's rank, so the same order holds inside one kind.
+      `next_cursor` pages through that order; a cursor from a server before this order answers 400 `invalid_request` and the client restarts from the first page.
+      The first page, sent without `cursor`, carries `summary`: counts of dashboards, not problems, over every dashboard in folders the caller can see, narrowed by `folder_id` and never by `kind`; later pages have `summary` null.
+      Each dashboard carries `repair`, its latest health repair (a revision whose prompt starts as `POST /health/repairs` writes it) whatever its age, or null when it never had one.
+      `job` is the state of the health job.
+    parameters:
+      - name: folder_id
+        in: query
+        description: Only dashboards in this folder; a folder the caller cannot see answers 404 `not_found`.
+        schema:
+          type: string
+          format: uuid
+      - name: kind
+        in: query
+        description: Only dashboards with this kind of problem, and only problems of this kind.
+        schema:
+          $ref: "../openapi.yaml#/components/schemas/HealthProblemKind"
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+      - name: cursor
+        in: query
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of dashboards with problems.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/HealthList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+health-repairs:
+  post:
+    operationId: requestHealthRepairs
+    summary: Queue the agent to repair the failing panels and variables the health check found.
+    description: >-
+      Editors and Admins can call this endpoint.
+      Each dashboard gets one ordinary revision with source `prompt` whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check.
+      A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 health repairs queued or running.
+      Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [dashboard_ids]
+            properties:
+              dashboard_ids:
+                type: array
+                minItems: 1
+                maxItems: 50
+                items:
+                  type: string
+                  format: uuid
+    responses:
+      "202":
+        description: The repairs that were queued and the dashboards that were skipped.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/RepairsQueued"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "503":
+        description: No LLM provider is configured (`agent_unavailable`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+health-run:
+  post:
+    operationId: runDashboardHealth
+    summary: Start a health run now.
+    description: >-
+      Admins only.
+      The run starts in the background and checks the dashboards that are due, as the hourly run does; when a run is already going, nothing more starts.
+      Read `job` from `GET /health` to follow it.
+    responses:
+      "202":
+        description: The run is starting.
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"

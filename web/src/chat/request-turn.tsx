@@ -1,10 +1,10 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Link, useRouteContext } from "@tanstack/react-router"
-import { useEffect, useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { useRouteContext } from "@tanstack/react-router"
+import { useState } from "react"
 
-import { dashboardKeys } from "@/api/keys"
 import { AgentMark } from "@/components/agent-mark"
 import { StatusIcon } from "@/components/status-label"
+import { buildStatusText, type BuildProgress } from "@/observe/build"
 import { shortRequestId, stepSummary } from "@/observe/conversation"
 import {
   isTerminal,
@@ -13,16 +13,34 @@ import {
   stopsPolling,
   usePollFailures,
 } from "@/observe/queries"
+import { CancelRequestButton } from "@/observe/request-actions"
+import { useSettledRefresh } from "@/observe/use-settled-refresh"
 
+import { FindingCard } from "@/findings/finding-card"
+
+import { BuildCard } from "./build-card"
 import { ResultCard } from "./result-card"
-import { StepList } from "./step-list"
-import { RetryButton, Stalled, TurnFailure } from "./turn-failure"
+import { RunningFor } from "./run-duration"
+import { StepTimeline } from "./step-timeline"
+import {
+  RetryButton,
+  Stalled,
+  TurnFailure,
+  useOpenNewRun,
+  type RunOpens,
+} from "./turn-failure"
+import {
+  mayHaveFinding,
+  resultFinishedAt,
+  showsWorkingRow,
+  tookText,
+} from "./turn-model"
 
 const reconnectingAfterFailures = 2
 
 export type TurnSummary = {
   id: string
-  source: "observe" | "prompt" | "comment"
+  source: "observe" | "prompt" | "comment" | "investigate"
   prompt: string
   status: "queued" | "running" | "succeeded" | "failed"
   dashboard_id: string | null
@@ -31,7 +49,16 @@ export type TurnSummary = {
   panel_id: string | null
   requested_by: { id: string; name: string }
   created_at: string
+  started_at: string | null
   finished_at: string | null
+  failure_code: string | null
+  build: BuildProgress | null
+  build_saved_at: string | null
+  continues_id: string | null
+  continued_by: string | null
+  continue_note: string | null
+  from?: string | null
+  to?: string | null
 }
 
 type Props = {
@@ -39,6 +66,8 @@ type Props = {
   dashboardTitle?: string
   loadSteps: boolean
   onRetried: (request: ObserveRequest) => void
+  buildOnScreen?: boolean
+  opensRunsIn?: RunOpens
 }
 
 function isActive(status: TurnSummary["status"]): boolean {
@@ -60,48 +89,65 @@ function Sender({ summary }: { summary: TurnSummary }) {
   )
 }
 
+function ContinuedFrom({ summary }: { summary: TurnSummary }) {
+  if (summary.continues_id === null) return null
+  return (
+    <>
+      <p className="self-end text-xs text-muted-foreground">
+        Continues an earlier run
+      </p>
+      {summary.continue_note !== null ? (
+        <p className="max-w-[80%] self-end text-xs wrap-anywhere whitespace-pre-wrap text-muted-foreground">
+          {summary.continue_note}
+        </p>
+      ) : null}
+    </>
+  )
+}
+
 export function RequestTurn({
   summary,
   dashboardTitle,
   loadSteps,
   onRetried,
+  buildOnScreen = false,
+  opensRunsIn = "chat",
 }: Props) {
-  const queryClient = useQueryClient()
+  const { principal } = useRouteContext({ from: "/_authed" })
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const investigates = summary.source === "investigate"
   const query = useQuery({
     ...observeRequestQuery(summary.id),
-    enabled: isActive(summary.status) || loadSteps || detailsOpen,
+    enabled:
+      isActive(summary.status) ||
+      loadSteps ||
+      detailsOpen ||
+      mayHaveFinding(summary),
   })
   const live = query.data
   const settled = !isActive(summary.status)
-  const request: TurnSummary =
-    live !== undefined && !(settled && !isTerminal(live)) ? live : summary
+  const showLive = live !== undefined && !(settled && !isTerminal(live))
+  const request: TurnSummary = showLive ? live : summary
+  const detail = showLive ? live : undefined
+  const build = request.build
+  const answers = mayHaveFinding(request)
+  const openNewRun = useOpenNewRun(request, onRetried, opensRunsIn)
+  const isRequester = request.requested_by.id === principal.id
   const active = isActive(request.status)
   const stalled = active && stopsPolling(query.error)
   const pollFailures = usePollFailures(summary.id)
   const reconnecting =
     active && !stalled && pollFailures >= reconnectingAfterFailures
   const steps = live?.steps ?? []
+  const savedBuild =
+    request.status === "failed" && request.build_saved_at !== null
+  const inPane = opensRunsIn === "build"
 
-  const wasActive = useRef(active)
-  const dashboardId = request.dashboard_id
-  const status = request.status
-  useEffect(() => {
-    if (wasActive.current && !active) {
-      if (status === "succeeded") {
-        void queryClient.invalidateQueries({ queryKey: dashboardKeys.list() })
-      }
-      if (dashboardId !== null) {
-        void queryClient.invalidateQueries({
-          queryKey: dashboardKeys.revisions(dashboardId),
-        })
-        void queryClient.invalidateQueries({
-          queryKey: dashboardKeys.latest(dashboardId),
-        })
-      }
-    }
-    wasActive.current = active
-  }, [active, status, dashboardId, queryClient])
+  useSettledRefresh({
+    active,
+    status: request.status,
+    dashboardId: request.dashboard_id,
+  })
 
   return (
     <section
@@ -112,6 +158,7 @@ export function RequestTurn({
     >
       <div className="flex flex-col gap-1.5">
         <Sender summary={request} />
+        <ContinuedFrom summary={request} />
         <div className="max-w-[80%] self-end rounded-xl border px-3.5 py-2.5 text-sm wrap-anywhere whitespace-pre-wrap">
           {request.prompt}
         </div>
@@ -121,19 +168,51 @@ export function RequestTurn({
         <div className="flex min-w-0 flex-1 flex-col gap-3 pt-[3px]">
           {active ? (
             <div className="flex flex-col gap-2.5">
-              <span className="flex items-center gap-2 text-[13px]">
-                <StatusIcon tone="running" />
-                {dashboardTitle !== undefined
-                  ? `Revising ${dashboardTitle}`
-                  : request.dashboard_id !== null
-                    ? "Revising the dashboard"
-                    : "Building the dashboard"}
-              </span>
-              <StepList
+              {build !== null && !investigates ? (
+                <BuildCard
+                  request={detail ?? request}
+                  build={build}
+                  isRequester={isRequester}
+                  onContinued={(next) => void openNewRun(next)}
+                  compact={buildOnScreen}
+                />
+              ) : (
+                <span className="flex items-center gap-2 text-[13px]">
+                  <StatusIcon tone="running" />
+                  {detail !== undefined &&
+                  (detail.queue_position !== null ||
+                    detail.cancel_requested_at !== null)
+                    ? buildStatusText({
+                        status: detail.status,
+                        build: null,
+                        failureCode: detail.failure_code,
+                        queuePosition: detail.queue_position,
+                        canceling: detail.cancel_requested_at !== null,
+                      })
+                    : investigates
+                      ? "Investigating"
+                      : dashboardTitle !== undefined
+                        ? `Revising ${dashboardTitle}`
+                        : request.dashboard_id !== null
+                          ? "Revising the dashboard"
+                          : "Building the dashboard"}
+                </span>
+              )}
+              {detail?.can_cancel ? (
+                <div className="self-start">
+                  <CancelRequestButton request={detail} />
+                </div>
+              ) : null}
+              <StepTimeline
                 steps={steps}
-                working={!stalled}
+                working={showsWorkingRow(request, stalled)}
                 reconnecting={reconnecting}
+                requestId={summary.id}
+                pane={inPane}
               />
+              {request.status === "running" ? (
+                <RunningFor startedAt={request.started_at} />
+              ) : null}
               {stalled ? (
                 <Stalled
                   message={query.error?.message ?? ""}
@@ -147,14 +226,21 @@ export function RequestTurn({
               onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
             >
               <summary className="cursor-pointer text-[13px] text-muted-foreground">
-                {live === undefined ? "Show steps" : stepSummary(live.steps)}
+                {live === undefined
+                  ? "Show steps"
+                  : stepSummary(
+                      live.steps,
+                      tookText(request.started_at, request.finished_at)
+                    )}
               </summary>
-              <div className="pt-2.5 pl-0.5">
+              <div className="flex flex-col gap-2.5 pt-2.5 pl-0.5">
                 {live !== undefined ? (
-                  <StepList
+                  <StepTimeline
                     steps={steps}
                     working={false}
                     reconnecting={false}
+                    requestId={summary.id}
+                    pane={inPane}
                   />
                 ) : query.isError ? (
                   <div className="flex flex-wrap items-center gap-3 text-[13px] text-muted-foreground">
@@ -174,32 +260,49 @@ export function RequestTurn({
               </div>
             </details>
           )}
-          {request.status === "succeeded" &&
+          {savedBuild ? (
+            <p className="text-[13px]">
+              You saved what was built as version {request.result_version}.
+            </p>
+          ) : null}
+          {answers && request.status === "succeeded" ? (
+            live?.finding != null ? (
+              <FindingCard finding={live.finding} showOpenLink />
+            ) : live !== undefined ? (
+              <p className="text-[13px] text-muted-foreground">
+                {investigates
+                  ? "The run finished without a finding."
+                  : "The request finished without a dashboard."}
+              </p>
+            ) : null
+          ) : null}
+          {!answers &&
+          (request.status === "succeeded" || savedBuild) &&
           request.result_version !== null &&
           request.dashboard_id !== null ? (
             <ResultCard
               dashboardId={request.dashboard_id}
               version={request.result_version}
-              finishedAt={request.finished_at}
+              finishedAt={resultFinishedAt(request)}
               eager={loadSteps}
             />
           ) : null}
-          {request.status === "succeeded" &&
-          (request.result_version === null || request.dashboard_id === null) ? (
-            <p className="text-[13px] text-muted-foreground">
-              The request finished without a dashboard.
-            </p>
+          {request.status === "failed" && !savedBuild ? (
+            <TurnFailure
+              request={request}
+              onRetried={onRetried}
+              opensRunsIn={opensRunsIn}
+            />
           ) : null}
-          {request.status === "failed" ? (
-            <TurnFailure request={request} onRetried={onRetried} />
+          {request.status === "failed" && !savedBuild && build !== null ? (
+            <BuildCard
+              request={request}
+              build={build}
+              isRequester={isRequester}
+              onContinued={(next) => void openNewRun(next)}
+              compact={buildOnScreen}
+            />
           ) : null}
-          <Link
-            to="/observe/$requestId"
-            params={{ requestId: summary.id }}
-            className="self-start rounded-control text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Request {shortRequestId(summary.id)}
-          </Link>
         </div>
       </div>
     </section>

@@ -16,7 +16,7 @@ if [ "${PROMETHEUS_BACKFILL:-1}" = "1" ] && [ ! -f /prometheus/.backfilled ]; th
     rm -f /prometheus/backfill-end
   fi
   lead=20
-  # must stay below maxStartLead in demo/shop/internal/loadgen/loadgen.go, or the load generator starts at once and double counts; loadgen_test.go checks it
+  # must stay below maxStartLead in demo/internal/loadgen/loadgen.go, or the load generator starts at once and double counts; loadgen_test.go checks it
   max_lead=55
   budget=90
   tries=0

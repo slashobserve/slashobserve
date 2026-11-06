@@ -131,8 +131,9 @@ func newUpstream(t *testing.T, allow Allowlist, mux *http.ServeMux) (*upstream, 
 	dial := func(ctx context.Context, network, _ string) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, network, addr)
 	}
-	c := newClient(allow, Options{UserAgent: "TestAgent/1"}, dial, pool)
+	c := newClient(allow, Options{UserAgent: "TestAgent/1"}, dial, dial, pool)
 	t.Cleanup(c.transport.CloseIdleConnections)
+	t.Cleanup(c.private.CloseIdleConnections)
 	return up, c
 }
 
@@ -391,7 +392,7 @@ func TestCacheBytesBoundsWhatTheClientRemembers(t *testing.T) {
 		hits.Add(1)
 		return (&net.Dialer{}).DialContext(ctx, network, server.Listener.Addr().String())
 	}
-	c := newClient(newAllow(t, "feed.test"), Options{CacheBytes: 500}, dial, pool)
+	c := newClient(newAllow(t, "feed.test"), Options{CacheBytes: 500}, dial, dial, pool)
 	t.Cleanup(c.transport.CloseIdleConnections)
 	c.transport.DisableKeepAlives = true
 
@@ -494,7 +495,7 @@ func TestBlockedAddressIsReportedAndCached(t *testing.T) {
 		dials.Add(1)
 		return nil, &net.OpError{Op: "dial", Err: refuseBlocked("tcp", "10.0.0.5:443", nil)}
 	}
-	c := newClient(allow, Options{}, dial, nil)
+	c := newClient(allow, Options{}, dial, dial, nil)
 	req := Request{URL: fetchURL("feed.test", "/feed"), Accept: rssTypes}
 	for i := 0; i < 2; i++ {
 		_, err := c.Fetch(context.Background(), req)
@@ -515,7 +516,7 @@ func TestFailureCacheIsBoundedByKeySize(t *testing.T) {
 		dials.Add(1)
 		return nil, &net.OpError{Op: "dial", Err: refuseBlocked("tcp", "10.0.0.5:443", nil)}
 	}
-	c := newClient(allow, Options{}, dial, nil)
+	c := newClient(allow, Options{}, dial, dial, nil)
 	pad := strings.Repeat("x", 1500)
 	fetch := func(n int) {
 		req := Request{URL: fetchURL("feed.test", "/"+pad+strconv.Itoa(n)), Accept: rssTypes}
@@ -600,7 +601,7 @@ func TestUnreachableHostIsUnavailable(t *testing.T) {
 	dial := func(context.Context, string, string) (net.Conn, error) {
 		return nil, errors.New("connect: refused for https://feed.test/secret?token=abc")
 	}
-	c := newClient(newAllow(t, "feed.test"), Options{}, dial, nil)
+	c := newClient(newAllow(t, "feed.test"), Options{}, dial, dial, nil)
 	_, err := c.Fetch(context.Background(), Request{URL: fetchURL("feed.test", "/secret?token=abc"), Accept: rssTypes})
 	if !errors.Is(err, ErrUnavailable) || strings.Contains(err.Error(), "token") {
 		t.Fatalf("error = %v", err)

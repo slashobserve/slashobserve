@@ -1,17 +1,22 @@
 import { createDashboard, loadSpec, mutationHeaders, uniqueTitle } from "./api"
+import { holdRequestPollsUntilFinished } from "./builds"
 import { expectPanelsReady } from "./dashboards"
-import { expect, test } from "./fixtures"
+import { expect, test, type Page } from "./fixtures"
 
 const redPrompt = "demo shop RED metrics by endpoint"
 const followUpPrompt = "add a requests by pod panel"
 const draftPrompt = "an unsent draft"
 const neverSavesPrompt = "e2e: a slow run that never saves"
 const unanswerablePrompt = "e2e: a follow-up the replay provider cannot answer"
-const requestPath = /\/observe\/([0-9a-f-]{36})$/
-const dashboardPath = /\/dashboards\/([0-9a-f-]{36})/
-const requestApi = /\/api\/v1\/observe\/[0-9a-f-]{36}$/
+const requestPath = /\/c\/([0-9a-f-]{36})$/
+const buildPath = /\/b\/([0-9a-f-]{36})$/
+const dashboardPath = /\/d\/([0-9a-f-]{36})/
 const revisionsApi = /\/api\/v1\/dashboards\/[0-9a-f-]{36}\/revisions$/
 const openLink = { name: "Open dashboard", exact: true }
+
+function chatPane(page: Page) {
+  return page.getByRole("complementary", { name: "Chat" })
+}
 
 type ObserveBody = {
   request: {
@@ -22,36 +27,37 @@ type ObserveBody = {
 }
 
 test("creates a dashboard from a prompt", async ({ page }) => {
-  let openGate!: () => void
-  const gate = new Promise<void>((resolve) => (openGate = resolve))
-  await page.route(requestApi, async (route) => {
-    await gate
-    await route.continue()
-  })
+  const release = await holdRequestPollsUntilFinished(page)
 
   await page.goto("/")
   const promptBar = page.getByRole("textbox", { name: "Message the agent" })
   await promptBar.fill(redPrompt)
   await promptBar.press("Enter")
 
-  await expect(page).toHaveURL(requestPath)
-  const conversationUrl = page.url()
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(redPrompt)
+  await expect(page).toHaveURL(buildPath)
+  const requestId = buildPath.exec(page.url())?.[1] ?? ""
+  const chat = chatPane(page)
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "New dashboard"
+  )
+  await expect(chat.getByText(redPrompt, { exact: true })).toBeVisible()
+  await expect(chat.getByText("Queued, position 1")).toBeVisible()
   await expect(
-    page.getByRole("list", { name: "Progress" }).getByText("Working")
-  ).toBeVisible()
-  openGate()
+    chat.getByRole("list", { name: "Progress" }).getByText("Working")
+  ).toHaveCount(0)
+  await release(requestId)
 
-  const open = page.getByRole("link", openLink)
-  await expect(open).toBeVisible({ timeout: 90_000 })
-  await expect(open).not.toHaveAttribute("target")
-  await expect(page.getByText("Saved as version 1")).toBeVisible()
-  await expect(page).toHaveURL(conversationUrl)
-
-  await open.click()
-  await expect(page).toHaveURL(dashboardPath)
+  await expect(page).toHaveURL(dashboardPath, { timeout: 90_000 })
   await expectPanelsReady(page)
   await expect(page.getByRole("alert")).toHaveCount(0)
+
+  await page.goto(`/c/${requestId}`)
+  const open = page.getByRole("link", openLink)
+  await expect(open).toBeVisible()
+  await expect(open).not.toHaveAttribute("target")
+  await expect(page.getByText("Saved as version 1")).toBeVisible()
+  await open.click()
+  await expect(page).toHaveURL(dashboardPath)
 
   await page.goto("/")
   await expect(
@@ -88,8 +94,8 @@ test("records the repair step and reopens finished requests", async ({
   expect(JSON.stringify(finished?.steps)).toContain('"phase":"repair"')
   expect(finished?.dashboard_id).not.toBeNull()
 
-  await page.goto(`/observe/${request.id}`)
-  await expect(page).toHaveURL(new RegExp(`/observe/${request.id}$`))
+  await page.goto(`/c/${request.id}`)
+  await expect(page).toHaveURL(new RegExp(`/c/${request.id}$`))
   const summary = page
     .locator("summary")
     .filter({ hasText: /repaired 1 query/ })
@@ -106,28 +112,25 @@ test("explains a failed request", async ({ page }) => {
   await promptBar.fill(neverSavesPrompt)
   await page.getByRole("button", { name: "Send" }).click()
 
-  await expect(page).toHaveURL(requestPath)
-  const alert = page.getByRole("alert")
+  await expect(page).toHaveURL(buildPath)
+  const chat = chatPane(page)
+  const alert = chat.getByRole("alert")
   await expect(alert).toContainText("without saving", { timeout: 90_000 })
   await expect(alert.getByRole("button", { name: "Try again" })).toBeVisible()
-  await page
+  await chat
     .locator("summary")
     .filter({ hasText: /^Ran \d+ steps?/ })
     .click()
   await expect(
-    page.getByRole("list", { name: "Progress" }).getByText("Running queries")
+    chat.getByRole("list", { name: "Progress" }).getByText("Running queries")
   ).not.toHaveCount(0)
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    neverSavesPrompt
-  )
+  await expect(chat.getByText(neverSavesPrompt, { exact: true })).toBeVisible()
 
   const failedUrl = page.url()
   await alert.getByRole("button", { name: "Try again" }).click()
   await expect(page).not.toHaveURL(failedUrl)
-  await expect(page).toHaveURL(requestPath)
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    neverSavesPrompt
-  )
+  await expect(page).toHaveURL(buildPath)
+  await expect(chat.getByText(neverSavesPrompt, { exact: true })).toBeVisible()
   await expect(alert).toContainText("without saving", { timeout: 90_000 })
 })
 
@@ -143,17 +146,20 @@ test("retries a failed follow-up on the same dashboard", async ({ page }) => {
   expect(queued.status()).toBe(202)
   const { request } = (await queued.json()) as { request: { id: string } }
 
-  await page.goto(`/observe/${request.id}`)
+  await page.goto(`/c/${request.id}`)
   const alerts = page.getByRole("alert")
   await expect(alerts).toContainText("no replay fixture", { timeout: 30_000 })
   await expect(alerts).toContainText("could not be updated")
   const open = alerts.getByRole("link", openLink)
-  await expect(open).toHaveAttribute("href", `/dashboards/${dashboardId}`)
+  await expect(open).toHaveAttribute(
+    "href",
+    new RegExp(`^/d/${dashboardId}(/[a-z0-9-]+)?$`)
+  )
   await expect(open).not.toHaveAttribute("target")
   await alerts.getByRole("button", { name: "Try again" }).click()
 
   await expect(alerts).toHaveCount(2, { timeout: 30_000 })
-  await expect(page).toHaveURL(new RegExp(`/observe/${request.id}$`))
+  await expect(page).toHaveURL(new RegExp(`/c/${request.id}$`))
   await expect(alerts.last()).toContainText("no replay fixture", {
     timeout: 30_000,
   })
@@ -198,16 +204,30 @@ test("links a failed comment revision back to its dashboard", async ({
   }
   expect(comment.revision).not.toBeNull()
 
-  await page.goto(`/observe/${comment.revision?.id}`)
+  await page.goto(`/c/${comment.revision?.id}`)
   const alert = page.getByRole("alert")
   await expect(alert).toContainText("no replay fixture", { timeout: 30_000 })
   await expect(alert.getByRole("button", { name: "Try again" })).toHaveCount(0)
   const open = alert.getByRole("link", openLink)
-  await expect(open).toHaveAttribute("href", `/dashboards/${dashboardId}`)
+  await expect(open).toHaveAttribute(
+    "href",
+    new RegExp(`^/d/${dashboardId}(/[a-z0-9-]+)?$`)
+  )
   await expect(open).not.toHaveAttribute("target")
 })
 
 test("follows up in the same chat", async ({ page }) => {
+  const release = await holdRequestPollsUntilFinished(page)
+  await page.goto("/")
+  const promptBar = page.getByRole("textbox", { name: "Message the agent" })
+  await promptBar.fill(redPrompt)
+  await promptBar.press("Enter")
+
+  await expect(page).toHaveURL(buildPath)
+  const requestId = buildPath.exec(page.url())?.[1] ?? ""
+  await release(requestId)
+  await expect(page).toHaveURL(dashboardPath, { timeout: 90_000 })
+
   let openRevisions!: () => void
   const revisionsGate = new Promise<void>(
     (resolve) => (openRevisions = resolve)
@@ -216,12 +236,7 @@ test("follows up in the same chat", async ({ page }) => {
     await revisionsGate
     await route.continue()
   })
-
-  await page.goto("/")
-  const promptBar = page.getByRole("textbox", { name: "Message the agent" })
-  await promptBar.fill(redPrompt)
-  await promptBar.press("Enter")
-
+  await page.goto(`/c/${requestId}`)
   await expect(page).toHaveURL(requestPath)
   const conversationUrl = page.url()
   await expect(promptBar).toBeEnabled({ timeout: 90_000 })
@@ -263,12 +278,7 @@ test.describe("touch device", () => {
   test("keeps Enter for new lines and submits with the button", async ({
     page,
   }) => {
-    let openGate!: () => void
-    const gate = new Promise<void>((resolve) => (openGate = resolve))
-    await page.route(requestApi, async (route) => {
-      await gate
-      await route.continue()
-    })
+    const release = await holdRequestPollsUntilFinished(page)
 
     await page.goto("/")
     const promptBar = page.getByRole("textbox", { name: "Message the agent" })
@@ -282,12 +292,14 @@ test.describe("touch device", () => {
     await expect(page).toHaveURL(/\/$/)
 
     await page.getByRole("button", { name: "Send" }).click()
-    await expect(page).toHaveURL(requestPath)
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(redPrompt)
-    openGate()
+    await expect(page).toHaveURL(buildPath)
+    const requestId = buildPath.exec(page.url())?.[1] ?? ""
+    await expect(
+      chatPane(page).getByText(redPrompt, { exact: true })
+    ).toBeVisible()
+    await release(requestId)
 
-    await expect(page.getByRole("link", openLink)).toBeVisible({
-      timeout: 90_000,
-    })
+    await expect(page).toHaveURL(dashboardPath, { timeout: 90_000 })
+    await expectPanelsReady(page)
   })
 })

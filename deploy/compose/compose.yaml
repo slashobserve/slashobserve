@@ -70,6 +70,7 @@ services:
     environment:
       SLASHOBSERVE_DATABASE_URL: postgres://slashobserve:slashobserve@postgres:5432/slashobserve?sslmode=disable
       SLASHOBSERVE_LOG_LEVEL: ${SLASHOBSERVE_LOG_LEVEL:-info}
+      SLASHOBSERVE_LOG_FORMAT: ${SLASHOBSERVE_LOG_FORMAT:-json}
       SLASHOBSERVE_PUBLIC_URL: http://localhost:${SLASHOBSERVE_HOST_PORT:-8080}
       SLASHOBSERVE_OIDC_ISSUER_URL: http://localhost:${SLASHOBSERVE_DEX_HOST_PORT:-5556}/dex
       SLASHOBSERVE_OIDC_INTERNAL_URL: http://dex:5556
@@ -85,13 +86,22 @@ services:
       SLASHOBSERVE_LLM_MODEL: ${SLASHOBSERVE_LLM_MODEL:-}
       SLASHOBSERVE_LLM_API_KEY: ${SLASHOBSERVE_LLM_API_KEY:-}
       SLASHOBSERVE_LLM_BASE_URL: ${SLASHOBSERVE_LLM_BASE_URL:-}
+      SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS: ${SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS:-}
       SLASHOBSERVE_LLM_REPLAY_DIR: /etc/slashobserve/llm-fixtures
+      SLASHOBSERVE_PROVISION_DIR: /provision
+      SLASHOBSERVE_SECRET_KEY: ${SLASHOBSERVE_SECRET_KEY:-6d1f0c3b9a8e4d7c2b5a6f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c}
+      SLASHOBSERVE_SERVICE_ACCOUNTS_FILE: ${SLASHOBSERVE_SERVICE_ACCOUNTS_FILE-/etc/slashobserve/service-accounts.yaml}
     volumes:
       - ${SLASHOBSERVE_DATASOURCES_HOST_FILE:-./datasources.yaml}:/etc/slashobserve/datasources.yaml:ro
       - ../../e2e/fixtures/llm:/etc/slashobserve/llm-fixtures:ro
+      - ./dashboards:/provision:ro
+      - ./service-accounts.yaml:/etc/slashobserve/service-accounts.yaml:ro
+      - demo-keys:/demo-keys:ro
     ports:
       - "127.0.0.1:${SLASHOBSERVE_HOST_PORT:-8080}:8080"
     depends_on:
+      demo-keys:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       dex:
@@ -111,6 +121,7 @@ services:
     environment:
       COMPOSE_PROJECT: ${COMPOSE_PROJECT_NAME}
       PROMETHEUS_BACKFILL: ${SLASHOBSERVE_PROMETHEUS_BACKFILL:-1}
+      LOADGEN_CURVE: ${SLASHOBSERVE_LOADGEN_CURVE:-daily}
     volumes:
       - ./prometheus:/etc/prometheus:ro
       - prometheus-data:/prometheus
@@ -195,6 +206,38 @@ services:
         limits:
           memory: 1G
 
+  loki:
+    image: grafana/loki:3.7.9@sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28
+    command: ["-config.file=/etc/loki/slashobserve.yaml"]
+    volumes:
+      - ./loki/config.yaml:/etc/loki/slashobserve.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "127.0.0.1:${SLASHOBSERVE_LOKI_HOST_PORT:-3100}:3100"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  tempo:
+    image: grafana/tempo:3.1.1@sha256:64e2fbd56d9c2b3412a4b430a58ea59e91a670b1e75f920a0c702213ad145044
+    command: ["-config.file=/etc/tempo/slashobserve.yaml"]
+    volumes:
+      - ./tempo/config.yaml:/etc/tempo/slashobserve.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "127.0.0.1:${SLASHOBSERVE_TEMPO_HOST_PORT:-3200}:3200"
+    healthcheck:
+      test: ["CMD", "/tempo", "-health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.161.0@sha256:fd328de2552466ad78385e1b1289c3f2402b1c45f265b252aab1955b42845ac1
     environment:
@@ -205,11 +248,15 @@ services:
     depends_on:
       clickhouse:
         condition: service_healthy
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
     restart: unless-stopped
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 512M
 
   frontend-0:
     <<: *shop-server
@@ -225,6 +272,7 @@ services:
       SHOP_SERVICE: checkout
       SHOP_POD: checkout-0
       SHOP_PAYMENTS_URL: http://payments-0:8080
+      SHOP_QUEUE_WORKERS: "4"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     ports:
       - "127.0.0.1:${SLASHOBSERVE_SHOP_HOST_PORT:-8081}:8080"
@@ -235,6 +283,7 @@ services:
       SHOP_SERVICE: checkout
       SHOP_POD: checkout-1
       SHOP_PAYMENTS_URL: http://payments-0:8080
+      SHOP_QUEUE_WORKERS: "4"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
 
   payments-0:
@@ -244,6 +293,15 @@ services:
       SHOP_POD: payments-0
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
 
+  demo-keys:
+    <<: *shop
+    # The distroless image owns /home/nonroot, so a new volume mounted there is writable by its nonroot user.
+    command: [keygen, /home/nonroot/loadgen.key]
+    restart: "no"
+    depends_on: {}
+    volumes:
+      - demo-keys:/home/nonroot
+
   loadgen:
     <<: *shop
     command: [loadgen]
@@ -251,7 +309,10 @@ services:
       LOADGEN_TARGET: http://frontend-0:8080
       LOADGEN_RPS: "20"
       LOADGEN_SEED: "42"
+      LOADGEN_CURVE: ${SLASHOBSERVE_LOADGEN_CURVE:-daily}
       LOADGEN_START_FILE: /prometheus/backfill-end
+      LOADGEN_OBSERVE_URL: ${SLASHOBSERVE_DEMO_MARKERS_URL-http://server:8080}
+      LOADGEN_OBSERVE_TOKEN_FILE: /demo-keys/loadgen.key
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     depends_on:
       frontend-0:
@@ -260,6 +321,7 @@ services:
         condition: service_started
     volumes:
       - prometheus-data:/prometheus:ro
+      - demo-keys:/demo-keys:ro
     deploy:
       resources:
         limits:
@@ -267,6 +329,9 @@ services:
           cpus: "0.5"
 
 volumes:
+  demo-keys:
   postgres-data:
   prometheus-data:
   clickhouse-data:
+  loki-data:
+  tempo-data:

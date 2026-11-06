@@ -18,9 +18,9 @@ Three choices in the format follow from how dashboards are used here:
   A document holds no URL, address or credential for a datasource.
 - Every panel has a string `id` that stays the same across versions.
   [Comments](versions.md#comments) anchor to it, and the diff between two versions names the panels that changed.
-- The agent and MCP clients write a whole document in one call.
-  The agent reads the JSON Schema and an authoring guide first, and an MCP client gets both from `get_spec_guide`.
-  The agent cannot revise a dashboard whose compact JSON is over 128 KiB, and the server refuses any document over 1 MiB.
+- The agent and MCP clients write a whole document with `update_dashboard`, or only the panels that changed with `update_panels`.
+  The agent starts with an authoring guide and reads the JSON Schema with `get_spec_guide`, and an MCP client gets both from the same tool.
+  The agent sees a dashboard over 16 KiB as an outline, and the server refuses any document over 1 MiB.
 
 A Grafana dashboard is not stored as is.
 The importer converts it into this format and keeps a `placeholder` panel for each panel it cannot convert yet (see [Import Grafana dashboards](../use/import-grafana.md)).
@@ -141,6 +141,12 @@ An `id` starts with a letter, continues with letters, digits, `_` or `-`, is at 
 
 `gridPos` places a panel on a grid 24 columns wide with `x`, `y`, `w` and `h`.
 `x + w` cannot exceed 24, and panels cannot overlap.
+The web app draws every panel at its saved `gridPos` when the screen is wide enough for it.
+When a panel would be narrower than its type reads well at, about 160 pixels for a stat, 180 for a gauge, 240 for a chart and 300 for a table, the panels beside it wrap onto more lines and widen to fill the grid; below 768 pixels every panel takes the full width.
+This changes only what you see: the saved `gridPos` stays as it is, and the layout editor always shows it.
+A panel with `responsive: false` keeps its saved size at every width down to the single-column view; it may move to another line when a panel beside it wraps, but it is never widened.
+A save that changes an existing panel's width or height sets `responsive: false`, whether the change comes from the layout editor, the panel editor, the agent, MCP or the CLI; a new panel, an import and a restored version keep what they carry.
+The panel menu's **Keep this size** sets it, and **Make responsive** removes it.
 
 A data panel also has a `title`, a `datasource` and `queries`.
 Its `type` is one of `timeseries`, `stat`, `gauge`, `bargauge`, `table`, `piechart`, `heatmap`, `histogram`, `state-timeline`, `logs`, `barchart`, `status-history`, `trend`, `xychart`, `candlestick`, `nodeGraph`, `traces`, `flamegraph`, `geomap`, `canvas` or `alertlist`.
@@ -222,11 +228,14 @@ Its legend takes `legend` (`bottom`, `right` or `hidden`), `legendMode` (`list` 
 Its tooltip takes `tooltip` (`single`, `all` or `hidden`), `tooltipSort` (`none`, `asc` or `desc`), `tooltipHideZeros`, `tooltipMaxWidth` and `tooltipMaxHeight`.
 `sort` orders the slices by value: `desc` (largest first, the default), `asc` or `none` (the order of the data); the legend keeps the order of the data.
 A `gauge` panel's `thresholdLabels: true` writes the value of each threshold, formatted with the field's unit, along the arc.
+A gauge narrower than 120 pixels leaves those labels out, and one narrower than 160 pixels shortens its value to at most six characters, first with fewer decimals and then, for a number without a unit, with a K, Mil or Bil scale; a mapped text, the no-value text and a value that would round to zero stay as they are.
 A `bargauge` panel draws its bars as `barStyle` `basic` (a filled track) or `lcd` (equal cells lit up to the value).
 Its `valueMode` is `color` or `text`, which both draw the value in the foreground color with the threshold icon and word beside it, or `hidden`, which leaves the value out and keeps the threshold icon and word.
 Its `namePlacement` is `auto` (the name over a horizontal bar and under a vertical one), `top` (over both), `left` (in front of a horizontal bar) or `hidden`, and `showUnfilled: false` leaves out the unfilled part of the track.
 `minWidth` and `minHeight` keep each gauge or bar at least that many pixels (1 to 2000), the panel scrolls when they do not fit, and a bar gauge's `maxHeight` caps the height of a horizontal bar.
 `titleSize` and `valueSize` set the size in pixels (1 to 200) of the name and the value text of a gauge or a bar gauge.
+A `barchart` panel takes its categories from the first text field, else the time field, unless `xField` names one.
+When every frame holds one row, as an instant query returns, and `xField` is absent, each frame is one category, named by its text field or else by its series label (see [Queries and datasources](#queries-and-datasources)), and the bars of one number field form one series.
 A `logs` panel shows its lines newest first (`order`), with `wrap` and `showTime` off, and has more optional `display` keys.
 `showLabels: true` writes each line's unique labels after the time, and `showCommonLabels: true` writes the labels shared by every line once above the list; with one series every label is common.
 `details: false` turns off expanding a line, and `detailsMode: sidebar` shows the fields of the chosen line in a column beside the list instead of under the line.
@@ -318,12 +327,17 @@ A query has the text in `query` and, optionally:
 - `exemplar`, on a Prometheus range query, to also fetch its exemplars, which a time series and a heatmap draw.
 - `hide`, to keep the query out of the panel's data.
 
+A Prometheus series without a `legend` is named like `up{job="api", pod="checkout-0"}`, and overrides, `fillBelowTo` and Grafana imports match that name.
+Legend rows, tooltip rows and the categories of an instant bar chart show a shorter label instead when the panel has more than one series: the values of the labels that differ between its series, joined by a space in the label order of the first series, with the metric name first only when it differs, and `<no label>` for a series that has none of them.
+Two series of different queries that end up with the same label show their query ref before it.
+
 The query language follows the datasource: PromQL for Prometheus and a single SQL `SELECT` for ClickHouse.
 `$name`, `${name}` and `${name:format}` insert the value of a variable.
 Macros such as `$__rate_interval` for Prometheus and `$__timeFilter(Timestamp)` for ClickHouse expand when the query runs, from the time range and step of the request.
 On ClickHouse, `$__conditionalAll(condition, $variable)` writes `(condition)`, or `1=1` when the variable selects All.
 `$__conditionalAll(condition, otherwise, $variable)` writes `(otherwise)` instead of `1=1` when the variable selects All, and the otherwise condition cannot use that variable.
 A datasource is a uid from the datasources file or `${name}`, naming a datasource variable.
+When the panels of a dashboard read more than one datasource, each panel header names the datasources that panel reads; on a dashboard that reads one, no header names it.
 An `adhoc` variable filters Prometheus queries automatically, and filters ClickHouse queries that leave out `$name` only when it sets `applyToAll`.
 An `adhoc` variable's `default` and `baseFilters` are lists of up to 20 filters, each a `key`, an `operator` (`=`, `!=`, `=~` and `!~`, plus `<` and `>` on ClickHouse, which compare as numbers when both sides are plain numbers and as text otherwise), a `value`, an optional `condition` (`and`, the default, or `or`, ClickHouse only), and the chip texts `keyLabel` and `valueLabel`, which change what is shown and never what is filtered or put in the URL.
 Filters combine left to right and `or` starts a new group, so `a, b, or c` means `(a AND b) OR c`.
@@ -416,6 +430,7 @@ Time series and trend panels draw every `colorMode`, while stat, gauge, bar gaug
 Only `timeseries`, `trend` and `candlestick` panels draw the line style and axis options, so other panel types ignore them and a Grafana import reports them there.
 Thresholds ascend, and the first step may leave out `value` to act as the base color.
 A color is `ok`, `info`, `warning`, `critical`, `text` (the theme's text color, which follows the light and dark themes) or a `#rrggbb` hex value.
+Beside a stat, gauge or bar gauge value, a step colored `ok`, `info`, `warning` or `critical` is named by that word, and a step with any other color by its value in the field's unit, such as `80%`.
 A unit is any Grafana unit id such as `reqps`, `s`, `bytes`, `percentunit` or `radbq`, or custom `suffix:`, `prefix:`, `time:`, `si:`, `count:` or `currency:` text.
 The text after `time:` is a date format, `si:` a symbol that scales by 1000 with SI prefixes (`si:mF` starts at milli), `count:` text after a K, Mil or Bil scaled number, and `currency:` a symbol before a scaled number.
 The agent prompt lists only the common ids and `suffix:` and `prefix:`, but a Spec may use any of them.
@@ -489,6 +504,6 @@ The body lists every problem in `issues`, each with a path into the document, a 
 
 The schema is `spec/schema/observespec.v0.json` in the repository.
 Its `$id` is `https://slashobserve.com/schemas/observespec.v0.json`, and the documentation site publishes it at that address, so editors and validators can fetch it there.
-The `get_spec_guide` MCP tool returns the authoring guide, the schema and an example for a model that has not seen them (see [MCP](../use/mcp.md)).
+Over MCP, `get_spec_guide` returns the authoring guide, the schema and an example for a model that has not seen them (see [MCP](../use/mcp.md)); inside an agent run it returns only the schema.
 
 A document cannot carry a `$schema` field, because the schema refuses unknown fields.

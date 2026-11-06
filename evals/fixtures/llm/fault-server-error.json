@@ -1,0 +1,46 @@
+{
+  "prompt": "eval fault: the provider answers the first model call with a server error",
+  "turns": [
+    {
+      "fault": {
+        "kind": "server_error"
+      },
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Create the request rate by route dashboard",
+            "spec": {
+              "specVersion": "0",
+              "title": "Request rate by route",
+              "time": {
+                "from": "now-15m",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "req_rate",
+                  "type": "timeseries",
+                  "title": "Request rate by route",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 8
+                  },
+                  "datasource": "prom",
+                  "queries": [
+                    {
+                      "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))"
+                    }
+                  ],
+                  "unit": "reqps"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

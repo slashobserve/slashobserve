@@ -54,7 +54,7 @@ test("shows a new version without reload", async ({ page, request }) => {
     hasText: "Updated to version 2",
   })
   await expect(toast).toContainText("Rename from API")
-  expect(page.url()).toBe(url)
+  await expect(page).toHaveURL(`${url}-v2`)
   expect(
     await page.evaluate(
       () => (window as unknown as { liveMarker?: boolean }).liveMarker
@@ -288,7 +288,7 @@ test("shows not found when the stream keeps failing because the dashboard is gon
     })
   })
 
-  await page.goto(`/dashboards/${id}`)
+  await page.goto(`/d/${id}`)
   await expect(
     page.getByRole("heading", { name: "Dashboard not found" })
   ).toBeVisible({ timeout: 20_000 })

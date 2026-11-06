@@ -65,7 +65,7 @@ export function SourceCard({
           value={draft}
           aria-label="Grafana dashboard JSON"
           placeholder='{ "title": ... }'
-          className="font-mono text-xs"
+          className="field-sizing-fixed max-h-80 overflow-auto font-mono text-xs"
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Escape") {

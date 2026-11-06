@@ -5,13 +5,26 @@ import { ArrowRightIcon } from "lucide-react"
 import { AgentMark } from "@/components/agent-mark"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { lowerFirst } from "@/lib/text"
 import { cn } from "@/lib/utils"
 import { sentence } from "@/observe/queries"
 
 import { initialOf } from "./initial"
 
-type EntryAvatar = { kind: "person"; name: string } | { kind: "agent" }
+type EntryAvatar =
+  | { kind: "person"; name: string }
+  | { kind: "service"; name: string }
+  | { kind: "agent" }
+
+export function avatarFor(author: {
+  kind: "user" | "service_account"
+  name: string
+}): EntryAvatar {
+  return author.kind === "service_account"
+    ? { kind: "service", name: author.name }
+    : { kind: "person", name: author.name }
+}
 
 type Props = {
   avatar: EntryAvatar
@@ -23,7 +36,16 @@ type Props = {
   children?: ReactNode
 }
 
-export const boxClass = "rounded-[8px] border px-[11px] py-[9px] text-[13px]"
+export const boxClass = "rounded-control border px-2.5 py-2 text-[13px]"
+
+export const panelLinkClass =
+  "rounded-sm text-left font-medium wrap-anywhere text-foreground underline-offset-3 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+
+const avatarShape: Record<EntryAvatar["kind"], string> = {
+  person: "rounded-full border bg-background text-foreground",
+  service: "rounded-control border bg-muted text-foreground",
+  agent: "rounded-control bg-primary text-primary-foreground",
+}
 
 export function EntryFrame({
   avatar,
@@ -34,23 +56,25 @@ export function EntryFrame({
   nested,
   children,
 }: Props) {
-  const size = nested ? "size-[19px]" : "size-[23px]"
   return (
-    <li className={cn("relative flex gap-2.5", nested ? "py-1.5" : "py-2")}>
+    <li
+      className={cn(
+        "group/entry relative flex gap-2.5",
+        nested ? "py-1.5" : "py-2"
+      )}
+    >
       {nested ? null : (
         <span
           aria-hidden="true"
-          className="absolute inset-y-0 left-[11px] w-px bg-border"
+          className="absolute top-[35px] bottom-0 left-[11px] w-px bg-border group-last/entry:hidden"
         />
       )}
       <span
         aria-hidden="true"
         className={cn(
-          "relative grid flex-none place-items-center rounded-full border text-[11px] font-semibold",
-          size,
-          avatar.kind === "agent"
-            ? "bg-primary text-primary-foreground"
-            : "bg-background text-foreground"
+          "relative grid flex-none place-items-center text-[11px] font-semibold",
+          nested ? "size-[19px] text-[10px]" : "size-[23px]",
+          avatarShape[avatar.kind]
         )}
       >
         {avatar.kind === "agent" ? (
@@ -59,23 +83,27 @@ export function EntryFrame({
           initialOf(avatar.name)
         )}
       </span>
-      <div className="flex min-w-0 flex-1 flex-col gap-[5px] pt-0.5">
-        <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[13px]">
-          <span className="font-medium wrap-anywhere">{who}</span>
-          <span className="text-muted-foreground">{verb}</span>
-          {panel === undefined ? null : (
-            <button
-              type="button"
-              className="rounded-sm text-left font-medium wrap-anywhere underline decoration-border underline-offset-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              onClick={panel.onSelect}
-            >
-              {panel.title}
-            </button>
-          )}
-          <span className="text-xs text-muted-foreground">
+      <div className="flex min-w-0 flex-1 flex-col gap-1 pt-0.5">
+        <div className="flex items-baseline gap-2 text-[13px]">
+          <p className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 gap-y-1">
+            <span className="font-medium wrap-anywhere text-foreground">
+              {who}
+            </span>
+            <span className="text-muted-foreground">{verb}</span>
+            {panel === undefined ? null : (
+              <button
+                type="button"
+                className={panelLinkClass}
+                onClick={panel.onSelect}
+              >
+                {panel.title}
+              </button>
+            )}
+          </p>
+          <span className="ml-auto flex-none pl-2 text-xs text-muted-foreground tabular-nums">
             <RelativeTime iso={at} />
           </span>
-        </p>
+        </div>
         {children}
       </div>
     </li>
@@ -86,8 +114,7 @@ export function EntryBody({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       className={cn(
-        boxClass,
-        "leading-normal wrap-anywhere whitespace-pre-wrap",
+        "text-[13px] leading-relaxed wrap-anywhere whitespace-pre-wrap text-foreground",
         className
       )}
       {...props}
@@ -97,9 +124,33 @@ export function EntryBody({ className, ...props }: ComponentProps<"div">) {
 
 export function EntryMeta({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
       {children}
     </div>
+  )
+}
+
+const entryActionClass = "text-muted-foreground hover:text-foreground"
+
+export function EntryAction({
+  icon,
+  children,
+  className,
+  ...props
+}: Omit<ComponentProps<typeof Button>, "variant" | "size"> & {
+  icon: ReactNode
+}) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="xs"
+      className={cn(entryActionClass, "first:-ml-2", className)}
+      {...props}
+    >
+      {icon}
+      {children}
+    </Button>
   )
 }
 
@@ -171,12 +222,16 @@ export function DetailsLink({
 }) {
   return (
     <Link
-      to="/observe/$requestId"
+      to="/c/$requestId"
       params={{ requestId }}
       target="_blank"
       rel="noopener"
       aria-label={label}
-      className="self-start text-xs text-muted-foreground underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      className={cn(
+        buttonVariants({ variant: "ghost", size: "xs" }),
+        entryActionClass,
+        "-ml-2 self-start"
+      )}
     >
       Details
     </Link>

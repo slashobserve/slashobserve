@@ -41,6 +41,8 @@ var panelIndex = regexp.MustCompile(`\[\d+\]`)
 var corpusOptions = grafana.Options{Datasources: []grafana.Datasource{
 	{UID: "prom", Type: "prometheus"},
 	{UID: "ch", Type: "clickhouse"},
+	{UID: "loki", Type: "loki"},
+	{UID: "tempo", Type: "tempo"},
 }}
 
 type corpusFile struct {

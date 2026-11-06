@@ -1,0 +1,10 @@
+id: logs-payments-error-lines
+prompt: error log lines for payments in the last hour as a logs panel, from Loki
+category: loki
+kind: create
+suites: [live, replay]
+done_when: false
+expect:
+  datasources: [loki]
+  query_contains_any: [[payments], [ERROR, error]]
+  time_range_from: [now-1h, now-60m]

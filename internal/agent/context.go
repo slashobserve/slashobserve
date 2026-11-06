@@ -24,13 +24,22 @@ type revision struct {
 	conversion  []tools.Attention
 }
 
-func buildSystem() string {
+func systemFor(statuses []datasource.Status) string {
+	var types []spec.DatasourceType
+	for _, s := range statuses {
+		if t := spec.DatasourceType(s.Type); !slices.Contains(types, t) {
+			types = append(types, t)
+		}
+	}
+	return buildSystem(types)
+}
+
+func buildSystem(types []spec.DatasourceType) string {
 	var b strings.Builder
 	b.WriteString(strings.TrimRight(prompts.System(), "\n"))
+	b.WriteString("\n\n" + strings.TrimRight(prompts.Scope(), "\n"))
 	b.WriteString("\n\n# Authoring guide\n")
-	b.WriteString(strings.TrimRight(prompts.SpecGuide(), "\n"))
-	b.WriteString("\n\n# ObserveSpec v0 JSON Schema\n")
-	writeJSONBlock(&b, prompts.Schema())
+	b.WriteString(strings.TrimRight(prompts.GuideFor(types), "\n"))
 	b.WriteString("\n\n# Example Spec (format only)\n")
 	writeJSONBlock(&b, compactJSON(examples.CheckoutServiceHealth))
 	b.WriteString("\n")
@@ -51,8 +60,45 @@ func writeJSONBlock(b *strings.Builder, body []byte) {
 	b.WriteString("\n```")
 }
 
-func buildContext(statuses []datasource.Status, mode tools.Mode, source revisions.Source, panelID string, current *revision) (string, error) {
+func buildContext(statuses []datasource.Status, mode tools.Mode, source revisions.Source, panelID, prompt string, current *revision, sd seed) (string, error) {
 	var b strings.Builder
+	writeDatasources(&b, statuses)
+	if mode == tools.ModeCreate && sd.build == nil {
+		b.WriteString("\nCreate a new dashboard for the request, or answer it with save_finding if it only asks a question.")
+		writeSeedNote(&b, sd)
+		return b.String(), nil
+	}
+	body, err := json.Marshal(current.spec)
+	if err != nil {
+		return "", fmt.Errorf("marshal current spec: %w", err)
+	}
+	writeIntro(&b, mode, current, sd.build != nil)
+	if needsOutline(len(body)) {
+		b.WriteString(" The Spec is too large to send whole, so this is its outline: read the full JSON of other panels with get_panels.\n")
+		writeOutline(&b, current.spec, outlineTargets(current.spec, panelID, prompt))
+	} else {
+		fmt.Fprintf(&b, "\n```json\n%s\n```", body)
+	}
+	if mode == tools.ModeCreate {
+		writeBuild(&b, sd)
+		return b.String(), nil
+	}
+	writeUnverified(&b, current)
+	writeConversion(&b, current)
+	if mode == tools.ModeSuggest {
+		writeSuggestRequest(&b, panelID, current)
+		return b.String(), nil
+	}
+	writePanelRequest(&b, source, panelID, current)
+	if sd.build != nil {
+		writeBuild(&b, sd)
+	} else {
+		writeSeedNote(&b, sd)
+	}
+	return b.String(), nil
+}
+
+func writeDatasources(b *strings.Builder, statuses []datasource.Status) {
 	b.WriteString("Configured datasources:\n")
 	sorted := slices.Clone(statuses)
 	slices.SortFunc(sorted, func(a, b datasource.Status) int { return strings.Compare(a.UID, b.UID) })
@@ -61,48 +107,47 @@ func buildContext(statuses []datasource.Status, mode tools.Mode, source revision
 		if s.Healthy {
 			state = "healthy"
 		}
-		fmt.Fprintf(&b, "- %s (%s): %s\n", s.UID, s.Type, state)
+		fmt.Fprintf(b, "- %s (%s): %s\n", s.UID, s.Type, state)
 	}
-	if mode == tools.ModeCreate {
-		b.WriteString("\nCreate a new dashboard for the request.")
-		return b.String(), nil
+}
+
+func writeIntro(b *strings.Builder, mode tools.Mode, current *revision, hasBuild bool) {
+	switch {
+	case mode == tools.ModeSuggest:
+		fmt.Fprintf(b, "\nYou are proposing a change to dashboard %s, version %d.", current.dashboardID, current.number)
+	case mode == tools.ModeCreate:
+		b.WriteString("\nCreate a new dashboard for the request. This is your build of the new dashboard, not saved as a version yet.")
+	case hasBuild:
+		fmt.Fprintf(b, "\nYou are revising dashboard %s, currently version %d. This is your build of the revision, not saved as a version yet.", current.dashboardID, current.number)
+	default:
+		fmt.Fprintf(b, "\nYou are revising dashboard %s, currently version %d. Change it for the request, or answer it with save_finding if it only asks a question.", current.dashboardID, current.number)
 	}
-	body, err := json.Marshal(current.spec)
-	if err != nil {
-		return "", fmt.Errorf("marshal current spec: %w", err)
+}
+
+func writeSuggestRequest(b *strings.Builder, panelID string, current *revision) {
+	title, _ := panelTitle(current.spec, panelID)
+	if title == "" {
+		title = panelID
 	}
-	if len(body) > tools.MaxModelSpecBytes {
-		return "", ErrTooLarge
+	fmt.Fprintf(b, "\nPropose a change to panel %s titled %q for the request. Call update_panels with only that panel, with id %s, in upsert; everything else stays as in version %d, and nothing is saved.", panelID, title, panelID, current.number)
+}
+
+func writePanelRequest(b *strings.Builder, source revisions.Source, panelID string, current *revision) {
+	if panelID == "" {
+		return
 	}
-	if mode == tools.ModeSuggest {
-		fmt.Fprintf(&b, "\nYou are proposing a change to dashboard %s, version %d.\n```json\n%s\n```", current.dashboardID, current.number, body)
-		writeUnverified(&b, current)
-		writeConversion(&b, current)
-		title, _ := panelTitle(current.spec, panelID)
-		if title == "" {
-			title = panelID
-		}
-		fmt.Fprintf(&b, "\nPropose a change to panel %s titled %q for the request. Call update_dashboard with the full Spec as usual; only panel %s is taken from it, everything else stays as in version %d, and nothing is saved.", panelID, title, panelID, current.number)
-		return b.String(), nil
-	}
-	fmt.Fprintf(&b, "\nYou are revising dashboard %s, currently version %d.\n```json\n%s\n```", current.dashboardID, current.number, body)
-	writeUnverified(&b, current)
-	writeConversion(&b, current)
-	if panelID != "" {
-		fromComment := source == revisions.SourceComment
-		if title, ok := panelTitle(current.spec, panelID); ok {
-			if fromComment {
-				fmt.Fprintf(&b, "\nThe request is a comment on panel %s titled %q.", panelID, title)
-			} else {
-				fmt.Fprintf(&b, "\nThe request is about panel %s titled %q.", panelID, title)
-			}
-		} else if fromComment {
-			fmt.Fprintf(&b, "\nPanel %s from the comment is not in the latest version.", panelID)
+	fromComment := source == revisions.SourceComment
+	if title, ok := panelTitle(current.spec, panelID); ok {
+		if fromComment {
+			fmt.Fprintf(b, "\nThe request is a comment on panel %s titled %q.", panelID, title)
 		} else {
-			fmt.Fprintf(&b, "\nPanel %s from the request is not in the latest version.", panelID)
+			fmt.Fprintf(b, "\nThe request is about panel %s titled %q.", panelID, title)
 		}
+	} else if fromComment {
+		fmt.Fprintf(b, "\nPanel %s from the comment is not in the latest version.", panelID)
+	} else {
+		fmt.Fprintf(b, "\nPanel %s from the request is not in the latest version.", panelID)
 	}
-	return b.String(), nil
 }
 
 const (

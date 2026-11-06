@@ -1,0 +1,19 @@
+id: revise-shop-error-ratio
+prompt: Add a panel showing the 5xx error ratio of the checkout service per pod.
+kind: revise
+suites: [live, smoke]
+seed:
+  corpus: slashobserve/demo-shop.json
+fault:
+  pod: checkout-1
+  type: errors
+  pct: 30
+  soak_seconds: 120
+expect:
+  keeps_panels: true
+  panel_values:
+    - query_contains: http_requests_total
+      series:
+        pod: checkout-1
+      min: 0.2
+      max: 0.4

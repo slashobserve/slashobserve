@@ -18,6 +18,7 @@ function folder(
     id,
     title,
     general,
+    personal: false,
     restricted: false,
     dashboard_count: 0,
     grantees: [],

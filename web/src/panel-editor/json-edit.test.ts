@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { Dashboard, DataPanel } from "@/spec"
+import { validateSpecSchema } from "@/spec/validate"
 
 import {
   appliedKey,
@@ -29,7 +30,12 @@ const spec: Dashboard = {
 
 describe("evaluateJson", () => {
   it("accepts the formatted draft without changing it", () => {
-    const result = evaluateJson(formatPanel(panel), spec, panel)
+    const result = evaluateJson(
+      formatPanel(panel),
+      spec,
+      panel,
+      validateSpecSchema
+    )
     expect(result).toEqual({ kind: "valid", panel, changesDraft: false })
   })
 
@@ -42,7 +48,7 @@ describe("evaluateJson", () => {
       type: panel.type,
       id: panel.id,
     })
-    const result = evaluateJson(reordered, spec, panel)
+    const result = evaluateJson(reordered, spec, panel, validateSpecSchema)
     expect(result).toMatchObject({ kind: "valid", changesDraft: false })
   })
 
@@ -50,7 +56,8 @@ describe("evaluateJson", () => {
     const result = evaluateJson(
       JSON.stringify({ ...panel, title: "JSON title" }),
       spec,
-      panel
+      panel,
+      validateSpecSchema
     )
     expect(result).toMatchObject({
       kind: "valid",
@@ -64,7 +71,8 @@ describe("evaluateJson", () => {
     const result = evaluateJson(
       JSON.stringify({ ...panel, overrides }),
       spec,
-      panel
+      panel,
+      validateSpecSchema
     )
     expect(result).toMatchObject({
       kind: "valid",
@@ -75,7 +83,7 @@ describe("evaluateJson", () => {
 
   it("lists a syntax error as one panel issue", () => {
     const text = formatPanel(panel).replace(/\}$/, "")
-    const result = evaluateJson(text, spec, panel)
+    const result = evaluateJson(text, spec, panel, validateSpecSchema)
     expect(result).toMatchObject({
       kind: "invalid",
       issues: [{ path: "", scope: "panel" }],
@@ -86,7 +94,8 @@ describe("evaluateJson", () => {
     const result = evaluateJson(
       JSON.stringify({ ...panel, unit: "bogus" }),
       spec,
-      panel
+      panel,
+      validateSpecSchema
     )
     expect(result.kind).toBe("invalid")
     if (result.kind !== "invalid") return
@@ -99,7 +108,8 @@ describe("evaluateJson", () => {
     const result = evaluateJson(
       JSON.stringify({ ...panel, id: "other" }),
       spec,
-      panel
+      panel,
+      validateSpecSchema
     )
     expect(result).toMatchObject({
       kind: "invalid",

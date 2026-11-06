@@ -2,6 +2,7 @@ package provision
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -141,5 +142,64 @@ func TestBuildRejectsReservedSecretHeaderWithoutEchoingIt(t *testing.T) {
 	_, err := Build(nil, []config.Datasource{src})
 	if err == nil || strings.Contains(err.Error(), "hunter2-token") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestBuildLokiAndTempoSendTheirConnectionSettings(t *testing.T) {
+	seen := map[string]http.Header{}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen[r.Header.Get("X-Source")] = r.Header.Clone()
+		_, _ = w.Write([]byte("ready"))
+	}))
+	defer upstream.Close()
+	logs := config.Datasource{UID: "logs", Type: "loki", Loki: &config.LokiDatasource{
+		HTTPConnection: config.HTTPConnection{
+			URL:           upstream.URL,
+			Headers:       map[string]string{"X-Source": "loki"},
+			SecretHeaders: map[string]datasource.Secret{"X-Api-Key": datasource.NewSecret("loki-key")},
+			BearerToken:   datasource.NewSecret("loki-token"),
+		},
+		TenantID: "shop",
+	}}
+	traces := config.Datasource{UID: "traces", Type: "tempo", Tempo: &config.TempoDatasource{
+		HTTPConnection: config.HTTPConnection{
+			URL:               upstream.URL,
+			Headers:           map[string]string{"X-Source": "tempo"},
+			BasicAuthUser:     "reader",
+			BasicAuthPassword: datasource.NewSecret("pw"),
+		},
+	}}
+	registry, err := Build(nil, []config.Datasource{logs, traces})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = registry.Close() }()
+	for uid, typ := range map[string]string{"logs": "loki", "traces": "tempo"} {
+		in, _ := registry.Get(uid)
+		if in.Datasource.Type() != typ {
+			t.Fatalf("%s type = %s, want %s", uid, in.Datasource.Type(), typ)
+		}
+		if err := in.Datasource.CheckHealth(context.Background()); err != nil {
+			t.Fatalf("%s health: %v", uid, err)
+		}
+	}
+	if h := seen["loki"]; h.Get("X-Scope-OrgID") != "shop" || h.Get("X-Api-Key") != "loki-key" || h.Get("Authorization") != "Bearer loki-token" {
+		t.Fatalf("loki sent %v", h)
+	}
+	if h := seen["tempo"]; h.Get("Authorization") != "Basic cmVhZGVyOnB3" {
+		t.Fatalf("tempo sent %v", h)
+	}
+}
+
+func TestBuildLokiAndTempoRefuseInvalidSettings(t *testing.T) {
+	for _, src := range []config.Datasource{
+		{UID: "logs", Type: "loki", Loki: &config.LokiDatasource{HTTPConnection: config.HTTPConnection{URL: "ftp://loki"}}},
+		{UID: "traces", Type: "tempo", Tempo: &config.TempoDatasource{HTTPConnection: config.HTTPConnection{URL: "ftp://tempo"}}},
+	} {
+		_, err := Build(nil, []config.Datasource{src})
+		var buildErr *BuildError
+		if !errors.As(err, &buildErr) || !strings.Contains(buildErr.Message, "url scheme must be http or https") {
+			t.Fatalf("%s: err = %v", src.UID, err)
+		}
 	}
 }

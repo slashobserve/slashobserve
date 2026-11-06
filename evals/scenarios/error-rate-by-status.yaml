@@ -1,6 +1,8 @@
 id: error-rate-by-status
 prompt: error rate by status code with a 1% threshold
 category: prometheus
+kind: create
+suites: [live, smoke]
 done_when: true
 expect:
   datasources: [prometheus]

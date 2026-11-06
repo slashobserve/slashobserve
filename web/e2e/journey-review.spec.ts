@@ -59,7 +59,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expectPanelsReady(page)
 
         await expect(
-          thread(teammateComment).getByText("Comment", { exact: true })
+          thread(teammateComment).getByText("Open", { exact: true })
         ).toBeVisible()
         await expect(versionEntry(page, 1)).toHaveCount(1)
         await expect(activityToggle(page, 1)).toBeVisible()
@@ -128,7 +128,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(versionButton(page)).toHaveText("Live · v2")
         await expect(activityToggle(page, 1)).toBeVisible()
         await expect(
-          thread(teammateComment).getByText("Comment", { exact: true })
+          thread(teammateComment).getByText("Open", { exact: true })
         ).toBeVisible()
       })
 
@@ -138,10 +138,10 @@ for (const colorScheme of ["light", "dark"] as const) {
           .click()
 
         await expect(page).toHaveURL(
-          new RegExp(`/dashboards/${id}/versions\\?.*from=1&to=2`)
+          new RegExp(`/d/${id}/versions\\?.*from=1&to=2`)
         )
         await expect(
-          page.getByRole("heading", { level: 1, name: /: history$/ })
+          page.getByRole("heading", { level: 1, name: /^Versions of / })
         ).toBeVisible()
         await expect(
           page.getByRole("heading", {
@@ -154,9 +154,11 @@ for (const colorScheme of ["light", "dark"] as const) {
         ).toBeVisible()
 
         await page.getByRole("link", { name: "Back to dashboard" }).click()
-        await expect(page).toHaveURL(new RegExp(`/dashboards/${id}(\\?|$)`))
+        await expect(page).toHaveURL(
+          new RegExp(`/d/${id}(/[a-z0-9-]+)?(\\?|$)`)
+        )
         await expect(card(page)).toBeVisible()
-        await expect(panel(page, firstPanelTitle + " by route")).toBeVisible()
+        await expect(panel(page, firstPanelTitle)).toBeVisible()
         await expect(panel(page, "p99 latency")).toBeVisible()
       })
     })

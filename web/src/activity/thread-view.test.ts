@@ -53,6 +53,12 @@ function request(overrides: Partial<Revision> = {}): Revision {
     created_at: at(0),
     started_at: null,
     finished_at: null,
+    failure_code: null,
+    build: null,
+    build_saved_at: null,
+    continues_id: null,
+    continued_by: null,
+    continue_note: null,
     ...overrides,
   }
 }
@@ -77,9 +83,9 @@ function state(
 }
 
 describe("threadState", () => {
-  it("reads Comment for an open thread with the built-in agent", () => {
-    expect(state({ gate: allowed })).toEqual({ kind: "note", text: "Comment" })
-    expect(state({ gate: blocked })).toEqual({ kind: "note", text: "Comment" })
+  it("reads Open for an open thread with the built-in agent", () => {
+    expect(state({ gate: allowed })).toEqual({ kind: "note", text: "Open" })
+    expect(state({ gate: blocked })).toEqual({ kind: "note", text: "Open" })
   })
 
   it("names the client when there is no built-in agent", () => {

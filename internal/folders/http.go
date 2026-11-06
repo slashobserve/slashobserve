@@ -145,6 +145,10 @@ func (h *Handler) create(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
+	if reservedTitle(title) {
+		httpapi.AbortError(c, http.StatusConflict, "folder_exists", "a folder with that name already exists")
+		return
+	}
 	ctx := c.Request.Context()
 	caller := httpapi.Caller(c)
 	callerID, err := db.ParseUUID(caller.ID)
@@ -191,6 +195,10 @@ func (h *Handler) rename(c *gin.Context) {
 	title, err := cleanTitle(req.Title)
 	if err != nil {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	if reservedTitle(title) {
+		httpapi.AbortError(c, http.StatusConflict, "folder_exists", "a folder with that name already exists")
 		return
 	}
 	current := folderFrom(c)

@@ -1,0 +1,11 @@
+{
+  "prompt": "eval fault: the model answers in text and never calls a tool",
+  "turns": [
+    {
+      "text": "I can describe the dashboard in words, but I will not save one."
+    },
+    {
+      "text": "I still will not call a tool."
+    }
+  ]
+}

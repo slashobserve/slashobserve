@@ -9,6 +9,7 @@ import {
   createServiceAccountKey,
   uniqueAccountName,
 } from "./api"
+import { expectNoAnimations } from "./dashboards"
 import {
   expect,
   failedResourceLogged,
@@ -347,6 +348,7 @@ test("warns before a key expires", async ({ page, request }) => {
 
 test("shows client snippets with this server's URLs", async ({ page }) => {
   await openKeysPage(page)
+  await page.getByText("Connect a client", { exact: true }).click()
   const mcpUrl = `${serverURL()}/mcp`
   const tabs = page.getByRole("tablist", { name: "Client" })
   await expect(tabs.getByRole("tab", { name: "Claude Code" })).toHaveAttribute(
@@ -598,6 +600,7 @@ test.describe("beside a narrow content area", () => {
     await pageCreateKey(page).click()
     const aside = panel(page)
     await expect(aside).toBeVisible()
+    await expectNoAnimations(aside)
     expect(await panelEdges(aside)).toEqual({
       widths: "1px 0px 0px 0px",
       radius: "0px",
@@ -633,7 +636,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(table).toBeVisible()
       expect(
         await table.evaluate(
-          (element) => element.scrollWidth > element.clientWidth
+          (element) => element.scrollWidth <= element.clientWidth
         )
       ).toBe(true)
       expect(
@@ -646,14 +649,15 @@ for (const colorScheme of ["light", "dark"] as const) {
       const name = aside.getByLabel("Name", { exact: true })
       await expect(name).toBeFocused()
       await expect(name).toBeInViewport()
-      const mainBox = await box(page.getByRole("main"))
+      await expect(aside).toHaveCSS("position", "fixed")
+      await expectNoAnimations(aside)
       const panelBox = await box(aside)
-      expect(panelBox.y).toBeGreaterThanOrEqual(mainBox.y + mainBox.height - 1)
+      expect(panelBox.y + panelBox.height).toBeCloseTo(844, 0)
       expect(panelBox.x).toBeGreaterThanOrEqual(0)
       expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(390)
       expect(await panelEdges(aside)).toEqual({
         widths: "1px 0px 0px 0px",
-        radius: "0px",
+        radius: "10px",
       })
       expect(await noOverflow()).toBe(true)
 
@@ -678,6 +682,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await aside.getByRole("button", { name: "Done" }).click()
       await expect(aside).toBeHidden()
 
+      await page.getByText("Connect a client", { exact: true }).click()
       const snippet = page.getByRole("region", { name: "Claude Code setup" })
       await expect(snippet).toBeVisible()
       expect(

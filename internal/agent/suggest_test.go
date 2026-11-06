@@ -113,6 +113,51 @@ func TestSuggestRunPlacesTheDraftIntoTheBase(t *testing.T) {
 	}
 }
 
+func TestSuggestRunAsksForOneUpsertThroughUpdatePanels(t *testing.T) {
+	r := newRig(t, session(toolTurn(call("c1", "update_panels", `{"upsert":[{}]}`))))
+	r.tools.onSave("update_panels", suggestedResult(t, panelID))
+
+	out, err := r.agent.Run(context.Background(), r.suggestTask(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out.Suggestion), panelID) {
+		t.Fatalf("outcome = %+v", out)
+	}
+	got := r.provider.started()[0].Context
+	if !strings.Contains(got, "Call update_panels with only that panel, with id "+panelID+", in upsert") || strings.Contains(got, "update_dashboard") {
+		t.Fatalf("context = %s", got)
+	}
+}
+
+func TestSuggestRunOnALargeDashboardSendsAnOutlineWithThePanel(t *testing.T) {
+	const largePanel = "p323"
+	r := newRig(t, session(toolTurn(call("c1", "update_panels", `{"upsert":[{}]}`))))
+	r.dash.spec = nodeExporterFull(t)
+	r.dash.byNum = map[int]*spec.Dashboard{suggestBaseVersion: r.dash.spec}
+	r.tools.onSave("update_panels", suggestedResult(t, largePanel))
+	task := r.suggestTask(t)
+	task.PanelID = largePanel
+
+	if _, err := r.agent.Run(context.Background(), task); err != nil {
+		t.Fatal(err)
+	}
+	got := r.provider.started()[0].Context
+	entry, _ := r.dash.spec.FindPanel(largePanel)
+	for _, want := range []string{
+		fmt.Sprintf("You are proposing a change to dashboard %s, version %d. The Spec is too large to send whole", dashID, suggestBaseVersion),
+		fmt.Sprintf("- %s %s %q", largePanel, entry.Panel.Type, entry.Panel.Title),
+		"Call update_panels with only that panel",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("context lacks %q:\n%.600s", want, got)
+		}
+	}
+	if strings.Contains(got, "```json\n{") {
+		t.Fatal("the context holds the whole Spec")
+	}
+}
+
 func TestSuggestRunRejectsBadStartingPoints(t *testing.T) {
 	placeholder := func(r *rig) json.RawMessage {
 		entry, _ := r.dash.spec.FindPanel(panelID)
@@ -181,7 +226,7 @@ func TestSuggestRunLogsDraftIssueCodesAndPathsOnly(t *testing.T) {
 	entry := r.logEntry("agent draft panel is not valid")
 	codes, _ := entry["issue_codes"].([]any)
 	paths, _ := entry["issue_paths"].([]any)
-	if len(codes) == 0 || len(codes) != len(paths) || entry["agent_request_id"] != "req-1" || entry["error_code"] != "draft_invalid" {
+	if len(codes) == 0 || len(codes) != len(paths) || entry["agent_request_id"] != requestID || entry["error_code"] != "draft_invalid" {
 		t.Fatalf("log entry = %v", entry)
 	}
 	if strings.Contains(r.logs.String(), "SECRET") {
@@ -198,31 +243,26 @@ func TestSuggestRunStoresSuggestWordedMessages(t *testing.T) {
 		}
 		return out
 	}
-	exhausted := make([]scriptedTurn, 4)
-	limited := make([]scriptedTurn, 25)
+	exhausted := make([]scriptedTurn, 3)
 	for i := range exhausted {
-		exhausted[i] = toolTurn(call(fmt.Sprint("c", i), "update_dashboard", `{}`))
-	}
-	for i := range limited {
-		limited[i] = toolTurn(call(fmt.Sprint("c", i), "get_spec_guide", `{}`))
+		exhausted[i] = toolTurn(call(fmt.Sprint("c", i), "update_dashboard", fmt.Sprintf(`{"n":%d}`, i)))
 	}
 	for name, c := range map[string]struct {
 		turns []scriptedTurn
 		save  []tools.Result
 		want  string
+		code  revisions.FailureCode
 	}{
 		"repair rounds used up": {
 			turns: exhausted,
-			save:  rejected(4),
-			want:  "the proposed panel still failed validation after 3 repair rounds (last issues: a_code)",
-		},
-		"turn limit": {
-			turns: limited,
-			want:  "the agent stopped without proposing a panel",
+			save:  rejected(3),
+			want:  "the proposed panel still failed validation after 3 rejected saves in a row (last issues: a_code)",
+			code:  revisions.FailureValidationExhausted,
 		},
 		"no proposal": {
 			turns: []scriptedTurn{stopTurn(llm.StopEndTurn)},
 			want:  agent.ErrNoSuggestion.Error(),
+			code:  revisions.FailureNoToolCall,
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -234,10 +274,41 @@ func TestSuggestRunStoresSuggestWordedMessages(t *testing.T) {
 			req.Source = revisions.SourceSuggest
 			req.BaseVersion = suggestBaseVersion
 
-			_, err := agent.NewReviser(r.agent, nil).Revise(context.Background(), req)
+			result, err := agent.NewReviser(r.agent, nil).Revise(context.Background(), req)
 			if err == nil || err.Error() != c.want {
 				t.Fatalf("stored error = %v, want %q", err, c.want)
 			}
+			if result.FailureCode != c.code {
+				t.Fatalf("failure code = %q, want %q", result.FailureCode, c.code)
+			}
 		})
+	}
+}
+
+func TestASuggestRunThatOnlyReadsEndsWithNoProgress(t *testing.T) {
+	s := session(readTurns("r", 14)...)
+	r := newRig(t, s)
+	r.versionTwo(t)
+
+	out, err := r.agent.Run(context.Background(), r.suggestTask(t))
+	if !errors.Is(err, agent.ErrNoProgress) {
+		t.Fatalf("err = %v", err)
+	}
+	if s.modelCalls() != 13 || out.Usage.Calls != 13 {
+		t.Fatalf("model calls = %d", s.modelCalls())
+	}
+	if got := s.results(10)[0].Content; strings.Contains(got, "<note>") {
+		t.Fatalf("the tenth result carries a note: %s", got)
+	}
+	if got := s.results(11)[0].Content; !strings.HasSuffix(got, "<note>Propose the panel in your next call. From then on, reads run only in the same call as a proposal.</note>") {
+		t.Fatalf("the eleventh result = %s", got)
+	}
+	refused := s.results(12)
+	if len(refused) != 1 || !refused[0].IsError || !strings.Contains(refused[0].Content, "12 model calls without a proposal; only a proposal can run now") {
+		t.Fatalf("the twelfth result = %+v", refused)
+	}
+	steps := r.recordedSteps()
+	if stop := steps[len(steps)-1]; stop.Message != "Stopped: the model kept reading after 12 calls without a proposal" {
+		t.Fatalf("stop step = %+v", stop)
 	}
 }

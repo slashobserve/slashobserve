@@ -1,9 +1,9 @@
 import {
   dataPanelTypes,
   findPanel,
-  validateSpecSchema,
   type Dashboard,
   type Panel,
+  type SpecValidator,
 } from "@/spec"
 
 import type { EditablePanel } from "./draft"
@@ -111,7 +111,8 @@ function scopedIssue(
 export function parsePanelJson(
   text: string,
   spec: Dashboard,
-  panelId: string
+  panelId: string,
+  validate: SpecValidator
 ): ParsedPanel {
   let value: unknown
   try {
@@ -163,7 +164,7 @@ export function parsePanelJson(
   const crossing = typeIssue(value, entry.panel)
   if (crossing) return { ok: false, issues: [crossing] }
 
-  const result = validateSpecSchema(placed)
+  const result = validate(placed)
   if (result.valid) {
     return { ok: true, panel: value as unknown as EditablePanel }
   }

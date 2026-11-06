@@ -372,7 +372,11 @@ func TestPeopleCountDashboardsSavedByTheirAgentRequests(t *testing.T) {
 		}
 	}
 
-	rows, err := r.db.Queries().ListUsers(t.Context(), dbsqlc.ListUsersParams{RowLimit: 10})
+	levels, err := folders.NewAccess(r.db.DB).Levels(t.Context(), person)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := r.db.Queries().ListUsers(t.Context(), dbsqlc.ListUsersParams{RowLimit: 10, Folders: levels.Visible()})
 	if err != nil {
 		t.Fatal(err)
 	}

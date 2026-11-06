@@ -39,6 +39,7 @@ import { GaugeSvg } from "./gauge-svg"
 
 const bodyInsetX = 16
 const bodyInsetY = 8
+const compactCellWidth = 160
 
 function MoreLinks({
   links,
@@ -94,6 +95,7 @@ function MoreLinks({
 type CellProps = {
   gauge: Gauge
   named: boolean
+  compact: boolean
   sizes: GaugeSizes
   fields: FieldResolver
   scope: Omit<
@@ -114,6 +116,7 @@ function offsetRow(offset: number): CSSProperties {
 function GaugeCell({
   gauge,
   named,
+  compact,
   sizes,
   fields,
   scope,
@@ -137,6 +140,7 @@ function GaugeCell({
   const hasMenu = more.length > 0 || actions.length > 0
   const { level, label: word } = gauge.threshold
   const Icon = level === "base" ? null : thresholdIcons[level]
+  const shown = compact ? gauge.compact : gauge.text
   const value = (
     <div
       className="absolute inset-x-0 flex items-center justify-center gap-1"
@@ -144,11 +148,12 @@ function GaugeCell({
     >
       <span
         data-gauge-value=""
+        title={shown === gauge.text ? undefined : gauge.text}
         className="leading-none font-semibold text-foreground tabular-nums"
         style={{
           fontSize: sizes.valueSize
             ? `${sizes.valueSize}px`
-            : `${valueFontSize(gauge.text, hasMenu).toFixed(2)}cqmin`,
+            : `${valueFontSize(shown, hasMenu).toFixed(2)}cqmin`,
         }}
       >
         {first ? (
@@ -158,11 +163,11 @@ function GaugeCell({
             aria-label={`${gauge.text}: ${first.title}${first.newTab ? " (opens in new tab)" : ""}`}
             className="inline-flex items-center gap-1 underline decoration-border underline-offset-4 hover:decoration-current"
           >
-            {gauge.text}
+            {shown}
             {first.newTab ? <NewTabMark /> : null}
           </a>
         ) : (
-          gauge.text
+          shown
         )}
       </span>
       {hasMenu ? (
@@ -200,7 +205,7 @@ function GaugeCell({
             <span
               key={`${label.fraction}:${label.text}`}
               data-threshold-label=""
-              className="absolute leading-none text-muted-foreground tabular-nums"
+              className="absolute leading-none text-muted-foreground tabular-nums @max-[120px]:hidden"
               style={{
                 left: `${x}%`,
                 top: `${y}%`,
@@ -283,6 +288,10 @@ const GaugePanel: PanelRenderer = ({
   )
   const limited =
     limits.minWidth !== undefined || limits.minHeight !== undefined
+  const cellWidth = Math.max(
+    limits.minWidth ?? 0,
+    (width - bodyInsetX - gridGap * (columns - 1)) / columns
+  )
 
   return (
     <>
@@ -305,6 +314,7 @@ const GaugePanel: PanelRenderer = ({
             key={gauge.key}
             gauge={gauge}
             named={gauges.length > 1}
+            compact={cellWidth < compactCellWidth}
             sizes={sizes}
             fields={fields}
             scope={links}

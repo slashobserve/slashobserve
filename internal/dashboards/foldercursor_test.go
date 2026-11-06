@@ -30,23 +30,25 @@ func mustUUID(t *testing.T, s string) pgtype.UUID {
 func TestFolderCursorRoundTrips(t *testing.T) {
 	updated := time.Date(2026, 10, 30, 12, 30, 45, 123456000, time.UTC)
 	tests := []struct {
-		name    string
-		general bool
-		title   string
+		name     string
+		personal bool
+		general  bool
+		title    string
 	}{
-		{"a titled folder", false, "checkout"},
-		{"the general folder", true, "general"},
-		{"a title with punctuation and unicode", false, `été: "q" / 日本`},
-		{"an empty title", false, ""},
+		{"a titled folder", false, false, "checkout"},
+		{"the general folder", false, true, "general"},
+		{"a personal folder", true, false, "My Dashboards"},
+		{"a title with punctuation and unicode", false, false, `été: "q" / 日本`},
+		{"an empty title", false, false, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			raw := encodeFolderCursor(tt.general, tt.title, mustUUID(t, cursorFolderID), updated, cursorDashboardID)
+			raw := encodeFolderCursor(tt.personal, tt.general, tt.title, mustUUID(t, cursorFolderID), updated, cursorDashboardID)
 			got, err := decodeFolderCursor(raw)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got.General != tt.general || got.Title != tt.title || got.FolderID != mustUUID(t, cursorFolderID) ||
+			if got.Personal != tt.personal || got.General != tt.general || got.Title != tt.title || got.FolderID != mustUUID(t, cursorFolderID) ||
 				!got.UpdatedAt.Equal(updated) || got.ID != mustUUID(t, cursorDashboardID) {
 				t.Fatalf("decoded %+v", got)
 			}
@@ -65,13 +67,14 @@ func TestFolderCursorRejectsCursorsOfOtherShapes(t *testing.T) {
 		{"garbage", "!!not-base64!!"},
 		{"valid base64 that is not JSON", encode("hello")},
 		{"a JSON array", encode(`[1,2]`)},
-		{"a missing general flag", encode(`{"t":"a","f":"` + cursorFolderID + `","u":1,"i":"` + cursorDashboardID + `"}`)},
-		{"a missing title", encode(`{"g":false,"f":"` + cursorFolderID + `","u":1,"i":"` + cursorDashboardID + `"}`)},
-		{"a missing folder", encode(`{"g":false,"t":"a","u":1,"i":"` + cursorDashboardID + `"}`)},
-		{"a missing time", encode(`{"g":false,"t":"a","f":"` + cursorFolderID + `","i":"` + cursorDashboardID + `"}`)},
-		{"a missing dashboard", encode(`{"g":false,"t":"a","f":"` + cursorFolderID + `","u":1}`)},
-		{"a folder that is not a UUID", encode(`{"g":false,"t":"a","f":"x","u":1,"i":"` + cursorDashboardID + `"}`)},
-		{"a dashboard that is not a UUID", encode(`{"g":false,"t":"a","f":"` + cursorFolderID + `","u":1,"i":"x"}`)},
+		{"a missing personal flag", encode(`{"g":false,"t":"a","f":"` + cursorFolderID + `","u":1,"i":"` + cursorDashboardID + `"}`)},
+		{"a missing general flag", encode(`{"p":false,"t":"a","f":"` + cursorFolderID + `","u":1,"i":"` + cursorDashboardID + `"}`)},
+		{"a missing title", encode(`{"p":false,"g":false,"f":"` + cursorFolderID + `","u":1,"i":"` + cursorDashboardID + `"}`)},
+		{"a missing folder", encode(`{"p":false,"g":false,"t":"a","u":1,"i":"` + cursorDashboardID + `"}`)},
+		{"a missing time", encode(`{"p":false,"g":false,"t":"a","f":"` + cursorFolderID + `","i":"` + cursorDashboardID + `"}`)},
+		{"a missing dashboard", encode(`{"p":false,"g":false,"t":"a","f":"` + cursorFolderID + `","u":1}`)},
+		{"a folder that is not a UUID", encode(`{"p":false,"g":false,"t":"a","f":"x","u":1,"i":"` + cursorDashboardID + `"}`)},
+		{"a dashboard that is not a UUID", encode(`{"p":false,"g":false,"t":"a","f":"` + cursorFolderID + `","u":1,"i":"x"}`)},
 		{"an empty cursor", ""},
 	}
 	for _, tt := range tests {
@@ -84,7 +87,7 @@ func TestFolderCursorRejectsCursorsOfOtherShapes(t *testing.T) {
 }
 
 func TestFolderCursorIsRejectedAsATimeCursor(t *testing.T) {
-	folderCursor := encodeFolderCursor(false, "a", mustUUID(t, cursorFolderID), time.Now(), cursorDashboardID)
+	folderCursor := encodeFolderCursor(false, false, "a", mustUUID(t, cursorFolderID), time.Now(), cursorDashboardID)
 	if _, ok := httpapi.DecodeTimeCursor(folderCursor); ok {
 		t.Fatal("a folder cursor was accepted as a time cursor")
 	}

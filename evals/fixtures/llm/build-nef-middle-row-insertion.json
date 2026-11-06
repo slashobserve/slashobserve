@@ -1,0 +1,126 @@
+{
+  "prompt": "eval build: a panel for the CPU row arrives after the Disk row exists",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Start Node Exporter Full",
+            "planned_panels": 3,
+            "spec": {
+              "specVersion": "0",
+              "title": "Node Exporter Full",
+              "time": {
+                "from": "now-1h",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "row_cpu",
+                  "type": "row",
+                  "title": "CPU",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 24,
+                    "h": 1
+                  },
+                  "panels": [
+                    {
+                      "id": "cpu_busy",
+                      "type": "timeseries",
+                      "title": "CPU Busy",
+                      "gridPos": {
+                        "x": 0,
+                        "y": 1,
+                        "w": 12,
+                        "h": 8
+                      },
+                      "datasource": "prom",
+                      "queries": [
+                        {
+                          "query": "sum(rate(node_cpu_seconds_total{mode!=\"idle\"}[$__rate_interval]))"
+                        }
+                      ],
+                      "unit": "percentunit"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Disk Free",
+            "upsert": [
+              {
+                "id": "disk_free",
+                "type": "timeseries",
+                "title": "Disk Free",
+                "gridPos": {
+                  "x": 0,
+                  "y": 0,
+                  "w": 12,
+                  "h": 8
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "node_filesystem_avail_bytes"
+                  }
+                ],
+                "unit": "bytes"
+              }
+            ],
+            "row": {
+              "id": "row_disk",
+              "title": "Disk"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add CPU System",
+            "upsert": [
+              {
+                "id": "cpu_system",
+                "type": "timeseries",
+                "title": "CPU System",
+                "gridPos": {
+                  "x": 0,
+                  "y": 0,
+                  "w": 12,
+                  "h": 8
+                },
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "sum(rate(node_cpu_seconds_total{mode=\"system\"}[$__rate_interval]))"
+                  }
+                ],
+                "unit": "percentunit"
+              }
+            ],
+            "row": {
+              "id": "row_cpu",
+              "title": "CPU"
+            },
+            "finish": true
+          }
+        }
+      ]
+    }
+  ]
+}

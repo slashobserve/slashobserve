@@ -1,7 +1,9 @@
 package dashboards
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -14,6 +16,8 @@ type testPanel struct {
 	extraQuery                   string
 	panelInterval                string
 	queryInterval                string
+	panelType                    string
+	extraFields                  string
 	x                            int
 }
 
@@ -32,7 +36,12 @@ func testDashboard(t *testing.T, variables string, panels ...testPanel) *spec.Da
 		if p.extraQuery != "" {
 			queries += fmt.Sprintf(`,{"query":%q}`, p.extraQuery)
 		}
-		items = append(items, fmt.Sprintf(`{"id":%q,"type":"stat","title":%q,"gridPos":{"x":%d,"y":0,"w":6,"h":4},"datasource":%q%s,"queries":[%s]}`, p.id, p.title, i*6+p.x, p.datasource, panelInterval, queries))
+		panelType := cmp.Or(p.panelType, "stat")
+		extra := ""
+		if p.extraFields != "" {
+			extra = "," + p.extraFields
+		}
+		items = append(items, fmt.Sprintf(`{"id":%q,"type":%q,"title":%q,"gridPos":{"x":%d,"y":0,"w":6,"h":4},"datasource":%q%s%s,"queries":[%s]}`, p.id, panelType, p.title, i*6+p.x, p.datasource, panelInterval, extra, queries))
 	}
 	raw := fmt.Sprintf(`{"specVersion":"0","title":"t","time":{"from":"now-15m","to":"now"},"variables":[%s],"panels":[%s]}`, variables, strings.Join(items, ","))
 	d, err := spec.Parse([]byte(raw))
@@ -393,5 +402,190 @@ func TestCarryUnverifiedCountsGroupByVariablesOnTheQueryDatasource(t *testing.T)
 	}
 	if carried, blocking := CarryUnverified(base, prev, testDashboard(t, groupBy("prom")+`,{"name":"other","type":"groupby","datasource":"prom2"}`, panel), fails); len(blocking) != 0 || len(carried.Panels) != 1 {
 		t.Fatalf("group by variable on another datasource added: carried %+v blocking %v, want carried", carried, blocking)
+	}
+}
+
+func TestChangedSinceListsEditedPanelsAndVariablesOnly(t *testing.T) {
+	const inst = `{"name":"inst","type":"query","datasource":"prom","query":"label_values(up, instance)"}`
+	const other = `{"name":"other","type":"query","datasource":"prom","query":"label_values(up, job)"}`
+	panels := func(second string) []testPanel {
+		return []testPanel{
+			{id: "by", title: "By", datasource: "prom", query: `sum(up{instance=~"$inst"})`},
+			{id: "plain", title: "Plain", datasource: "prom", query: second},
+		}
+	}
+	prev := testDashboard(t, inst+","+other, panels("sum(up)")...)
+
+	same, sameVars := ChangedSince(prev, testDashboard(t, inst+","+other, panels("sum(up)")...))
+	if len(same) != 0 || len(sameVars) != 0 {
+		t.Fatalf("identical: panels %v variables %v, want none", same, sameVars)
+	}
+
+	edited, _ := ChangedSince(prev, testDashboard(t, inst+","+other, panels("sum(up) + 1")...))
+	if len(edited) != 1 || edited[0] != "plain" {
+		t.Fatalf("edited panel: %v, want [plain]", edited)
+	}
+
+	const instEdited = `{"name":"inst","type":"query","datasource":"prom","query":"label_values(up, pod)"}`
+	gotPanels, gotVars := ChangedSince(prev, testDashboard(t, instEdited+","+other, panels("sum(up)")...))
+	if len(gotPanels) != 1 || gotPanels[0] != "by" || len(gotVars) != 1 || gotVars[0] != "inst" {
+		t.Fatalf("edited variable: panels %v variables %v, want [by] and [inst]", gotPanels, gotVars)
+	}
+
+	added, _ := ChangedSince(prev, testDashboard(t, inst+","+other, append(panels("sum(up)"), testPanel{id: "new", title: "New", datasource: "prom", query: "up"})...))
+	if len(added) != 1 || added[0] != "new" {
+		t.Fatalf("added panel: %v, want [new]", added)
+	}
+
+	all, allVars := ChangedSince(nil, prev)
+	if len(all) != 2 || len(allVars) != 2 {
+		t.Fatalf("no parent: panels %v variables %v, want everything", all, allVars)
+	}
+}
+
+func TestCarryUnchangedKeepsUnchangedEntriesAndFollowsTheirPointers(t *testing.T) {
+	const inst = `{"name":"inst","type":"query","datasource":"prom","query":"label_values(nope, instance)"}`
+	const first = `{"name":"first","type":"custom","options":["x"]}`
+	prev := testDashboard(t, first+","+inst,
+		testPanel{id: "a", title: "A", datasource: "prom", query: "up"},
+		testPanel{id: "b", title: "B", datasource: "prom", query: "sum(nope)"},
+		testPanel{id: "c", title: "C", datasource: "prom", query: "sum(nope2)"},
+	)
+	prevUnverified := Unverified{
+		Panels: []UnverifiedPanel{
+			{PanelID: "b", Issues: []spec.Issue{issueAt("/panels/1/queries/0/query")}},
+			{PanelID: "c", Issues: []spec.Issue{issueAt("/panels/2/queries/0/query")}},
+		},
+		Variables: []UnverifiedVariable{{Name: "inst", Issues: []spec.Issue{issueAt("/variables/1")}}},
+	}
+	next := testDashboard(t, inst,
+		testPanel{id: "c", title: "C", datasource: "prom", query: "sum(nope2)"},
+		testPanel{id: "b", title: "B", datasource: "prom", query: "sum(nope)"},
+	)
+
+	carried := CarryUnchanged(prev, prevUnverified, next, nil, nil)
+	if ids := panelIDs(carried); len(ids) != 2 || ids[0] != "c" || ids[1] != "b" {
+		t.Fatalf("panels %v, want [c b] in the new order", ids)
+	}
+	if got := carried.Panels[0].Issues[0].Path; got != "/panels/0/queries/0/query" {
+		t.Fatalf("c path %q, want /panels/0/queries/0/query", got)
+	}
+	if got := carried.Panels[1].Issues[0].Path; got != "/panels/1/queries/0/query" {
+		t.Fatalf("b path %q, want /panels/1/queries/0/query", got)
+	}
+	if len(carried.Variables) != 1 || carried.Variables[0].Issues[0].Path != "/variables/0" {
+		t.Fatalf("variables %+v, want inst re-pointed to /variables/0", carried.Variables)
+	}
+	if prevUnverified.Panels[0].Issues[0].Path != "/panels/1/queries/0/query" {
+		t.Fatal("the previous list was mutated")
+	}
+
+	narrowed := CarryUnchanged(prev, prevUnverified, next, []string{"b"}, []string{"inst"})
+	if ids := panelIDs(narrowed); len(ids) != 1 || ids[0] != "c" || len(narrowed.Variables) != 0 {
+		t.Fatalf("changed lists: panels %v variables %v, want only c", ids, narrowed.Variables)
+	}
+
+	gone := CarryUnchanged(prev, prevUnverified, testDashboard(t, ``, testPanel{id: "a", title: "A", datasource: "prom", query: "up"}), nil, nil)
+	if !gone.Empty() {
+		t.Fatalf("removed entries: %+v, want nothing", gone)
+	}
+	if !CarryUnchanged(nil, prevUnverified, next, nil, nil).Empty() {
+		t.Fatal("no previous spec must carry nothing")
+	}
+}
+
+func TestCarryUnchangedRepointsOnlyIssuesInsideTheEntry(t *testing.T) {
+	prev := testDashboard(t, ``, testPanel{id: "a", title: "A", datasource: "prom", query: "up"}, testPanel{id: "b", title: "B", datasource: "prom", query: "sum(nope)"})
+	next := testDashboard(t, ``, testPanel{id: "b", title: "B", datasource: "prom", query: "sum(nope)"})
+	prevUnverified := Unverified{Panels: []UnverifiedPanel{{PanelID: "b", Issues: []spec.Issue{issueAt("/panels/1/queries/0/source/panel"), issueAt("/panels/10/queries")}}}}
+
+	carried := CarryUnchanged(prev, prevUnverified, next, nil, nil)
+	got := carried.Panels[0].Issues
+	if got[0].Path != "/panels/0/queries/0/source/panel" || got[1].Path != "/panels/10/queries" {
+		t.Fatalf("paths %q and %q, want the first moved and the second untouched", got[0].Path, got[1].Path)
+	}
+}
+
+func TestChangedSinceCountsEveryPanelFieldTheCheckReads(t *testing.T) {
+	base := testPanel{id: "p", title: "P", datasource: "prom", query: "up", extraFields: `"timeFrom":"now-1h","timeShift":"1h","maxDataPoints":100`, panelInterval: "1m"}
+	cases := []struct {
+		name  string
+		edit  func(testPanel) testPanel
+		moved bool
+	}{
+		{"timeFrom", func(p testPanel) testPanel {
+			p.extraFields = `"timeFrom":"now-5m","timeShift":"1h","maxDataPoints":100`
+			return p
+		}, true},
+		{"timeFrom added", func(p testPanel) testPanel {
+			p.extraFields = `"timeShift":"1h","maxDataPoints":100`
+			return p
+		}, true},
+		{"timeShift", func(p testPanel) testPanel {
+			p.extraFields = `"timeFrom":"now-1h","timeShift":"2h","maxDataPoints":100`
+			return p
+		}, true},
+		{"maxDataPoints", func(p testPanel) testPanel {
+			p.extraFields = `"timeFrom":"now-1h","timeShift":"1h","maxDataPoints":50`
+			return p
+		}, true},
+		{"type", func(p testPanel) testPanel {
+			p.panelType = "alertlist"
+			return p
+		}, true},
+		{"interval", func(p testPanel) testPanel {
+			p.panelInterval = "5m"
+			return p
+		}, true},
+		{"title", func(p testPanel) testPanel {
+			p.title = "Renamed"
+			return p
+		}, false},
+		{"gridPos", func(p testPanel) testPanel {
+			p.x = 3
+			return p
+		}, false},
+	}
+	prev := testDashboard(t, "", base)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			next := testDashboard(t, "", tc.edit(base))
+			changed, _ := ChangedSince(prev, next)
+			if got := len(changed) == 1 && changed[0] == "p"; got != tc.moved {
+				t.Fatalf("changed panels %v, want panel changed = %v", changed, tc.moved)
+			}
+			carried, blocking := CarryUnverified(prev, Unverified{Panels: []UnverifiedPanel{{PanelID: "p"}}}, next, []spec.Issue{issueAt("/panels/0/queries")})
+			if kept := len(carried.Panels) == 1 && len(blocking) == 0; kept == tc.moved {
+				t.Fatalf("carried %+v blocking %v, want carried = %v", carried, blocking, !tc.moved)
+			}
+			carriedAll := CarryUnchanged(prev, Unverified{Panels: []UnverifiedPanel{{PanelID: "p", Issues: []spec.Issue{issueAt("/panels/0/queries")}}}}, next, changed, nil)
+			if kept := len(carriedAll.Panels) == 1; kept == tc.moved {
+				t.Fatalf("CarryUnchanged kept = %v, want %v", kept, !tc.moved)
+			}
+		})
+	}
+}
+
+func TestChangedSinceCountsAnEditToTheReusedSourcePanel(t *testing.T) {
+	const reuse = `"queries":[{"source":{"panel":"src"}}]`
+	build := func(sourceFields string) *spec.Dashboard {
+		raw := fmt.Sprintf(`{"specVersion":"0","title":"t","time":{"from":"now-15m","to":"now"},"panels":[`+
+			`{"id":"src","type":"stat","title":"Src","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":"prom"%s,"queries":[{"query":"up"}]},`+
+			`{"id":"view","type":"stat","title":"View","gridPos":{"x":6,"y":0,"w":6,"h":4},%s}]}`, sourceFields, reuse)
+		d, err := spec.Parse([]byte(raw))
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		return d
+	}
+	prev := build("")
+	for _, edit := range []string{`,"timeFrom":"now-5m"`, `,"timeShift":"1h"`, `,"maxDataPoints":10`, `,"interval":"5m"`} {
+		changed, _ := ChangedSince(prev, build(edit))
+		if !slices.Contains(changed, "view") || !slices.Contains(changed, "src") {
+			t.Fatalf("source edit %s: changed %v, want src and view", edit, changed)
+		}
+	}
+	if changed, _ := ChangedSince(prev, build("")); len(changed) != 0 {
+		t.Fatalf("identical: changed %v, want none", changed)
 	}
 }

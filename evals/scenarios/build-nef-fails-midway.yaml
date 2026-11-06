@@ -1,0 +1,9 @@
+id: build-nef-fails-midway
+prompt: "eval build: the first save is accepted and every later save is rejected"
+category: prometheus
+kind: create
+suites: [replay]
+expect:
+  datasources: [prometheus]
+  failure_code: validation_exhausted
+  usage: {build_saves: 1}

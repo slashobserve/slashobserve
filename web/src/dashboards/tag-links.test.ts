@@ -70,7 +70,7 @@ describe("taggedLinks", () => {
     ).toEqual([
       {
         title: "API",
-        href: "/dashboards/3?from=now-1h&to=now&var-pod=a&var-pod=b",
+        href: "/d/3/api?from=now-1h&to=now&var-pod=a&var-pod=b",
         newTab: false,
       },
     ])
@@ -99,7 +99,7 @@ describe("taggedLinks", () => {
     )
     expect(first).toEqual({
       title: "Pods",
-      href: "/dashboards/1",
+      href: "/d/1/pods",
       newTab: true,
     })
   })

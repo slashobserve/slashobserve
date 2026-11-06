@@ -1,13 +1,21 @@
 import { useState } from "react"
-import { useQueries } from "@tanstack/react-query"
+import { type QueryClient, useQueries } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
-import { dashboardKeys } from "@/api/keys"
 import { requestZone } from "@/lib/time"
+import { readBuild } from "@/observe/build"
 import type { Variable } from "@/spec"
 
 import { panelRequestLimiter } from "./limiter"
+import {
+  loadRangeScope,
+  panelFingerprint,
+  sourceScope,
+  stateScope,
+  variableValuesKey,
+  type PanelSource,
+} from "./panel-source"
 import { useSetDashboardSearch, withVariables } from "./search"
 import {
   changeVars,
@@ -32,36 +40,47 @@ export type VariableState = {
   retry: () => void
 }
 
+type UrlVarsUpdate = (
+  current: Record<string, string[]>
+) => Record<string, string[]>
+
 type Args = {
-  dashboardId: string
-  version: number
+  source: PanelSource
   variables: Variable[]
   from?: string
   to?: string
   timezone?: string
   urlVars: Record<string, string[]>
+  setUrlVars?: (update: UrlVarsUpdate) => void
 }
 
 export function useVariables({
-  dashboardId,
-  version,
+  source,
   variables,
   from,
   to,
   timezone,
   urlVars,
+  setUrlVars,
 }: Args) {
   const setSearch = useSetDashboardSearch()
+  const writeUrlVars =
+    setUrlVars ??
+    ((update: UrlVarsUpdate) =>
+      setSearch((current) => ({ ...current, vars: update(current.vars) })))
+  const owner = stateScope(source)
   const [sessionState, setSessionState] = useState<{
-    dashboardId: string
+    owner: string
     vars: VariableValues
-  }>({ dashboardId, vars: {} })
-  const sessionVars =
-    sessionState.dashboardId === dashboardId ? sessionState.vars : {}
-  const scope = `${dashboardId}:${version}`
-  const [loadRange, setLoadRange] = useState({ scope, from, to })
-  if (loadRange.scope !== scope) setLoadRange({ scope, from, to })
-  const atLoad = loadRange.scope === scope ? loadRange : { from, to }
+  }>({ owner, vars: {} })
+  const sessionVars = sessionState.owner === owner ? sessionState.vars : {}
+  const scope = sourceScope(source)
+  const rangeScope = loadRangeScope(source, { from, to })
+  const [loadRange, setLoadRange] = useState({ scope: rangeScope, from, to })
+  if (loadRange.scope !== rangeScope) {
+    setLoadRange({ scope: rangeScope, from, to })
+  }
+  const atLoad = loadRange.scope === rangeScope ? loadRange : { from, to }
   const vars = mergeVars(variables, { url: urlVars, session: sessionVars })
   const [knownOptions, setKnownOptions] = useState<VariableOptions>({})
   const requests = valuesRequests(variables, vars, knownOptions)
@@ -70,34 +89,65 @@ export function useVariables({
       const { parents: earlier, parentsReady } = requests[index]
       const asked = valuesRange(variable, { from, to }, atLoad)
       return {
-        queryKey: dashboardKeys.variableValues(
-          dashboardId,
-          version,
+        queryKey: variableValuesKey(
+          source,
           variable.name,
+          source.kind === "build" ? panelFingerprint(variable) : "",
           { from: asked.from, to: asked.to, selections: earlier }
         ),
-        queryFn: ({ signal }: { signal: AbortSignal }) => {
+        queryFn: ({
+          signal,
+          client,
+        }: {
+          signal: AbortSignal
+          client: QueryClient
+        }) => {
           const range: { from?: string; to?: string; tz?: string } = {}
           if (asked.from !== undefined) range.from = asked.from
           if (asked.to !== undefined) range.to = asked.to
           const tz = requestZone(timezone)
           if (tz !== undefined) range.tz = tz
-          return panelRequestLimiter.run(
-            () =>
-              api
-                .GET(
+          const params = withVariables(range, earlier)
+          const request = () => {
+            switch (source.kind) {
+              case "version":
+                return api.GET(
                   "/dashboards/{id}/versions/{version}/variables/{name}/values",
                   {
                     params: {
-                      path: { id: dashboardId, version, name: variable.name },
-                      query: withVariables(range, earlier),
+                      path: {
+                        id: source.dashboardId,
+                        version: source.version,
+                        name: variable.name,
+                      },
+                      query: params,
                     },
                     signal,
                   }
                 )
-                .then(unwrap),
-            signal
-          )
+              case "build":
+                return api.GET("/observe/{id}/build/variables/{name}/values", {
+                  params: {
+                    path: { id: source.requestId, name: variable.name },
+                    query: params,
+                  },
+                  signal,
+                })
+              case "public":
+                return api.GET("/public/{token}/variables/{name}/values", {
+                  params: {
+                    path: { token: source.token, name: variable.name },
+                    query: params,
+                  },
+                  signal,
+                })
+            }
+          }
+          const read = () =>
+            panelRequestLimiter.run(() => request().then(unwrap), signal)
+          return source.kind === "build"
+            ? readBuild(client, source.requestId, signal, read)
+            : read()
         },
         enabled:
           parentsReady &&
@@ -109,7 +159,7 @@ export function useVariables({
 
   const parentKeys = requests.map((request) => parentKeyOf(request.parents))
   const [lastLoaded, setLastLoaded] = useState<Record<string, LoadedValues>>({})
-  const scopePrefix = `${dashboardId}:${version}:`
+  const scopePrefix = `${scope}:`
   let nextLoaded = lastLoaded
   if (Object.keys(nextLoaded).some((key) => !key.startsWith(scopePrefix))) {
     nextLoaded = Object.fromEntries(
@@ -192,17 +242,17 @@ export function useVariables({
       name,
       values
     )
-    setSessionState({ dashboardId, vars: next.session })
+    setSessionState({ owner, vars: next.session })
     if (JSON.stringify(next.url) === JSON.stringify(urlVars)) return
-    setSearch((current) => ({
-      ...current,
-      vars: changeVars(
-        variables,
-        { url: current.vars, session: sessionVars },
-        name,
-        values
-      ).url,
-    }))
+    writeUrlVars(
+      (current) =>
+        changeVars(
+          variables,
+          { url: current, session: sessionVars },
+          name,
+          values
+        ).url
+    )
   }
 
   const blocking = states.find(

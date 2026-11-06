@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 
-import type { APIRequestContext, Page } from "@playwright/test"
+import type { APIRequestContext, Locator, Page } from "@playwright/test"
 
 import { createComment, createDashboard, loadSpec, uniqueTitle } from "./api"
 import { expectPanelsReady, openDashboard, panel } from "./dashboards"
@@ -27,8 +27,8 @@ async function createPageDashboard(request: APIRequestContext) {
   return { id, title }
 }
 
-function moreButton(page: Page) {
-  return page.getByRole("button", { name: /^More/ })
+function moreButton(scope: Page | Locator) {
+  return scope.getByRole("button", { name: /^More/ })
 }
 
 async function noDocumentOverflow(page: Page) {
@@ -50,16 +50,19 @@ for (const theme of themes) {
       const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" })
       await expect(
         breadcrumb.getByRole("link", { name: "/observe home" })
+      ).toBeHidden()
+      await expect(
+        page
+          .getByRole("navigation", { name: "Main" })
+          .getByRole("link", { name: "/observe home" })
       ).toHaveAttribute("href", "/")
       await expect(
-        breadcrumb.getByRole("link", { name: "Dashboards" })
+        breadcrumb.getByRole("link", { name: "Dashboards", exact: true })
       ).toHaveAttribute("href", "/dashboards")
       await expect(
         breadcrumb.getByRole("heading", { level: 1, name: title })
       ).toBeVisible()
-      await expect(page.getByRole("navigation", { name: "Main" })).toHaveCount(
-        0
-      )
+      await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible()
       await expect(page.getByText(/made by/)).toHaveCount(0)
     })
 
@@ -221,7 +224,7 @@ test("clears a posted draft after the dashboard was left", async ({
   await page.getByRole("button", { name: "Add comment" }).click()
   await page
     .getByRole("navigation", { name: "Breadcrumb" })
-    .getByRole("link", { name: "Dashboards" })
+    .getByRole("link", { name: "Dashboards", exact: true })
     .click()
   await expect(page).toHaveURL("/dashboards")
 
@@ -291,8 +294,22 @@ test("fits a phone", async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await openDashboard(page, id)
 
-  await expect(moreButton(page)).toBeVisible()
-  await expect(page.getByRole("button", { name: "Switch theme" })).toBeVisible()
+  const controls = page.getByRole("button", { name: "Controls" })
+  await expect(controls).toBeVisible()
+  expect(await noDocumentOverflow(page)).toBe(true)
+  const trigger = await controls.boundingBox()
+  expect(trigger).not.toBeNull()
+  expect(trigger!.x).toBeGreaterThanOrEqual(0)
+  expect(trigger!.x + trigger!.width).toBeLessThanOrEqual(390)
+
+  await expect(moreButton(page)).toHaveCount(0)
+  await expect(page.getByLabel("Switch theme")).toHaveCount(0)
+
+  await controls.click()
+  const sheet = page.getByRole("dialog", { name: "Controls" })
+  await expect(sheet).toBeVisible()
+  await expect(moreButton(sheet)).toBeVisible()
+  await expect(page.getByLabel("Switch theme")).toHaveCount(0)
   expect(await noDocumentOverflow(page)).toBe(true)
 })
 
@@ -336,12 +353,12 @@ test("keeps a multi-value variable inside the box on a phone", async ({
 test.describe("signed out", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
-  test("signs out from More", async ({ page }) => {
+  test("signs out from the rail's account menu", async ({ page }) => {
     await signInThroughDex(page)
     const { id } = await createPageDashboard(page.request)
     await openDashboard(page, id)
 
-    await moreButton(page).click()
+    await page.getByRole("button", { name: /^Account: / }).click()
     await page.getByRole("menuitem", { name: "Sign out" }).click()
     await expect(page).toHaveURL("/login")
   })

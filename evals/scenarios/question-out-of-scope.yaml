@@ -1,0 +1,7 @@
+id: question-out-of-scope
+prompt: "write me a python script that sorts a list"
+kind: question
+suites: [live, replay]
+done_when: false
+expect:
+  finding_mentions: [datasource]

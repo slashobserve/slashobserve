@@ -4,6 +4,7 @@ import { useTable } from "@tanstack/react-table"
 import {
   ChevronDownIcon,
   ChevronRightIcon,
+  FolderLockIcon,
   LockIcon,
   SearchIcon,
   UsersIcon,
@@ -24,7 +25,6 @@ import { LoadProblem } from "@/components/load-problem"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useCanCreateDashboards } from "@/folders/create-access"
 import { foldersQuery, type Folder } from "@/folders/queries"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
@@ -39,6 +39,7 @@ import {
   accessSummary,
   dashboardCountText,
   groupPage,
+  hasPeopleFolders,
   listSummary,
   yourAccessText,
   type FolderSection,
@@ -129,9 +130,15 @@ type FilterRowProps = {
   search: ListSearch
   onSearchChange: (next: ListSearch) => void
   summary: string | undefined
+  folderLocked: boolean
 }
 
-function FilterRow({ search, onSearchChange, summary }: FilterRowProps) {
+function FilterRow({
+  search,
+  onSearchChange,
+  summary,
+  folderLocked,
+}: FilterRowProps) {
   const [text, setText] = useState(search.q ?? "")
   const emitted = useRef(search.q)
   const typed = text.trim() === "" ? undefined : text.trim()
@@ -176,10 +183,12 @@ function FilterRow({ search, onSearchChange, summary }: FilterRowProps) {
         value={search.datasource}
         onChange={(datasource) => onSearchChange({ ...search, datasource })}
       />
-      <FolderMenu
-        value={search.folder}
-        onChange={(folder) => onSearchChange({ ...search, folder })}
-      />
+      {folderLocked ? null : (
+        <FolderMenu
+          value={search.folder}
+          onChange={(folder) => onSearchChange({ ...search, folder })}
+        />
+      )}
       <TagsMenu
         value={search.tag}
         onChange={(tag) => onSearchChange({ ...search, tag })}
@@ -204,7 +213,11 @@ function FolderHeaderRow({
   columnCount: number
   onToggle: () => void
 }) {
-  const AccessIcon = folder.restricted ? LockIcon : UsersIcon
+  const AccessIcon = folder.personal
+    ? FolderLockIcon
+    : folder.restricted
+      ? LockIcon
+      : UsersIcon
   const yourAccess = yourAccessText(folder)
   return (
     <tr>
@@ -245,8 +258,9 @@ function FolderHeaderRow({
           )}
           {folder.permissions.manage ? (
             <Link
-              to="/folders/$folderId"
+              to="/f/$folderId"
               params={{ folderId: folder.id }}
+              search={{ settings: "1" }}
               className="ml-auto rounded-sm text-xs outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
             >
               Folder settings
@@ -262,15 +276,16 @@ function sectionRows(
   sections: FolderSection[],
   collapsed: ReadonlySet<string>,
   toggle: (folderId: string) => void,
-  table: ListTable
+  table: ListTable,
+  folderLocked: boolean
 ): ReactNode[] {
   const columnCount = table.getAllLeafColumns().length
   const tableRows = new Map(
     table.getRowModel().rows.map((row) => [row.id, row])
   )
   return sections.flatMap((section) => {
-    const isCollapsed = collapsed.has(section.folder.id)
-    const header = (
+    const isCollapsed = !folderLocked && collapsed.has(section.folder.id)
+    const header = folderLocked ? null : (
       <FolderHeaderRow
         key={`folder:${section.folder.id}`}
         folder={section.folder}
@@ -301,6 +316,9 @@ function sectionRows(
             {row.getAllCells().map((cell) => (
               <Cell
                 key={cell.id}
+                data-cell={
+                  cell.column.id === actionsColumn.id ? "action" : undefined
+                }
                 className={cell.column.columnDef.meta?.cellClassName}
               >
                 <table.FlexRender cell={cell} />
@@ -317,18 +335,34 @@ type Props = {
   labelledBy: string
   search: ListSearch
   onSearchChange: (next: ListSearch) => void
+  folderId?: string
 }
 
-export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
-  const canCreate = useCanCreateDashboards()
+export function DashboardList({
+  labelledBy,
+  search,
+  onSearchChange,
+  folderId,
+}: Props) {
+  const folderLocked = folderId !== undefined
   const page = search.page ?? 1
-  const query = useDashboardList(search, page)
+  const query = useDashboardList(
+    folderLocked ? { ...search, folder: folderId } : search,
+    page
+  )
   const folderResult = useQuery(foldersQuery())
   const dashboards = query.data?.dashboards ?? emptyList
   const total = query.data?.total_count ?? 0
   const dataOffset = query.data?.offset ?? 0
   const table = useListTable(dashboards)
-  const folders = folderResult.data
+  const allFolders = folderResult.data
+  const folders = useMemo(
+    () =>
+      folderLocked
+        ? allFolders?.filter((folder) => folder.id === folderId)
+        : allFolders,
+    [allFolders, folderLocked, folderId]
+  )
   const filtered = hasFilters(search)
   const loaded = query.data !== undefined
   const settled = loaded && !query.isPlaceholderData
@@ -352,7 +386,7 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
     !query.isPlaceholderData &&
     !filtered &&
     clampTo === null &&
-    folders.length <= 1
+    (folderLocked || !hasPeopleFolders(folders))
   const empty = sections !== null && (noDashboards || sections.length === 0)
   const [resetKey, setResetKey] = useState(0)
   const pending = query.isPending || folderResult.isPending
@@ -412,7 +446,9 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
     ? "Offline. The list loads when you are back online."
     : query.isPlaceholderData || sections === null
       ? undefined
-      : listSummary(total, sections.length, page)
+      : folderLocked && pageCount === 1
+        ? dashboardCountText(total)
+        : listSummary(total, sections.length, page)
 
   return (
     <>
@@ -422,6 +458,7 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
           search={search}
           onSearchChange={onFilterChange}
           summary={summary}
+          folderLocked={folderLocked}
         />
       )}
       {failedQuery === null ? null : (
@@ -454,14 +491,12 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
                 >
                   Open the chat
                 </Link>
-                {canCreate === true ? (
-                  <Link
-                    to="/import"
-                    className={cn(buttonVariants({ variant: "outline" }))}
-                  >
-                    Import from Grafana
-                  </Link>
-                ) : null}
+                <Link
+                  to="/import"
+                  className={cn(buttonVariants({ variant: "outline" }))}
+                >
+                  Import from Grafana
+                </Link>
               </div>
             </>
           ) : (
@@ -484,7 +519,12 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
       ) : null}
       {showTable ? (
         <>
-          <TableCard minWidth={820} labelledBy={labelledBy} ref={regionRef}>
+          <TableCard
+            minWidth={820}
+            labelledBy={labelledBy}
+            ref={regionRef}
+            stackOnNarrow
+          >
             <thead>
               {table.getHeaderGroups().map((group) => (
                 <tr key={group.id}>
@@ -505,7 +545,13 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
               {sections === null ? (
                 <SkeletonRows table={table} />
               ) : (
-                sectionRows(sections, collapsed, toggleFolder, table)
+                sectionRows(
+                  sections,
+                  collapsed,
+                  toggleFolder,
+                  table,
+                  folderLocked
+                )
               )}
             </tbody>
           </TableCard>

@@ -32,6 +32,7 @@ const (
 	uniqueViolation      = "23505"
 
 	InvalidRoleMessage = "role must be admin, editor, commenter or viewer"
+	provisionedMessage = "this service account comes from the service-accounts file; change its role or key in the file and restart the server"
 )
 
 var serviceAccountName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
@@ -43,6 +44,7 @@ type serviceAccountJSON struct {
 	CreatedBy   *string `json:"created_by"`
 	CreatedAt   string  `json:"created_at"`
 	Role        Role    `json:"role"`
+	Provisioned bool    `json:"provisioned"`
 }
 
 type keyJSON struct {
@@ -132,6 +134,9 @@ func (s *Service) updateServiceAccount(c *gin.Context) {
 	role, ok := parseRoleField(req.Role)
 	if !ok {
 		abortError(c, http.StatusBadRequest, "invalid_request", InvalidRoleMessage)
+		return
+	}
+	if !s.changeableServiceAccount(c, id) {
 		return
 	}
 	ctx := c.Request.Context()
@@ -239,6 +244,9 @@ func (s *Service) revokeKey(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !s.changeableServiceAccount(c, accountID) {
+		return
+	}
 	n, err := s.queries.RevokeServiceAccountKey(c.Request.Context(), dbsqlc.RevokeServiceAccountKeyParams{
 		ID:               keyID,
 		ServiceAccountID: accountID,
@@ -262,6 +270,23 @@ func (s *Service) serviceAccountExists(c *gin.Context, id pgtype.UUID) bool {
 	}
 	if err != nil {
 		s.internalError(c, "get service account", err)
+		return false
+	}
+	return true
+}
+
+func (s *Service) changeableServiceAccount(c *gin.Context, id pgtype.UUID) bool {
+	account, err := s.queries.GetServiceAccount(c.Request.Context(), id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		abortError(c, http.StatusNotFound, "not_found", "service account not found")
+		return false
+	}
+	if err != nil {
+		s.internalError(c, "get service account", err)
+		return false
+	}
+	if account.Provisioned {
+		abortError(c, http.StatusConflict, "provisioned", provisionedMessage)
 		return false
 	}
 	return true
@@ -332,6 +357,7 @@ func newServiceAccountJSON(a dbsqlc.ServiceAccount) serviceAccountJSON {
 		CreatedBy:   uuidString(a.CreatedBy),
 		CreatedAt:   formatTime(a.CreatedAt.Time),
 		Role:        Role(a.Role),
+		Provisioned: a.Provisioned,
 	}
 }
 

@@ -1,0 +1,13 @@
+apiVersion: v2
+name: slashobserve
+description: SlashObserve server on Kubernetes, with an external Postgres and every secret taken from a Secret you create.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://slashobserve.com
+sources:
+  - https://github.com/slashobserve/slashobserve
+keywords:
+  - observability
+  - dashboards
+  - prometheus

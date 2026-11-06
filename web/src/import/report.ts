@@ -80,7 +80,7 @@ function panelLines(report: ImportReport, filter: ReportFilter): ReportLine[] {
         title: panel.title,
         subtitle: panel.row === null ? type : `${type} · ${panel.row}`,
         status: panel.status,
-        reasons: panel.reasons.length > 0 ? panel.reasons : ["Imported as is."],
+        reasons: panel.reasons,
         paths: panel.paths.join(", "),
       }
     })
@@ -114,20 +114,25 @@ export function visibleDatasources(
   )
 }
 
+const kindLabels: Record<string, string> = {
+  clickhouse: "ClickHouse",
+  loki: "Loki",
+  prometheus: "Prometheus",
+  tempo: "Tempo",
+}
+
 export function datasourceKindLabel(kind: string): string {
-  if (kind === "clickhouse") return "ClickHouse"
-  if (kind === "prometheus") return "Prometheus"
-  return kind
+  return kindLabels[kind] ?? kind
 }
 
 export function blockingReason(
   datasources: ImportSourceDatasource[]
 ): string | null {
   const blocking = visibleDatasources(datasources).find(
-    (datasource) => datasource.kind !== null && datasource.match === null
+    (datasource) =>
+      datasource.kind !== null &&
+      datasource.match === null &&
+      datasource.candidates.length > 0
   )
-  if (!blocking) return null
-  return blocking.candidates.length === 0
-    ? "Some datasources are not configured."
-    : `Choose a datasource for ${blocking.key}.`
+  return blocking ? `Choose a datasource for ${blocking.key}.` : null
 }

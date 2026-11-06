@@ -1,6 +1,8 @@
 id: slowest-endpoints-traces
 prompt: slowest endpoints from traces, last hour
 category: clickhouse
+kind: create
+suites: [live]
 done_when: true
 expect:
   datasources: [clickhouse]

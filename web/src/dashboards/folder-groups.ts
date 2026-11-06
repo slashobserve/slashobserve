@@ -60,7 +60,12 @@ export function groupPage(
   return sections
 }
 
+export function hasPeopleFolders(folders: Folder[]): boolean {
+  return folders.some((folder) => !folder.general && !folder.personal)
+}
+
 export function accessSummary(folder: Folder): string {
+  if (folder.personal) return "Only you"
   if (!folder.restricted) return "Everyone, by role"
   const names = folder.grantees.join(", ")
   const more = folder.grantee_count - folder.grantees.length
@@ -70,7 +75,9 @@ export function accessSummary(folder: Folder): string {
 }
 
 export function yourAccessText(folder: Folder): string | null {
-  return folder.restricted ? `Your access: ${levelLabels[folder.level]}` : null
+  return folder.restricted && !folder.personal
+    ? `Your access: ${levelLabels[folder.level]}`
+    : null
 }
 
 function plural(n: number, noun: string): string {

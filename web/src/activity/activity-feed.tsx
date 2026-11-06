@@ -1,5 +1,7 @@
 import {
   useCallback,
+  useEffect,
+  useId,
   useMemo,
   useState,
   type ReactNode,
@@ -10,9 +12,11 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
+import { useRouteContext } from "@tanstack/react-router"
 
 import type { components } from "@/api/schema.gen"
 import { commentsQuery, useComments } from "@/comments/queries"
+import { NativeSelect } from "@/components/native-select"
 import { RoleNote } from "@/components/role-note"
 import {
   composerMode,
@@ -23,8 +27,9 @@ import {
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { useVersionHistory } from "@/history/use-version-history"
 import { importForDashboardQuery } from "@/import/record-queries"
+import { findingsForDashboardQuery } from "@/findings/queries"
 import { fixPrompt } from "@/import/record-summary"
-import { useAgentInfo } from "@/observe/queries"
+import { useAgentInfo, useMyRequests } from "@/observe/queries"
 import { isActive, useRevisions } from "@/revisions/queries"
 import { allPanels, panelTitle, type Dashboard } from "@/spec"
 
@@ -33,6 +38,7 @@ import { sendToAgentState } from "./agent-gate"
 import { useActivityStore, useDraft, useStoredTarget } from "./activity-store"
 import { clientNameFrom } from "./client-name"
 import { ExternalAgentNote } from "./external-agent-note"
+import { FindingEntry } from "./finding-entry"
 import { ImportEntry } from "./import-entry"
 import { RequestEntry } from "./request-entry"
 import { RunningEntry } from "./running-entry"
@@ -53,9 +59,6 @@ const showOptions: { value: TimelineShow; label: string }[] = [
   { value: "changes", label: "Changes only" },
 ]
 
-const selectClass =
-  "h-[26px] min-w-0 max-w-[200px] rounded-[5px] border bg-background px-1.5 text-xs text-foreground"
-
 type Props = {
   dashboardId: string
   apiId: string
@@ -69,6 +72,7 @@ type Props = {
   onSelectPanel: (panelId: string) => void
   back: string | undefined
   composerRef: RefObject<HTMLTextAreaElement | null>
+  range: { from: string; to: string }
 }
 
 type PanelRef = { id: string; title: string }
@@ -111,6 +115,22 @@ function useLatestUnverified(dashboardId: string): UnverifiedRef[] | undefined {
   }).data
 }
 
+let feedDashboardId: string | null = null
+
+function useResetAgentKindOnLeave(dashboardId: string) {
+  const setAgentKind = useActivityStore((state) => state.setAgentKind)
+  useEffect(() => {
+    feedDashboardId = dashboardId
+    return () => {
+      feedDashboardId = null
+      // StrictMode remounts a new feed once in development, so a remount of the same dashboard cancels the reset.
+      queueMicrotask(() => {
+        if (feedDashboardId !== dashboardId) setAgentKind("revise")
+      })
+    }
+  }, [dashboardId, setAgentKind])
+}
+
 function changeSignature(entry: TimelineEntry | undefined): string {
   if (entry === undefined) return ""
   switch (entry.kind) {
@@ -123,32 +143,9 @@ function changeSignature(entry: TimelineEntry | undefined): string {
       return entry.key
     case "import":
       return `${entry.key}:${entry.unverified.length}`
+    case "finding":
+      return `${entry.key}:${entry.finding.annotation_id ?? ""}`
   }
-}
-
-function FilterSelect({
-  label,
-  value,
-  onChange,
-  children,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  children: ReactNode
-}) {
-  return (
-    <label className="flex min-w-0 items-center gap-1.5">
-      {label}
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className={selectClass}
-      >
-        {children}
-      </select>
-    </label>
-  )
 }
 
 export function ActivityFeed({
@@ -164,7 +161,9 @@ export function ActivityFeed({
   onSelectPanel,
   back,
   composerRef,
+  range,
 }: Props) {
+  const { principal } = useRouteContext({ from: "/_authed" })
   const comments = useComments(dashboardId)
   const commentsData = useInfiniteQuery(commentsQuery(dashboardId)).data
   const revisions = useRevisions(dashboardId)
@@ -173,7 +172,15 @@ export function ActivityFeed({
   const panels = useLatestPanelRefs(dashboardId)
   const latestUnverified = useLatestUnverified(dashboardId)
   const importRecord = useQuery(importForDashboardQuery(dashboardId)).data
+  const findingsData = useQuery(findingsForDashboardQuery(dashboardId)).data
+  const investigations = useMyRequests({
+    source: "investigate",
+    dashboardId,
+  }).requests
+  useResetAgentKindOnLeave(dashboardId)
   const [show, setShow] = useState<TimelineShow>("everything")
+  const showId = useId()
+  const scopeId = useId()
 
   const panelList = useMemo(() => panels ?? [], [panels])
   const titles = useMemo(
@@ -207,11 +214,22 @@ export function ActivityFeed({
           requests,
           versions,
           imported,
+          investigations,
+          findings: findingsData,
         }),
         show,
         scopePanelId
       ),
-    [comments.comments, requests, versions, imported, show, scopePanelId]
+    [
+      comments.comments,
+      requests,
+      versions,
+      imported,
+      investigations,
+      findingsData,
+      show,
+      scopePanelId,
+    ]
   )
 
   const permissions = useLatestPermissions(dashboardId)
@@ -227,6 +245,11 @@ export function ActivityFeed({
       .length,
   })
   const clientName = clientNameFrom(madeBy)
+  const runningRequestId =
+    requests.find(
+      (request) =>
+        isActive(request.status) && request.requested_by.id === principal.id
+    )?.id ?? investigations.find((request) => isActive(request.status))?.id
 
   const draft = useDraft(dashboardId)
   const storedTarget = useStoredTarget(dashboardId)
@@ -284,6 +307,7 @@ export function ActivityFeed({
       case "request":
         return (
           <RequestEntry
+            dashboardId={dashboardId}
             entry={entry}
             panelTitle={title}
             onSelectPanel={onSelectPanel}
@@ -305,6 +329,8 @@ export function ActivityFeed({
             onAskToFix={onAskToFix}
           />
         )
+      case "finding":
+        return <FindingEntry entry={entry} />
     }
   }
 
@@ -313,14 +339,19 @@ export function ActivityFeed({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center justify-between gap-2 px-4 py-2.5 text-xs text-muted-foreground">
-        <FilterSelect
-          label="Show"
+      <div className="flex items-center gap-2 border-b px-4 py-2">
+        <label htmlFor={showId} className="text-xs text-muted-foreground">
+          Show
+        </label>
+        <NativeSelect
+          id={showId}
+          size="sm"
+          aria-label="Show"
           value={show}
-          onChange={(value) =>
+          onChange={(event) =>
             setShow(
-              showOptions.find((option) => option.value === value)?.value ??
-                "everything"
+              showOptions.find((option) => option.value === event.target.value)
+                ?.value ?? "everything"
             )
           }
         >
@@ -329,11 +360,19 @@ export function ActivityFeed({
               {option.label}
             </option>
           ))}
-        </FilterSelect>
-        <FilterSelect
-          label="Panel"
+        </NativeSelect>
+        <label htmlFor={scopeId} className="text-xs text-muted-foreground">
+          Panel
+        </label>
+        <NativeSelect
+          id={scopeId}
+          size="sm"
+          aria-label="Panel"
+          className="max-w-[200px] truncate"
           value={scopePanelId ?? ""}
-          onChange={(value) => onScopeChange(value === "" ? null : value)}
+          onChange={(event) =>
+            onScopeChange(event.target.value === "" ? null : event.target.value)
+          }
         >
           <option value="">All panels</option>
           {panelList.map((panel) => (
@@ -341,7 +380,7 @@ export function ActivityFeed({
               {panel.title === "" ? "Untitled panel" : panel.title}
             </option>
           ))}
-        </FilterSelect>
+        </NativeSelect>
       </div>
       <div ref={stickRef} className="min-h-0 flex-1 overflow-y-auto">
         <TimelineList
@@ -379,6 +418,8 @@ export function ActivityFeed({
                 : "Write a comment, or tell the agent what to change"
           }
           textareaRef={composerRef}
+          runningRequestId={runningRequestId}
+          range={range}
           notice={
             mode === "comment-only" ? (
               <RoleNote>{note}</RoleNote>

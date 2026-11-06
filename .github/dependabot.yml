@@ -4,10 +4,11 @@ updates:
   - package-ecosystem: gomod
     directories:
       - /
-      - /demo/shop
+      - /demo
       - /tools/sqlc
       - /tools/golangci-lint
       - /tools/govulncheck
+      - /tools/kind
     schedule:
       interval: weekly
     cooldown:
@@ -39,7 +40,7 @@ updates:
   - package-ecosystem: docker
     directories:
       - /
-      - /demo/shop
+      - /demo
     schedule:
       interval: weekly
     cooldown:

@@ -7,6 +7,7 @@ import type {
   NewsPanel,
   TextPanel,
 } from "@/spec"
+import { validateSpecSchema } from "@/spec/validate"
 
 import {
   formatPanel,
@@ -77,7 +78,7 @@ const spec: Dashboard = {
 }
 
 function failure(text: string, panelId: string) {
-  const result = parsePanelJson(text, spec, panelId)
+  const result = parsePanelJson(text, spec, panelId, validateSpecSchema)
   if (result.ok) throw new Error("expected issues")
   return result.issues
 }
@@ -206,7 +207,10 @@ describe("parsePanelJson", () => {
 
   it("accepts an edited news panel and rejects a non-https feed URL", () => {
     const edited = { ...feed, display: { feedUrl: "https://other.dev/rss" } }
-    expect(parsePanelJson(JSON.stringify(edited), spec, "feed").ok).toBe(true)
+    expect(
+      parsePanelJson(JSON.stringify(edited), spec, "feed", validateSpecSchema)
+        .ok
+    ).toBe(true)
     const insecure = { ...feed, display: { feedUrl: "http://other.dev/rss" } }
     const issues = failure(JSON.stringify(insecure), "feed")
     expect(issues.map((issue) => issue.path)).toEqual(["/display/feedUrl"])
@@ -216,7 +220,8 @@ describe("parsePanelJson", () => {
     const result = parsePanelJson(
       JSON.stringify({ ...top, type: "gauge" }),
       spec,
-      "top"
+      "top",
+      validateSpecSchema
     )
     expect(result.ok).toBe(true)
   })
@@ -257,7 +262,12 @@ describe("parsePanelJson", () => {
       ...spec,
       panels: [...filler.slice(0, 10), broken as DataPanel],
     }
-    const result = parsePanelJson(JSON.stringify(filler[1]), crowded, "p1")
+    const result = parsePanelJson(
+      JSON.stringify(filler[1]),
+      crowded,
+      "p1",
+      validateSpecSchema
+    )
     if (result.ok) throw new Error("expected issues")
     expect(result.issues.length).toBeGreaterThan(0)
     for (const issue of result.issues) {
@@ -271,7 +281,12 @@ describe("parsePanelJson", () => {
       ...spec,
       panels: [top, { ...notes, content: 5 as unknown as string }],
     }
-    const result = parsePanelJson(JSON.stringify(top), stale, "top")
+    const result = parsePanelJson(
+      JSON.stringify(top),
+      stale,
+      "top",
+      validateSpecSchema
+    )
     if (result.ok) throw new Error("expected issues")
     expect(result.issues).toContainEqual({
       path: "/panels/1/content",
@@ -288,7 +303,12 @@ describe("parsePanelJson", () => {
 
   it("round trips a formatted panel", () => {
     for (const panel of [top, child, notes]) {
-      const result = parsePanelJson(formatPanel(panel), spec, panel.id)
+      const result = parsePanelJson(
+        formatPanel(panel),
+        spec,
+        panel.id,
+        validateSpecSchema
+      )
       expect(result).toEqual({ ok: true, panel })
     }
   })

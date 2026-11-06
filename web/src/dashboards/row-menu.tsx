@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
+import { useRouteContext } from "@tanstack/react-router"
 import { CopyIcon, EllipsisIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { NewFolderDialog } from "@/folders/new-folder-dialog"
 import { foldersQuery } from "@/folders/queries"
+import { roleAtLeast } from "@/lib/roles"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import type { DashboardSummary } from "./dashboard-columns"
@@ -54,6 +56,7 @@ export function DashboardRowMenu({
 }: {
   dashboard: DashboardSummary
 }) {
+  const { principal } = useRouteContext({ from: "/_authed" })
   const folders = useQuery(foldersQuery()).data ?? []
   const move = useMoveDashboard()
   const trigger = useRef<HTMLButtonElement>(null)
@@ -66,10 +69,13 @@ export function DashboardRowMenu({
   const [duplicating, setDuplicating] = useState(false)
   const current = dashboard.folder.id
   const canEdit = dashboard.permissions.edit
+  const publishing = dashboard.folder.personal
+  const movedVerb = publishing ? "Published" : "Moved"
   const targets = duplicateTargets(folders, current)
   const canDuplicate = targets.choices.length > 0
   const choices = folders.filter(
-    (folder) => folder.permissions.edit || folder.id === current
+    (folder) =>
+      (folder.permissions.edit && !folder.personal) || folder.id === current
   )
 
   useEffect(() => {
@@ -94,7 +100,7 @@ export function DashboardRowMenu({
     move.mutate(
       { id: dashboard.id, folderId: target.id },
       {
-        onSuccess: () => toast.success(`Moved to ${target.title}`),
+        onSuccess: () => toast.success(`${movedVerb} to ${target.title}`),
         onError: (error) => {
           refocus.current = false
           toast.error(
@@ -164,7 +170,9 @@ export function DashboardRowMenu({
             <>
               {canDuplicate ? <DropdownMenuSeparator /> : null}
               <DropdownMenuGroup>
-                <DropdownMenuLabel>Move to folder</DropdownMenuLabel>
+                <DropdownMenuLabel>
+                  {publishing ? "Publish to folder" : "Move to folder"}
+                </DropdownMenuLabel>
                 <DropdownMenuRadioGroup
                   value={current}
                   onValueChange={(id) => {
@@ -188,15 +196,19 @@ export function DashboardRowMenu({
                   ))}
                 </DropdownMenuRadioGroup>
               </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => {
-                  leaveFocusAlone.current = true
-                  setCreating(true)
-                }}
-              >
-                New folder
-              </DropdownMenuItem>
+              {roleAtLeast(principal.role, "editor") ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => {
+                      leaveFocusAlone.current = true
+                      setCreating(true)
+                    }}
+                  >
+                    New folder
+                  </DropdownMenuItem>
+                </>
+              ) : null}
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={startDelete}>
                 Delete dashboard...

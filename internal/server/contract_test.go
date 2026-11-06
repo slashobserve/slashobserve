@@ -123,6 +123,21 @@ func TestValidResponseKeepsHandlerHeaders(t *testing.T) {
 	}
 }
 
+func TestRequestReachesTheHandlerWithoutDocumentDefaultsInjected(t *testing.T) {
+	var logs bytes.Buffer
+	var seen string
+	engine := contractEngine(t, &logs, func(g *gin.RouterGroup) {
+		g.GET("/dashboards", func(c *gin.Context) {
+			seen = c.Request.URL.RawQuery
+			c.JSON(http.StatusBadRequest, gin.H{"error": "stop", "code": "invalid_request"})
+		})
+	})
+	serve(engine, httptest.NewRequest(http.MethodGet, "/api/v1/dashboards?cursor=abc", nil))
+	if seen != "cursor=abc" {
+		t.Errorf("handler saw query %q, want %q (logs: %s)", seen, "cursor=abc", logs.String())
+	}
+}
+
 func TestHandlerAbortedByClientDisconnectIsNotAViolation(t *testing.T) {
 	var logs bytes.Buffer
 	ctx, cancel := context.WithCancel(context.Background())

@@ -4,20 +4,34 @@ import { verticalCompactor } from "react-grid-layout/core"
 import "react-grid-layout/css/styles.css"
 
 import type { Selections } from "@/api/keys"
+import { cn } from "@/lib/utils"
+import { rendererManifests } from "@/panels"
 import type { Dashboard } from "@/spec"
 
 import { membershipOf, rowCompactor } from "./edit/layout"
+import {
+  columnsFor,
+  fitLayout,
+  gridColumns,
+  gridMargin,
+  pixelWidth,
+} from "./fit-layout"
 import { expandLayout, type LayoutItem } from "./rows/expand-layout"
 import { RowHeader } from "./rows/row-header"
 import { useRowStore } from "./rows/row-store"
+import {
+  gridRowHeight,
+  pixelHeight,
+  rowsFor,
+  stackedHeight,
+} from "./stack-heights"
 
-const gridColumns = 24
-export const gridRowHeight = 30
-export const gridMargin = 10
 const singleColumnBelow = 768
+const fadeIn =
+  "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300"
 
 type Size = { width: number; height: number }
-type PanelItem = Extract<LayoutItem, { kind: "panel" }>
+export type PanelItem = Extract<LayoutItem, { kind: "panel" }>
 
 type Props = {
   dashboardId: string
@@ -28,18 +42,10 @@ type Props = {
   editable?: boolean
   layout?: Layout
   onLayoutChange?: (layout: Layout) => void
+  newPanelIds?: ReadonlySet<string>
 }
 
 const noRows: Record<string, boolean> = {}
-
-function pixelWidth(containerWidth: number, w: number): number {
-  const column = (containerWidth - (gridColumns - 1) * gridMargin) / gridColumns
-  return column * w + (w - 1) * gridMargin
-}
-
-function pixelHeight(h: number): number {
-  return h * gridRowHeight + (h - 1) * gridMargin
-}
 
 function viewItem(entry: LayoutItem): Layout[number] {
   const { x, y, w, h } = entry.gridPos
@@ -55,6 +61,7 @@ export function DashboardGrid({
   editable = false,
   layout,
   onLayoutChange,
+  newPanelIds,
 }: Props) {
   const { width, mounted, containerRef } = useContainerWidth({
     measureBeforeMount: true,
@@ -85,16 +92,45 @@ export function DashboardGrid({
   )
 
   const stacked = width < singleColumnBelow
-  const columns = stacked ? 1 : gridColumns
   const gridItems = useMemo(() => {
-    if (!stacked) return ordered.map(({ item }) => item)
-    let y = 0
-    return ordered.map(({ item }) => {
-      const stackedItem = { ...item, x: 0, y, w: 1, minW: 1 }
-      y += item.h
-      return stackedItem
-    })
-  }, [stacked, ordered])
+    const items = ordered.map(({ entry, item }) =>
+      stacked && entry.kind === "panel"
+        ? {
+            ...item,
+            h: rowsFor(
+              stackedHeight(
+                item.h,
+                rendererManifests.get(entry.panel.type)?.minHeight
+              )
+            ),
+          }
+        : item
+    )
+    if (editing && !stacked) return items
+    const minimum = new Map(
+      ordered.map(({ entry, item }) => [
+        item.i,
+        stacked
+          ? gridColumns
+          : columnsFor(
+              entry.kind === "panel"
+                ? rendererManifests.get(entry.panel.type)?.minWidth
+                : undefined,
+              width
+            ),
+      ])
+    )
+    const fixed = new Set(
+      stacked
+        ? []
+        : ordered.flatMap(({ entry, item }) =>
+            entry.kind === "panel" && entry.panel.responsive === false
+              ? [item.i]
+              : []
+          )
+    )
+    return fitLayout(items, minimum, fixed)
+  }, [editing, stacked, ordered, width])
 
   return (
     <div ref={containerRef} className="w-full">
@@ -104,7 +140,7 @@ export function DashboardGrid({
           layout={gridItems}
           compactor={compactor}
           gridConfig={{
-            cols: columns,
+            cols: gridColumns,
             rowHeight: gridRowHeight,
             margin: [gridMargin, gridMargin],
             containerPadding: [0, 0],
@@ -117,7 +153,7 @@ export function DashboardGrid({
           resizeConfig={{ enabled: editable && !stacked, handles: ["se"] }}
           onLayoutChange={stacked ? undefined : onLayoutChange}
         >
-          {ordered.map(({ entry, item }) => (
+          {ordered.map(({ entry }, index) => (
             <div key={entry.key}>
               {entry.kind === "row" ? (
                 <RowHeader
@@ -142,12 +178,19 @@ export function DashboardGrid({
                   {entry.text}
                 </p>
               ) : null}
-              {entry.kind === "panel"
-                ? renderPanel(entry, {
-                    width: stacked ? width : pixelWidth(width, item.w),
-                    height: pixelHeight(item.h),
-                  })
-                : null}
+              {entry.kind === "panel" ? (
+                <div
+                  className={cn(
+                    "size-full",
+                    newPanelIds?.has(entry.panel.id) && fadeIn
+                  )}
+                >
+                  {renderPanel(entry, {
+                    width: pixelWidth(width, gridItems[index].w),
+                    height: pixelHeight(gridItems[index].h),
+                  })}
+                </div>
+              ) : null}
             </div>
           ))}
         </GridLayout>

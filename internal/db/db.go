@@ -146,6 +146,10 @@ func (d *DB) Queries() *dbsqlc.Queries {
 	return d.queries
 }
 
+func (d *DB) Stat() *pgxpool.Stat {
+	return d.pool.Stat()
+}
+
 func (d *DB) Close() {
 	if err := d.sqlDB.Close(); err != nil {
 		d.logger.Warn("close database handle", logattrs.Failure("close_failed", err)...)

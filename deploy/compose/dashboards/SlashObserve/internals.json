@@ -1,0 +1,130 @@
+{
+  "specVersion": "0",
+  "title": "SlashObserve internals",
+  "description": "The SlashObserve server's own metrics: its API, agent and model, query proxy, database pool and scheduler.",
+  "tags": ["slashobserve"],
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "30s",
+  "panels": [
+    { "id": "p_api_requests", "type": "stat", "title": "API requests per second",
+      "description": "Requests per second the server answered, Prometheus scrapes included.",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 }, "datasource": "prom", "unit": "reqps",
+      "queries": [{ "query": "sum(rate(slashobserve_http_request_duration_seconds_count[$__rate_interval]))" }] },
+    { "id": "p_api_errors", "type": "stat", "title": "API server errors",
+      "description": "Share of server requests that ended with a 5xx status.",
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 }, "datasource": "prom", "unit": "percentunit", "decimals": 2,
+      "thresholds": [{ "color": "ok" }, { "value": 0.01, "color": "warning" }, { "value": 0.05, "color": "critical" }],
+      "queries": [{ "query": "(sum(rate(slashobserve_http_request_duration_seconds_count{status=~\"5..\"}[$__rate_interval])) or vector(0)) / sum(rate(slashobserve_http_request_duration_seconds_count[$__rate_interval]))" }] },
+    { "id": "p_api_p95", "type": "stat", "title": "API p95",
+      "description": "95th percentile time the server took to answer a request.",
+      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 }, "datasource": "prom", "unit": "s",
+      "queries": [{ "query": "histogram_quantile(0.95, sum by (le) (rate(slashobserve_http_request_duration_seconds_bucket[$__rate_interval])))" }] },
+    { "id": "p_agent_runs", "type": "stat", "title": "Agent runs",
+      "description": "Agent runs that ended in the selected range, whatever their outcome.",
+      "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 }, "datasource": "prom", "unit": "short", "decimals": 0,
+      "queries": [{ "query": "sum(increase(slashobserve_agent_runs_total[$__range])) or vector(0)", "instant": true }] },
+    { "id": "p_model_tokens", "type": "stat", "title": "Model tokens",
+      "description": "Tokens the model provider reported in the selected range, all directions.",
+      "gridPos": { "x": 16, "y": 0, "w": 4, "h": 4 }, "datasource": "prom", "unit": "short",
+      "queries": [{ "query": "sum(increase(slashobserve_model_tokens_total[$__range])) or vector(0)", "instant": true }] },
+    { "id": "p_db_pool_in_use", "type": "stat", "title": "Database pool in use",
+      "description": "Share of the server's database connections acquired right now.",
+      "gridPos": { "x": 20, "y": 0, "w": 4, "h": 4 }, "datasource": "prom", "unit": "percentunit",
+      "thresholds": [{ "color": "ok" }, { "value": 0.8, "color": "warning" }, { "value": 0.9, "color": "critical" }],
+      "queries": [{ "query": "sum(slashobserve_db_pool_connections{state=\"acquired\"}) / sum(slashobserve_db_pool_max_connections)" }] },
+    { "id": "r_api", "type": "row", "title": "Is the API answering quickly?",
+      "gridPos": { "x": 0, "y": 4, "w": 24, "h": 1 },
+      "panels": [
+        { "id": "p_requests_by_status", "type": "timeseries", "title": "Requests per second by status",
+          "gridPos": { "x": 0, "y": 5, "w": 12, "h": 8 }, "datasource": "prom", "unit": "reqps",
+          "queries": [{ "query": "sum by (status) (rate(slashobserve_http_request_duration_seconds_count[$__rate_interval]))", "legend": "{{status}}" }] },
+        { "id": "p_request_time", "type": "timeseries", "title": "Request time",
+          "gridPos": { "x": 12, "y": 5, "w": 12, "h": 8 }, "datasource": "prom", "unit": "s",
+          "queries": [
+            { "query": "histogram_quantile(0.5, sum by (le) (rate(slashobserve_http_request_duration_seconds_bucket[$__rate_interval])))", "legend": "p50" },
+            { "query": "histogram_quantile(0.95, sum by (le) (rate(slashobserve_http_request_duration_seconds_bucket[$__rate_interval])))", "legend": "p95" },
+            { "query": "histogram_quantile(0.99, sum by (le) (rate(slashobserve_http_request_duration_seconds_bucket[$__rate_interval])))", "legend": "p99" }
+          ] },
+        { "id": "p_request_time_by_route", "type": "timeseries", "title": "p95 request time by route",
+          "gridPos": { "x": 0, "y": 13, "w": 24, "h": 8 }, "datasource": "prom", "unit": "s",
+          "queries": [{ "query": "histogram_quantile(0.95, sum by (route, le) (rate(slashobserve_http_request_duration_seconds_bucket[$__rate_interval])))", "legend": "{{route}}" }],
+          "display": { "legend": "right", "legendMode": "table", "legendValues": ["mean", "max"], "legendSortBy": "max", "legendSortDesc": true } }
+      ] },
+    { "id": "r_agent", "type": "row", "title": "Is the agent working?",
+      "gridPos": { "x": 0, "y": 21, "w": 24, "h": 1 },
+      "panels": [
+        { "id": "p_agent_runs_by_outcome", "type": "timeseries", "title": "Agent runs per minute by outcome",
+          "gridPos": { "x": 0, "y": 22, "w": 12, "h": 8 }, "datasource": "prom", "unit": "suffix: runs/min",
+          "queries": [
+            { "query": "sum by (kind, outcome) (rate(slashobserve_agent_runs_total[$__rate_interval])) * 60", "legend": "{{kind}} {{outcome}}" },
+            { "query": "sum(rate(slashobserve_agent_runs_total[$__rate_interval])) * 60 or vector(0)", "legend": "all runs" }
+          ] },
+        { "id": "p_model_calls_by_outcome", "type": "timeseries", "title": "Model calls per minute by outcome",
+          "gridPos": { "x": 12, "y": 22, "w": 12, "h": 8 }, "datasource": "prom", "unit": "suffix: calls/min",
+          "queries": [
+            { "query": "sum by (outcome) (rate(slashobserve_model_call_duration_seconds_count[$__rate_interval])) * 60", "legend": "{{outcome}}" },
+            { "query": "sum(rate(slashobserve_model_call_duration_seconds_count[$__rate_interval])) * 60 or vector(0)", "legend": "all calls" }
+          ] },
+        { "id": "p_model_call_time", "type": "timeseries", "title": "Model call time p95 by model",
+          "description": "95th percentile time of one model call, retries included; the all models line reads 0 until the first call.",
+          "gridPos": { "x": 0, "y": 30, "w": 12, "h": 8 }, "datasource": "prom", "unit": "s",
+          "queries": [
+            { "query": "histogram_quantile(0.95, sum by (model, le) (rate(slashobserve_model_call_duration_seconds_bucket[$__rate_interval])))", "legend": "{{model}}" },
+            { "query": "histogram_quantile(0.95, sum by (le) (rate(slashobserve_model_call_duration_seconds_bucket[$__rate_interval]))) or vector(0)", "legend": "all models" }
+          ] },
+        { "id": "p_model_tokens_by_direction", "type": "timeseries", "title": "Model tokens per minute by direction",
+          "gridPos": { "x": 12, "y": 30, "w": 12, "h": 8 }, "datasource": "prom", "unit": "suffix: tokens/min",
+          "queries": [
+            { "query": "sum by (direction) (rate(slashobserve_model_tokens_total[$__rate_interval])) * 60", "legend": "{{direction}}" },
+            { "query": "sum(rate(slashobserve_model_tokens_total[$__rate_interval])) * 60 or vector(0)", "legend": "all tokens" }
+          ] }
+      ] },
+    { "id": "r_proxy", "type": "row", "title": "Are datasource queries fast?",
+      "gridPos": { "x": 0, "y": 38, "w": 24, "h": 1 },
+      "panels": [
+        { "id": "p_proxy_query_time", "type": "timeseries", "title": "p95 datasource query time by type",
+          "gridPos": { "x": 0, "y": 39, "w": 8, "h": 8 }, "datasource": "prom", "unit": "s",
+          "queries": [{ "query": "histogram_quantile(0.95, sum by (datasource_type, le) (rate(slashobserve_proxy_query_duration_seconds_bucket[$__rate_interval])))", "legend": "{{datasource_type}}" }] },
+        { "id": "p_proxy_queries", "type": "timeseries", "title": "Datasource queries per second by outcome",
+          "gridPos": { "x": 8, "y": 39, "w": 8, "h": 8 }, "datasource": "prom", "unit": "ops",
+          "queries": [{ "query": "sum by (datasource_type, outcome) (rate(slashobserve_proxy_query_duration_seconds_count[$__rate_interval]))", "legend": "{{datasource_type}} {{outcome}}" }] },
+        { "id": "p_proxy_cache", "type": "timeseries", "title": "Result cache lookups by result",
+          "gridPos": { "x": 16, "y": 39, "w": 8, "h": 8 }, "datasource": "prom", "unit": "ops",
+          "queries": [
+            { "query": "sum by (result) (rate(slashobserve_proxy_cache_total[$__rate_interval]))", "legend": "{{result}}" },
+            { "query": "sum(rate(slashobserve_proxy_cache_total[$__rate_interval])) or vector(0)", "legend": "all lookups" }
+          ] }
+      ] },
+    { "id": "r_pool", "type": "row", "title": "Is the database pool keeping up?",
+      "gridPos": { "x": 0, "y": 47, "w": 24, "h": 1 },
+      "panels": [
+        { "id": "p_pool_connections", "type": "timeseries", "title": "Pool connections by state",
+          "gridPos": { "x": 0, "y": 48, "w": 8, "h": 8 }, "datasource": "prom", "unit": "short",
+          "queries": [
+            { "query": "sum by (state) (slashobserve_db_pool_connections)", "legend": "{{state}}" },
+            { "query": "sum(slashobserve_db_pool_max_connections)", "legend": "max" }
+          ] },
+        { "id": "p_pool_acquires", "type": "timeseries", "title": "Acquires per second",
+          "gridPos": { "x": 8, "y": 48, "w": 8, "h": 8 }, "datasource": "prom", "unit": "ops",
+          "queries": [
+            { "query": "sum(rate(slashobserve_db_pool_acquires_total[$__rate_interval]))", "legend": "acquires" },
+            { "query": "sum(rate(slashobserve_db_pool_empty_acquires_total[$__rate_interval]))", "legend": "waited for a connection" }
+          ] },
+        { "id": "p_pool_wait", "type": "timeseries", "title": "Average wait for a connection",
+          "gridPos": { "x": 16, "y": 48, "w": 8, "h": 8 }, "datasource": "prom", "unit": "s",
+          "queries": [{ "query": "sum(rate(slashobserve_db_pool_acquire_wait_seconds_total[$__rate_interval])) / sum(rate(slashobserve_db_pool_acquires_total[$__rate_interval]))" }],
+          "display": { "legend": "hidden" } }
+      ] },
+    { "id": "r_scheduler", "type": "row", "title": "Is the scheduler running its jobs?",
+      "gridPos": { "x": 0, "y": 56, "w": 24, "h": 1 },
+      "panels": [
+        { "id": "p_job_runs", "type": "bargauge", "title": "Scheduled job runs in range",
+          "gridPos": { "x": 0, "y": 57, "w": 12, "h": 8 }, "datasource": "prom", "unit": "short", "decimals": 0,
+          "queries": [{ "query": "sum by (exported_job, outcome) (increase(slashobserve_scheduler_jobs_total[$__range]))", "legend": "{{exported_job}} {{outcome}}", "instant": true }],
+          "display": { "orientation": "horizontal" } },
+        { "id": "p_jobs_running", "type": "timeseries", "title": "Scheduled jobs running",
+          "gridPos": { "x": 12, "y": 57, "w": 12, "h": 8 }, "datasource": "prom", "unit": "short",
+          "queries": [{ "query": "sum by (exported_job) (slashobserve_scheduler_job_running)", "legend": "{{exported_job}}" }] }
+      ] }
+  ]
+}

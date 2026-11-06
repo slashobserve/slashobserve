@@ -220,7 +220,7 @@ export function VersionMenu({
           <DropdownMenuItem
             render={
               <Link
-                to="/dashboards/$dashboardId/versions"
+                to="/d/$dashboardId/versions"
                 params={{ dashboardId }}
                 search={{ back }}
               />

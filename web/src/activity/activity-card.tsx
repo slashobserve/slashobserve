@@ -3,25 +3,23 @@ import {
   useEffect,
   useId,
   useRef,
-  type CSSProperties,
   type Ref,
   type RefObject,
 } from "react"
 
 import type { Selections } from "@/api/keys"
+import { DockHeader } from "@/components/dock/dock-header"
+import { DockPanel } from "@/components/dock/dock-panel"
 import { useDashboardSearch, useSetDashboardSearch } from "@/dashboards/search"
 import { useAgentInfo } from "@/observe/queries"
-import { cn } from "@/lib/utils"
 import type { EditorView } from "@/panel-editor/panel-editor"
 import { SharePane } from "@/share/share-pane"
 import type { Dashboard } from "@/spec"
 
-import { CardHeader } from "./card-header"
 import { ActivityFeed } from "./activity-feed"
 import { useActivityLayout, useActivityStore } from "./activity-store"
 import { clientNameFrom } from "./client-name"
 import { EditPane, type EditGuard } from "./edit-pane"
-import { ResizeHandle } from "./resize-handle"
 
 export const activityCardId = "activity-card"
 
@@ -33,7 +31,7 @@ type Props = {
   latestVersion: number
   pinned: boolean
   canEdit: boolean
-  folder: { id: string; title: string; general: boolean }
+  folder: { id: string; title: string; general: boolean; personal: boolean }
   canManage: boolean
   madeBy: string | null
   back: string | undefined
@@ -145,25 +143,15 @@ export function ActivityCard({
       : `Comments and versions. ${clientNameFrom(madeBy)} made this dashboard.`
 
   return (
-    <aside
+    <DockPanel
       id={activityCardId}
       ref={card}
-      aria-labelledby={headingId}
-      style={{ "--activity-w": `${layout.width}px` } as CSSProperties}
-      className={cn(
-        "relative flex min-h-0 min-w-0 flex-col rounded-card border bg-background",
-        layout.stacked
-          ? "mr-2.5 mb-2.5 ml-4 h-[70svh] flex-[1_1_100%]"
-          : "m-2 ml-0.5 flex-[0_0_var(--activity-w)]"
-      )}
+      labelledBy={headingId}
+      width={layout.width}
+      bounds={layout.bounds}
+      onWidthChange={editing ? setEditWidth : setWidth}
+      stacked={layout.stacked}
     >
-      {layout.stacked ? null : (
-        <ResizeHandle
-          width={layout.width}
-          bounds={layout.bounds}
-          onChange={editing ? setEditWidth : setWidth}
-        />
-      )}
       {editingId !== undefined ? (
         <EditPane
           key={editingId}
@@ -186,12 +174,13 @@ export function ActivityCard({
         />
       ) : sharing ? (
         <>
-          <CardHeader
+          <DockHeader
             headingId={headingId}
             headingRef={heading}
             title="Share"
             description="Copy a link for people on this server."
-            close={onClose}
+            onClose={onClose}
+            closeLabel="Close panel"
           />
           <SharePane
             dashboardId={dashboardId}
@@ -203,12 +192,13 @@ export function ActivityCard({
         </>
       ) : (
         <>
-          <CardHeader
+          <DockHeader
             headingId={headingId}
             headingRef={heading}
             title="Activity"
             description={description}
-            close={onClose}
+            onClose={onClose}
+            closeLabel="Close panel"
           />
           <ActivityFeed
             dashboardId={dashboardId}
@@ -223,9 +213,13 @@ export function ActivityCard({
             onSelectPanel={onSelectPanel}
             back={back}
             composerRef={composerRef}
+            range={{
+              from: timeRange.from ?? spec.time.from,
+              to: timeRange.to ?? spec.time.to,
+            }}
           />
         </>
       )}
-    </aside>
+    </DockPanel>
   )
 }

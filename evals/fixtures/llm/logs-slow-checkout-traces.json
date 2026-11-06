@@ -1,0 +1,62 @@
+{
+  "prompt": "a table of slow checkout spans from Tempo over the last hour",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "get_schema",
+          "input": {
+            "datasource": "tempo"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Create slow checkout spans",
+            "planned_panels": 1,
+            "finish": true,
+            "spec": {
+              "specVersion": "0",
+              "title": "Slow checkout spans",
+              "time": {
+                "from": "now-1h",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "p_slow_checkout",
+                  "type": "table",
+                  "title": "Slow checkout spans",
+                  "datasource": "tempo",
+                  "queries": [
+                    {
+                      "query": "{ resource.service.name = \"checkout\" && duration > 100ms }"
+                    }
+                  ],
+                  "overrides": [
+                    {
+                      "match": {
+                        "field": "Duration"
+                      },
+                      "unit": "ns"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "expect": [
+        {
+          "is_error": false,
+          "contains": "checkout"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,601 @@
+{
+  "prompt": "eval inventory: one dashboard that covers every metric family the shop job exports",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "list_metrics",
+          "input": {
+            "datasource": "prom",
+            "scope": "{job=\"shop\"}"
+          }
+        }
+      ]
+    },
+    {
+      "expect": [
+        {
+          "is_error": false,
+          "contains": "\"families_total\":2,\"runtime_families\":"
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Start the shop inventory dashboard with the request rate",
+            "planned_panels": 15,
+            "spec": {
+              "specVersion": "0",
+              "title": "Shop metric inventory",
+              "time": {
+                "from": "now-1h",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "row_overview",
+                  "type": "row",
+                  "title": "Overview",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 24,
+                    "h": 1
+                  },
+                  "panels": [
+                    {
+                      "id": "requests",
+                      "type": "timeseries",
+                      "title": "Request rate",
+                      "datasource": "prom",
+                      "queries": [
+                        {
+                          "query": "sum by (service) (rate(http_requests_total{job=\"shop\"}[$__rate_interval]))",
+                          "legend": "{{service}}"
+                        }
+                      ],
+                      "unit": "reqps",
+                      "gridPos": {
+                        "x": 0,
+                        "y": 1,
+                        "w": 12,
+                        "h": 8
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add p99 latency",
+            "upsert": [
+              {
+                "id": "latency_p99",
+                "type": "timeseries",
+                "title": "p99 latency",
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "histogram_quantile(0.99, sum by (le, service) (rate(http_request_duration_seconds_bucket{job=\"shop\"}[$__rate_interval])))",
+                    "legend": "{{service}}"
+                  }
+                ],
+                "unit": "s"
+              }
+            ],
+            "row": {
+              "id": "row_overview",
+              "title": "Overview"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Targets up",
+            "upsert": [
+              {
+                "id": "targets_up",
+                "type": "stat",
+                "title": "Targets up",
+                "description": "Shop scrape targets that answered their last scrape.",
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "sum(up{job=\"shop\"})"
+                  }
+                ],
+                "unit": "short"
+              }
+            ],
+            "row": {
+              "id": "row_overview",
+              "title": "Overview"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Goroutines, threads and heap objects",
+            "upsert": [
+              {
+                "id": "runtime_counts",
+                "type": "timeseries",
+                "title": "Goroutines, threads and heap objects",
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "go_goroutines{job=\"shop\"}",
+                    "legend": "{{instance}} goroutines"
+                  },
+                  {
+                    "query": "go_threads{job=\"shop\"}",
+                    "legend": "{{instance}} threads"
+                  },
+                  {
+                    "query": "go_sched_gomaxprocs_threads{job=\"shop\"}",
+                    "legend": "{{instance}} sched gomaxprocs threads"
+                  },
+                  {
+                    "query": "go_memstats_heap_objects{job=\"shop\"}",
+                    "legend": "{{instance}} heap objects"
+                  }
+                ],
+                "unit": "short"
+              }
+            ],
+            "row": {
+              "id": "row_go",
+              "title": "Go runtime"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Heap",
+            "upsert": [
+              {
+                "id": "heap",
+                "type": "timeseries",
+                "title": "Heap",
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "go_memstats_heap_alloc_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} heap alloc bytes"
+                  },
+                  {
+                    "query": "go_memstats_heap_idle_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} heap idle bytes"
+                  },
+                  {
+                    "query": "go_memstats_heap_inuse_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} heap inuse bytes"
+                  },
+                  {
+                    "query": "go_memstats_heap_released_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} heap released bytes"
+                  },
+                  {
+                    "query": "go_memstats_heap_sys_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} heap sys bytes"
+                  },
+                  {
+                    "query": "go_memstats_alloc_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} alloc bytes"
+                  },
+                  {
+                    "query": "go_memstats_next_gc_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} next gc bytes"
+                  }
+                ],
+                "unit": "bytes"
+              }
+            ],
+            "row": {
+              "id": "row_go",
+              "title": "Go runtime"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Runtime memory",
+            "upsert": [
+              {
+                "id": "runtime_memory",
+                "type": "timeseries",
+                "title": "Runtime memory",
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "go_memstats_sys_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} sys bytes"
+                  },
+                  {
+                    "query": "go_memstats_buck_hash_sys_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} buck hash sys bytes"
+                  },
+                  {
+                    "query": "go_memstats_gc_sys_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} gc sys bytes"
+                  },
+                  {
+                    "query": "go_memstats_mcache_inuse_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} mcache inuse bytes"
+                  },
+                  {
+                    "query": "go_memstats_mcache_sys_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} mcache sys bytes"
+                  },
+                  {
+                    "query": "go_memstats_mspan_inuse_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} mspan inuse bytes"
+                  },
+                  {
+                    "query": "go_memstats_mspan_sys_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} mspan sys bytes"
+                  },
+                  {
+                    "query": "go_memstats_other_sys_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} other sys bytes"
+                  },
+                  {
+                    "query": "go_memstats_stack_inuse_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} stack inuse bytes"
+                  },
+                  {
+                    "query": "go_memstats_stack_sys_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} stack sys bytes"
+                  }
+                ],
+                "unit": "bytes"
+              }
+            ],
+            "row": {
+              "id": "row_go",
+              "title": "Go runtime"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Allocation rate",
+            "upsert": [
+              {
+                "id": "alloc_rate",
+                "type": "timeseries",
+                "title": "Allocation rate",
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "rate(go_memstats_alloc_bytes_total{job=\"shop\"}[$__rate_interval])",
+                    "legend": "{{instance}}"
+                  }
+                ],
+                "unit": "Bps"
+              }
+            ],
+            "row": {
+              "id": "row_go",
+              "title": "Go runtime"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Mallocs and frees",
+            "upsert": [
+              {
+                "id": "mallocs_frees",
+                "type": "timeseries",
+                "title": "Mallocs and frees",
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "rate(go_memstats_mallocs_total{job=\"shop\"}[$__rate_interval])",
+                    "legend": "{{instance}} mallocs"
+                  },
+                  {
+                    "query": "rate(go_memstats_frees_total{job=\"shop\"}[$__rate_interval])",
+                    "legend": "{{instance}} frees"
+                  }
+                ],
+                "unit": "ops"
+              }
+            ],
+            "row": {
+              "id": "row_go",
+              "title": "Go runtime"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add GC pauses and age",
+            "upsert": [
+              {
+                "id": "gc",
+                "type": "timeseries",
+                "title": "GC pauses and age",
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "go_gc_duration_seconds{job=\"shop\",quantile=\"1\"}",
+                    "legend": "{{instance}} max pause"
+                  },
+                  {
+                    "query": "time() - go_memstats_last_gc_time_seconds{job=\"shop\"}",
+                    "legend": "{{instance}} since last GC"
+                  }
+                ],
+                "unit": "s"
+              }
+            ],
+            "row": {
+              "id": "row_go",
+              "title": "Go runtime"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Runtime settings",
+            "upsert": [
+              {
+                "id": "runtime_settings",
+                "type": "table",
+                "title": "Runtime settings",
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "go_info{job=\"shop\"}",
+                    "instant": true
+                  },
+                  {
+                    "query": "go_gc_gogc_percent{job=\"shop\"}",
+                    "instant": true
+                  },
+                  {
+                    "query": "go_gc_gomemlimit_bytes{job=\"shop\"}",
+                    "instant": true
+                  },
+                  {
+                    "query": "process_max_fds{job=\"shop\"}",
+                    "instant": true
+                  },
+                  {
+                    "query": "process_virtual_memory_max_bytes{job=\"shop\"}",
+                    "instant": true
+                  },
+                  {
+                    "query": "process_start_time_seconds{job=\"shop\"}",
+                    "instant": true
+                  }
+                ]
+              }
+            ],
+            "row": {
+              "id": "row_go",
+              "title": "Go runtime"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Process CPU",
+            "upsert": [
+              {
+                "id": "process_cpu",
+                "type": "timeseries",
+                "title": "Process CPU",
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "rate(process_cpu_seconds_total{job=\"shop\"}[$__rate_interval])",
+                    "legend": "{{instance}}"
+                  }
+                ],
+                "unit": "percentunit"
+              }
+            ],
+            "row": {
+              "id": "row_process",
+              "title": "Process"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Process memory",
+            "upsert": [
+              {
+                "id": "process_memory",
+                "type": "timeseries",
+                "title": "Process memory",
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "process_resident_memory_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} resident memory bytes"
+                  },
+                  {
+                    "query": "process_virtual_memory_bytes{job=\"shop\"}",
+                    "legend": "{{instance}} virtual memory bytes"
+                  }
+                ],
+                "unit": "bytes"
+              }
+            ],
+            "row": {
+              "id": "row_process",
+              "title": "Process"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Open file descriptors",
+            "upsert": [
+              {
+                "id": "open_fds",
+                "type": "timeseries",
+                "title": "Open file descriptors",
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "process_open_fds{job=\"shop\"}",
+                    "legend": "{{instance}}"
+                  }
+                ],
+                "unit": "short"
+              }
+            ],
+            "row": {
+              "id": "row_process",
+              "title": "Process"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Scrape duration",
+            "upsert": [
+              {
+                "id": "scrape_duration",
+                "type": "timeseries",
+                "title": "Scrape duration",
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "scrape_duration_seconds{job=\"shop\"}",
+                    "legend": "{{instance}}"
+                  }
+                ],
+                "unit": "s"
+              }
+            ],
+            "row": {
+              "id": "row_scrape",
+              "title": "Scrape"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Add Scrape samples",
+            "upsert": [
+              {
+                "id": "scrape_samples",
+                "type": "timeseries",
+                "title": "Scrape samples",
+                "datasource": "prom",
+                "queries": [
+                  {
+                    "query": "scrape_samples_scraped{job=\"shop\"}",
+                    "legend": "{{instance}} samples scraped"
+                  },
+                  {
+                    "query": "scrape_samples_post_metric_relabeling{job=\"shop\"}",
+                    "legend": "{{instance}} samples post metric relabeling"
+                  },
+                  {
+                    "query": "scrape_series_added{job=\"shop\"}",
+                    "legend": "{{instance}} series added"
+                  }
+                ],
+                "unit": "short"
+              }
+            ],
+            "row": {
+              "id": "row_scrape",
+              "title": "Scrape"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "expect": [
+        {
+          "is_error": false,
+          "contains": "\"uncovered\":[],\"uncovered_total\":0"
+        }
+      ],
+      "text": "Every family in the shop scope has a panel."
+    }
+  ]
+}

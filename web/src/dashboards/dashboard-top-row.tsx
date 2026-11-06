@@ -1,7 +1,18 @@
-import { Fragment, type ReactNode } from "react"
+import { Fragment, useSyncExternalStore, type ReactNode } from "react"
 import { Link } from "@tanstack/react-router"
+import { SlidersHorizontalIcon } from "lucide-react"
 
+import { AnnotationFilter } from "@/annotations/annotation-filter"
 import { Mark } from "@/components/brand/mark"
+import { Button } from "@/components/ui/button"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 
 type Props = {
   title: string
@@ -15,6 +26,22 @@ type Props = {
 
 function Items({ nodes }: { nodes: ReactNode[] }) {
   return nodes.map((node, index) => <Fragment key={index}>{node}</Fragment>)
+}
+
+const narrowQuery = "(max-width: 760px)"
+
+function subscribeNarrow(onChange: () => void) {
+  const media = window.matchMedia(narrowQuery)
+  media.addEventListener("change", onChange)
+  return () => media.removeEventListener("change", onChange)
+}
+
+function useNarrow(): boolean {
+  return useSyncExternalStore(
+    subscribeNarrow,
+    () => window.matchMedia(narrowQuery).matches,
+    () => false
+  )
 }
 
 function Separator() {
@@ -34,21 +61,32 @@ export function DashboardTopRow({
   editing,
   actions,
 }: Props) {
+  const narrow = useNarrow()
+  const tools = (
+    <>
+      {editing}
+      <AnnotationFilter />
+      <Items nodes={controls} />
+      <Items nodes={actions} />
+    </>
+  )
   return (
     <header className="relative flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-3 pr-2.5 pb-2.5 pl-4 narrow:sticky narrow:top-0 narrow:z-10 narrow:bg-background">
       <nav
         aria-label="Breadcrumb"
         className="flex min-w-0 flex-wrap items-center gap-2 text-[13px]"
       >
-        <Link
-          to="/"
-          aria-label="/observe home"
-          title="/observe"
-          className="grid size-[18px] place-items-center rounded-sm no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <Mark size={16} className="size-[15px]" />
-        </Link>
-        <Separator />
+        <span className="hidden items-center gap-2 narrow:flex">
+          <Link
+            to="/"
+            aria-label="/observe home"
+            title="/observe"
+            className="grid size-[18px] place-items-center rounded-sm no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Mark size={16} className="size-[15px]" />
+          </Link>
+          <Separator />
+        </span>
         <Link
           to="/dashboards"
           className="rounded-sm text-muted-foreground no-underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
@@ -81,11 +119,27 @@ export function DashboardTopRow({
         ) : null}
         {versionControl}
       </nav>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {editing}
-        <Items nodes={controls} />
-        <Items nodes={actions} />
-      </div>
+      {narrow ? (
+        <Sheet>
+          <SheetTrigger render={<Button variant="outline" size="sm" />}>
+            <SlidersHorizontalIcon aria-hidden="true" />
+            Controls
+          </SheetTrigger>
+          <SheetContent side="bottom" className="max-h-[85svh] overflow-auto">
+            <SheetHeader className="pb-0">
+              <SheetTitle>Controls</SheetTitle>
+              <SheetDescription>
+                Time range, refresh, annotations and dashboard actions.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="flex flex-wrap items-center gap-1.5 px-4 pb-4">
+              {tools}
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <div className="flex flex-wrap items-center gap-1.5">{tools}</div>
+      )}
     </header>
   )
 }

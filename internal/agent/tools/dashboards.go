@@ -19,6 +19,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/imports"
+	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -26,6 +27,7 @@ const (
 	defaultListDashboards = 20
 	maxListDashboards     = 50
 	maxStepCodes          = 3
+	maxStepReasonBytes    = 120
 
 	roleDeniedMessage = "your role does not allow changing this dashboard"
 
@@ -116,7 +118,7 @@ func (r *Registry) dashboardItems(list []dashboards.ListItem) []dashboardItemOut
 			Tags:          nonNilStrings(d.Tags),
 			LatestVersion: d.LatestVersion,
 			UpdatedAt:     d.UpdatedAt.UTC().Format(time.RFC3339),
-			URL:           DashboardURL(r.deps.PublicURL, d.ID),
+			URL:           links.Dashboard(r.deps.PublicURL, d.ID, d.Title),
 			Folder:        d.Folder.Title,
 		}
 	}
@@ -199,6 +201,9 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	}
 	id, res, ok := parseDashboardID(in.DashboardID)
 	if !ok {
+		if run, scoped := RunFrom(ctx); inBuildRun(run, scoped) {
+			return invalid("%s", buildHasNoID), nil
+		}
 		return res, nil
 	}
 	version, res, ok := boundedInt(in.Version, 0, 1, math.MaxInt32, "version")
@@ -224,7 +229,7 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if err != nil {
 		return Result{}, err
 	}
-	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: DashboardURL(r.deps.PublicURL, dash.ID), Folder: dash.Folder.Title, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
+	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
 	if out.ImportAttention, out.ImportAttentionTruncated, err = r.importAttention(ctx, id, ver.Number); err != nil {
 		return Result{}, err
 	}
@@ -270,6 +275,7 @@ type savedOut struct {
 	Panels           []panelOut `json:"panels"`
 	Truncated        bool       `json:"truncated,omitempty"`
 	UnverifiedPanels []string   `json:"unverified_panels,omitempty"`
+	advice
 }
 
 type invalidSpecOut struct {
@@ -288,12 +294,15 @@ type saveInput struct {
 	ParentVersion *int            `json:"parent_version"`
 	Spec          json.RawMessage `json:"spec"`
 	Summary       string          `json:"summary"`
+	buildFields
 }
 
 type createInput struct {
 	Spec     json.RawMessage `json:"spec"`
 	Summary  string          `json:"summary"`
 	FolderID string          `json:"folder_id"`
+	buildFields
+	Row *rowRef `json:"row"`
 }
 
 func (r *Registry) saveRun(ctx context.Context) (auth.Principal, Run, bool, error) {
@@ -333,12 +342,9 @@ func validateRun(run Run) (pgtype.UUID, error) {
 	return pgtype.UUID{}, fmt.Errorf("%w: unknown mode %q", errInvalidRun, string(run.Mode))
 }
 
-func checkSpecPresent(raw json.RawMessage, inRun bool) (Result, bool) {
+func checkSpecPresent(raw json.RawMessage) (Result, bool) {
 	if trimmed := bytes.TrimSpace(raw); len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
-		if inRun {
-			return invalid("%s", missingSpecAgent), false
-		}
-		return invalid("%s", missingSpecMCP), false
+		return invalid("%s", missingSpec), false
 	}
 	return Result{}, true
 }
@@ -352,18 +358,15 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	if res, ok := checkSpecPresent(in.Spec, scoped); !ok {
+	if res, ok := checkSpecPresent(in.Spec); !ok {
+		return res, nil
+	}
+	if res, ok := agentOnlyFields(in.Finish, in.PlannedPanels, in.Row, inBuildRun(run, scoped)); !ok {
 		return res, nil
 	}
 	if scoped {
-		if run.Mode == ModeSuggest {
-			return invalid("this run proposes a change to panel %s; it cannot create dashboards", run.PanelID), nil
-		}
-		if _, err := validateRun(run); err != nil {
-			return Result{}, err
-		}
-		if run.Mode == ModeRevise {
-			return invalid("this run revises dashboard %s; call update_dashboard", run.DashboardID), nil
+		if res, ok, err := createRunAllowed(run); err != nil || !ok {
+			return res, err
 		}
 	}
 	folderID, res, ok := parseFolderID(in.FolderID)
@@ -379,6 +382,9 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 			return importOnlyFailure(issues), nil
 		}
 	}
+	if inBuildRun(run, scoped) {
+		return r.buildCreate(ctx, principal, run, in)
+	}
 	dash, ver, replayed, err := r.deps.Dashboards.CreateRequestDashboard(ctx, principal, folderID, in.Spec, summaryOr(in.Summary, defaultCreateSummary), requestID)
 	if res, ok := createFolderFailure(err); ok {
 		return res, nil
@@ -386,7 +392,7 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 	if err != nil {
 		return saveFailure(err)
 	}
-	return success("Saved version "+strconv.Itoa(ver.Number), r.savedOut(dash, ver, &replayed)), nil
+	return success("Saved version "+strconv.Itoa(ver.Number), withAdvice(ctx, r.savedOut(dash, ver, &replayed), ver.Spec)), nil
 }
 
 func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -398,7 +404,10 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	if res, ok := checkSpecPresent(in.Spec, scoped); !ok {
+	if res, ok := checkSpecPresent(in.Spec); !ok {
+		return res, nil
+	}
+	if res, ok := agentOnlyFields(in.Finish, in.PlannedPanels, nil, inBuildRun(run, scoped)); !ok {
 		return res, nil
 	}
 	if scoped && run.Mode == ModeSuggest {
@@ -410,6 +419,9 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 	}
 	if !ok {
 		return res, nil
+	}
+	if inBuildRun(run, scoped) {
+		return r.buildUpdate(ctx, principal, run, target, in)
 	}
 	requestID, err := requestIDOf(run, scoped)
 	if err != nil {
@@ -424,7 +436,7 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 	if err != nil {
 		return saveFailure(err)
 	}
-	return success("Saved version "+strconv.Itoa(ver.Number), r.savedOut(dash, ver, &replayed)), nil
+	return success("Saved version "+strconv.Itoa(ver.Number), withAdvice(ctx, r.savedOut(dash, ver, &replayed), ver.Spec)), nil
 }
 
 func (r *Registry) guardImportOnly(ctx context.Context, raw json.RawMessage, target saveTarget) (Result, bool, error) {
@@ -494,7 +506,8 @@ func updateTarget(in saveInput, run Run, scoped bool) (saveTarget, Result, bool,
 		return saveTarget{}, Result{}, false, err
 	}
 	if run.Mode == ModeCreate {
-		return saveTarget{}, invalid("this run creates a new dashboard; call create_dashboard"), false, nil
+		res, ok := createRunTarget(in, run.Build)
+		return saveTarget{}, res, ok, nil
 	}
 	if in.DashboardID != "" {
 		id, res, ok := parseDashboardID(in.DashboardID)
@@ -509,6 +522,29 @@ func updateTarget(in saveInput, run Run, scoped bool) (saveTarget, Result, bool,
 		parent = run.ParentVersion
 	}
 	return saveTarget{id: runID, parent: parent}, Result{}, true, nil
+}
+
+func createRunAllowed(run Run) (Result, bool, error) {
+	if run.Mode == ModeSuggest {
+		return invalid("this run proposes a change to panel %s; it cannot create dashboards", run.PanelID), false, nil
+	}
+	if _, err := validateRun(run); err != nil {
+		return Result{}, false, err
+	}
+	if run.Mode == ModeRevise {
+		return invalid("this run revises dashboard %s; call update_dashboard", run.DashboardID), false, nil
+	}
+	return Result{}, true, nil
+}
+
+func createRunTarget(in saveInput, building bool) (Result, bool) {
+	switch {
+	case !building:
+		return invalid("this run creates a new dashboard; call create_dashboard"), false
+	case in.DashboardID != "":
+		return invalid("this run creates a new dashboard, which has no id until you finish; leave out dashboard_id"), false
+	}
+	return Result{}, true
 }
 
 func summaryOr(summary, fallback string) string {
@@ -532,7 +568,7 @@ func (r *Registry) savedOut(dash dashboards.Dashboard, ver dashboards.Version, r
 	return savedOut{
 		DashboardID:      dash.ID,
 		Version:          ver.Number,
-		URL:              DashboardURL(r.deps.PublicURL, dash.ID),
+		URL:              links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title),
 		Replayed:         replayed,
 		Panels:           panels,
 		Truncated:        truncated,
@@ -546,8 +582,7 @@ func saveFailure(err error) (Result, error) {
 	switch {
 	case errors.As(err, &invalidSpec):
 		issues, truncated := fit(slices.Clone(invalidSpec.Issues), listBudget)
-		step := "Save rejected: " + plural(len(invalidSpec.Issues), "issue", "issues") + issueCodes(invalidSpec.Issues)
-		return failure(step, invalidSpecOut{Code: codeInvalidSpec, Issues: issues, Truncated: truncated}), nil
+		return failure(saveRejectedStep(invalidSpec.Issues), invalidSpecOut{Code: codeInvalidSpec, Issues: issues, Truncated: truncated}), nil
 	case errors.As(err, &conflict):
 		return failure("Save rejected: version conflict", conflictOut{Code: codeVersionConflict, LatestVersion: conflict.Latest}), nil
 	case errors.Is(err, dashboards.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, dashboards.ErrFolderNotFound):
@@ -556,6 +591,14 @@ func saveFailure(err error) (Result, error) {
 		return failure("Save rejected: "+codeForbiddenRole, errorBody{Code: codeForbiddenRole, Message: roleDeniedMessage}), nil
 	}
 	return Result{}, err
+}
+
+func saveRejectedStep(issues []spec.Issue) string {
+	step := "Save rejected: " + plural(len(issues), "issue", "issues") + issueCodes(issues)
+	if len(issues) > 0 && issues[0].Path != "" {
+		step += " at " + clip(issues[0].Path, maxStepReasonBytes)
+	}
+	return step
 }
 
 func issueCodes(issues []spec.Issue) string {

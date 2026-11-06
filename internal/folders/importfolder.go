@@ -14,7 +14,10 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
 
-const generalTitle = "General"
+const (
+	generalTitle  = "General"
+	personalTitle = "My Dashboards"
+)
 
 type ImportFolder struct {
 	Folder  Folder
@@ -41,9 +44,13 @@ type importChoice struct {
 	id     pgtype.UUID
 }
 
+func reservedTitle(title string) bool {
+	return strings.EqualFold(title, generalTitle) || strings.EqualFold(title, personalTitle)
+}
+
 func pickImportFolder(rawTitle string, levels []folderLevel, existing pgtype.UUID, role auth.Role) importChoice {
 	title, err := cleanTitle(rawTitle)
-	if err != nil || strings.EqualFold(title, generalTitle) {
+	if err != nil || reservedTitle(title) {
 		return importChoice{action: importDefault}
 	}
 	if existing.Valid {

@@ -7,7 +7,6 @@ import { PageHeader } from "@/components/page-header"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { DashboardList } from "@/dashboards/dashboard-list"
 import { validateListSearch, type ListSearch } from "@/dashboards/list-filters"
-import { useCanCreateDashboards } from "@/folders/create-access"
 import { NewFolderDialog } from "@/folders/new-folder-dialog"
 import { useDocumentTitle } from "@/lib/document-title"
 import { roleAtLeast } from "@/lib/roles"
@@ -24,7 +23,6 @@ function DashboardsPage() {
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
   const { principal } = useRouteContext({ from: "/_authed" })
-  const canCreate = useCanCreateDashboards()
   const [creatingFolder, setCreatingFolder] = useState(false)
   const onSearchChange = useCallback(
     (next: ListSearch) => void navigate({ search: next, replace: true }),
@@ -44,12 +42,10 @@ function DashboardsPage() {
                 New folder
               </Button>
             ) : null}
-            {canCreate === true ? (
-              <Link to="/" className={cn(buttonVariants())}>
-                <PlusIcon aria-hidden="true" />
-                Create dashboard
-              </Link>
-            ) : null}
+            <Link to="/" className={cn(buttonVariants())}>
+              <PlusIcon aria-hidden="true" />
+              Create dashboard
+            </Link>
           </>
         }
       />

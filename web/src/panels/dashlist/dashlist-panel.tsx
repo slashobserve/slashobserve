@@ -5,6 +5,7 @@ import { useMemo } from "react"
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { dashboardKeys } from "@/api/keys"
+import { dashboardLink } from "@/lib/links"
 
 import { PanelSkeleton } from "../panel-skeleton"
 import type { StaticPanelRenderer } from "../types"
@@ -61,8 +62,7 @@ const DashlistPanel: StaticPanelRenderer = ({ panel, vars, from, to }) => {
           className="flex min-w-0 flex-wrap items-baseline gap-x-2 px-3 py-1"
         >
           <Link
-            to="/dashboards/$dashboardId"
-            params={{ dashboardId: dashboard.id }}
+            {...dashboardLink(dashboard.id, dashboard.title)}
             search={search}
             className="rounded-sm font-medium wrap-anywhere no-underline outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >

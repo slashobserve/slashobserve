@@ -1612,7 +1612,7 @@ func TestAlertListsThatPrometheusCannotListArePlaceholders(t *testing.T) {
 		{"no datasource", `"maxItems":10`, decisionAlertRules.reason},
 		{"the grafana rule source", `"datasource":"grafana"`, decisionAlertRules.reason},
 		{"a source that is not Prometheus", `"datasource":{"type":"grafana-clickhouse-datasource","uid":"ch"}`, alertSourceReason},
-		{"a source that is not supported", `"datasource":{"type":"loki","uid":"loki1"}`, "Loki is not supported yet."},
+		{"a source that is not supported", `"datasource":{"type":"elasticsearch","uid":"es1"}`, "Elasticsearch is not supported yet."},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1669,7 +1669,7 @@ func TestDashListImportsAsAStaticPanel(t *testing.T) {
 }
 
 func TestDashListNeverNeedsADatasourceMatch(t *testing.T) {
-	doc := `{"title":"T","schemaVersion":39,"panels":[{"id":1,"title":"T","type":"dashlist","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":{"type":"loki","uid":"l"},"options":{"maxItems":10}}]}`
+	doc := `{"title":"T","schemaVersion":39,"panels":[{"id":1,"title":"T","type":"dashlist","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":{"type":"elasticsearch","uid":"es"},"options":{"maxItems":10}}]}`
 	_, line := convertedPanel(t, doc)
 	if line.Status != statusImported {
 		t.Fatalf("line = %+v", line)

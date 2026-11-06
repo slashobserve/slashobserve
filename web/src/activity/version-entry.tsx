@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router"
 
 import { versionActor } from "@/lib/origin"
 
-import { boxClass, DetailsLink, EntryFrame } from "./entry-frame"
+import { avatarFor, boxClass, DetailsLink, EntryFrame } from "./entry-frame"
 import type { TimelineEntry } from "./timeline-model"
 
 type Props = {
@@ -18,17 +18,13 @@ export function VersionEntry({ dashboardId, entry, back }: Props) {
 
   return (
     <EntryFrame
-      avatar={
-        actor.agent
-          ? { kind: "agent" }
-          : { kind: "person", name: version.author.name }
-      }
+      avatar={actor.agent ? { kind: "agent" } : avatarFor(version.author)}
       who={actor.who}
       verb={actor.verb}
       at={entry.at}
     >
       <Link
-        to="/dashboards/$dashboardId/versions"
+        to="/d/$dashboardId/versions"
         params={{ dashboardId }}
         search={n > 1 ? { from: n - 1, to: n, back } : { to: n, back }}
         data-version={n}

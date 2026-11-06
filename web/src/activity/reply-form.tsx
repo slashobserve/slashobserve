@@ -125,6 +125,7 @@ export function ReplyForm({
         ref={textarea}
         aria-label="Reply"
         rows={2}
+        className="field-sizing-content max-h-40 min-h-14 text-[13px]"
         maxLength={maxPromptLength}
         value={body}
         readOnly={busy || replySaved}
@@ -156,7 +157,7 @@ export function ReplyForm({
             </Button>
             <Button
               type="submit"
-              variant="outline"
+              variant={canSend ? "outline" : "default"}
               size="sm"
               disabled={text === "" || replySaved}
               aria-disabled={busy || undefined}

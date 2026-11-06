@@ -1,7 +1,12 @@
-import { Link } from "@tanstack/react-router"
+import { Link, useRouteContext } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 
-import { observeRequestQuery } from "@/observe/queries"
+import { RunningFor } from "@/chat/run-duration"
+import { StepTimeline } from "@/chat/step-timeline"
+import { buildStatusText } from "@/observe/build"
+import { isTerminal, observeRequestQuery } from "@/observe/queries"
+import { CancelRequestButton } from "@/observe/request-actions"
+import { useSettledRefresh } from "@/observe/use-settled-refresh"
 
 import { boxClass, EntryFrame } from "./entry-frame"
 import { currentStep, type TimelineEntry } from "./timeline-model"
@@ -41,10 +46,30 @@ export function RunningLinkContent({ stepText }: { stepText: string }) {
 
 export function RunningEntry({ entry }: Props) {
   const { request } = entry
+  const { principal } = useRouteContext({ from: "/_authed" })
   const { data } = useQuery(observeRequestQuery(request.id))
   const steps = data?.steps ?? []
   const last = steps.at(-1)
-  const idle = (data?.status ?? request.status) === "queued"
+  const status = data?.status ?? request.status
+  const canceling = data?.cancel_requested_at != null
+  useSettledRefresh({
+    active: !isTerminal(data),
+    status,
+    dashboardId: request.dashboard_id,
+  })
+  const watchable = data?.build != null && data.requested_by.id === principal.id
+  const stepText =
+    data?.build != null || status === "queued" || canceling
+      ? buildStatusText({
+          status,
+          build: data?.build ?? null,
+          failureCode: data?.failure_code ?? null,
+          queuePosition: data?.queue_position ?? null,
+          canceling,
+        })
+      : last === undefined
+        ? "Starting"
+        : `${last.message}, step ${currentStep(steps)}`
 
   return (
     <EntryFrame
@@ -53,23 +78,43 @@ export function RunningEntry({ entry }: Props) {
       verb="is working on it"
       at={entry.at}
     >
-      <Link
-        to="/observe/$requestId"
-        params={{ requestId: request.id }}
-        target="_blank"
-        rel="noopener"
-        className={`${boxClass} flex items-center gap-2 border-dashed no-underline outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring`}
+      <div
+        className={`${boxClass} flex items-center gap-2 border-dashed hover:bg-muted`}
       >
-        <RunningLinkContent
-          stepText={
-            last === undefined
-              ? idle
-                ? "Waiting to start"
-                : "Starting"
-              : `${last.message}, step ${currentStep(steps)}`
-          }
-        />
-      </Link>
+        <Link
+          to="/c/$requestId"
+          params={{ requestId: request.id }}
+          target="_blank"
+          rel="noopener"
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-control no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <RunningLinkContent stepText={stepText} />
+        </Link>
+        {watchable ? (
+          <Link
+            from="/d/$dashboardId/{-$slug}"
+            to="."
+            search={(prev) => ({ ...prev, chat: request.id })}
+            className="flex-none rounded-control text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Open chat
+          </Link>
+        ) : null}
+      </div>
+      <StepTimeline
+        steps={steps}
+        working={status === "running"}
+        reconnecting={false}
+        latest={3}
+      />
+      {status === "running" ? (
+        <RunningFor startedAt={data?.started_at ?? request.started_at} />
+      ) : null}
+      {data !== undefined ? (
+        <div className="self-start">
+          <CancelRequestButton request={data} />
+        </div>
+      ) : null}
     </EntryFrame>
   )
 }

@@ -12,6 +12,7 @@ function folder(
     id: title,
     title,
     general: overrides.general ?? false,
+    personal: false,
     restricted: false,
     dashboard_count: 0,
     grantees: [],

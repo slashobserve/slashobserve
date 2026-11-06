@@ -1,8 +1,22 @@
-function load(t) {
-    return 1 - 0.2 * (1 - cos(2 * 3.14159265 * (t - stop) / 86400))
+function load(t,    h) {
+    if (curve == "flat") return 1
+    h = ((t + tzoff) % 86400 + 86400) % 86400 / 3600
+    if (h >= 4 && h < 14) return 1 - 0.6 * cos(pi * (h - 4) / 10)
+    if (h < 4) h += 24
+    return 1 + 0.6 * cos(pi * (h - 14) / 14)
 }
 
 BEGIN {
+    pi = atan2(0, -1)
+    curve = ENVIRON["LOADGEN_CURVE"]
+    if (curve == "") curve = "daily"
+    if (curve != "daily" && curve != "flat") {
+        print "backfill.awk: LOADGEN_CURVE must be daily or flat, got " curve > "/dev/stderr"
+        exit 1
+    }
+    "date +%z" | getline zone
+    close("date +%z")
+    tzoff = (substr(zone, 1, 1) == "-" ? -1 : 1) * (substr(zone, 2, 2) * 3600 + substr(zone, 4, 2) * 60)
     step = 30
     fine_step = 5
     ramp = 0.0003
@@ -91,7 +105,7 @@ BEGIN {
             time[k] = t
             if (k > 1) {
                 count = groupRate[groups[g]] * load(t) * (t - ts[k - 1])
-                tail = amplitude * (1 - cos(2 * 3.14159265 * (t - stop) / 86400))
+                tail = amplitude * (1 - cos(2 * pi * (t - stop) / 86400))
                 norm = 1 + weight[top] * (tail - 1)
                 for (b = 1; b <= nb; b++) {
                     share = weight[b] * (b == top ? tail : 1) / norm

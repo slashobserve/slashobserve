@@ -6,9 +6,12 @@ import {
   useRouterState,
 } from "@tanstack/react-router"
 import {
+  ChartGanttIcon,
   DatabaseIcon,
+  HeartPulseIcon,
   KeyIcon,
   LayoutDashboardIcon,
+  LogsIcon,
   SettingsIcon,
   TerminalIcon,
   UsersIcon,
@@ -43,6 +46,9 @@ import {
 const icons: Record<NavPath, LucideIcon> = {
   "/": TerminalIcon,
   "/dashboards": LayoutDashboardIcon,
+  "/health": HeartPulseIcon,
+  "/logs": LogsIcon,
+  "/traces": ChartGanttIcon,
   "/datasources": DatabaseIcon,
   "/keys": KeyIcon,
   "/people": UsersIcon,
@@ -51,20 +57,30 @@ const icons: Record<NavPath, LucideIcon> = {
 
 const focusRing = "outline-none focus-visible:ring-2 focus-visible:ring-ring"
 
-function HomeLink({ collapsed }: { collapsed: boolean }) {
+function HomeLink({
+  collapsed,
+  onNavigate,
+}: {
+  collapsed: boolean
+  onNavigate?: () => void
+}) {
   const linkProps = useLinkProps({ to: "/" })
   return (
     <a
       {...linkProps}
+      onClick={(event) => {
+        linkProps.onClick?.(event)
+        onNavigate?.()
+      }}
       aria-label="/observe home"
       aria-current={undefined}
       className={cn(
-        "mb-3.5 flex min-h-[34px] items-center rounded-control px-2.5 no-underline",
+        "mb-3.5 flex items-center rounded-control no-underline",
         focusRing,
-        collapsed && "justify-center px-0"
+        collapsed ? "h-8 justify-center" : "min-h-[34px] px-2.5"
       )}
     >
-      {collapsed ? <Mark size={18} /> : <Wordmark size={17} />}
+      {collapsed ? <Mark size={16} /> : <Wordmark size={17} />}
     </a>
   )
 }
@@ -73,14 +89,17 @@ function NavLink({
   item,
   active,
   collapsed,
+  onNavigate,
 }: {
   item: NavItem
   active: boolean
   collapsed: boolean
+  onNavigate?: () => void
 }) {
   const Icon = icons[item.to]
   const props = {
     to: item.to,
+    onClick: onNavigate,
     activeOptions: { exact: true },
     "aria-current": active ? ("page" as const) : undefined,
     className: cn(
@@ -205,15 +224,17 @@ function ResizeGrip({
   )
 }
 
-export function Sidebar() {
-  const width = useSidebarStore((state) => state.width)
-  const collapsed = useSidebarStore((state) => state.collapsed)
+export function SidebarContent({
+  collapsed,
+  onNavigate,
+}: {
+  collapsed: boolean
+  onNavigate?: () => void
+}) {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
-  const [dragWidth, setDragWidth] = useState<number | null>(null)
   const workspaceId = useId()
-  const shown = collapsed ? sidebarCollapsedWidth : (dragWidth ?? width)
   const { principal } = useRouteContext({ from: "/_authed" })
   const items = visibleNavItems(principal.role)
   const main = items.filter((item) => item.group === "main")
@@ -226,18 +247,14 @@ export function Sidebar() {
         item={item}
         active={isNavItemActive(item.to, pathname)}
         collapsed={collapsed}
+        onNavigate={onNavigate}
       />
     ))
   }
 
   return (
-    <nav
-      id="app-sidebar"
-      aria-label="Main"
-      className="relative flex flex-none flex-col gap-0.5 pt-3.5 pb-3 narrow:hidden"
-      style={{ width: shown, paddingInline: collapsed ? 6 : 10 }}
-    >
-      <HomeLink collapsed={collapsed} />
+    <>
+      <HomeLink collapsed={collapsed} onNavigate={onNavigate} />
       <div className="-m-[3px] flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-[3px]">
         {renderItems(main)}
         {collapsed ? (
@@ -266,6 +283,28 @@ export function Sidebar() {
         )}
       </div>
       <AccountMenu collapsed={collapsed} />
+    </>
+  )
+}
+
+export function Sidebar({ rail = false }: { rail?: boolean }) {
+  const width = useSidebarStore((state) => state.width)
+  const storedCollapsed = useSidebarStore((state) => state.collapsed)
+  const collapsed = rail || storedCollapsed
+  const [dragWidth, setDragWidth] = useState<number | null>(null)
+  const shown = collapsed ? sidebarCollapsedWidth : (dragWidth ?? width)
+
+  return (
+    <nav
+      id="app-sidebar"
+      aria-label="Main"
+      className={cn(
+        "relative flex flex-none flex-col gap-0.5 pt-3.5 pb-3 narrow:hidden",
+        rail && "sticky top-0 h-svh self-start bg-chrome"
+      )}
+      style={{ width: shown, paddingInline: collapsed ? 6 : 10 }}
+    >
+      <SidebarContent collapsed={collapsed} />
       {collapsed ? null : <ResizeGrip shown={shown} onDrag={setDragWidth} />}
     </nav>
   )

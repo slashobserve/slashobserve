@@ -1,0 +1,8 @@
+id: fault-refusal
+prompt: "eval fault: the model declines the request"
+category: prometheus
+kind: create
+suites: [replay]
+expect:
+  datasources: [prometheus]
+  failure_code: refused

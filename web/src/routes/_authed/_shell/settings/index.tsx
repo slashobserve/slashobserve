@@ -1,19 +1,16 @@
+import { useId } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  useLocation,
+  useRouteContext,
+} from "@tanstack/react-router"
 
 import { instanceQuery } from "@/api/instance"
 import { PageHeader } from "@/components/page-header"
 import { StatusLabel } from "@/components/status-label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDocumentTitle } from "@/lib/document-title"
-import { useTheme, type ThemePreference } from "@/lib/theme"
 import { useAgentInfo } from "@/observe/queries"
 import { domainList } from "@/people/sign-in-policy"
 import { loadProblemText } from "@/service-accounts/queries"
@@ -23,23 +20,34 @@ import {
   providerName,
   sessionLength,
 } from "@/settings/format"
+import { GrafanaSettings } from "@/settings/grafana/grafana-settings"
 import { OutboundAccessCard } from "@/settings/outbound-access-card"
+import {
+  selectedSectionId,
+  settingsSections,
+  type SettingsSectionId,
+} from "@/settings/sections"
 import {
   SettingsCard,
   SettingsProblem,
   SettingsRow,
 } from "@/settings/settings-card"
+import { SettingsNav } from "@/settings/settings-nav"
+
+type SettingsSearch = { connection?: string; sync?: string }
+
+function optionalText(value: unknown): string | undefined {
+  return typeof value === "string" && value !== "" ? value : undefined
+}
 
 export const Route = createFileRoute("/_authed/_shell/settings/")({
   staticData: { crumbs: [{ label: "Settings" }] },
+  validateSearch: (search: Record<string, unknown>): SettingsSearch => ({
+    connection: optionalText(search.connection),
+    sync: optionalText(search.sync),
+  }),
   component: SettingsPage,
 })
-
-const themeItems: { value: ThemePreference; label: string }[] = [
-  { value: "system", label: "Match the system" },
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-]
 
 function Pending() {
   return <Skeleton className="h-4 w-32" />
@@ -47,18 +55,68 @@ function Pending() {
 
 function SettingsPage() {
   useDocumentTitle("Settings - SlashObserve")
+  const { principal } = useRouteContext({ from: "/_authed" })
+  const hash = useLocation({ select: (location) => location.hash })
+  const sections = settingsSections(principal.role)
+  const selected = selectedSectionId(sections, hash)
   return (
-    <>
-      <PageHeader
-        title="Settings"
-        description="Most settings are read from the server environment; change them in SLASHOBSERVE_* settings and restart. Outbound access is managed here."
+    <div className="flex items-start gap-8">
+      <SettingsNav sections={sections} selected={selected} placement="side" />
+      <div className="max-w-[720px] min-w-0 flex-1">
+        <PageHeader
+          title="Settings"
+          description="How this server is set up. Most values come from its environment."
+        />
+        <SettingsNav sections={sections} selected={selected} placement="top" />
+        <SelectedSection id={selected} />
+      </div>
+    </div>
+  )
+}
+
+function SelectedSection({ id }: { id: SettingsSectionId }) {
+  switch (id) {
+    case "agent":
+      return <AgentCard />
+    case "server":
+      return <ServerCard />
+    case "sign-in":
+      return <SignInCard />
+    case "outbound-access":
+      return <OutboundAccessCard />
+    case "grafana":
+      return <GrafanaSection />
+  }
+}
+
+function GrafanaSection() {
+  const headingId = useId()
+  const search = Route.useSearch()
+  const navigate = Route.useNavigate()
+  const running =
+    search.connection !== undefined && search.sync !== undefined
+      ? { connectionId: search.connection, syncId: search.sync }
+      : null
+  return (
+    <section aria-labelledby={headingId}>
+      <div className="mb-3">
+        <h2 id={headingId} className="text-sm font-semibold">
+          Grafana connection
+        </h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Connect a Grafana server and import its dashboards with their folders.
+        </p>
+      </div>
+      <GrafanaSettings
+        running={running}
+        onStarted={(connectionId, syncId) =>
+          void navigate({
+            search: { connection: connectionId, sync: syncId },
+            hash: "grafana" satisfies SettingsSectionId,
+          })
+        }
       />
-      <AgentCard />
-      <ServerCard />
-      <SignInCard />
-      <OutboundAccessCard />
-      <AppearanceCard />
-    </>
+    </section>
   )
 }
 
@@ -181,32 +239,6 @@ function SignInCard() {
       </SettingsRow>
       <SettingsRow label="Session length">
         {instance ? sessionLength(instance.session_ttl_seconds) : <Pending />}
-      </SettingsRow>
-    </SettingsCard>
-  )
-}
-
-function AppearanceCard() {
-  const { preference, setPreference } = useTheme()
-  return (
-    <SettingsCard title="Appearance" hint="Saved in this browser only.">
-      <SettingsRow label="Theme">
-        <Select
-          items={themeItems}
-          value={preference}
-          onValueChange={(next) => next && setPreference(next)}
-        >
-          <SelectTrigger aria-label="Theme" className="w-56">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent alignItemWithTrigger={false} align="start">
-            {themeItems.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </SettingsRow>
     </SettingsCard>
   )

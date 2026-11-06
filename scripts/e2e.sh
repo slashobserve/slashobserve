@@ -10,9 +10,14 @@ DEX_PORT="${SLASHOBSERVE_E2E_DEX_PORT:-15556}"
 export SLASHOBSERVE_DEX_HOST_PORT="$DEX_PORT"
 export SLASHOBSERVE_PROMETHEUS_HOST_PORT="${SLASHOBSERVE_E2E_PROMETHEUS_PORT:-19090}"
 export SLASHOBSERVE_SHOP_HOST_PORT="${SLASHOBSERVE_E2E_SHOP_PORT:-18081}"
+export SLASHOBSERVE_LOKI_HOST_PORT="${SLASHOBSERVE_E2E_LOKI_PORT:-13100}"
+export SLASHOBSERVE_TEMPO_HOST_PORT="${SLASHOBSERVE_E2E_TEMPO_PORT:-13200}"
 export SLASHOBSERVE_DATASOURCES_HOST_FILE=./datasources.e2e.yaml
 export SLASHOBSERVE_API_CONTRACT_CHECK=true
 export SLASHOBSERVE_LLM_PROVIDER=replay
+export SLASHOBSERVE_LOADGEN_CURVE=flat
+export SLASHOBSERVE_SERVICE_ACCOUNTS_FILE=
+export SLASHOBSERVE_DEMO_MARKERS_URL=
 
 curl() { command curl --max-time 10 "$@"; }
 
@@ -325,9 +330,19 @@ logs_and_traces_present() {
   ch_is "SELECT (SELECT count() FROM otel.otel_logs) > 0 AND (SELECT count() FROM otel.otel_traces) > 0" 1
 }
 
+# A 24h panel steps 87s (internal/queryproxy StepFor) and a 1m rate needs a minute of samples, so a shorter history can leave no grid point with data.
+NODE_SCRAPE_SECONDS=15
+PROMETHEUS_HISTORY_MINUTES=3
+
+prometheus_history_held() {
+  prom_is "count_over_time(up{job=\"node\"}[${PROMETHEUS_HISTORY_MINUTES}m]) >= bool $((PROMETHEUS_HISTORY_MINUTES * 60 / NODE_SCRAPE_SECONDS))" 1
+}
+
 wait_for_data() {
   poll 180 "Prometheus scraped all targets" targets_scraped
   pass "Prometheus scraped all targets"
+  poll 240 "Prometheus holds ${PROMETHEUS_HISTORY_MINUTES} minutes of history" prometheus_history_held
+  pass "Prometheus holds ${PROMETHEUS_HISTORY_MINUTES} minutes of history"
   poll 180 "ClickHouse has log and trace rows" logs_and_traces_present
   pass "ClickHouse has log and trace rows"
 }
@@ -639,7 +654,7 @@ suite() {
   pass "key listings never expose secrets"
 
   out="$(curl -sS -o "$TMP/escalate.json" -w '%{http_code}' -X POST -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -d '{"name":"escalate"}' "$BASE_URL/api/v1/service-accounts")"
-  if [[ "$out" != 403 ]] || ! grep -q '"code":"forbidden"' "$TMP/escalate.json"; then
+  if [[ "$out" != 403 ]] || ! grep -q '"code":"forbidden_role"' "$TMP/escalate.json"; then
     fail "service account creating a service account ($out: $(cat "$TMP/escalate.json"))"
   fi
   pass "service accounts cannot mint keys"
@@ -711,14 +726,14 @@ check_no_keys_in_server_log() {
 
 all_datasources_listed() {
   local uid
-  for uid in prom ch prom_tight ch_tight; do
+  for uid in prom ch prom_tight ch_tight loki tempo; do
     grep -q "\"uid\":\"$uid\"" <<<"$1" || return 1
   done
 }
 
 datasources_ready() {
   capture LAST foreground command curl -sS --max-time 10 -b "$1" "$BASE_URL/api/v1/datasources" || true
-  [[ "$(grep -o '"healthy":true' <<<"$LAST" | wc -l | tr -d ' ')" == 4 ]] && all_datasources_listed "$LAST"
+  [[ "$(grep -o '"healthy":true' <<<"$LAST" | wc -l | tr -d ' ')" == 6 ]] && all_datasources_listed "$LAST"
 }
 
 check_datasources() {
@@ -741,7 +756,7 @@ check_datasources() {
       *) fail "datasource entry has unexpected keys ($keys)" ;;
     esac
   done < <(sed -E 's/:"([^"\\]|\\.)*"/:/g' <<<"$body" | grep -oE '\{[^{}]*\}')
-  [[ "$entries" == 4 ]] || fail "expected 4 datasource entries, found $entries"
+  [[ "$entries" == 6 ]] || fail "expected 6 datasource entries, found $entries"
   pass "datasource entries carry exactly uid, type, name, healthy, checked_at, dashboard_count and an optional message"
 }
 
@@ -760,6 +775,15 @@ api_token() {
   [[ "$out" == 201 ]] || fail "create the e2e-api key ($out: $(cat "$TMP/api-key.json"))"
   API_TOKEN="$(grep -o '"token":"sok_[^"]*"' "$TMP/api-key.json" | cut -d'"' -f4)"
   [[ "$API_TOKEN" == sok_* ]] || fail "the e2e-api key response has no token"
+}
+
+shared_dashboard_body() {
+  local out
+  out="$(api GET /folders)"
+  [[ "$out" == 200 ]] || fail "list folders for the shared dashboard body ($out: $(cat "$TMP/api.body"))"
+  python3 -c 'import json,sys; body=json.load(open(sys.argv[1])); body["folder_id"]=next(f["id"] for f in json.load(open(sys.argv[2]))["folders"] if f["general"]); json.dump(body, open(sys.argv[3], "w"))' \
+    "$FIXTURES/dashboard-valid.json" "$TMP/api.body" "$TMP/shared-dashboard.json" || fail "the folder list has no General folder ($(head -c 500 "$TMP/api.body"))"
+  echo "$TMP/shared-dashboard.json"
 }
 
 api() {
@@ -976,7 +1000,7 @@ dashboards_suite() {
     || ! grep -q '"agent_request_id":null' "$TMP/api.body"; then
     fail "a version saved with a bearer key should record the api origin ($out: $(cat "$TMP/api.body"))"
   fi
-  out="$(command curl -sS -o "$TMP/web-create.json" -w '%{http_code}' -b "$TMP/api-jar" -H "Origin: $BASE_URL" -H 'Content-Type: application/json' -X POST --data-binary "@$FIXTURES/dashboard-valid.json" "$BASE_URL/api/v1/dashboards")"
+  out="$(command curl -sS -o "$TMP/web-create.json" -w '%{http_code}' -b "$TMP/api-jar" -H "Origin: $BASE_URL" -H 'Content-Type: application/json' -X POST --data-binary "@$(shared_dashboard_body)" "$BASE_URL/api/v1/dashboards")"
   [[ "$out" == 201 ]] || fail "create a dashboard through the browser session ($out: $(cat "$TMP/web-create.json"))"
   origin_id="$(grep -o '"id":"[^"]*"' "$TMP/web-create.json" | head -1 | cut -d'"' -f4)"
   out="$(api GET "/dashboards/$origin_id/versions/1")"
@@ -2094,9 +2118,9 @@ observe_suite() {
   observe_wait "$id" 90
   did="$(grep -o '"dashboard_id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
   [[ -n "$did" ]] || fail "the finished observe request has no dashboard ($(cat "$TMP/api.body"))"
-  observe_expect "the finished observe request" '"status":"succeeded"' '"result_version":1' '"attempts":1' '"error":null' "\"url\":\"$BASE_URL/dashboards/$did\"" \
+  observe_expect "the finished observe request" '"status":"succeeded"' '"result_version":1' '"attempts":1' '"error":null' "\"url\":\"$BASE_URL/d/$did" \
     '"phase":"save","tool":"create_dashboard","status":"error"' '"phase":"repair","tool":"create_dashboard","status":"ok"' \
-    '"provider":"replay"' '"model_calls":4' '"repair_rounds":1'
+    '"provider":"replay"' '"model_calls":6' '"repair_rounds":1'
   pass "a new dashboard request repairs its broken query and finishes with steps, usage and the dashboard address"
 
   out="$(api GET "/dashboards/$did")"
@@ -2183,7 +2207,7 @@ observe_suite() {
   id2="$(observe_id_of "$TMP/api.body")"
   observe_wait "$id2" 90
   observe_expect "the failed request" '"status":"failed"' '"error":"the model finished without saving a dashboard"' '"dashboard_id":null' '"url":null' \
-    '"result_version":null' '"phase":"query"' '"model_calls":6'
+    '"result_version":null' '"phase":"query"' '"model_calls":7'
   pass "a run that never saves fails with a fixed error, no dashboard and its usage"
 
   out="$(api POST /observe -d '{"prompt":"No fixture covers this observe prompt"}')"
@@ -3039,11 +3063,11 @@ cli_suite() {
 
   cli_run --timeout 120s "log volume by service"
   url="$(cat "$TMP/cli.out")"
-  if [[ "$CLI_CODE" != 0 || "$(wc -l <"$TMP/cli.out" | tr -d ' ')" != 1 || ! "$url" =~ ^http://localhost:${PORT}/dashboards/[0-9a-f-]{36}$ ]]; then
+  if [[ "$CLI_CODE" != 0 || "$(wc -l <"$TMP/cli.out" | tr -d ' ')" != 1 || ! "$url" =~ ^http://localhost:${PORT}/d/([0-9a-f-]{36})(/[a-z0-9-]+)?$ ]]; then
     fail "observe with a prompt should print one dashboard address ($CLI_CODE; stdout: $url; stderr: $(cat "$TMP/cli.err"))"
   fi
   grep -qF "save" "$TMP/cli.err" || fail "observe with a prompt printed no progress steps (stderr: $(cat "$TMP/cli.err"))"
-  did="${url##*/}"
+  did="${BASH_REMATCH[1]}"
   pass "observe with a prompt prints only the dashboard address and reports progress on stderr"
 
   cli_comments_checks "$did"
@@ -3086,7 +3110,7 @@ cli_suite() {
   fi
   cli_run status "$request_id" --wait --timeout 120s
   url="$(cat "$TMP/cli.out")"
-  if [[ "$CLI_CODE" != 0 || ! "$url" =~ ^http://localhost:${PORT}/dashboards/[0-9a-f-]{36}$ ]]; then
+  if [[ "$CLI_CODE" != 0 || ! "$url" =~ ^http://localhost:${PORT}/d/([0-9a-f-]{36})(/[a-z0-9-]+)?$ ]]; then
     fail "observe status --wait should print the dashboard address ($CLI_CODE: $url; $(cat "$TMP/cli.err"))"
   fi
   cli_run status "$request_id"
@@ -3133,7 +3157,7 @@ evals_smoke_suite() {
   local rc=0 flat
 
   OBSERVE_SERVER="$BASE_URL" OBSERVE_TOKEN="$API_TOKEN" \
-    bounded 600 go -C "$ROOT" run ./evals/runner --tag replay-smoke --min-pass 1 --out "$TMP/evals.json" --markdown "$TMP/evals.md" \
+    bounded 600 go -C "$ROOT" run ./evals/runner --tag replay-smoke --min-pass 1 --prometheus "$PROM_URL" --out "$TMP/evals.json" --markdown "$TMP/evals.md" \
     >"$TMP/evals.out" 2>"$TMP/evals.err" || rc=$?
   [[ "$rc" == 0 ]] || fail "the eval runner exited $rc ($(cat "$TMP/evals.err") $(cat "$TMP/evals.out"))"
   flat="$(tr -d ' \n' <"$TMP/evals.json")"
@@ -3170,7 +3194,7 @@ dashboard_list_suite() {
   out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
   [[ "$out" == 201 ]] || fail "create the api dashboard for the list ($out: $(cat "$TMP/api.body"))"
   d_api="$(first_json_string "$TMP/api.body" id)"
-  out="$(command curl -sS -o "$TMP/list-web.json" -w '%{http_code}' -b "$TMP/api-jar" -H "Origin: $BASE_URL" -H 'Content-Type: application/json' -X POST --data-binary "@$FIXTURES/dashboard-valid.json" "$BASE_URL/api/v1/dashboards")"
+  out="$(command curl -sS -o "$TMP/list-web.json" -w '%{http_code}' -b "$TMP/api-jar" -H "Origin: $BASE_URL" -H 'Content-Type: application/json' -X POST --data-binary "@$(shared_dashboard_body)" "$BASE_URL/api/v1/dashboards")"
   [[ "$out" == 201 ]] || fail "create the web dashboard for the list ($out: $(cat "$TMP/list-web.json"))"
   d_web="$(first_json_string "$TMP/list-web.json" id)"
   out="$(mcp_call 21 tools/call "{\"name\":\"create_dashboard\",\"arguments\":$(cat "$FIXTURES/dashboard-valid.json"),\"_meta\":{\"io.modelcontextprotocol/clientInfo\":{\"name\":\"claude-code\",\"version\":\"9\"}}}" "$TMP/mcp.body")"
@@ -3276,7 +3300,7 @@ people_suite() {
   out="$(curl -sS -o "$TMP/people.body" -w '%{http_code}' "$BASE_URL/api/v1/users")"
   [[ "$out" == 401 ]] || fail "list people without credentials ($out: $(cat "$TMP/people.body"))"
   out="$(api GET /users)"
-  if [[ "$out" != 403 ]] || ! grep -q '"code":"forbidden"' "$TMP/api.body"; then
+  if [[ "$out" != 403 ]] || ! grep -q '"code":"forbidden_role"' "$TMP/api.body"; then
     fail "a service account lists people ($out: $(cat "$TMP/api.body"))"
   fi
   pass "listing people needs a signed-in user, not a key"
@@ -3307,7 +3331,7 @@ people_suite() {
     fail "a cross-origin sign out ($out: $(cat "$TMP/people.body"))"
   fi
   out="$(api DELETE "/users/$admin_id/sessions")"
-  if [[ "$out" != 403 ]] || ! grep -q '"code":"forbidden"' "$TMP/api.body"; then
+  if [[ "$out" != 403 ]] || ! grep -q '"code":"forbidden_role"' "$TMP/api.body"; then
     fail "a service account signs a person out ($out: $(cat "$TMP/api.body"))"
   fi
   out="$(curl -sS -b "$TMP/people-jar" -o "$TMP/people.body" -w '%{http_code}' -X DELETE -H "Origin: $BASE_URL" "$BASE_URL/api/v1/users/$nil_id/sessions")"

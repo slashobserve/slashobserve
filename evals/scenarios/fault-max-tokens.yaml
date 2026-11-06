@@ -1,0 +1,9 @@
+id: fault-max-tokens
+prompt: "eval fault: the model runs out of output tokens on the save turn"
+category: prometheus
+kind: create
+suites: [replay]
+expect:
+  datasources: [prometheus]
+  failure_code: output_limit
+  usage: {compactions: 1, renewals: 0}

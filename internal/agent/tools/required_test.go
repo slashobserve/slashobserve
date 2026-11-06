@@ -11,12 +11,15 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
@@ -40,6 +43,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 	access := folders.NewAccess(database.DB)
 	service := dashboards.New(database.DB, runner, access, logger)
 	comments := dashboards.NewComments(database.DB, service, nil)
+	notes := annotations.New(database.DB, access)
 	registry := New(Deps{
 		Datasources: datasources,
 		Runner:      runner,
@@ -47,6 +51,10 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		Comments:    comments,
 		Imports:     imports.New(database.DB, service, access, datasources, logger),
 		Folders:     access,
+		Findings:    findings.New(database.DB, access, notes, service, logger),
+		Health:      health.New(health.Deps{DB: database.DB, Runner: runner, Access: access, Logger: logger, Job: "dashboard_health"}),
+		Annotations: notes,
+		Provider:    &scriptedDraft{},
 		Logger:      logger,
 	})
 	ctx := auth.WithPrincipal(context.Background(), placeholderUser)
@@ -66,6 +74,8 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 	}
 	samples := map[string]json.RawMessage{
 		"datasource":     json.RawMessage(`"` + fakeUID + `"`),
+		"datasource_uid": json.RawMessage(`"` + fakeUID + `"`),
+		"question":       json.RawMessage(`"error logs from checkout"`),
 		"query":          json.RawMessage(`"up"`),
 		"table":          json.RawMessage(`"t"`),
 		"label":          json.RawMessage(`"job"`),
@@ -74,9 +84,14 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"parent_version": json.RawMessage(`1`),
 		"spec":           json.RawMessage(validSpec),
 		"body":           json.RawMessage(`"done"`),
+		"ids":            json.RawMessage(`["p1"]`),
+		"summary":        json.RawMessage(`"Change a panel"`),
+		"markdown":       json.RawMessage(`"checkout errors are up"`),
+		"text":           json.RawMessage(`"deployed checkout v2"`),
 		"json":           json.RawMessage(`"{\"title\":\"Imported\",\"schemaVersion\":39,\"panels\":[]}"`),
 	}
 
+	requiredOnlyForSomeDatasourceTypes := map[string][]string{nameSampleRows: {"table"}}
 	for _, tool := range registry.List() {
 		t.Run(tool.Name, func(t *testing.T) {
 			var schema struct {
@@ -94,13 +109,17 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 				}
 				base[field] = sample
 			}
+			ctx := ctx
+			if tool.AgentOnly {
+				ctx = WithRun(ctx, Run{Mode: ModeInvestigate})
+			}
 			baseRes := callWith(ctx, t, registry, tool.Name, base)
 			baseBody := contentJSON(t, baseRes)
 			if baseRes.IsError {
 				var body struct{ Code, Message string }
 				_ = json.Unmarshal(baseBody, &body)
 				for field := range schema.Properties {
-					if !slices.Contains(schema.Required, field) && body.Code == codeInvalidRequest && mentions(body.Message, field) {
+					if !slices.Contains(schema.Required, field) && !slices.Contains(requiredOnlyForSomeDatasourceTypes[tool.Name], field) && body.Code == codeInvalidRequest && mentions(body.Message, field) {
 						t.Errorf("a call with exactly the declared required fields %v is rejected for %q, which the schema does not require: %s", schema.Required, field, body.Message)
 					}
 				}

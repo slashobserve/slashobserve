@@ -14,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
@@ -50,11 +51,12 @@ type listJSON struct {
 type Handler struct {
 	db     *db.DB
 	auth   *auth.Service
+	access *folders.Access
 	logger *slog.Logger
 }
 
-func NewHandler(database *db.DB, authService *auth.Service, logger *slog.Logger) *Handler {
-	return &Handler{db: database, auth: authService, logger: logger}
+func NewHandler(database *db.DB, authService *auth.Service, access *folders.Access, logger *slog.Logger) *Handler {
+	return &Handler{db: database, auth: authService, access: access, logger: logger}
 }
 
 func (h *Handler) Register(api auth.Routes) {
@@ -74,12 +76,17 @@ func (h *Handler) list(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "invalid cursor")
 		return
 	}
-	params := dbsqlc.ListUsersParams{RowLimit: httpapi.Int32(limit + 1)}
+	ctx := c.Request.Context()
+	levels, err := h.access.Levels(ctx, httpapi.Caller(c))
+	if err != nil {
+		h.fail(c, "list folder levels", err)
+		return
+	}
+	params := dbsqlc.ListUsersParams{RowLimit: httpapi.Int32(limit + 1), Folders: levels.Visible()}
 	if after != nil {
 		params.CursorCreatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
 		params.CursorID = after.ID
 	}
-	ctx := c.Request.Context()
 	rows, err := h.db.Queries().ListUsers(ctx, params)
 	if err != nil {
 		if clientgone.Handle(c, h.logger, "list users", err) {
@@ -192,7 +199,12 @@ func (h *Handler) update(c *gin.Context) {
 		h.fail(c, "set manual role", err, slog.String("user_id", id.String()))
 		return
 	}
-	row, err := h.db.Queries().GetPerson(ctx, id)
+	levels, err := h.access.Levels(ctx, caller)
+	if err != nil {
+		h.fail(c, "list folder levels", err)
+		return
+	}
+	row, err := h.db.Queries().GetPerson(ctx, dbsqlc.GetPersonParams{ID: id, Folders: levels.Visible()})
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "user not found")
 		return

@@ -86,7 +86,11 @@ function stateOf(
   const label =
     threshold.value === undefined
       ? "Base"
-      : `At or above ${formatValue(threshold.value, unit, labelDecimals(threshold.value, unit, decimals))}`
+      : formatValue(
+          threshold.value,
+          unit,
+          labelDecimals(threshold.value, unit, decimals)
+        )
   return {
     level: "custom",
     color: thresholdColor(threshold.color),

@@ -38,13 +38,22 @@ func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 }
 
 func (r *Runner) CheckPanels(ctx context.Context, d *spec.Dashboard, now time.Time, user datasource.QueryUser, ids []string) ([]spec.Issue, error) {
+	return r.CheckChanged(ctx, d, now, user, ids, nil)
+}
+
+func (r *Runner) CheckChanged(ctx context.Context, d *spec.Dashboard, now time.Time, user datasource.QueryUser, panelIDs, variables []string) ([]spec.Issue, error) {
 	only := map[string]bool{}
 	for _, e := range d.DataPanels() {
-		if slices.Contains(ids, e.Panel.ID) {
+		if slices.Contains(panelIDs, e.Panel.ID) {
 			only[e.Pointer] = true
 			if source, reuses := d.SourceOf(e.Panel.ID); reuses {
 				only[source.Pointer] = true
 			}
+		}
+	}
+	for i, v := range d.Variables {
+		if slices.Contains(variables, v.Name) {
+			only[itemPath("variables", i)] = true
 		}
 	}
 	if len(only) == 0 {

@@ -253,7 +253,7 @@ test("closes with Escape and returns focus", async ({ page, request }) => {
 
 test("opens from an old link with the query tab", async ({ page, request }) => {
   const { id } = await createOverview(request)
-  await page.goto(`/dashboards/${id}?panel=logs&tab=query`)
+  await page.goto(`/d/${id}?panel=logs&tab=query`)
 
   await expect(sheet(page)).toBeVisible()
   await expect(page).toHaveURL(/panel=logs&edit=query/)
@@ -269,7 +269,7 @@ test("scopes the activity card from an old comments link", async ({
   request,
 }) => {
   const { id } = await createOverview(request)
-  await page.goto(`/dashboards/${id}?panel=rps&tab=comments`)
+  await page.goto(`/d/${id}?panel=rps&tab=comments`)
 
   const activity = page.getByRole("complementary", { name: "Activity" })
   await expect(activity).toBeVisible()
@@ -282,7 +282,7 @@ test("scopes the activity card from an old comments link", async ({
 
 test("opens directly from a link", async ({ page, request }) => {
   const { id, spec } = await createOverview(request)
-  await page.goto(`/dashboards/${id}?panel=logs&edit=query`)
+  await page.goto(`/d/${id}?panel=logs&edit=query`)
 
   await expect(sheet(page)).toBeVisible()
   await expect(
@@ -297,7 +297,7 @@ test("opens directly from a link", async ({ page, request }) => {
 test("is read-only on an old version", async ({ page, request }) => {
   const { id, spec } = await createOverview(request)
   await addVersion(request, id, { ...spec, title: `${spec.title} v2` }, 1)
-  await page.goto(`/dashboards/${id}?version=1&panel=rps&edit=query`)
+  await page.goto(`/d/${id}?version=1&panel=rps&edit=query`)
 
   await expect(
     sheet(page).getByText("Open the latest version to edit this panel.")
@@ -444,7 +444,7 @@ test("keeps editing a draft opened on the latest version pinned when a newer one
   request,
 }) => {
   const { id, spec } = await createOverview(request)
-  await page.goto(`/dashboards/${id}?version=1&panel=rps&edit=query`)
+  await page.goto(`/d/${id}?version=1&panel=rps&edit=query`)
   const content = sheet(page).locator(".cm-content")
   await expect(content).toHaveAttribute("contenteditable", "true")
   await replaceQuery(page, savedQuery)
@@ -473,7 +473,7 @@ test("turns read-only when a newer version arrives while nothing is edited", asy
   request,
 }) => {
   const { id, spec } = await createOverview(request)
-  await page.goto(`/dashboards/${id}?version=1&panel=rps&edit=query`)
+  await page.goto(`/d/${id}?version=1&panel=rps&edit=query`)
   const content = sheet(page).locator(".cm-content")
   await expect(content).toHaveAttribute("contenteditable", "true")
 
@@ -875,7 +875,7 @@ test("asks before Back drops a draft made after opening the latest version", asy
 }) => {
   const { id, spec } = await createOverview(request)
   await addVersion(request, id, withRps(spec, { title: "Renamed in v2" }), 1)
-  await page.goto(`/dashboards/${id}?version=1&panel=rps&edit=query`)
+  await page.goto(`/d/${id}?version=1&panel=rps&edit=query`)
   await expect(
     sheet(page).getByText("Open the latest version to edit this panel.")
   ).toBeVisible()
@@ -911,7 +911,7 @@ test("focuses the heading when a read-only panel opens", async ({
 }) => {
   const { id, spec } = await createOverview(request)
   await addVersion(request, id, { ...spec, title: `${spec.title} v2` }, 1)
-  await page.goto(`/dashboards/${id}?version=1&panel=rps&edit=query`)
+  await page.goto(`/d/${id}?version=1&panel=rps&edit=query`)
 
   await expect(
     sheet(page).getByText("Open the latest version to edit this panel.")
@@ -991,7 +991,7 @@ test("asks once when leaving the dashboard with an unsaved layout", async ({
   ).toBeVisible()
   await page.getByRole("button", { name: "Keep editing" }).click()
   await expect(page.getByRole("alertdialog")).toHaveCount(0)
-  await expect(page).toHaveURL(new RegExp(`/dashboards/${id}(\\?|$)`))
+  await expect(page).toHaveURL(new RegExp(`/d/${id}(/[a-z0-9-]+)?(\\?|$)`))
 })
 
 test("saves a query and then a layout on top of it", async ({
@@ -1312,7 +1312,7 @@ test("uses 16px text in a query's datasource select on a narrow screen", async (
 }) => {
   const { id } = await createOverview(request)
   await page.setViewportSize({ width: 700, height: 900 })
-  await page.goto(`/dashboards/${id}?panel=rps&edit=query`)
+  await page.goto(`/d/${id}?panel=rps&edit=query`)
 
   const select = sheet(page).getByRole("combobox", {
     name: "Datasource for query A",
@@ -1391,7 +1391,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       request,
     }) => {
       const { id } = await createOverview(request)
-      await page.goto(`/dashboards/${id}?panel=rps&edit=json`)
+      await page.goto(`/d/${id}?panel=rps&edit=json`)
 
       const view = sheet(page).getByRole("radiogroup", { name: "Editor view" })
       await expect(view.getByRole("radio", { name: "JSON" })).toBeChecked()

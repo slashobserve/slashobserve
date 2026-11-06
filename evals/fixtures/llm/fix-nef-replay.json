@@ -1,0 +1,120 @@
+{
+  "prompt": "Fix the unverified panel \"CPU Busy\" (p20).",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Point CPU Busy at node_load1_missing",
+            "upsert": [
+              {
+                "id": "p20",
+                "type": "gauge",
+                "title": "CPU Busy",
+                "description": "Overall CPU busy percentage (averaged across all cores)",
+                "gridPos": {
+                  "x": 3,
+                  "y": 1,
+                  "w": 3,
+                  "h": 4
+                },
+                "datasource": "${ds_prometheus}",
+                "queries": [
+                  {
+                    "query": "node_load1_missing",
+                    "instant": true,
+                    "interval": "240s"
+                  }
+                ],
+                "unit": "percent",
+                "decimals": 1,
+                "min": 0,
+                "max": 100,
+                "thresholds": [
+                  {
+                    "color": "#32ac2d"
+                  },
+                  {
+                    "value": 85,
+                    "color": "warning"
+                  },
+                  {
+                    "value": 95,
+                    "color": "#f53636"
+                  }
+                ],
+                "mappings": [
+                  {
+                    "special": "null",
+                    "text": "N/A"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "update_panels",
+          "input": {
+            "summary": "Point CPU Busy at a query that returns data",
+            "upsert": [
+              {
+                "id": "p20",
+                "type": "gauge",
+                "title": "CPU Busy",
+                "description": "Overall CPU busy percentage (averaged across all cores)",
+                "gridPos": {
+                  "x": 3,
+                  "y": 1,
+                  "w": 3,
+                  "h": 4
+                },
+                "datasource": "${ds_prometheus}",
+                "queries": [
+                  {
+                    "query": "up",
+                    "instant": true
+                  }
+                ],
+                "unit": "percent",
+                "decimals": 1,
+                "min": 0,
+                "max": 100,
+                "thresholds": [
+                  {
+                    "color": "#32ac2d"
+                  },
+                  {
+                    "value": 85,
+                    "color": "warning"
+                  },
+                  {
+                    "value": 95,
+                    "color": "#f53636"
+                  }
+                ],
+                "mappings": [
+                  {
+                    "special": "null",
+                    "text": "N/A"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "expect": [
+        {
+          "is_error": true,
+          "contains": "failing_panels"
+        }
+      ]
+    }
+  ]
+}

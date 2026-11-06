@@ -14,6 +14,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -29,10 +30,14 @@ var (
 )
 
 func observeRouterFor(svc *revisions.Service, who auth.Principal) *gin.Engine {
+	return observeRouterAs(svc, withRole(who))
+}
+
+func observeRouterAs(svc *revisions.Service, who auth.Principal) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	revisions.NewObserveHandler(svc, revisions.ObserveOptions{}).Register(auth.NewRoutes(r.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), withRole(who)))
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), who))
 	})))
 	return r
 }
@@ -211,6 +216,34 @@ func TestListObserveNamesTheDashboardOfASucceededRequest(t *testing.T) {
 	}
 }
 
+func TestListObserveHidesTheTitleOfADashboardInAFolderTheCallerCannotSee(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	visible := seedDashboard(t, d, 2)
+	hidden := seedDashboard(t, d, 2)
+	foldertest.Move(t, d, hidden, foldertest.Restricted(t, d, "Private", "platform"))
+	onVisible := observeFor(t, svc, account, "visible")
+	onHidden := observeFor(t, svc, account, "hidden")
+	d.Exec(t, "UPDATE agent_requests SET status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, onVisible), visible)
+	d.Exec(t, "UPDATE agent_requests SET status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, onHidden), hidden)
+
+	rows := listObserve(t, observeRouterAs(svc, account), "").Requests
+	if len(rows) != 2 {
+		t.Fatalf("listed %d requests, want 2", len(rows))
+	}
+	for _, row := range rows {
+		switch row.ID {
+		case onVisible:
+			if row.DashboardID == nil || *row.DashboardID != visible.String() || row.DashboardTitle == nil || *row.DashboardTitle != "t" {
+				t.Errorf("request on a visible dashboard = %+v", row)
+			}
+		case onHidden:
+			if row.DashboardID == nil || *row.DashboardID != hidden.String() || row.DashboardTitle != nil {
+				t.Errorf("request on a hidden dashboard = %+v", row)
+			}
+		}
+	}
+}
+
 func TestSucceededObserveRowIsARevisionWithNoBaseVersion(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 2)
@@ -367,5 +400,214 @@ func TestGetObserveHidesARequestWithoutADashboardFromOtherPrincipals(t *testing.
 		if c.want == http.StatusNotFound && strings.Contains(rec.Body.String(), "private prompt") {
 			t.Errorf("%s: the prompt leaked: %s", name, rec.Body)
 		}
+	}
+}
+
+func patchObserve(t *testing.T, r http.Handler, id, body string) {
+	t.Helper()
+	if rec := call(r, http.MethodPatch, "/api/v1/observe/"+id, body); rec.Code != http.StatusOK {
+		t.Fatalf("PATCH /observe/%s %s: %d %s", id, body, rec.Code, rec.Body)
+	}
+}
+
+func walkObserve(t *testing.T, r http.Handler, query string) []string {
+	t.Helper()
+	var walked []string
+	cursor := ""
+	for pages := 0; pages < 20; pages++ {
+		page := listObserve(t, r, "?limit=1"+query+cursor)
+		walked = append(walked, page.ids()...)
+		if page.NextCursor == nil {
+			return walked
+		}
+		cursor = "&cursor=" + url.QueryEscape(*page.NextCursor)
+	}
+	t.Fatal("the list did not end")
+	return nil
+}
+
+func TestListObservePutsPinnedRequestsFirstAndPagesAcrossThem(t *testing.T) {
+	svc, _ := newService(t, succeedWith(2))
+	oldest := observeFor(t, svc, user, "oldest")
+	middle := observeFor(t, svc, user, "middle")
+	newestID := observeFor(t, svc, user, "newest")
+	r := observeRouterFor(svc, user)
+	patchObserve(t, r, oldest, `{"pinned":true}`)
+
+	if got, want := walkObserve(t, r, ""), []string{oldest, newestID, middle}; !slices.Equal(got, want) {
+		t.Fatalf("walked %v, want %v", got, want)
+	}
+	if got := listObserve(t, r, "?pinned=true").ids(); !slices.Equal(got, []string{oldest}) {
+		t.Errorf("pinned=true: %v", got)
+	}
+	if got := listObserve(t, r, "?pinned=false").ids(); !slices.Equal(got, []string{newestID, middle}) {
+		t.Errorf("pinned=false: %v", got)
+	}
+	patchObserve(t, r, oldest, `{"pinned":false}`)
+	if got := listObserve(t, r, "").ids(); !slices.Equal(got, []string{newestID, middle, oldest}) {
+		t.Errorf("after unpinning: %v", got)
+	}
+}
+
+func TestListObserveStillTakesAnUnprefixedCursor(t *testing.T) {
+	svc, _ := newService(t, succeedWith(2))
+	older := observeFor(t, svc, user, "older")
+	observeFor(t, svc, user, "newer")
+	r := observeRouterFor(svc, user)
+	first := listObserve(t, r, "?limit=1")
+	if first.NextCursor == nil || !strings.HasPrefix(*first.NextCursor, "u.") {
+		t.Fatalf("first page cursor = %v", first.NextCursor)
+	}
+	old := strings.TrimPrefix(*first.NextCursor, "u.")
+	if got := listObserve(t, r, "?limit=1&cursor="+url.QueryEscape(old)).ids(); !slices.Equal(got, []string{older}) {
+		t.Fatalf("with an unprefixed cursor: %v", got)
+	}
+}
+
+func TestListObserveSearchesTitlesAndPromptsLiterally(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	titled := observeFor(t, svc, user, "something else")
+	percent := observeFor(t, svc, user, "orders 50% done")
+	observeFor(t, svc, user, "500 errors")
+	followUp, err := svc.SubmitFollowUp(context.Background(), dash, nil, "", "on a dashboard", user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := observeRouterFor(svc, user)
+	patchObserve(t, r, titled, `{"title":"Checkout latency"}`)
+	cases := []struct {
+		query string
+		want  []string
+	}{
+		{"?q=CHECKOUT", []string{titled}},
+		{"?q=" + url.QueryEscape("50%"), []string{percent}},
+		{"?q=" + url.QueryEscape("rd_r"), []string{}},
+		{"?dashboard_id=" + dash.String(), []string{followUp.ID.String()}},
+	}
+	for _, c := range cases {
+		if got := listObserve(t, r, c.query).ids(); !slices.Equal(got, c.want) {
+			t.Errorf("%s: %v, want %v", c.query, got, c.want)
+		}
+	}
+	for _, bad := range []string{"?q=", "?q=" + strings.Repeat("a", 201), "?pinned=yes", "?dashboard_id=nope", "?source=suggest"} {
+		if rec := call(r, http.MethodGet, "/api/v1/observe"+bad, ""); rec.Code != http.StatusBadRequest {
+			t.Errorf("%s: %d %s", bad, rec.Code, rec.Body)
+		}
+	}
+}
+
+func TestPatchObserveSetsAndClearsTheTitle(t *testing.T) {
+	svc, _ := newService(t, succeedWith(2))
+	id := observeFor(t, svc, user, "checkout health by pod\nlast 6h")
+	r := observeRouterFor(svc, user)
+	title := func() (string, *string) {
+		rec := call(r, http.MethodGet, "/api/v1/observe/"+id, "")
+		var body struct {
+			Request struct {
+				Title    string  `json:"title"`
+				Kind     string  `json:"kind"`
+				PinnedAt *string `json:"pinned_at"`
+			} `json:"request"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || body.Request.Kind != "build" {
+			t.Fatalf("GET: %d %s", rec.Code, rec.Body)
+		}
+		return body.Request.Title, body.Request.PinnedAt
+	}
+	if got, _ := title(); got != "checkout health by pod" {
+		t.Errorf("default title = %q", got)
+	}
+	patchObserve(t, r, id, `{"title":"  Pods  ","pinned":true}`)
+	if got, pinned := title(); got != "Pods" || pinned == nil {
+		t.Errorf("after setting: %q pinned %v", got, pinned)
+	}
+	patchObserve(t, r, id, `{"title":null}`)
+	if got, pinned := title(); got != "checkout health by pod" || pinned == nil {
+		t.Errorf("after clearing: %q pinned %v", got, pinned)
+	}
+	for _, bad := range []string{`{}`, `{"title":"two\nlines"}`, `{"title":7}`, `{"title":"` + strings.Repeat("a", 121) + `"}`, `{"pinned":"yes"}`, `{"other":1}`} {
+		if rec := call(r, http.MethodPatch, "/api/v1/observe/"+id, bad); rec.Code != http.StatusBadRequest {
+			t.Errorf("PATCH %s: %d %s", bad, rec.Code, rec.Body)
+		}
+	}
+}
+
+func TestOnlyTheRequesterChangesOrArchivesARequest(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	row, err := svc.SubmitFollowUp(context.Background(), dash, nil, "", "on a dashboard", user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := row.ID.String()
+	other := observeRouterFor(svc, account)
+	for _, method := range []string{http.MethodPatch, http.MethodDelete} {
+		rec := call(other, method, "/api/v1/observe/"+id, `{"pinned":true}`)
+		if rec.Code != http.StatusForbidden || errorCode(t, rec) != "forbidden" {
+			t.Errorf("%s by another principal: %d %s", method, rec.Code, rec.Body)
+		}
+	}
+	private := observeFor(t, svc, user, "no dashboard")
+	if rec := call(other, http.MethodDelete, "/api/v1/observe/"+private, ""); rec.Code != http.StatusNotFound {
+		t.Errorf("DELETE of a request the caller cannot see: %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestArchivedRequestsLeaveTheListButStayReadable(t *testing.T) {
+	svc, _ := newService(t, succeedWith(2))
+	kept := observeFor(t, svc, user, "kept")
+	archived := observeFor(t, svc, user, "archived")
+	r := observeRouterFor(svc, user)
+	for range 2 {
+		if rec := call(r, http.MethodDelete, "/api/v1/observe/"+archived, ""); rec.Code != http.StatusNoContent || rec.Body.Len() != 0 {
+			t.Fatalf("DELETE: %d %s", rec.Code, rec.Body)
+		}
+	}
+	if got := listObserve(t, r, "").ids(); !slices.Equal(got, []string{kept}) {
+		t.Errorf("list = %v", got)
+	}
+	rec := call(r, http.MethodGet, "/api/v1/observe/"+archived, "")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"archived_at":"`) || !strings.Contains(rec.Body.String(), `"status":"queued"`) {
+		t.Errorf("GET of an archived request: %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestCreateObserveChecksTheInvestigateFields(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	r := observeRouterFor(svc, user)
+	dashboard := `"dashboard_id":"` + dash.String() + `"`
+	cases := []struct {
+		name, body, message string
+	}{
+		{"panel without investigate", `{"prompt":"p","panel_id":"a"}`, "panel_id, from and to need kind investigate"},
+		{"window without investigate", `{"prompt":"p","kind":"build","from":"now-1h","to":"now"}`, "panel_id, from and to need kind investigate"},
+		{"unknown kind", `{"prompt":"p","kind":"explain"}`, "kind must be build or investigate"},
+		{"base version", `{"prompt":"p","kind":"investigate",` + dashboard + `,"base_version":1}`, "base_version is not allowed for kind investigate"},
+		{"panel without dashboard", `{"prompt":"p","kind":"investigate","panel_id":"a"}`, "panel_id needs dashboard_id"},
+		{"empty panel", `{"prompt":"p","kind":"investigate",` + dashboard + `,"panel_id":""}`, "panel_id must be 1 to 64 characters without NUL"},
+		{"half a window", `{"prompt":"p","kind":"investigate","from":"now-1h"}`, "from and to go together"},
+		{"not a time", `{"prompt":"p","kind":"investigate","from":"soon","to":"now"}`, "from and to must be relative times like now-1h or epoch milliseconds"},
+		{"reversed window", `{"prompt":"p","kind":"investigate","from":"now","to":"now-1h"}`, "from must be before to"},
+		{"long window", `{"prompt":"p","kind":"investigate","from":"now-500d","to":"now"}`, "the time range is too long"},
+	}
+	for _, c := range cases {
+		rec := call(r, http.MethodPost, "/api/v1/observe", c.body)
+		var body struct {
+			Error string `json:"error"`
+			Code  string `json:"code"`
+		}
+		if rec.Code != http.StatusBadRequest || json.Unmarshal(rec.Body.Bytes(), &body) != nil || body.Error != c.message {
+			t.Errorf("%s: %d %s, want 400 %q", c.name, rec.Code, rec.Body, c.message)
+		}
+	}
+	rec := call(r, http.MethodPost, "/api/v1/observe", `{"prompt":"why","kind":"investigate","from":"now-2h","to":"now"}`)
+	if rec.Code != http.StatusAccepted || !strings.Contains(rec.Body.String(), `"kind":"investigate"`) || !strings.Contains(rec.Body.String(), `"finding":null`) {
+		t.Fatalf("an investigation: %d %s", rec.Code, rec.Body)
+	}
+	viewer := observeRouterAs(svc, auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Vic", Role: auth.RoleViewer})
+	if rec := call(viewer, http.MethodPost, "/api/v1/observe", `{"prompt":"why","kind":"investigate"}`); rec.Code != http.StatusForbidden {
+		t.Errorf("a viewer: %d %s", rec.Code, rec.Body)
 	}
 }

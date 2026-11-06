@@ -1,5 +1,6 @@
 import { Suspense, useMemo } from "react"
 
+import type { Annotation } from "@/annotations/queries"
 import type { Selections } from "@/api/keys"
 import type { PanelDataResponse } from "@/dashboards/queries"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
@@ -59,6 +60,7 @@ type Props = {
   to: string | undefined
   asTable?: boolean
   reusedFilter?: ReusedFilter
+  annotations?: readonly Annotation[]
 }
 
 export function PanelBody({
@@ -76,6 +78,7 @@ export function PanelBody({
   to,
   asTable = false,
   reusedFilter,
+  annotations,
 }: Props) {
   const datasources = useDatasources()
   const typeOf = useMemo<DatasourceTypeOf>(
@@ -138,6 +141,7 @@ export function PanelBody({
             links={links}
             ghostFrames={ghostFrames}
             exemplars={data.exemplars}
+            annotations={annotations}
           />
         ) : (
           <Unsupported />

@@ -71,6 +71,7 @@
   --color-syntax-string: var(--syntax-string);
   --color-syntax-number: var(--syntax-number);
   --color-syntax-keyword: var(--syntax-keyword);
+  --ease-panel: var(--ease-panel);
   --radius-control: 6px;
   --radius-card: 10px;
   --radius-sm: calc(var(--radius) * 0.6);
@@ -109,9 +110,9 @@
   --radius: 0.625rem;
   --series-1: #2a78d6;
   --series-2: #eb6834;
-  --series-3: #1baf7a;
-  --series-4: #eda100;
-  --series-5: #e87ba4;
+  --series-3: #0aa975;
+  --series-4: #c88702;
+  --series-5: #de729b;
   --series-6: #008300;
   --series-7: #6250d6;
   --series-8: #e34948;
@@ -144,6 +145,8 @@
   --sidebar-accent-foreground: #0a0a0a;
   --sidebar-border: #e4e4e7;
   --sidebar-ring: #0a0a0a;
+  --duration-panel: 220ms;
+  --ease-panel: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .dark {
@@ -227,6 +230,19 @@
   .react-grid-layout,
   .react-grid-layout > .react-grid-item {
     transition: none !important;
+  }
+}
+
+::view-transition-group(*) {
+  animation-duration: var(--duration-panel);
+  animation-timing-function: var(--ease-panel);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none;
   }
 }
 

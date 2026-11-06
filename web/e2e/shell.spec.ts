@@ -82,8 +82,8 @@ test("shows only the mark when collapsed", async ({ page }) => {
   const mark = home.locator("svg")
   await expect(mark).toHaveCount(1)
   const markBox = await rect(mark)
-  expect(markBox.width).toBe(20)
-  expect(markBox.height).toBe(20)
+  expect(markBox.width).toBe(16)
+  expect(markBox.height).toBe(16)
   const icon = await rect(
     sidebar(page).getByRole("link", { name: "Datasources" }).locator("svg")
   )
@@ -184,16 +184,16 @@ test("opens the account menu and returns focus", async ({ page }) => {
   await expect(account).toBeFocused()
 })
 
-test("keeps the dashboard outside the shell", async ({ page, request }) => {
+test("shows the sidebar rail on a dashboard", async ({ page, request }) => {
   const { id } = await createDashboard(request, {
     ...loadSpec("overview"),
     title: uniqueTitle("Shell"),
   })
   await openDashboard(page, id)
-  await expect(sidebar(page)).toHaveCount(0)
-  await expect(page.getByRole("navigation", { name: "Main" })).toHaveCount(0)
-  await page.getByRole("button", { name: /^More/ }).click()
-  await page.getByRole("menuitem", { name: "API keys" }).click()
+  await expect(sidebar(page)).toBeVisible()
+  await expectWidth(sidebar(page), 44)
+  await expect(grip(page)).toHaveCount(0)
+  await sidebar(page).getByRole("link", { name: "API keys" }).click()
   await expect(page).toHaveURL(/\/keys$/)
 })
 
@@ -280,7 +280,7 @@ test("keeps the top row in view when a mid-width page scrolls", async ({
     page.getByRole("navigation", { name: "Breadcrumb" })
   ).toBeInViewport()
   await expect(
-    page.getByRole("button", { name: "Switch theme" })
+    page.getByRole("button", { name: "Search or jump to" })
   ).toBeInViewport()
   const state = await page.evaluate(() => ({
     documentFits:

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { groupSteps, retryAction, type Step } from "./request-model"
+import { retryAction, timelinePhases, type Step } from "./request-model"
 
 function step(overrides: Partial<Step>): Step {
   return {
@@ -15,46 +15,72 @@ function step(overrides: Partial<Step>): Step {
   }
 }
 
-describe("groupSteps", () => {
-  it("merges consecutive ok steps of one phase and keeps the latest", () => {
-    const groups = groupSteps([
-      step({ message: "first" }),
-      step({ message: "second" }),
-      step({ message: "third" }),
-    ])
-    expect(groups).toHaveLength(1)
-    expect(groups[0].count).toBe(3)
-    expect(groups[0].step.message).toBe("third")
-  })
-
-  it("does not merge across phases", () => {
-    const groups = groupSteps([
+describe("timelinePhases", () => {
+  it("starts a new run at each phase change", () => {
+    const runs = timelinePhases([
+      step({ phase: "discover" }),
       step({ phase: "discover" }),
       step({ phase: "query" }),
       step({ phase: "discover" }),
     ])
-    expect(groups.map((group) => group.count)).toEqual([1, 1, 1])
+    expect(runs.map((run) => [run.phase, run.steps.length])).toEqual([
+      ["discover", 2],
+      ["query", 1],
+      ["discover", 1],
+    ])
   })
 
-  it("does not merge across attempts", () => {
-    const groups = groupSteps([
+  it("starts a new run at an attempt boundary", () => {
+    const runs = timelinePhases([
       step({ attempt: 0 }),
       step({ attempt: 0 }),
       step({ attempt: 1 }),
-      step({ attempt: 1 }),
     ])
-    expect(groups.map((group) => group.count)).toEqual([2, 2])
+    expect(runs.map((run) => run.steps.length)).toEqual([2, 1])
   })
 
-  it("never merges errors or repairs", () => {
-    const groups = groupSteps([
-      step({ status: "error" }),
-      step({ status: "error" }),
-      step({ phase: "repair" }),
-      step({ phase: "repair" }),
-      step({}),
+  it("keys each run by its attempt and first step index", () => {
+    const runs = timelinePhases([
+      step({ phase: "discover" }),
+      step({ phase: "query", attempt: 0 }),
+      step({ phase: "query", attempt: 1 }),
     ])
-    expect(groups.map((group) => group.count)).toEqual([1, 1, 1, 1, 1])
+    expect(runs.map((run) => run.key)).toEqual(["0:0", "0:1", "1:2"])
+  })
+
+  it("counts tools in first-seen order", () => {
+    const [run] = timelinePhases([
+      step({ phase: "discover", tool: "list_metrics" }),
+      step({ phase: "discover", tool: "get_schema" }),
+      step({ phase: "discover", tool: "list_metrics" }),
+    ])
+    expect(run.tools).toEqual([
+      { tool: "list_metrics", count: 2 },
+      { tool: "get_schema", count: 1 },
+    ])
+  })
+
+  it("counts errors and sums durations", () => {
+    const [run] = timelinePhases([
+      step({ status: "error", duration_ms: 120 }),
+      step({ status: "ok", duration_ms: 30 }),
+      step({ status: "error", duration_ms: 50 }),
+    ])
+    expect(run.errors).toBe(2)
+    expect(run.durationMs).toBe(200)
+  })
+
+  it("gives every repair step its own run", () => {
+    const runs = timelinePhases([
+      step({ phase: "repair" }),
+      step({ phase: "repair" }),
+      step({ phase: "query" }),
+    ])
+    expect(runs.map((run) => [run.phase, run.steps.length])).toEqual([
+      ["repair", 1],
+      ["repair", 1],
+      ["query", 1],
+    ])
   })
 })
 
@@ -82,6 +108,36 @@ describe("retryAction", () => {
       kind: "none",
       dashboardId: null,
     })
+  })
+
+  it("investigates again with the same dashboard, panel and window", () => {
+    expect(
+      retryAction({
+        source: "investigate",
+        dashboard_id: id,
+        panel_id: "latency",
+        from: "2026-11-04T10:00:00Z",
+        to: "2026-11-04T11:00:00Z",
+      })
+    ).toEqual({
+      kind: "investigate",
+      dashboardId: id,
+      panelId: "latency",
+      from: "2026-11-04T10:00:00Z",
+      to: "2026-11-04T11:00:00Z",
+    })
+  })
+
+  it("investigates again without context it does not have", () => {
+    expect(
+      retryAction({
+        source: "investigate",
+        dashboard_id: null,
+        panel_id: null,
+        from: "2026-11-04T10:00:00Z",
+        to: null,
+      })
+    ).toEqual({ kind: "investigate" })
   })
 
   it("offers no retry for comment revisions", () => {

@@ -6,19 +6,25 @@ description: Import a Grafana dashboard from the web page, the CLI or MCP, and h
 You can bring a Grafana dashboard in three ways: the web page Import from Grafana, `observe import`, and the `import_grafana_dashboard` MCP tool.
 The page and `observe import` call `POST /api/v1/imports` with the dashboard JSON as pasted or uploaded, the tool runs the same import, and `POST /api/v1/imports/preview` shows the result first without saving anything.
 The JSON can be the classic dashboard model, an export that shares a dashboard externally, or the response of Grafana's dashboard API.
+To bring over every dashboard of a running Grafana in one run, with its folders, see [Switch from Grafana](switch-from-grafana.md).
 
 Each datasource the dashboard uses is matched to one of yours, in the order described under `grafanaUids` in the [datasources file](../reference/datasources-file.md).
 An import cannot be saved while a datasource has no match, and SlashObserve never guesses between two datasources of the same type; give the match with the mapping that comes with the request, or add the Grafana uid to `grafanaUids`.
+SlashObserve imports Prometheus, ClickHouse, Loki and Tempo datasources.
+A Grafana datasource whose type has no configured datasource here does not block the import: its panels import as placeholders that say so, such as "No Loki datasource is configured.".
+A datasource of another type, such as Elasticsearch, imports its panels as placeholders that say "Elasticsearch is not supported yet.".
 
 The dashboard goes into a folder, chosen in this order:
 
 1. The request's `folder` title: `--folder` for `observe import`, `folder` for the API and the MCP tool.
    The web page sends the folder you pick in its **Folder** card, and sends none when the choice is **Automatic**.
 2. The `meta.folderTitle` of an export taken from Grafana's dashboard API, which names the folder the dashboard had in Grafana.
-3. Your default folder: the folder you last created a dashboard in, else General.
+3. Your default folder: your My Dashboards; for a key, General.
 
 A title matches an existing folder without regard to case.
-A title of `General`, or an export title that is empty or not a valid folder title, means the default; an invalid `folder` in the request is refused with `400 invalid_request`.
+A title of `General` or `My Dashboards` means your default folder.
+An export title that is empty or not a valid folder title means the default too.
+An invalid `folder` in the request is refused with `400 invalid_request`.
 When no folder has the title, an Editor or Admin creates it.
 When a folder has the title but you cannot create dashboards in it, the dashboard goes to your default folder instead, and the response carries a `folder_note` saying so (`observe import` prints it on standard error, even with `-q`).
 The **Folder** card on the web page lists the folders where you may create dashboards, except General, because a title of `General` means your default folder, which **Automatic** already gives you.
@@ -28,13 +34,18 @@ The folder is chosen before the dashboard is saved, so an import that then fails
 The request body, with the dashboard JSON as a string, can be at most 8 MiB.
 It saves the dashboard as version 1 and runs every query once.
 Failing queries mark their panels and variables unverified in the import report instead of failing the import.
+The **Imported, not verified** filter on the [Health page](dashboard-health.md) lists every dashboard that still has unverified panels or variables and sends them to the agent.
 Below the panel list, **Show every option, block by block** opens the report grouped by block: the dashboard settings, each variable, and each panel with its queries, transformations, field config and overrides.
 Each block is collapsed until you open it, and lists every Grafana option it carried as mapped, with the ObserveSpec fields it became, excluded by decision, with the reason SlashObserve leaves it out, or not imported, with the reason.
 An option mapped without a field name is one no catalog describes yet, such as the options of legacy panels.
 Options that need no setting (Grafana defaults, options with no visible effect and editor bookkeeping) are shown as a count that you can open to see each of them.
 A very large dashboard lists at most 200 options per block and 10,000 in all, keeping excluded, then not imported, then mapped options before those that need no setting.
-Later saves run every query too, but keep a failing panel or variable unverified, instead of failing, for as long as its queries and the variables they use are unchanged; a new or changed query must return data, and a panel whose queries pass again is no longer unverified.
+Later saves keep a failing panel or variable unverified, instead of failing, for as long as its queries and the variables they use are unchanged, and so does its panel type, time override (`timeFrom` and `timeShift`), `maxDataPoints` and `interval`; a new or changed query must return data, and a panel whose queries pass again is no longer unverified.
+A save with `update_dashboard` runs every query.
+A save with `update_panels` runs only the queries it changed, unless it changes the dashboard's default `time`, which runs every query; either way a panel the save did not change stays unverified while it still fails, and an unverified panel that now returns data leaves the list.
 The original JSON is stored with the import so a newer importer can convert it again, and it is never shown to the agent.
+The import record's `grafana_uid` holds the dashboard's Grafana uid, so `GET /api/v1/grafana/resolve/{uid}` finds the dashboard from an old Grafana link.
+Only the first import of a uid holds it, and only a uid of 1 to 40 letters, digits, `-` or `_`; importing the same uid again makes a separate dashboard whose record has an empty `grafana_uid`, until the dashboard holding it is deleted.
 
 A query's min step written as a variable (`$name`, `${name}` or `[[name]]`) imports as `${name}`, so the query uses the step selected in that variable.
 A `custom` variable of durations that is single-select, has no All and is used as a min step becomes an `interval` variable, and the import report says so.
@@ -65,6 +76,16 @@ A Prometheus query that Grafana runs as both an instant and a range query (`inst
 Both queries are hidden together, and a style override or a `filterByRefId` transformation that names the original ref covers the copy too.
 A query with `instant` on and `range` unset or off stays one instant query.
 A panel that already holds 26 queries keeps only the range query and reports the instant one.
+A Loki query imports its LogQL as written, on the matched Loki datasource.
+A Loki metric query keeps its legend, runs as an instant query when its `queryType` is `instant` (or, with no `queryType`, when `instant` is on), and keeps a resolution from 2 to 10 as `intervalFactor`.
+A Loki `step` of `$__interval` or `$__auto` imports as no minimum, and another step becomes the smallest step and is reported, because Grafana uses that step as is.
+`$__auto` in a Loki query becomes `$__range` in an instant query and `$__interval` otherwise, and the import report lists the rewrite.
+A Loki log query, one that starts with a stream selector, always reads the whole time range, so its legend, resolution and step have no effect, and an instant log query is reported.
+A Loki query whose `queryType` is `stream` imports as a range query and is reported.
+A Tempo query imports its TraceQL or trace id as written, on the matched Tempo datasource, and a trace id held in a variable, such as `${trace_id}`, is looked up after the variable is expanded.
+The Tempo search form state saved beside a TraceQL query (filters, group-by, service names, durations and the metrics options) is editor state and imports without a note.
+A Tempo query of the search builder or the legacy search, the service graph, an uploaded trace file, or a TraceQL metrics pipeline such as `| rate()` is dropped, and a panel left with no query becomes a placeholder.
+A Loki query variable imports as written, and one saved in the label values form becomes `label_values(<stream>, <label>)`; a Loki label names variable and any Tempo query variable keep their saved values as a fixed list, and an ad hoc variable on Loki or Tempo is dropped and reported.
 A server-side expression (math, reduce, resample or threshold) imports as an expression query that reads the queries it names (see [Expressions](../concepts/observespec.md#expressions)).
 A threshold keeps its main condition without its recovery threshold, because Grafana applies the recovery threshold only when it evaluates alert rules.
 A classic condition is dropped because it belongs to alert rules, which SlashObserve does not import, and a SQL expression is dropped because SlashObserve does not support it.
@@ -72,6 +93,7 @@ So are a math function SlashObserve does not support, math that reads a dashboar
 The import report gives the reason for each, and a panel keeps at least one data query or becomes a placeholder.
 Some Grafana options are reported and not imported by decision, because SlashObserve does not have the feature: Grafana Live streaming on Altinity queries, the log context toggle on logs panels, the log context window of Altinity queries, Grafana scopes on Prometheus queries, images served by a Grafana server, the Infinity datasource (canvas actions and field actions), Explore links, editing data from a panel, CSS taken from a field, recently viewed dashboards and Grafana folder ids in dashboard lists, the heatmap selection modes `xy` and `y`, alert rules in alert lists (inactive alerts, instances, the normal state filter, alert grouping), and the modes and counters of the debug panel.
 The same goes for vertical value axes placed at the top or bottom and ordinal value scales on time series, trend, candlestick, histogram, bar chart and XY chart panels, the time comparison and horizontal orientation of time series, bar gauge legends (turning one off imports without a note), the gauge layout options (orientation, manual sizing and the minimum sizes), infinite log scrolling and the log field selector, map cells in tables, the `anyMatch`, `allMatch` and `invertMatch` override matchers and the `byType` matcher for other fields, server element animation (blink rate and bulb color), data-driven canvas connections, canvas zoom to content, the one-click canvas tooltip and the canvas background image mapping mode, hidden log labels in Altinity logs settings, a group-by variable on ClickHouse, and the Altinity ad hoc values query.
+The same goes for Grafana Live streaming and the line limit of Loki queries (a logs panel shows up to the datasource's row limit), reading Loki lines oldest first, the Tempo search builder, the Tempo service graph, uploaded trace files, TraceQL metrics queries, and the trace limit, span-set limit and span tables of Tempo queries (a search lists one row per trace).
 Options that Grafana itself does not draw or read where they are written (the legend options of a stat panel, a log base on a query, the unit scale of a field, a Prometheus exemplar flag on an instant query or on a panel that draws no exemplars), editor state such as a query's help toggle or saved ad hoc filters, and inputs Grafana rejects are imported without a note.
 A query with no text is dropped without a note, because Grafana sends no request for it and the panel shows the same data without it; a panel left with no query becomes a placeholder.
 Among transformation options, the annotation and time region frame conversions, the exemplar frame conversion, the percent unary operator, the max window reducer, enum and time zone conversions of field types, ordering by label or in descending name order and by mode `auto`, the semicolon and pipe separators and names of partition by values, the ignore and threshold modes of rows to fields with its name and value fields, and the inline statistic of time series table are reported and not imported.

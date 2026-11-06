@@ -47,7 +47,7 @@ export function KeysTable({ onCreate, revokeFocus }: Props) {
 
   if (keys.status === "pending") {
     return (
-      <TableCard label="API keys" minWidth={760}>
+      <TableCard label="API keys" minWidth={760} stackOnNarrow>
         <Header />
         <tbody aria-busy="true">
           {[0, 1, 2].map((index) => (
@@ -112,7 +112,7 @@ export function KeysTable({ onCreate, revokeFocus }: Props) {
   return (
     <>
       {problem}
-      <TableCard label="API keys" minWidth={760}>
+      <TableCard label="API keys" minWidth={760} stackOnNarrow>
         <Header />
         <tbody aria-busy={keys.loadingMore}>
           {keys.rows.map(({ key, account }) => {
@@ -143,7 +143,7 @@ export function KeysTable({ onCreate, revokeFocus }: Props) {
                 <Cell>
                   <StatusLabel tone={state.tone}>{state.text}</StatusLabel>
                 </Cell>
-                <Cell className="text-right">
+                <Cell data-cell="action" className="text-right">
                   {keyStatus(key, now) === "active" ? (
                     <RevokeKeyButton
                       account={account}

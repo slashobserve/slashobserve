@@ -1,0 +1,10 @@
+id: build-keeps-panel-positions
+prompt: "eval build: the System row is resent with invented positions and resized after its last panel"
+category: prometheus
+kind: create
+suites: [replay]
+expect:
+  datasources: [prometheus]
+  min_panels: 3
+  max_panels: 3
+  usage: {build_saves: 5}

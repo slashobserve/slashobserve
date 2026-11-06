@@ -1,19 +1,26 @@
 import { useQuery } from "@tanstack/react-query"
+import { useEffect, useEffectEvent } from "react"
 
 import { api } from "@/api/client"
 import { ApiError, isRetryable, unwrap } from "@/api/errors"
-import { dashboardKeys, type Selections } from "@/api/keys"
+import type { Selections } from "@/api/keys"
 import { instantPanelTypes, isDataPanel, type Panel } from "@/spec"
 
 import { requestZone } from "@/lib/time"
+import { readBuild } from "@/observe/build"
 
 import { panelRequestLimiter } from "./limiter"
+import {
+  keepsPreviousData,
+  panelDataKey,
+  panelFingerprint,
+  type PanelSource,
+} from "./panel-source"
 import { withVariables } from "./search"
 import { sortSelections } from "./variables"
 
 type Args = {
-  dashboardId: string
-  version: number
+  source: PanelSource
   panel: Panel
   from?: string
   to?: string
@@ -22,6 +29,7 @@ type Args = {
   maxDataPoints?: number
   refreshMs: number | null
   enabled: boolean
+  inView: boolean
 }
 
 export function maxDataPointsFor(
@@ -43,9 +51,18 @@ export function panelRetry(count: number, error: unknown): boolean {
   return count < 3 && isRetryable(error)
 }
 
+export function missedRefresh(
+  dataUpdatedAt: number,
+  now: number,
+  refreshMs: number | null
+): boolean {
+  return (
+    refreshMs !== null && dataUpdatedAt > 0 && now - dataUpdatedAt >= refreshMs
+  )
+}
+
 export function usePanelData({
-  dashboardId,
-  version,
+  source,
   panel,
   from,
   to,
@@ -54,16 +71,18 @@ export function usePanelData({
   maxDataPoints,
   refreshMs,
   enabled,
+  inView,
 }: Args) {
   const selections = sortSelections(vars)
-  return useQuery({
-    queryKey: dashboardKeys.panelData(dashboardId, version, panel.id, {
+  const fingerprint = source.kind === "build" ? panelFingerprint(panel) : ""
+  const query = useQuery({
+    queryKey: panelDataKey(source, panel.id, fingerprint, {
       from,
       to,
       selections,
       maxDataPoints,
     }),
-    queryFn: ({ signal }) => {
+    queryFn: ({ signal, client }) => {
       const query: {
         from?: string
         to?: string
@@ -75,29 +94,67 @@ export function usePanelData({
       const tz = requestZone(timezone)
       if (tz !== undefined) query.tz = tz
       if (maxDataPoints !== undefined) query.max_data_points = maxDataPoints
-      return panelRequestLimiter.run(
-        () =>
-          api
-            .GET("/dashboards/{id}/versions/{version}/panels/{panel_id}/data", {
+      const params = withVariables(query, selections)
+      const request = () => {
+        switch (source.kind) {
+          case "version":
+            return api.GET(
+              "/dashboards/{id}/versions/{version}/panels/{panel_id}/data",
+              {
+                params: {
+                  path: {
+                    id: source.dashboardId,
+                    version: source.version,
+                    panel_id: panel.id,
+                  },
+                  query: params,
+                },
+                signal,
+              }
+            )
+          case "build":
+            return api.GET("/observe/{id}/build/panels/{panel_id}/data", {
               params: {
-                path: { id: dashboardId, version, panel_id: panel.id },
-                query: withVariables(query, selections),
+                path: { id: source.requestId, panel_id: panel.id },
+                query: params,
               },
               signal,
             })
-            .then(unwrap),
-        signal
-      )
+          case "public":
+            return api.GET("/public/{token}/panels/{panel_id}/data", {
+              params: {
+                path: { token: source.token, panel_id: panel.id },
+                query: params,
+              },
+              signal,
+            })
+        }
+      }
+      const read = () =>
+        panelRequestLimiter.run(() => request().then(unwrap), signal)
+      return source.kind === "build"
+        ? readBuild(client, source.requestId, signal, read)
+        : read()
     },
     enabled,
     placeholderData: (previous, previousQuery) =>
-      previousQuery?.queryKey[1] === dashboardId &&
-      previousQuery.queryKey[3] === version
+      previousQuery !== undefined &&
+      keepsPreviousData(source, fingerprint, previousQuery.queryKey)
         ? previous
         : undefined,
     staleTime: 0,
     gcTime: 300_000,
-    refetchInterval: refreshMs ?? false,
+    refetchInterval: inView && refreshMs !== null ? refreshMs : false,
     retry: panelRetry,
   })
+  const { refetch, dataUpdatedAt } = query
+  const catchUp = useEffectEvent(() => {
+    if (enabled && missedRefresh(dataUpdatedAt, Date.now(), refreshMs)) {
+      void refetch({ cancelRefetch: false })
+    }
+  })
+  useEffect(() => {
+    if (inView) catchUp()
+  }, [inView])
+  return query
 }

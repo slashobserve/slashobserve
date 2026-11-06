@@ -1,0 +1,10 @@
+id: logs-slow-checkout-traces
+prompt: a table of slow checkout spans from Tempo over the last hour
+category: tempo
+kind: create
+suites: [live, replay]
+done_when: false
+expect:
+  datasources: [tempo]
+  query_contains_any: [[checkout], [duration]]
+  time_range_from: [now-1h, now-60m]

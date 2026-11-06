@@ -23,20 +23,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  useSetDashboardSearch,
-  validateDashboardSearch,
-} from "@/dashboards/search"
+import { useSetDashboardSearch } from "@/dashboards/search"
 import type { Selections } from "@/api/keys"
+import { DockHeader } from "@/components/dock/dock-header"
 import { Button } from "@/components/ui/button"
 import { guardLoad } from "@/panels/renderer-load"
 import type { EditorView, ViewGuard } from "@/panel-editor/panel-editor"
 import { isEditablePanel } from "@/panel-editor/draft"
 import { findPanel, panelTitle, type Dashboard, type Panel } from "@/spec"
 
-import { CardHeader } from "./card-header"
 import { EditorBoundary } from "./editor-boundary"
 import { EditorViewSwitch } from "./editor-view-switch"
+import { leavesDraft } from "./leaves-draft"
 
 const PanelEditor = lazy(guardLoad(() => import("@/panel-editor/panel-editor")))
 
@@ -66,22 +64,6 @@ type Props = {
 function panelTrigger(panelId: string) {
   return document.querySelector<HTMLElement>(
     `[data-panel-menu="${CSS.escape(panelId)}"]`
-  )
-}
-
-function leavesDraft(
-  current: { pathname: string; search: unknown },
-  next: { pathname: string; search: unknown }
-): boolean {
-  if (current.pathname !== next.pathname) return true
-  const before = validateDashboardSearch(
-    current.search as Record<string, unknown>
-  )
-  const after = validateDashboardSearch(next.search as Record<string, unknown>)
-  return (
-    before.panel !== after.panel ||
-    after.edit === undefined ||
-    before.version !== after.version
   )
 }
 
@@ -302,7 +284,7 @@ export function EditPane({
       className="flex min-h-0 flex-1 flex-col"
       onKeyDown={onKeyDown}
     >
-      <CardHeader
+      <DockHeader
         headingId={headingId}
         headingRef={headingRef}
         title={panel ? `Edit ${panelTitle(panel)}` : "Panel not found"}
@@ -324,7 +306,8 @@ export function EditPane({
             />
           ) : null
         }
-        close={() => leave("close")}
+        onClose={() => leave("close")}
+        closeLabel="Close panel"
       />
       <div className="flex min-h-0 flex-1 flex-col">{body}</div>
       <AlertDialog

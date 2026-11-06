@@ -1,0 +1,10 @@
+id: build-nef-two-panel-save-split
+prompt: "eval build: the model first tries to save two panels in one call"
+category: prometheus
+kind: create
+suites: [replay]
+expect:
+  datasources: [prometheus]
+  min_panels: 3
+  max_panels: 3
+  usage: {build_saves: 3, one_panel_refusals: 1}

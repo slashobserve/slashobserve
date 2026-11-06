@@ -1,13 +1,15 @@
-import { useEffect, useId, useRef, type RefObject } from "react"
+import { useEffect, useId, useRef, useState, type RefObject } from "react"
 import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { BookmarkPlusIcon, HistoryIcon } from "lucide-react"
 
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
+import { buildStatusText } from "@/observe/build"
 import {
   requestStatusView,
   useMyRequests,
@@ -18,11 +20,14 @@ import { usePromptPanel } from "@/prompts/prompt-panel-store"
 import { SidePanel } from "@/shell/side-panel"
 import { TopRowActions } from "@/shell/top-row-actions"
 
+import { groupChats } from "./chat-list"
+import { ChatRenameForm, ChatRowMenu, chatRowId } from "./chat-row-menu"
 import { useHistoryPanel, type HistoryTab } from "./history-store"
 import { ImportHistory } from "./import-history"
 import { canSaveAsPrompt, savePromptButtonId } from "./save-prompt-target"
 
 const pageSize = 20
+const searchDelayMs = 250
 
 const triggerClass =
   "h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-0 pb-2 text-[13px] font-medium text-muted-foreground -mb-px after:hidden data-active:border-foreground data-active:text-foreground dark:data-active:border-foreground dark:group-data-[variant=line]/tabs-list:data-active:border-foreground"
@@ -100,6 +105,19 @@ export function ChatHistory({
   )
 }
 
+function useSearchText(): [string, (text: string) => void, string | undefined] {
+  const [text, setText] = useState("")
+  const [q, setQ] = useState<string | undefined>(undefined)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const trimmed = text.trim()
+      setQ(trimmed === "" ? undefined : trimmed)
+    }, searchDelayMs)
+    return () => clearTimeout(timer)
+  }, [text])
+  return [text, setText, q]
+}
+
 function HistoryList({
   panelId,
   heading,
@@ -109,14 +127,39 @@ function HistoryList({
   heading: RefObject<HTMLHeadingElement | null>
   currentRequestId?: string
 }) {
-  const navigate = useNavigate()
-  const { principal } = useRouteContext({ from: "/_authed" })
-  const canSave = canSavePrompts(principal)
-  const openPanel = usePromptPanel((state) => state.openPanel)
-  const { requests, query } = useMyRequests("all", pageSize)
+  const [text, setText, q] = useSearchText()
+  return (
+    <div id={panelId} className="flex flex-col gap-3">
+      <Input
+        type="search"
+        aria-label="Search chats"
+        placeholder="Search chats"
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+      />
+      <HistoryResults
+        q={q}
+        heading={heading}
+        currentRequestId={currentRequestId}
+      />
+    </div>
+  )
+}
+
+function HistoryResults({
+  q,
+  heading,
+  currentRequestId,
+}: {
+  q: string | undefined
+  heading: RefObject<HTMLHeadingElement | null>
+  currentRequestId?: string
+}) {
+  const groupIdPrefix = useId()
+  const { requests, query } = useMyRequests({ q }, pageSize)
   const loadMoreFailed = query.isFetchNextPageError
   const loadMoreErrorId = useId()
-  const rows = useRef<HTMLUListElement>(null)
+  const rows = useRef<HTMLDivElement>(null)
   const loadMoreButton = useRef<HTMLButtonElement>(null)
   const retryButton = useRef<HTMLButtonElement>(null)
   const focusFrom = useRef<number | null>(null)
@@ -129,8 +172,11 @@ function HistoryList({
     focusFrom.current = null
     const active = document.activeElement
     const onBody = !active || active === document.body
-    const focusRow = (index: number) =>
-      rows.current?.children[index]?.querySelector("button")?.focus()
+    const focusRow = (index: number) => {
+      const buttons =
+        rows.current?.querySelectorAll<HTMLButtonElement>("[data-chat-row]")
+      buttons?.[index]?.focus()
+    }
     if (rowCount > from) {
       if (!onBody && active !== loadMoreButton.current) return
       focusRow(from)
@@ -152,7 +198,7 @@ function HistoryList({
 
   if (query.isPending) {
     return (
-      <div id={panelId} aria-busy="true" className="flex flex-col gap-2">
+      <div aria-busy="true" className="flex flex-col gap-2">
         {Array.from({ length: 5 }, (_, index) => (
           <Skeleton key={index} className="h-14" />
         ))}
@@ -162,7 +208,7 @@ function HistoryList({
 
   if (query.data === undefined) {
     return (
-      <div id={panelId} className="flex flex-col items-start gap-3">
+      <div className="flex flex-col items-start gap-3">
         <p className="text-[13px] text-muted-foreground">
           Could not load your requests.
         </p>
@@ -182,70 +228,41 @@ function HistoryList({
 
   if (requests.length === 0) {
     return (
-      <p id={panelId} className="text-[13px] text-muted-foreground">
-        No requests yet. Ask for a dashboard to start one.
+      <p className="text-[13px] text-muted-foreground">
+        {q === undefined
+          ? "No requests yet. Ask for a dashboard to start one."
+          : `No chats match "${q}".`}
       </p>
     )
   }
 
   return (
-    <div id={panelId} className="flex flex-col gap-3">
-      <ul ref={rows} className="-mx-2 flex flex-col">
-        {requests.map((request) => {
-          const promptTextId = `history-prompt-${request.id}`
-          const savable = canSave && canSaveAsPrompt(request)
+    <>
+      <div ref={rows} className="flex flex-col gap-3">
+        {groupChats(requests).map((group) => {
+          const headingId = `${groupIdPrefix}-${group.key}`
           return (
-            <li
-              key={request.id}
-              className="group/row relative flex items-start"
-            >
-              <button
-                type="button"
-                aria-current={
-                  request.id === currentRequestId ? "true" : undefined
-                }
-                className={cn(
-                  "flex min-w-0 flex-1 flex-col gap-1 rounded-control px-2 py-2.5 text-left outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-[current=true]:bg-muted",
-                  savable && "pr-9"
-                )}
-                onClick={() =>
-                  void navigate({
-                    to: "/observe/$requestId",
-                    params: { requestId: request.id },
-                  })
-                }
+            <section key={group.key} aria-labelledby={headingId}>
+              <h3
+                id={headingId}
+                className="px-0.5 pb-1 text-xs font-medium text-muted-foreground"
               >
-                <span
-                  id={promptTextId}
-                  className="line-clamp-2 text-[13px] wrap-anywhere"
-                >
-                  {request.prompt}
-                </span>
-                <HistoryMeta request={request} />
-              </button>
-              {savable ? (
-                <Button
-                  id={savePromptButtonId(request.id)}
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Save prompt"
-                  aria-describedby={promptTextId}
-                  className="absolute top-2 right-0 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
-                  onClick={() =>
-                    openPanel({
-                      kind: "create",
-                      body: request.prompt,
-                      returnFocusId: savePromptButtonId(request.id),
-                    })
-                  }
-                >
-                  <BookmarkPlusIcon aria-hidden="true" />
-                </Button>
-              ) : null}
-            </li>
+                {group.label}
+              </h3>
+              <ul className="-mx-2 flex flex-col">
+                {group.requests.map((request) => (
+                  <HistoryRow
+                    key={request.id}
+                    request={request}
+                    current={request.id === currentRequestId}
+                    heading={heading}
+                  />
+                ))}
+              </ul>
+            </section>
           )
         })}
-      </ul>
+      </div>
       {query.hasNextPage ? (
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
           {loadMoreFailed ? (
@@ -271,17 +288,103 @@ function HistoryList({
           </Button>
         </div>
       ) : null}
-    </div>
+    </>
+  )
+}
+
+const rowActionClass =
+  "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 data-popup-open:opacity-100 [@media(hover:none)]:opacity-100"
+
+function HistoryRow({
+  request,
+  current,
+  heading,
+}: {
+  request: RequestSummary
+  current: boolean
+  heading: RefObject<HTMLHeadingElement | null>
+}) {
+  const navigate = useNavigate()
+  const { principal } = useRouteContext({ from: "/_authed" })
+  const openPanel = usePromptPanel((state) => state.openPanel)
+  const [renaming, setRenaming] = useState(false)
+  const titleId = `history-title-${request.id}`
+  const savable = canSavePrompts(principal) && canSaveAsPrompt(request)
+
+  if (renaming) {
+    return (
+      <li className="flex items-start">
+        <ChatRenameForm request={request} onDone={() => setRenaming(false)} />
+      </li>
+    )
+  }
+
+  return (
+    <li className="group/row relative flex items-start">
+      <button
+        type="button"
+        id={chatRowId(request.id)}
+        data-chat-row
+        aria-current={current ? "true" : undefined}
+        className={cn(
+          "flex min-w-0 flex-1 flex-col gap-1 rounded-control px-2 py-2.5 text-left outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-[current=true]:bg-muted",
+          savable ? "pr-16" : "pr-9"
+        )}
+        onClick={() =>
+          void navigate({
+            to: "/c/$requestId",
+            params: { requestId: request.id },
+          })
+        }
+      >
+        <span id={titleId} className="line-clamp-2 text-[13px] wrap-anywhere">
+          {request.title}
+        </span>
+        <HistoryMeta request={request} />
+      </button>
+      <div className="absolute top-2 right-0 flex items-center">
+        {savable ? (
+          <Button
+            id={savePromptButtonId(request.id)}
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Save prompt"
+            aria-describedby={titleId}
+            className={rowActionClass}
+            onClick={() =>
+              openPanel({
+                kind: "create",
+                body: request.prompt,
+                returnFocusId: savePromptButtonId(request.id),
+              })
+            }
+          >
+            <BookmarkPlusIcon aria-hidden="true" />
+          </Button>
+        ) : null}
+        <ChatRowMenu
+          request={request}
+          current={current}
+          onRename={() => setRenaming(true)}
+          afterDelete={heading}
+          className={rowActionClass}
+        />
+      </div>
+    </li>
   )
 }
 
 function HistoryMeta({ request }: { request: RequestSummary }) {
   const view = requestStatusView(request)
   const statusText =
-    request.status === "succeeded"
-      ? request.result_version !== null
-        ? `Saved version ${request.result_version}`
-        : "Finished"
+    request.status === "failed" &&
+    (request.build !== null || request.continued_by !== null)
+      ? buildStatusText({
+          status: request.status,
+          build: request.build,
+          failureCode: request.failure_code,
+          continued: request.continued_by !== null,
+        })
       : view.text
 
   return (

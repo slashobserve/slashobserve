@@ -1,14 +1,20 @@
 import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
+import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 
-import { statusOf, typeLabel, usageLabel } from "./format"
-import { datasourcesQuery } from "./queries"
+import { exploreTargets, statusOf, typeLabel, usageLabel } from "./format"
+import { datasourcesQuery, type DatasourceStatus } from "./queries"
+
+const columnCount = 6
+const tableMinWidth = 760
 
 function Header() {
   return (
@@ -19,6 +25,9 @@ function Header() {
         <HeaderCell>Status</HeaderCell>
         <HeaderCell>Used by</HeaderCell>
         <HeaderCell className="text-right">Checked</HeaderCell>
+        <HeaderCell>
+          <span className="sr-only">Actions</span>
+        </HeaderCell>
       </tr>
     </thead>
   )
@@ -33,12 +42,12 @@ export function DatasourceTable() {
 
   if (datasources.status === "pending") {
     return (
-      <TableCard label="Datasources" minWidth={680}>
+      <TableCard label="Datasources" minWidth={tableMinWidth} stackOnNarrow>
         <Header />
         <tbody aria-busy="true">
           {[0, 1, 2].map((index) => (
             <tr key={index}>
-              <Cell colSpan={5}>
+              <Cell colSpan={columnCount}>
                 <Skeleton className="h-5 w-full" />
               </Cell>
             </tr>
@@ -71,7 +80,7 @@ export function DatasourceTable() {
   }
 
   return (
-    <TableCard label="Datasources" minWidth={680}>
+    <TableCard label="Datasources" minWidth={tableMinWidth} stackOnNarrow>
       <Header />
       <tbody>
         {datasources.data.map((datasource) => {
@@ -79,9 +88,7 @@ export function DatasourceTable() {
           return (
             <tr key={datasource.uid} data-uid={datasource.uid}>
               <Cell>
-                <span className="font-mono text-xs font-medium whitespace-nowrap">
-                  {datasource.uid}
-                </span>
+                <DatasourceName datasource={datasource} />
               </Cell>
               <Cell>{typeLabel(datasource.type)}</Cell>
               <Cell>
@@ -97,10 +104,62 @@ export function DatasourceTable() {
               <Cell className="text-right text-muted-foreground">
                 <RelativeTime iso={datasource.checked_at} />
               </Cell>
+              <Cell data-cell="action">
+                <ExploreLinks datasource={datasource} />
+              </Cell>
             </tr>
           )
         })}
       </tbody>
     </TableCard>
+  )
+}
+
+function DatasourceName({ datasource }: { datasource: DatasourceStatus }) {
+  if (datasource.name === datasource.uid) {
+    return (
+      <span className="font-mono text-xs font-medium whitespace-nowrap">
+        {datasource.uid}
+      </span>
+    )
+  }
+  return (
+    <div className="flex flex-col">
+      <span className="font-medium">{datasource.name}</span>
+      <span className="font-mono text-xs font-normal whitespace-nowrap text-muted-foreground">
+        {datasource.uid}
+      </span>
+    </div>
+  )
+}
+
+const exploreLinkClass = cn(buttonVariants({ variant: "outline", size: "xs" }))
+
+function ExploreLinks({ datasource }: { datasource: DatasourceStatus }) {
+  const targets = exploreTargets(datasource.type)
+  if (targets.length === 0) return null
+  return (
+    <div className="flex justify-end gap-1.5">
+      {targets.includes("logs") ? (
+        <Link
+          to="/logs"
+          search={{ ds: datasource.uid }}
+          aria-label={`Explore logs in ${datasource.uid}`}
+          className={exploreLinkClass}
+        >
+          Explore logs
+        </Link>
+      ) : null}
+      {targets.includes("traces") ? (
+        <Link
+          to="/traces"
+          search={{ ds: datasource.uid }}
+          aria-label={`Search traces in ${datasource.uid}`}
+          className={exploreLinkClass}
+        >
+          Search traces
+        </Link>
+      ) : null}
+    </div>
   )
 }

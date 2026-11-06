@@ -9,11 +9,13 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/slashobserve/slashobserve/internal/links"
 )
 
 const (
 	pollInterval    = time.Second
-	defaultTimeout  = 5 * time.Minute
+	defaultTimeout  = 2 * time.Hour
 	maxPollFailures = 3
 )
 
@@ -26,6 +28,19 @@ type agentRequest struct {
 	URL         *string     `json:"url"`
 	Error       *string     `json:"error"`
 	Steps       []agentStep `json:"steps"`
+
+	QueuePosition *int            `json:"queue_position"`
+	FailureCode   *string         `json:"failure_code"`
+	Build         *buildSummary   `json:"build"`
+	BuildSavedAt  *string         `json:"build_saved_at"`
+	ContinuedBy   *string         `json:"continued_by"`
+	Finding       *findingSummary `json:"finding"`
+}
+
+type buildSummary struct {
+	Saves         int `json:"saves"`
+	Panels        int `json:"panels"`
+	PlannedPanels int `json:"planned_panels"`
 }
 
 type agentStep struct {
@@ -89,6 +104,10 @@ func (a *app) submit(ctx context.Context, c *client, payload map[string]any, noW
 	if err != nil {
 		return err
 	}
+	return a.reportQueued(ctx, c, data, noWait, timeout)
+}
+
+func (a *app) reportQueued(ctx context.Context, c *client, data []byte, noWait bool, timeout time.Duration) error {
 	queued, err := decode[requestEnvelope](data)
 	if err != nil {
 		return err
@@ -114,6 +133,7 @@ func (a *app) statusCommand() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&a.status.wait, "wait", false, "wait until the request finishes, like the prompt command")
 	cmd.Flags().DurationVar(&a.status.timeout, "timeout", defaultTimeout, "with --wait, stop waiting after this long")
+	a.addOpenFlag(cmd)
 	return cmd
 }
 
@@ -155,7 +175,7 @@ func printRequest(out *output, req agentRequest) {
 	if req.ResultVer != nil {
 		version = strconv.Itoa(*req.ResultVer)
 	}
-	out.fields([][2]string{
+	fields := [][2]string{
 		{"ID", text(req.ID)},
 		{"Status", text(req.Status)},
 		{"Source", text(req.Source)},
@@ -163,7 +183,19 @@ func printRequest(out *output, req agentRequest) {
 		{"Version", version},
 		{"URL", orDash(req.URL)},
 		{"Error", orDash(req.Error)},
-	})
+	}
+	if req.Finding != nil {
+		fields = append(fields, [2]string{"Finding", text(req.Finding.Title)}, [2]string{"Finding URL", text(req.Finding.URL)})
+	}
+	out.fields(fields)
+	switch {
+	case req.Status == "queued" && req.QueuePosition != nil:
+		out.line("Queued, position %d", *req.QueuePosition)
+	case req.Status == "failed" && req.ContinuedBy != nil:
+		out.line("Continued by %s", text(*req.ContinuedBy))
+	case req.Status == "failed" && req.Build != nil && req.Build.Panels >= 1 && req.BuildSavedAt == nil:
+		out.line("Save it in the browser, or continue it: observe continue %s", text(req.ID))
+	}
 	if len(req.Steps) > 0 {
 		out.line("")
 		for _, step := range req.Steps {
@@ -174,7 +206,8 @@ func printRequest(out *output, req agentRequest) {
 
 func (a *app) waitAndReport(ctx context.Context, c *client, id string, timeout time.Duration) error {
 	out := a.output()
-	data, req, err := poll(ctx, c, out, id, timeout, pollInterval)
+	progress := newRequestProgress(c, out, id)
+	data, req, err := poll(ctx, c, progress, id, timeout, pollInterval)
 	if err != nil {
 		return err
 	}
@@ -190,14 +223,37 @@ func (a *app) waitAndReport(ctx context.Context, c *client, id string, timeout t
 		}
 		return fmt.Errorf("observe failed: %s", reason)
 	}
-	if a.json {
-		return nil
+	if req.Source == sourceInvestigate || req.Finding != nil {
+		return a.reportFinding(out, req)
 	}
 	address, err := dashboardAddress(c, req)
+	if a.json {
+		if err == nil {
+			a.openLink(out, address)
+		}
+		return nil
+	}
 	if err != nil {
 		return err
 	}
-	out.line("%s", address)
+	if req.DashboardID != nil {
+		if title, ok := progress.finish(ctx, *req.DashboardID); ok {
+			address = titled(address, *req.DashboardID, title)
+		}
+	}
+	reportSaved(out, req.ResultVer, address)
+	a.openLink(out, address)
+	return nil
+}
+
+func (a *app) reportFinding(out *output, req agentRequest) error {
+	if req.Finding == nil {
+		return fmt.Errorf("the investigation finished without a finding: observe status %s", text(req.ID))
+	}
+	if !a.json {
+		printFinding(out, *req.Finding)
+	}
+	a.openLink(out, text(req.Finding.URL))
 	return nil
 }
 
@@ -206,7 +262,7 @@ func dashboardAddress(c *client, req agentRequest) (string, error) {
 		return text(*req.URL), nil
 	}
 	if req.DashboardID != nil && *req.DashboardID != "" {
-		return c.base.JoinPath("dashboards", *req.DashboardID).String(), nil
+		return links.Dashboard(c.base, *req.DashboardID, ""), nil
 	}
 	return "", errors.New("the agent finished without a dashboard address")
 }
@@ -215,12 +271,12 @@ func stillRunning(id string) error {
 	return fmt.Errorf("still running on the server: observe status %s", id)
 }
 
-func poll(ctx context.Context, c *client, out *output, id string, timeout, interval time.Duration) ([]byte, agentRequest, error) {
+func poll(ctx context.Context, c *client, progress *requestProgress, id string, timeout, interval time.Duration) ([]byte, agentRequest, error) {
 	pollCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
-	var progress stepProgress
+	defer progress.stop()
 	failures := 0
 	for {
 		data, err := c.get(pollCtx, "observe/"+id, nil)
@@ -238,7 +294,7 @@ func poll(ctx context.Context, c *client, out *output, id string, timeout, inter
 			if err != nil {
 				return nil, agentRequest{}, err
 			}
-			progress.print(out, envelope.Request.Steps)
+			progress.update(pollCtx, envelope.Request)
 			if envelope.Request.Status != "queued" && envelope.Request.Status != "running" {
 				return data, envelope.Request, nil
 			}

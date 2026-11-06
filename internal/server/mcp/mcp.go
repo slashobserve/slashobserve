@@ -31,13 +31,6 @@ const (
 	maxInFlight      = 8
 	maxTotalInFlight = 32
 	internalErrorMsg = "internal error"
-
-	instructions = "SlashObserve builds dashboards as ObserveSpec JSON." +
-		"Call get_spec_guide before your first create_dashboard. " +
-		"Discover metric, label, table and column names with the list_* and get_schema tools, " +
-		"check queries with lint_query and query_range, then save with create_dashboard or update_dashboard; " +
-		"a save runs every panel query and rejects panels that fail or return no data. " +
-		"Work on feedback with list_comments, fix it with update_dashboard, then reply_to_comment and resolve_comment with the version you saved."
 )
 
 type Authenticator interface {
@@ -68,8 +61,11 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 	srv := mcpserver.NewMCPServer(serverName, opts.Version,
 		mcpserver.WithToolCapabilities(false),
 		mcpserver.WithRecovery(),
-		mcpserver.WithInstructions(instructions))
+		mcpserver.WithInstructions(tools.ServerInstructions))
 	for _, t := range reg.List() {
+		if t.AgentOnly {
+			continue
+		}
 		srv.AddTool(toolFor(t), h.callTool(t.Name))
 	}
 	// The library rejects loopback connections whose Host is not loopback, which breaks a same-host reverse proxy;

@@ -1,0 +1,178 @@
+annotations:
+  get:
+    operationId: listAnnotations
+    summary: List annotations, newest first.
+    description: >-
+      Lists annotations ordered by `time_from` then `id`, newest first.
+      With `dashboard_id`, returns that dashboard's annotations and the global ones; without it, only the global ones.
+      The caller must be able to see the dashboard: a dashboard that is missing or in a folder the caller cannot see is 404 `not_found`.
+      An annotation is in the window when it starts at or before `to` and ends, or starts when it has no end, at or after `from`.
+      `created_by_name` is read when the list is answered, so it follows a rename and is null once the person or service account is gone.
+    parameters:
+      - name: dashboard_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: from
+        in: query
+        description: RFC 3339 start of the window.
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        description: RFC 3339 end of the window, not before `from`.
+        schema:
+          type: string
+          format: date-time
+      - name: tags
+        in: query
+        description: Comma-separated tags; an annotation matches when it has any of them.
+        schema:
+          type: string
+      - name: cursor
+        in: query
+        description: The `next_cursor` of the previous page.
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 100
+    responses:
+      "200":
+        description: One page of annotations.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AnnotationList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        description: The dashboard is missing or the caller cannot see it (`not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  post:
+    operationId: createAnnotation
+    summary: Add an annotation.
+    description: >-
+      Adds an annotation to one dashboard, or a global one shown on every dashboard when `dashboard_id` is absent or null.
+      A dashboard annotation needs Edit on the dashboard's folder, and a global one needs the Editor role or higher; otherwise 403 `forbidden_role`.
+      A dashboard that is missing or in a folder the caller cannot see is 404 `not_found`.
+      `time_from` defaults to the server's current time.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [text]
+            properties:
+              dashboard_id:
+                type: string
+                format: uuid
+                nullable: true
+              panel_id:
+                type: string
+                description: A panel of the dashboard; needs `dashboard_id`.
+                maxLength: 64
+              time_from:
+                type: string
+                format: date-time
+              time_to:
+                type: string
+                format: date-time
+                nullable: true
+                description: The end of a range annotation, not before `time_from`.
+              text:
+                type: string
+                description: 1 to 2000 characters once trimmed, without control or bidirectional override characters.
+              tags:
+                type: array
+                maxItems: 10
+                items:
+                  type: string
+                  pattern: "^[a-z0-9][a-z0-9_.-]{0,39}$"
+    responses:
+      "201":
+        description: The annotation is added.
+        headers:
+          Location:
+            required: true
+            description: "`/api/v1/annotations/{id}` of the new annotation."
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Annotation"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        description: The dashboard is missing or the caller cannot see it (`not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: >-
+          The text is empty, longer than 2000 characters or holds control characters (`invalid_text`),
+          a tag is not valid or there are more than 10 (`invalid_tags`),
+          a time is not RFC 3339, is before 1970 or `time_to` is before `time_from` (`invalid_time`),
+          or `panel_id` is too long or has no `dashboard_id` (`invalid_panel_id`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+annotations-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  delete:
+    operationId: deleteAnnotation
+    summary: Delete an annotation.
+    description: >-
+      Deletes an annotation the caller created, or any annotation for an Admin; anyone else gets 403 `not_creator`.
+      An annotation that is missing, or on a dashboard the caller cannot see, is 404 `not_found`.
+    responses:
+      "204":
+        description: The annotation is deleted.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller did not create the annotation and is not an Admin (`not_creator`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

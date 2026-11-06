@@ -22,7 +22,9 @@ observe:
     summary: List the caller's own agent requests, newest first.
     description: >-
       Only requests the caller made are listed; a user sees their own and a service account its own.
-      `source` narrows the list to new-dashboard requests (`observe`), follow-up prompts (`prompt`) or comment revisions (`comment`).
+      `source` narrows the list to new-dashboard requests (`observe`), follow-up prompts (`prompt`), comment revisions (`comment`) or investigations (`investigate`).
+      `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, and `dashboard_id` keeps the requests about one dashboard.
+      Archived requests are left out, and pinned requests come first, most recently pinned first.
       A new-dashboard request that failed has no dashboard and lives only in this list.
       Progress steps are not included; read `GET /observe/{id}` for them.
     parameters:
@@ -30,7 +32,22 @@ observe:
         in: query
         schema:
           type: string
-          enum: [observe, prompt, comment]
+          enum: [observe, prompt, comment, investigate]
+      - name: q
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 200
+      - name: pinned
+        in: query
+        schema:
+          type: boolean
+      - name: dashboard_id
+        in: query
+        schema:
+          type: string
+          format: uuid
       - name: limit
         in: query
         schema:
@@ -67,11 +84,16 @@ observe:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createObserveRequest
-    summary: Ask the agent to build a new dashboard, or to revise an existing one with a follow-up prompt.
+    summary: Ask the agent to build a new dashboard, revise an existing one with a follow-up prompt, or investigate a question.
     description: >-
       The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`.
       Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`.
+      When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` and `url` set and `dashboard_id` and `result_version` null, and `kind` stays `build`.
       With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version.
+      A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` and `url` set, keeps its `dashboard_id`, and `result_version` stays null.
+      With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`).
+      A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`).
+      `panel_id`, `from` and `to` need `kind` `investigate`, `kind` must be `build` or `investigate`, `base_version` is not allowed for an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`.
       The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text.
       Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused.
       A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`).
@@ -96,6 +118,21 @@ observe:
                 minimum: 1
                 maximum: 2147483647
                 description: A version that exists on the dashboard; only allowed together with `dashboard_id`.
+              kind:
+                type: string
+                enum: [build, investigate]
+                default: build
+              panel_id:
+                type: string
+                minLength: 1
+                maxLength: 64
+                description: The panel an investigation is about; needs `dashboard_id`.
+              from:
+                type: string
+                description: The start of the window an investigation looks at, a relative time like `now-1h` or epoch milliseconds.
+              to:
+                type: string
+                description: The end of the window an investigation looks at, a relative time like `now` or epoch milliseconds.
     responses:
       "202":
         description: The queued agent request.
@@ -147,7 +184,9 @@ observe-id:
       Works for any agent request, including comment and prompt revisions.
       A request that has no dashboard yet, or never got one, is readable only by the principal that made it; anyone else gets 404.
       Clients poll it once a second until the status is `succeeded` or `failed`.
-      After a shutdown release the re-claimed run reuses its attempt number with a fresh step list, so a client detects a restarted list by each step's `at`, not by `attempt` alone.
+      After a shutdown release the re-claimed run reuses its attempt number and keeps the steps already recorded, so a client detects a restarted run by each step's `at`, not by `attempt` alone.
+      `build` reports the progress of the dashboard the agent is assembling for the request, without its Spec, to everyone who can see the request; it is null when there is no build.
+      A `failed` request keeps its build for 7 days after it finished; `build_saved_at` is set once the requester saved it as a version.
     responses:
       "200":
         description: The agent request with its current status.
@@ -163,3 +202,449 @@ observe-id:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+  patch:
+    operationId: updateObserveRequest
+    summary: Rename or pin one of your agent requests.
+    description: >-
+      Only the principal that made the request may change it (403 `forbidden`); a request hidden from the caller answers 404.
+      A `title` string is trimmed and must be 1 to 120 characters on one line; `null` clears it back to the default taken from the prompt.
+      `pinned` true pins the request to the top of `GET /observe`, false unpins it.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            minProperties: 1
+            properties:
+              title:
+                type: string
+                nullable: true
+                minLength: 1
+                maxLength: 120
+              pinned:
+                type: boolean
+    responses:
+      "200":
+        description: The agent request as changed.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AgentRequestEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: archiveObserveRequest
+    summary: Archive one of your agent requests so it leaves your list.
+    description: >-
+      Only the principal that made the request may archive it (403 `forbidden`); a request hidden from the caller answers 404.
+      The request stays readable through `GET /observe/{id}`, and archiving it again changes nothing.
+    responses:
+      "204":
+        description: The request is archived; nothing is returned.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+observe-id-build:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: getObserveRequestBuild
+    summary: Read the dashboard an agent request has built so far, with its ObserveSpec.
+    description: >-
+      Only the principal that made the request can read its build, and for a revision only while that principal can still view the dashboard; everyone else gets 404, as does a request without a build.
+      A new-dashboard request builds a dashboard that is not in any folder or list until it finishes.
+      Clients read `build` of `GET /observe/{id}` once a second and fetch this operation when its `saves` changes.
+    responses:
+      "200":
+        description: The build.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [build]
+              properties:
+                build:
+                  $ref: "../openapi.yaml#/components/schemas/AgentBuild"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+observe-id-build-save:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: saveObserveRequestBuild
+    summary: Save the build of a failed agent request as one version.
+    description: >-
+      Only the principal that made the request may call it; a revision also needs edit access on its dashboard; anyone else gets 404.
+      A new-dashboard request becomes version 1 of a new dashboard in the requester's default folder (a person's My Dashboards, a key's General); a revision becomes the next version of its dashboard and fails with 409 `version_conflict` when someone saved a version after the build started, leaving the build in place.
+      No query runs: every build save was checked when the agent made it, and panels that were unverified then stay unverified.
+      The request stays `failed` with its `failure_code`; it gains `result_version`, `dashboard_id` and `build_saved_at`, and the build is deleted.
+      A repeat call answers 200 with `replayed` true and the version already saved.
+      A `queued` or `running` request answers 409 `build_running`, a build without panels 409 `build_empty`, and a request that is no longer failed with an unsaved build 409 `build_not_savable`.
+      A request without a build, an expired build, or a request of someone else answers 404.
+    responses:
+      "200":
+        description: The request had already saved a version; nothing changed.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AgentBuildSaved"
+      "201":
+        description: The build became a version.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AgentBuildSaved"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: >-
+          The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base.
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/VersionConflict"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+observe-id-cancel:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: cancelObserveRequest
+    summary: Cancel a queued or running agent request.
+    description: >-
+      Only the principal that made the request may call it; no editor and no administrator may cancel another principal's request.
+      Someone else gets 403 `forbidden` on a revision they can see, and 404 on a new-dashboard request or a suggestion request.
+      A queued request becomes `failed` with the failure code `canceled` at once.
+      A running request keeps running until its worker sees the cancel flag, within about 5 seconds plus the time the in-flight model or tool call takes to return; it then ends `failed` with the failure code `canceled`.
+      The build is kept, so the requester can still save it or continue it.
+      A run that saved its version before the cancel took effect ends `succeeded`, because a saved version always wins.
+      Canceling a request that is already canceled answers 200 with the request; any other finished request answers 409 `request_finished`.
+    responses:
+      "200":
+        description: The request, with `cancel_requested_at` set.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AgentRequestEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The request already finished and was not canceled (`request_finished`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+observe-id-continue:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: continueObserveRequest
+    summary: Continue a stopped agent request in a new request that takes over its build.
+    description: >-
+      The new request copies the stopped request's source, dashboard, comment, panel, prompt and base version, records `continues_id`, and takes the build, so the agent continues from the panels already built with its own model-call budget.
+      The stopped request gains `continued_by` and can no longer be saved or continued.
+      A request is continuable when it is `failed`, its build was not saved, it still has its build, and nothing continues it yet; otherwise the call answers 409 `not_continuable`.
+      Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request.
+      Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request.
+      A revision whose dashboard has a newer version than the build's base answers 409 `version_conflict` with `latest_version`.
+      The new request counts against the same caps as `POST /observe`.
+      The optional `note` is stored on the new request as `continue_note` and given to the agent in every seed of that run, including its restarts.
+      Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/ContinueObserveRequest"
+    responses:
+      "201":
+        description: The queued request that continues the stopped one.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AgentRequestEnvelope"
+      "400":
+        description: The note breaks the prompt rule (`invalid_request`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: >-
+          The request cannot be continued: `not_continuable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base.
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/VersionConflict"
+      "429":
+        description: Too many agent requests are queued or running (`too_many_requests` for the caller, `agent_busy` for the instance, `too_many_revisions` for the dashboard).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "503":
+        description: No LLM provider is configured (`agent_unavailable`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+observe-id-build-panels-panel-id-data:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: panel_id
+      in: path
+      required: true
+      schema:
+        type: string
+  get:
+    operationId: getBuildPanelData
+    summary: Run the queries of one panel of an agent request's build and return their frames.
+    description: >-
+      The queries come from the stored build, so the request names a panel and never carries query text, as for saved versions.
+      This is the second exception to the rule that the proxy runs only saved panel queries: the build is not a version yet.
+      Only signed-in users who made the request may call it, and a service-account key gets 403 `user_session_required`; anyone else gets 404.
+      The queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows), nothing is cached, and the call counts against the caller's 8 in-flight query requests.
+      `from`, `to`, `tz`, `max_data_points` and the `var-<name>` selections behave as for panel data of a saved version, and `from` and `to` default to the build's `time`.
+      The response has the shape of panel data, with `meta.cached` always false.
+    parameters:
+      - name: from
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: to
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: tz
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      - name: max_data_points
+        in: query
+        schema:
+          type: integer
+          minimum: 10
+          maximum: 11000
+          default: 1000
+    responses:
+      "200":
+        description: The frames the build's queries returned.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelData"
+      "400":
+        description: The request is malformed or fails validation.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The request carried query text (`query_not_in_spec`), or the caller is not a signed-in user (`user_session_required`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: There is no such build for the caller (`not_found`), or the build has no such panel (`panel_not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "422":
+        description: A query or a variable cannot run, with the codes of panel data.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        description: The server failed to handle the request.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "502":
+        description: A datasource is unavailable.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "504":
+        description: A datasource did not answer within the query timeout.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+observe-id-build-variables-name-values:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: name
+      in: path
+      required: true
+      schema:
+        type: string
+  get:
+    operationId: getBuildVariableValues
+    summary: List the values of one variable of an agent request's build.
+    description: >-
+      Behaves as the values of a saved version's variable, over the stored build, with the same access rule as the build's panel data: signed-in users who made the request only, 403 `user_session_required` for a key, 404 for anyone else.
+      Nothing is cached, and the call counts against the caller's 8 in-flight query requests.
+    parameters:
+      - name: from
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: to
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: tz
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+    responses:
+      "200":
+        description: Up to 1000 values; `truncated` is true when there were more.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/VariableValues"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The request carried query text (`query_not_in_spec`), or the caller is not a signed-in user (`user_session_required`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: There is no such build for the caller (`not_found`), or it has no such variable.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "422":
+        description: The variable's query cannot run, with the codes of variable values of a saved version.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "502":
+        description: A datasource is unavailable.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "504":
+        description: A datasource did not answer within the query timeout.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"

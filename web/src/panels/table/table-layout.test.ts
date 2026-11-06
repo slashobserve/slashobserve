@@ -7,6 +7,7 @@ import {
   pageRows,
   pageSizeFor,
   rowHeightOf,
+  rowHeightPx,
   rowSizing,
   stickyOffsets,
   tooltipSideOf,
@@ -97,6 +98,16 @@ describe("rowHeightOf", () => {
     [{}, "sm"],
   ])("reads %j as %s", (display, want) => {
     expect(rowHeightOf(display)).toBe(want)
+  })
+})
+
+describe("rowHeightPx", () => {
+  it.each([
+    ["sm", 25],
+    ["md", 33],
+    ["lg", 41],
+  ] as const)("estimates a %s row at %i pixels", (height, want) => {
+    expect(rowHeightPx(height)).toBe(want)
   })
 })
 

@@ -112,10 +112,11 @@ func (e *AbortError) Error() string { return e.Err.Error() }
 func (e *AbortError) Unwrap() error { return e.Err }
 
 type Runner struct {
-	reg    *datasource.Registry
-	logger *slog.Logger
-	sem    *semaphore.Weighted
-	values *valueCache
+	reg     *datasource.Registry
+	logger  *slog.Logger
+	sem     *semaphore.Weighted
+	values  *valueCache
+	metrics Metrics
 
 	panelDeadline time.Duration
 	upstreamWait  time.Duration
@@ -135,7 +136,7 @@ func NewRunner(reg *datasource.Registry, logger *slog.Logger, opts ...RunnerOpti
 	if logger == nil {
 		logger = slog.Default()
 	}
-	r := &Runner{reg: reg, logger: logger, sem: upstreamCalls, panelDeadline: panelDeadline, upstreamWait: upstreamWait}
+	r := &Runner{reg: reg, logger: logger, sem: upstreamCalls, metrics: noMetrics{}, panelDeadline: panelDeadline, upstreamWait: upstreamWait}
 	for _, opt := range opts {
 		opt(r)
 	}
@@ -610,7 +611,9 @@ func upstream[T any](ctx context.Context, r *Runner, subject string, inst dataso
 			out, err = zero, errInternal
 		}
 	}()
+	start := time.Now()
 	out, err = call(ctx)
+	r.metrics.ProxyQuery(inst.Datasource.Type(), queryOutcome(err), time.Since(start))
 	if err != nil {
 		if status, code, _ := Classify(err); status == http.StatusInternalServerError {
 			r.logger.ErrorContext(ctx, "datasource call failed", append([]any{

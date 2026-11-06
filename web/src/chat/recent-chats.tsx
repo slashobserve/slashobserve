@@ -1,5 +1,6 @@
-import { Link, useNavigate } from "@tanstack/react-router"
+import { useNavigate } from "@tanstack/react-router"
 import { useId } from "react"
+import { LayoutDashboardIcon } from "lucide-react"
 
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
@@ -12,7 +13,7 @@ const recentLimit = 5
 export function RecentChats() {
   const navigate = useNavigate()
   const headingId = useId()
-  const { requests, query } = useMyRequests("observe", recentLimit)
+  const { requests, query } = useMyRequests({ source: "observe" }, recentLimit)
 
   const failed = query.data === undefined && !query.isPending
 
@@ -20,20 +21,12 @@ export function RecentChats() {
 
   return (
     <section aria-labelledby={headingId} className="mt-7 w-full max-w-[720px]">
-      <div className="flex items-center justify-between px-0.5 pb-2">
-        <h2
-          id={headingId}
-          className="text-[13px] font-medium text-muted-foreground"
-        >
-          Recent chats
-        </h2>
-        <Link
-          to="/dashboards"
-          className="rounded-control text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          All dashboards
-        </Link>
-      </div>
+      <h2
+        id={headingId}
+        className="px-0.5 pb-2 text-[13px] font-medium text-muted-foreground"
+      >
+        Recent chats
+      </h2>
       {failed ? (
         <div className="flex items-center gap-3 rounded-card border bg-background px-3.5 py-2.5">
           <p className="text-xs text-muted-foreground">
@@ -69,13 +62,13 @@ export function RecentChats() {
                       className="flex w-full flex-wrap items-center gap-x-3 gap-y-0.5 px-3.5 py-2.5 text-left outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                       onClick={() =>
                         void navigate({
-                          to: "/observe/$requestId",
+                          to: "/c/$requestId",
                           params: { requestId: request.id },
                         })
                       }
                     >
                       <span className="min-w-0 flex-1 truncate text-[13px] narrow:basis-full">
-                        {request.prompt}
+                        {request.title}
                       </span>
                       <span className="flex flex-none items-center text-xs text-muted-foreground">
                         <StatusLabel tone={view.tone}>
@@ -84,6 +77,17 @@ export function RecentChats() {
                           </span>
                         </StatusLabel>
                       </span>
+                      {request.dashboard_title !== null ? (
+                        <span className="flex max-w-[200px] min-w-0 flex-none items-center gap-1 text-xs text-muted-foreground">
+                          <LayoutDashboardIcon
+                            aria-hidden="true"
+                            className="size-3.5 flex-none"
+                          />
+                          <span className="truncate">
+                            {request.dashboard_title}
+                          </span>
+                        </span>
+                      ) : null}
                       <span className="w-20 flex-none text-right text-xs text-muted-foreground narrow:ml-auto narrow:w-auto">
                         <RelativeTime iso={request.created_at} />
                       </span>

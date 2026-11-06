@@ -236,6 +236,51 @@ describe("logsModel columns", () => {
     })
   })
 
+  it("expands a JSON object attribute into one detail per key", () => {
+    const fields = createFieldResolver(panel())
+    const { entries } = model([
+      frame([
+        field("Body", "string", ["boom"]),
+        field("attrs", "other", ['{"user":"ana","n":3,"tags":["a"]}']),
+      ]),
+    ])
+    expect(
+      entries[0].details.map((detail) => [
+        detail.name,
+        detailText(fields, detail, undefined),
+      ])
+    ).toEqual([
+      ["Body", "boom"],
+      ["attrs.user", "ana"],
+      ["attrs.n", "3"],
+      ["attrs.tags", '["a"]'],
+    ])
+  })
+
+  it.each([
+    ["an array", "[1,2]"],
+    ["text that is not JSON", "not json"],
+    ["broken JSON", '{"user":'],
+  ])("keeps %s as one detail", (_, value) => {
+    const f = frame([field("attrs", "string", [value])])
+    const { entries } = model([f])
+    expect(entries[0].details).toEqual([
+      { name: "attrs", field: f.fields[0], frame: f, index: 0 },
+    ])
+  })
+
+  it("expands a JSON series label like a field", () => {
+    const { entries } = model([
+      frame([field("Body", "string", ["x"])], {
+        labels: { meta: '{"pod":"a"}' },
+      }),
+    ])
+    expect(entries[0].details.map((detail) => detail.name)).toEqual([
+      "Body",
+      "meta.pod",
+    ])
+  })
+
   it("makes one entry per row of every frame", () => {
     const { entries } = model([
       frame([field("Body", "string", ["a", "b"])], { ref: "A" }),

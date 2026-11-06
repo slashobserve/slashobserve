@@ -24,7 +24,7 @@ func newLoggedProvider(t *testing.T) (*Provider, *logtest.Capture) {
 		t.Fatal(err)
 	}
 	logger, logs := logtest.New()
-	p, err := New(dir, logger)
+	p, err := New(dir, 0, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,6 +72,27 @@ func TestFailedExpectationLogsShapeNotTheResult(t *testing.T) {
 		}
 	}
 	logs.AssertAbsent(t, "leaked-detail", "pod=")
+}
+
+func TestMissingTextExpectationIsLoggedAtWarnWithTheExpectedText(t *testing.T) {
+	p, logs := newLoggedProvider(t)
+	session, err := p.Start(t.Context(), llm.Request{Prompt: "Show checkout health"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	turn, err := session.Next(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := llm.ToolResult{CallID: turn.ToolCalls[0].ID, Content: "leaked-detail"}
+	if _, err := session.Next(t.Context(), []llm.ToolResult{result}); err == nil {
+		t.Fatal("Next accepted a result without the expected text")
+	}
+	record := logs.Find(t, "replay expectation failed")
+	if record["level"] != "WARN" || record["expected_contains"] != "ok" || record["tool"] != "run_query" {
+		t.Errorf("record = %v, want a WARN line naming the tool and the expected text", record)
+	}
+	logs.AssertAbsent(t, "leaked-detail")
 }
 
 func TestLoadedFixturesLogTheHashThatAMissIsMatchedAgainst(t *testing.T) {

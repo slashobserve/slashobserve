@@ -1,0 +1,10 @@
+id: build-nef-ends-by-text
+prompt: "eval build: three node panels where the model ends with text after the last save"
+category: prometheus
+kind: create
+suites: [replay]
+expect:
+  datasources: [prometheus]
+  min_panels: 3
+  max_panels: 3
+  usage: {build_saves: 3, compactions: 0}

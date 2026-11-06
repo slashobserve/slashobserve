@@ -1,0 +1,365 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-0
+  namespace: default
+  labels:
+    app.kubernetes.io/name: frontend-0
+    app.kubernetes.io/part-of: shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend-0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: frontend-0
+        app.kubernetes.io/part-of: shop
+    spec:
+      containers:
+        - name: shop
+          image: slashobserve-demo-shop:k8s
+          imagePullPolicy: IfNotPresent
+          args: [serve]
+          env:
+            - name: SHOP_SERVICE
+              value: frontend
+            - name: SHOP_POD
+              value: frontend-0
+            - name: SHOP_CHECKOUT_URLS
+              value: http://checkout-0:8080,http://checkout-1:8080
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32M
+            limits:
+              cpu: 500m
+              memory: 64M
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-0
+  namespace: default
+  labels:
+    app.kubernetes.io/name: frontend-0
+    app.kubernetes.io/part-of: shop
+spec:
+  selector:
+    app.kubernetes.io/name: frontend-0
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkout-0
+  namespace: default
+  labels:
+    app.kubernetes.io/name: checkout-0
+    app.kubernetes.io/part-of: shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: checkout-0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: checkout-0
+        app.kubernetes.io/part-of: shop
+    spec:
+      containers:
+        - name: shop
+          image: slashobserve-demo-shop:k8s
+          imagePullPolicy: IfNotPresent
+          args: [serve]
+          env:
+            - name: SHOP_SERVICE
+              value: checkout
+            - name: SHOP_POD
+              value: checkout-0
+            - name: SHOP_PAYMENTS_URL
+              value: http://payments-0:8080
+            - name: SHOP_QUEUE_WORKERS
+              value: "4"
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32M
+            limits:
+              cpu: 500m
+              memory: 64M
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: checkout-0
+  namespace: default
+  labels:
+    app.kubernetes.io/name: checkout-0
+    app.kubernetes.io/part-of: shop
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: checkout-0
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      nodePort: 30081
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkout-1
+  namespace: default
+  labels:
+    app.kubernetes.io/name: checkout-1
+    app.kubernetes.io/part-of: shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: checkout-1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: checkout-1
+        app.kubernetes.io/part-of: shop
+    spec:
+      containers:
+        - name: shop
+          image: slashobserve-demo-shop:k8s
+          imagePullPolicy: IfNotPresent
+          args: [serve]
+          env:
+            - name: SHOP_SERVICE
+              value: checkout
+            - name: SHOP_POD
+              value: checkout-1
+            - name: SHOP_PAYMENTS_URL
+              value: http://payments-0:8080
+            - name: SHOP_QUEUE_WORKERS
+              value: "4"
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32M
+            limits:
+              cpu: 500m
+              memory: 64M
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: checkout-1
+  namespace: default
+  labels:
+    app.kubernetes.io/name: checkout-1
+    app.kubernetes.io/part-of: shop
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: checkout-1
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      nodePort: 30082
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-0
+  namespace: default
+  labels:
+    app.kubernetes.io/name: payments-0
+    app.kubernetes.io/part-of: shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: payments-0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: payments-0
+        app.kubernetes.io/part-of: shop
+    spec:
+      containers:
+        - name: shop
+          image: slashobserve-demo-shop:k8s
+          imagePullPolicy: IfNotPresent
+          args: [serve]
+          env:
+            - name: SHOP_SERVICE
+              value: payments
+            - name: SHOP_POD
+              value: payments-0
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32M
+            limits:
+              cpu: 500m
+              memory: 64M
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments-0
+  namespace: default
+  labels:
+    app.kubernetes.io/name: payments-0
+    app.kubernetes.io/part-of: shop
+spec:
+  selector:
+    app.kubernetes.io/name: payments-0
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgen
+  namespace: default
+  labels:
+    app.kubernetes.io/name: loadgen
+    app.kubernetes.io/part-of: shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: loadgen
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: loadgen
+        app.kubernetes.io/part-of: shop
+    spec:
+      containers:
+        - name: loadgen
+          image: slashobserve-demo-shop:k8s
+          imagePullPolicy: IfNotPresent
+          args: [loadgen]
+          env:
+            - name: LOADGEN_TARGET
+              value: http://frontend-0:8080
+            - name: LOADGEN_RPS
+              value: "20"
+            - name: LOADGEN_SEED
+              value: "42"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 16M
+            limits:
+              cpu: 500m
+              memory: 32M
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault

@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from "vitest"
 
 import {
@@ -28,6 +30,33 @@ function rgbOf(hex: string): Rgb {
   return rgb
 }
 
+// Vitest empties CSS imports, ?raw included, so the theme is fetched as a file.
+const themeCss = await (
+  await fetch(new URL("../index.css", import.meta.url))
+).text()
+
+function themeTokens(selector: string): Map<string, string> {
+  const start = themeCss.indexOf(`\n${selector} {`)
+  const block = themeCss.slice(start, themeCss.indexOf("\n}", start))
+  return new Map(
+    [...block.matchAll(/--([\w-]+):\s*(#[0-9a-f]{6});/gi)].map(
+      ([, name, value]) => [name, value]
+    )
+  )
+}
+
+const themes = [
+  ["light", themeTokens(":root")],
+  ["dark", themeTokens(".dark")],
+] as const
+
+const seriesColors = themes.flatMap(([theme, tokens]) =>
+  Array.from({ length: 8 }, (_, index) => {
+    const name = `series-${index + 1}`
+    return [theme, name, tokens.get(name), tokens.get("background")] as const
+  })
+)
+
 describe("contrast", () => {
   it("rates black on white 21 and a color on itself 1", () => {
     expect(contrastRatio([0, 0, 0], white)).toBeCloseTo(21, 5)
@@ -45,6 +74,17 @@ describe("contrast", () => {
       const background = rgbOf(hex)
       const text = readableText(background) === lightText ? white : nearBlack
       expect(contrastRatio(background, text)).toBeGreaterThanOrEqual(4.5)
+    }
+  )
+
+  it.each(seriesColors)(
+    "gives the %s --%s color %s at least 3:1 against the background %s",
+    (_theme, _name, color, background) => {
+      expect(color).toBeDefined()
+      expect(background).toBeDefined()
+      expect(
+        contrastRatio(rgbOf(color ?? ""), rgbOf(background ?? ""))
+      ).toBeGreaterThanOrEqual(3)
     }
   )
 

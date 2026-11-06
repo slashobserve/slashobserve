@@ -29,7 +29,7 @@ function panel(page: Page) {
 }
 
 function rowsOf(aside: Locator) {
-  return aside.getByRole("list").getByRole("button")
+  return aside.locator("[data-chat-row]")
 }
 
 async function openHistory(page: Page, path = "/") {
@@ -40,10 +40,14 @@ async function openHistory(page: Page, path = "/") {
 }
 
 function listedRequest(label: string, index: number) {
+  const prompt = `e2e listed request ${label} ${index}: a long prompt that wraps onto a second line in the History card`
   return {
     id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
     source: "prompt" as const,
-    prompt: `e2e listed request ${label} ${index}: a long prompt that wraps onto a second line in the History card`,
+    kind: "build" as const,
+    prompt,
+    title: prompt.slice(0, 80).trim(),
+    pinned_at: null,
     status: "succeeded" as const,
     dashboard_id: null,
     dashboard_title: null,
@@ -159,7 +163,7 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(rows.nth(1)).toContainText(neverSavesPrompt)
 
       await rows.nth(0).click()
-      await expect(page).toHaveURL(new RegExp(`/observe/${newerId}$`))
+      await expect(page).toHaveURL(new RegExp(`/c/${newerId}$`))
       await expect(aside).toBeVisible()
       await expect(button).toHaveAttribute("aria-expanded", "true")
       await expect(rows.nth(0)).toHaveAttribute("aria-current", "true")
@@ -201,7 +205,7 @@ for (const scheme of ["light", "dark"] as const) {
         await openHistory(page)
 
         await rowsOf(panel(page)).first().click()
-        await expect(page).toHaveURL(new RegExp(`/observe/${id}$`))
+        await expect(page).toHaveURL(new RegExp(`/c/${id}$`))
         await expect(panel(page)).toBeVisible()
         await expect(
           page.getByRole("heading", { level: 1, name: unanswerablePrompt })
@@ -438,6 +442,7 @@ test.describe("on a short window", () => {
       ...listedRequest("real", 19),
       id,
       prompt: unanswerablePrompt,
+      title: unanswerablePrompt,
     }
     await mockHistoryList(page, (_cursor, route) =>
       route.fulfill({
@@ -454,7 +459,7 @@ test.describe("on a short window", () => {
     expect(scrolled).toBeGreaterThan(0)
 
     await rows.last().click()
-    await expect(page).toHaveURL(new RegExp(`/observe/${id}$`))
+    await expect(page).toHaveURL(new RegExp(`/c/${id}$`))
     await expect(
       page.getByRole("heading", { level: 1, name: unanswerablePrompt })
     ).toBeVisible()

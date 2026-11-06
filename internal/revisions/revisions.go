@@ -22,28 +22,41 @@ const (
 	MaxPromptRunes  = 4000
 	MaxActive       = 5
 	MaxAttempts     = 2
+	LeaseTTL        = 60 * time.Second
 	MaxErrorRunes   = 500
 	MaxPanelIDRunes = 64
 
-	MaxActiveObservePerPrincipal = 3
-	MaxActiveObserve             = 20
-	MaxActiveSuggestPerPrincipal = 2
-	MaxActiveSuggest             = 10
-	MaxDraftBytes                = 64 << 10
-	MaxSteps                     = 100
-	MaxStepMessageRunes          = 200
+	MaxActiveObservePerPrincipal     = 3
+	MaxActiveObserve                 = 20
+	MaxActiveSuggestPerPrincipal     = 2
+	MaxActiveInvestigatePerPrincipal = 3
+	MaxActiveInvestigate             = 10
+	MaxTitleRunes                    = 120
+	DefaultTitleRunes                = 80
+	MaxActiveSuggest                 = 10
+	MaxDraftBytes                    = 64 << 10
+	MaxSteps                         = 1000
+	MaxStepMessageRunes              = 200
+	BuildRetentionDays               = 7
 
 	WakeChannel      = "slashobserve_agent_requests"
 	ExhaustedMessage = "agent run did not finish"
+	CanceledMessage  = "the run was canceled"
 )
 
 type Source string
 
 const (
-	SourceComment Source = "comment"
-	SourcePrompt  Source = "prompt"
-	SourceObserve Source = "observe"
-	SourceSuggest Source = "suggest"
+	SourceComment     Source = "comment"
+	SourcePrompt      Source = "prompt"
+	SourceObserve     Source = "observe"
+	SourceSuggest     Source = "suggest"
+	SourceInvestigate Source = "investigate"
+)
+
+const (
+	kindBuild       = "build"
+	kindInvestigate = "investigate"
 )
 
 type Status string
@@ -59,12 +72,17 @@ var (
 	ErrUnavailable      = errors.New("no agent is configured")
 	ErrTooManyRevisions = errors.New("too many revisions are queued or running for this dashboard")
 	ErrNotFound         = errors.New("revision not found")
+	ErrLeaseLost        = errors.New("the agent request no longer belongs to this attempt")
 	ErrInvalidCursor    = errors.New("invalid cursor")
 	ErrTooManyRequests  = fmt.Errorf("you already have %d new dashboard requests queued or running", MaxActiveObservePerPrincipal)
 	ErrAgentBusy        = errors.New("the agent is busy; try again in a few minutes")
 	ErrRequestNotFound  = errors.New("agent request not found")
 	ErrUnknownPanel     = errors.New("panel does not exist in the latest version of the dashboard")
 	ErrCommentNotFound  = errors.New("comment not found")
+	ErrRequestFinished  = errors.New("the request already finished")
+	ErrNotContinuable   = errors.New("the request has no stopped build to continue")
+
+	ErrTooManyInvestigations = tooManyInvestigationsError{}
 
 	ErrTooManySuggestions = fmt.Errorf("you already have %d suggestions queued or running", MaxActiveSuggestPerPrincipal)
 	ErrDraftTooLarge      = fmt.Errorf("the draft panel is over %d bytes as compact JSON", spec.MaxSuggestedPanelBytes)
@@ -100,6 +118,14 @@ func (notSuggestibleError) Error() string {
 
 func (notSuggestibleError) Unwrap() error { return ErrUnknownPanel }
 
+type tooManyInvestigationsError struct{}
+
+func (tooManyInvestigationsError) Error() string {
+	return fmt.Sprintf("you already have %d investigations queued or running", MaxActiveInvestigatePerPrincipal)
+}
+
+func (tooManyInvestigationsError) Unwrap() error { return ErrTooManyRequests }
+
 type draftBodyTooLargeError struct{}
 
 func (draftBodyTooLargeError) Error() string {
@@ -130,6 +156,10 @@ func WithSpecs(r SpecReader) Option {
 	return func(s *Service) { s.specs = r }
 }
 
+func WithBuilds(b Builds) Option {
+	return func(s *Service) { s.builds = b }
+}
+
 type Request struct {
 	ID          string
 	DashboardID string
@@ -141,12 +171,19 @@ type Request struct {
 	Attempt     int
 	RequestedBy auth.Principal
 	Origin      origin.Origin
+
+	Continues    bool
+	ContinueNote string
+
+	From, To *time.Time
 }
 
 type Result struct {
-	Version    int
-	Suggestion json.RawMessage
-	Usage      *Usage
+	Version     int
+	Suggestion  json.RawMessage
+	FindingID   string
+	Usage       *Usage
+	FailureCode FailureCode
 }
 
 type Usage struct {
@@ -158,6 +195,20 @@ type Usage struct {
 	CacheWriteTokens int64  `json:"cache_write_tokens"`
 	ModelCalls       int    `json:"model_calls"`
 	RepairRounds     int    `json:"repair_rounds"`
+
+	ToolCalls           int   `json:"tool_calls"`
+	FailedCalls         int   `json:"failed_calls"`
+	Retries             int   `json:"retries"`
+	ModelMS             int64 `json:"model_ms"`
+	ToolMS              int64 `json:"tool_ms"`
+	MaxSaveOutputTokens int64 `json:"max_save_output_tokens"`
+	BuildSaves          int   `json:"build_saves"`
+	Renewals            int   `json:"renewals"`
+	Compactions         int   `json:"compactions"`
+	Nudges              int   `json:"nudges"`
+	SaveNowRefusals     int   `json:"save_now_refusals"`
+	StalledTurns        int   `json:"stalled_turns"`
+	OnePanelRefusals    int   `json:"one_panel_refusals"`
 }
 
 type Step struct {
@@ -196,6 +247,11 @@ type Revision struct {
 	CreatedAt     time.Time
 	StartedAt     *time.Time
 	FinishedAt    *time.Time
+
+	FailureCode  string
+	BuildSavedAt *time.Time
+	ContinuesID  string
+	ContinueNote string
 }
 
 func CleanPrompt(s string) (string, bool) {
@@ -204,6 +260,36 @@ func CleanPrompt(s string) (string, bool) {
 		return "", false
 	}
 	return s, true
+}
+
+func Kind(source Source) string {
+	if source == SourceInvestigate {
+		return kindInvestigate
+	}
+	return kindBuild
+}
+
+func DefaultTitle(prompt string) string {
+	line, _, _ := strings.Cut(strings.TrimSpace(prompt), "\n")
+	if r := []rune(line); len(r) > DefaultTitleRunes {
+		line = string(r[:DefaultTitleRunes])
+	}
+	return strings.TrimSpace(line)
+}
+
+func CleanTitle(s string) (string, bool) {
+	title, ok := CleanPrompt(s)
+	if !ok || strings.ContainsAny(title, "\n\r") || utf8.RuneCountInString(title) > MaxTitleRunes {
+		return "", false
+	}
+	return title, true
+}
+
+func CleanContinueNote(note *string) (string, bool) {
+	if note == nil {
+		return "", true
+	}
+	return CleanPrompt(*note)
 }
 
 func ValidPanelID(panelID string) error {

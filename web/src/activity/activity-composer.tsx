@@ -10,14 +10,40 @@ import {
   type Ref,
 } from "react"
 
+import { useQueryClient } from "@tanstack/react-query"
+
 import { ApiError } from "@/api/errors"
+import { dashboardKeys } from "@/api/keys"
+import { agentLabel } from "@/chat/agent-label"
+import { ContextChips, type ContextChip } from "@/chat/context-chips"
+import {
+  freshCursor,
+  stepHistory,
+  usePromptHistory,
+  type HistoryCursor,
+} from "@/chat/prompt-history"
+import { planSend } from "@/chat/send-plan"
+import {
+  availableCommands,
+  commandLabels,
+  takeCommand,
+  withCommand,
+} from "@/chat/slash-commands"
+import { NativeSelect } from "@/components/native-select"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useAddComment } from "@/comments/queries"
 import { liveRegionText } from "@/lib/live-region"
+import { describeRange } from "@/lib/time"
 import { isModEnter } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
-import { sentence } from "@/observe/queries"
+import {
+  describeSubmitError,
+  sentence,
+  useAgentInfo,
+  useCreateObserveRequest,
+} from "@/observe/queries"
+import { StopRequestButton } from "@/observe/request-actions"
 import {
   describeRevisionError,
   isAgentUnavailable,
@@ -25,6 +51,7 @@ import {
   useRequestRevision,
 } from "@/revisions/queries"
 
+import { useActivityStore } from "./activity-store"
 import type { AgentGate } from "./agent-gate"
 
 export type Target = { kind: "dashboard" } | { kind: "panel"; panelId: string }
@@ -41,9 +68,15 @@ type Props = {
   placeholder: string
   textareaRef?: Ref<HTMLTextAreaElement>
   notice?: ReactNode
+  runningRequestId?: string
+  range: { from: string; to: string }
 }
 
 const counterThreshold = 3500
+const commands = availableCommands({
+  hasDashboard: true,
+  surface: "activity",
+})
 const panelGoneText = "That panel no longer exists. Pick another target."
 const agentGoneText =
   "The agent is no longer available. Your text is still here."
@@ -76,6 +109,18 @@ function requestFailureText(error: unknown): string {
   return describeRevisionError(error)
 }
 
+function investigateFailureText(error: unknown): string {
+  if (
+    error instanceof ApiError &&
+    error.status === 422 &&
+    error.code === "unknown_panel"
+  ) {
+    return panelGoneText
+  }
+  if (isAgentUnavailable(error)) return agentGoneText
+  return describeSubmitError(error).message
+}
+
 export function ActivityComposer({
   dashboardId,
   latestVersion,
@@ -88,14 +133,33 @@ export function ActivityComposer({
   placeholder,
   textareaRef,
   notice,
+  runningRequestId,
+  range,
 }: Props) {
   const counterId = useId()
+  const textareaId = useId()
   const errorId = useId()
+  const targetId = useId()
   const addComment = useAddComment(dashboardId)
   const requestRevision = useRequestRevision(dashboardId)
+  const createRequest = useCreateObserveRequest()
+  const queryClient = useQueryClient()
+  const agentKind = useActivityStore((state) => state.agentKind)
+  const setAgentKind = useActivityStore((state) => state.setAgentKind)
+  const investigating = agentKind === "investigate"
+  const [rangeOn, setRangeOn] = useState(true)
+  const [rangeKind, setRangeKind] = useState(agentKind)
+  if (rangeKind !== agentKind) {
+    setRangeKind(agentKind)
+    setRangeOn(true)
+  }
   const field = useRef<HTMLTextAreaElement>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const [note, setNote] = useState({ text: "", count: 0 })
+  const [cursor, setCursor] = useState<HistoryCursor>(freshCursor)
+  const history = usePromptHistory()
+  const agent = useAgentInfo()
+  const model = agentLabel(agent.data)
 
   useImperativeHandle(
     textareaRef,
@@ -118,7 +182,7 @@ export function ActivityComposer({
   const over = length > maxPromptLength
   const showCounter = length >= counterThreshold
   const pendingComment = addComment.isPending
-  const pendingRequest = requestRevision.isPending
+  const pendingRequest = requestRevision.isPending || createRequest.isPending
   const pending = pendingComment || pendingRequest
   const waitingForPanels = target.kind === "panel" && panels.length === 0
   const cannotSubmit = trimmed === "" || over || waitingForPanels
@@ -129,8 +193,42 @@ export function ActivityComposer({
 
   function succeeded(text: string) {
     onDraftChange("")
+    setAgentKind("revise")
+    setCursor(freshCursor)
     announce(text)
     field.current?.focus()
+  }
+
+  function applyText(value: string): string {
+    const taken = takeCommand(value, commands)
+    if (taken === null) return value
+    setAgentKind(taken.command === "investigate" ? "investigate" : "revise")
+    announce(`${commandLabels[taken.command]} on`)
+    return taken.rest
+  }
+
+  function recall(direction: "older" | "newer"): boolean {
+    const step = stepHistory(
+      history.entries,
+      cursor,
+      direction,
+      withCommand(investigating ? "investigate" : null, draft)
+    )
+    if (step === null) return false
+    setCursor(step.cursor)
+    setAgentKind("revise")
+    onDraftChange(applyText(step.text))
+    requestAnimationFrame(() => {
+      const element = field.current
+      if (element === null) return
+      const at = direction === "older" ? 0 : element.value.length
+      element.setSelectionRange(at, at)
+    })
+    return true
+  }
+
+  function focusField() {
+    document.getElementById(textareaId)?.focus()
   }
 
   function failed(text: string) {
@@ -153,13 +251,44 @@ export function ActivityComposer({
   function sendToAgent() {
     if (cannotSubmit || pending) return
     setFailure(null)
+    if (investigating) {
+      investigate()
+      return
+    }
     requestRevision.mutate(
       { prompt: trimmed, baseVersion: latestVersion, panelId },
       {
-        onSuccess: () => succeeded("Sent to the agent"),
+        onSuccess: () => {
+          history.record(trimmed)
+          succeeded("Sent to the agent")
+        },
         onError: (error) => failed(requestFailureText(error)),
       }
     )
+  }
+
+  function investigate() {
+    const plan = planSend({
+      command: "investigate",
+      text: trimmed,
+      dashboardId,
+      panelId: panelId ?? undefined,
+      ...(rangeOn ? range : {}),
+    })
+    if ("error" in plan) {
+      failed(plan.error)
+      return
+    }
+    createRequest.mutate(plan.input, {
+      onSuccess: () => {
+        history.record(withCommand("investigate", trimmed))
+        succeeded("Sent to the agent")
+        void queryClient.invalidateQueries({
+          queryKey: dashboardKeys.revisions(dashboardId),
+        })
+      },
+      onError: (error) => failed(investigateFailureText(error)),
+    })
   }
 
   function onSubmit(event: FormEvent) {
@@ -171,8 +300,61 @@ export function ActivityComposer({
     if (isModEnter(event) && !event.nativeEvent.isComposing) {
       event.preventDefault()
       addCommentNow()
+      return
+    }
+    const element = event.currentTarget
+    const plain =
+      !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey
+    const browsing = cursor.index !== -1
+    if (
+      plain &&
+      event.key === "ArrowUp" &&
+      (draft === "" || browsing) &&
+      element.selectionStart === 0 &&
+      element.selectionEnd === 0
+    ) {
+      if (recall("older")) event.preventDefault()
+      return
+    }
+    if (
+      plain &&
+      event.key === "ArrowDown" &&
+      browsing &&
+      element.selectionStart === element.value.length
+    ) {
+      if (recall("newer")) event.preventDefault()
+      return
+    }
+    if (event.key === "Backspace" && draft === "" && investigating) {
+      event.preventDefault()
+      setAgentKind("revise")
     }
   }
+
+  const chips: ContextChip[] = investigating
+    ? [
+        {
+          id: "command",
+          label: commandLabels.investigate,
+          onRemove: () => {
+            setAgentKind("revise")
+            focusField()
+          },
+        },
+        ...(rangeOn
+          ? [
+              {
+                id: "range",
+                label: describeRange(range.from, range.to),
+                onRemove: () => {
+                  setRangeOn(false)
+                  focusField()
+                },
+              },
+            ]
+          : []),
+      ]
+    : []
 
   const describedBy =
     [showCounter ? counterId : null, failure ? errorId : null]
@@ -183,46 +365,70 @@ export function ActivityComposer({
     <form
       aria-label="Add to the activity"
       onSubmit={onSubmit}
-      className="flex flex-col gap-2 border-t px-4 pt-3 pb-3.5"
+      className="flex flex-col gap-2 border-t p-3"
     >
       {notice}
-      <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        On
-        <select
-          value={panelId ?? ""}
-          onChange={(event) =>
-            onTargetChange(
-              event.target.value === ""
-                ? { kind: "dashboard" }
-                : { kind: "panel", panelId: event.target.value }
-            )
+      <div className="rounded-card border border-input bg-background focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/50 has-aria-invalid:border-destructive">
+        {chips.length > 0 ? (
+          <div className="px-3 pt-2">
+            <ContextChips chips={chips} />
+          </div>
+        ) : null}
+        <Textarea
+          ref={field}
+          id={textareaId}
+          aria-label="Comment or request"
+          aria-invalid={over || undefined}
+          aria-describedby={describedBy}
+          placeholder={
+            !investigating
+              ? placeholder
+              : panelId === null
+                ? "Ask a question about this dashboard"
+                : "Ask a question about this panel"
           }
-          className="h-[26px] max-w-[240px] rounded-[5px] border bg-background px-1.5 text-xs text-foreground"
-        >
-          <option value="">The whole dashboard</option>
-          {panels.map((panel) => (
-            <option key={panel.id} value={panel.id}>
-              {panel.title === "" ? "Untitled panel" : panel.title}
-            </option>
-          ))}
-        </select>
-      </label>
-      <Textarea
-        ref={field}
-        aria-label="Comment or request"
-        aria-invalid={over || undefined}
-        aria-describedby={describedBy}
-        placeholder={placeholder}
-        rows={3}
-        value={draft}
-        readOnly={pending}
-        className="field-sizing-fixed max-h-64 min-h-16 resize-y px-3 py-2.5 text-sm"
-        onChange={(event) => {
-          onDraftChange(event.target.value)
-          if (failure) setFailure(null)
-        }}
-        onKeyDown={onKeyDown}
-      />
+          value={draft}
+          readOnly={pending}
+          className="field-sizing-content max-h-64 min-h-16 resize-none border-0 px-3 py-2.5 text-[13px] shadow-none focus-visible:ring-0 aria-invalid:ring-0 aria-invalid:focus-visible:ring-0"
+          onChange={(event) => {
+            onDraftChange(applyText(event.target.value))
+            setCursor(freshCursor)
+            if (failure) setFailure(null)
+          }}
+          onKeyDown={onKeyDown}
+        />
+        <div className="flex items-center gap-2 px-2 pb-2">
+          <label htmlFor={targetId} className="text-xs text-muted-foreground">
+            On
+          </label>
+          <NativeSelect
+            id={targetId}
+            size="sm"
+            aria-label="On"
+            className="max-w-[240px] truncate"
+            value={panelId ?? ""}
+            onChange={(event) =>
+              onTargetChange(
+                event.target.value === ""
+                  ? { kind: "dashboard" }
+                  : { kind: "panel", panelId: event.target.value }
+              )
+            }
+          >
+            <option value="">The whole dashboard</option>
+            {panels.map((panel) => (
+              <option key={panel.id} value={panel.id}>
+                {panel.title === "" ? "Untitled panel" : panel.title}
+              </option>
+            ))}
+          </NativeSelect>
+          {model !== null ? (
+            <span className="ml-auto truncate text-xs text-muted-foreground">
+              {model}
+            </span>
+          ) : null}
+        </div>
+      </div>
       {showCounter ? (
         <span
           id={counterId}
@@ -236,7 +442,15 @@ export function ActivityComposer({
             : `${maxPromptLength - length} ${plural(maxPromptLength - length)} left`}
         </span>
       ) : null}
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      {gate.kind === "blocked" ? (
+        <p className="text-xs text-muted-foreground">{gate.reason}</p>
+      ) : null}
+      {failure ? (
+        <p id={errorId} role="alert" className="text-xs text-status-critical">
+          {failure}
+        </p>
+      ) : null}
+      <div className="flex items-center justify-end gap-2">
         <Button
           type="submit"
           variant="outline"
@@ -246,6 +460,9 @@ export function ActivityComposer({
         >
           Add comment
         </Button>
+        {runningRequestId !== undefined ? (
+          <StopRequestButton requestId={runningRequestId} />
+        ) : null}
         {gate.kind === "allowed" ? (
           <Button
             type="button"
@@ -254,18 +471,10 @@ export function ActivityComposer({
             aria-busy={pendingRequest || undefined}
             onClick={sendToAgent}
           >
-            Send to agent
+            {investigating ? "Investigate" : "Send to agent"}
           </Button>
         ) : null}
       </div>
-      {gate.kind === "blocked" ? (
-        <p className="text-xs text-muted-foreground">{gate.reason}</p>
-      ) : null}
-      {failure ? (
-        <p id={errorId} role="alert" className="text-xs text-status-critical">
-          {failure}
-        </p>
-      ) : null}
       <span role="status" className="sr-only">
         {liveRegionText(note.text, note.count)}
       </span>

@@ -9,7 +9,9 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
@@ -113,7 +115,7 @@ func TestSaveToolsRunScopeThroughCall(t *testing.T) {
 		if errorCode(t, res) != codeInvalidRequest || !strings.Contains(res.Content.(errorBody).Message, dashA) {
 			t.Fatalf("res = %#v", res.Content)
 		}
-		if res.Step != "Rejected create_dashboard input: invalid_request" {
+		if !strings.HasPrefix(res.Step, "Rejected create_dashboard input: this run revises dashboard") {
 			t.Fatalf("step = %q", res.Step)
 		}
 	})
@@ -164,4 +166,44 @@ func TestSaveToolsRunScopeThroughCall(t *testing.T) {
 			t.Fatalf("res = %#v err = %v", res, err)
 		}
 	})
+}
+
+func TestASaveFailureStepNamesTheFirstIssuePath(t *testing.T) {
+	long := "/panels/0/" + strings.Repeat("x", 200)
+	tests := []struct {
+		name   string
+		issues []spec.Issue
+		want   string
+	}{
+		{"a path", []spec.Issue{{Path: "/panels/0/fieldConfig/defaults/unit", Code: spec.CodeSchema}, {Path: "/title", Code: spec.CodeSchema}}, "Save rejected: 2 issues (schema) at /panels/0/fieldConfig/defaults/unit"},
+		{"no path", []spec.Issue{{Code: spec.CodeSchema}}, "Save rejected: 1 issue (schema)"},
+		{"a long path is clipped", []spec.Issue{{Path: long, Code: spec.CodeSchema}}, "Save rejected: 1 issue (schema) at " + long[:maxStepReasonBytes] + "..."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := saveFailure(&dashboards.InvalidSpecError{Issues: tt.issues})
+			if err != nil || res.Step != tt.want {
+				t.Fatalf("step = %q err = %v, want %q", res.Step, err, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetDashboardInABuildRunPointsAtGetPanels(t *testing.T) {
+	rig := newPanelsRig(t)
+	run := rig.createRun(t)
+	res, _ := run.run(t, nameGetDashboard, `{"dashboard_id":"build"}`)
+	want := "dashboard_id must be a UUID from list_dashboards; your build has no id until you finish, so read its panels with get_panels without dashboard_id"
+	if got := refusal(t, res); got != want {
+		t.Errorf("message = %q, want %q", got, want)
+	}
+
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	outside, err := call(t, r, nameGetDashboard, `{"dashboard_id":"build"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := refusal(t, outside), "dashboard_id must be a UUID from list_dashboards or create_dashboard"; got != want {
+		t.Errorf("message outside a run = %q, want %q", got, want)
+	}
 }

@@ -10,7 +10,9 @@ import { ArrowUpRightIcon } from "lucide-react"
 
 import type { paths } from "@/api/schema.gen"
 import { RelativeTime } from "@/components/relative-time"
-import { madeByDetail } from "@/lib/origin"
+import { madeByChannel, madeByDetail } from "@/lib/origin"
+import { cn } from "@/lib/utils"
+import { dashboardLink } from "@/lib/links"
 
 import { DashboardRowMenu } from "./row-menu"
 
@@ -31,6 +33,8 @@ declare module "@tanstack/react-table" {
 export type DashboardSummary =
   paths["/dashboards"]["get"]["responses"][200]["content"]["application/json"]["dashboards"][number]
 
+const zeroWidthAfterLastWord = "ml-1 -mr-[18px]"
+
 export const listFeatures = tableFeatures({})
 
 const column = createColumnHelper<typeof listFeatures, DashboardSummary>()
@@ -42,25 +46,29 @@ export const dashboardColumns = column.columns([
     cell: ({ row }) => (
       <>
         <Link
-          to="/dashboards/$dashboardId"
-          params={{ dashboardId: row.original.id }}
+          {...dashboardLink(row.original.id, row.original.title)}
           className="inline rounded-sm font-medium wrap-anywhere no-underline outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
           {row.original.title}
         </Link>
         <Link
-          to="/dashboards/$dashboardId"
-          params={{ dashboardId: row.original.id }}
+          {...dashboardLink(row.original.id, row.original.title)}
           target="_blank"
           rel="noopener"
           aria-label={`Open ${row.original.title} in a new tab`}
           title={`Open ${row.original.title} in a new tab`}
-          className="ml-1 inline-block rounded-sm align-text-bottom text-muted-foreground opacity-0 outline-none group-hover/row:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring [@media(hover:none)]:opacity-100"
+          className={cn(
+            zeroWidthAfterLastWord,
+            "inline-block rounded-sm align-text-bottom text-muted-foreground opacity-0 outline-none group-hover/row:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring [@media(hover:none)]:opacity-100"
+          )}
         >
           <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
         </Link>
         {row.original.description ? (
-          <div className="text-xs wrap-anywhere text-muted-foreground">
+          <div
+            title={row.original.description}
+            className="line-clamp-1 text-xs wrap-anywhere text-muted-foreground"
+          >
             {row.original.description}
           </div>
         ) : null}
@@ -75,22 +83,23 @@ export const dashboardColumns = column.columns([
     id: "madeBy",
     header: "Made by",
     cell: ({ row }) => {
-      const { name } = row.original.creator.author
-      const detail = madeByDetail(row.original.creator)
+      const { creator } = row.original
+      const channel = madeByChannel(creator)
+      const detail = madeByDetail(creator)
       return (
-        <>
-          <div title={name} className="max-w-56 truncate">
-            {name}
-          </div>
-          {detail === "" ? null : (
-            <div
-              title={detail}
-              className="max-w-56 truncate text-xs text-muted-foreground"
-            >
-              {detail}
-            </div>
+        <div
+          title={
+            detail === ""
+              ? creator.author.name
+              : `${creator.author.name} · ${detail}`
+          }
+          className="max-w-56 truncate"
+        >
+          {creator.author.name}
+          {channel === null ? null : (
+            <span className="text-muted-foreground">{` · ${channel}`}</span>
           )}
-        </>
+        </div>
       )
     },
     meta: {
@@ -106,9 +115,7 @@ export const dashboardColumns = column.columns([
         <span className="font-mono text-xs">
           {row.original.datasource_uids.join(", ")}
         </span>
-      ) : (
-        <span className="text-muted-foreground">None</span>
-      ),
+      ) : null,
     meta: { skeletonClassName: "h-5 w-16" },
   }),
   column.display({
@@ -117,7 +124,7 @@ export const dashboardColumns = column.columns([
     cell: ({ row }) =>
       row.original.open_comment_count > 0
         ? row.original.open_comment_count
-        : "None",
+        : null,
     meta: { cellClassName: "tabular-nums", skeletonClassName: "h-5 w-10" },
   }),
   column.display({

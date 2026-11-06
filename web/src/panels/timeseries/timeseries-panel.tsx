@@ -2,6 +2,12 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react"
 import uPlot from "uplot"
 import "uplot/dist/uPlot.min.css"
 
+import { AnnotationLayer } from "@/annotations/annotation-layer"
+import {
+  annotationMarkersPlugin,
+  type PlotPlace,
+} from "@/annotations/markers-plugin"
+import type { Annotation } from "@/annotations/queries"
 import type { PanelDataMeta, WireFrame } from "@/dashboards/queries"
 import { stableJson } from "@/lib/json"
 import { zonedDateTime } from "@/lib/time"
@@ -16,6 +22,7 @@ import type { FieldConfig } from "../field-config"
 import { dataRenderers } from "../index"
 import { reducerLabel } from "../reducers"
 import { thresholdColor } from "../thresholds"
+import { displayLabels } from "../transforms/series-names"
 import type { CursorMember } from "../shared-cursor"
 import type { PanelRenderer, PanelRendererProps } from "../types"
 import { Unsupported } from "../unsupported"
@@ -101,6 +108,7 @@ type Latest = {
   width: number
   chartHeight: number
   onTimeRangeSelect: PanelRendererProps["onTimeRangeSelect"]
+  annotations: readonly Annotation[]
 }
 
 type Model = {
@@ -123,9 +131,26 @@ type PlotConfig = {
   xAxis: XAxis
   zone: string | undefined
   draw?: uPlot.Plugin
+  onPlace: (place: PlotPlace | null) => void
 }
 
 const tickEdgeGap = 24
+
+const noAnnotations: readonly Annotation[] = []
+
+function samePlace(a: PlotPlace | null, b: PlotPlace | null): boolean {
+  return (
+    a === b ||
+    (a !== null &&
+      b !== null &&
+      a.left === b.left &&
+      a.top === b.top &&
+      a.width === b.width &&
+      a.height === b.height &&
+      a.fromMs === b.fromMs &&
+      a.toMs === b.toMs)
+  )
+}
 
 function timeLabels(
   splits: (number | null)[],
@@ -264,7 +289,8 @@ function thresholdLineStroke(
 }
 
 function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
-  const { member, peerTooltip, host, latest, xAxis, zone, draw } = config
+  const { member, peerTooltip, host, latest, xAxis, zone, draw, onPlace } =
+    config
   const timed = xAxis.kind === "time"
   const customPainted = draw !== undefined
   const { model } = latest.current
@@ -303,6 +329,11 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         model.thresholds.style,
         (color) => resolveColor(thresholdColor(color))
       )
+    )
+  }
+  if (timed) {
+    plugins.push(
+      annotationMarkersPlugin(() => latest.current.annotations, onPlace)
     )
   }
   if (timed && !customPainted) {
@@ -607,6 +638,7 @@ export function TimeseriesChart({
   painted,
   rowColor,
   exemplars,
+  annotations = noAnnotations,
 }: ChartProps) {
   const { resolved: theme } = useTheme()
   const hostRef = useRef<HTMLDivElement>(null)
@@ -615,13 +647,22 @@ export function TimeseriesChart({
   const plotRef = useRef<uPlot | null>(null)
   const appliedRef = useRef<PlotState | null>(null)
   const [legendHeight, setLegendHeight] = useState(0)
+  const [place, setPlace] = useState<PlotPlace | null>(null)
+  const onPlace = useCallback(
+    (next: PlotPlace | null) =>
+      setPlace((current) => (samePlace(current, next) ? current : next)),
+    []
+  )
 
   const options = useMemo(() => timeseriesDisplay(display), [display])
   const reducers = options.legendValues
-  const displayKey = stableJson(display)
-  const configsKey = stableJson(configs)
-  const thresholdsKey = stableJson(panel.thresholds ?? null)
-  const panelAxisKey = stableJson(settingsOf(panel))
+  const displayKey = useMemo(() => stableJson(display), [display])
+  const configsKey = useMemo(() => stableJson(configs), [configs])
+  const thresholdsKey = useMemo(
+    () => stableJson(panel.thresholds ?? null),
+    [panel.thresholds]
+  )
+  const panelAxisKey = useMemo(() => stableJson(settingsOf(panel)), [panel])
 
   const stateKey = `${stateScope}:${panel.id}`
   const stored = useSeriesStore((store) => store.panels[stateKey])
@@ -637,16 +678,32 @@ export function TimeseriesChart({
     () => chartSeries(aligned.series, configs, slots),
     [aligned.series, configs, slots]
   )
+  const shownLabels = useMemo(() => {
+    const labels = displayLabels(
+      panel,
+      aligned.series.map(({ frame, field, label }) => ({
+        frame,
+        field,
+        name: label,
+      }))
+    )
+    return new Map(aligned.series.map(({ key }, index) => [key, labels[index]]))
+  }, [panel, aligned.series])
+  const shownLabel = useCallback(
+    (entry: { key: string; label: string }) =>
+      shownLabels.get(entry.key) ?? entry.label,
+    [shownLabels]
+  )
 
   const legendMode = effectiveLegendMode(options.legendMode, reducers)
   const order = useMemo(
     () =>
       legendOrder(
-        series.map(({ key, label, fieldValues, config }) => ({
-          key,
-          label,
-          values: fieldValues,
-          hidden: config.hideInLegend,
+        series.map((entry) => ({
+          key: entry.key,
+          label: shownLabel(entry),
+          values: entry.fieldValues,
+          hidden: entry.config.hideInLegend,
         })),
         {
           mode: legendMode,
@@ -657,7 +714,7 @@ export function TimeseriesChart({
           hideEmpty: options.legendHideEmpty,
         }
       ),
-    [series, legendMode, reducers, options]
+    [series, shownLabel, legendMode, reducers, options]
   )
   const listed = useMemo(
     () => order.map((index) => series[index]),
@@ -677,13 +734,13 @@ export function TimeseriesChart({
     if (!rightLegend || reducers.length === 0) return null
     const rem = rootFontSize()
     return legendTableWidth(
-      listed.map(({ label }) => label),
+      listed.map(shownLabel),
       reducers.map(reducerLabel),
       cells,
       textMeasure(rem),
       rem
     )
-  }, [rightLegend, listed, reducers, cells, textMeasure])
+  }, [rightLegend, listed, shownLabel, reducers, cells, textMeasure])
   const legendWidth = rightLegend
     ? rightLegendWidth(tableWidth, width, options.legendWidth)
     : 0
@@ -718,7 +775,7 @@ export function TimeseriesChart({
     return {
       state,
       entries: series.map((entry, index): TooltipSeries => ({
-        label: entry.label,
+        label: shownLabel(entry),
         color: entry.color,
         line: entry.line,
         style: entry.style,
@@ -731,7 +788,7 @@ export function TimeseriesChart({
         rowColor,
       })),
     }
-  }, [aligned.xs, ghosts, series, hidden, rowColor])
+  }, [aligned.xs, ghosts, series, shownLabel, hidden, rowColor])
 
   const exemplarLayer = useMemo(
     () =>
@@ -759,6 +816,7 @@ export function TimeseriesChart({
     width: chartWidth,
     chartHeight,
     onTimeRangeSelect,
+    annotations,
   })
   useLayoutEffect(() => {
     latest.current = {
@@ -770,6 +828,7 @@ export function TimeseriesChart({
       width: chartWidth,
       chartHeight,
       onTimeRangeSelect,
+      annotations,
     }
   })
 
@@ -801,6 +860,7 @@ export function TimeseriesChart({
       xAxis,
       zone,
       draw,
+      onPlace,
     })
     if (xAxis.kind === "time") {
       member.current = cursor.join((peer) => {
@@ -840,6 +900,7 @@ export function TimeseriesChart({
     panel.thresholdsStyle,
     thresholdsKey,
     model.painted,
+    onPlace,
   ])
 
   useLayoutEffect(() => {
@@ -865,6 +926,10 @@ export function TimeseriesChart({
   }, [exemplarLayer])
 
   useLayoutEffect(() => {
+    plotRef.current?.redraw(false)
+  }, [annotations])
+
+  useLayoutEffect(() => {
     const plot = plotRef.current
     if (!plot || !ready) return
     if (plot.width !== chartWidth || plot.height !== chartHeight) {
@@ -879,7 +944,7 @@ export function TimeseriesChart({
 
   const items: LegendItem[] = listed.map((entry) => ({
     key: entry.key,
-    label: entry.label,
+    label: shownLabel(entry),
     color: entry.color,
     line: entry.line,
     style: entry.style,
@@ -918,20 +983,28 @@ export function TimeseriesChart({
     >
       <div className="flex shrink-0 flex-col" style={{ width: chartWidth }}>
         <div
-          ref={containerRef}
-          role="img"
-          aria-label={
-            axisLabels.length > 0
-              ? `${plotName}, axes: ${axisLabels.join(", ")}`
-              : plotName
-          }
-          data-axes={axisNames.join(" ")}
-          data-series={series.length}
-          data-ghosts={ghosts.length}
-          data-stack={firstStackMode(series)}
-          className="ts-chart shrink-0 overflow-hidden"
+          className="relative shrink-0"
           style={{ width: chartWidth, height: chartHeight }}
-        />
+        >
+          <div
+            ref={containerRef}
+            role="img"
+            aria-label={
+              axisLabels.length > 0
+                ? `${plotName}, axes: ${axisLabels.join(", ")}`
+                : plotName
+            }
+            data-axes={axisNames.join(" ")}
+            data-series={series.length}
+            data-ghosts={ghosts.length}
+            data-stack={firstStackMode(series)}
+            className="ts-chart shrink-0 overflow-hidden"
+            style={{ width: chartWidth, height: chartHeight }}
+          />
+          {place && annotations.length > 0 ? (
+            <AnnotationLayer annotations={annotations} {...place} zone={zone} />
+          ) : null}
+        </div>
         {exemplarsTruncated ? (
           <p
             className="truncate text-xs leading-4 text-muted-foreground"

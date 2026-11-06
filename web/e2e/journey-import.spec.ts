@@ -27,7 +27,7 @@ const unverifiedPath = join(
 )
 const demoShopTitle = "Demo shop (Grafana)"
 const demoShopSummary = "27 panels in 6 rows"
-const dashboardPath = /\/dashboards\/([0-9a-f-]{36})$/
+const dashboardPath = /\/d\/([0-9a-f-]{36})(?:\/[a-z0-9-]+)?$/
 const fixPrompt = 'Fix the unverified panel "Missing" (p2).'
 const missingMetric = "slashobserve_e2e_missing_metric_total"
 
@@ -100,7 +100,7 @@ async function importedDashboardId(page: Page): Promise<string> {
   const link = page.getByRole("link", { name: "Open dashboard" })
   await expect(link).toBeVisible()
   const href = (await link.getAttribute("href")) ?? ""
-  const id = /\/dashboards\/([0-9a-f-]{36})$/.exec(href)?.[1] ?? ""
+  const id = /\/d\/([0-9a-f-]{36})(?:\/[a-z0-9-]+)?$/.exec(href)?.[1] ?? ""
   expect(id).not.toBe("")
   return id
 }
@@ -167,7 +167,9 @@ for (const colorScheme of ["light", "dark"] as const) {
 
       await test.step("open the dashboard", async () => {
         await page.getByRole("link", { name: "Open dashboard" }).click()
-        await expect(page).toHaveURL(new RegExp(`/dashboards/${dashboardId}$`))
+        await expect(page).toHaveURL(
+          new RegExp(`/d/${dashboardId}(/[a-z0-9-]+)?$`)
+        )
         await expect(page.getByRole("heading", { level: 1 })).toHaveText(
           demoShopTitle
         )
@@ -189,7 +191,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(first).toContainText(demoShopTitle)
         await expect(first).toHaveAttribute(
           "href",
-          new RegExp(`/dashboards/${dashboardId}$`)
+          new RegExp(`/d/${dashboardId}(/[a-z0-9-]+)?$`)
         )
       })
 
@@ -278,9 +280,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         ).toContainText("No panel is unverified in the latest version.")
 
         await version.getByRole("link", { name: /See changes/ }).click()
-        await expect(page).toHaveURL(
-          new RegExp(`/dashboards/${dashboardId}/versions`)
-        )
+        await expect(page).toHaveURL(new RegExp(`/d/${dashboardId}/versions`))
         await expect(
           page.getByRole("heading", { level: 2, name: "Changes from v1 to v2" })
         ).toBeVisible()

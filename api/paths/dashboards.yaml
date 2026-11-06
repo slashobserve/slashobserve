@@ -24,7 +24,7 @@ dashboards:
                 format: uuid
                 description: >-
                   The folder to create the dashboard in.
-                  Missing means the caller's last used folder they can still create in, else General.
+                  Missing means the caller's default folder: a person's My Dashboards, a service-account key's General.
                   404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
     responses:
       "201":
@@ -221,6 +221,8 @@ dashboards-id:
     summary: Move a dashboard to another folder.
     description: >-
       Needs Edit on the dashboard and on the target folder.
+      A personal folder (My Dashboards) takes no moves; moving into one answers 409 `personal_folder`.
+      Moving a dashboard out of My Dashboards into a shared folder is how it is published.
       A move creates no version, does not change `updated_at` and sends no event.
     requestBody:
       required: true
@@ -249,6 +251,8 @@ dashboards-id:
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/Conflict"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
@@ -534,7 +538,7 @@ dashboards-id-duplicate:
                 format: uuid
                 description: >-
                   The folder to create the dashboard in.
-                  Missing means the caller's last used folder they can still create in, else General.
+                  Missing means the caller's default folder: a person's My Dashboards, a service-account key's General.
                   404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
     responses:
       "201":
@@ -611,6 +615,35 @@ dashboards-id-diff:
                   type: array
                   items:
                     $ref: "../openapi.yaml#/components/schemas/SpecChange"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+dashboards-id-views:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: recordDashboardView
+    summary: Record that the caller opened the dashboard.
+    description: >-
+      Needs View on the dashboard.
+      The web app calls it once each time it loads a dashboard page.
+      It keeps the caller's latest open, at most once every 10 minutes, and the dashboard health list reads it to find dashboards nobody opens.
+      A service-account key gets 204 and nothing is written, because only people count as opens.
+    responses:
+      "204":
+        description: The open is recorded, or there was nothing to record.
       "400":
         $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":

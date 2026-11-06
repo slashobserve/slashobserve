@@ -26,6 +26,13 @@ Each source directory carries its upstream LICENSE, and SOURCES.md records the c
 - open-telemetry/opentelemetry-demo (https://github.com/open-telemetry/opentelemetry-demo), Apache-2.0
 - cilium/cilium (https://github.com/cilium/cilium), Apache-2.0
 
+Third-party Kubernetes demo manifests
+
+The Kubernetes demo under demo/k8s/ copies the files below, all Apache-2.0.
+
+- prometheus-operator/kube-prometheus (https://github.com/prometheus-operator/kube-prometheus): the recording rule groups in demo/k8s/rules/, taken unchanged from manifests/kubernetesControlPlane-prometheusRule.yaml, manifests/nodeExporter-prometheusRule.yaml and manifests/kubePrometheus-prometheusRule.yaml at the commit recorded in pkg/grafana/testdata/corpus/SOURCES.md, with the PrometheusRule wrapper replaced by a plain groups key.
+- kubernetes/kube-state-metrics (https://github.com/kubernetes/kube-state-metrics): the ClusterRole rules, probes and security context in demo/k8s/kube-state-metrics.yaml, adapted from examples/standard at v2.20.0.
+
 Third-party map data
 
 The web UI bundles the country outlines of world-atlas (https://github.com/topojson/world-atlas), ISC, derived from Natural Earth (https://www.naturalearthdata.com), public domain, for geomap panels.

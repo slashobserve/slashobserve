@@ -16,8 +16,12 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - `web/src/routeTree.gen.ts`, `web/src/spec/*.gen.ts` and `web/src/api/schema.gen.ts` are generated; commit them, never edit them.
   The route tree comes from the Vite plugin on `dev` and `build`, the other two from `make generate`.
 - Import the Spec only from `web/src/spec/index.ts`, and keep `web/src/spec` free of app imports so it can become the `@slashobserve/spec` package.
-- Vitest covers pure helpers (`*.test.ts` next to the code).
-  Testing Library is not installed.
+  The server's `spec.Parse` is the one Spec validator on read; `asDashboardSpec` only checks shape.
+  Editors validate through `useSpecValidator()` or `await loadSpecValidator()`, never a static import, so the 1.3 MB validator stays out of the initial bundle; only `web/src/spec` tests, editor tests and `scripts/check-spec-fixtures.mjs` import `web/src/spec/validate.ts` directly.
+- A route's `pendingComponent` lives in its own small module, because the router keeps it in the entry chunk.
+  Vendor code goes to one chunk through the named-package `vendor` group in `web/vite.config.ts`; never add a catch-all group, which pulls lazy chunks into the entry.
+- Vitest covers pure helpers (`*.test.ts` next to the code) and, under happy-dom with Testing Library, components whose behaviour is not a pure helper (`*.test.tsx`).
+  A test that reads files from disk opts out of the DOM with `// @vitest-environment node`.
 - cmdk is deliberately not used.
   The command palette (`web/src/shell/command-palette.tsx`) is Base UI `Autocomplete` rendered `inline` in a `Dialog`.
 - TanStack Table (headless) is used for the dashboards list only.
@@ -33,30 +37,52 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   Never copy server data into a store: events from `useDashboardEvents` only invalidate query keys.
 - The router uses plain `URLSearchParams` serialization (`web/src/lib/search.ts`).
   Dashboard URL keys are parsed only by `web/src/dashboards/search.ts`.
+  The viewing keys live there too: `kiosk`, `cycle` and `interval` for TV mode (a cycle only with `kiosk`, an interval only with a cycle), and `viewPanel`, `inspect` and `inspectTab`, which are dropped while `edit` is set.
+- The panel a shortcut acts on comes only from the hovered panel store (`web/src/shortcuts/hovered-panel.ts`), then the focused panel; `web/src/shortcuts/chords.ts` is the one list of bindings, read by the shortcuts dialog, the menu hints and the key handler, and `docs/use/keyboard-shortcuts.md` mirrors it.
+- Panel data and variable values go through a `PanelSource` (`web/src/dashboards/panel-source.ts`): a saved version, an agent build or a public link (`public`, keyed by token and version under `publicKeys`), so the same data hooks serve all three.
+  Panels refresh only while within 200 px of the viewport (`useInView`); a panel that returns after missing a tick refetches once.
+  Build keys use the `observe-build` prefix, and the build's Spec is fetched only when its `saves` count changes.
+  Every build read (the build, its panel data and its variable values) goes through `readBuild` in `web/src/observe/build.ts`: a 404 `not_found` means the run finished, so it refetches the request once and holds the read while the page replaces itself with the dashboard, and a `panel_not_found` passes through.
+- A panel new in a build save or in a new dashboard version fades in once through `DashboardGrid`'s `newPanelIds`, only through `motion-safe:` classes on the panel frame's opacity, never on a chart.
+- `web/src/observe/request-actions.tsx` is the only place Cancel, Stop and Continue render.
+  `can_cancel` comes from the server and is never recomputed in the browser.
+  A chat turn reads its build state (`failure_code`, `build`, `build_saved_at`, `continued_by`) from its summary, so a turn whose request is not loaded still shows its build card.
+- A renderer declares the narrowest width it reads well at as `minWidth` in its manifest, and `fitLayout` (`web/src/dashboards/fit-layout.ts`) reflows the dashboard view from it, skipping fixed panels (`responsive: false`); the reflow never writes `gridPos`, edit mode shows the saved layout, and the web never decides a freeze (the save funnel does).
 - Panel data requests go through `panelRequestLimiter` (6 concurrent) because the proxy allows 8 in-flight requests per principal.
 - `maxQueuedRevisions` in `web/src/revisions/queries.ts` mirrors the server's cap of 5 queued or running revisions per dashboard.
 - Panel data requests always send an explicit `var-` selection for every declared variable, resolved by `web/src/dashboards/variables.ts`, so the panel and the variable list agree on defaults.
+- `useDatasources()` returns the list a `DatasourceListProvider` holds without a request, and fetches `GET /api/v1/datasources` only outside one.
 - The browser never calls a datasource.
   Query lint comes only from `POST /api/v1/datasources/{uid}/lint`, and codemirror-promql never gets a `remote`.
 - The browser never computes version diffs.
   It groups the server's `pkg/spec.Diff` changes with `groupChanges`.
 - A new API key lives only in the Create key panel's component state: the mutation uses `gcTime: 0`, and the response never reaches the query cache or storage.
+  A new public link's address lives the same way in the Create public link form's state (`web/src/public/public-links-section.tsx`).
   Key snippets reference `OBSERVE_TOKEN` instead of the key.
+- `web/src/home/` is the home page's dashboards section.
+  Stars come from `GET /api/v1/stars` under `starKeys` and change only through `useStarMutation`; recently viewed dashboards live only in `localStorage` under `slashobserve-recent-dashboards` (at most 20, written by `useRecordRecent` in the dashboard route) and never reach the server.
 - Import JSON stays out of query keys (they use a source id) and is never stored outside page state.
 - Comment bodies render as plain text only.
 
 ## Routes and shell
 
 - `_authed` only checks the session.
-  Every page except the dashboard renders inside the pathless `_authed/_shell` layout, and dashboard routes under `_authed/dashboards/$dashboardId` have no shell.
+  Every page except the dashboard and the build renders inside the pathless `_authed/_shell` layout, and the dashboard routes under `_authed/d/$dashboardId` and the build route `_authed/b/$requestId` have no shell.
+  Id-bearing pages live at `/d/<id>[/<slug>]`, `/f/<id>`, `/c/<id>` and `/b/<id>`, and every dashboard link and address string comes from `web/src/lib/links.ts`, whose `slugOf` matches `links.Slug` in Go; the old `/dashboards/<id>`, `/folders/<id>`, `/observe/<id>` and `/builds/<id>` route files only redirect.
+- `/p/$token` is the public dashboard page, outside `_authed` like `/login`, and the public page makes no request outside `/api/v1/public/`.
+  It renders `PublicPanel` (`web/src/public/`), never `PanelContainer`, whose menu calls the signed-in API, and wraps the page in `DatasourceListProvider` with the link's datasources.
+  Its search keeps only `from`, `to`, `refresh` and `var-` keys, and it writes them through its own route: `useSetDashboardSearch` navigates from the dashboard route, so a shared hook that writes the address takes a writer (`useVariables`' `setUrlVars`).
 - A shell route declares its breadcrumb with `staticData.crumbs`, sets its title with `useDocumentTitle` and never renders `<main>`, which the shell owns.
 - Side panels (Create key, History) are `SidePanel` columns, never dialogs or sheets.
+  The one sheet is the dashboard top row's "Controls" on narrow screens, which mounts the controls only once, so ids such as the More menu's stay unique.
+- Inspect (`web/src/inspect/`) takes the activity card's slot and never sends its own request: `PanelContainer` publishes the inspected panel's query key, response and prepared frames, and the request time comes from the query cache events of that key.
 - A renderer or editor module that fails to load offers "Reload page", not "Retry", because the browser caches a failed module fetch for the life of the document.
 
 ## Panels
 
 - `PanelBody` prepares frames (`prepareFrames`), resolves field config (`createFieldResolver`), merges display defaults and lazy-loads the renderer.
   Each type has `web/src/panels/<type>/manifest.ts` found by `import.meta.glob`; a type is switched on in its own manifest, never in a shared file.
+- Finding evidence renders through `EvidencePanel` (`web/src/findings/`) with its own query, not a `PanelSource`, because it has no variables, comments or menu.
 - Panel states are exposed as `data-state` on the panel `article`, and threshold states as `data-threshold`; tests read both.
 - One source for each decision, so a second copy drifts:
   - field features: `createFieldResolver` and `displayValue` in `web/src/panels/field-config`, with `effectiveColorMode` deriving the color mode;
@@ -79,6 +105,8 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - `shapeNulls` (`web/src/panels/timeseries/gaps.ts`) runs in each panel before the chart, so tooltip rows stay indexed like the plotted x values.
 - Threshold states always pair the threshold color with an icon and a word.
   A stat's `colorMode: value` never colors the digits or the word, unlike Grafana, because warning on white is 1.83:1, below WCAG 1.4.3.
+- A manifest's `minHeight` applies only when the grid stacks into one column (`stackedHeight` in `web/src/dashboards/stack-heights.ts`); the saved layout and the wide view never read it.
+- Panel PNGs come from `html-to-image`, loaded only through a dynamic import in `web/src/inspect/png.ts`, because it draws the panel's DOM, canvas charts included, into an image in the browser with no server renderer; the CSP allows the `data:` and `blob:` images it makes.
 - Canvas panels render Spec elements only.
   `canvasModel` is the one place that reads `display` and the only way a color reaches CSS: it keeps hex and the semantic tokens and drops anything else.
 - Remote images, map tiles and GeoJSON load only through `/api/v1/assets/*` (images through `RemoteImage`), because the CSP allows no remote images.
@@ -98,3 +126,10 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   Geist Mono (`font-mono`) is only for queries, JSON, ids, key prefixes and commands.
 - The theme preference lives in `localStorage` key `slashobserve-theme` and is applied before first paint by `web/public/theme-init.js`.
 - Visual defaults to avoid: cream or off-white page backgrounds, italic accent words in headings, numbered `01/02` section labels, monospace for UI labels, pill-shaped buttons, gradients, shadows or elevation of any kind (popups, dialogs and toasts separate by a 1px border), backdrop blur, colored left-border callouts, uppercase eyebrow labels, emoji, chart animations, grey fills inside a dashboard, and any colour accent in app chrome (blue appears only as the data series and status colours).
+- Use `NativeSelect` (`web/src/components/native-select.tsx`) for every select a browser spec drives with `selectOption`, Base UI `Select` elsewhere, and never a bare `<select>`.
+- Use `EmptyState` for first-time and all-clear states and `LoadProblem` for errors.
+  A filtered empty is one "No <things> match these filters." line with a "Clear filters" button.
+- Use `FilterToolbar` for the filter row under a page header.
+- Every workspace table is a `TableCard` with `stackOnNarrow`, so its rows become lists on a phone and nothing scrolls sideways.
+- Only the right panel, the sidebar width and the chat build transition move, with `ease-panel` under `motion-safe:` and `animation-duration-(--duration-panel)` on the enter animation; never a bare `duration-*` without a transition property, because it transitions every property, including a resize.
+  Anything else that moves needs a spec change.

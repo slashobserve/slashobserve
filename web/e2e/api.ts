@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
@@ -24,8 +25,7 @@ export function loadSpec(name: string): Spec {
 }
 
 export function uniqueTitle(base: string): string {
-  const random = Math.random().toString(36).slice(2, 6).padEnd(4, "0")
-  return `${base} ${Date.now().toString(36)}${random}`
+  return `${base} ${Date.now().toString(36)}${randomUUID().slice(0, 4)}`
 }
 
 async function expectStatus(
@@ -115,11 +115,7 @@ export async function createComment(
 }
 
 export function uniqueAccountName(base = "e2e-keys"): string {
-  const random = Array.from(
-    { length: 4 },
-    () => "abcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 36)]
-  ).join("")
-  return `${base}-${Date.now().toString(36)}${random}`
+  return `${base}-${Date.now().toString(36)}${randomUUID().slice(0, 4)}`
 }
 
 export async function createServiceAccount(

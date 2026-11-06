@@ -30,12 +30,22 @@ func (r *Registry) suggestPanel(ctx context.Context, principal auth.Principal, r
 	if !ok {
 		return invalid("keep panel %q in the Spec; this run changes only that panel", run.PanelID), nil
 	}
-	if entry.Panel.Type == spec.Row {
-		return invalid("panel %q must stay a panel, not a row", run.PanelID), nil
-	}
 	raw, err := json.Marshal(entry.Panel)
 	if err != nil {
 		return Result{}, err
+	}
+	return r.proposePanel(ctx, principal, run, raw)
+}
+
+func (r *Registry) proposePanel(ctx context.Context, principal auth.Principal, run Run, raw json.RawMessage) (Result, error) {
+	var head struct {
+		Type spec.PanelType `json:"type"`
+	}
+	if err := json.Unmarshal(raw, &head); err != nil {
+		return invalid("the panel must be a JSON object"), nil
+	}
+	if res, ok := panelStaysPanel(run, head.Type); !ok {
+		return res, nil
 	}
 	if len(raw) > spec.MaxSuggestedPanelBytes {
 		return toolError(codeTooLarge, fmt.Sprintf("the panel is %d bytes, over the %d byte limit", len(raw), spec.MaxSuggestedPanelBytes)), nil
@@ -54,7 +64,7 @@ func (r *Registry) suggestPanel(ctx context.Context, principal auth.Principal, r
 	if issues := spec.NULIssues(canonical); len(issues) > 0 {
 		return suggestionRejected(issues), nil
 	}
-	if entry.Panel.Type.IsData() {
+	if head.Type.IsData() {
 		issues, err := r.deps.Runner.CheckPanels(ctx, candidate, time.Now(), queryproxy.UserFor(principal), []string{run.PanelID})
 		if err != nil {
 			return Result{}, err
@@ -70,6 +80,13 @@ func (r *Registry) suggestPanel(ctx context.Context, principal auth.Principal, r
 		}
 	}
 	return success("Proposed a change to panel "+clip(run.PanelID, maxStepNameBytes), suggestedOut{Suggested: true, PanelID: run.PanelID, Panel: raw}), nil
+}
+
+func panelStaysPanel(run Run, t spec.PanelType) (Result, bool) {
+	if t == spec.Row {
+		return invalid("panel %q must stay a panel, not a row", run.PanelID), false
+	}
+	return Result{}, true
 }
 
 func (r *Registry) blockingSuggestionIssues(ctx context.Context, run Run, candidate *spec.Dashboard, issues []spec.Issue) ([]spec.Issue, error) {

@@ -17,6 +17,7 @@ import {
   uniqueTitle,
 } from "./api"
 import {
+  expectNoAnimations,
   expectPanelsReady,
   openDashboard,
   panel,
@@ -169,7 +170,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         entry.getByText("commented on", { exact: true })
       ).toBeVisible()
       await expect(entry.getByRole("button", { name: rpsTitle })).toBeVisible()
-      await expect(entry.getByText("Comment", { exact: true })).toBeVisible()
+      await expect(entry.getByText("Open", { exact: true })).toBeVisible()
       await expect(composerBox(page)).toHaveValue("")
       await expect(composerBox(page)).toBeFocused()
       await expect(
@@ -263,7 +264,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       ).toBeVisible()
 
       await entry.getByRole("button", { name: "Reopen", exact: true }).click()
-      await expect(entry.getByText("Comment", { exact: true })).toBeVisible()
+      await expect(entry.getByText("Open", { exact: true })).toBeVisible()
       await expect(entry.getByText(/^Resolved by/)).toHaveCount(0)
       await expect(
         page.getByRole("button", { name: "Activity, 1 open comment" })
@@ -413,9 +414,9 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(running).toHaveCount(1)
 
         finish()
-        await expect(entry.getByText("Resolved by version 2")).toBeVisible({
-          timeout: agentTimeout,
-        })
+        const saved = entry.getByRole("link", { name: "Saved as version 2" })
+        await expect(saved).toBeVisible({ timeout: agentTimeout })
+        await expect(saved).toHaveAttribute("href", /versions\?from=1&to=2/)
         await expect(running).toHaveCount(0)
         const version = entries(page).filter({
           has: page.getByText("Version 2", { exact: true }),
@@ -446,12 +447,12 @@ for (const colorScheme of ["light", "dark"] as const) {
 
         await expect(form).toHaveCount(0)
         await expect(thread.getByText("Sent to the agent")).toBeVisible()
-        await expect(promptEntries).toHaveCount(1)
 
         finish()
         await expect(thread.getByText("Resolved by version 2")).toBeVisible({
           timeout: agentTimeout,
         })
+        await thread.getByRole("button", { name: "Show thread" }).click()
         await expect(promptEntries).toHaveCount(1)
         await expect(
           entryWith(page, p99Prompt).filter({
@@ -471,10 +472,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         const details = card(page).getByRole("link", {
           name: /Details of the running agent request/,
         })
-        await expect(details).toHaveAttribute(
-          "href",
-          /\/observe\/[0-9a-f-]{36}$/
-        )
+        await expect(details).toHaveAttribute("href", /\/c\/[0-9a-f-]{36}$/)
 
         finish()
         const entry = entryWith(page, unanswerablePrompt)
@@ -641,20 +639,14 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(
         page.getByRole("separator", { name: "Resize panel" })
       ).toHaveCount(0)
+      await expect(card(page)).toHaveCSS("position", "fixed")
+      await expectNoAnimations(card(page))
       const box = await card(page).boundingBox()
-      expect(box?.x ?? 0).toBeGreaterThanOrEqual(0)
+      expect(box?.x ?? -1).toBeGreaterThanOrEqual(0)
       expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390)
       expect(box?.width ?? 0).toBeGreaterThan(340)
-      const below = await page.evaluate(() => {
-        const aside = document.querySelector("aside")
-        const main = document.querySelector("main")
-        if (!aside || !main) return false
-        return (
-          aside.getBoundingClientRect().top >=
-          main.getBoundingClientRect().bottom - 1
-        )
-      })
-      expect(below).toBe(true)
+      expect(box?.y ?? -1).toBeGreaterThanOrEqual(0)
+      expect((box?.y ?? 0) + (box?.height ?? 0)).toBeCloseTo(844, 0)
       const overflow = await page.evaluate(
         () =>
           document.documentElement.scrollWidth -
@@ -696,7 +688,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         ""
       )
 
-      await page.goto(`/dashboards/${id}?panel=rps&tab=query`)
+      await page.goto(`/d/${id}?panel=rps&tab=query`)
       const editor = page.getByRole("complementary", {
         name: `Edit ${rpsTitle}`,
       })

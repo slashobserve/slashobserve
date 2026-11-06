@@ -34,6 +34,10 @@ export function rowHeightOf(display: Record<string, unknown>): RowHeight {
   return rowHeights.find((height) => height === cellHeight) ?? "sm"
 }
 
+export function rowHeightPx(height: RowHeight): number {
+  return rowPx[height]
+}
+
 export function rowSizing(
   display: Record<string, unknown>,
   dynamicHeight: boolean

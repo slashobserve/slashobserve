@@ -1,5 +1,6 @@
 -- name: FolderFacts :many
-SELECT f.id, f.title, f.general,
+SELECT f.id, f.title, f.general, f.personal,
+  coalesce(f.owner_id = sqlc.narg('user_id')::uuid, false)::boolean AS owner,
   EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id) AS restricted,
   ARRAY(
     SELECT p.level FROM folder_permissions p
@@ -7,16 +8,11 @@ SELECT f.id, f.title, f.general,
   )::text[] AS grants,
   coalesce(f.created_by_kind = @kind::text AND f.created_by_id = @principal_id::uuid, false)::boolean AS creator
 FROM folders f
-ORDER BY f.general, lower(f.title), f.id;
+WHERE NOT f.personal OR f.owner_id = sqlc.narg('user_id')::uuid
+ORDER BY NOT f.personal, f.general, lower(f.title), f.id;
 
 -- name: DashboardFolder :one
 SELECT folder_id FROM dashboards WHERE id = @id;
-
--- name: LastCreatedFolder :one
-SELECT folder_id FROM dashboards
-WHERE created_by_kind = @kind AND created_by_id = @id
-ORDER BY created_at DESC, id DESC
-LIMIT 1;
 
 -- name: ListFolderDetails :many
 SELECT f.id, f.title, f.general, f.created_by_kind, f.created_by_id, f.created_by_name,
@@ -36,7 +32,7 @@ SELECT f.id, f.title, f.general, f.created_by_kind, f.created_by_id, f.created_b
   )::text[] AS grantees
 FROM folders f
 WHERE f.id = ANY(@ids::uuid[])
-ORDER BY f.general, lower(f.title), f.id;
+ORDER BY NOT f.personal, f.general, lower(f.title), f.id;
 
 -- name: GetFolder :one
 SELECT * FROM folders WHERE id = @id;
@@ -51,7 +47,7 @@ RETURNING *;
 
 -- name: RenameFolder :one
 UPDATE folders SET title = @title, updated_at = now()
-WHERE id = @id AND NOT general
+WHERE id = @id AND NOT general AND NOT personal
 RETURNING *;
 
 -- name: DeleteFolderIfEmpty :execrows
@@ -85,4 +81,4 @@ VALUES (@folder_id, sqlc.narg('user_id'), sqlc.narg('group_name'), @level, sqlc.
 SELECT id FROM users WHERE lower(email) = lower(@email::text);
 
 -- name: FolderByTitle :one
-SELECT id FROM folders WHERE lower(title) = lower(@title);
+SELECT id FROM folders WHERE lower(title) = lower(@title) AND NOT personal;

@@ -77,6 +77,7 @@ type importJSON struct {
 	Summary         grafana.Summary            `json:"summary"`
 	Datasources     []grafana.SourceDatasource `json:"datasources"`
 	Report          grafana.Report             `json:"report"`
+	GrafanaUID      string                     `json:"grafana_uid"`
 	CreatedBy       authorJSON                 `json:"created_by"`
 	CreatedAt       string                     `json:"created_at"`
 }
@@ -121,6 +122,7 @@ func newImportJSON(r Record) importJSON {
 		Summary:         r.Summary,
 		Datasources:     r.Datasources,
 		Report:          r.Report,
+		GrafanaUID:      r.GrafanaUID,
 		CreatedBy:       authorJSON(r.CreatedBy),
 		CreatedAt:       httpapi.FormatTime(r.CreatedAt),
 	}

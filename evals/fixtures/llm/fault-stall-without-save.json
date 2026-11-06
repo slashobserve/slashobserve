@@ -1,0 +1,88 @@
+{
+  "prompt": "eval fault: the model keeps reading and never saves",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "lint_query",
+          "input": {
+            "datasource": "prom",
+            "query": "up"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "lint_query",
+          "input": {
+            "datasource": "prom",
+            "query": "node_load1"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "lint_query",
+          "input": {
+            "datasource": "prom",
+            "query": "node_load5"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "lint_query",
+          "input": {
+            "datasource": "prom",
+            "query": "node_load15"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "lint_query",
+          "input": {
+            "datasource": "prom",
+            "query": "node_memory_MemTotal_bytes"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "lint_query",
+          "input": {
+            "datasource": "prom",
+            "query": "node_memory_MemFree_bytes"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "lint_query",
+          "input": {
+            "datasource": "prom",
+            "query": "node_memory_Buffers_bytes"
+          }
+        }
+      ],
+      "expect": [
+        {
+          "is_error": true,
+          "contains": "only a save can run now"
+        }
+      ]
+    }
+  ]
+}

@@ -13,7 +13,9 @@ These all save a version:
   Both ask for a short summary.
 - A change to the title, description or tags with **Edit details** in the **More** menu.
   It asks for no summary and writes `Rename to "<title>"` when only the title changed and "Edit dashboard details" otherwise.
-- The agent revising a dashboard, and `update_dashboard` from an MCP client.
+- The agent creating or revising a dashboard: one version per request, saved when the agent finishes, so the rows it builds along the way never appear in the history.
+  Saving what a stopped run built is one version too.
+- `update_panels` or `update_dashboard` from an MCP client, one version per accepted save.
 - `POST /api/v1/dashboards/{id}/versions` over the API.
 - A restore of an older version.
 

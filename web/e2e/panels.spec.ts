@@ -7,7 +7,7 @@ import {
   panel,
   panelDataResponse,
 } from "./dashboards"
-import { chunkFailureLogged, expect, test } from "./fixtures"
+import { chunkFailureLogged, expect, switchTheme, test } from "./fixtures"
 
 const rpsTitle = "Checkout requests per second"
 
@@ -142,15 +142,23 @@ test("shows the hovered time on other charts only in a shared cursor mode", asyn
 
   await openDashboard(page, id, "?cursor=crosshair")
   await expectPanelsReady(page)
-  await hovered().locator(".u-over").hover()
-  await expect.poll(() => cursorLineShown(other())).toBe(true)
+  let step = 0
+  await expect
+    .poll(async () => {
+      step += 1
+      await hovered()
+        .locator(".u-over")
+        .hover({ position: { x: 40 + (step % 2) * 20, y: 40 } })
+      return cursorLineShown(other())
+    })
+    .toBe(true)
 })
 
 test("keeps the tooltip inside a short panel with many series", async ({
   page,
   request,
 }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize({ width: 1280, height: 800 })
   const spec = loadSpec("overview")
   spec.title = uniqueTitle("E2E many series")
   spec.variables = []
@@ -201,6 +209,7 @@ test("zooms by dragging", async ({ page, request }) => {
   await expectPanelsReady(page)
 
   const over = panel(page, rpsTitle).locator(".u-over")
+  await over.scrollIntoViewIfNeeded()
   const box = await over.boundingBox()
   expect(box).not.toBeNull()
   const { x, y, width, height } = box!
@@ -270,7 +279,7 @@ test("renders in dark mode without leaking canvases", async ({
 
   const rps = panel(page, rpsTitle)
   for (const choice of ["Dark", "Light", "Dark", "Light", "Dark"]) {
-    await page.getByRole("button", { name: "Switch theme" }).click()
+    await switchTheme(page)
     if (choice === "Dark") {
       await expect(page.locator("html")).toHaveClass(/\bdark\b/)
     } else {

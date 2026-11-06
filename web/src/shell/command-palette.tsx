@@ -11,19 +11,24 @@ import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import {
   ArrowUpRightIcon,
+  ChartGanttIcon,
   DatabaseIcon,
+  HeartPulseIcon,
   KeyIcon,
   LayoutDashboardIcon,
+  LogsIcon,
   Loader2Icon,
   LogOutIcon,
   SearchIcon,
   SettingsIcon,
+  SunMoonIcon,
   TerminalIcon,
   UsersIcon,
   type LucideIcon,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { dashboardLink, dashboardPath } from "@/lib/links"
 import { isModChord } from "@/lib/shortcuts"
 
 import type { NavPath } from "./nav"
@@ -34,11 +39,15 @@ import {
 } from "./palette-items"
 import { dashboardTitlesQuery } from "./palette-queries"
 import { usePaletteStore } from "./palette-store"
+import { useToggleTheme } from "./theme-switch"
 import { useSignOut } from "./use-sign-out"
 
 const pageIcons: Record<NavPath, LucideIcon> = {
   "/": TerminalIcon,
   "/dashboards": LayoutDashboardIcon,
+  "/health": HeartPulseIcon,
+  "/logs": LogsIcon,
+  "/traces": ChartGanttIcon,
   "/datasources": DatabaseIcon,
   "/keys": KeyIcon,
   "/people": UsersIcon,
@@ -53,9 +62,8 @@ function EntryIcon({ entry }: { entry: PaletteEntry }) {
     return <Icon aria-hidden="true" className={iconClass} strokeWidth={1.8} />
   }
   if (entry.kind === "action") {
-    return (
-      <LogOutIcon aria-hidden="true" className={iconClass} strokeWidth={1.8} />
-    )
+    const Icon = entry.id === "action:theme" ? SunMoonIcon : LogOutIcon
+    return <Icon aria-hidden="true" className={iconClass} strokeWidth={1.8} />
   }
   return (
     <LayoutDashboardIcon
@@ -71,6 +79,7 @@ function PaletteBody({ close }: { close: () => void }) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const [query, setQuery] = useState("")
   const { signOut } = useSignOut()
+  const toggleTheme = useToggleTheme()
   const titles = useQuery(dashboardTitlesQuery())
   const groups = filterPalette(query, titles.data ?? [], principal.role)
 
@@ -78,7 +87,7 @@ function PaletteBody({ close }: { close: () => void }) {
 
   function openInNewTab(entry: DashboardEntry) {
     close()
-    window.open(`/dashboards/${entry.id}`, "_blank", "noopener")
+    window.open(dashboardPath(entry.id, entry.label), "_blank", "noopener")
   }
 
   function select(entry: PaletteEntry, event: ReactMouseEvent) {
@@ -90,10 +99,9 @@ function PaletteBody({ close }: { close: () => void }) {
     if (entry.kind === "page") {
       void navigate({ to: entry.to })
     } else if (entry.kind === "dashboard") {
-      void navigate({
-        to: "/dashboards/$dashboardId",
-        params: { dashboardId: entry.id },
-      })
+      void navigate(dashboardLink(entry.id, entry.label))
+    } else if (entry.id === "action:theme") {
+      toggleTheme()
     } else {
       void signOut()
     }

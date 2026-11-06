@@ -145,7 +145,7 @@ func TestReportedEffortIsOnlyAnAnthropicSetting(t *testing.T) {
 		want     string
 	}{
 		{config.LLMProviderAnthropic, "high", "high"},
-		{config.LLMProviderAnthropic, "", ""},
+		{config.LLMProviderAnthropic, "", "medium"},
 		{config.LLMProviderOpenAI, "medium", ""},
 		{config.LLMProviderReplay, "medium", ""},
 		{"", "medium", ""},

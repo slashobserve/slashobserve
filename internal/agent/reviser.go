@@ -10,7 +10,9 @@ import (
 )
 
 const (
-	messageModelCall     = "model call failed"
+	messageCallTimeout   = "the model did not answer in time"
+	messageRateLimited   = "the model provider is rate limiting requests"
+	messageProviderError = "the model provider returned an error"
 	messageRunFailed     = "the agent run failed"
 	messageDashboardGone = "the dashboard no longer exists"
 )
@@ -25,12 +27,7 @@ func NewReviser(a *Agent, steps revisions.StepRecorder) *Reviser {
 }
 
 func (r *Reviser) Revise(ctx context.Context, req revisions.Request) (revisions.Result, error) {
-	task := Task{Prompt: req.Prompt, RequestID: req.ID, DashboardID: req.DashboardID, PanelID: req.PanelID, Source: req.Source, Principal: req.RequestedBy}
-	if req.Source == revisions.SourceSuggest {
-		task.Suggest = true
-		task.BaseVersion = req.BaseVersion
-		task.Draft = req.Draft
-	}
+	task := taskFor(req)
 	if r.steps != nil {
 		task.Progress = func(s Step) {
 			r.steps.RecordStep(context.WithoutCancel(ctx), req, revisions.Step{
@@ -39,8 +36,8 @@ func (r *Reviser) Revise(ctx context.Context, req revisions.Request) (revisions.
 		}
 	}
 	out, err := r.agent.Run(ctx, task)
-	result := revisions.Result{Version: out.Version, Suggestion: out.Suggestion}
-	if out.Usage.Calls > 0 {
+	result := revisions.Result{Version: out.Version, Suggestion: out.Suggestion, FindingID: out.FindingID}
+	if out.Usage.Calls > 0 || out.FailedCalls > 0 {
 		result.Usage = &revisions.Usage{
 			Provider:         out.Provider,
 			Model:            out.Model,
@@ -50,12 +47,44 @@ func (r *Reviser) Revise(ctx context.Context, req revisions.Request) (revisions.
 			CacheWriteTokens: out.Usage.CacheWriteTokens,
 			ModelCalls:       out.Usage.Calls,
 			RepairRounds:     out.RepairRounds,
+			BuildSaves:       out.BuildSaves,
+			Renewals:         out.Renewals,
+			Compactions:      out.Compactions,
+			Nudges:           out.Nudges,
+			SaveNowRefusals:  out.SaveNowRefusals,
+			StalledTurns:     out.StalledTurns,
+			OnePanelRefusals: out.OnePanelRefusals,
+
+			ToolCalls:           out.ToolCalls,
+			FailedCalls:         out.FailedCalls,
+			Retries:             out.Retries,
+			ModelMS:             out.ModelTime.Milliseconds(),
+			ToolMS:              out.ToolTime.Milliseconds(),
+			MaxSaveOutputTokens: out.MaxSaveOutputTokens,
 		}
 	}
 	if err != nil {
+		result.FailureCode = failureCode(err)
+		if errors.Is(err, dashboards.ErrBuildLost) {
+			return result, revisions.ErrLeaseLost
+		}
 		return result, storedError(err)
 	}
 	return result, nil
+}
+
+func taskFor(req revisions.Request) Task {
+	task := Task{
+		Prompt: req.Prompt, RequestID: req.ID, Attempt: req.Attempt, Continues: req.Continues, ContinueNote: req.ContinueNote,
+		DashboardID: req.DashboardID, PanelID: req.PanelID, Source: req.Source, Principal: req.RequestedBy,
+		Investigate: req.Source == revisions.SourceInvestigate, From: req.From, To: req.To,
+	}
+	if req.Source == revisions.SourceSuggest {
+		task.Suggest = true
+		task.BaseVersion = req.BaseVersion
+		task.Draft = req.Draft
+	}
+	return task
 }
 
 type fixedContextError struct {
@@ -81,20 +110,33 @@ func storedError(err error) error {
 func storedMessage(err error) string {
 	var safe *safeError
 	switch {
-	case errors.Is(err, ErrNoSave), errors.Is(err, ErrRepairExhausted), errors.Is(err, ErrTurnLimit), errors.Is(err, ErrRefused),
-		errors.Is(err, ErrConflict), errors.Is(err, ErrInvalidTask), errors.Is(err, ErrTooLarge), errors.Is(err, llm.ErrNoFixture),
-		errors.Is(err, ErrNoSuggestion), errors.Is(err, ErrDraftInvalid):
+	case errors.Is(err, ErrNoSave), errors.Is(err, ErrRepairExhausted), errors.Is(err, ErrRefused),
+		errors.Is(err, ErrConflict), errors.Is(err, ErrInvalidTask), errors.Is(err, llm.ErrNoFixture),
+		errors.Is(err, ErrNoSuggestion), errors.Is(err, ErrDraftInvalid), errors.Is(err, ErrNoProgress), errors.Is(err, ErrNoFinding):
 		return err.Error()
 	case errors.Is(err, dashboards.ErrNotFound):
 		return messageDashboardGone
 	case errors.As(err, &safe):
 		return safe.message
 	case errors.Is(err, errModelCall):
-		return messageModelCall
+		return modelCallMessage(err)
 	case errors.Is(err, context.Canceled):
 		return context.Canceled.Error()
 	case errors.Is(err, context.DeadlineExceeded):
 		return context.DeadlineExceeded.Error()
 	}
 	return messageRunFailed
+}
+
+func modelCallMessage(err error) string {
+	var callErr *llm.CallError
+	if errors.As(err, &callErr) {
+		switch callErr.Failure {
+		case llm.CallTimeout:
+			return messageCallTimeout
+		case llm.RateLimited:
+			return messageRateLimited
+		}
+	}
+	return messageProviderError
 }
