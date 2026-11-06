@@ -36,7 +36,6 @@ import { ActionProvider } from "@/panels/actions/action-context"
 import { createSharedCursor, type CursorSync } from "@/panels/shared-cursor"
 import { ShareToggle } from "@/share/share-pane"
 import { Sidebar } from "@/shell/sidebar"
-import { ThemeSwitch } from "@/shell/theme-switch"
 import { ShortcutsDialog } from "@/shortcuts/shortcuts-dialog"
 import {
   shortcutPanelId,
@@ -618,7 +617,6 @@ function DashboardView({
     </div>,
   ]
   const actions: ReactNode[] = [
-    <ThemeSwitch key="theme" />,
     <MoreMenu
       key="more"
       mayEdit={permissions.edit}

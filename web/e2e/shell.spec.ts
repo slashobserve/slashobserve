@@ -280,7 +280,7 @@ test("keeps the top row in view when a mid-width page scrolls", async ({
     page.getByRole("navigation", { name: "Breadcrumb" })
   ).toBeInViewport()
   await expect(
-    page.getByRole("button", { name: "Switch theme" })
+    page.getByRole("button", { name: "Search or jump to" })
   ).toBeInViewport()
   const state = await page.evaluate(() => ({
     documentFits:

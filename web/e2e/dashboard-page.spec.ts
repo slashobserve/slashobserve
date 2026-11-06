@@ -298,17 +298,13 @@ test("fits a phone", async ({ page, request }) => {
   expect(trigger!.x + trigger!.width).toBeLessThanOrEqual(390)
 
   await expect(moreButton(page)).toHaveCount(0)
-  await expect(page.getByRole("button", { name: "Switch theme" })).toHaveCount(
-    0
-  )
+  await expect(page.getByLabel("Switch theme")).toHaveCount(0)
 
   await controls.click()
   const sheet = page.getByRole("dialog", { name: "Controls" })
   await expect(sheet).toBeVisible()
   await expect(moreButton(sheet)).toBeVisible()
-  await expect(
-    sheet.getByRole("button", { name: "Switch theme" })
-  ).toBeVisible()
+  await expect(page.getByLabel("Switch theme")).toHaveCount(0)
   expect(await noDocumentOverflow(page)).toBe(true)
 })
 

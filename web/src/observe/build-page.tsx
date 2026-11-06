@@ -18,7 +18,6 @@ import { useVariables } from "@/dashboards/use-variables"
 import { useDocumentTitle } from "@/lib/document-title"
 import { createSharedCursor } from "@/panels/shared-cursor"
 import { Sidebar } from "@/shell/sidebar"
-import { ThemeSwitch } from "@/shell/theme-switch"
 import { isDataPanel, sourcePanelOf, type Dashboard } from "@/spec"
 import { dashboardLink } from "@/lib/links"
 
@@ -211,7 +210,7 @@ export function BuildPage({ requestId }: { requestId: string }) {
       versionControl={null}
       controls={[]}
       editing={null}
-      actions={[<ThemeSwitch key="theme" />]}
+      actions={[]}
     />
   )
 

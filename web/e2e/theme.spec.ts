@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures"
+import { expect, switchTheme, test } from "./fixtures"
 
 test("follows the system theme by default", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" })
@@ -18,7 +18,7 @@ test("switches and remembers light and dark", async ({ page }) => {
     page.evaluate(() => document.documentElement.classList.contains("dark"))
   const lightBackground = await background()
 
-  await page.getByRole("button", { name: "Switch theme" }).click()
+  await switchTheme(page)
   await expect(page.locator("html")).toHaveClass(/\bdark\b/)
   expect(await background()).not.toBe(lightBackground)
 
@@ -26,12 +26,12 @@ test("switches and remembers light and dark", async ({ page }) => {
   expect(await isDark()).toBe(true)
   await expect(page.locator("html")).toHaveClass(/\bdark\b/)
 
-  await page.getByRole("button", { name: "Switch theme" }).click()
+  await switchTheme(page)
   await expect(page.locator("html")).not.toHaveClass(/\bdark\b/)
 
   await page.reload({ waitUntil: "domcontentloaded" })
   expect(await isDark()).toBe(false)
-  await expect(page.getByRole("button", { name: "Switch theme" })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^Account: / })).toBeVisible()
   await expect(page.locator("html")).not.toHaveClass(/\bdark\b/)
 })
 
@@ -85,11 +85,16 @@ test("keeps plain search parameters", async ({ page }) => {
 test("switches the theme from the keyboard", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" })
   await page.goto("/")
-  const toggle = page.getByRole("button", { name: "Switch theme" })
-  await toggle.focus()
+  const account = page.getByRole("button", { name: /^Account: / })
+  await account.focus()
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("menuitem", { name: "Theme" })).toBeFocused()
+  await page.keyboard.press("ArrowRight")
+  await expect(page.getByRole("menuitemradio", { name: "Light" })).toBeFocused()
+  await page.keyboard.press("ArrowDown")
   await page.keyboard.press("Enter")
   await expect(page.locator("html")).toHaveClass(/\bdark\b/)
-  await expect(toggle).toBeFocused()
+  await expect(account).toBeFocused()
 })
 
 test("matches the system theme from Settings", async ({ page }) => {
@@ -114,6 +119,6 @@ test("matches the system theme from Settings", async ({ page }) => {
   await expect(html).toHaveClass(/\bdark\b/)
   expect(await stored()).toBeNull()
 
-  await page.getByRole("button", { name: "Switch theme" }).click()
+  await switchTheme(page)
   await expect(html).not.toHaveClass(/\bdark\b/)
 })
