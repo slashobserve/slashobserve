@@ -52,7 +52,7 @@ Its dashboard, panel data and variable requests all go to `/api/v1/public/`, so 
 The dashboard list, news and geomap panels need the signed-in app, so they show "Not available on a public link" instead.
 Remote images in text and canvas panels load through the signed-in assets route, so they do not show on a public view.
 Panel data goes through the same query proxy as the app, which runs only the dashboard's saved queries, and each link may have 8 requests in flight.
-An address that is unknown, revoked or expired reads "This link does not work. It may have expired or been revoked."
+An address that is unknown, revoked or expired reads "This link has expired or was turned off."
 
 ## API
 

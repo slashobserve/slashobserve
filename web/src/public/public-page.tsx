@@ -147,14 +147,10 @@ export function PublicPage({
     <DatasourceListProvider value={dashboard.datasources}>
       <div className="flex min-h-svh flex-col bg-background text-foreground">
         <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-3 pr-2.5 pb-2.5 pl-4">
-          <div className="flex min-w-0 items-center gap-2 text-[13px]">
-            <Wordmark />
-            <span aria-hidden="true" className="text-muted-foreground">
-              /
-            </span>
-            <h1 className="truncate font-medium">{dashboard.title}</h1>
-          </div>
-          <div className="flex items-center gap-1.5">
+          <h1 className="min-w-0 truncate text-[13px] font-medium">
+            {dashboard.title}
+          </h1>
+          <div className="flex flex-wrap items-center gap-1.5">
             {pickerHidden ? null : (
               <TimeRangeControl
                 value={{ from: effectiveFrom, to: effectiveTo }}
@@ -189,6 +185,14 @@ export function PublicPage({
               />
             )}
             <ThemeSwitch />
+            <a
+              href="https://slashobserve.com"
+              target="_blank"
+              rel="noopener"
+              className="ml-1.5 rounded-sm text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Made with SlashObserve
+            </a>
           </div>
         </header>
         <VariablesBar
@@ -293,7 +297,7 @@ export function PublicLinkUnavailable() {
     <main className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
       <Wordmark />
       <p className="text-sm text-muted-foreground">
-        This link does not work. It may have expired or been revoked.
+        This link has expired or was turned off.
       </p>
     </main>
   )

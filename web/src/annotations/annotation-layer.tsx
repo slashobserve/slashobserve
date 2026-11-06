@@ -6,6 +6,7 @@ import {
   type KeyboardEvent,
   type PointerEvent,
 } from "react"
+import { ArrowUpRightIcon } from "lucide-react"
 
 import { zonedDateTime } from "@/lib/time"
 
@@ -23,6 +24,7 @@ const flagHeight = 8
 const cardWidth = 280
 const labelTextLength = 80
 const maxCardEntries = 5
+const textLinkClass = "font-medium hover:text-muted-foreground"
 
 type LayerProps = {
   annotations: readonly Annotation[]
@@ -196,12 +198,19 @@ function Entry({
   const parts = linkParts(annotation.text, window.location.origin)
   return (
     <div className="flex flex-col gap-1">
-      <p className="break-words whitespace-pre-wrap">
+      <div className="text-muted-foreground tabular-nums">
+        {timeText(annotation, zone)}
+      </div>
+      <div className="text-muted-foreground">
+        {annotation.created_by_name ?? "Unknown"}
+        {annotation.dashboard_id === null ? " · Every dashboard" : null}
+      </div>
+      <p className="text-[13px] break-words whitespace-pre-wrap">
         {parts.map((part, i) =>
           part.href === undefined ? (
             <span key={i}>{part.text}</span>
           ) : part.href.startsWith("/") ? (
-            <a key={i} href={part.href} className="underline">
+            <a key={i} href={part.href} className={textLinkClass}>
               {part.text}
             </a>
           ) : (
@@ -210,9 +219,13 @@ function Entry({
               href={part.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="underline"
+              className={textLinkClass}
             >
               {part.text}
+              <ArrowUpRightIcon
+                aria-hidden="true"
+                className="ml-0.5 inline size-3"
+              />
             </a>
           )
         )}
@@ -229,12 +242,6 @@ function Entry({
           ))}
         </div>
       ) : null}
-      <div className="text-muted-foreground">
-        {annotation.created_by_name ?? "Unknown"}
-        {" · "}
-        <span className="tabular-nums">{timeText(annotation, zone)}</span>
-        {annotation.dashboard_id === null ? " · Every dashboard" : null}
-      </div>
     </div>
   )
 }

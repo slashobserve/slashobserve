@@ -83,28 +83,44 @@ function MakeDashboardAction({ finding }: { finding: Finding }) {
   )
 }
 
+const variants = {
+  card: {
+    frame: "gap-3 rounded-card border px-3.5 py-3",
+    text: "text-sm leading-normal",
+    grid: "@[640px]:grid-cols-2",
+  },
+  page: {
+    frame: "gap-4",
+    text: "max-w-[680px] text-[15px] leading-relaxed",
+    grid: "@[760px]:grid-cols-2",
+  },
+}
+
+type FindingVariant = keyof typeof variants
+
 export function FindingCard({
   finding,
   showOpenLink,
+  variant = "card",
 }: {
   finding: Finding
   showOpenLink: boolean
+  variant?: FindingVariant
 }) {
   const panels = useMemo(() => evidencePanels(finding), [finding])
+  const layout = variants[variant]
   return (
-    <div className="flex flex-col gap-3 rounded-card border px-3.5 py-3">
-      <Suspense
-        fallback={
-          <p className="text-sm leading-[1.55] whitespace-pre-wrap">
-            {finding.markdown}
-          </p>
-        }
-      >
-        <FindingMarkdown markdown={finding.markdown} />
-      </Suspense>
+    <div className={cn("flex flex-col", layout.frame)}>
+      <div className={layout.text}>
+        <Suspense
+          fallback={<p className="whitespace-pre-wrap">{finding.markdown}</p>}
+        >
+          <FindingMarkdown markdown={finding.markdown} />
+        </Suspense>
+      </div>
       {panels.length > 0 ? (
         <div className="@container">
-          <div className="grid grid-cols-1 gap-2.5 @[640px]:grid-cols-2">
+          <div className={cn("grid grid-cols-1 gap-2.5", layout.grid)}>
             {panels.map((panel) => (
               <EvidencePanel
                 key={panel.id}
@@ -119,8 +135,14 @@ export function FindingCard({
         </div>
       ) : null}
       <p className="text-xs text-muted-foreground">
-        Found <RelativeTime iso={finding.created_at} />,{" "}
-        {describeRange(finding.from, finding.to)}
+        {variant === "page" ? (
+          `Evidence from ${describeRange(finding.from, finding.to)}.`
+        ) : (
+          <>
+            Found <RelativeTime iso={finding.created_at} />,{" "}
+            {describeRange(finding.from, finding.to)}
+          </>
+        )}
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <PinAction finding={finding} />

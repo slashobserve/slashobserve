@@ -81,7 +81,7 @@ function LoadedFinding({ finding }: { finding: Finding }) {
           </>
         }
       />
-      <FindingCard finding={finding} showOpenLink={false} />
+      <FindingCard finding={finding} showOpenLink={false} variant="page" />
     </>
   )
 }
