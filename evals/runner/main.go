@@ -57,6 +57,8 @@ const (
 	defaultStackScript = "scripts/evals-stack.sh"
 
 	replayTokenCap = 16000
+
+	maxRepeat = 20
 )
 
 type options struct {
@@ -66,6 +68,7 @@ type options struct {
 	ids, tags          listFlag
 	list               bool
 	parallel           int
+	repeat             int
 	timeout            time.Duration
 	out, markdown      string
 	compare            string
@@ -106,6 +109,7 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs.Var(&o.tags, "tag", "run only scenarios with this tag (repeatable)")
 	fs.BoolVar(&o.list, "list", false, "print the selected scenarios and exit")
 	fs.IntVar(&o.parallel, "parallel", 2, "scenarios to run at a time, at most 3 (the server's per-key limit of active observe requests)")
+	fs.IntVar(&o.repeat, "repeat", 1, fmt.Sprintf("run each selected scenario this many times, 1 to %d; runs of one scenario never overlap and each is its own result", maxRepeat))
 	fs.DurationVar(&o.timeout, "timeout", defaultTimeout, "how long to wait for one agent request; at least the server's run limit plus a margin, so the server reports its own failure code")
 	fs.StringVar(&o.out, "out", "", "write the JSON report to this file, or with --matrix to this directory")
 	fs.StringVar(&o.markdown, "markdown", "", "write the Markdown report to this file")
@@ -155,6 +159,8 @@ func validateLimits(o options) error {
 	switch {
 	case o.parallel < 1 || o.parallel > maxPerPrincipal:
 		return fmt.Errorf("--parallel must be between 1 and %d, the server's limit of queued or running observe requests per key", maxPerPrincipal)
+	case o.repeat < 1 || o.repeat > maxRepeat:
+		return fmt.Errorf("--repeat must be between 1 and %d", maxRepeat)
 	case o.minPass < 0 || o.minPass > 1:
 		return errors.New("--min-pass must be between 0 and 1")
 	case o.minQuality < 0 || o.minQuality > 1:
@@ -436,7 +442,7 @@ func runSuite(ctx context.Context, c *client, pricing Pricing, selected []Scenar
 	for _, model := range report.Aggregates.Cost.UnpricedModels {
 		_, _ = fmt.Fprintf(stderr, "pricing: cost unknown for model %s, left blank\n", model)
 	}
-	return report, evaluateGates(report.Aggregates, gateLimits{minPass: o.minPass, minQuality: o.minQuality, minDoneWhen: o.minDoneWhen, doneWhen: doneWhen}), nil
+	return report, evaluateGates(report.Aggregates, gateLimits{minPass: o.minPass, minQuality: o.minQuality, minDoneWhen: o.minDoneWhen, doneWhen: doneWhen, repeat: o.repeat}), nil
 }
 
 func fail(stderr io.Writer, err error) int {
@@ -491,41 +497,59 @@ func prepare(args []string, stderr io.Writer) int {
 }
 
 func runAll(ctx context.Context, c *client, pricing Pricing, scenarios []Scenario, o options, stderr io.Writer) []Result {
-	results := make([]Result, len(scenarios))
+	repeat := max(1, o.repeat)
+	results := make([]Result, len(scenarios)*repeat)
+	previous := make([]chan struct{}, len(scenarios))
 	slots := make(chan struct{}, o.parallel)
 	var wg sync.WaitGroup
 	var logMu sync.Mutex
-	for i, sc := range scenarios {
-		wg.Add(1)
-		slots <- struct{}{}
-		go func() {
-			defer wg.Done()
-			defer func() { <-slots }()
-			var abandoned *AgentRequest
-			results[i], abandoned = runScenario(ctx, c, pricing, sc, o)
-			logMu.Lock()
-			verdict := "PASS"
-			switch {
-			case results[i].Skipped:
-				verdict = "SKIP"
-			case !results[i].Passed:
-				verdict = "FAIL"
+	for round := range repeat {
+		for i, sc := range scenarios {
+			if previous[i] != nil {
+				<-previous[i]
 			}
-			_, _ = fmt.Fprintf(stderr, "%s  %s\n", verdict, sc.ID)
-			logMu.Unlock()
-			if abandoned != nil {
+			done := make(chan struct{})
+			previous[i] = done
+			wg.Add(1)
+			slots <- struct{}{}
+			go func() {
+				defer close(done)
+				defer wg.Done()
+				defer func() { <-slots }()
+				res, abandoned := runScenario(ctx, c, pricing, sc, o)
+				label := sc.ID
+				if repeat > 1 {
+					res.Run = round + 1
+					label = fmt.Sprintf("%s (run %d of %d)", sc.ID, res.Run, repeat)
+				}
+				results[i*repeat+round] = res
 				logMu.Lock()
-				_, _ = fmt.Fprintf(stderr, "draining %s (up to %s)\n", abandoned.ID, graceLabel(c.grace))
+				_, _ = fmt.Fprintf(stderr, "%s  %s\n", verdictWord(res), label)
 				logMu.Unlock()
-				drained := c.drain(ctx, *abandoned)
-				logMu.Lock()
-				_, _ = fmt.Fprintf(stderr, "drained %s: %s\n", drained.ID, drainedOutcome(drained))
-				logMu.Unlock()
-			}
-		}()
+				if abandoned != nil {
+					logMu.Lock()
+					_, _ = fmt.Fprintf(stderr, "draining %s (up to %s)\n", abandoned.ID, graceLabel(c.grace))
+					logMu.Unlock()
+					drained := c.drain(ctx, *abandoned)
+					logMu.Lock()
+					_, _ = fmt.Fprintf(stderr, "drained %s: %s\n", drained.ID, drainedOutcome(drained))
+					logMu.Unlock()
+				}
+			}()
+		}
 	}
 	wg.Wait()
 	return results
+}
+
+func verdictWord(r Result) string {
+	switch {
+	case r.Skipped:
+		return "SKIP"
+	case !r.Passed:
+		return "FAIL"
+	}
+	return "PASS"
 }
 
 func drainedOutcome(req AgentRequest) string {

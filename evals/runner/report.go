@@ -14,6 +14,7 @@ import (
 
 type Result struct {
 	ID             string        `json:"id"`
+	Run            int           `json:"run,omitempty"`
 	Prompt         string        `json:"prompt"`
 	Category       string        `json:"category"`
 	DoneWhen       bool          `json:"done_when"`
@@ -112,6 +113,8 @@ type Aggregates struct {
 	OnePanelRefusals   int              `json:"one_panel_refusals"`
 
 	QualityMedian map[string]float64 `json:"quality_median"`
+
+	Runs tallies `json:"runs,omitempty"`
 }
 
 type Report struct {
@@ -169,6 +172,7 @@ func splitSizeGuard(results []Result) ([]Result, Tally) {
 
 func aggregate(results []Result) Aggregates {
 	agg := Aggregates{Categories: tallies{}, Kinds: tallies{}, FailureCodes: map[string]int{}, RunnerCodes: map[string]int{}, Cost: CostStats{UnpricedModels: []string{}}}
+	agg.Runs = repeatedRuns(results)
 	results, agg.SizeGuard = splitSizeGuard(results)
 	var passed, doneWhenPassed, doneWhenTotal int
 	var latencies, firstPanels, panelRates []float64
@@ -230,6 +234,22 @@ func aggregate(results []Result) Aggregates {
 		agg.Tokens.CacheReadShare = float64(agg.Tokens.CacheRead) / float64(prompt)
 	}
 	return agg
+}
+
+func repeatedRuns(results []Result) tallies {
+	runs := tallies{}
+	repeated := false
+	for _, r := range results {
+		repeated = repeated || r.Run > 1
+		if !r.Skipped {
+			runs.add(r.ID, r.Passed)
+		}
+	}
+	if !repeated {
+		return nil
+	}
+	runs.rate()
+	return runs
 }
 
 func medians(values map[string][]float64) map[string]float64 {
@@ -369,8 +389,8 @@ type gateOutcome struct {
 func (g gateOutcome) ok() bool { return len(g.failures) == 0 }
 
 type gateLimits struct {
-	minPass, minQuality   float64
-	minDoneWhen, doneWhen int
+	minPass, minQuality           float64
+	minDoneWhen, doneWhen, repeat int
 }
 
 func evaluateGates(agg Aggregates, limits gateLimits) gateOutcome {
@@ -378,14 +398,23 @@ func evaluateGates(agg Aggregates, limits gateLimits) gateOutcome {
 	if agg.Scenarios.Rate < limits.minPass {
 		out.failures = append(out.failures, fmt.Sprintf("pass rate %.0f%% is below --min-pass %.0f%%", agg.Scenarios.Rate*100, limits.minPass*100))
 	}
-	if limits.doneWhen > 0 && agg.DoneWhen.Total == limits.doneWhen && agg.DoneWhen.Passed < limits.minDoneWhen {
-		out.failures = append(out.failures, fmt.Sprintf("%d of %d done-when scenarios passed, below --min-done-when %d", agg.DoneWhen.Passed, agg.DoneWhen.Total, limits.minDoneWhen))
-	}
+	out.failures = append(out.failures, doneWhenGateFailures(agg.DoneWhen, limits)...)
 	out.failures = append(out.failures, qualityGateFailures(agg.QualityMedian, limits.minQuality)...)
 	if agg.Uncoded > 0 {
 		out.failures = append(out.failures, fmt.Sprintf("%d failed runs have no failure code", agg.Uncoded))
 	}
 	return out
+}
+
+func doneWhenGateFailures(got Tally, limits gateLimits) []string {
+	repeat := max(1, limits.repeat)
+	if limits.doneWhen == 0 || got.Total != limits.doneWhen*repeat || got.Passed >= limits.minDoneWhen*repeat {
+		return nil
+	}
+	if repeat == 1 {
+		return []string{fmt.Sprintf("%d of %d done-when scenarios passed, below --min-done-when %d", got.Passed, got.Total, limits.minDoneWhen)}
+	}
+	return []string{fmt.Sprintf("%d of %d done-when runs passed, below --min-done-when %d in each of %d repeats", got.Passed, got.Total, limits.minDoneWhen, repeat)}
 }
 
 func qualityGateFailures(medians map[string]float64, minQuality float64) []string {
@@ -490,6 +519,7 @@ func renderMarkdown(report Report, gates gateOutcome) string {
 	}
 
 	writeRunnerOutcomes(&b, agg)
+	writeRepeatedRuns(&b, agg.Runs)
 
 	b.WriteString("\n| Scenario | First panel | Panels/min | Saves | Refusals | Result | Category | Latency | Cost | Quality | Failure code | Failed checks | Agent error |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n")
 	rows := slices.Clone(report.Results)
@@ -499,7 +529,7 @@ func renderMarkdown(report Report, gates gateOutcome) string {
 		if r.LatencySeconds != nil {
 			seconds = fmt.Sprintf("%.1fs", *r.LatencySeconds)
 		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n", r.ID, optionalSeconds(r.FirstPanelSeconds), panelsCell(r), savesCell(r), refusalsCell(r), verdictOf(r), r.Category, seconds, usd(r.CostUSD), optionalScore(r.Quality), failureLabel(r), escapeCell(failedChecks(r)), escapeCell(cmp.Or(r.Error, r.Reason)))
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n", runLabel(r), optionalSeconds(r.FirstPanelSeconds), panelsCell(r), savesCell(r), refusalsCell(r), verdictOf(r), r.Category, seconds, usd(r.CostUSD), optionalScore(r.Quality), failureLabel(r), escapeCell(failedChecks(r)), escapeCell(cmp.Or(r.Error, r.Reason)))
 	}
 
 	if !gates.ok() {
@@ -585,6 +615,24 @@ func writeRunnerOutcomes(b *strings.Builder, agg Aggregates) {
 	for _, code := range slices.Sorted(maps.Keys(agg.RunnerCodes)) {
 		fmt.Fprintf(b, "| %s | %d |\n", code, agg.RunnerCodes[code])
 	}
+}
+
+func writeRepeatedRuns(b *strings.Builder, runs tallies) {
+	if runs == nil {
+		return
+	}
+	b.WriteString("\n| Scenario | Runs passed | Rate |\n| --- | --- | --- |\n")
+	for _, id := range slices.Sorted(maps.Keys(runs)) {
+		t := runs[id]
+		fmt.Fprintf(b, "| %s | %d of %d | %.0f%% |\n", id, t.Passed, t.Total, t.Rate*100)
+	}
+}
+
+func runLabel(r Result) string {
+	if r.Run == 0 {
+		return r.ID
+	}
+	return fmt.Sprintf("%s run %d", r.ID, r.Run)
 }
 
 func verdictOf(r Result) string {
