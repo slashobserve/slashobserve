@@ -1,0 +1,16 @@
+SlashObserve is installed as {{ include "slashobserve.fullname" . }} in namespace {{ .Release.Namespace }}.
+
+People open it at {{ .Values.publicURL }}.
+Sign-in needs the OIDC redirect URI {{ .Values.publicURL }}/api/v1/auth/callback registered with {{ .Values.oidc.issuerURL }}.
+
+Check readiness from your machine:
+
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "slashobserve.fullname" . }} 8080:{{ .Values.service.port }}
+  curl http://127.0.0.1:8080/readyz
+
+/readyz answers 200 once Postgres answers and every migration has run.
+{{- if .Values.provisioning.internals }}
+
+The internals dashboard is provisioned into folder SlashObserve.
+It needs a Prometheus datasource with uid prom that scrapes this server's /metrics.
+{{- end }}

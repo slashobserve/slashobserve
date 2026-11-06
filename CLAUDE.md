@@ -13,7 +13,7 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 | `make server` | Build only the Go binary, embedding whatever is in `internal/server/webdist`. |
 | `make cli` | Build only `bin/observe`; `make build` builds it too. |
 | `make test` | `go test -race ./...` for the root module and `demo`, the web Vitest suite (`COVER=1` adds Go and web coverage), then `scripts/release-scripts-test.sh` (the release tag and release notes scripts) and `scripts/install-test.sh` (the root `install.sh`, against fake release assets). |
-| `make lint` | golangci-lint (config verify, format diff, run), `sqlc diff`, web typecheck, Spec drift and fixture parity check, web API type drift check (`api:check`), ESLint, knip (unused web files, exports and dependencies), Prettier check, and `scripts/docs-lint.sh` on the docs pages. |
+| `make lint` | golangci-lint (config verify, format diff, run), `sqlc diff`, web typecheck, Spec drift and fixture parity check, web API type drift check (`api:check`), ESLint, knip (unused web files, exports and dependencies), Prettier check, `scripts/docs-lint.sh` on the docs pages, and `scripts/helm-check.sh` (Helm lint and renders of the chart, no Secret in them, and its internals dashboard equal to the compose copy). |
 | `make ci` | `lint`, `test`, `tidy-check` (`go mod tidy -diff` for the root module and `demo`), `build`: what the CI `check` job runs. |
 | `make audit` | `govulncheck` for the root module and `demo`, `bun audit --prod` and `bun audit --audit-level=high` for the web lockfile (minus the advisories in `WEB_AUDIT_IGNORE`): what the CI `audit` job runs. |
 | `make generate` | Regenerate sqlc code, the web Spec types/validator and the web API types (`web/src/api/schema.gen.ts`) after editing migrations, queries, the schema or `api/`. |
@@ -24,6 +24,8 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 | `make demo-fault TYPE=errors\|latency PCT=N` | Inject a fault into the `checkout-0` pod through the shop fault API. |
 | `make demo-fault-reset` | Clear the injected fault. |
 | `make demo-k8s` / `make demo-k8s-down` | Create the local three-node kind cluster `slashobserve-demo` (the shop in the `default` namespace, kube-state-metrics, node-exporter and a Prometheus with the kube-prometheus recording rules; Prometheus on http://localhost:39090, the `checkout-0` and `checkout-1` fault APIs on :38081 and :38082), and delete only that cluster. `scripts/demo-k8s.sh` also has `status`, `fault <pod> <type> <pct>` and `connect <container>`; kind runs as a pinned Go tool and kubectl inside the control-plane node, so neither needs installing. It runs beside the compose demo and never touches it. |
+| `make helm-kind` | Create the local one-node kind cluster `slashobserve-helm` if absent, build `slashobserve-server:helm` from this checkout and load it, deploy the throwaway Postgres and Prometheus of `deploy/helm/kind`, create generated Secrets (never printed) and install the chart, then check `/readyz`, `/metrics`, the Prometheus scrape and the provisioned internals dashboard, and upgrade and roll back the release. kind and Helm run as pinned Go tools and kubectl inside the node. |
+| `make helm-kind-down` | Delete only the `slashobserve-helm` cluster. |
 | `make e2e` | Reset and boot the isolated `slashobserve-e2e` stack on http://localhost:18080 and run `scripts/e2e.sh`; the stack is left running. |
 | `make e2e-browser` | Reuse the running, healthy e2e stack or boot one, then run Playwright in `web/e2e`; reuse does not rebuild, so rerun `make e2e` after code changes. |
 | `make e2e-all` | Both suites, as CI runs them. |
@@ -52,7 +54,8 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 - `internal/`: server code, one package per feature; the packages with rules are listed in `internal/CLAUDE.md`.
 - `pkg/spec/`: public ObserveSpec types, `Parse`, `Upgrade`, `Diff` and the query macro syntax.
 - `pkg/grafana/`: the Grafana importer, with its golden corpus (`testdata/corpus/`) and option conformance catalogs (`testdata/conformance/`).
-- `pkg/extension/`, `deploy/helm/`: planned, not created yet.
+- `pkg/extension/`: planned, not created yet.
+- `deploy/helm/`: `slashobserve/` (the Helm chart: an external Postgres, every secret by Secret reference, and its own copy of the internals dashboard) and `kind/` (the cluster config, throwaway Postgres and Prometheus, and values that `scripts/helm-kind.sh` uses).
 - `spec/`: `schema/observespec.v0.json` and `schema/defaults.json`, plus `examples/` (valid examples and `invalid/` fixtures with `expected.json`) shared by Go, TS and e2e tests.
 - `api/`: the OpenAPI document for `/api/v1`; each feature adds `paths/<feature>.yaml` plus one `$ref` line in `openapi.yaml`.
 - `web/`: the React app (Bun) with `src/routes`, `src/shell`, `src/components/ui` (shadcn) and `e2e` (Playwright).
@@ -108,7 +111,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
   They pass Anthropic responses back with `Message.ToParam()` so thinking blocks stay intact (compaction drops thinking only from older kept turns).
   The OpenAI-compatible adapter rebuilds assistant history with its own helper, so a tool call with a missing type still round-trips.
 - GitHub Actions are pinned to a commit SHA with the version in a trailing comment; Docker images are pinned by tag and digest.
-- Version bumps that must change together: Go toolchain in `go.mod` (`go` line), `demo/go.mod`, and the `golang` image in `Dockerfile` and `demo/Dockerfile`; the distroless image digest shared by both Dockerfiles; Bun in `web/package.json` (`packageManager`, read by CI) and the `oven/bun` image in `Dockerfile`; Postgres in `deploy/compose/compose.yaml` and in `internal/db/dbtest`; the `prom/prometheus`, `clickhouse/clickhouse-server`, `grafana/loki` and `grafana/tempo` images in `deploy/compose/compose.yaml` and in the integration tests under `internal/datasource/{prometheus,clickhouse,loki,tempo}`.
+- Version bumps that must change together: Go toolchain in `go.mod` (`go` line), `demo/go.mod`, and the `golang` image in `Dockerfile` and `demo/Dockerfile`; the distroless image digest shared by both Dockerfiles; Bun in `web/package.json` (`packageManager`, read by CI) and the `oven/bun` image in `Dockerfile`; Postgres in `deploy/compose/compose.yaml`, in `internal/db/dbtest` and in `deploy/helm/kind/postgres.yaml`; the `prom/prometheus`, `clickhouse/clickhouse-server`, `grafana/loki` and `grafana/tempo` images in `deploy/compose/compose.yaml` and in the integration tests under `internal/datasource/{prometheus,clickhouse,loki,tempo}`, and `prom/prometheus` also in `deploy/helm/kind/prometheus.yaml`; the `kindest/node` image in `demo/k8s/kind.yaml` and `deploy/helm/kind/kind.yaml`.
   Dependabot ignores the `golang` and `oven/bun` images because they move with those pins.
 - Justify every new dependency in its PR.
 

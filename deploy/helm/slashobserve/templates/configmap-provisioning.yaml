@@ -1,0 +1,11 @@
+{{- if .Values.provisioning.internals }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "slashobserve.internalsConfigMap" . }}
+  labels:
+    {{- include "slashobserve.labels" . | nindent 4 }}
+data:
+  internals.json: |
+    {{- .Files.Get "dashboards/SlashObserve/internals.json" | trimSuffix "\n" | nindent 4 }}
+{{- end }}

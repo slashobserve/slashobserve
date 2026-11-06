@@ -1,0 +1,250 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SlashObserve chart values",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["image", "publicURL", "database", "oidc", "auth"],
+  "definitions": {
+    "nonEmpty": { "type": "string", "minLength": 1 },
+    "secretRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "existingSecret": {
+          "type": "string",
+          "description": "Name of a Secret in the release namespace that you create; the chart never creates one. Empty turns the setting off."
+        },
+        "key": { "$ref": "#/definitions/nonEmpty", "description": "Key inside the Secret." }
+      }
+    },
+    "stringList": { "type": "array", "items": { "$ref": "#/definitions/nonEmpty" } }
+  },
+  "properties": {
+    "global": { "type": "object", "description": "Reserved by Helm for values shared with subcharts; this chart reads none." },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository"],
+      "properties": {
+        "repository": { "$ref": "#/definitions/nonEmpty", "description": "Server image repository." },
+        "tag": { "type": "string", "description": "Image tag; empty means the chart's appVersion." },
+        "digest": {
+          "type": "string",
+          "pattern": "^(sha256:[a-f0-9]{64})?$",
+          "description": "Optional image digest, appended to the tag as @sha256:..."
+        },
+        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"], "description": "Image pull policy." }
+      }
+    },
+    "imagePullSecrets": {
+      "type": "array",
+      "description": "Pull secrets for a private registry, as Kubernetes LocalObjectReference entries.",
+      "items": { "type": "object", "required": ["name"], "properties": { "name": { "$ref": "#/definitions/nonEmpty" } } }
+    },
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Server pods. One is the tested setup; more share Postgres for migrations, the scheduler and agent workers, but MCP, stream and in-flight limits are per process."
+    },
+    "publicURL": {
+      "type": "string",
+      "pattern": "^https?://[^/?#@]+$",
+      "description": "SLASHOBSERVE_PUBLIC_URL: the http or https origin people open, with no path. Register <publicURL>/api/v1/auth/callback with the identity provider. The ingress host comes from it."
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["existingSecret", "urlKey"],
+      "properties": {
+        "existingSecret": {
+          "$ref": "#/definitions/nonEmpty",
+          "description": "Secret holding the Postgres connection string for SLASHOBSERVE_DATABASE_URL. The chart ships no Postgres."
+        },
+        "urlKey": { "$ref": "#/definitions/nonEmpty", "description": "Key of the connection string in that Secret." }
+      }
+    },
+    "oidc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["issuerURL", "clientID", "existingSecret", "clientSecretKey"],
+      "properties": {
+        "issuerURL": {
+          "type": "string",
+          "pattern": "^https?://.+",
+          "description": "SLASHOBSERVE_OIDC_ISSUER_URL, used exactly as written."
+        },
+        "clientID": { "$ref": "#/definitions/nonEmpty", "description": "SLASHOBSERVE_OIDC_CLIENT_ID." },
+        "existingSecret": { "$ref": "#/definitions/nonEmpty", "description": "Secret holding SLASHOBSERVE_OIDC_CLIENT_SECRET." },
+        "clientSecretKey": { "$ref": "#/definitions/nonEmpty", "description": "Key of the client secret in that Secret." }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowedEmailDomains"],
+      "properties": {
+        "allowedEmailDomains": {
+          "allOf": [{ "$ref": "#/definitions/stringList" }, { "minItems": 1 }],
+          "description": "SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS: domains that may sign in, or [\"*\"] for every account."
+        },
+        "adminEmails": {
+          "$ref": "#/definitions/stringList",
+          "description": "SLASHOBSERVE_ADMIN_EMAILS: addresses that are always Admins. Empty makes the earliest person to sign in the Admin."
+        }
+      }
+    },
+    "secretKey": {
+      "allOf": [{ "$ref": "#/definitions/secretRef" }],
+      "description": "Secret holding SLASHOBSERVE_SECRET_KEY, which encrypts stored Grafana connection tokens. Empty leaves it unset."
+    },
+    "logLevel": { "enum": ["debug", "info", "warn", "error"], "description": "SLASHOBSERVE_LOG_LEVEL." },
+    "logFormat": { "enum": ["json", "text"], "description": "SLASHOBSERVE_LOG_FORMAT." },
+    "llm": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "enum": ["", "anthropic", "openai"],
+          "description": "SLASHOBSERVE_LLM_PROVIDER. Empty turns the agent off."
+        },
+        "model": { "type": "string", "description": "SLASHOBSERVE_LLM_MODEL; required for openai." },
+        "effort": { "type": "string", "description": "SLASHOBSERVE_LLM_EFFORT, checked against the provider's list by the server." },
+        "apiKey": {
+          "allOf": [{ "$ref": "#/definitions/secretRef" }],
+          "description": "Secret holding the provider key, mounted as a file for SLASHOBSERVE_LLM_API_KEY_FILE."
+        }
+      }
+    },
+    "outboundDomains": {
+      "$ref": "#/definitions/stringList",
+      "description": "SLASHOBSERVE_OUTBOUND_DOMAINS: empty lets Admins manage the list in Settings; [\"none\"] or a list of domains locks it."
+    },
+    "env": {
+      "type": "array",
+      "description": "Extra container environment entries in Kubernetes EnvVar form, for any other SLASHOBSERVE_* setting and for the *Env passwords the datasources file references.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "pattern": "^SLASHOBSERVE_[A-Z0-9_]+$" },
+          "value": { "type": "string" },
+          "valueFrom": { "type": "object" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "datasources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "existingConfigMap": {
+          "type": "string",
+          "description": "ConfigMap holding the datasources file; when set, datasources.datasources is ignored."
+        },
+        "key": { "$ref": "#/definitions/nonEmpty", "description": "Key of the datasources file in the ConfigMap." },
+        "datasources": {
+          "type": "array",
+          "items": { "type": "object" },
+          "description": "Entries of the datasources file, rendered into a ConfigMap. They never hold a secret: reference passwords by *Env names set through env, or by *File paths."
+        }
+      }
+    },
+    "serviceAccounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "existingSecret": {
+          "type": "string",
+          "description": "Secret holding the service-accounts file and its key files, mounted at /etc/slashobserve/service-accounts; each keyFile names a path in that directory. Empty sets no file."
+        },
+        "fileKey": { "$ref": "#/definitions/nonEmpty", "description": "Key of the service-accounts file in that Secret." }
+      }
+    },
+    "provisioning": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "internals": {
+          "type": "boolean",
+          "description": "Provision the SlashObserve internals dashboard into folder SlashObserve. It needs a Prometheus datasource with uid prom that scrapes the server."
+        },
+        "folders": {
+          "type": "array",
+          "description": "Dashboard folders, each a ConfigMap of ObserveSpec .json files mounted as one directory of the provisioning directory.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["directory", "configMap"],
+            "properties": {
+              "directory": {
+                "type": "string",
+                "pattern": "^[^/.][^/]*$",
+                "description": "Directory name, which names the folder; write % as %25 and / as %2F."
+              },
+              "configMap": { "$ref": "#/definitions/nonEmpty", "description": "ConfigMap whose keys are the .json files." }
+            }
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "description": "SLASHOBSERVE_METRICS: serve /metrics without sign-in." },
+        "podAnnotations": {
+          "type": "boolean",
+          "description": "Add prometheus.io/scrape, prometheus.io/port and prometheus.io/path to the pod."
+        },
+        "serviceMonitor": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean", "description": "Create a Prometheus Operator ServiceMonitor." },
+            "interval": { "type": "string", "description": "Scrape interval; empty uses the Prometheus default." },
+            "labels": {
+              "type": "object",
+              "additionalProperties": { "type": "string" },
+              "description": "Extra labels, such as the one your Prometheus selects ServiceMonitors by."
+            }
+          }
+        }
+      }
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["ClusterIP", "NodePort", "LoadBalancer"], "description": "Service type." },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535, "description": "Service port." }
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "description": "Create an Ingress for the publicURL host." },
+        "className": { "type": "string", "description": "IngressClass name." },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Controller annotations; turn off response buffering for the dashboard event stream."
+        },
+        "tlsSecretName": { "type": "string", "description": "TLS Secret for the host; empty sets no tls block." }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": { "type": "boolean", "description": "Create a Kubernetes ServiceAccount; its token is never mounted." },
+        "name": { "type": "string", "description": "ServiceAccount name; empty means the release's full name, or default when create is false." }
+      }
+    },
+    "podAnnotations": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Extra pod annotations." },
+    "resources": { "type": "object", "description": "Container resources in Kubernetes form." },
+    "nodeSelector": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Pod node selector." },
+    "tolerations": { "type": "array", "items": { "type": "object" }, "description": "Pod tolerations." },
+    "affinity": { "type": "object", "description": "Pod affinity." }
+  }
+}
