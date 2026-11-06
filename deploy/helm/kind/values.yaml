@@ -1,0 +1,32 @@
+publicURL: http://localhost:8080
+
+database:
+  existingSecret: slashobserve-database
+  urlKey: url
+
+oidc:
+  issuerURL: http://oidc.invalid/dex
+  clientID: slashobserve
+  existingSecret: slashobserve-oidc
+
+auth:
+  allowedEmailDomains: [example.com]
+
+secretKey:
+  existingSecret: slashobserve-secret-key
+
+serviceAccounts:
+  existingSecret: slashobserve-service-accounts
+
+datasources:
+  datasources:
+    - uid: prom
+      type: prometheus
+      name: Prometheus
+      prometheus:
+        url: http://prometheus:9090
+        scrapeInterval: 15s
+
+resources:
+  limits:
+    memory: 256Mi

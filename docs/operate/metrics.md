@@ -22,6 +22,8 @@ scrape_configs:
 ```
 
 The [demo stack](../get-started/quick-start.md) already scrapes its server this way, as the `slashobserve` job of its Prometheus.
+On Kubernetes, the Helm chart adds `prometheus.io` scrape annotations to the pod and can create a Prometheus Operator ServiceMonitor; see [Run on Kubernetes](kubernetes.md#metrics).
+The [internals dashboard](observe-slashobserve.md) charts these series.
 
 ## Series
 

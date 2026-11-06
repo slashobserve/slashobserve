@@ -3,6 +3,8 @@ title: Run in production
 description: Put TLS in front of the server and use its health endpoints.
 ---
 
+Everything on this page applies to every install; [Run on Kubernetes](kubernetes.md) covers the Helm chart, and [Observe SlashObserve](observe-slashobserve.md) the dashboard that watches the server.
+
 ## Put TLS in front
 
 The server speaks plain HTTP; it has no TLS settings.

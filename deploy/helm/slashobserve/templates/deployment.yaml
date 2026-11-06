@@ -1,0 +1,217 @@
+{{- $fullname := include "slashobserve.fullname" . -}}
+{{- $datasources := include "slashobserve.datasourcesConfigMap" . -}}
+{{- $folders := include "slashobserve.provisionFolders" . | fromJsonArray -}}
+{{- $provisionDir := include "slashobserve.provisionDir" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "slashobserve.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "slashobserve.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "slashobserve.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/datasources: {{ include (print $.Template.BasePath "/configmap-datasources.yaml") . | sha256sum }}
+        checksum/provisioning: {{ include (print $.Template.BasePath "/configmap-provisioning.yaml") . | sha256sum }}
+        {{- if and .Values.metrics.enabled .Values.metrics.podAnnotations }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: /metrics
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "slashobserve.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: server
+          image: {{ include "slashobserve.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: SLASHOBSERVE_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret }}
+                  key: {{ .Values.database.urlKey }}
+            - name: SLASHOBSERVE_PUBLIC_URL
+              value: {{ .Values.publicURL | quote }}
+            - name: SLASHOBSERVE_OIDC_ISSUER_URL
+              value: {{ .Values.oidc.issuerURL | quote }}
+            - name: SLASHOBSERVE_OIDC_CLIENT_ID
+              value: {{ .Values.oidc.clientID | quote }}
+            - name: SLASHOBSERVE_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.oidc.existingSecret }}
+                  key: {{ .Values.oidc.clientSecretKey }}
+            - name: SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS
+              value: {{ join "," .Values.auth.allowedEmailDomains | quote }}
+            {{- with .Values.auth.adminEmails }}
+            - name: SLASHOBSERVE_ADMIN_EMAILS
+              value: {{ join "," . | quote }}
+            {{- end }}
+            {{- with .Values.secretKey.existingSecret }}
+            - name: SLASHOBSERVE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . }}
+                  key: {{ $.Values.secretKey.key }}
+            {{- end }}
+            - name: SLASHOBSERVE_LOG_LEVEL
+              value: {{ .Values.logLevel | quote }}
+            - name: SLASHOBSERVE_LOG_FORMAT
+              value: {{ .Values.logFormat | quote }}
+            - name: SLASHOBSERVE_METRICS
+              value: {{ .Values.metrics.enabled | quote }}
+            {{- with .Values.llm.provider }}
+            - name: SLASHOBSERVE_LLM_PROVIDER
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.llm.model }}
+            - name: SLASHOBSERVE_LLM_MODEL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.llm.effort }}
+            - name: SLASHOBSERVE_LLM_EFFORT
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if .Values.llm.apiKey.existingSecret }}
+            - name: SLASHOBSERVE_LLM_API_KEY_FILE
+              value: /etc/slashobserve/llm/api-key
+            {{- end }}
+            {{- with .Values.outboundDomains }}
+            - name: SLASHOBSERVE_OUTBOUND_DOMAINS
+              value: {{ join "," . | quote }}
+            {{- end }}
+            {{- if $datasources }}
+            - name: SLASHOBSERVE_DATASOURCES_FILE
+              value: /etc/slashobserve/datasources/{{ .Values.datasources.key }}
+            {{- end }}
+            {{- if .Values.serviceAccounts.existingSecret }}
+            - name: SLASHOBSERVE_SERVICE_ACCOUNTS_FILE
+              value: /etc/slashobserve/service-accounts/{{ .Values.serviceAccounts.fileKey }}
+            {{- end }}
+            {{- if $folders }}
+            - name: SLASHOBSERVE_PROVISION_DIR
+              value: {{ $provisionDir }}
+            {{- end }}
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            {{- if $datasources }}
+            - name: datasources
+              mountPath: /etc/slashobserve/datasources
+              readOnly: true
+            {{- end }}
+            {{- if .Values.serviceAccounts.existingSecret }}
+            - name: service-accounts
+              mountPath: /etc/slashobserve/service-accounts
+              readOnly: true
+            {{- end }}
+            {{- if .Values.llm.apiKey.existingSecret }}
+            - name: llm-api-key
+              mountPath: /etc/slashobserve/llm
+              readOnly: true
+            {{- end }}
+            {{- if $folders }}
+            - name: provision
+              mountPath: {{ $provisionDir }}
+            {{- range $i, $folder := $folders }}
+            - name: dashboards-{{ $i }}
+              mountPath: {{ printf "%s/%s" $provisionDir $folder.directory | quote }}
+              readOnly: true
+            {{- end }}
+            {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          startupProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 3
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        {{- if $datasources }}
+        - name: datasources
+          configMap:
+            name: {{ $datasources }}
+        {{- end }}
+        {{- if .Values.serviceAccounts.existingSecret }}
+        - name: service-accounts
+          secret:
+            secretName: {{ .Values.serviceAccounts.existingSecret }}
+            defaultMode: 0440
+        {{- end }}
+        {{- with .Values.llm.apiKey.existingSecret }}
+        - name: llm-api-key
+          secret:
+            secretName: {{ . }}
+            defaultMode: 0440
+            items:
+              - key: {{ $.Values.llm.apiKey.key }}
+                path: api-key
+        {{- end }}
+        {{- if $folders }}
+        - name: provision
+          emptyDir: {}
+        {{- range $i, $folder := $folders }}
+        - name: dashboards-{{ $i }}
+          configMap:
+            name: {{ $folder.configMap }}
+        {{- end }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -30,7 +30,7 @@ define DEMO_BANNER
 	@echo "Sign in as admin@example.com / password (Dex, development only)"
 endef
 
-.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down e2e e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
+.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down helm-kind helm-kind-down e2e e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
 
 build: web
 	$(MAKE) server cli
@@ -74,6 +74,7 @@ lint: web-deps
 	cd web && bun run knip
 	cd web && bun run format:check
 	scripts/docs-lint.sh
+	scripts/helm-check.sh
 
 golden:
 	go test ./pkg/grafana -run 'TestCorpusGoldens|TestOptionMapIsCurrent' -update
@@ -117,6 +118,13 @@ demo-k8s:
 
 demo-k8s-down:
 	scripts/demo-k8s.sh down
+
+helm-kind:
+	scripts/helm-kind.sh up
+	scripts/helm-kind.sh check
+
+helm-kind-down:
+	scripts/helm-kind.sh down
 
 e2e:
 	scripts/e2e.sh
