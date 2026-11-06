@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router"
 import { ChevronDownIcon, ChevronUpIcon, Columns3Icon } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useMemo, useState, type ReactNode } from "react"
 
 import { StatusLabel } from "@/components/status-label"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils"
 import { styleForSlot } from "@/panels/colors"
 
 import { DurationScatter } from "./duration-scatter"
-import type { TimeWindow } from "./scatter"
+import { selectedRows, type Selection, type TimeWindow } from "./scatter"
 import {
   countText,
   defaultTraceSort,
@@ -272,6 +272,12 @@ type TraceP95 = {
   footerNote?: string
 }
 
+type TraceSelection = {
+  selection: Selection | null
+  onSelectionChange: (next: Selection | null) => void
+  selectionActions?: ReactNode
+}
+
 function SortedTraceTable({
   rows,
   datasourceUid,
@@ -281,17 +287,25 @@ function SortedTraceTable({
   p95Ms,
   p95Label = rowsP95Label,
   footerNote,
+  selection,
+  onSelectionChange,
+  selectionActions,
 }: {
   rows: TraceRow[]
   datasourceUid: string
   range: TraceRange
   hidden: ReadonlySet<TraceSortKey>
   onToggleColumn: (key: TraceSortKey, visible: boolean) => void
-} & TraceP95) {
+} & TraceP95 &
+  TraceSelection) {
   const [sort, setSort] = useState<TraceSort | null>(defaultTraceSort)
   const [shown, setShown] = useState(pageSize)
   const [highlighted, setHighlighted] = useState<string | null>(null)
-  const sorted = useMemo(() => sortTraceRows(rows, sort), [rows, sort])
+  const listed = useMemo(
+    () => (selection === null ? rows : selectedRows(rows, selection)),
+    [rows, selection]
+  )
+  const sorted = useMemo(() => sortTraceRows(listed, sort), [listed, sort])
   const window = useMemo(
     () => resolveWindow(range.from, range.to),
     [range.from, range.to]
@@ -333,10 +347,24 @@ function SortedTraceTable({
               ? `Duration of matching traces; the ${p95Label} is ${durationText(p95)}`
               : undefined
           }
+          selection={selection}
+          onSelectionChange={onSelectionChange}
+          selectedCount={listed.length}
+          selectionActions={selectionActions}
         />
       ) : null}
       <div className="flex h-8 flex-wrap items-center gap-3 text-[13px]">
-        <h2 className="font-medium">{countText(rows.length, "trace")}</h2>
+        <h2 className="font-medium">
+          {selection === null
+            ? countText(rows.length, "trace")
+            : countText(listed.length, "selected trace")}
+        </h2>
+        {selection !== null ? (
+          <p className="text-muted-foreground">
+            Showing only the selection. Clear it to see all{" "}
+            {rows.length.toLocaleString("en")}.
+          </p>
+        ) : null}
         <p className="text-muted-foreground">{sortHint(sort)}</p>
         <ColumnsMenu hidden={hidden} onToggle={onToggleColumn} />
       </div>
@@ -381,14 +409,14 @@ function SortedTraceTable({
       </TableCard>
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <p>
-          {Math.min(shown, rows.length)} of {rows.length} traces shown.
+          {Math.min(shown, listed.length)} of {listed.length} traces shown.
           {footerNote !== undefined
             ? ` ${footerNote}`
             : p95 !== null
               ? ` The tick on each bar is the ${durationText(p95)} ${p95Label}.`
               : null}
         </p>
-        {shown < rows.length ? (
+        {shown < listed.length ? (
           <Button
             type="button"
             variant="outline"
@@ -407,12 +435,13 @@ export function TraceTable({
   rows,
   datasourceUid,
   range,
-  ...p95
+  ...rest
 }: {
   rows: TraceRow[]
   datasourceUid: string
   range: TraceRange
-} & TraceP95) {
+} & TraceP95 &
+  TraceSelection) {
   const [hidden, setHidden] = useState<ReadonlySet<TraceSortKey>>(
     () => new Set()
   )
@@ -434,7 +463,7 @@ export function TraceTable({
       range={range}
       hidden={hidden}
       onToggleColumn={toggleColumn}
-      {...p95}
+      {...rest}
     />
   )
 }

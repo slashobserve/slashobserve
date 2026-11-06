@@ -35,14 +35,19 @@ import { exploreErrorText, exploreQuery, offlineText } from "@/logs/explore"
 import { useAgentInfo } from "@/observe/queries"
 
 import { traceSearchFromAnswer } from "./ask-answer"
+import type { Selection } from "./scatter"
 import {
   traceDatasourceTypes,
   tracesTimeRange,
   type TraceSearch,
 } from "./search"
-import { traceSearchParams, traceStatsFilter } from "./search-query"
+import {
+  keepSelectionSearch,
+  traceSearchParams,
+  traceStatsFilter,
+} from "./search-query"
 import { TraceSearchForm } from "./trace-search-form"
-import { countText, durationText, traceRows } from "./trace-rows"
+import { countText, durationText, traceRows, type TraceRow } from "./trace-rows"
 import {
   histogramPercentile,
   p95Label,
@@ -361,9 +366,8 @@ function TraceResults({
   update: (next: Partial<TraceSearch>) => void
 }) {
   const range = tracesTimeRange(search)
-  const results = useQuery(
-    exploreQuery(datasource.uid, traceSearchParams(datasource.type, search))
-  )
+  const params = traceSearchParams(datasource.type, search)
+  const results = useQuery(exploreQuery(datasource.uid, params))
   const stats = useQuery(
     traceStatsQuery(datasource.uid, {
       query: traceStatsFilter(datasource.type, search),
@@ -454,18 +458,99 @@ function TraceResults({
           </AlertDescription>
         </Alert>
       ) : null}
-      <TraceTable
+      <SelectableTraceTable
+        key={JSON.stringify(params)}
+        datasource={datasource}
+        search={search}
+        update={update}
         rows={rows}
-        datasourceUid={datasource.uid}
-        range={range}
-        p95Ms={p95}
-        p95Label={label}
-        footerNote={
-          p95 === undefined || p95 === null
-            ? undefined
-            : `The tick on each bar is the ${durationText(p95)} ${label} in this range.`
-        }
+        p95={p95}
+        label={label}
       />
     </div>
+  )
+}
+
+const keepSelectionLabel = "Keep only the selection"
+
+function KeepSelectionButton({
+  next,
+  onKeep,
+}: {
+  next: Partial<TraceSearch> | null
+  onKeep: (next: Partial<TraceSearch>) => void
+}) {
+  if (next === null) {
+    return (
+      <Tooltip>
+        <TooltipTrigger render={<span className="inline-flex" />}>
+          <Button type="button" variant="outline" size="xs" disabled>
+            {keepSelectionLabel}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          Cannot add duration bounds to this query.
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="xs"
+      onClick={() => onKeep(next)}
+    >
+      {keepSelectionLabel}
+    </Button>
+  )
+}
+
+function SelectableTraceTable({
+  datasource,
+  search,
+  update,
+  rows,
+  p95,
+  label,
+}: {
+  datasource: DatasourceStatus
+  search: TraceSearch
+  update: (next: Partial<TraceSearch>) => void
+  rows: TraceRow[]
+  p95: number | null | undefined
+  label: string
+}) {
+  const range = tracesTimeRange(search)
+  const [selection, setSelection] = useState<Selection | null>(null)
+
+  function keep(next: Partial<TraceSearch>) {
+    setSelection(null)
+    update(next)
+  }
+
+  return (
+    <TraceTable
+      rows={rows}
+      datasourceUid={datasource.uid}
+      range={range}
+      p95Ms={p95}
+      p95Label={label}
+      footerNote={
+        p95 === undefined || p95 === null
+          ? undefined
+          : `The tick on each bar is the ${durationText(p95)} ${label} in this range.`
+      }
+      selection={selection}
+      onSelectionChange={setSelection}
+      selectionActions={
+        selection === null ? undefined : (
+          <KeepSelectionButton
+            next={keepSelectionSearch(search, selection)}
+            onKeep={keep}
+          />
+        )
+      }
+    />
   )
 }
