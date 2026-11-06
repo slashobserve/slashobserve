@@ -6,18 +6,18 @@ ignore ./web
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.49.0
-	github.com/anthropics/anthropic-sdk-go v1.82.0
+	github.com/anthropics/anthropic-sdk-go v1.84.0
 	github.com/coreos/go-oidc/v3 v3.21.0
-	github.com/getkin/kin-openapi v0.151.0
+	github.com/getkin/kin-openapi v0.152.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/goccy/go-yaml v1.19.2
 	github.com/jackc/pgx/v5 v5.11.0
-	github.com/klauspost/compress v1.20.2
-	github.com/mark3labs/mcp-go v1.3.0
-	github.com/openai/openai-go/v3 v3.81.0
+	github.com/klauspost/compress v1.20.3
+	github.com/mark3labs/mcp-go v1.4.0
+	github.com/openai/openai-go/v3 v3.86.0
 	github.com/pressly/goose/v3 v3.29.0
 	github.com/prometheus/client_golang v1.25.0
-	github.com/prometheus/prometheus v0.315.0
+	github.com/prometheus/prometheus v0.315.1
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/spf13/cobra v1.10.2
 	github.com/testcontainers/testcontainers-go v0.44.0
