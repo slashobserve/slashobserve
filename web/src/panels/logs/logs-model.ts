@@ -240,10 +240,7 @@ function jsonObjectOf(value: unknown): Record<string, unknown> | null {
   }
 }
 
-export function expandJsonDetail(
-  detail: LogDetail,
-  value: unknown
-): LogDetail[] {
+function expandJsonDetail(detail: LogDetail, value: unknown): LogDetail[] {
   const object = jsonObjectOf(value)
   if (object === null) return [detail]
   return Object.entries(object).map(([key, item]) => ({
