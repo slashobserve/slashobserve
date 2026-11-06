@@ -5,7 +5,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type ReactNode,
 } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -20,7 +19,6 @@ import { dashboardKeys } from "@/api/keys"
 import { useComments } from "@/comments/queries"
 import { openThreadCount, openThreadsByPanel } from "@/comments/threads"
 import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
 import { foldersQuery } from "@/folders/queries"
 import { StarToggle } from "@/home/star-toggle"
 import {
@@ -28,7 +26,6 @@ import {
   inspectPaneId,
   type InspectTarget,
 } from "@/inspect/inspect-pane"
-import { cn } from "@/lib/utils"
 import { displayZone, refreshToMs, timeOptionsFor } from "@/lib/time"
 import { shift, zoomOut } from "@/lib/time-shift"
 import { madeByBreadcrumb } from "@/lib/origin"
@@ -63,6 +60,7 @@ import {
 } from "./cursor-sync"
 import { DashboardGrid, type PanelItem } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
+import { DashboardPageSkeleton, pageClass } from "./dashboard-page-skeleton"
 import { DashboardTopRow } from "./dashboard-top-row"
 import { DeleteDashboardDialog } from "./delete-dashboard-dialog"
 import { duplicateBlockReason, duplicateTargets } from "./duplicate"
@@ -88,7 +86,6 @@ import {
   type LiveStatus,
 } from "./live/use-dashboard-events"
 import { downloadSpec } from "./export-spec"
-import { gridMargin } from "./fit-layout"
 import { KioskHint } from "./kiosk/kiosk-hint"
 import { useKiosk } from "./kiosk/use-kiosk"
 import { MoreMenu } from "./more-menu"
@@ -116,7 +113,6 @@ import {
   useSetDashboardSearch,
   type DashboardSearch,
 } from "./search"
-import { gridRowHeight } from "./stack-heights"
 import {
   effectiveRefresh,
   pickerQuickRanges,
@@ -204,15 +200,6 @@ function ViewedPanel({
         {size ? children(size) : null}
       </div>
     </div>
-  )
-}
-
-function pageClass(stacked: boolean) {
-  return cn(
-    "flex bg-background text-foreground",
-    stacked
-      ? "min-h-svh flex-wrap"
-      : "h-svh flex-nowrap narrow:h-auto narrow:min-h-svh"
   )
 }
 
@@ -966,55 +953,5 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
       <UnsavedChangesGuard />
       {content}
     </>
-  )
-}
-
-const skeletonPanels = [
-  "min-[800px]:col-span-12 row-span-8",
-  "min-[800px]:col-span-6 row-span-4",
-  "min-[800px]:col-span-6 row-span-4",
-  "min-[800px]:col-span-24 row-span-8",
-]
-
-export function DashboardPageSkeleton() {
-  const open = useActivityStore((state) => state.open)
-  const layout = useActivityLayout(false)
-  return (
-    <div className={pageClass(open && layout.stacked)} aria-busy="true">
-      <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-3 pr-2.5 pb-2.5 pl-4">
-          <Skeleton className="h-[30px] w-64 animate-none motion-safe:animate-pulse" />
-          <Skeleton className="h-[30px] w-48 animate-none motion-safe:animate-pulse" />
-        </div>
-        <div className="pr-2.5 pb-2.5 pl-4">
-          <Skeleton className="h-7 w-48 animate-none motion-safe:animate-pulse" />
-        </div>
-        <main className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4">
-          <div
-            className="grid grid-cols-1 min-[800px]:grid-cols-24"
-            style={{ gridAutoRows: gridRowHeight, gap: gridMargin }}
-          >
-            {skeletonPanels.map((span, index) => (
-              <Skeleton
-                key={index}
-                className={`${span} animate-none motion-safe:animate-pulse`}
-              />
-            ))}
-          </div>
-        </main>
-      </div>
-      {open ? (
-        <div
-          aria-hidden="true"
-          style={{ "--activity-w": `${layout.width}px` } as CSSProperties}
-          className={cn(
-            "rounded-card border",
-            layout.stacked
-              ? "mr-2.5 mb-2.5 ml-4 h-[70svh] flex-[1_1_100%]"
-              : "m-2 ml-0.5 flex-[0_0_var(--activity-w)]"
-          )}
-        />
-      ) : null}
-    </div>
   )
 }
