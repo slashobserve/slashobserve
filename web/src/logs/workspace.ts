@@ -5,12 +5,22 @@ import type { InputMode } from "@/ask/input-mode"
 import type { PanelDataResponse } from "@/dashboards/queries"
 import type { TimeRangeValue } from "@/dashboards/time-range-picker"
 import type { DatasourceStatus } from "@/datasources/queries"
+import type { LogSelection } from "@/panels/logs/logs-panel"
 
-import type { ContextRequest } from "./logs-results"
 import type { LogsSearch } from "./search"
 import type { useLiveTail } from "./use-live-tail"
 
 export const resultRows = 1000
+
+export type DetailTab = "table" | "json" | "context"
+
+type LogDetailState = {
+  selection: LogSelection | null
+  tab: DetailTab
+  drawerId: string
+  select: (selection: LogSelection | null, tab?: DetailTab) => void
+  setTab: (tab: DetailTab) => void
+}
 
 export type LogsWorkspace = {
   datasource: DatasourceStatus
@@ -34,7 +44,7 @@ export type LogsWorkspace = {
   focusQuery: () => void
   registerQueryFocus: (focus: () => void) => void
   labels: { open: boolean; setOpen: (open: boolean) => void }
-  openContext: (request: ContextRequest) => void
+  detail: LogDetailState
 }
 
 export const LogsWorkspaceContext = createContext<LogsWorkspace | null>(null)

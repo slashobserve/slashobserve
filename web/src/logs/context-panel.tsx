@@ -1,4 +1,4 @@
-import { useMemo, type RefObject } from "react"
+import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { exploreKeys } from "@/api/keys"
@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { WireFrame } from "@/dashboards/queries"
 import type { DatasourceStatus } from "@/datasources/queries"
-import { zonedDateTimeMs } from "@/lib/time"
+import type { LogSelection } from "@/panels/logs/logs-panel"
 import type { LogEntry } from "@/panels/logs/logs-model"
-import { SidePanel } from "@/shell/side-panel"
 
 import {
   anchorRowKey,
@@ -24,15 +23,13 @@ import {
 } from "./context-query"
 import { exploreErrorText, exploreRequest } from "./explore"
 import { rowCount, rowTime } from "./frames"
-import { ExploreLogs, type ContextRequest } from "./logs-results"
+import { ExploreLogs } from "./logs-results"
 import { useElementSize } from "./use-element-size"
 
 type Props = {
   datasource: DatasourceStatus
-  anchor: ContextRequest
+  anchor: LogSelection
   indexedLabels: readonly string[] | undefined
-  onClose: () => void
-  trigger: RefObject<HTMLElement | null>
 }
 
 type AfterLines = { frames: WireFrame[]; incomplete: boolean }
@@ -94,7 +91,7 @@ type Search =
 
 function searchFor(
   datasource: DatasourceStatus,
-  anchor: ContextRequest,
+  anchor: LogSelection,
   indexedLabels: readonly string[] | undefined
 ): Search {
   if (datasource.type === "clickhouse") {
@@ -109,13 +106,7 @@ function searchFor(
     : { kind: "loki", selector }
 }
 
-export function ContextPanel({
-  datasource,
-  anchor,
-  indexedLabels,
-  onClose,
-  trigger,
-}: Props) {
+export function ContextTab({ datasource, anchor, indexedLabels }: Props) {
   const { entry } = anchor
   const anchorMs = entry.time ?? 0
   const rowKey = anchorRowKey(entry)
@@ -235,14 +226,7 @@ export function ContextPanel({
   }
 
   return (
-    <SidePanel
-      title="Lines around this line"
-      description={
-        entry.time === null ? undefined : zonedDateTimeMs(entry.time, undefined)
-      }
-      onClose={onClose}
-      trigger={trigger}
-    >
+    <>
       {search.kind !== "none" ? (
         <p className="font-mono text-xs [overflow-wrap:anywhere]">
           {search.kind === "loki"
@@ -259,6 +243,6 @@ export function ContextPanel({
       <div ref={ref} className="relative min-h-80 flex-1">
         <div className="absolute inset-0 flex flex-col gap-2">{body()}</div>
       </div>
-    </SidePanel>
+    </>
   )
 }
