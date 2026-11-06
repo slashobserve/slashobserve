@@ -8,7 +8,7 @@ const thirty = Array.from({ length: 30 }, (_, index) => ({
 }))
 
 describe("filterPalette", () => {
-  test("an empty query lists every page, the first 8 dashboards and sign out", () => {
+  test("an empty query lists every page, the first 8 dashboards and the account actions", () => {
     const groups = filterPalette("", thirty, "admin")
     expect(groups.map((group) => group.value)).toEqual([
       "Pages",
@@ -29,7 +29,10 @@ describe("filterPalette", () => {
     expect(groups[1]?.items.map((entry) => entry.id)).toEqual(
       thirty.slice(0, 8).map((dashboard) => dashboard.id)
     )
-    expect(groups[2]?.items.map((entry) => entry.label)).toEqual(["Sign out"])
+    expect(groups[2]?.items.map((entry) => entry.label)).toEqual([
+      "Switch theme",
+      "Sign out",
+    ])
   })
 
   test("a query matching one page omits the empty groups", () => {
@@ -66,7 +69,17 @@ describe("filterPalette", () => {
   test("finds sign out in the Account group", () => {
     const groups = filterPalette("sign", [], "admin")
     expect(groups.map((group) => group.value)).toEqual(["Account"])
-    expect(groups[0]?.items[0]).toMatchObject({ kind: "action" })
+    expect(groups[0]?.items).toEqual([
+      { kind: "action", id: "action:sign-out", label: "Sign out" },
+    ])
+  })
+
+  test("finds switch theme in the Account group", () => {
+    const groups = filterPalette("THEME", [], "viewer")
+    expect(groups.map((group) => group.value)).toEqual(["Account"])
+    expect(groups[0]?.items).toEqual([
+      { kind: "action", id: "action:theme", label: "Switch theme" },
+    ])
   })
 
   test("a Viewer is offered no Admin-only pages", () => {

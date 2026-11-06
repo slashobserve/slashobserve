@@ -76,15 +76,17 @@ export function DashboardTopRow({
         aria-label="Breadcrumb"
         className="flex min-w-0 flex-wrap items-center gap-2 text-[13px]"
       >
-        <Link
-          to="/"
-          aria-label="/observe home"
-          title="/observe"
-          className="grid size-[18px] place-items-center rounded-sm no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <Mark size={16} className="size-[15px]" />
-        </Link>
-        <Separator />
+        <span className="hidden items-center gap-2 narrow:flex">
+          <Link
+            to="/"
+            aria-label="/observe home"
+            title="/observe"
+            className="grid size-[18px] place-items-center rounded-sm no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Mark size={16} className="size-[15px]" />
+          </Link>
+          <Separator />
+        </span>
         <Link
           to="/dashboards"
           className="rounded-sm text-muted-foreground no-underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"

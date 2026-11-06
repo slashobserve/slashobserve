@@ -29,12 +29,13 @@ import {
 import { displayZone, refreshToMs, timeOptionsFor } from "@/lib/time"
 import { shift, zoomOut } from "@/lib/time-shift"
 import { madeByBreadcrumb } from "@/lib/origin"
+import { cn } from "@/lib/utils"
 import { isEditablePanel } from "@/panel-editor/draft"
 import { isRenderable } from "@/panels"
 import { ActionProvider } from "@/panels/actions/action-context"
 import { createSharedCursor, type CursorSync } from "@/panels/shared-cursor"
 import { ShareToggle } from "@/share/share-pane"
-import { ThemeSwitch } from "@/shell/theme-switch"
+import { Sidebar } from "@/shell/sidebar"
 import { ShortcutsDialog } from "@/shortcuts/shortcuts-dialog"
 import {
   shortcutPanelId,
@@ -616,7 +617,6 @@ function DashboardView({
     </div>,
   ]
   const actions: ReactNode[] = [
-    <ThemeSwitch key="theme" />,
     <MoreMenu
       key="more"
       mayEdit={permissions.edit}
@@ -721,166 +721,182 @@ function DashboardView({
   )
 
   return (
-    <div
-      className={pageClass(
-        (cardVisible && cardLayout.stacked) ||
-          (inspecting && inspectLayout.stacked)
-      )}
-    >
-      <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
-        {kiosk ? null : (
-          <DashboardTopRow
-            title={spec.title}
-            folder={access.folder}
-            madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
-            versionControl={
-              <VersionMenu
-                dashboardId={dashboardId}
-                version={version}
-                latest={latestVersion}
-                current={envelope.version}
-                pinned={pinned}
-                editing={editing}
-                status={liveStatus}
-                back={backFromSearch(search)}
-              />
-            }
-            controls={controls}
-            editing={<EditControls dashboardId={dashboardId} pinned={pinned} />}
-            actions={actions}
-          />
+    <div className="flex min-h-svh bg-chrome">
+      {kiosk ? null : <Sidebar rail />}
+      <div
+        className={cn(
+          pageClass(
+            (cardVisible && cardLayout.stacked) ||
+              (inspecting && inspectLayout.stacked)
+          ),
+          "min-w-0 flex-1"
         )}
-        {editing ? (
-          <NewerVersionNotice
+      >
+        <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
+          {kiosk ? null : (
+            <DashboardTopRow
+              title={spec.title}
+              folder={access.folder}
+              madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
+              versionControl={
+                <VersionMenu
+                  dashboardId={dashboardId}
+                  version={version}
+                  latest={latestVersion}
+                  current={envelope.version}
+                  pinned={pinned}
+                  editing={editing}
+                  status={liveStatus}
+                  back={backFromSearch(search)}
+                />
+              }
+              controls={controls}
+              editing={
+                <EditControls dashboardId={dashboardId} pinned={pinned} />
+              }
+              actions={actions}
+            />
+          )}
+          {editing ? (
+            <NewerVersionNotice
+              dashboardId={dashboardId}
+              baseVersion={session.baseVersion}
+              latestVersion={latestVersion}
+            />
+          ) : null}
+          {kiosk ? null : (
+            <>
+              <VariablesBar
+                states={states}
+                unverified={unverified.variables}
+                onSelect={select}
+              />
+              <DashboardLinks
+                links={spec.links}
+                dashboardId={dashboardId}
+                timeOptions={timeOptions}
+                scope={{
+                  vars: selections,
+                  from: effectiveFrom,
+                  to: effectiveTo,
+                }}
+              />
+            </>
+          )}
+          <LayoutAnnouncer />
+          <main
+            ref={gridBox}
+            className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4"
+          >
+            <ActionProvider value={actionContext}>
+              {viewed ? (
+                <ViewedPanel onBack={closeView}>
+                  {(size) =>
+                    renderPanel(
+                      {
+                        kind: "panel",
+                        key: viewed.id,
+                        panel: viewed,
+                        title: interpolateTitle(panelTitle(viewed), selections),
+                        selections,
+                        first: true,
+                        gridPos: viewed.gridPos,
+                      },
+                      size,
+                      true
+                    )
+                  }
+                </ViewedPanel>
+              ) : (
+                <DashboardGrid
+                  dashboardId={dashboardId}
+                  spec={spec}
+                  selections={selections}
+                  values={values}
+                  editable={editing && canEdit}
+                  layout={editing ? session.layout : undefined}
+                  onLayoutChange={editing ? setLayout : undefined}
+                  newPanelIds={editing ? undefined : seen.fresh}
+                  renderPanel={(item, size) => renderPanel(item, size)}
+                />
+              )}
+            </ActionProvider>
+          </main>
+        </div>
+        {cardVisible ? (
+          <ActivityCard
             dashboardId={dashboardId}
-            baseVersion={session.baseVersion}
+            apiId={envelope.dashboard.id}
+            spec={spec}
+            version={version}
             latestVersion={latestVersion}
+            pinned={pinned}
+            canEdit={permissions.edit}
+            folder={access.folder}
+            canManage={permissions.manage}
+            madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
+            back={backFromSearch(search)}
+            timeRange={timeRange}
+            selections={ready ? selections : null}
+            composerRef={composerRef}
+            guardRef={editGuard}
+            onSelectPanel={onSelectPanel}
+            onClose={closeCard}
           />
         ) : null}
-        {kiosk ? null : (
-          <>
-            <VariablesBar
-              states={states}
-              unverified={unverified.variables}
-              onSelect={select}
-            />
-            <DashboardLinks
-              links={spec.links}
-              dashboardId={dashboardId}
-              timeOptions={timeOptions}
-              scope={{ vars: selections, from: effectiveFrom, to: effectiveTo }}
-            />
-          </>
-        )}
-        <LayoutAnnouncer />
-        <main
-          ref={gridBox}
-          className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4"
-        >
-          <ActionProvider value={actionContext}>
-            {viewed ? (
-              <ViewedPanel onBack={closeView}>
-                {(size) =>
-                  renderPanel(
-                    {
-                      kind: "panel",
-                      key: viewed.id,
-                      panel: viewed,
-                      title: interpolateTitle(panelTitle(viewed), selections),
-                      selections,
-                      first: true,
-                      gridPos: viewed.gridPos,
-                    },
-                    size,
-                    true
-                  )
-                }
-              </ViewedPanel>
-            ) : (
-              <DashboardGrid
-                dashboardId={dashboardId}
-                spec={spec}
-                selections={selections}
-                values={values}
-                editable={editing && canEdit}
-                layout={editing ? session.layout : undefined}
-                onLayoutChange={editing ? setLayout : undefined}
-                newPanelIds={editing ? undefined : seen.fresh}
-                renderPanel={(item, size) => renderPanel(item, size)}
-              />
-            )}
-          </ActionProvider>
-        </main>
-      </div>
-      {cardVisible ? (
-        <ActivityCard
+        {inspecting ? (
+          <InspectPane
+            title={panelTitle(inspectPanel)}
+            tab={search.inspectTab ?? "data"}
+            target={
+              inspectTarget?.panel.id === inspectPanel.id ? inspectTarget : null
+            }
+            variables={variables}
+            zone={displayZone(inspectPanel.timezone, spec.timezone)}
+            onClose={closeInspect}
+          />
+        ) : null}
+        {kiosk ? <KioskHint /> : null}
+        <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+        <DetailsDialog
           dashboardId={dashboardId}
-          apiId={envelope.dashboard.id}
-          spec={spec}
-          version={version}
-          latestVersion={latestVersion}
-          pinned={pinned}
-          canEdit={permissions.edit}
-          folder={access.folder}
-          canManage={permissions.manage}
-          madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
-          back={backFromSearch(search)}
-          timeRange={timeRange}
-          selections={ready ? selections : null}
-          composerRef={composerRef}
-          guardRef={editGuard}
-          onSelectPanel={onSelectPanel}
-          onClose={closeCard}
+          spec={envelopeSpec}
+          version={envelopeVersion}
+          open={detailsOpen}
+          onOpenChange={setDetailsOpen}
+          finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
         />
-      ) : null}
-      {inspecting ? (
-        <InspectPane
-          title={panelTitle(inspectPanel)}
-          tab={search.inspectTab ?? "data"}
-          target={
-            inspectTarget?.panel.id === inspectPanel.id ? inspectTarget : null
-          }
-          variables={variables}
-          zone={displayZone(inspectPanel.timezone, spec.timezone)}
-          onClose={closeInspect}
+        <DuplicateDashboardDialog
+          source={{
+            id: dashboardId,
+            title: spec.title,
+            version: latestVersion,
+          }}
+          targets={duplicate}
+          open={duplicating}
+          onOpenChange={setDuplicating}
+          finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
         />
-      ) : null}
-      {kiosk ? <KioskHint /> : null}
-      <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
-      <DetailsDialog
-        dashboardId={dashboardId}
-        spec={envelopeSpec}
-        version={envelopeVersion}
-        open={detailsOpen}
-        onOpenChange={setDetailsOpen}
-        finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
-      />
-      <DuplicateDashboardDialog
-        source={{ id: dashboardId, title: spec.title, version: latestVersion }}
-        targets={duplicate}
-        open={duplicating}
-        onOpenChange={setDuplicating}
-        finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
-      />
-      <DeleteDashboardDialog
-        dashboard={{
-          id: dashboardId,
-          title: spec.title,
-          versions: latestVersion,
-        }}
-        open={deleting}
-        onOpenChange={setDeleting}
-        finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
-        onDeleted={async (alreadyGone) => {
-          toast.success(
-            alreadyGone
-              ? `${spec.title} was already deleted`
-              : `Deleted ${spec.title}`
-          )
-          await navigate({ to: "/dashboards", ignoreBlocker: true })
-          forgetDashboard(queryClient, dashboardId)
-        }}
-      />
+        <DeleteDashboardDialog
+          dashboard={{
+            id: dashboardId,
+            title: spec.title,
+            versions: latestVersion,
+          }}
+          open={deleting}
+          onOpenChange={setDeleting}
+          finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
+          onDeleted={async (alreadyGone) => {
+            toast.success(
+              alreadyGone
+                ? `${spec.title} was already deleted`
+                : `Deleted ${spec.title}`
+            )
+            await navigate({ to: "/dashboards", ignoreBlocker: true })
+            forgetDashboard(queryClient, dashboardId)
+          }}
+        />
+      </div>
     </div>
   )
 }

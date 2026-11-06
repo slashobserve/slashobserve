@@ -11,7 +11,7 @@ type PageEntry = {
 export type DashboardEntry = { kind: "dashboard"; id: string; label: string }
 type ActionEntry = {
   kind: "action"
-  id: "action:sign-out"
+  id: "action:sign-out" | "action:theme"
   label: string
 }
 export type PaletteEntry = PageEntry | DashboardEntry | ActionEntry
@@ -27,6 +27,12 @@ function pageEntries(role: Role): PageEntry[] {
     label: item.label,
     to: item.to,
   }))
+}
+
+const themeEntry: ActionEntry = {
+  kind: "action",
+  id: "action:theme",
+  label: "Switch theme",
 }
 
 const signOutEntry: ActionEntry = {
@@ -61,7 +67,7 @@ export function filterPalette(
     { value: "Dashboards", items: dashboardEntries },
     {
       value: "Account",
-      items: matches(signOutEntry.label) ? [signOutEntry] : [],
+      items: [themeEntry, signOutEntry].filter((e) => matches(e.label)),
     },
   ]
   return groups.filter((group) => group.items.length > 0)
