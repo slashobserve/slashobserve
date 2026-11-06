@@ -14,8 +14,13 @@ import { toast } from "sonner"
 
 import { ActivityCard, activityCardId } from "@/activity/activity-card"
 import type { EditGuard } from "@/activity/edit-pane"
-import { useActivityLayout, useActivityStore } from "@/activity/activity-store"
+import {
+  useActivityLayout,
+  useActivityStore,
+  useChatPaneLayout,
+} from "@/activity/activity-store"
 import { dashboardKeys } from "@/api/keys"
+import { ChatPane } from "@/chat/chat-pane"
 import { useComments } from "@/comments/queries"
 import { openThreadCount, openThreadsByPanel } from "@/comments/threads"
 import { Button } from "@/components/ui/button"
@@ -356,12 +361,18 @@ function DashboardView({
   const inspecting = inspectPanel !== undefined && !editing
   const panelInUrl = search.edit !== undefined && search.panel !== undefined
   const editingPanel = permissions.edit && panelInUrl
+  const chatRequestId =
+    panelInUrl || search.share === true || editing || inspecting || kiosk
+      ? undefined
+      : search.chat
   const cardVisible =
     (open || panelInUrl || search.share === true) &&
     !editing &&
     !inspecting &&
-    !kiosk
+    !kiosk &&
+    chatRequestId === undefined
   const cardLayout = useActivityLayout(editingPanel)
+  const chatLayout = useChatPaneLayout()
   const inspectLayout = useActivityLayout(false)
   const [inspectTarget, setInspectTarget] = useState<InspectTarget | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
@@ -544,7 +555,8 @@ function DashboardView({
     if (
       search.panel === undefined &&
       search.edit === undefined &&
-      search.share !== true
+      search.share !== true &&
+      search.chat === undefined
     ) {
       return
     }
@@ -553,8 +565,9 @@ function DashboardView({
       panel: undefined,
       edit: undefined,
       share: false,
+      chat: undefined,
     }))
-  }, [setOpen, setSearch, search.panel, search.edit, search.share])
+  }, [setOpen, setSearch, search.panel, search.edit, search.share, search.chat])
 
   const toggleCard = useCallback(() => {
     if (cardVisible) {
@@ -562,8 +575,18 @@ function DashboardView({
       return
     }
     setOpen(true)
+    if (search.chat !== undefined) {
+      setSearch((state) => ({ ...state, chat: undefined }))
+    }
     if (cardLayout.stacked) scrollPaneIntoView(activityCardId)
-  }, [cardVisible, closeCard, setOpen, cardLayout.stacked])
+  }, [
+    cardVisible,
+    closeCard,
+    setOpen,
+    setSearch,
+    search.chat,
+    cardLayout.stacked,
+  ])
 
   const toggleShare = useCallback(() => {
     const sharing = search.share === true
@@ -727,6 +750,7 @@ function DashboardView({
         className={cn(
           pageClass(
             (cardVisible && cardLayout.stacked) ||
+              (chatRequestId !== undefined && chatLayout.stacked) ||
               (inspecting && inspectLayout.stacked)
           ),
           "min-w-0 flex-1"
@@ -843,6 +867,9 @@ function DashboardView({
             onSelectPanel={onSelectPanel}
             onClose={closeCard}
           />
+        ) : null}
+        {chatRequestId !== undefined ? (
+          <ChatPane requestId={chatRequestId} onClose={closeCard} />
         ) : null}
         {inspecting ? (
           <InspectPane

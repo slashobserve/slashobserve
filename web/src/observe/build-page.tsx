@@ -9,6 +9,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { useChatPaneLayout } from "@/activity/activity-store"
 import { ChatPane } from "@/chat/chat-pane"
 import { DashboardGrid } from "@/dashboards/dashboard-grid"
+import { pageClass } from "@/dashboards/dashboard-page-skeleton"
 import { DashboardTopRow } from "@/dashboards/dashboard-top-row"
 import { PanelContainer } from "@/dashboards/panel-container"
 import { mixesDatasources } from "@/dashboards/panel-datasources"
@@ -20,9 +21,15 @@ import { createSharedCursor } from "@/panels/shared-cursor"
 import { Sidebar } from "@/shell/sidebar"
 import { isDataPanel, sourcePanelOf, type Dashboard } from "@/spec"
 import { dashboardLink } from "@/lib/links"
+import { cn } from "@/lib/utils"
 
 import { buildQuery, newPanelIds, savedDashboardId } from "./build"
-import { buildPageNotice, buildPageTitle } from "./build-page-model"
+import {
+  buildBodyState,
+  buildPageNotice,
+  buildPageTitle,
+} from "./build-page-model"
+import { BuildWaiting, NothingSaved } from "./build-waiting"
 import { observeRequestQuery } from "./queries"
 
 const noPanels: ReadonlySet<string> = new Set()
@@ -166,8 +173,13 @@ export function BuildPage({ requestId }: { requestId: string }) {
   const savedId = request === undefined ? null : savedDashboardId(request)
   useEffect(() => {
     if (savedId === null) return
-    void navigate({ ...dashboardLink(savedId), replace: true })
-  }, [savedId, navigate])
+    void navigate({
+      ...dashboardLink(savedId),
+      search: { chat: requestId },
+      replace: true,
+      viewTransition: true,
+    })
+  }, [savedId, navigate, requestId])
 
   const active = request?.status === "queued" || request?.status === "running"
   const knownTitle = buildPageTitle({
@@ -185,23 +197,32 @@ export function BuildPage({ requestId }: { requestId: string }) {
     hasRequest: request !== undefined,
     buildError: buildResult.error,
   })
-  let body
-  if (notice !== undefined) {
-    body = <Notice>{notice}</Notice>
-  } else if (loaded && spec) {
-    body = (
-      <main className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4">
-        <BuildGrid
-          requestId={requestId}
-          saves={loaded.saves}
-          spec={spec}
-          fresh={seen.fresh}
-        />
+  const bodyState = buildBodyState({
+    failed: request?.status === "failed",
+    savedPanels: spec?.panels.length ?? 0,
+  })
+  const body =
+    notice !== undefined ? (
+      <Notice>{notice}</Notice>
+    ) : (
+      <main
+        className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4"
+        aria-busy={bodyState === "waiting" && active}
+      >
+        {bodyState === "grid" && loaded && spec ? (
+          <BuildGrid
+            requestId={requestId}
+            saves={loaded.saves}
+            spec={spec}
+            fresh={seen.fresh}
+          />
+        ) : bodyState === "nothing-saved" ? (
+          <NothingSaved />
+        ) : (
+          <BuildWaiting />
+        )}
       </main>
     )
-  } else {
-    body = <main className="min-h-0 flex-1" aria-busy={active} />
-  }
 
   const topRow = (
     <DashboardTopRow
@@ -214,23 +235,15 @@ export function BuildPage({ requestId }: { requestId: string }) {
     />
   )
 
-  if (stacked) {
-    return (
-      <div className="flex min-h-svh flex-col bg-background text-foreground">
-        {topRow}
-        {body}
-        <ChatPane requestId={requestId} />
-      </div>
-    )
-  }
-
   return (
-    <div className="flex h-svh bg-background text-foreground">
+    <div className="flex min-h-svh bg-chrome">
       <Sidebar rail />
-      <ChatPane requestId={requestId} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        {topRow}
-        {body}
+      <div className={cn(pageClass(stacked), "min-w-0 flex-1")}>
+        <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
+          {topRow}
+          {body}
+        </div>
+        <ChatPane requestId={requestId} />
       </div>
     </div>
   )

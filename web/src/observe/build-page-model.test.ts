@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest"
 
 import { ApiError } from "@/api/errors"
 
-import { buildPageNotice, buildPageTitle } from "./build-page-model"
+import {
+  buildBodyState,
+  buildPageNotice,
+  buildPageTitle,
+  runStateText,
+} from "./build-page-model"
 
 const notFound = new ApiError(404, "not_found", "not found")
 const serverError = new ApiError(500, "internal", "boom")
@@ -82,5 +87,31 @@ describe("buildPageTitle", () => {
     expect(buildPageTitle({ specTitle, buildTitle, dashboardTitle })).toBe(
       expected
     )
+  })
+})
+
+describe("runStateText", () => {
+  it.each([
+    ["queued", "queued", null, null, "Building"],
+    ["running", "running", null, null, "Building"],
+    ["succeeded", "succeeded", null, 3, "Saved version 3"],
+    ["canceled", "failed", "canceled", null, "Stopped"],
+    ["failed otherwise", "failed", "model_error", null, "Failed"],
+    ["failed after its build was saved", "failed", "timeout", 2, "Failed"],
+  ] as const)("%s", (_name, status, failure_code, result_version, expected) => {
+    expect(runStateText({ status, failure_code, result_version })).toBe(
+      expected
+    )
+  })
+})
+
+describe("buildBodyState", () => {
+  it.each([
+    ["active with no build", false, 0, "waiting"],
+    ["active with panels saved", false, 2, "grid"],
+    ["failed with no build", true, 0, "nothing-saved"],
+    ["failed with a build", true, 3, "grid"],
+  ] as const)("%s", (_name, failed, savedPanels, expected) => {
+    expect(buildBodyState({ failed, savedPanels })).toBe(expected)
   })
 })

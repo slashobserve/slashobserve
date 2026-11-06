@@ -37,6 +37,7 @@ export type DashboardSearch = {
   viewPanel?: string
   inspect?: string
   inspectTab?: InspectTab
+  chat?: string
   vars: Record<string, string[]>
 }
 
@@ -48,6 +49,7 @@ export type DashboardSearchParams = Record<
 export const ALL = "$__all"
 
 const panelIdPattern = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/
+const requestIdPattern = /^[A-Za-z0-9_-]{1,64}$/
 const variableNamePattern = /^[A-Za-z][A-Za-z0-9_]{0,39}$/
 const versionPattern = /^[1-9][0-9]{0,8}$/
 const annotationTagPattern = /^[a-z0-9][a-z0-9_.-]{0,39}$/
@@ -173,6 +175,9 @@ export function validateDashboardSearch(
     }
   }
 
+  const chat = firstString(raw.chat)
+  if (chat !== undefined && requestIdPattern.test(chat)) state.chat = chat
+
   for (const key of Object.keys(raw)) {
     if (!key.startsWith(variablePrefix)) continue
     const name = key.slice(variablePrefix.length)
@@ -219,6 +224,7 @@ export function searchFromState(
       }
     }
   }
+  if (state.chat !== undefined) out.chat = state.chat
   for (const [name, values] of Object.entries(state.vars)) {
     if (values.length > 0) out[`${variablePrefix}${name}`] = values
   }
