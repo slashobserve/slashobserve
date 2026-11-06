@@ -113,9 +113,12 @@ Durations take a number and a unit, such as `250ms` or `1.5s`.
 On Tempo you can also write TraceQL, which replaces the fields.
 Press **Search traces**, or Enter in Service, Span name or a duration field, to run it; Enter in the TraceQL field adds a line.
 The page shows at most 100 traces.
-Each row shows **Started**, which opens the trace, then **Service**, **Span**, **Duration** with a bar scaled to the slowest trace shown, **Spans** and **Status**.
-**Status** reads OK, or Failed with the number of error spans.
-**Spans** and **Status** show only when every row carries the count.
+A scatter above the table plots each trace's duration over time on a log scale, red for traces with errors, with the p95 of the listed traces as a dashed line; a dot opens its trace on click, and hovering a dot highlights its row.
+The table opens slowest first, and a column header sorts by that column, ascending, descending, then back to the original order.
+Each row shows **Root service**, **Root span**, **Duration** with a bar scaled to the slowest trace shown and a tick at the p95 of the listed traces, **Spans**, **Errors** and **Started**, which opens the trace.
+**Columns** hides a column, and **Show 20 more** extends the list, which starts at 20 rows.
+**Errors** reads OK, or Failed with the number of error spans.
+**Spans** and **Errors** show only when every row carries the count.
 ClickHouse lists the newest 100 traces with a matching span, shows each trace's longest matching span, and counts only the matching spans.
 Tempo shows the root span of each trace, and sums the span and error span counts from Tempo's per-service stats; when Tempo does not report those stats, both columns are left out.
 The result is marked partial when Tempo did not search every block of the range, so a trace in an unsearched block is missing; narrow the time range or search again.
