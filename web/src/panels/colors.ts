@@ -2,17 +2,41 @@ const hueCount = 8
 const longDash = [6, 4]
 const shortDash = [2, 3]
 
-function cssVar(name: string): string {
-  return getComputedStyle(document.documentElement)
-    .getPropertyValue(name)
-    .trim()
+const tokenCache = { scope: "", values: new Map<string, string>() }
+
+function cachedTokens(): Map<string, string> {
+  const scope = document.documentElement.className
+  if (scope !== tokenCache.scope) {
+    tokenCache.scope = scope
+    tokenCache.values = new Map()
+  }
+  return tokenCache.values
 }
+
+function cachedRead(
+  key: string,
+  read: (style: CSSStyleDeclaration) => string
+): string {
+  const values = cachedTokens()
+  let value = values.get(key)
+  if (value === undefined) {
+    value = read(getComputedStyle(document.documentElement))
+    if (value !== "") values.set(key, value)
+  }
+  return value
+}
+
+function cssVar(name: string): string {
+  return cachedRead(name, (style) => style.getPropertyValue(name).trim())
+}
+
+const fontFamilyKey = "font-family"
 
 export function readChartColors() {
   return {
     grid: cssVar("--chart-grid"),
     muted: cssVar("--muted-foreground"),
-    font: getComputedStyle(document.documentElement).fontFamily,
+    font: cachedRead(fontFamilyKey, (style) => style.fontFamily),
   }
 }
 
