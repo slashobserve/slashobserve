@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"unicode/utf8"
 
@@ -17,21 +18,29 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-func largeAnalyzed(t *testing.T) map[string]analyzed {
-	t.Helper()
+var analyzedLargeDashboards = sync.OnceValues(func() (map[string]analyzed, error) {
 	dashboards, err := loadCorpus(testCorpusRoot, largeDashboardSet())
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
 	out := make(map[string]analyzed, len(dashboards))
 	for _, d := range dashboards {
 		a, err := analyze(d)
 		if err != nil {
-			t.Fatal(err)
+			return nil, err
 		}
 		out[d.key] = a
 	}
-	return out
+	return out, nil
+})
+
+func largeAnalyzed(t *testing.T) map[string]analyzed {
+	t.Helper()
+	all, err := analyzedLargeDashboards()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return all
 }
 
 func TestTheDefaultSampleIsTheLargeDashboards(t *testing.T) {
@@ -66,17 +75,8 @@ func TestLargeDashboardsLoadWithEnoughDataPanels(t *testing.T) {
 }
 
 func TestSynthSeriesCoverEveryPrometheusSelectorOfTheLargeDashboards(t *testing.T) {
-	useCorpus(t)
-	out := t.TempDir()
-	if _, err := writeSynth(out); err != nil {
-		t.Fatal(err)
-	}
-	body, err := os.ReadFile(filepath.Join(out, synthSeriesFile)) //nolint:gosec // a path inside the test's temporary directory
-	if err != nil {
-		t.Fatal(err)
-	}
 	var metrics []synthMetric
-	if err := json.Unmarshal(body, &metrics); err != nil {
+	if err := json.Unmarshal(synthOf(t).body, &metrics); err != nil {
 		t.Fatal(err)
 	}
 	served := map[string]bool{}

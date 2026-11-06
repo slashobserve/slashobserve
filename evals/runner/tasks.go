@@ -534,19 +534,12 @@ func (p *planner) finish(sc Scenario, fixture *replayFixture) (*task, error) {
 }
 
 func (p *planner) fix(a analyzed) (*task, error) {
-	broken, err := breakPanel(a.raw)
+	broken, err := breakDashboard(a.raw, a.dash)
 	if err != nil {
 		return nil, skipTask{err.Error()}
 	}
-	stored, err := convertSource(broken, stackOptions())
-	if err != nil {
-		return nil, skipTask{err.Error()}
-	}
-	id, err := changedPanel(spec.Diff(a.dash, stored))
-	if err != nil {
-		return nil, skipTask{err.Error()}
-	}
-	entry, err := pickTarget(stored, id)
+	stored := broken.stored
+	entry, err := pickTarget(stored, broken.target)
 	if err != nil {
 		return nil, skipTask{err.Error()}
 	}

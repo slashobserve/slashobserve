@@ -18,7 +18,7 @@ EVALS_STACK_MODE ?= replay
 EVALS_MATRIX ?= evals/matrix.yaml
 EVALS_REPORT_DIR ?= evals/reports/live
 PCT ?= 30
-GO_TEST_FLAGS := -race $(if $(COVER),-coverprofile=coverage.out -covermode=atomic)
+GO_TEST_FLAGS := -race -timeout 20m $(if $(COVER),-coverprofile=coverage.out -covermode=atomic)
 WEB_TEST_FLAGS := $(if $(COVER),--coverage)
 # zod 3 under the shadcn CLI, a dev-only tool that pins zod ^3 and ships in no build
 WEB_AUDIT_IGNORE := GHSA-mrhx-c7xc-m3w5

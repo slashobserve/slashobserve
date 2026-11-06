@@ -31,10 +31,11 @@ const (
 )
 
 var (
-	testCorpusRoot = filepath.Join("..", "..", "pkg", "grafana", "testdata", "corpus")
-	cachedPlans    sync.Map
-	metricNameRe   = regexp.MustCompile(`^[a-zA-Z_:][a-zA-Z0-9_:]*$`)
-	labelNameRe    = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+	testCorpusRoot    = filepath.Join("..", "..", "pkg", "grafana", "testdata", "corpus")
+	cachedPlans       sync.Map
+	cachedSampleTasks sync.Map
+	metricNameRe      = regexp.MustCompile(`^[a-zA-Z_:][a-zA-Z0-9_:]*$`)
+	labelNameRe       = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 )
 
 func planOf(t *testing.T, suite string) *planner {
@@ -48,6 +49,52 @@ func planOf(t *testing.T, suite string) *planner {
 	}
 	cachedPlans.Store(suite, p)
 	return p
+}
+
+func shippedSampleTasks(t *testing.T, suite string) []Scenario {
+	t.Helper()
+	if cached, ok := cachedSampleTasks.Load(suite); ok {
+		return cached.([]Scenario)
+	}
+	shipped, err := loadSample(filepath.Join("..", "corpus-sample.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tasks, err := corpusTasks(testCorpusRoot, shipped, suite)
+	if err != nil {
+		t.Fatalf("the shipped sample does not match the corpus: %v", err)
+	}
+	cachedSampleTasks.Store(suite, tasks)
+	return tasks
+}
+
+type synthOutput struct {
+	summary synthSummary
+	body    []byte
+}
+
+var generatedSynth = sync.OnceValues(func() (synthOutput, error) {
+	out, err := os.MkdirTemp("", "evals-synth-")
+	if err != nil {
+		return synthOutput{}, err
+	}
+	defer func() { _ = os.RemoveAll(out) }()
+	summary, err := writeSynth(out)
+	if err != nil {
+		return synthOutput{}, err
+	}
+	body, err := os.ReadFile(filepath.Join(out, synthSeriesFile)) //nolint:gosec // a path inside the temporary directory made above
+	return synthOutput{summary: summary, body: body}, err
+})
+
+func synthOf(t *testing.T) synthOutput {
+	t.Helper()
+	useCorpus(t)
+	got, err := generatedSynth()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return got
 }
 
 func taskOf(t *testing.T, p *planner, taskName, key string) task {
@@ -429,17 +476,9 @@ func TestSeriesBookChoosesLabelValuesAndSeries(t *testing.T) {
 }
 
 func TestGenerateSynthCoversTheCorpusAndLeavesTheShopAlone(t *testing.T) {
-	useCorpus(t)
-	out := t.TempDir()
-	summary, err := writeSynth(out)
-	if err != nil {
-		t.Fatal(err)
-	}
-	body, err := os.ReadFile(filepath.Join(out, synthSeriesFile)) //nolint:gosec // a path inside the test's temporary directory
-	if err != nil {
-		t.Fatal(err)
-	}
-	dec := json.NewDecoder(bytes.NewReader(body))
+	synth := synthOf(t)
+	summary := synth.summary
+	dec := json.NewDecoder(bytes.NewReader(synth.body))
 	dec.DisallowUnknownFields()
 	var metrics []synthMetric
 	if err := dec.Decode(&metrics); err != nil {
@@ -740,12 +779,8 @@ func TestLoadSample(t *testing.T) {
 	if len(shipped) != 8 || !shipped[nodeExporterFull] || !shipped[demoShop] {
 		t.Fatalf("shipped sample = %v", shipped)
 	}
-	scenarios, err := corpusTasks(testCorpusRoot, shipped, suiteLive)
-	if err != nil {
-		t.Fatalf("the shipped sample does not match the corpus: %v", err)
-	}
 	fixed := map[string]bool{}
-	for _, sc := range scenarios {
+	for _, sc := range shippedSampleTasks(t, suiteLive) {
 		if sc.Kind == kindFixUnverified {
 			fixed[sc.Seed.Corpus] = true
 		}
@@ -783,7 +818,7 @@ func TestPrepareWritesReplayFixturesAndSeriesThatBehaveAsExpected(t *testing.T) 
 	prepareOutput = &report
 	t.Cleanup(func() { prepareOutput = previous })
 	llmDir, synthDir := filepath.Join(out, "llm"), filepath.Join(out, "synth")
-	if err := generateReplay(llmDir, corpusTokenCap); err != nil {
+	if err := prepareReplay(llmDir, planOf(t, suiteReplay), corpusTokenCap); err != nil {
 		t.Fatal(err)
 	}
 	if err := generateSynth(synthDir); err != nil {
@@ -841,7 +876,7 @@ func TestPrepareReplacesStaleFixtures(t *testing.T) {
 	if err := writeShared(stale, []byte(`{"prompt":"stale","turns":[{"text":"x"}]}`)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := writeReplay(filepath.Join(out, "llm"), corpusTokenCap); err != nil {
+	if _, err := writeReplay(filepath.Join(out, "llm"), planOf(t, suiteReplay), corpusTokenCap); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(stale); !os.IsNotExist(err) {
@@ -852,6 +887,7 @@ func TestPrepareReplacesStaleFixtures(t *testing.T) {
 func TestReplayFixturesPatchOnlyWhatTheTaskAllows(t *testing.T) {
 	useCorpus(t)
 	checkedFix, checkedAdd := 0, 0
+	pristines := map[string]*spec.Dashboard{}
 	for _, tk := range planOf(t, suiteReplay).tasks {
 		isFix, isAdd := strings.HasPrefix(tk.scenario.ID, "corpus-fix-"), strings.HasPrefix(tk.scenario.ID, "corpus-add-")
 		if tk.fixture == nil || tk.fixture.Turns[0].ToolCalls[0].Name != toolUpdatePanels || (!isFix && !isAdd) {
@@ -865,16 +901,19 @@ func TestReplayFixturesPatchOnlyWhatTheTaskAllows(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		pristine, ok := pristines[tk.scenario.Seed.Corpus]
+		if !ok {
+			if pristine, err = convertSource(source, stackOptions()); err != nil {
+				t.Fatal(err)
+			}
+			pristines[tk.scenario.Seed.Corpus] = pristine
+		}
 		if tk.scenario.Kind == kindFixUnverified {
 			checkedFix++
-			assertOnlyTargetChanged(t, tk, source, patch)
+			assertOnlyTargetChanged(t, tk, source, pristine, patch)
 			continue
 		}
 		checkedAdd++
-		pristine, err := convertSource(source, stackOptions())
-		if err != nil {
-			t.Fatal(err)
-		}
 		saved, err := spec.ApplyPanelPatch(pristine, patch)
 		if err != nil {
 			t.Fatalf("%s: the patch does not apply: %v", tk.scenario.ID, err)
@@ -894,35 +933,23 @@ func TestReplayFixturesPatchOnlyWhatTheTaskAllows(t *testing.T) {
 	}
 }
 
-func assertOnlyTargetChanged(t *testing.T, tk task, source []byte, patch spec.PanelPatch) {
+func assertOnlyTargetChanged(t *testing.T, tk task, source []byte, pristine *spec.Dashboard, patch spec.PanelPatch) {
 	t.Helper()
-	pristine, err := convertSource(source, stackOptions())
-	if err != nil {
-		t.Fatal(err)
-	}
-	broken, err := breakPanel(source)
+	broken, err := breakDashboard(source, pristine)
 	if err != nil {
 		t.Fatalf("%s: %v", tk.scenario.ID, err)
 	}
-	stored, err := convertSource(broken, stackOptions())
-	if err != nil {
-		t.Fatal(err)
-	}
-	target, err := changedPanel(spec.Diff(pristine, stored))
-	if err != nil {
-		t.Fatalf("%s: %v", tk.scenario.ID, err)
-	}
-	saved, err := spec.ApplyPanelPatch(stored, patch)
+	saved, err := spec.ApplyPanelPatch(broken.stored, patch)
 	if err != nil {
 		t.Fatalf("%s: the patch does not apply: %v", tk.scenario.ID, err)
 	}
-	changes := spec.Diff(stored, saved)
+	changes := spec.Diff(broken.stored, saved)
 	if len(changes) == 0 {
 		t.Fatalf("%s: the fixture changes nothing", tk.scenario.ID)
 	}
 	for _, change := range changes {
-		if id, ok := panelOfPath(change.Path); !ok || id != target {
-			t.Fatalf("%s: change at %s is outside the target panel %s", tk.scenario.ID, change.Path, target)
+		if id, ok := panelOfPath(change.Path); !ok || id != broken.target {
+			t.Fatalf("%s: change at %s is outside the target panel %s", tk.scenario.ID, change.Path, broken.target)
 		}
 	}
 }

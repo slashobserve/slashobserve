@@ -18,6 +18,24 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/grafana"
 )
 
+var k8sConversions sync.Map
+
+type k8sConversion struct {
+	result *grafana.Result
+	err    error
+}
+
+func convertK8s(source []byte, mapping map[string]string) (*grafana.Result, error) {
+	key := string(source) + "\x00" + fmt.Sprint(mapping)
+	if cached, ok := k8sConversions.Load(key); ok {
+		c := cached.(k8sConversion)
+		return c.result, c.err
+	}
+	result, err := grafana.Convert(source, importOptions(k8sDatasources, mapping))
+	k8sConversions.Store(key, k8sConversion{result: result, err: err})
+	return result, err
+}
+
 var notKubernetes = []string{
 	"kube-prometheus/alertmanager-overview.json",
 	"kube-prometheus/grafana-overview.json",
@@ -58,7 +76,7 @@ func TestK8sMappingResolvesEveryKubernetesDashboardToTheClusterPrometheus(t *tes
 		if err != nil {
 			t.Fatal(err)
 		}
-		bare, err := grafana.Convert(source, importOptions(k8sDatasources, nil))
+		bare, err := convertK8s(source, nil)
 		if err != nil {
 			t.Fatalf("%s: %v", key, err)
 		}
@@ -77,7 +95,7 @@ func TestK8sMappingResolvesEveryKubernetesDashboardToTheClusterPrometheus(t *tes
 				t.Errorf("%s maps %s to %s, want %s", key, from, to, k8sDatasourceUID)
 			}
 		}
-		mapped, err := grafana.Convert(source, importOptions(k8sDatasources, mapping))
+		mapped, err := convertK8s(source, mapping)
 		if err != nil || !mapped.Ready() {
 			t.Errorf("%s does not resolve with its mapping (err %v)", key, err)
 		}
@@ -142,15 +160,7 @@ func TestK8sTasksRefuseWhatTheProfileCannotRun(t *testing.T) {
 }
 
 func TestDefaultProfileTasksStayFreeOfTheClusterMapping(t *testing.T) {
-	shipped, err := loadSample(filepath.Join("..", "corpus-sample.yaml"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	tasks, err := corpusTasks(testCorpusRoot, shipped, suiteLive)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, sc := range tasks {
+	for _, sc := range shippedSampleTasks(t, suiteLive) {
 		if slices.Contains(sc.Tags, tagK8s) || (sc.Seed != nil && len(sc.Seed.Mapping) > 0) {
 			t.Errorf("%s carries the k8s profile: tags %v seed %+v", sc.ID, sc.Tags, sc.Seed)
 		}
@@ -308,7 +318,7 @@ func (f *clusterImports) handler(t *testing.T) http.Handler {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Error(err)
 		}
-		result, err := grafana.Convert([]byte(body.JSON), importOptions(k8sDatasources, body.Mapping))
+		result, err := convertK8s([]byte(body.JSON), body.Mapping)
 		if err != nil {
 			t.Error(err)
 			return
@@ -381,7 +391,7 @@ func TestVerifyK8sReportsAnUnlistedUnverifiedPanel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := grafana.Convert(source, importOptions(k8sDatasources, mapping))
+	result, err := convertK8s(source, mapping)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -565,7 +575,7 @@ func TestVerifyK8sCommandExitCodes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := grafana.Convert(source, importOptions(k8sDatasources, mapping))
+	result, err := convertK8s(source, mapping)
 	if err != nil {
 		t.Fatal(err)
 	}

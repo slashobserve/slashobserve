@@ -1471,14 +1471,7 @@ func TestSmokeSuiteIsThirteenLiveTasksOfTheChosenKinds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sample, err := loadSample(filepath.Join("..", "corpus-sample.yaml"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	tasks, err := corpusTasks(testCorpusRoot, sample, corpusSuite(suiteSmoke))
-	if err != nil {
-		t.Fatal(err)
-	}
+	tasks := shippedSampleTasks(t, corpusSuite(suiteSmoke))
 	smoke, err := selectScenarios(append(files, tasks...), options{suite: suiteSmoke})
 	if err != nil {
 		t.Fatal(err)

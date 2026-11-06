@@ -78,18 +78,29 @@ func skipBackWhile(s string, end int, keep func(byte) bool) int {
 	return i
 }
 
+type breakage struct {
+	source []byte
+	stored *spec.Dashboard
+	target string
+}
+
 func breakPanel(source []byte) ([]byte, error) {
+	pristine, err := convertSource(source, stackOptions())
+	if err != nil {
+		return nil, err
+	}
+	b, err := breakDashboard(source, pristine)
+	return b.source, err
+}
+
+func breakDashboard(source []byte, pristine *spec.Dashboard) (breakage, error) {
 	dec := json.NewDecoder(bytes.NewReader(source))
 	dec.UseNumber()
 	var root map[string]any
 	if err := dec.Decode(&root); err != nil {
-		return nil, fmt.Errorf("decode the dashboard: %w", err)
+		return breakage{}, fmt.Errorf("decode the dashboard: %w", err)
 	}
 	opts := stackOptions()
-	pristine, err := convertSource(source, opts)
-	if err != nil {
-		return nil, err
-	}
 	tree := root
 	if inner, ok := root["dashboard"].(map[string]any); ok {
 		tree = inner
@@ -114,26 +125,26 @@ func breakPanel(source []byte) ([]byte, error) {
 		broken, err := encodeTree(root)
 		site.target[site.field] = original
 		if err != nil {
-			return nil, err
+			return breakage{}, err
 		}
-		if breaksOnePanel(pristine, broken, opts) {
-			return broken, nil
+		if b, ok := breaksOnePanel(pristine, broken, opts); ok {
+			return b, nil
 		}
 	}
-	return nil, errors.New("no query of the dashboard can be broken so that exactly one data panel changes")
+	return breakage{}, errors.New("no query of the dashboard can be broken so that exactly one data panel changes")
 }
 
-func breaksOnePanel(pristine *spec.Dashboard, broken []byte, opts grafana.Options) bool {
+func breaksOnePanel(pristine *spec.Dashboard, broken []byte, opts grafana.Options) (breakage, bool) {
 	changed, err := convertSource(broken, opts)
 	if err != nil {
-		return false
+		return breakage{}, false
 	}
 	id, err := changedPanel(spec.Diff(pristine, changed))
 	if err != nil {
-		return false
+		return breakage{}, false
 	}
 	_, ok := changed.FindDataPanel(id)
-	return ok
+	return breakage{source: broken, stored: changed, target: id}, ok
 }
 
 func encodeTree(root map[string]any) ([]byte, error) {

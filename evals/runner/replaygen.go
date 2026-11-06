@@ -96,7 +96,15 @@ func (f *replayFixture) inputBytes() int {
 }
 
 func generateReplay(out string, maxTokens int) error {
-	summary, err := writeReplay(out, maxTokens)
+	p, err := planCorpus(corpusDir, nil, suiteReplay)
+	if err != nil {
+		return err
+	}
+	return prepareReplay(out, p, maxTokens)
+}
+
+func prepareReplay(out string, p *planner, maxTokens int) error {
+	summary, err := writeReplay(out, p, maxTokens)
 	if err != nil {
 		return err
 	}
@@ -105,18 +113,15 @@ func generateReplay(out string, maxTokens int) error {
 	return err
 }
 
-func writeReplay(out string, maxTokens int) (replaySummary, error) {
-	p, err := planCorpus(corpusDir, nil, suiteReplay)
-	if err != nil {
-		return replaySummary{}, err
-	}
+func writeReplay(out string, p *planner, maxTokens int) (replaySummary, error) {
 	if err := clearFixtures(out); err != nil {
 		return replaySummary{}, err
 	}
-	summary := replaySummary{Skipped: p.skipped}
-	if summary.Copied, err = copyFixtures(out); err != nil {
+	copied, err := copyFixtures(out)
+	if err != nil {
 		return replaySummary{}, err
 	}
+	summary := replaySummary{Copied: copied, Skipped: p.skipped}
 	for _, t := range p.tasks {
 		if t.fixture == nil {
 			continue
