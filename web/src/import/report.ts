@@ -80,7 +80,7 @@ function panelLines(report: ImportReport, filter: ReportFilter): ReportLine[] {
         title: panel.title,
         subtitle: panel.row === null ? type : `${type} · ${panel.row}`,
         status: panel.status,
-        reasons: panel.reasons.length > 0 ? panel.reasons : ["Imported as is."],
+        reasons: panel.reasons,
         paths: panel.paths.join(", "),
       }
     })
