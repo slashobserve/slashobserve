@@ -32,6 +32,7 @@ function span(
     attributes: [],
     kind: null,
     events: [],
+    links: [],
     ...extra,
   }
 }

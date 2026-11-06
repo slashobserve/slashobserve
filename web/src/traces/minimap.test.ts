@@ -26,6 +26,7 @@ function span(offset: number, width: number, extra: Partial<Span> = {}): Span {
     attributes: [],
     kind: null,
     events: [],
+    links: [],
     ...extra,
   }
 }
