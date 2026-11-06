@@ -138,6 +138,10 @@ Tempo shows the root span of each trace, and sums the span and error span counts
 When Tempo stopped searching at its time limit, a note says older traces may be missing and which times the found traces cover, with **Keep only** to narrow the range to them.
 On a phone the table becomes a list.
 
+Drag across the duration scatter to select traces.
+The **What is different** panel ranks the attribute values that appear in a larger share of the selected traces than of the others: span names, kinds, statuses and the span and resource attributes.
+It reads every span of up to 50 selected and 150 other traces and says when it could not read them all.
+
 ## Ask on the trace search
 
 With a model configured on the server, the trace search has the same **Ask** and **Query** toggle as the logs page, in the row above the search box.

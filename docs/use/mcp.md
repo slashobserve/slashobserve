@@ -16,6 +16,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 
 | Tool | Lowest role |
 | ---- | ----------- |
+| `compare_traces` | Editor |
 | `create_annotation` | Editor |
 | `create_dashboard` | Editor |
 | `create_finding` | Editor |

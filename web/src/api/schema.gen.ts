@@ -1020,6 +1020,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasources/{uid}/trace-compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rank the attribute values that set a set of traces apart from a baseline.
+         * @description Reads every span of the `selected` traces and of the `baseline` traces from a Tempo or ClickHouse datasource and counts, once per trace, each attribute value any of its spans carries: `name` (the span name), `kind` (`Server`, `Client`, `Producer`, `Consumer`, `Internal` or `Unspecified`), `status` (`Ok`, `Error` or `Unset`), `resource.<key>` and `span.<key>`. Only scalar values count, as their text; arrays and maps are skipped, and a value is cut to 256 bytes. Each trace contributes its earliest 2,000 spans. `differences` lists the pairs whose share of selected traces and share of baseline traces differ by at least 0.1, ranked by that gap, then attribute, then value, the first `limit` of them; `truncated` says more passed the threshold. A pair carried by every trace of both sets never appears. `selected.read` and `baseline.read` count the traces whose spans were read; a trace not found in the range, or not reached before the deadline, is left out and is not an error, and `partial` is true when any read count is below its requested count. `attributes` is the number of distinct attribute names seen across both sets. Trace ids are 16 or 32 hex characters in either case, lowercased and de-duplicated by the server; an id in both lists is refused. `from` and `to` are the range the traces were found in and take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The call runs with the agent tools' 15 second timeout, is never cached, and counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included.
+         */
+        post: operations["compareTraces"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasources/{uid}/log-context": {
         parameters: {
             query?: never;
@@ -2872,6 +2894,36 @@ export interface components {
             /** @description The upper edge of the bucket in milliseconds; the bucket holds the spans whose duration is at most this value and above the previous edge. */
             le_ms: number;
             count: number;
+        };
+        TraceCompare: {
+            selected: components["schemas"]["TraceCompareSet"];
+            baseline: components["schemas"]["TraceCompareSet"];
+            /** @description The number of distinct attribute names seen across both sets. */
+            attributes: number;
+            /** @description True when fewer traces were read than requested in either set, because a trace was not found in the range or the deadline cut the read. */
+            partial: boolean;
+            /** @description The attribute values whose shares differ by at least 0.1, ranked by the gap, then attribute, then value. */
+            differences: components["schemas"]["TraceDifference"][];
+            /** @description True when more pairs passed the threshold than `limit` allowed. */
+            truncated: boolean;
+        };
+        TraceCompareSet: {
+            /** @description The distinct trace ids sent. */
+            requested: number;
+            /** @description The traces whose spans were read. */
+            read: number;
+        };
+        TraceDifference: {
+            /** @description `name`, `kind`, `status`, `resource.<key>` or `span.<key>`. */
+            attribute: string;
+            /** @description The value as text, cut to 256 bytes. */
+            value: string;
+            /** @description The share of read selected traces with a span carrying the pair, rounded to 4 decimals. */
+            selected_share: number;
+            /** @description The share of read baseline traces with a span carrying the pair, rounded to 4 decimals. */
+            baseline_share: number;
+            selected_count: number;
+            baseline_count: number;
         };
         LogContext: {
             /** @description The `TimeNs` of the request. */
@@ -6841,6 +6893,94 @@ export interface operations {
                 };
             };
             /** @description The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    compareTraces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The trace ids to explain. */
+                    selected: string[];
+                    /** @description The trace ids to compare against, such as the other traces the search returned. */
+                    baseline: string[];
+                    from: string;
+                    to: string;
+                    /** @description The browser's IANA time zone, used to resolve relative times such as `now/d`. */
+                    timezone?: string;
+                    /**
+                     * @description The most differences wanted.
+                     * @default 20
+                     */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The ranked differences and how many traces of each set were read. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraceCompare"];
+                };
+            };
+            /** @description The request is malformed or fails validation: a list is empty or over its cap, an id is not 16 or 32 hex characters, an id is in both lists, `limit` is out of range, `from` or `to` is not a valid time, or the datasource is not Tempo or ClickHouse (`invalid_request`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource did not answer within the 15 second query timeout before any trace was read, or the request did not finish within 20 seconds. */
             504: {
                 headers: {
                     [name: string]: unknown;

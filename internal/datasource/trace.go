@@ -3,14 +3,70 @@ package datasource
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"slices"
 	"strings"
 	"time"
 )
 
-const TraceSpanBudget = 20000
+const (
+	TraceSpanBudget    = 20000
+	CompareSpanBudget  = 2000
+	MaxCompareSelected = 50
+	MaxCompareBaseline = 150
+)
 
 type TraceSource interface {
 	Trace(ctx context.Context, id string, r TimeRange, maxSpans int) (Frame, error)
+}
+
+type TraceAttribute struct{ Key, Value string }
+
+type TraceAttributeSet struct {
+	ID         string
+	Attributes []TraceAttribute
+}
+
+type TraceAttributesRequest struct {
+	IDs      []string
+	Range    TimeRange
+	MaxSpans int
+}
+
+type TraceAttributeSource interface {
+	TraceAttributes(ctx context.Context, req TraceAttributesRequest) ([]TraceAttributeSet, error)
+}
+
+func CompareTraceIDs(selected, baseline []string) (sel, base []string, err error) {
+	if sel, err = ValidateTraceIDs("selected", selected, MaxCompareSelected); err != nil {
+		return nil, nil, err
+	}
+	if base, err = ValidateTraceIDs("baseline", baseline, MaxCompareBaseline); err != nil {
+		return nil, nil, err
+	}
+	for _, id := range base {
+		if slices.Contains(sel, id) {
+			return nil, nil, errors.New("a trace id cannot be in both selected and baseline")
+		}
+	}
+	return sel, base, nil
+}
+
+func ValidateTraceIDs(field string, ids []string, maxIDs int) ([]string, error) {
+	if len(ids) < 1 || len(ids) > maxIDs {
+		return nil, fmt.Errorf("%s must hold from 1 to %d trace ids", field, maxIDs)
+	}
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if !ValidTraceID(id) {
+			return nil, fmt.Errorf("%s must hold trace ids of 16 or 32 hex characters", field)
+		}
+		if id = strings.ToLower(id); !slices.Contains(out, id) {
+			out = append(out, id)
+		}
+	}
+	return out, nil
 }
 
 type TraceStatsRequest struct {
@@ -65,6 +121,16 @@ func SpanKindName(raw string) string {
 		return "Consumer"
 	}
 	return "Unspecified"
+}
+
+func SpanStatusName(raw string) string {
+	switch strings.ToUpper(strings.TrimPrefix(raw, "STATUS_CODE_")) {
+	case "1", "OK":
+		return "Ok"
+	case "2", "ERROR":
+		return "Error"
+	}
+	return "Unset"
 }
 
 func IsErrorStatus(code string) bool {

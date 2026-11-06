@@ -102,6 +102,8 @@ paths:
     $ref: "./paths/traces.yaml#/datasources-uid-traces-trace-id"
   /datasources/{uid}/trace-stats:
     $ref: "./paths/traces.yaml#/datasources-uid-trace-stats"
+  /datasources/{uid}/trace-compare:
+    $ref: "./paths/trace-compare.yaml#/datasources-uid-trace-compare"
   /datasources/{uid}/log-context:
     $ref: "./paths/log-context.yaml#/datasources-uid-log-context"
   /datasources/{uid}/tail:
@@ -1566,6 +1568,65 @@ components:
           type: number
           description: The upper edge of the bucket in milliseconds; the bucket holds the spans whose duration is at most this value and above the previous edge.
         count:
+          type: integer
+    TraceCompare:
+      type: object
+      additionalProperties: false
+      required: [selected, baseline, attributes, partial, differences, truncated]
+      properties:
+        selected:
+          $ref: "#/components/schemas/TraceCompareSet"
+        baseline:
+          $ref: "#/components/schemas/TraceCompareSet"
+        attributes:
+          type: integer
+          description: The number of distinct attribute names seen across both sets.
+        partial:
+          type: boolean
+          description: True when fewer traces were read than requested in either set, because a trace was not found in the range or the deadline cut the read.
+        differences:
+          type: array
+          description: The attribute values whose shares differ by at least 0.1, ranked by the gap, then attribute, then value.
+          items:
+            $ref: "#/components/schemas/TraceDifference"
+        truncated:
+          type: boolean
+          description: True when more pairs passed the threshold than `limit` allowed.
+    TraceCompareSet:
+      type: object
+      additionalProperties: false
+      required: [requested, read]
+      properties:
+        requested:
+          type: integer
+          description: The distinct trace ids sent.
+        read:
+          type: integer
+          description: The traces whose spans were read.
+    TraceDifference:
+      type: object
+      additionalProperties: false
+      required: [attribute, value, selected_share, baseline_share, selected_count, baseline_count]
+      properties:
+        attribute:
+          type: string
+          description: "`name`, `kind`, `status`, `resource.<key>` or `span.<key>`."
+        value:
+          type: string
+          description: The value as text, cut to 256 bytes.
+        selected_share:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: The share of read selected traces with a span carrying the pair, rounded to 4 decimals.
+        baseline_share:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: The share of read baseline traces with a span carrying the pair, rounded to 4 decimals.
+        selected_count:
+          type: integer
+        baseline_count:
           type: integer
     LogContext:
       type: object
