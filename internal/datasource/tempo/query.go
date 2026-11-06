@@ -54,6 +54,15 @@ func quotedInt64(b []byte) (int64, error) {
 	return strconv.ParseInt(strings.Trim(string(b), `"`), 10, 64)
 }
 
+type searchMetrics struct {
+	CompletedJobs int64 `json:"completedJobs"`
+	TotalJobs     int64 `json:"totalJobs"`
+}
+
+func (m searchMetrics) partial() bool {
+	return m.TotalJobs > 0 && m.CompletedJobs < m.TotalJobs
+}
+
 type searchResponse struct {
 	Traces []struct {
 		TraceID         string    `json:"traceID"`
@@ -66,6 +75,7 @@ type searchResponse struct {
 			ErrorCount int64 `json:"errorCount"`
 		} `json:"serviceStats"`
 	} `json:"traces"`
+	Metrics searchMetrics `json:"metrics"`
 }
 
 func (d *Datasource) QueryRange(ctx context.Context, q datasource.Query, r datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
@@ -161,7 +171,11 @@ func (d *Datasource) search(ctx context.Context, text string, r datasource.TimeR
 	slices.SortStableFunc(rows, func(a, b spanRow) int {
 		return cmp.Or(b.start.Compare(a.start), strings.Compare(a.traceID, b.traceID))
 	})
-	return []datasource.Frame{traceFrame(rows)}, nil
+	f := traceFrame(rows)
+	if truncated, partial := len(rows) == lim.MaxRows, resp.Metrics.partial(); truncated || partial {
+		f.Meta = &datasource.FrameMeta{Truncated: truncated, Partial: partial}
+	}
+	return []datasource.Frame{f}, nil
 }
 
 func ceilSeconds(t time.Time) int64 {

@@ -199,6 +199,40 @@ func TestSearchRefusesMoreTracesThanTheRowLimit(t *testing.T) {
 	}
 }
 
+func TestSearchReportsPartialAndTruncated(t *testing.T) {
+	partialBody := strings.Replace(searchBody, `"metrics":{"inspectedTraces":2}`, `"metrics":{"inspectedBytes":"1805425","totalBlocks":4,"completedJobs":1,"totalJobs":7}`, 1)
+	cases := []struct {
+		name               string
+		body               string
+		maxRows            int
+		partial, truncated bool
+	}{
+		{"every job done under the limit", searchBody, 20, false, false},
+		{"one of seven jobs done", partialBody, 20, true, false},
+		{"as many traces as the limit", searchBody, 2, false, true},
+		{"both", partialBody, 2, true, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds, _ := serve(t, map[string]reply{"/api/search": {0, tc.body}})
+			frames, err := ds.QueryInstant(context.Background(), datasource.Query{Text: `{}`, Limits: datasource.Limits{MaxRows: tc.maxRows}}, lastHour)
+			if err != nil || len(frames) != 1 {
+				t.Fatalf("frames = %+v, %v", frames, err)
+			}
+			var meta datasource.FrameMeta
+			if frames[0].Meta != nil {
+				meta = *frames[0].Meta
+			}
+			if meta.Partial != tc.partial || meta.Truncated != tc.truncated || meta.RowsTotal != 0 {
+				t.Fatalf("meta = %+v, want partial %v and truncated %v", meta, tc.partial, tc.truncated)
+			}
+			if !tc.partial && !tc.truncated && frames[0].Meta != nil {
+				t.Fatalf("meta = %+v, want none", frames[0].Meta)
+			}
+		})
+	}
+}
+
 func TestEmptyQueryIsRefused(t *testing.T) {
 	ds, _ := serve(t, nil)
 	_, err := ds.QueryInstant(context.Background(), datasource.Query{Text: "  "}, lastHour)
