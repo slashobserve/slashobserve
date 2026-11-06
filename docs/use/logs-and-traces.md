@@ -1,6 +1,6 @@
 ---
 title: Logs and traces
-description: Search logs from Loki or ClickHouse with a query or a plain-language question, follow a line to its trace, tail new lines and keep a query as a dashboard panel.
+description: Search logs and traces from Loki, Tempo or ClickHouse with a query or a plain-language question, follow a line to its trace, tail new lines and keep a query as a dashboard panel.
 ---
 
 The logs page and the trace view let you look at raw lines and spans without building a dashboard first.
@@ -77,21 +77,45 @@ The save runs the query over the dashboard's time range and refuses a panel that
 ## Trace view
 
 A trace opens at `/t/<trace id>?ds=<datasource uid>`.
+The title reads **Trace** with the first 8 characters of the id, and **Copy trace id** copies the whole id.
 **Open trace** on a log line opens it when the line carries a `TraceId`, `traceID`, `trace_id` or `traceId` field.
 A Loki line opens in the first Tempo datasource, and a ClickHouse line opens in the same ClickHouse datasource.
-The view draws the spans as a waterfall, and a click on a span shows its attributes in the pane beside it.
+A line above the waterfall reads the root service, the root span, the duration and the span count, with the number of errors when any span failed.
+The view draws the spans as a waterfall under a ruler that steps by 1, 2, 2.5 or 5 times a power of ten, so its labels are round numbers.
+A click on a span shows its span attributes and then its resource attributes in the pane beside it, or inline under the span on a screen 760 pixels wide or narrower.
 On ClickHouse the view looks for the spans in the last 24 hours, or within an hour of the line when you came from the logs page; widen the time range for an older trace.
 Tempo finds a trace by its id at any time.
-**Copy link** copies the address of the trace with its datasource and time range.
+**Copy link** copies the address of the trace with its datasource and time range, and **Search traces** opens the trace search on the same datasource.
 
 ## Trace search
 
 Open **Traces** in the sidebar to find traces by service, span name, minimum and maximum duration, and errors only.
+The search runs as soon as the page opens, with the fields the address carries, or with none.
 Durations take a number and a unit, such as `250ms` or `1.5s`.
 On Tempo you can also write TraceQL, which replaces the fields.
-ClickHouse lists the newest 100 traces with a matching span and shows that trace's longest matching span.
-Tempo shows the root span of each trace.
-Tempo results also carry each trace's span count and error span count, summed from Tempo's per-service stats; when Tempo does not report those stats, both counts are left out.
+Press **Search traces**, or Enter in Service, Span name or a duration field, to run it; Enter in the TraceQL field adds a line.
+The page shows at most 100 traces.
+Each row shows **Started**, which opens the trace, then **Service**, **Span**, **Duration** with a bar scaled to the slowest trace shown, **Spans** and **Status**.
+**Status** reads OK, or Failed with the number of error spans.
+**Spans** and **Status** show only when every row carries the count.
+ClickHouse lists the newest 100 traces with a matching span, shows each trace's longest matching span, and counts only the matching spans.
+Tempo shows the root span of each trace, and sums the span and error span counts from Tempo's per-service stats; when Tempo does not report those stats, both columns are left out.
+On a phone the table becomes a list.
+
+## Ask on the trace search
+
+With a model configured on the server, the trace search has the same **Ask** and **Query** toggle as the logs page, in the top right corner of the search box.
+Ctrl+I or Cmd+I switches it, Enter asks, Shift+Enter adds a line and Esc cancels a question that is still running.
+The mode you last chose on either page is the one both pages open in, and the trace search opens in Query when the address carries a search field.
+**Recent** and Up bring back earlier questions, kept apart from those of the logs page.
+The answer fills Service, Span name, the durations and Errors only, or on Tempo the TraceQL field when the question needs TraceQL.
+A duration the form cannot read is left empty.
+The search runs at once, and the address keeps the question as `ask`.
+The explanation and any warnings show under the question, above the filled form.
+Editing a field switches to Query, with a "From: <question>" line and **Ask again**, which brings the question back.
+When the model cannot turn the question into a query, the page says "I could not turn that into a query." with the reason, switches to Query and puts the cursor in Service.
+Changing the datasource drops the question, because it was answered for the other one.
+Without a model, the page stays in Query, and the Ask side of the toggle is disabled and says "Add a model key to ask in plain language".
 
 ## Ask in plain language
 
