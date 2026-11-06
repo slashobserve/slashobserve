@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -82,12 +83,30 @@ func TestLogPatternsReadsLokisIndexWhenItAnswers(t *testing.T) {
 	if want := "Found 10 patterns on fake (from Loki)"; res.Step != want {
 		t.Fatalf("step = %q, want %q", res.Step, want)
 	}
-	out, ok := res.Content.(queryproxy.LogPatterns)
+	out, ok := res.Content.(toolPatterns)
 	if !ok {
 		t.Fatalf("content is %T", res.Content)
 	}
 	if out.Source != "loki" || len(out.Patterns) != 10 || !out.Truncated || out.LinesMatched != 1134 || out.Patterns[0].Pattern != "pattern 0 <*>" || out.Patterns[0].Count != 100 {
 		t.Fatalf("patterns = %+v", out)
+	}
+	if out.TrendStepMs != 12*60*1000 {
+		t.Fatalf("trend_step_ms = %d, want 6h over 30 buckets", out.TrendStepMs)
+	}
+	for _, p := range out.Patterns {
+		if len(p.Trend) != 30 {
+			t.Fatalf("pattern %q has %d trend buckets, want 30", p.Pattern, len(p.Trend))
+		}
+	}
+	encoded, err := json.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), `"start"`) {
+		t.Fatalf("tool output carries bucket starts: %s", encoded)
+	}
+	if len(encoded) > 3<<10 {
+		t.Fatalf("a 10 pattern answer is %d bytes, want it compact", len(encoded))
 	}
 	if ds.patternCalls() != 1 {
 		t.Fatalf("%d pattern calls, want 1", ds.patternCalls())
@@ -121,7 +140,7 @@ func TestLogPatternsSamplesLinesWhenTheDatasourceHasNoIndexAndClipsSamples(t *te
 	if want := "Found 1 pattern on fake (from 3 sampled lines)"; res.Step != want {
 		t.Fatalf("step = %q, want %q", res.Step, want)
 	}
-	out := res.Content.(queryproxy.LogPatterns)
+	out := res.Content.(toolPatterns)
 	if out.Source != "server" || out.LinesSampled != 3 || !out.Truncated || len(out.Patterns) != 1 || out.Patterns[0].Count != 2 {
 		t.Fatalf("patterns = %+v", out)
 	}
@@ -154,7 +173,7 @@ func TestLogPatternsFitsTheAnswerInTheBudget(t *testing.T) {
 	if res.IsError {
 		t.Fatalf("res = %#v", res.Content)
 	}
-	out := res.Content.(queryproxy.LogPatterns)
+	out := res.Content.(toolPatterns)
 	if len(out.Patterns) >= 30 || len(out.Patterns) == 0 || !out.Truncated {
 		t.Fatalf("%d patterns, truncated %v, want fewer than 30 and truncated", len(out.Patterns), out.Truncated)
 	}

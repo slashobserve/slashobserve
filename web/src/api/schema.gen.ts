@@ -943,7 +943,7 @@ export interface paths {
         put?: never;
         /**
          * Count the top values of each label, field or column a logs query matches over a range.
-         * @description Each field answers with its most frequent values and their counts, exact where the datasource can count and from a sample of the newest lines where it cannot; every field says which with `exact`. On Loki the index labels of the matched streams (`kind` `label`) are counted exactly from the index volume API, whose counts are bytes, so those fields carry `unit` `bytes`; parsed and structured-metadata fields (`kind` `field`) are counted from the newest `sample` lines of the full query, and the response says so with `sampled` and `lines_sampled`. The Loki query must be a log query that starts with a stream selector; the selector before the first `|` picks the streams. On ClickHouse every field (`kind` `column`) is counted exactly with one `GROUP BY` per field over the query with its top-level `ORDER BY` and `LIMIT` dropped; the query must be one SELECT without UNION, INTERSECT, EXCEPT or LIMIT BY. Without `fields`, Loki counts every index label of the matched streams plus every detected field, and ClickHouse every result column except `Timestamp`, `Body`, `TraceId` and `SpanId`, plus the top 20 keys of `LogAttributes` as `LogAttributes.<key>` when it is a result column. Fields come exact first, then by cardinality ascending, then by name; values by count descending, then by value. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+         * @description Each field answers with its most frequent values and their counts, exact where the datasource can count and from a sample of the newest lines where it cannot; every field says which with `exact`. On Loki the index labels of the matched streams (`kind` `label`) are counted exactly from the index volume API, whose counts are bytes, so those fields carry `unit` `bytes`; parsed fields (`kind` `field`) and structured-metadata fields (`kind` `metadata`, a Loki field with no parser) are counted from the newest `sample` lines of the full query, and the response says so with `sampled` and `lines_sampled`. The Loki query must be a log query that starts with a stream selector; the selector before the first `|` picks the streams. On ClickHouse every field (`kind` `column`) is counted exactly with one `GROUP BY` per field over the query with its top-level `ORDER BY` and `LIMIT` dropped; the query must be one SELECT without UNION, INTERSECT, EXCEPT or LIMIT BY. Without `fields`, Loki counts every index label of the matched streams plus every detected field, and ClickHouse every result column except `Timestamp`, `Body`, `TraceId` and `SpanId`, plus the top 20 keys of `LogAttributes` as `LogAttributes.<key>` when it is a result column. Fields come exact first, then by cardinality ascending, then by name; values by count descending, then by value. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
          */
         post: operations["logFacets"];
         delete?: never;
@@ -1077,7 +1077,7 @@ export interface paths {
         put?: never;
         /**
          * Group the lines a logs query matches over a range into patterns with counts.
-         * @description A pattern is a line template with the variable tokens replaced by `<*>`, with the number of lines it covers, ordered by count descending then by pattern. On Loki with the pattern ingester enabled and a query that is a bare stream selector, the patterns come from Loki's pattern index over the whole range (`source` `loki`): `count` sums Loki's samples over the range, `first` and `last` are the first and last sample buckets, `sample` is empty and `lines_sampled` is 0. Otherwise, on a Loki without the pattern ingester, a Loki query with filters or stages, or ClickHouse, the server reads the newest `sample` lines of the query and clusters them itself (`source` `server`): `count` is the lines of the sample in that pattern, `sample` the newest of them, `first` and `last` the times of its oldest and newest sampled lines, and `lines_sampled` the lines read. `lines_matched` is the sum of every pattern's count, before the `limit` cut, and `truncated` says more patterns exist than `limit`. The Loki query must be a log query that starts with a stream selector; the ClickHouse query one SELECT that selects `Timestamp` and `Body`, whose top-level `ORDER BY` and `LIMIT` the server replaces. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+         * @description A pattern is a line template with the variable tokens replaced by `<*>`, with the number of lines it covers, ordered by count descending then by pattern. On Loki with the pattern ingester enabled and a query that is a bare stream selector, the patterns come from Loki's pattern index over the whole range (`source` `loki`): `count` sums Loki's samples over the range, `first` and `last` are the first and last sample buckets, `sample` is empty and `lines_sampled` is 0. Otherwise, on a Loki without the pattern ingester, a Loki query with filters or stages, or ClickHouse, the server reads the newest `sample` lines of the query and clusters them itself (`source` `server`): `count` is the lines of the sample in that pattern, `sample` the newest of them, `first` and `last` the times of its oldest and newest sampled lines, and `lines_sampled` the lines read. Either way every pattern carries a `trend` of 30 equal buckets over the range, and a `level`. `lines_matched` is the sum of every pattern's count, before the `limit` cut, and `truncated` says more patterns exist than `limit`. The Loki query must be a log query that starts with a stream selector; the ClickHouse query one SELECT that selects `Timestamp` and `Body`, whose top-level `ORDER BY` and `LIMIT` the server replaces. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
          */
         post: operations["logPatterns"];
         delete?: never;
@@ -2868,10 +2868,10 @@ export interface components {
             fields: {
                 name: string;
                 /**
-                 * @description A Loki index label, a Loki parsed or structured-metadata field, or a ClickHouse column or `LogAttributes.<key>`.
+                 * @description A Loki index label, a Loki parsed field, a Loki structured-metadata field, or a ClickHouse column or `LogAttributes.<key>`.
                  * @enum {string}
                  */
-                kind: "label" | "field" | "column";
+                kind: "label" | "field" | "metadata" | "column";
                 /** @description False when the counts come from the newest `lines_sampled` lines. */
                 exact: boolean;
                 /** @description Set to `bytes` on a Loki index label, because the index volume API counts bytes, not lines. */
@@ -2989,6 +2989,19 @@ export interface components {
             first: string;
             /** @description RFC 3339 time of the last sample bucket or newest sampled line; empty when the time is unknown. */
             last: string;
+            /** @description Exactly 30 buckets of equal width covering the range from `from` to `to`, the first starting at `from`; empty buckets are present with a `count` of 0. */
+            trend: components["schemas"]["LogPatternTrendBucket"][];
+            /**
+             * @description On `loki` the first level word in the pattern, on `server` the level most of the pattern's sampled lines carry; empty when there is none.
+             * @enum {string}
+             */
+            level: "error" | "warning" | "info" | "other" | "";
+        };
+        LogPatternTrendBucket: {
+            /** @description RFC 3339 start of the bucket. */
+            start: string;
+            /** @description The lines of the pattern in the bucket. */
+            count: number;
         };
         PanelData: {
             frames: components["schemas"]["Frame"][];

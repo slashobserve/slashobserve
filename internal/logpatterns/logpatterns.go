@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/slashobserve/slashobserve/internal/logvolume"
 )
 
 const (
@@ -14,13 +16,21 @@ const (
 	MaxLines    = 5000
 	MaxClusters = 500
 
+	TrendBuckets = 30
+
 	joinSimilarity    = 0.6
 	maxPlainQuoteSize = 32
 )
 
 type Line struct {
-	Time time.Time
-	Text string
+	Time  time.Time
+	Text  string
+	Level string
+}
+
+type TrendBucket struct {
+	Start time.Time
+	Count int64
 }
 
 type Pattern struct {
@@ -29,6 +39,46 @@ type Pattern struct {
 	Sample  string
 	First   time.Time
 	Last    time.Time
+	Trend   []TrendBucket
+	Level   string
+}
+
+type Trend struct {
+	from, to time.Time
+	step     time.Duration
+	counts   [TrendBuckets]int64
+}
+
+func NewTrend(from, to time.Time) *Trend {
+	return &Trend{from: from, to: to, step: to.Sub(from) / TrendBuckets}
+}
+
+func (t *Trend) Add(at time.Time, n int64) {
+	if t.step <= 0 || at.IsZero() || at.Before(t.from) || !at.Before(t.to) {
+		return
+	}
+	t.counts[min(int(at.Sub(t.from)/t.step), TrendBuckets-1)] += n
+}
+
+func (t *Trend) Buckets() []TrendBucket {
+	out := make([]TrendBucket, TrendBuckets)
+	for i, n := range t.counts {
+		out[i] = TrendBucket{Start: t.from.Add(time.Duration(i) * t.step).UTC(), Count: n}
+	}
+	return out
+}
+
+func PatternLevel(pattern string) string {
+	for token := range strings.FieldsSeq(pattern) {
+		if _, value, ok := strings.Cut(token, "="); ok {
+			token = value
+		}
+		token = strings.Trim(token, `[]()",:;'`)
+		if kind := logvolume.KindOf(token); kind != logvolume.Other {
+			return string(kind)
+		}
+	}
+	return ""
 }
 
 var (
@@ -85,6 +135,8 @@ type cluster struct {
 	sample   string
 	first    time.Time
 	last     time.Time
+	trend    *Trend
+	levels   map[logvolume.Kind]int64
 }
 
 type groupKey struct {
@@ -92,7 +144,7 @@ type groupKey struct {
 	first string
 }
 
-func Cluster(lines []Line, limit int) ([]Pattern, bool) {
+func Cluster(lines []Line, limit int, from, to time.Time) ([]Pattern, bool) {
 	if len(lines) > MaxLines {
 		lines = lines[:MaxLines]
 	}
@@ -109,7 +161,7 @@ func Cluster(lines []Line, limit int) ([]Pattern, bool) {
 			c = nearest(clusters, tokens)
 		}
 		if c == nil {
-			c = &cluster{template: slices.Clone(tokens)}
+			c = &cluster{template: slices.Clone(tokens), trend: NewTrend(from, to), levels: map[logvolume.Kind]int64{}}
 			clusters = append(clusters, c)
 			groups[key] = append(groups[key], c)
 		} else {
@@ -126,7 +178,7 @@ func Cluster(lines []Line, limit int) ([]Pattern, bool) {
 	}
 	out := make([]Pattern, len(clusters))
 	for i, c := range clusters {
-		out[i] = Pattern{Pattern: c.pattern(), Count: c.count, Sample: c.sample, First: c.first, Last: c.last}
+		out[i] = Pattern{Pattern: c.pattern(), Count: c.count, Sample: c.sample, First: c.first, Last: c.last, Trend: c.trend.Buckets(), Level: c.level()}
 	}
 	return out, truncated
 }
@@ -184,6 +236,10 @@ func (c *cluster) absorb(tokens []string) {
 
 func (c *cluster) add(line Line) {
 	c.count++
+	c.trend.Add(line.Time, 1)
+	if strings.TrimSpace(line.Level) != "" {
+		c.levels[logvolume.KindOf(line.Level)]++
+	}
 	if c.count == 1 || line.Time.After(c.last) {
 		c.sample, c.last = line.Text, line.Time
 	}
@@ -194,4 +250,14 @@ func (c *cluster) add(line Line) {
 
 func (c *cluster) pattern() string {
 	return strings.Join(c.template, " ")
+}
+
+func (c *cluster) level() string {
+	best, votes := logvolume.Kind(""), int64(0)
+	for _, kind := range logvolume.Kinds {
+		if n := c.levels[kind]; n > votes {
+			best, votes = kind, n
+		}
+	}
+	return string(best)
 }

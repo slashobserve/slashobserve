@@ -28,8 +28,16 @@ const (
 var _ datasource.LogFacetSource = (*Datasource)(nil)
 
 type detectedField struct {
-	Label       string `json:"label"`
-	Cardinality int    `json:"cardinality"`
+	Label       string   `json:"label"`
+	Cardinality int      `json:"cardinality"`
+	Parsers     []string `json:"parsers"`
+}
+
+func facetKind(field detectedField, detected bool) string {
+	if detected && len(field.Parsers) == 0 {
+		return datasource.FacetKindMetadata
+	}
+	return datasource.FacetKindField
 }
 
 func (d *Datasource) LogFacets(ctx context.Context, req datasource.FacetRequest) (datasource.Facets, error) {
@@ -97,12 +105,13 @@ func (d *Datasource) LogFacets(ctx context.Context, req datasource.FacetRequest)
 	}
 	out.Sampled = true
 	out.LinesSampled = lineCount(frames)
-	names, cardinality := sampledFieldNames(detected, noDetected, frames, indexLabels, requestedFields)
+	names, byName := sampledFieldNames(detected, noDetected, frames, indexLabels, requestedFields)
 	if len(detected) >= maxDetectedFields {
 		out.Truncated = true
 	}
 	for _, name := range names {
-		out.Fields = append(out.Fields, sampleFacet(frames, name, cardinality[name], req.Limit))
+		field, known := byName[name]
+		out.Fields = append(out.Fields, sampleFacet(frames, name, facetKind(field, known), field.Cardinality, req.Limit))
 	}
 	return out, nil
 }
@@ -199,13 +208,13 @@ func (d *Datasource) detectedFields(ctx context.Context, text string, window url
 	return body.Fields, false, nil
 }
 
-func sampledFieldNames(detected []detectedField, noDetected bool, frames []datasource.Frame, indexLabels, requested []string) ([]string, map[string]int) {
-	cardinality := make(map[string]int, len(detected))
+func sampledFieldNames(detected []detectedField, noDetected bool, frames []datasource.Frame, indexLabels, requested []string) ([]string, map[string]detectedField) {
+	byName := make(map[string]detectedField, len(detected))
 	for _, f := range detected {
-		cardinality[f.Label] = f.Cardinality
+		byName[f.Label] = f
 	}
 	if requested != nil {
-		return slices.Compact(slices.Sorted(slices.Values(requested))), cardinality
+		return slices.Compact(slices.Sorted(slices.Values(requested))), byName
 	}
 	names := make([]string, 0, len(detected))
 	if noDetected {
@@ -224,10 +233,10 @@ func sampledFieldNames(detected []detectedField, noDetected bool, frames []datas
 	names = slices.DeleteFunc(names, func(name string) bool {
 		return strings.HasPrefix(name, "__") || slices.Contains(indexLabels, name)
 	})
-	return slices.Compact(names), cardinality
+	return slices.Compact(names), byName
 }
 
-func sampleFacet(frames []datasource.Frame, name string, cardinality, limit int) datasource.FacetField {
+func sampleFacet(frames []datasource.Frame, name, kind string, cardinality, limit int) datasource.FacetField {
 	counts := map[string]int64{}
 	for _, f := range frames {
 		value, ok := f.Labels[name]
@@ -236,7 +245,7 @@ func sampleFacet(frames []datasource.Frame, name string, cardinality, limit int)
 		}
 		counts[value] += int64(len(f.Fields[0].Values))
 	}
-	field := datasource.FacetField{Name: name, Kind: datasource.FacetKindField, Values: make([]datasource.FacetValue, 0, len(counts))}
+	field := datasource.FacetField{Name: name, Kind: kind, Values: make([]datasource.FacetValue, 0, len(counts))}
 	for value, count := range counts {
 		field.Values = append(field.Values, datasource.FacetValue{Value: value, Count: count})
 	}

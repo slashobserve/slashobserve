@@ -42,7 +42,7 @@ func (f *facetLoki) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 			return
 		}
-		_, _ = w.Write([]byte(`{"fields":[{"label":"http_request_method","type":"string","cardinality":2,"parsers":null},{"label":"detected_level","type":"string","cardinality":3,"parsers":null}],"limit":50}`))
+		_, _ = w.Write([]byte(`{"fields":[{"label":"http_request_method","type":"string","cardinality":2,"parsers":["logfmt"]},{"label":"detected_level","type":"string","cardinality":3,"parsers":null}],"limit":50}`))
 	case rangePath:
 		_, _ = w.Write([]byte(f.streams))
 	default:
@@ -163,6 +163,9 @@ func TestLogFacetsSamplesDetectedFields(t *testing.T) {
 		t.Fatalf("http_request_method = %+v, want %+v", method, wantMethod)
 	}
 	level := fieldNamed(t, got, "detected_level")
+	if level.Kind != datasource.FacetKindMetadata {
+		t.Fatalf("detected_level kind = %q, want %q for a field with no parsers", level.Kind, datasource.FacetKindMetadata)
+	}
 	if level.Exact || level.Cardinality != 3 || !reflect.DeepEqual(level.Values, []datasource.FacetValue{{Value: "info", Count: 3}, {Value: "error", Count: 2}}) {
 		t.Fatalf("detected_level = %+v, want the cardinality of detected_fields and the counts of the sample", level)
 	}
@@ -196,6 +199,9 @@ func TestLogFacetsFallsBackWhenDetectedFieldsIs404(t *testing.T) {
 	}
 	if want := []string{"k8s_pod_name", "service_name", "detected_level", "http_request_method"}; !reflect.DeepEqual(names, want) {
 		t.Fatalf("fields = %v, want the sample's labels minus the index labels", names)
+	}
+	if level := fieldNamed(t, got, "detected_level"); level.Kind != datasource.FacetKindField {
+		t.Fatalf("detected_level kind = %q, want %q when detected_fields is unavailable", level.Kind, datasource.FacetKindField)
 	}
 	method := fieldNamed(t, got, "http_request_method")
 	if method.Cardinality != 2 || !method.Truncated || !reflect.DeepEqual(method.Values, []datasource.FacetValue{{Value: "POST", Count: 5}}) {
