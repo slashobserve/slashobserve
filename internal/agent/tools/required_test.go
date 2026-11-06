@@ -88,6 +88,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"summary":        json.RawMessage(`"Change a panel"`),
 		"markdown":       json.RawMessage(`"checkout errors are up"`),
 		"text":           json.RawMessage(`"deployed checkout v2"`),
+		"trace_id":       json.RawMessage(`"0123456789abcdef0123456789abcdef"`),
 		"json":           json.RawMessage(`"{\"title\":\"Imported\",\"schemaVersion\":39,\"panels\":[]}"`),
 	}
 
