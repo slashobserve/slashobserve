@@ -246,6 +246,47 @@ export function useCreateObserveRequest() {
   })
 }
 
+function useChatMutation<Input>(
+  id: string,
+  send: (input: Input) => Promise<unknown>
+) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: send,
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: observeKeys.mineAll() }),
+        queryClient.invalidateQueries({ queryKey: observeKeys.request(id) }),
+      ]),
+  })
+}
+
+export function useRenameChat(id: string) {
+  return useChatMutation(id, (title: string) => {
+    const trimmed = title.trim()
+    return api
+      .PATCH("/observe/{id}", {
+        params: { path: { id } },
+        body: { title: trimmed === "" ? null : trimmed },
+      })
+      .then(unwrap)
+  })
+}
+
+export function usePinChat(id: string) {
+  return useChatMutation(id, (pinned: boolean) =>
+    api
+      .PATCH("/observe/{id}", { params: { path: { id } }, body: { pinned } })
+      .then(unwrap)
+  )
+}
+
+export function useDeleteChat(id: string) {
+  return useChatMutation(id, () =>
+    api.DELETE("/observe/{id}", { params: { path: { id } } }).then(unwrap)
+  )
+}
+
 export function useCancelRequest(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
