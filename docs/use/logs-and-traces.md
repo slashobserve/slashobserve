@@ -13,20 +13,33 @@ The datasource control shows the name and type, and on Elasticsearch and OpenSea
 It opens a list of the datasources grouped by type, with a search field, and **Apply** switches to the one you chose.
 Switching keeps the time range and clears the query, unless both datasources are Elasticsearch or OpenSearch, which both speak KQL.
 The page searches that one datasource in its own language, which the mode switch names: KQL on Elasticsearch and OpenSearch, LogQL on Loki and SQL on ClickHouse.
-On Elasticsearch and OpenSearch a query starting with `lucene:` is Lucene, a query that is a `{...}` body is Query DSL, and anything else is KQL.
+On Elasticsearch and OpenSearch a query starting with `lucene:` is Lucene, a query that is a `{...}` body is Query DSL, and anything else is KQL, as [Query languages on Elasticsearch and OpenSearch](#query-languages-on-elasticsearch-and-opensearch) describes.
 The address keeps `ds`, `q`, `from` and `to`, so **Copy link** copies a search that opens the same way.
 The page starts as soon as it opens.
 On ClickHouse it runs a template that reads `otel_logs` and shows the newest 1,000 lines of the time range at once.
-On Loki it opens the label browser, which the **Labels** button toggles, and waits for a stream selector.
+On Loki it opens the label browser, which the **Builder** segment of the mode switch toggles, and waits for a stream selector.
 The label browser lists the labels of the datasource and their values, and a click inserts a matcher at the cursor.
 With a model configured on the server, the query box opens in Ask mode, as [Ask on the logs page](#ask-on-the-logs-page) describes.
 
-In Query mode you write the query yourself.
+The mode switch in the top right corner of the query box has up to three segments.
+**Ask** takes a question.
+**Builder** edits the query as filter chips, and the last segment is named for the datasource's language (**KQL**, **LogQL** or **SQL**) and edits the text.
+ClickHouse has no Builder segment, because its query is SQL.
+On Loki the Builder segment is the label browser.
+On Elasticsearch and OpenSearch the Builder is a row of chips with an **Add a filter** button.
+A filter picks a field from the index mapping, an operator (is, is not, is one of, exists, greater than, at least, less than, at most or contains) and a value, which the page suggests from the newest lines of the time range.
+Choosing a filter or removing a chip rewrites the query and runs it.
+The Builder shows only a flat list of clauses joined by `and`, with `not` in front of a single field match.
+A query with an `or` at the top, a group, a form prefix or text that does not parse greys the segment, which says "The builder cannot show this query. Edit it as KQL.", and **Edit as KQL** in the Builder switches to the text without changing it.
+The page opens in the language segment when the address carries a query.
+
+In the language segment you write the query yourself.
 On Loki, write a LogQL query such as `{service_name="checkout"} |= "error"`.
 On ClickHouse, the editor holds the template; keep `$__timeFilter(Timestamp)` in the `WHERE` clause and a `LIMIT` at the end.
 Press **Run query**, or Ctrl+Enter or Cmd+Enter in the editor, to run it over the time range at the top of the page.
 The page shows at most 1,000 lines, newest first.
 On Loki the query must start with a stream selector.
+When a run fails, the box says "No results." with the time and size of the last good run, and on Elasticsearch and OpenSearch a **Check the datasource** link.
 When more lines match than the page shows, the page says so and **Load older** fetches the lines before the oldest one shown.
 **Live tail** and **Add to dashboard** stay disabled until a query has run, and say "Run a query first."
 
@@ -73,7 +86,15 @@ The [Elasticsearch](../connect/elasticsearch.md#queries) and [OpenSearch](../con
 
 #### KQL on Elasticsearch and OpenSearch
 
-The server parses a strict subset of Kibana KQL and refuses the rest with a message at the offset of the construct, so a query that Kibana accepts may not paste:
+The server parses a strict subset of Kibana KQL and refuses the rest with a message at the offset of the construct, so a query that Kibana accepts may not paste.
+The query box shows the same check as you type: a caret under the offending character, the message in plain words and, when one edit makes the query valid, a button that applies it.
+A missing closing parenthesis is closed before the next top-level `and`, or at the end.
+A query that reads as Lucene, such as one with `+`, `-` or `~` operators, offers **Switch to Lucene**, which adds the `lucene:` prefix and runs the text as written.
+**Fix it with Ask** asks the model to repair the text, **Open in the builder** shows it as chips when it can, and **KQL reference** opens this section.
+Nothing runs while the query cannot be read.
+The **Language** control under the box switches between KQL, Lucene and Query DSL: it adds or removes the `lucene:` prefix, and picking Query DSL on an empty box inserts a `match_all` body.
+The editor highlights JSON as soon as the text starts with `{`.
+
 
 | Construct                        | Example                  | Message                                      | Why it is out                                                                                    |
 | -------------------------------- | ------------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------------------ |
@@ -87,19 +108,20 @@ A field the mapping does not have is reported as a warning in lint, and the quer
 
 ## Ask on the logs page
 
-The **Ask** and **Query** toggle in the top right corner of the query box switches between a question and a query.
-Ctrl+I or Cmd+I switches it from anywhere on the page, the editor included.
-The page remembers the mode you last chose with the toggle, the shortcut or **Ask again**, and opens in Query when the address carries a query.
+The mode switch in the top right corner of the query box switches between a question, the builder and the query.
+Ctrl+I or Cmd+I steps through the modes the datasource offers from anywhere on the page, the editor included, and skips a mode that is not available.
+The page remembers the mode you last chose with the switch, the shortcut or **Ask again**, and opens in the query when the address carries one.
 Write a question and press Enter or **Ask**, and press Shift+Enter to add a line.
 Esc cancels a question that is still running.
 The server writes the query as [Ask in plain language](#ask-in-plain-language) describes, and the page runs it at once.
+On Elasticsearch and OpenSearch the model answers in KQL, and the Builder then shows the answer as chips when it can.
 The explanation and any warnings show under the question, and the query shows in the editor below them, where you can still change it.
-Editing the query switches to Query, with a "From: <question>" line and **Ask again**, which brings the question back.
-A label from the label browser also switches to Query.
-When the model cannot turn the question into a query, the page says "I could not turn that into a query." with the reason, and switches to Query.
+Editing the query switches to the query segment, with a "From: <question>" line and **Ask again**, which brings the question back.
+A label from the label browser also switches to the query segment.
+When the model cannot turn the question into a query, the page says "I could not turn that into a query." with the reason, and switches to the query segment.
 While the field is empty it lists your 5 latest questions under **Recent**, and Up at the start of the field steps back through earlier ones.
 This browser keeps the recent questions, apart from the chat's.
-Without a model, the page stays in Query, and the Ask side of the toggle is disabled and says "Add a model key to ask in plain language".
+Without a model, the page stays out of Ask, and the Ask segment is disabled and says "Add a model key to ask in plain language".
 [LLM providers](../connect/llm-providers.md) describes how to configure one.
 
 ## Context around a line

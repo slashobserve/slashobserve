@@ -2,12 +2,30 @@ import { fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 
+import type { InputMode } from "./input-mode"
 import { InputModeToggle } from "./input-mode-toggle"
 
+const labels: Record<InputMode, string> = {
+  ask: "Ask",
+  builder: "Builder",
+  code: "Query",
+}
+const two: readonly InputMode[] = ["ask", "code"]
+const three: readonly InputMode[] = ["builder", "code", "ask"]
+
 describe("InputModeToggle", () => {
-  it("renders two radios with the selected one checked", () => {
-    render(<InputModeToggle mode="ask" agentAvailable onChange={vi.fn()} />)
+  it("renders the modes it is given with the selected one checked", () => {
+    render(
+      <InputModeToggle
+        mode="ask"
+        modes={two}
+        labels={labels}
+        agentAvailable
+        onChange={vi.fn()}
+      />
+    )
     expect(screen.getByRole("radiogroup", { name: "Input mode" })).toBeTruthy()
+    expect(screen.getAllByRole("radio")).toHaveLength(2)
     expect(screen.getByRole("radio", { name: "Ask" })).toHaveAttribute(
       "aria-checked",
       "true"
@@ -18,18 +36,43 @@ describe("InputModeToggle", () => {
     )
   })
 
-  it("calls onChange with query when Query is clicked", async () => {
+  it("renders three modes in the order it is given", () => {
+    render(
+      <InputModeToggle
+        mode="builder"
+        modes={three}
+        labels={labels}
+        agentAvailable
+        onChange={vi.fn()}
+      />
+    )
+    expect(
+      screen.getAllByRole("radio").map((radio) => radio.textContent)
+    ).toEqual(["Builder", "Query", "Ask"])
+  })
+
+  it("calls onChange with code when Query is clicked", async () => {
     const onChange = vi.fn()
-    render(<InputModeToggle mode="ask" agentAvailable onChange={onChange} />)
+    render(
+      <InputModeToggle
+        mode="ask"
+        modes={two}
+        labels={labels}
+        agentAvailable
+        onChange={onChange}
+      />
+    )
     await userEvent.click(screen.getByRole("radio", { name: "Query" }))
-    expect(onChange).toHaveBeenCalledWith("query")
+    expect(onChange).toHaveBeenCalledWith("code")
   })
 
   it("disables Ask without a model and says why", async () => {
     const onChange = vi.fn()
     render(
       <InputModeToggle
-        mode="query"
+        mode="code"
+        modes={two}
+        labels={labels}
         agentAvailable={false}
         onChange={onChange}
       />
@@ -43,12 +86,45 @@ describe("InputModeToggle", () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
-  it("moves to Query with ArrowRight on Ask", () => {
+  it.each([
+    ["ask", "ArrowRight", "code"],
+    ["code", "ArrowRight", "ask"],
+    ["ask", "ArrowLeft", "code"],
+  ] as const)("moves from %s with %s to %s", (from, key, target) => {
     const onChange = vi.fn()
-    render(<InputModeToggle mode="ask" agentAvailable onChange={onChange} />)
-    fireEvent.keyDown(screen.getByRole("radio", { name: "Ask" }), {
+    render(
+      <InputModeToggle
+        mode={from}
+        modes={two}
+        labels={labels}
+        agentAvailable
+        onChange={onChange}
+      />
+    )
+    fireEvent.keyDown(screen.getByRole("radio", { name: labels[from] }), {
+      key,
+    })
+    expect(onChange).toHaveBeenCalledWith(target)
+  })
+
+  it("walks three modes with the arrow keys", () => {
+    const onChange = vi.fn()
+    render(
+      <InputModeToggle
+        mode="builder"
+        modes={three}
+        labels={labels}
+        agentAvailable
+        onChange={onChange}
+      />
+    )
+    fireEvent.keyDown(screen.getByRole("radio", { name: "Builder" }), {
+      key: "ArrowLeft",
+    })
+    expect(onChange).toHaveBeenCalledWith("ask")
+    fireEvent.keyDown(screen.getByRole("radio", { name: "Builder" }), {
       key: "ArrowRight",
     })
-    expect(onChange).toHaveBeenCalledWith("query")
+    expect(onChange).toHaveBeenCalledWith("code")
   })
 })

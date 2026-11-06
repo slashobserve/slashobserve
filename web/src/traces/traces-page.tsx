@@ -75,6 +75,13 @@ const askPlaceholder =
 const tempoPagingNote =
   "Tempo pages by start time from the last trace shown, so there is no page count."
 
+const traceModes: readonly InputMode[] = ["ask", "code"]
+const traceModeLabels: Record<InputMode, string> = {
+  ask: "Ask",
+  builder: "Builder",
+  code: "Query",
+}
+
 type FocusRequest = { target: InputMode; count: number }
 
 type UpdateSearch = (
@@ -211,8 +218,8 @@ function TraceSearchWorkspace({
     onAnswer: (drafted, question) =>
       update({ ...traceSearchFromAnswer(drafted, type), ask: question }),
     onCannotTranslate: () => {
-      setMode("query", false)
-      focusNext("query")
+      setMode("code", false)
+      focusNext("code")
     },
   })
 
@@ -255,6 +262,8 @@ function TraceSearchWorkspace({
       <div className="flex h-8 shrink-0 items-center gap-2">
         <InputModeToggle
           mode={mode}
+          modes={traceModes}
+          labels={traceModeLabels}
           agentAvailable={agentAvailable}
           onChange={switchMode}
         />
@@ -342,7 +351,7 @@ function TraceSearchWorkspace({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => switchMode("query")}
+            onClick={() => switchMode("code")}
           >
             Edit the query
           </Button>

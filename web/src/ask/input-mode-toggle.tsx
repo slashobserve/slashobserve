@@ -1,5 +1,5 @@
 import { useId, useRef, type KeyboardEvent, type ReactNode } from "react"
-import { CodeIcon, SparklesIcon } from "lucide-react"
+import { CodeIcon, ListFilterIcon, SparklesIcon } from "lucide-react"
 
 import {
   Tooltip,
@@ -10,23 +10,34 @@ import { cn } from "@/lib/utils"
 
 import type { InputMode } from "./input-mode"
 
-const shortcutText = "Switch between Ask and Query (Ctrl+I or Cmd+I)"
+const shortcutText = "Switch input mode (Ctrl+I or Cmd+I)"
 const noModelText = "Add a model key to ask in plain language"
 const moveKeys = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"])
 
+const icons: Record<InputMode, ReactNode> = {
+  ask: <SparklesIcon aria-hidden="true" />,
+  builder: <ListFilterIcon aria-hidden="true" />,
+  code: <CodeIcon aria-hidden="true" />,
+}
+
 export function InputModeToggle({
   mode,
+  modes,
+  labels,
   agentAvailable,
   onChange,
 }: {
   mode: InputMode
+  modes: readonly InputMode[]
+  labels: Record<InputMode, string>
   agentAvailable: boolean
   onChange: (mode: InputMode) => void
 }) {
   const noModelId = useId()
   const buttons = useRef<Record<InputMode, HTMLButtonElement | null>>({
     ask: null,
-    query: null,
+    builder: null,
+    code: null,
   })
 
   function choose(next: InputMode) {
@@ -38,14 +49,16 @@ export function InputModeToggle({
   function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, from: InputMode) {
     if (!moveKeys.has(event.key)) return
     event.preventDefault()
-    choose(from === "ask" ? "query" : "ask")
+    const step = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1
+    const index = modes.indexOf(from)
+    choose(modes[(index + step + modes.length) % modes.length])
   }
 
-  function option(value: InputMode, icon: ReactNode, word: string) {
+  function option(value: InputMode) {
     const selected = mode === value
     const unavailable = value === "ask" && !agentAvailable
     return (
-      <Tooltip>
+      <Tooltip key={value}>
         <TooltipTrigger
           render={
             <button
@@ -70,8 +83,8 @@ export function InputModeToggle({
             />
           }
         >
-          {icon}
-          {word}
+          {icons[value]}
+          {labels[value]}
         </TooltipTrigger>
         <TooltipContent>
           {unavailable ? noModelText : shortcutText}
@@ -87,8 +100,7 @@ export function InputModeToggle({
       aria-keyshortcuts="Control+I Meta+I"
       className="inline-flex h-6 items-center gap-0.5 rounded-control bg-muted p-0.5"
     >
-      {option("ask", <SparklesIcon aria-hidden="true" />, "Ask")}
-      {option("query", <CodeIcon aria-hidden="true" />, "Query")}
+      {modes.map(option)}
       {agentAvailable ? null : (
         <span id={noModelId} className="sr-only">
           {noModelText}

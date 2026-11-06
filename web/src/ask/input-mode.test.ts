@@ -2,22 +2,38 @@ import { describe, expect, it } from "vitest"
 
 import { initialMode, nextMode, parseStoredMode } from "./input-mode"
 
-const opening = { stored: null, hasQuery: false, hasAsk: false }
+const opening = {
+  stored: null,
+  hasQuery: false,
+  hasAsk: false,
+  builderCanShow: false,
+}
 
 describe("initialMode", () => {
-  it("opens in query without a model even with ask stored", () => {
+  it("opens in code without a model even with ask stored", () => {
     expect(
       initialMode({ ...opening, agentAvailable: false, stored: "ask" })
-    ).toBe("query")
+    ).toBe("code")
   })
 
-  it("opens in query for a link with a query and no question", () => {
+  it("opens in code for a link with a query the builder cannot show", () => {
     expect(
       initialMode({ ...opening, agentAvailable: true, hasQuery: true })
-    ).toBe("query")
+    ).toBe("code")
   })
 
-  it("opens in query for a link with a query and a question", () => {
+  it("opens in the builder for a link with a query it can show", () => {
+    expect(
+      initialMode({
+        ...opening,
+        agentAvailable: true,
+        hasQuery: true,
+        builderCanShow: true,
+      })
+    ).toBe("builder")
+  })
+
+  it("opens a query and a question in the query's mode", () => {
     expect(
       initialMode({
         ...opening,
@@ -25,7 +41,7 @@ describe("initialMode", () => {
         hasQuery: true,
         hasAsk: true,
       })
-    ).toBe("query")
+    ).toBe("code")
   })
 
   it("opens in ask for a link with only a question", () => {
@@ -33,7 +49,7 @@ describe("initialMode", () => {
       initialMode({
         ...opening,
         agentAvailable: true,
-        stored: "query",
+        stored: "code",
         hasAsk: true,
       })
     ).toBe("ask")
@@ -41,8 +57,22 @@ describe("initialMode", () => {
 
   it("keeps the stored mode", () => {
     expect(
-      initialMode({ ...opening, agentAvailable: true, stored: "query" })
-    ).toBe("query")
+      initialMode({ ...opening, agentAvailable: true, stored: "code" })
+    ).toBe("code")
+    expect(
+      initialMode({
+        ...opening,
+        agentAvailable: true,
+        builderCanShow: true,
+        stored: "builder",
+      })
+    ).toBe("builder")
+  })
+
+  it("falls back to code when the stored builder cannot show", () => {
+    expect(
+      initialMode({ ...opening, agentAvailable: true, stored: "builder" })
+    ).toBe("code")
   })
 
   it("opens in ask when nothing is stored", () => {
@@ -51,8 +81,12 @@ describe("initialMode", () => {
 })
 
 describe("parseStoredMode", () => {
-  it.each(["ask", "query"] as const)("keeps %s", (mode) => {
+  it.each(["ask", "builder", "code"] as const)("keeps %s", (mode) => {
     expect(parseStoredMode(mode)).toBe(mode)
+  })
+
+  it("reads the old query mode as code", () => {
+    expect(parseStoredMode("query")).toBe("code")
   })
 
   it.each([null, "", "Ask", "sql"])("drops %s", (raw) => {
@@ -61,12 +95,23 @@ describe("parseStoredMode", () => {
 })
 
 describe("nextMode", () => {
-  it("flips between ask and query", () => {
-    expect(nextMode("ask", true)).toBe("query")
-    expect(nextMode("query", true)).toBe("ask")
+  it("cycles builder, code and ask", () => {
+    expect(nextMode("builder", true, true)).toBe("code")
+    expect(nextMode("code", true, true)).toBe("ask")
+    expect(nextMode("ask", true, true)).toBe("builder")
   })
 
-  it("stays in query without a model", () => {
-    expect(nextMode("query", false)).toBe("query")
+  it("skips the builder when it cannot show", () => {
+    expect(nextMode("ask", true, false)).toBe("code")
+    expect(nextMode("code", true)).toBe("ask")
+  })
+
+  it("skips ask without a model", () => {
+    expect(nextMode("builder", false, true)).toBe("code")
+    expect(nextMode("code", false, true)).toBe("builder")
+  })
+
+  it("stays in code without a model or a builder", () => {
+    expect(nextMode("code", false)).toBe("code")
   })
 })
