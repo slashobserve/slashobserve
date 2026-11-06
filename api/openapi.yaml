@@ -92,6 +92,8 @@ paths:
     $ref: "./paths/preview.yaml#/datasources-uid-preview"
   /datasources/{uid}/query:
     $ref: "./paths/explore.yaml#/datasources-uid-query"
+  /datasources/{uid}/log-volume:
+    $ref: "./paths/explore.yaml#/datasources-uid-log-volume"
   /datasources/{uid}/metrics:
     $ref: "./paths/names.yaml#/datasources-uid-metrics"
   /datasources/{uid}/labels:
@@ -1360,6 +1362,39 @@ components:
         ref:
           type: string
           description: The query that failed, when one query's run failed.
+    LogVolume:
+      type: object
+      additionalProperties: false
+      required: [step_ms, total, buckets]
+      properties:
+        step_ms:
+          type: integer
+          description: The width of every bucket in milliseconds, a whole number of seconds and at least one.
+        total:
+          type: integer
+          description: The sum of every count in every bucket.
+        buckets:
+          type: array
+          description: Every bucket of the aligned range, oldest first, empty buckets included.
+          items:
+            $ref: "#/components/schemas/LogVolumeBucket"
+    LogVolumeBucket:
+      type: object
+      additionalProperties: false
+      required: [start, error, warning, info, other]
+      properties:
+        start:
+          type: string
+          format: date-time
+          description: The bucket covers this instant up to, but not including, `start` plus `step_ms`.
+        error:
+          type: integer
+        warning:
+          type: integer
+        info:
+          type: integer
+        other:
+          type: integer
     PanelData:
       type: object
       additionalProperties: false

@@ -14,6 +14,10 @@ On ClickHouse, the editor starts with a template that reads `otel_logs`; keep `$
 **Label browser** lists the labels of the datasource and their values, and a click inserts a matcher at the cursor.
 Press **Run query**, or Ctrl+Enter or Cmd+Enter in the editor, to run it over the time range at the top of the page.
 The page shows at most 1,000 lines, newest first.
+The volume strip above the lines counts every line the query matches over the whole time range by level, not only the lines shown.
+On Loki the query must start with a stream selector, and a line's level is the first of its `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, including a `level` that a `| json` or `| logfmt` stage extracts.
+On ClickHouse the level is the `SeverityText` column, counted per `Timestamp`, so the strip hides when the query does not select both.
+Levels such as `err`, `fatal` and `critical` count as errors, `warn` as warnings, `info` and `notice` as info, and anything else, or no level, as other.
 The address keeps the search as `/logs?ds=<datasource uid>&q=<query>&from=<from>&to=<to>`, so you can share it or bookmark it.
 
 ## Context around a line
@@ -71,4 +75,5 @@ curl -fsS -X POST "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/query" \
 ```
 
 `limit` lowers the row limit and never raises it above 1,000.
+`POST /api/v1/datasources/{uid}/log-volume` takes `query`, `from`, `to` and an optional `buckets` (60 by default, at most 200) and returns the line counts by level per bucket over the range, for Loki and ClickHouse.
 [The CLI](cli.md) has `observe logs` and `observe traces` for the same searches.
