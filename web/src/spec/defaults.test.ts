@@ -11,9 +11,9 @@ import {
   queryDefaults,
   rowDefaults,
   timePickerDefaults,
-  validateSpecSchema,
   variableDefaults,
 } from "./index"
+import { validateSpecSchema } from "./validate"
 import { specDefaults } from "./defaults.gen"
 import type { DataPanelType } from "./panels"
 

@@ -6,10 +6,8 @@ import { ApiError } from "@/api/errors"
 import { DashboardLoadError } from "@/dashboards/load-error"
 import { DashboardNoAccess } from "@/dashboards/no-access"
 import { DashboardNotFound } from "@/dashboards/not-found"
-import {
-  DashboardPage,
-  DashboardPageSkeleton,
-} from "@/dashboards/dashboard-page"
+import { DashboardPage } from "@/dashboards/dashboard-page"
+import { DashboardPageSkeleton } from "@/dashboards/dashboard-page-skeleton"
 import {
   dashboardVersionQuery,
   latestDashboardQuery,

@@ -23,7 +23,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { validateSpecSchema, type Dashboard } from "@/spec"
+import { loadSpecValidator, type Dashboard } from "@/spec"
 
 import {
   asDashboardSpec,
@@ -76,8 +76,8 @@ export function DetailsDialog({
   const [edits, setEdits] = useState<Edits>({})
   const [submitted, setSubmitted] = useState(false)
   const [problem, setProblem] = useState<Problem | null>(null)
-  const [reapplying, setReapplying] = useState(false)
-  const pending = save.isPending || reapplying
+  const [preparing, setPreparing] = useState(false)
+  const pending = save.isPending || preparing
 
   const current = detailsOf(spec)
   const title = edits.title ?? current.title
@@ -119,8 +119,18 @@ export function DetailsDialog({
     else if (!pending) close()
   }
 
-  function send(details: Details, base: Dashboard, parent: number) {
-    const checked = validateSpecSchema(applyDetails(base, details))
+  async function send(details: Details, base: Dashboard, parent: number) {
+    setPreparing(true)
+    let validate
+    try {
+      validate = await loadSpecValidator()
+    } catch (failure) {
+      setProblem(saveProblemFrom(failure, rejectedHeading))
+      return
+    } finally {
+      setPreparing(false)
+    }
+    const checked = validate(applyDetails(base, details))
     if (!checked.valid) {
       setProblem({
         kind: "invalid",
@@ -155,22 +165,26 @@ export function DetailsDialog({
     setSubmitted(true)
     if (next === null || unchanged || pending) return
     setProblem(null)
-    send(next, spec, version)
+    void send(next, spec, version)
   }
 
   async function reapply() {
     if (next === null) return
-    setReapplying(true)
+    setPreparing(true)
     try {
       const latest = await queryClient.fetchQuery({
         ...latestDashboardQuery(queryClient, dashboardId),
         staleTime: 0,
       })
-      setReapplying(false)
-      send(next, asDashboardSpec(latest.version.spec), latest.version.version)
+      setPreparing(false)
+      await send(
+        next,
+        asDashboardSpec(latest.version.spec),
+        latest.version.version
+      )
     } catch (failure) {
       setProblem(saveProblemFrom(failure, rejectedHeading))
-      setReapplying(false)
+      setPreparing(false)
     }
   }
 

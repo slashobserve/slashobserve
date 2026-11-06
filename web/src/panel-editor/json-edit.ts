@@ -1,4 +1,4 @@
-import type { Dashboard } from "@/spec"
+import type { Dashboard, SpecValidator } from "@/spec"
 import { sameJson, stableJson } from "@/lib/json"
 
 import type { EditablePanel } from "./draft"
@@ -18,9 +18,10 @@ export type IssueRow = {
 export function evaluateJson(
   text: string,
   spec: Dashboard,
-  draft: EditablePanel
+  draft: EditablePanel,
+  validate: SpecValidator
 ): JsonEdit {
-  const parsed = parsePanelJson(text, spec, draft.id)
+  const parsed = parsePanelJson(text, spec, draft.id, validate)
   if (!parsed.ok) return { kind: "invalid", issues: parsed.issues }
   return {
     kind: "valid",

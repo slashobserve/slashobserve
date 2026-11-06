@@ -1,7 +1,7 @@
 import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { validateSpecSchema } from "../src/spec/index.ts"
+import { validateSpecSchema } from "../src/spec/validate.ts"
 
 const examplesDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

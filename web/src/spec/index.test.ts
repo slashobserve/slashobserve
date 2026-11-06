@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import variableOptionsText from "../../../spec/examples/variables/options.json?raw"
-import { validateSpecSchema } from "./index"
+import { validateSpecSchema } from "./validate"
 
 function dashboardWith(panelExtras: Record<string, unknown>) {
   return {

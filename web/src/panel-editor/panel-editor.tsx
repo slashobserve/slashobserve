@@ -25,6 +25,7 @@ import {
   useAddVersion,
 } from "@/dashboards/queries"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
+import { useSpecValidator } from "@/lib/use-spec-validator"
 import type { CodeEditorHandle } from "@/query-editor/code-editor"
 import {
   datasourceRefType,
@@ -169,6 +170,7 @@ export default function PanelEditor({
   const [noteOpen, setNoteOpen] = useState(false)
   const [problem, setProblem] = useState<Problem | null>(null)
   const [applying, setApplying] = useState(false)
+  const validate = useSpecValidator()
   const editorRefs = useRef<(CodeEditorHandle | null)[]>([])
   const jsonGuard = useRef<LeaveGuard>(leaveNow)
   const noticeRef = useRef<HTMLDivElement>(null)
@@ -237,13 +239,20 @@ export default function PanelEditor({
       )
     : current.type !== "text" || [...current.content].length <= maxContentLength
   const locked = readOnly || saving || applying
-  const canSave = dirty && !locked && !jsonBlocked && queriesOk && titleOk
+  const canSave =
+    validate !== undefined &&
+    dirty &&
+    !locked &&
+    !jsonBlocked &&
+    queriesOk &&
+    titleOk
 
   function submit(
     source: Dashboard,
     parent: number,
     panelToSave: EditablePanel
   ) {
+    if (!validate) return
     const entry = findPanel(source, panelToSave.id)
     if (!entry) {
       setProblem({ kind: "gone" })
@@ -253,7 +262,8 @@ export default function PanelEditor({
     const parsed = parsePanelJson(
       JSON.stringify(normalised),
       source,
-      normalised.id
+      normalised.id,
+      validate
     )
     if (!parsed.ok) {
       setProblem(

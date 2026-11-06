@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type Dispatch } from "react"
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  type Dispatch,
+} from "react"
 import { CircleAlertIcon } from "lucide-react"
 
 import {
@@ -11,6 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useSpecValidator } from "@/lib/use-spec-validator"
 import type { Dashboard } from "@/spec"
 
 import type { DraftAction, EditablePanel } from "./draft"
@@ -39,12 +47,14 @@ export function JsonView({
   onValidityChange,
   onLeaveRequest,
 }: JsonViewProps) {
+  const validate = useSpecValidator()
   const [text, setText] = useState(() => formatPanel(draft))
   const [issues, setIssues] = useState<JsonIssue[]>([])
   const [asking, setAsking] = useState(false)
   const pending = useRef<PendingLeave | null>(null)
   const applied = useRef(appliedKey(draft))
   const draftRef = useRef(draft)
+  const uncheckedEdit = useRef(false)
   const invalid = issues.length > 0
 
   useEffect(() => {
@@ -77,7 +87,12 @@ export function JsonView({
 
   function edit(next: string) {
     setText(next)
-    const result = evaluateJson(next, spec, draftRef.current)
+    if (!validate) {
+      uncheckedEdit.current = true
+      onValidityChange(false)
+      return
+    }
+    const result = evaluateJson(next, spec, draftRef.current, validate)
     if (result.kind === "invalid") {
       setIssues(result.issues)
       onValidityChange(false)
@@ -91,6 +106,15 @@ export function JsonView({
     setIssues([])
     onValidityChange(true)
   }
+
+  const checkEarlyEdit = useEffectEvent(() => {
+    if (!uncheckedEdit.current) return
+    uncheckedEdit.current = false
+    edit(text)
+  })
+  useEffect(() => {
+    if (validate) checkEarlyEdit()
+  }, [validate])
 
   function takePending() {
     const taken = pending.current
