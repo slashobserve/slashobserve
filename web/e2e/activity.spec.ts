@@ -452,6 +452,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(thread.getByText("Resolved by version 2")).toBeVisible({
           timeout: agentTimeout,
         })
+        await thread.getByRole("button", { name: "Show thread" }).click()
         await expect(promptEntries).toHaveCount(1)
         await expect(
           entryWith(page, p99Prompt).filter({

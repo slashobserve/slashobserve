@@ -129,11 +129,12 @@ for (const colorScheme of ["light", "dark"] as const) {
       })
 
       await test.step("page updates live", async () => {
+        await expect(thread().getByText("Resolved by version 2")).toBeVisible()
+        await thread().getByRole("button", { name: "Show thread" }).click()
         const nested = thread().getByRole("list").locator("> li")
         await expect(nested).toHaveCount(1)
         await expect(nested).toContainText(replyText)
         await expect(nested).toContainText(accountName)
-        await expect(thread().getByText("Resolved by version 2")).toBeVisible()
 
         const version = entries(page).filter({
           has: page.getByText("Version 2", { exact: true }),
