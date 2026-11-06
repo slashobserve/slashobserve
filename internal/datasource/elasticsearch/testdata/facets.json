@@ -1,0 +1,83 @@
+{
+  "took": 9,
+  "timed_out": false,
+  "_shards": {"total": 2, "successful": 2, "skipped": 0, "failed": 0},
+  "hits": {"total": {"value": 200, "relation": "eq"}, "max_score": null, "hits": []},
+  "aggregations": {
+    "log.level": {
+      "doc_count_error_upper_bound": 0,
+      "sum_other_doc_count": 0,
+      "buckets": [
+        {"key": "info", "doc_count": 100},
+        {"key": "warn", "doc_count": 50},
+        {"key": "error", "doc_count": 50}
+      ]
+    },
+    "log.level__card": {"value": 3},
+    "service.name": {
+      "doc_count_error_upper_bound": 0,
+      "sum_other_doc_count": 0,
+      "buckets": [
+        {"key": "checkout", "doc_count": 67},
+        {"key": "frontend", "doc_count": 67},
+        {"key": "payments", "doc_count": 66}
+      ]
+    },
+    "service.name__card": {"value": 3},
+    "host.ip": {
+      "doc_count_error_upper_bound": 0,
+      "sum_other_doc_count": 196,
+      "buckets": [
+        {"key": "10.0.0.1", "doc_count": 2},
+        {"key": "10.0.0.2", "doc_count": 2}
+      ]
+    },
+    "host.ip__card": {"value": 200},
+    "http.response.status_code": {
+      "doc_count_error_upper_bound": 0,
+      "sum_other_doc_count": 0,
+      "buckets": [
+        {"key": 200, "doc_count": 50},
+        {"key": 300, "doc_count": 50},
+        {"key": 400, "doc_count": 50},
+        {"key": 500, "doc_count": 50}
+      ]
+    },
+    "http.response.status_code__card": {"value": 4},
+    "message": {
+      "doc_count_error_upper_bound": 7,
+      "sum_other_doc_count": 198,
+      "buckets": [
+        {"key": "request 0 handled", "doc_count": 1},
+        {"key": "request 1 handled", "doc_count": 1}
+      ]
+    },
+    "message__card": {"value": 200},
+    "span.id": {
+      "doc_count_error_upper_bound": 0,
+      "sum_other_doc_count": 198,
+      "buckets": [
+        {"key": "0000000000000000", "doc_count": 1},
+        {"key": "0000000000000001", "doc_count": 1}
+      ]
+    },
+    "span.id__card": {"value": 200},
+    "tags": {
+      "doc_count_error_upper_bound": 0,
+      "sum_other_doc_count": 0,
+      "buckets": [
+        {"key": "shop", "doc_count": 200}
+      ]
+    },
+    "tags__card": {"value": 1},
+    "trace.id": {
+      "doc_count_error_upper_bound": 0,
+      "sum_other_doc_count": 198,
+      "buckets": [
+        {"key": "00000000000000000000000000000000", "doc_count": 1},
+        {"key": "00000000000000000000000000000001", "doc_count": 1}
+      ]
+    },
+    "trace.id__card": {"value": 200}
+  }
+}

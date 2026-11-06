@@ -23,7 +23,7 @@ const (
 	defaultFacetSample = 1000
 	minFacetSample     = 100
 	maxFacetSample     = 5000
-	facetsReadsTypes   = "facets read Loki and ClickHouse datasources"
+	facetsReadsTypes   = "facets read Loki, ClickHouse, Elasticsearch and OpenSearch datasources"
 )
 
 type facetsRequest struct {

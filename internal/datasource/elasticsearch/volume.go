@@ -3,6 +3,7 @@ package elasticsearch
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -50,14 +51,19 @@ func (d *Datasource) LogVolume(ctx context.Context, req datasource.VolumeRequest
 }
 
 func volumeBody(prep prepared, timeField string, r datasource.TimeRange, level string, step time.Duration, lim datasource.Limits) map[string]any {
-	counted := prep.user
-	counted.dsl = nil
-	body := buildBody(counted, timeField, r, prep.adhoc, plan{kind: searchCount, step: step, timeout: lim.Timeout})
+	body := countingBody(prep, timeField, r, step, lim)
 	histogram := body["aggs"].(map[string]any)[countAgg].(map[string]any)
 	if terms, ok := levelTerms(prep.mapping, level); ok {
 		histogram["aggs"] = map[string]any{levelAgg: terms}
 	}
 	body["aggs"] = map[string]any{volumeAgg: histogram}
+	return body
+}
+
+func countingBody(prep prepared, timeField string, r datasource.TimeRange, step time.Duration, lim datasource.Limits) map[string]any {
+	counted := prep.user
+	counted.dsl = nil
+	body := buildBody(counted, timeField, r, prep.adhoc, plan{kind: searchCount, step: step, timeout: lim.Timeout})
 	if runtime, ok := prep.user.dsl["runtime_mappings"]; ok {
 		body["runtime_mappings"] = runtime
 	}
@@ -112,7 +118,7 @@ func foldVolume(raw []byte, req datasource.VolumeRequest) (*logvolume.Histogram,
 		start := time.UnixMilli(int64(bucket.Key)).UTC()
 		leveled := int64(0)
 		for _, level := range bucket.Level.Buckets {
-			hist.Add(start, logvolume.KindOf(levelWord(level.Key)), level.DocCount)
+			hist.Add(start, logvolume.KindOf(keyText(level.Key)), level.DocCount)
 			leveled += level.DocCount
 		}
 		if rest := bucket.DocCount - leveled; rest > 0 {
@@ -122,10 +128,10 @@ func foldVolume(raw []byte, req datasource.VolumeRequest) (*logvolume.Histogram,
 	return hist, nil
 }
 
-func levelWord(key json.RawMessage) string {
-	var word string
-	if json.Unmarshal(key, &word) == nil {
-		return word
+func keyText(key json.RawMessage) string {
+	var text string
+	if json.Unmarshal(key, &text) == nil {
+		return text
 	}
-	return string(key)
+	return strings.TrimSpace(string(key))
 }
