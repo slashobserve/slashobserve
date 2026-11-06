@@ -63,7 +63,7 @@ An OpenSearch `flat_object` field is reported with the kind `flattened`.
 
 ## Variables and discovery
 
-A query variable on an OpenSearch datasource takes `label_values(field)` and returns the field's values over the dashboard's time range, up to 10,000 of them, through a terms aggregation.
+A query variable on an OpenSearch datasource takes `label_values(field)` or `label_values(<query>, field)`, where the query is in any of the three forms and narrows the values, and returns the field's values over the dashboard's time range, up to 10,000 of them, through a terms aggregation.
 A `text` field is read through its `.keyword` subfield; a `text` field without one has no listable values.
 
 The agent and the field browser list the aggregatable fields plus the `text` fields that have a `.keyword` subfield, the values of one field over a time range, every mapped field with its kind (`keyword`, `text`, `number`, `date`, `date_nanos`, `boolean`, `ip`, `nested`, `flattened`, `object` or `other`), the indices, aliases and data streams the pattern matches, and up to 20 of the newest documents with the resolved roles as columns.
@@ -72,4 +72,66 @@ OpenSearch has no metric names, so the metric list is empty.
 
 ## Queries
 
-Queries in KQL and Lucene, with `$__from`, `$__to`, `$__interval` and dashboard variables, are described on this page once query execution lands.
+A query takes one of three forms, chosen by its first characters:
+
+| Form      | How it is chosen                                                                              | What it is                                                                                         |
+| --------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| KQL       | The default, or a `kql:` prefix.                                                              | The Kibana query language, compiled on the server to Query DSL. See [what is out](../use/logs-and-traces.md#kql-on-elasticsearch-and-opensearch). |
+| Lucene    | A `lucene:` prefix, or `queryLanguage: lucene` on the datasource.                             | The Lucene query string syntax, sent as a `query_string` query with `analyze_wildcard`.            |
+| Query DSL | Text that starts with `{`.                                                                    | A JSON search body. Only `query`, `aggs`, `aggregations`, `size`, `sort`, `fields`, `_source` and `runtime_mappings` are accepted; any other key is refused so the body cannot widen the time range or the limits. |
+
+Prefixes are case-insensitive, and an empty query matches every document.
+The time range and any ad hoc filters wrap your query in a `bool` filter, in every form.
+
+What a query returns depends on its kind and form:
+
+- An instant query, such as the logs explorer's, returns log lines newest first as one frame with the columns `Time`, `TimeNs`, `Body`, `level`, `ID`, `Index`, `service`, `trace_id`, `span_id` and `Fields`.
+  A role column is left out when no field plays that role, and `Fields` holds the remaining fields of the document as JSON.
+  `TimeNs` is exact on a `date_nanos` time field, and on a `date` field it is the milliseconds the index stores times one million.
+- A range query in KQL or Lucene counts documents over time: one series named `count`, with one point per step.
+- A Query DSL body with `aggs` runs with `size` forced to 0 and its result is folded into series or a table, whatever the kind.
+  A body without `aggs` returns lines like an instant query, with `size` capped at the line limit.
+
+Lines are capped at 5,000 and at the query's row limit, whichever is lower, and `meta.truncated` says the cap was reached.
+`meta.rows_total` is the number of matching documents when OpenSearch counted them exactly, which it does up to 10,000, and is left out beyond that.
+`meta.partial` says the cluster timed out or a shard failed.
+A range query is refused when its step would make more than 11,000 buckets or more points than the point limit.
+
+`$__from` and `$__to` expand to epoch milliseconds, `$__interval` to the step in seconds such as `300s`, and `$__range` as on Loki.
+Inside a quoted string, such as a Query DSL value, a variable is escaped for JSON, and a variable with several values needs a format such as `${var:pipe}`.
+Outside quotes, a variable with several values expands to a parenthesised list of quoted values joined with `or`.
+
+### Aggregations
+
+The result of `aggs` is folded by walking it beside the request:
+
+- Bucket aggregations: `date_histogram`, `auto_date_histogram`, `histogram` (a time axis when its field is the time field, else numeric buckets in a table), `terms`, `multi_terms`, `filters`, `range`, `date_range` and `significant_terms`.
+- Metric aggregations: `avg`, `sum`, `min`, `max`, `value_count`, `cardinality`, `median_absolute_deviation`, `percentiles`, `stats`, `extended_stats`, `rate`, `bucket_script`, `derivative`, `cumulative_sum` and `moving_fn`.
+- When a time bucket aggregation appears anywhere in the nesting, the result is series, one per metric and per combination of the other buckets' keys, labelled with the bucket field (or the aggregation's name); a bucket with no metric under it gives a series named `count`.
+  Percentiles add a `percentile` label.
+- With no time bucket, the result is one table with a column per bucket level, then `count`, then a column per metric, and a row per innermost bucket, capped at the row limit.
+- Only one bucket aggregation may sit at each level, and a time bucket cannot sit inside another.
+  Anything else, such as `top_hits` or `composite`, is refused with `unsupported aggregation "x" (type y)`.
+- More series or points than the limits is refused with a limit error.
+
+### Ad hoc filters
+
+Every ad hoc variable on an OpenSearch datasource applies to its queries.
+`=` and `!=` become a `term` (a `match_phrase` on a text field with no `.keyword` subfield), `=~` and `!~` a case-insensitive `regexp`, and `<` and `>` a `range`.
+A text field with a `.keyword` subfield is filtered through the subfield.
+Filters joined with OR become a `should` group.
+
+### Lint
+
+The lint endpoint checks a query without running a search.
+KQL is compiled on the server and reports syntax errors and unknown fields (a warning).
+Lucene and the `query` part of a Query DSL body are checked with the cluster's validate API, and a Query DSL body is also checked for JSON syntax and for keys that are not accepted.
+Each diagnostic carries the offsets of the text it concerns.
+
+### Paging
+
+A query sent with `page_size` pages by offset: any page can be asked for directly, the total is exact and no `next` cursor is returned.
+The last page that can be reached is set by the cluster's `index.max_result_window`, which the server reads with the mapping: 10,000 unless an index sets it lower.
+A page past the window is refused with "pages past 10,000 results are not available on this index; narrow the time range", and the last reachable page already says it has no next page.
+A Query DSL body with `aggs` cannot be paged.
+

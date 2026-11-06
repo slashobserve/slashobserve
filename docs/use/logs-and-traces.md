@@ -48,6 +48,27 @@ The details offer **Show context**, **Open trace** and **Copy line**, which copi
 The address keeps the search as `/logs?ds=<datasource uid>&q=<query>&from=<from>&to=<to>`, so you can share it or bookmark it.
 A query written from a question also keeps the question as `ask` beside `q`, and the link opens the query with its question above it.
 
+### Query languages on Elasticsearch and OpenSearch
+
+An Elasticsearch or OpenSearch datasource runs three query forms.
+KQL is the default and what a Kibana user types; a `lucene:` prefix switches to Lucene, the syntax of Kibana's Lucene mode and of Grafana's Elasticsearch targets; text that starts with `{` is a Query DSL body, for aggregations and for a body pasted from Kibana or Grafana.
+A `kql:` prefix, or `queryLanguage: lucene` on the datasource, changes which form an unprefixed query is.
+The [Elasticsearch](../connect/elasticsearch.md#queries) and [OpenSearch](../connect/opensearch.md#queries) pages describe what each form returns, the aggregations that fold into panels, ad hoc filters, lint and paging.
+
+#### KQL on Elasticsearch and OpenSearch
+
+The server parses a strict subset of Kibana KQL and refuses the rest with a message at the offset of the construct, so a query that Kibana accepts may not paste:
+
+| Construct                        | Example                  | Message                                      | Why it is out                                                                                    |
+| -------------------------------- | ------------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Nested field queries             | `items:{ name:x and qty > 1 }` | "nested queries are not supported"     | They need the `nested` mapping type and a `nested` query.                                        |
+| Leading wildcard in a field name | `*name:x`                | "a field name cannot start with \*"          | Kibana expands it from the data view, and the server has no data view.                           |
+| Escaped whitespace in a bare word | `message:a\ b`          | "quote a value that contains spaces"         | One escaping rule, quotes, keeps the explorer's filter buttons and the query builder simple.     |
+| A `kql:` prefix inside a query   | `kql:a`                  | "kql: is a form prefix, not a query"         | The prefix is read before the parser runs.                                                       |
+
+Date math in a range value, such as `@timestamp >= now-15m`, is passed to the cluster as written, so the server cannot lint it.
+A field the mapping does not have is reported as a warning in lint, and the query still runs.
+
 ## Ask on the logs page
 
 The **Ask** and **Query** toggle in the top right corner of the query box switches between a question and a query.
