@@ -247,10 +247,20 @@ test("follows up in the same chat", async ({ page }) => {
   })
   await expect(promptBar).toHaveValue(draftPrompt)
 
+  const releaseFollowUp = await holdRequestPollsUntilFinished(page)
+  const followUpCreated = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/v1/observe"
+  )
   await promptBar.fill(followUpPrompt)
   await promptBar.press("Enter")
+  const followUp = (await (await followUpCreated).json()) as {
+    request: { id: string }
+  }
   await expect(page).toHaveURL(conversationUrl)
   await expect(page.getByText(followUpPrompt, { exact: true })).toBeVisible()
+  await releaseFollowUp(followUp.request.id)
   await expect(page.getByText("Saved as version 2")).toBeVisible({
     timeout: 90_000,
   })
