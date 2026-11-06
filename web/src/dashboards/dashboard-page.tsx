@@ -42,7 +42,7 @@ import {
   savedCursorSync,
   useCursorSyncShortcut,
 } from "./cursor-sync"
-import { DashboardGrid, gridRowHeight } from "./dashboard-grid"
+import { DashboardGrid } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardTopRow } from "./dashboard-top-row"
 import { DeleteDashboardDialog } from "./delete-dashboard-dialog"
@@ -93,6 +93,7 @@ import {
   useDashboardSearch,
   useSetDashboardSearch,
 } from "./search"
+import { gridRowHeight } from "./stack-heights"
 import {
   effectiveRefresh,
   pickerQuickRanges,

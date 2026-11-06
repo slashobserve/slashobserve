@@ -57,11 +57,13 @@ export type RendererManifest =
       type: DataPanelType
       supported: boolean
       minWidth?: number
+      minHeight?: number
       load: () => Promise<{ default: PanelRenderer }>
     }
   | {
       type: StaticPanelType
       supported: boolean
       minWidth?: number
+      minHeight?: number
       load: () => Promise<{ default: StaticPanelRenderer }>
     }

@@ -60,6 +60,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   Id-bearing pages live at `/d/<id>[/<slug>]`, `/f/<id>`, `/c/<id>` and `/b/<id>`, and every dashboard link and address string comes from `web/src/lib/links.ts`, whose `slugOf` matches `links.Slug` in Go; the old `/dashboards/<id>`, `/folders/<id>`, `/observe/<id>` and `/builds/<id>` route files only redirect.
 - A shell route declares its breadcrumb with `staticData.crumbs`, sets its title with `useDocumentTitle` and never renders `<main>`, which the shell owns.
 - Side panels (Create key, History) are `SidePanel` columns, never dialogs or sheets.
+  The one sheet is the dashboard top row's "Controls" on narrow screens, which mounts the controls only once, so ids such as the More menu's stay unique.
 - A renderer or editor module that fails to load offers "Reload page", not "Retry", because the browser caches a failed module fetch for the life of the document.
 
 ## Panels
@@ -89,6 +90,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - `shapeNulls` (`web/src/panels/timeseries/gaps.ts`) runs in each panel before the chart, so tooltip rows stay indexed like the plotted x values.
 - Threshold states always pair the threshold color with an icon and a word.
   A stat's `colorMode: value` never colors the digits or the word, unlike Grafana, because warning on white is 1.83:1, below WCAG 1.4.3.
+- A manifest's `minHeight` applies only when the grid stacks into one column (`stackedHeight` in `web/src/dashboards/stack-heights.ts`); the saved layout and the wide view never read it.
 - Canvas panels render Spec elements only.
   `canvasModel` is the one place that reads `display` and the only way a color reaches CSS: it keeps hex and the semantic tokens and drops anything else.
 - Remote images, map tiles and GeoJSON load only through `/api/v1/assets/*` (images through `RemoteImage`), because the CSP allows no remote images.

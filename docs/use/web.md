@@ -1,6 +1,6 @@
 ---
 title: Addresses in the web app
-description: The short addresses of dashboards, folders, chats, builds, logs and traces, their title slugs, and the redirects from the old forms.
+description: The short addresses of dashboards, folders, chats, builds, logs and traces, their title slugs, the redirects from the old forms, and how a dashboard fits a phone.
 ---
 
 Every page that belongs to one dashboard, folder or agent request has a short address you can paste into an incident, a runbook or a chat:
@@ -44,3 +44,10 @@ The old forms keep working and redirect with `301 Moved Permanently`, keeping th
 The server redirects only when the id is a UUID, and the web app does the same for links it follows itself.
 `/dashboards/by-title?title=<title>` is not an id address and keeps working as described in [ObserveSpec](../concepts/observespec.md).
 Opening a Grafana dashboard's own `/d/<uid>` address will come with the Grafana migration page.
+
+## On a phone
+
+Below 768 pixels wide a dashboard shows its panels in one column.
+Each panel type keeps a minimum height there, so a chart or a table stays readable even when the dashboard made it short.
+Up to 760 pixels wide, the time range, refresh, annotation filter and the dashboard's actions move behind one **Controls** button, which opens them in a sheet at the bottom of the screen.
+The activity card shows below the panels.

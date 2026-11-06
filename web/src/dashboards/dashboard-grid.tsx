@@ -19,8 +19,13 @@ import {
 import { expandLayout, type LayoutItem } from "./rows/expand-layout"
 import { RowHeader } from "./rows/row-header"
 import { useRowStore } from "./rows/row-store"
+import {
+  gridRowHeight,
+  pixelHeight,
+  rowsFor,
+  stackedHeight,
+} from "./stack-heights"
 
-export const gridRowHeight = 30
 const singleColumnBelow = 768
 const fadeIn =
   "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300"
@@ -41,10 +46,6 @@ type Props = {
 }
 
 const noRows: Record<string, boolean> = {}
-
-function pixelHeight(h: number): number {
-  return h * gridRowHeight + (h - 1) * gridMargin
-}
 
 function viewItem(entry: LayoutItem): Layout[number] {
   const { x, y, w, h } = entry.gridPos
@@ -92,7 +93,19 @@ export function DashboardGrid({
 
   const stacked = width < singleColumnBelow
   const gridItems = useMemo(() => {
-    const items = ordered.map(({ item }) => item)
+    const items = ordered.map(({ entry, item }) =>
+      stacked && entry.kind === "panel"
+        ? {
+            ...item,
+            h: rowsFor(
+              stackedHeight(
+                item.h,
+                rendererManifests.get(entry.panel.type)?.minHeight
+              )
+            ),
+          }
+        : item
+    )
     if (editing && !stacked) return items
     const minimum = new Map(
       ordered.map(({ entry, item }) => [
