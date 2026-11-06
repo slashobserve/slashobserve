@@ -200,7 +200,7 @@ func TestFacetsRefusesOtherDatasourceTypesAndUnknownUIDs(t *testing.T) {
 	hn, _ := newFacetsHarness(t)
 	rec := hn.facets("prom", facetsBody("up"))
 	expectError(t, rec, http.StatusBadRequest, "invalid_request")
-	if got := decodeError(t, rec).Error; got != "facets read Loki and ClickHouse datasources" {
+	if got := decodeError(t, rec).Error; got != "facets read Loki, ClickHouse, Elasticsearch and OpenSearch datasources" {
 		t.Fatalf("error = %q", got)
 	}
 	expectError(t, hn.facets("missing", facetsBody("up")), http.StatusNotFound, "not_found")

@@ -508,3 +508,59 @@ func TestIntegrationLint(t *testing.T) {
 		}
 	})
 }
+
+func TestIntegrationLogVolumeSumsEveryDocumentByLevel(t *testing.T) {
+	eachFlavor(t, func(t *testing.T, flavor elasticsearch.Flavor) {
+		ds := integrationDS(t, flavor)
+		from := indexedAt.Truncate(time.Minute).Add(-time.Minute)
+		req := datasource.VolumeRequest{Range: datasource.TimeRange{From: from, To: from.Add(6 * time.Minute)}, Step: time.Minute}
+		hist, err := ds.LogVolume(context.Background(), req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := hist.Volume()
+		var failures, warnings, infos, others int64
+		for _, b := range got.Buckets {
+			failures, warnings, infos, others = failures+b.Error, warnings+b.Warning, infos+b.Info, others+b.Other
+		}
+		if len(got.Buckets) != 6 || got.Total != documents+1 {
+			t.Fatalf("%d buckets, total %d, want 6 and %d", len(got.Buckets), got.Total, documents+1)
+		}
+		if failures != 50 || warnings != 50 || infos != 101 || others != 0 {
+			t.Fatalf("error %d, warning %d, info %d, other %d", failures, warnings, infos, others)
+		}
+	})
+}
+
+func TestIntegrationLogFacetsAreExact(t *testing.T) {
+	eachFlavor(t, func(t *testing.T, flavor elasticsearch.Flavor) {
+		ds := integrationDS(t, flavor)
+		facets, err := ds.LogFacets(context.Background(), datasource.FacetRequest{Range: aroundIndexing(), Limit: 10})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if facets.Sampled || len(facets.Fields) < 2 || facets.Fields[0].Name != "log.level" || facets.Fields[1].Name != "service.name" {
+			t.Fatalf("facets = %+v", facets)
+		}
+		level := facets.Fields[0]
+		want := map[string]int64{"info": 101, "warn": 50, "error": 50}
+		if !level.Exact || level.Truncated || level.Cardinality != 3 || len(level.Values) != 3 {
+			t.Fatalf("log.level = %+v", level)
+		}
+		for _, v := range level.Values {
+			if want[v.Value] != v.Count {
+				t.Errorf("log.level %s = %d, want %d", v.Value, v.Count, want[v.Value])
+			}
+		}
+		asked, err := ds.LogFacets(context.Background(), datasource.FacetRequest{Range: aroundIndexing(), Limit: 5, Fields: []string{"labels", "http.response.status_code", "error.stack_trace", "message"}})
+		if err != nil || len(asked.Fields) != 4 {
+			t.Fatalf("facets = %+v, err = %v", asked, err)
+		}
+		if labels := asked.Fields[0]; labels.Kind != "flattened" || (flavor == elasticsearch.Elasticsearch) != (len(labels.Values) > 0) {
+			t.Fatalf("labels = %+v, want values on Elasticsearch only (flat_object is not aggregatable)", labels)
+		}
+		if stack := asked.Fields[2]; stack.Kind != "text" || len(stack.Values) != 0 {
+			t.Fatalf("error.stack_trace = %+v", stack)
+		}
+	})
+}

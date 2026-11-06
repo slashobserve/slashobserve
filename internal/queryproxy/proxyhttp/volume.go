@@ -85,22 +85,19 @@ func (h *Handler) volume(c *gin.Context) {
 		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "datasource not found")
 		return
 	}
+	if capability, ok := inst.Datasource.(datasource.LogVolumeSource); ok {
+		h.volumeFromSource(c, uid, capability, req)
+		return
+	}
 	source, supported := volumeSources[inst.Datasource.Type()]
 	if !supported {
 		abortError(c, http.StatusBadRequest, string(queryproxy.CodeInvalidRequest), "volume reads Loki and ClickHouse datasources")
 		return
 	}
-	p, err := parseParams(req.values(), false)
-	if err != nil {
-		h.exploreFail(c, uid, err)
+	al, ok := h.volumeWindow(c, uid, req, exploreDashboard(uid, *req.Query, source.kind))
+	if !ok {
 		return
 	}
-	rng, _, err := p.timeRange(exploreDashboard(uid, *req.Query, source.kind), time.Now())
-	if err != nil {
-		h.exploreFail(c, uid, err)
-		return
-	}
-	al := align(rng, queryproxy.KindRange, req.buckets())
 	derived, err := source.derive(*req.Query, al.step)
 	if err != nil {
 		h.exploreFail(c, uid, err)
@@ -136,6 +133,46 @@ func (h *Handler) volume(c *gin.Context) {
 				return
 			}
 		}
+	}
+	c.JSON(http.StatusOK, newVolumeJSON(hist.Volume()))
+}
+
+func (h *Handler) volumeWindow(c *gin.Context, uid string, req volumeRequest, d *spec.Dashboard) (alignment, bool) {
+	p, err := parseParams(req.values(), false)
+	if err != nil {
+		h.exploreFail(c, uid, err)
+		return alignment{}, false
+	}
+	rng, _, err := p.timeRange(d, time.Now())
+	if err != nil {
+		h.exploreFail(c, uid, err)
+		return alignment{}, false
+	}
+	return align(rng, queryproxy.KindRange, req.buckets()), true
+}
+
+func (h *Handler) volumeFromSource(c *gin.Context, uid string, source datasource.LogVolumeSource, req volumeRequest) {
+	d := exploreDashboard(uid, *req.Query, queryproxy.KindRange)
+	al, ok := h.volumeWindow(c, uid, req, d)
+	if !ok {
+		return
+	}
+	releaseUpstream, ok := h.acquireUpstream(c)
+	if !ok {
+		return
+	}
+	defer releaseUpstream()
+	ctx, cancel := context.WithTimeout(c.Request.Context(), queryproxy.DraftLimits.Timeout+queryproxy.DraftGrace)
+	defer cancel()
+	principal, _ := auth.FromContext(ctx)
+	hist, err := source.LogVolume(ctx, datasource.VolumeRequest{
+		Query: datasource.Query{Text: *req.Query, Limits: queryproxy.DraftLimits, Dashboard: d.Title, User: queryproxy.UserFor(principal)},
+		Range: al.rng,
+		Step:  al.step,
+	})
+	if err != nil {
+		h.exploreFail(c, uid, err)
+		return
 	}
 	c.JSON(http.StatusOK, newVolumeJSON(hist.Volume()))
 }
