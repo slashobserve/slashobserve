@@ -1,10 +1,20 @@
 ---
 title: Switch from Grafana
-description: Connect SlashObserve to a running Grafana, import every dashboard with its folders in one run, and keep links to the old dashboards working.
+description: Move a Grafana team over in order, from connecting a Grafana and importing every dashboard to repairing, checking health, sharing, keeping dashboards in Git and opening old links.
 ---
 
-Instead of importing one file at a time, an Admin can store a Grafana URL and a service-account token once and let the server import every dashboard from that Grafana.
-Each dashboard goes through the same importer as [Import Grafana dashboards](import-grafana.md), with the same datasource matching, the same report and one import record per dashboard.
+This page walks a team through the move from Grafana in the order that works: each step leaves the dashboards in a better state for the next one.
+
+1. [Connect](#connect) the server to a running Grafana.
+2. [Import](#import) every dashboard with its folders in one run.
+3. [Repair](#repair) the panels whose queries did not verify.
+4. [Check health](#check-health) to find what still returns no data, and what nobody uses.
+5. [Share](#share-with-public-links-and-tv-mode) dashboards with people outside the team and on wall screens.
+6. [Keep dashboards in Git](#keep-dashboards-in-git) once they are right.
+7. [Open old links](#open-old-links) to Grafana dashboards at their new address.
+
+[What maps, what changes and what waits](#what-maps-what-changes-and-what-waits) compares the two in one table, and [The API](#the-api) does every step without the web app.
+Screenshots of each step come with a later release.
 
 ## Before you start
 
@@ -14,6 +24,10 @@ Each dashboard goes through the same importer as [Import Grafana dashboards](imp
   The server only reads from Grafana: `/api/health`, `/api/folders`, `/api/search`, `/api/datasources` and `/api/dashboards/uid/<uid>`.
 
 ## Connect
+
+An Admin stores a Grafana URL and a service-account token once and lets the server import every dashboard from that Grafana, instead of importing one file at a time.
+Each dashboard goes through the same importer as [Import Grafana dashboards](import-grafana.md), with the same datasource matching, the same report and one import record per dashboard.
+
 
 Open Settings and choose the Grafana tab; only Admins see it.
 Give the connection a name, the Grafana URL and the service account token, and choose Add connection.
@@ -77,9 +91,66 @@ A repair that ran but left failures shows as repaired and still failing, and you
 
 From an MCP client, read the dashboard with `get_dashboard`, whose `unverified` list names the failing panels and variables, and fix those panels with `update_panels`.
 
+## Check health
+
+Repair fixes what failed at import time, but a query that runs can still return nothing, and a move is a good time to drop dashboards nobody opens.
+Every dashboard is checked about once a day, and the **Health** page lists each one with a panel that fails or returns no data over the last 7 days, a variable that resolves to nothing, a duplicate title in its folder, or no opens in 90 days.
+After a large import, an Admin can choose **Run now** instead of waiting for the hourly run, and an Editor can choose **Repair** on a row to queue the agent on its failing panels.
+Delete or merge the duplicates and the unopened dashboards before the next step, so nobody shares or commits them.
+See [Dashboard health](dashboard-health.md) for the rules and the API.
+
+## Share with public links and TV mode
+
+Grafana's public dashboards and kiosk mode have their counterparts here.
+
+- A public link lets someone without an account, such as a vendor or a status screen, open one dashboard at `/p/<token>`.
+  A person who manages the dashboard's folder creates it in the dashboard's **Share** pane, chooses whether viewers may change the variables, can set an expiry, and can revoke it at any time.
+  A public view runs only that dashboard's saved queries and never shows query text, annotations, comments or the agent, and a dashboard in My Dashboards or one whose queries read the viewer cannot get a link.
+- TV mode shows a dashboard on a wall screen without the top row, the variables bar, the links or the activity card, and Esc leaves it.
+  Add `kiosk=true` to the dashboard's address, `cycle=rows` to scroll through its rows or `cycle=folder` to move through its folder's dashboards, and `interval=<seconds>` to set the pace (60 by default).
+  Cycling through a folder takes the place of a Grafana playlist; see [the web app](web.md).
+
+## Keep dashboards in Git
+
+Once a folder is right, export it and commit the files, so a change goes through review like code:
+
+```sh
+observe dashboards export Payments --dir dashboards
+observe dashboards apply --dir dashboards
+```
+
+Apply saves each file into the dashboard it came from, adopts a dashboard with the same title in the folder, and never deletes one, so a CI job can run it on every merge.
+It takes the place of Grafana's provisioning files when you would rather not mount a directory on the server; the server's own [provisioning directory](../operate/provisioning.md) reads the same layout.
+See [Dashboards as code](dashboards-as-code.md) for the layout, the matching rule and a GitHub Actions workflow.
+
+## Open old links
+
+`GET /api/v1/grafana/resolve/{uid}` answers the `dashboard_id` and the web `url` of the dashboard imported from a Grafana uid.
+Any signed-in person can call it, and a uid whose dashboard is in a folder they cannot see answers `404`, like a uid nobody imported.
+
+## What maps, what changes and what waits
+
+| In Grafana | Here | |
+| --- | --- | --- |
+| Folders, nested folders | Folders keep their Grafana titles, and a nested folder becomes one folder titled `Parent / Child`. A missing folder is created, and an existing one with the same title, in any case, is reused. | Maps |
+| Dashboards outside any folder | General, not your own My Dashboards. | Maps |
+| Tags and dashboard links | Imported with the dashboard, as they are for a single import. | Maps |
+| Dashboard uid and version | Kept on the import record as `grafana_uid` and the Grafana `version`, so old links resolve. | Maps |
+| A dashboard changed in Grafana after the import | Run the import again: a dashboard whose Grafana `version` is newer is saved as a new version of the same dashboard, and the others are skipped. A new version runs every query like any later save, so one whose queries now fail is reported as failed and keeps its last version. | Changes |
+| A folder titled `My Dashboards` | Lands in the importing Admin's own My Dashboards, because that title names the default folder here; rename it in Grafana before the import to keep it shared. | Changes |
+| A dashboard imported from a file earlier | Holds its Grafana uid, since only the first import of a uid holds it, so the run updates that dashboard instead of making a copy. | Changes |
+| Panels whose queries fail | Imported as unverified, then repaired by the agent from the repair queue or the Health page. | Changes |
+| Public dashboards | Public links from the Share pane. | Changes |
+| Kiosk mode and playlists | TV mode, which cycles through a dashboard's rows or a folder's dashboards. Playlists themselves stay in Grafana. | Changes |
+| Provisioning files | The server's provisioning directory, or `observe dashboards apply` from Git. | Changes |
+| Alerting rules, contact points and silences | Not imported, and an alert list panel imports as a placeholder. | Waits |
+| Library panels | Imported as a placeholder, as in a single import. | Waits |
+| Users, teams and folder permissions | Stay in Grafana; set [folder permissions](../teams/folders.md) here after the import. | Waits |
+
 ## The API
 
 Everything in the Grafana tab is also in the HTTP API for Admins and Admin keys, and the repair queue for Editors and Admins.
+The health list and apply have their own APIs, described in [Dashboard health](dashboard-health.md#api) and [Dashboards as code](dashboards-as-code.md#api).
 
 ### Connections
 
@@ -143,30 +214,3 @@ The answer is `202` with the `queued` request ids and the `skipped` dashboards, 
 - `not_found`: it does not exist or is in a folder you cannot see.
 - `forbidden_role`: you can see it but not edit it.
 - `queue_full`: you already have 20 repairs queued or running; send the request again when they finish.
-
-## What maps
-
-- Folders keep their Grafana titles, and a nested folder becomes one folder titled `Parent / Child`.
-  A missing folder is created, and an existing one with the same title, in any case, is reused.
-- Dashboards outside any Grafana folder go to General, not to your own My Dashboards.
-- Tags and dashboard links import with the dashboard, as they do for a single import.
-- Each import record holds the dashboard's Grafana uid in `grafana_uid` and its Grafana `version` in the summary.
-
-## What changes
-
-- Run the import again to pick up changes: a dashboard whose Grafana `version` is newer than the one imported is saved as a new version of the same dashboard, and the others are skipped.
-  A new version runs every query like any later save, so a dashboard whose queries now fail is reported as failed and keeps its last version.
-- A Grafana folder titled `My Dashboards` lands in the importing Admin's own My Dashboards, because that title names the default folder here; rename it in Grafana before the import to keep it shared.
-- Only the first import of a Grafana uid holds it.
-  A dashboard imported from a file before the connection holds its uid, and the run updates that dashboard instead of making a copy.
-
-## Open old links
-
-`GET /api/v1/grafana/resolve/{uid}` answers the `dashboard_id` and the web `url` of the dashboard imported from a Grafana uid.
-Any signed-in person can call it, and a uid whose dashboard is in a folder they cannot see answers `404`, like a uid nobody imported.
-
-## What waits
-
-- Alerting rules, contact points and silences are not imported, and an alert list panel imports as a placeholder.
-- A library panel imports as a placeholder, as it does in a single import.
-- Playlists, users, teams and Grafana's folder permissions stay in Grafana; set [folder permissions](../teams/folders.md) here after the import.

@@ -69,6 +69,22 @@ When any file fails, apply still sends the others and then exits 1 with `<n> of 
 A key saves only where its role and folder access let it edit; it matches no folder entry, so a restricted folder is out of reach unless the key's account is an Admin or created it (see [Service-account keys](../operate/service-account-keys.md)).
 Use an Editor key, because a Viewer or Commenter key cannot save.
 
+## API
+
+`POST /api/v1/provision/apply` saves one file and needs the Editor role; the CLI calls it once per file:
+
+```sh
+curl -X POST "$SERVER/api/v1/provision/apply" -H "Authorization: Bearer $OBSERVE_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d "{\"path\":\"Payments/checkout.json\",\"spec\":$(cat dashboards/Payments/checkout.json)}"
+```
+
+`path` is the file's path relative to the directory, with `/` between parts, and `spec` is the file's ObserveSpec.
+The answer is `200` with the `path`, the `outcome`, the `dashboard_id` and the `version`.
+A refused file answers `409` with `ambiguous`, `provisioned` or `version_conflict`, `422` with the failing panels for a Spec that does not pass its checks, `403` without edit access, and `400` for a path outside the layout.
+
+`GET /api/v1/provision/applied?folder_id=<folder id>` lists the paths applied to the dashboards now in a folder, which export uses to keep their file names.
+
 ## Apply from GitHub Actions
 
 Create an Editor key, save it as a repository secret named `OBSERVE_TOKEN`, and add a workflow that applies the `dashboards` directory on every push to `main`:
