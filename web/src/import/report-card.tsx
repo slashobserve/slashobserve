@@ -1,6 +1,8 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react"
+import { Link } from "@tanstack/react-router"
 
 import { StatusLabel } from "@/components/status-label"
+import { importedFilter } from "@/health/health-labels"
 import { cn } from "@/lib/utils"
 
 import { BlockList } from "./block-list"
@@ -35,6 +37,8 @@ export function ReportCard({ report, imported, busy }: Props) {
   const tabs = useRef<Record<string, HTMLButtonElement | null>>({})
   const counts = filterCounts(report)
   const lines = filterLines(report, filter)
+  const waitsInHealth =
+    imported && (report.counts.placeholder > 0 || report.counts.unverified > 0)
   const closingHint =
     imported && report.counts.unverified > 0
       ? fixUnverifiedHint
@@ -172,6 +176,18 @@ export function ReportCard({ report, imported, busy }: Props) {
         </div>
       ) : null}
       <p className="px-3.5 py-3 text-xs text-muted-foreground">{closingHint}</p>
+      {waitsInHealth ? (
+        <p className="flex flex-wrap items-baseline gap-x-2 border-t px-3.5 py-3 text-xs text-muted-foreground">
+          Placeholders and unverified panels wait in Health.
+          <Link
+            to="/health"
+            search={{ kind: importedFilter }}
+            className="text-[13px] font-medium text-foreground hover:text-muted-foreground"
+          >
+            Open in Health
+          </Link>
+        </p>
+      ) : null}
     </section>
   )
 }

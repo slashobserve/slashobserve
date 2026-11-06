@@ -142,9 +142,9 @@ describe("filterLines", () => {
     })
   })
 
-  it("says imported as is when there are no reasons", () => {
+  it("gives a plain panel no reason line", () => {
     const line = filterLines(report, "all")[0]
-    expect(line.reasons).toEqual(["Imported as is."])
+    expect(line.reasons).toEqual([])
     expect(line.paths).toBe("")
   })
 
