@@ -19,6 +19,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   The server's `spec.Parse` is the one Spec validator on read; `asDashboardSpec` only checks shape.
   Editors validate through `useSpecValidator()` or `await loadSpecValidator()`, never a static import, so the 1.3 MB validator stays out of the initial bundle; only `web/src/spec` tests, editor tests and `scripts/check-spec-fixtures.mjs` import `web/src/spec/validate.ts` directly.
 - A route's `pendingComponent` lives in its own small module, because the router keeps it in the entry chunk.
+  Vendor code goes to one chunk through the named-package `vendor` group in `web/vite.config.ts`; never add a catch-all group, which pulls lazy chunks into the entry.
 - Vitest covers pure helpers (`*.test.ts` next to the code) and, under happy-dom with Testing Library, components whose behaviour is not a pure helper (`*.test.tsx`).
   A test that reads files from disk opts out of the DOM with `// @vitest-environment node`.
 - cmdk is deliberately not used.
