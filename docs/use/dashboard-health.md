@@ -6,6 +6,17 @@ description: Find the dashboards that broke after a move from Grafana or rotted 
 Every dashboard is checked about once a day for panels that stopped working, and the health list shows each dashboard with a problem.
 It is the list to work through after [switching from Grafana](switch-from-grafana.md), and the one to come back to as datasources and metrics change.
 
+## The Health page
+
+Choose **Health** in the sidebar, or open `<public url>/health`.
+The page lists each dashboard with a problem, one row per dashboard, with its folder, every problem found, when it was last checked and on which version, and when anyone last opened it.
+Failures come first in each row, then panels with no data, then the dashboard-wide problems.
+The menus at the top narrow the list to one kind of problem or one folder, and the address keeps the choice, as `?kind=no_data&folder=<folder id>`, so a filtered list can be shared.
+
+The line under the header shows the state of the job: whether a run is going, and when the last one finished, failed or was interrupted.
+An Editor sees **Repair** on each dashboard they can edit, and the button is turned off with the reason when the row has nothing the agent can repair or no agent is configured.
+An Admin also sees **Run now**, which is turned off while a run is going; the page follows the run until it finishes.
+
 ## What counts as a problem
 
 | Kind | Meaning |
@@ -34,14 +45,14 @@ A check that cannot run at all is recorded as a `query_failed` problem with the 
 
 ## Repair
 
-An Editor can ask the agent to repair a dashboard whose last check found a `no_data`, `query_failed` or `variable_failed` problem.
+An Editor can ask the agent to repair a dashboard, with **Repair** on the Health page or the API, when its last check found a `no_data`, `query_failed` or `variable_failed` problem.
 The repair is an ordinary revision with a prompt that names each failing panel and variable, so it shows in the dashboard's history and can be reviewed and reverted like any other.
 It needs a configured LLM provider and edit access to the dashboard, and a dashboard with a revision already queued or running is skipped.
 Each person can have 20 health repairs queued or running at once.
 
 ## Run now
 
-An Admin can start a run at once, for example right after a large import.
+An Admin can start a run at once with **Run now**, for example right after a large import.
 It checks the dashboards that are due, as the hourly run does, and when a run is already going nothing more starts.
 
 ## API

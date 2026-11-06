@@ -178,6 +178,12 @@ export const repairKeys = {
     ["repairs", "list", folderId ?? "all"] as const,
 }
 
+export const healthKeys = {
+  all: ["health"] as const,
+  list: (kind: string | null, folderId: string | null) =>
+    ["health", "list", kind ?? "all", folderId ?? "all"] as const,
+}
+
 export const outboundDomainKeys = {
   list: () => ["outbound-domains"] as const,
 }

@@ -3,6 +3,7 @@ import { roleAtLeast, type Role } from "@/lib/roles"
 export type NavPath =
   | "/"
   | "/dashboards"
+  | "/health"
   | "/logs"
   | "/traces"
   | "/datasources"
@@ -20,6 +21,7 @@ export type NavItem = {
 const navItems: readonly NavItem[] = [
   { to: "/", label: "Observe", group: "main", minRole: "viewer" },
   { to: "/dashboards", label: "Dashboards", group: "main", minRole: "viewer" },
+  { to: "/health", label: "Health", group: "main", minRole: "viewer" },
   { to: "/logs", label: "Logs", group: "main", minRole: "viewer" },
   { to: "/traces", label: "Traces", group: "main", minRole: "viewer" },
   {

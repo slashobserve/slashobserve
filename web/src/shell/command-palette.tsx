@@ -13,6 +13,7 @@ import {
   ArrowUpRightIcon,
   ChartGanttIcon,
   DatabaseIcon,
+  HeartPulseIcon,
   KeyIcon,
   LayoutDashboardIcon,
   LogsIcon,
@@ -42,6 +43,7 @@ import { useSignOut } from "./use-sign-out"
 const pageIcons: Record<NavPath, LucideIcon> = {
   "/": TerminalIcon,
   "/dashboards": LayoutDashboardIcon,
+  "/health": HeartPulseIcon,
   "/logs": LogsIcon,
   "/traces": ChartGanttIcon,
   "/datasources": DatabaseIcon,

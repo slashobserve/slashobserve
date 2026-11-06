@@ -20,6 +20,7 @@ import {
   validateDashboardSearch,
   type DashboardSearchParams,
 } from "@/dashboards/search"
+import { useRecordView } from "@/health/record-view"
 import { dashboardLink } from "@/lib/links"
 
 export const Route = createFileRoute("/_authed/d/$dashboardId/{-$slug}")({
@@ -103,6 +104,7 @@ function DashboardRoute() {
   const { dashboardId, slug } = Route.useParams()
   const navigate = Route.useNavigate()
   const queryClient = useQueryClient()
+  useRecordView(dashboardId)
   const title = useQuery(latestDashboardQuery(queryClient, dashboardId)).data
     ?.dashboard.title
   useEffect(() => {
