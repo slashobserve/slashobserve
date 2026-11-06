@@ -1,8 +1,11 @@
 import {
   memo,
   useCallback,
+  useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ReactElement,
@@ -67,6 +70,7 @@ import {
 import { CellTooltip } from "./cell-tooltip"
 import { ColumnFilterMenu } from "./column-filter-menu"
 import { InspectCell } from "./inspect-cell"
+import { rowWindow, windows } from "./row-window"
 import {
   alignOf,
   columnWidths,
@@ -75,6 +79,7 @@ import {
   pageRows,
   pageSizeFor,
   rowHeightOf,
+  rowHeightPx,
   rowSizing,
   stickyOffsets,
   tooltipSideOf,
@@ -104,6 +109,7 @@ import {
 
 const maxRows = 1000
 const expandWidth = 32
+const overscanRows = 10
 
 const typeIcons = {
   number: HashIcon,
@@ -448,8 +454,14 @@ const BodyRow = memo(function BodyRow({
   views,
   expandable,
   zone,
+  ariaRowIndex,
   ...rest
-}: RowShared & Expansion & { views: ColumnView[]; zone: string | undefined }) {
+}: RowShared &
+  Expansion & {
+    views: ColumnView[]
+    zone: string | undefined
+    ariaRowIndex: number | undefined
+  }) {
   const { expanded, detailId, frozen, onToggle, ...shared } = rest
   const expansion = { expanded, detailId, frozen, onToggle }
   const rowColor = rowFill(
@@ -463,7 +475,7 @@ const BodyRow = memo(function BodyRow({
   const { nested } = shared.row
   return (
     <>
-      <TableRow>
+      <TableRow data-body-row="" aria-rowindex={ariaRowIndex}>
         {expandable ? (
           <ExpandCell row={shared.row} label={label} expansion={expansion} />
         ) : null}
@@ -609,6 +621,57 @@ function HeaderCell({
 
 const noKept: ReadonlySet<string> = new Set()
 
+function SpacerRow({ height, columns }: { height: number; columns: number }) {
+  if (height <= 0) return null
+  return (
+    <tr aria-hidden="true" style={{ height }}>
+      <td colSpan={columns} className="p-0" />
+    </tr>
+  )
+}
+
+function useWindowScroll(
+  windowed: boolean,
+  rows: ModelRow[],
+  rowHeight: RowHeight
+) {
+  const regionRef = useRef<HTMLDivElement>(null)
+  const pendingFrame = useRef<number | null>(null)
+  const [scrollTop, setScrollTop] = useState(0)
+  const [measuredRowHeight, setMeasuredRowHeight] = useState<number | null>(
+    null
+  )
+
+  useEffect(
+    () => () => {
+      if (pendingFrame.current !== null) {
+        cancelAnimationFrame(pendingFrame.current)
+      }
+    },
+    []
+  )
+
+  useLayoutEffect(() => {
+    const region = regionRef.current
+    if (!windowed || region === null) return
+    setScrollTop(region.scrollTop)
+    const first = region.querySelector<HTMLElement>("[data-body-row]")
+    if (first && first.offsetHeight > 0) {
+      setMeasuredRowHeight(first.offsetHeight)
+    }
+  }, [windowed, rows, rowHeight])
+
+  const onScroll = useCallback(() => {
+    if (!windowed || pendingFrame.current !== null) return
+    pendingFrame.current = requestAnimationFrame(() => {
+      pendingFrame.current = null
+      setScrollTop(regionRef.current?.scrollTop ?? 0)
+    })
+  }, [windowed])
+
+  return { regionRef, scrollTop, measuredRowHeight, onScroll }
+}
+
 const TablePanel: PanelRenderer = ({
   panel,
   frames,
@@ -710,8 +773,48 @@ const TablePanel: PanelRenderer = ({
     header: showHeader,
     footerRows: footer.length,
   })
-  const paged = pageRows(sorted, requestedPage, pageSize)
-  const visible = paginate ? paged.rows : sorted.slice(0, maxRows)
+  const paged = useMemo(
+    () => pageRows(sorted, requestedPage, pageSize),
+    [sorted, requestedPage, pageSize]
+  )
+  const rows = useMemo(
+    () => (paginate ? paged.rows : sorted.slice(0, maxRows)),
+    [paginate, paged, sorted]
+  )
+
+  const columnsFixed = useMemo(
+    () =>
+      rows.length > 0 &&
+      views.every(({ column }) => {
+        const spec = cellSpecAt(fields, column, rows[0])
+        return !spec.wrap && !spec.dynamicHeight && spec.type !== "image"
+      }),
+    [rows, views, fields]
+  )
+  const windowed = windows({
+    paginate,
+    count: rows.length,
+    expandedCount: open.size,
+    grows: rowSizing(display, false).grows,
+    columnsFixed,
+  })
+  const { regionRef, scrollTop, measuredRowHeight, onScroll } = useWindowScroll(
+    windowed,
+    rows,
+    rowHeight
+  )
+  const range = windowed
+    ? rowWindow({
+        scrollTop,
+        viewport: height,
+        rowHeight: measuredRowHeight ?? rowHeightPx(rowHeight),
+        count: rows.length,
+        overscan: overscanRows,
+      })
+    : null
+  const shown = range ? rows.slice(range.start, range.end) : rows
+  const firstShown = range?.start ?? 0
+  const columnCount = views.length + (expandable ? 1 : 0)
 
   function toggleSort(key: string) {
     let next: Sort | null = null
@@ -741,13 +844,16 @@ const TablePanel: PanelRenderer = ({
   return (
     <div className="flex flex-col text-xs" style={{ width, height }}>
       <div
+        ref={regionRef}
         role="region"
         aria-label={`${panel.title} table`}
         tabIndex={0}
+        onScroll={onScroll}
         className="min-h-0 flex-1 overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       >
         <table
           data-slot="table"
+          aria-rowcount={range ? rows.length + 1 : undefined}
           className={cn("caption-bottom", !fixed && "w-full")}
           style={
             layout
@@ -805,9 +911,11 @@ const TablePanel: PanelRenderer = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {visible.map((row) => (
+            <SpacerRow height={range?.before ?? 0} columns={columnCount} />
+            {shown.map((row, index) => (
               <BodyRow
                 key={row.key}
+                ariaRowIndex={range ? firstShown + index + 2 : undefined}
                 views={views}
                 row={row}
                 fields={fields}
@@ -823,6 +931,7 @@ const TablePanel: PanelRenderer = ({
                 onToggle={toggleOpen}
               />
             ))}
+            <SpacerRow height={range?.after ?? 0} columns={columnCount} />
           </TableBody>
           {footer.length > 0 ? (
             <TableFooter className="sticky bottom-0 z-10 border-t-0 bg-card shadow-[0_-1px_0_var(--border)]">
