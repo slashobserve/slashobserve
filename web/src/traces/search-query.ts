@@ -67,15 +67,17 @@ export function clickhouseTraceSearch(form: TraceForm): string {
   const min = form.min ? parseDuration(form.min) : null
   const max = form.max ? parseDuration(form.max) : null
   const conditions = [
-    form.service ? clickhouseMatch("ServiceName", form.service) : "",
-    form.span ? clickhouseMatch("SpanName", form.span) : "",
-    min !== null ? ` AND Duration >= ${min}` : "",
-    max !== null ? ` AND Duration <= ${max}` : "",
+    form.service
+      ? clickhouseMatch("otel_traces.ServiceName", form.service)
+      : "",
+    form.span ? clickhouseMatch("otel_traces.SpanName", form.span) : "",
+    min !== null ? ` AND otel_traces.Duration >= ${min}` : "",
+    max !== null ? ` AND otel_traces.Duration <= ${max}` : "",
     form.errors
       ? " AND lower(StatusCode) IN ('error', 'status_code_error')"
       : "",
   ].join("")
-  return `SELECT TraceId, min(Timestamp) AS StartTime, argMax(ServiceName, Duration) AS ServiceName, argMax(SpanName, Duration) AS SpanName, max(Duration) AS Duration, count() AS Spans
+  return `SELECT TraceId, min(Timestamp) AS StartTime, argMax(otel_traces.ServiceName, otel_traces.Duration) AS ServiceName, argMax(otel_traces.SpanName, otel_traces.Duration) AS SpanName, max(otel_traces.Duration) AS Duration, count() AS Spans
 FROM otel_traces
 WHERE $__timeFilter(Timestamp)${conditions}
 GROUP BY TraceId
