@@ -1,6 +1,6 @@
 ---
 title: Addresses and viewing tools in the web app
-description: The short addresses of dashboards, folders, chats, builds, logs and traces, their title slugs and old forms, and the tools for viewing a dashboard on a wall TV, at full size, in Inspect and on a phone.
+description: The short addresses of dashboards, folders, chats, builds, logs and traces, their title slugs and old forms, and the tools for viewing a dashboard at full size, in Inspect and on a phone, with a pointer to TV mode.
 ---
 
 Every page that belongs to one dashboard, folder or agent request has a short address you can paste into an incident, a runbook or a chat:
@@ -69,22 +69,8 @@ Recently viewed dashboards stay in this browser's local storage, at most 20, and
 
 ## TV mode
 
-TV mode shows a dashboard on a wall screen with nothing but its panels: the top row, the variables bar, the links and the activity card are hidden.
-Start it with **TV mode** in the dashboard's **More** menu, or with `d` then `k`.
-Press `Esc` to leave it; a hint saying so shows for three seconds when TV mode starts and whenever the mouse moves.
-
-TV mode lives in the address, so a TV can open a bookmark straight into it:
-
-| Query key | Meaning |
-| --- | --- |
-| `kiosk=1` | TV mode; `kiosk` alone or `kiosk=true` work too. |
-| `cycle=rows` | Bring each expanded row to the top of the screen in turn. |
-| `cycle=folder` | Open each dashboard of the same folder in turn, ordered by title. |
-| `interval=<seconds>` | Seconds between steps of a cycle, from 10 to 3600; the default is 60. |
-
-**TV mode for this folder** in the **More** menu starts `cycle=folder`, and is not offered for a personal folder.
-A folder cycle keeps the time range and the auto-refresh, and opens each dashboard with its default variable values.
-It reads up to 100 dashboards of the folder.
+TV mode shows a dashboard on a wall screen with nothing but its panels, and can cycle through its rows or its folder's dashboards.
+[Show it on a wall](public-links.md#show-it-on-a-wall) describes how to start it, the address keys that open a TV straight into it, and how it fits with public links.
 
 ## One panel at full size
 
