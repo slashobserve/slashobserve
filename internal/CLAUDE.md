@@ -19,6 +19,7 @@ This lists only the packages whose purpose the name does not make obvious.
   `queryproxy/proxyhttp` holds its HTTP handlers, a subpackage because it reads versions through `dashboards`, which imports `queryproxy`.
 - `agent`: the agent loop; `agent/tools` is the only place agent tools are defined; `agent/prompts` holds the embedded prompts.
 - `findings`: stores investigate results; `revisions` reads them only through sqlc and the `ObserveOptions.Finding` func, and never imports `findings`.
+- `stars`: each person's starred dashboards, stored on the server so they follow the person across browsers; keys get 403 `user_session_required`, and recently viewed dashboards stay in the browser.
 
 ## Secrets and configuration
 

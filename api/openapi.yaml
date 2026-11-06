@@ -164,6 +164,10 @@ paths:
     $ref: "./paths/grafana.yaml#/grafana-resolve-uid"
   /repairs:
     $ref: "./paths/repairs.yaml#/repairs"
+  /dashboards/{id}/star:
+    $ref: "./paths/stars.yaml#/dashboards-id-star"
+  /stars:
+    $ref: "./paths/stars.yaml#/stars"
 components:
   securitySchemes:
     sessionCookie:

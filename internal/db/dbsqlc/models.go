@@ -114,6 +114,12 @@ type DashboardComment struct {
 	ResolvedByVersion pgtype.Int4
 }
 
+type DashboardStar struct {
+	UserID      pgtype.UUID
+	DashboardID pgtype.UUID
+	StarredAt   pgtype.Timestamptz
+}
+
 type DashboardVersion struct {
 	DashboardID    pgtype.UUID
 	Version        int32

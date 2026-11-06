@@ -54,6 +54,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/scheduler"
 	"github.com/slashobserve/slashobserve/internal/server"
 	"github.com/slashobserve/slashobserve/internal/server/mcp"
+	"github.com/slashobserve/slashobserve/internal/stars"
 	"github.com/slashobserve/slashobserve/internal/users"
 )
 
@@ -364,6 +365,7 @@ func run() error {
 			assets.NewHandler(assetsClient, logger),
 			annotationsHandler,
 			dashprovision.NewHandler(provisioner, logger),
+			stars.NewHandler(stars.New(database, folderAccess), folderAccess.RequireDashboard(folders.NeedView), logger),
 		},
 		Mounts: append([]server.Mount{{
 			Path:    "/mcp",
