@@ -4,10 +4,15 @@ health:
     summary: List dashboards with health problems.
     description: >-
       Anyone with a role can call this endpoint.
-      It lists every dashboard, in folders the caller can see, with at least one problem, most recently updated first.
+      It lists every dashboard, in folders the caller can see, with at least one problem.
       `no_data`, `query_failed` and `variable_failed` come from the last health check of the dashboard: an hourly job checks each dashboard about once a day, oldest check first, running every panel and variable query of its latest version over the last 7 days with no viewer.
       `duplicate_title` means another dashboard in the same folder has the same title, compared case-insensitively, and `unopened` means nobody opened the dashboard in the last 90 days, counting from its creation when nobody ever did; both are computed on every read.
       A dashboard whose queries read the viewer (`${__user.*}`) is not checked and has `skipped` set to `depends_on_viewer`.
+      Dashboards are ranked: 0 with a `query_failed` or `variable_failed` problem, 1 with `no_data`, 2 with `duplicate_title`, 3 with only `unopened`.
+      The list is ordered by rank, then by `last_viewed_at` newest first with never-opened dashboards last, then by title; a `kind` filter keeps each dashboard's rank, so the same order holds inside one kind.
+      `next_cursor` pages through that order; a cursor from a server before this order answers 400 `invalid_request` and the client restarts from the first page.
+      The first page, sent without `cursor`, carries `summary`: counts of dashboards, not problems, over every dashboard in folders the caller can see, narrowed by `folder_id` and never by `kind`; later pages have `summary` null.
+      Each dashboard carries `repair`, its latest health repair (a revision whose prompt starts as `POST /health/repairs` writes it) whatever its age, or null when it never had one.
       `job` is the state of the health job.
     parameters:
       - name: folder_id
