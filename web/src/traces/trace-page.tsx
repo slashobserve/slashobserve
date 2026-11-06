@@ -16,6 +16,7 @@ import { PageHeader } from "@/components/page-header"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { downloadFile } from "@/dashboards/export-spec"
 import type { PanelDataResponse, WireFrame } from "@/dashboards/queries"
 import {
   TimeRangeControl,
@@ -34,6 +35,7 @@ import { exploreErrorText, offlineText } from "@/logs/explore"
 import { usePrepared } from "@/logs/prepared"
 import { useElementSize } from "@/logs/use-element-size"
 import { SidePanel } from "@/shell/side-panel"
+import { foldGroups, foldThreshold } from "@/panels/traces/fold"
 import {
   criticalPath,
   errorAncestors,
@@ -63,7 +65,12 @@ import {
 } from "./search"
 import { traceQLAttribute } from "./search-query"
 import { TraceLogsSection } from "./trace-logs-tab"
-import { traceNotes, traceQuery } from "./trace-query"
+import {
+  criticalPathDisabledText,
+  traceNotes,
+  traceNotice,
+  traceQuery,
+} from "./trace-query"
 import { TraceToolbar, type TraceService } from "./trace-toolbar"
 
 type TraceModelData = TraceViewProps["model"]
@@ -73,10 +80,15 @@ const noIds: ReadonlySet<string> = new Set()
 const noDatasources: readonly DatasourceStatus[] = []
 const skeletonRows = [0, 1, 2, 3, 4, 5]
 const phoneQuery = "(max-width: 760px)"
+const pageMaxSpans = 20000
 const toolbarHint = "Click a row for details. Drag on the ruler to zoom."
+const foldedToolbarHint = `Find searches every loaded span. ${toolbarHint}`
 const legendHint = "Click a service to dim its spans."
+const foldedLegendHint = `${legendHint} Counts include folded spans.`
 const keysHint =
   "Use j and k to move, Enter to open a span, Escape to close the details."
+const foldedHint =
+  "Folded rows keep the hidden spans' totals so the timeline still adds up. Open a folded row to see its slowest 50 spans; open the rest from there."
 
 function subscribePhone(onChange: () => void) {
   const media = window.matchMedia(phoneQuery)
@@ -425,6 +437,7 @@ function TraceResult({
     <TraceWaterfall
       id={id}
       datasource={datasource}
+      range={range}
       data={result.data}
       missing={missing}
       openId={search.span ?? null}
@@ -488,9 +501,19 @@ function isFormField(target: EventTarget | null): boolean {
   )
 }
 
+function downloadTrace(id: string, data: PanelDataResponse) {
+  downloadFile(
+    new Blob([JSON.stringify(data, null, 2) + "\n"], {
+      type: "application/json",
+    }),
+    `trace-${id}.json`
+  )
+}
+
 function TraceWaterfall({
   id,
   datasource,
+  range,
   data,
   missing,
   openId,
@@ -499,6 +522,7 @@ function TraceWaterfall({
 }: {
   id: string
   datasource: DatasourceStatus
+  range: TimeRangeValue
   data: PanelDataResponse
   missing: ReactNode
   openId: string | null
@@ -519,7 +543,9 @@ function TraceWaterfall({
   const frames: WireFrame[] = data.frames
   const prepared = usePrepared(panel, frames)
   const model = useMemo(() => {
-    const built = traceModel(prepared.frames, prepared.fields)
+    const built = traceModel(prepared.frames, prepared.fields, {
+      maxSpans: pageMaxSpans,
+    })
     if (built.reason !== null) return built
     return { ...built, notes: [...traceNotes(data.meta), ...built.notes] }
   }, [prepared.frames, prepared.fields, data.meta])
@@ -533,10 +559,13 @@ function TraceWaterfall({
     <TraceExplorer
       id={id}
       datasource={datasource}
+      range={range}
+      meta={data.meta}
       model={model}
       searchLink={searchLink}
       openId={openId}
       onOpenIdChange={onOpenIdChange}
+      onDownload={() => downloadTrace(id, data)}
       actions={actions}
     />
   )
@@ -545,18 +574,24 @@ function TraceWaterfall({
 function TraceExplorer({
   id,
   datasource,
+  range,
+  meta,
   model,
   searchLink,
   openId,
   onOpenIdChange,
+  onDownload,
   actions,
 }: {
   id: string
   datasource: DatasourceStatus
+  range: TimeRangeValue
+  meta: PanelDataResponse["meta"]
   model: TraceModelData
   searchLink: SearchLink | undefined
   openId: string | null
   onOpenIdChange: (id: string | null) => void
+  onDownload: () => void
   actions: ReactNode
 }) {
   const { ref, width, height } = useElementSize<HTMLDivElement>()
@@ -594,6 +629,9 @@ function TraceExplorer({
     )
   }, [spans, errorsOnly])
   const services = useMemo(() => serviceList(spans), [spans])
+  const groups = useMemo(() => foldGroups(spans, foldThreshold), [spans])
+  const folded = groups.size > 0
+  const notice = traceNotice(meta, spans.length, folded)
   const rows = useMemo(() => visibleSpans(spans, collapsed), [spans, collapsed])
   const matchIds = useMemo(() => {
     const matched = filtered.matched
@@ -627,9 +665,15 @@ function TraceExplorer({
     searchRef.current?.focus()
   }
 
-  const status = showPath
-    ? `Critical path on: the ${pathIds.size.toLocaleString("en")} outlined spans add up to the ${model.formatDuration(model.duration)} total; the ${(spans.length - pathIds.size).toLocaleString("en")} dimmed spans ran alongside them. ${keysHint}`
-    : keysHint
+  const status = [
+    showPath
+      ? `Critical path on: the ${pathIds.size.toLocaleString("en")} outlined spans add up to the ${model.formatDuration(model.duration)} total; the ${(spans.length - pathIds.size).toLocaleString("en")} dimmed spans ran alongside them.`
+      : "",
+    folded ? foldedHint : "",
+    keysHint,
+  ]
+    .filter(Boolean)
+    .join(" ")
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" onKeyDown={onKeyDown}>
@@ -637,17 +681,32 @@ function TraceExplorer({
         id={id}
         model={model}
         traceActions={
-          <Button
-            ref={logsTrigger}
-            type="button"
-            variant="outline"
-            onClick={() => setLogsOpen(true)}
-          >
-            Logs for this trace
-          </Button>
+          <>
+            <Button
+              ref={logsTrigger}
+              type="button"
+              variant="outline"
+              onClick={() => setLogsOpen(true)}
+            >
+              Logs for this trace
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onDownload}
+            >
+              Download JSON
+            </Button>
+          </>
         }
         actions={actions}
       />
+      {notice !== null ? (
+        <Alert>
+          <AlertDescription>{notice}</AlertDescription>
+        </Alert>
+      ) : null}
       <TraceToolbar
         search={search}
         onSearchChange={setSearch}
@@ -656,6 +715,7 @@ function TraceExplorer({
         matchCount={matchIds.length}
         criticalPath={showPath}
         onCriticalPathChange={setShowPath}
+        criticalPathDisabled={criticalPathDisabledText(meta)}
         errorsOnly={errorsOnly}
         onErrorsOnlyChange={setErrorsOnly}
         onCollapseAll={() =>
@@ -666,11 +726,11 @@ function TraceExplorer({
           )
         }
         onExpandAll={() => setCollapsed(noIds)}
-        hint={toolbarHint}
+        hint={folded ? foldedToolbarHint : toolbarHint}
         services={services}
         hiddenServices={hiddenServices}
         onToggleService={toggleService}
-        legendHint={legendHint}
+        legendHint={folded ? foldedLegendHint : legendHint}
         onPrevMatch={() => openMatch(-1)}
         onNextMatch={() => openMatch(1)}
         formatDuration={model.formatDuration}
@@ -701,6 +761,8 @@ function TraceExplorer({
             onZoom={setZoom}
             header={false}
             searchLink={searchLink}
+            fold={folded ? groups : undefined}
+            traceLinks={{ ds: datasource.uid, from: range.from, to: range.to }}
             spanPaneExtra={(span) => (
               <TraceLogsSection
                 traceUid={datasource.uid}

@@ -22,7 +22,7 @@ export type SpanEvent = {
   attributes: Record<string, string>
 }
 
-export type SpanLink = {
+type SpanLink = {
   traceId: string
   spanId: string
   attributes: Record<string, string>
