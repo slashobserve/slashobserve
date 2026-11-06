@@ -123,9 +123,23 @@ describe("traceSearchParams", () => {
 
 describe("traceQLAttribute", () => {
   it("matches a span attribute with a quoted value", () => {
+    expect(traceQLAttribute("span", "http.request.method", "POST", false)).toBe(
+      '{ span.http.request.method = "POST" }'
+    )
+  })
+
+  it.each([
+    ["503", "503"],
+    ["-1.5", "-1.5"],
+    ["true", "true"],
+    ["false", "false"],
+    ["1e3", '"1e3"'],
+    ["12abc", '"12abc"'],
+    ["", '""'],
+  ])("writes %j as the typed value %s", (value, written) => {
     expect(
-      traceQLAttribute("span", "http.response.status_code", "503", false)
-    ).toBe('{ span.http.response.status_code = "503" }')
+      traceQLAttribute("span", "http.response.status_code", value, false)
+    ).toBe(`{ span.http.response.status_code = ${written} }`)
   })
 
   it("excludes a resource attribute", () => {

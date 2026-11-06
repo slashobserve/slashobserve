@@ -30,6 +30,8 @@ function span(
     error: false,
     hasChildren: false,
     attributes: [],
+    kind: null,
+    events: [],
     ...extra,
   }
 }

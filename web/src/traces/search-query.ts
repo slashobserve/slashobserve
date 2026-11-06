@@ -44,6 +44,13 @@ function quoted(text: string): string {
 }
 
 const bareAttributeName = /^[\w.]+$/
+const numberPattern = /^-?\d+(?:\.\d+)?$/
+
+function traceQLValue(value: string): string {
+  if (value === "true" || value === "false") return value
+  if (numberPattern.test(value) && Number.isFinite(Number(value))) return value
+  return quoted(value)
+}
 
 export function traceQLAttribute(
   scope: "span" | "resource",
@@ -52,7 +59,7 @@ export function traceQLAttribute(
   negate: boolean
 ): string {
   const name = bareAttributeName.test(key) ? key : quoted(key)
-  return `{ ${scope}.${name} ${negate ? "!=" : "="} ${quoted(value)} }`
+  return `{ ${scope}.${name} ${negate ? "!=" : "="} ${traceQLValue(value)} }`
 }
 
 function traceQLDuration(text: string): string {
