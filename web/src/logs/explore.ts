@@ -18,7 +18,17 @@ export const offlineText =
 
 export function exploreRequest(
   uid: string,
-  { query, kind, from, to, limit, maxDataPoints }: ExploreParams,
+  {
+    query,
+    kind,
+    from,
+    to,
+    limit,
+    maxDataPoints,
+    pageSize,
+    page,
+    cursor,
+  }: ExploreParams,
   signal?: AbortSignal
 ): Promise<PanelDataResponse> {
   const timezone = requestZone("browser")
@@ -33,7 +43,10 @@ export function exploreRequest(
             from,
             to,
             ...(timezone !== undefined && { timezone }),
-            ...(limit !== undefined && { limit }),
+            ...(limit !== undefined && pageSize === undefined && { limit }),
+            ...(pageSize !== undefined && { page_size: pageSize }),
+            ...(page !== undefined && { page }),
+            ...(cursor !== undefined && { cursor }),
             ...(maxDataPoints !== undefined && {
               max_data_points: maxDataPoints,
             }),

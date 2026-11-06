@@ -209,6 +209,9 @@ export type ExploreParams = {
   to: string
   limit?: number
   maxDataPoints?: number
+  pageSize?: number
+  page?: number
+  cursor?: string
 }
 
 export type TraceStatsParams = { query: string; from: string; to: string }
