@@ -58,4 +58,23 @@ export async function tabUntilFocused(
   await expect(locator).toBeFocused()
 }
 
+export async function switchTheme(page: Page) {
+  const account = page.getByRole("button", { name: /^Account: / })
+  if (!(await account.isVisible())) {
+    await page.getByRole("button", { name: "Search or jump to" }).click()
+    await page
+      .getByRole("option", { name: "Switch theme", exact: true })
+      .click()
+    return
+  }
+  const dark = await page.evaluate(() =>
+    document.documentElement.classList.contains("dark")
+  )
+  await account.click()
+  await page.getByRole("menuitem", { name: "Theme" }).click()
+  await page
+    .getByRole("menuitemradio", { name: dark ? "Light" : "Dark" })
+    .click()
+}
+
 export { expect, type Page }

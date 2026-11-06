@@ -21,6 +21,7 @@ import {
   LogOutIcon,
   SearchIcon,
   SettingsIcon,
+  SunMoonIcon,
   TerminalIcon,
   UsersIcon,
   type LucideIcon,
@@ -38,6 +39,7 @@ import {
 } from "./palette-items"
 import { dashboardTitlesQuery } from "./palette-queries"
 import { usePaletteStore } from "./palette-store"
+import { useToggleTheme } from "./theme-switch"
 import { useSignOut } from "./use-sign-out"
 
 const pageIcons: Record<NavPath, LucideIcon> = {
@@ -60,9 +62,8 @@ function EntryIcon({ entry }: { entry: PaletteEntry }) {
     return <Icon aria-hidden="true" className={iconClass} strokeWidth={1.8} />
   }
   if (entry.kind === "action") {
-    return (
-      <LogOutIcon aria-hidden="true" className={iconClass} strokeWidth={1.8} />
-    )
+    const Icon = entry.id === "action:theme" ? SunMoonIcon : LogOutIcon
+    return <Icon aria-hidden="true" className={iconClass} strokeWidth={1.8} />
   }
   return (
     <LayoutDashboardIcon
@@ -78,6 +79,7 @@ function PaletteBody({ close }: { close: () => void }) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const [query, setQuery] = useState("")
   const { signOut } = useSignOut()
+  const toggleTheme = useToggleTheme()
   const titles = useQuery(dashboardTitlesQuery())
   const groups = filterPalette(query, titles.data ?? [], principal.role)
 
@@ -98,6 +100,8 @@ function PaletteBody({ close }: { close: () => void }) {
       void navigate({ to: entry.to })
     } else if (entry.kind === "dashboard") {
       void navigate(dashboardLink(entry.id, entry.label))
+    } else if (entry.id === "action:theme") {
+      toggleTheme()
     } else {
       void signOut()
     }
