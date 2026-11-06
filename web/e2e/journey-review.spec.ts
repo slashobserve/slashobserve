@@ -89,7 +89,10 @@ for (const colorScheme of ["light", "dark"] as const) {
 
         await card(page)
           .getByRole("combobox", { name: /^Panel/ })
-          .selectOption({ label: "All panels" })
+          .click()
+        await page
+          .getByRole("option", { name: "All panels", exact: true })
+          .click()
         await expect(page).not.toHaveURL(/panel=/)
         await expect(thread(teammateComment)).toHaveCount(1)
         await expect(
