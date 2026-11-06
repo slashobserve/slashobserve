@@ -141,20 +141,31 @@ func (r exploreRequest) validate() (status int, code, message string) {
 		return invalid("limit must be from 1 to " + strconv.Itoa(queryproxy.DraftLimits.MaxRows))
 	case r.MaxDataPoints != nil && r.Kind == string(queryproxy.KindInstant):
 		return invalid("max_data_points applies to range queries only")
-	case r.PageSize != nil && r.Kind == string(queryproxy.KindRange):
-		return invalid(queryproxy.PagingIsInstant)
-	case r.PageSize != nil && r.Limit != nil:
-		return invalid(queryproxy.LimitWithPage)
-	case r.PageSize == nil && (r.Page != nil || r.Cursor != nil):
-		return invalid(queryproxy.PageNeedsSize)
-	case r.PageSize != nil && (*r.PageSize < datasource.MinPageSize || *r.PageSize > datasource.MaxPageSize):
-		return invalid(queryproxy.PageSizeOutside)
-	case r.Page != nil && *r.Page < 1:
-		return invalid(queryproxy.PageBelowOne)
-	case r.Cursor != nil && len(*r.Cursor) > datasource.MaxCursorBytes:
-		return invalid(queryproxy.CursorTooLong)
+	}
+	if message := r.pagingRule(); message != "" {
+		return invalid(message)
 	}
 	return 0, "", ""
+}
+
+func (r exploreRequest) pagingRule() string {
+	switch {
+	case r.PageSize == nil && (r.Page != nil || r.Cursor != nil):
+		return queryproxy.PageNeedsSize
+	case r.PageSize == nil:
+		return ""
+	case r.Kind == string(queryproxy.KindRange):
+		return queryproxy.PagingIsInstant
+	case r.Limit != nil:
+		return queryproxy.LimitWithPage
+	case *r.PageSize < datasource.MinPageSize || *r.PageSize > datasource.MaxPageSize:
+		return queryproxy.PageSizeOutside
+	case r.Page != nil && *r.Page < 1:
+		return queryproxy.PageBelowOne
+	case r.Cursor != nil && len(*r.Cursor) > datasource.MaxCursorBytes:
+		return queryproxy.CursorTooLong
+	}
+	return ""
 }
 
 func (r exploreRequest) pageParams(uid string, rng datasource.TimeRange, user datasource.QueryUser) queryproxy.PageParams {

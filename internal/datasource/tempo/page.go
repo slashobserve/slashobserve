@@ -47,17 +47,9 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 		info.Total, info.TotalRelation = datasource.PageTotal(page, req.PageSize, len(rows), hasNext)
 	}
 	if hasNext && len(rows) > 0 {
-		oldest := rows[len(rows)-1].start
-		var boundary []string
-		for _, r := range rows {
-			if r.start.Truncate(time.Second).Equal(oldest.Truncate(time.Second)) {
-				boundary = append(boundary, r.traceID)
-			}
+		if info.Next, err = nextCursor(rows, page, req.PageSize); err != nil {
+			return nil, datasource.PageInfo{}, err
 		}
-		if len(boundary) == req.PageSize {
-			return nil, datasource.PageInfo{}, datasource.Errorf(datasource.ErrLimitExceeded, "%s", datasource.PageTimestampShared)
-		}
-		info.Next = &datasource.PageCursor{Page: page + 1, EndNs: oldest.UnixNano() + 1, Seen: boundary}
 	}
 	if len(rows) == 0 {
 		return []datasource.Frame{}, info, nil
@@ -67,4 +59,18 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 		f.Meta = searchMeta(metrics, false)
 	}
 	return []datasource.Frame{f}, info, nil
+}
+
+func nextCursor(rows []spanRow, page, pageSize int) (*datasource.PageCursor, error) {
+	oldest := rows[len(rows)-1].start
+	var boundary []string
+	for _, r := range rows {
+		if r.start.Truncate(time.Second).Equal(oldest.Truncate(time.Second)) {
+			boundary = append(boundary, r.traceID)
+		}
+	}
+	if len(boundary) == pageSize {
+		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "%s", datasource.PageTimestampShared)
+	}
+	return &datasource.PageCursor{Page: page + 1, EndNs: oldest.UnixNano() + 1, Seen: boundary}, nil
 }
