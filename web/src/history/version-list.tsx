@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router"
 
+import { AgentMark } from "@/components/agent-mark"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -33,6 +34,25 @@ const rowLayout =
   "max-sm:flex max-sm:flex-wrap max-sm:items-center max-sm:gap-x-3 max-sm:gap-y-1.5 max-sm:px-2 max-sm:py-3"
 const cellLayout = "max-sm:p-0"
 
+function Author({ meta }: { meta: VersionMeta }) {
+  if (meta.agent_request_id === null) return meta.author.name
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+      <AgentMark className="size-3.5" />
+      <span>Agent</span>
+      <span className="text-muted-foreground">for {meta.author.name}</span>
+      <Link
+        to="/c/$requestId"
+        params={{ requestId: meta.agent_request_id }}
+        aria-label={`From chat for version ${meta.version}`}
+        className="rounded-sm font-medium underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        From chat
+      </Link>
+    </span>
+  )
+}
+
 function VersionRow({
   dashboardId,
   meta,
@@ -59,7 +79,7 @@ function VersionRow({
         {meta.summary}
       </TableCell>
       <TableCell className={`${cellLayout} wrap-anywhere whitespace-normal`}>
-        {meta.author.name}
+        <Author meta={meta} />
       </TableCell>
       <TableCell className={`${cellLayout} text-muted-foreground`}>
         <time

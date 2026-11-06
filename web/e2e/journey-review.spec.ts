@@ -141,7 +141,7 @@ for (const colorScheme of ["light", "dark"] as const) {
           new RegExp(`/d/${id}/versions\\?.*from=1&to=2`)
         )
         await expect(
-          page.getByRole("heading", { level: 1, name: /: history$/ })
+          page.getByRole("heading", { level: 1, name: /^Versions of / })
         ).toBeVisible()
         await expect(
           page.getByRole("heading", {
