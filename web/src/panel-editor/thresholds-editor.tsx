@@ -1,5 +1,5 @@
 import { useId, useState, type Dispatch } from "react"
-import { XIcon } from "lucide-react"
+import { PlusIcon, XIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -147,12 +147,13 @@ export function ThresholdsEditor({
         </p>
       )}
       <Button
-        variant="link"
+        variant="outline"
         size="xs"
-        className="h-auto self-start px-0 text-xs font-normal text-muted-foreground underline"
+        className="self-start"
         disabled={readOnly || rows.length >= maxThresholds}
         onClick={() => update(addRow(rows))}
       >
+        <PlusIcon aria-hidden="true" />
         Add threshold
       </Button>
     </div>
