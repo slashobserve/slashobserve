@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 
 import type { AgentGate } from "./agent-gate"
 import {
+  avatarFor,
   EntryBody,
   EntryFrame,
   EntryMeta,
@@ -94,7 +95,7 @@ export function ThreadEntry({
 
   return (
     <EntryFrame
-      avatar={{ kind: "person", name: root.author.name }}
+      avatar={avatarFor(root.author)}
       who={root.author.name}
       verb={verb}
       panel={panel}
@@ -135,7 +136,7 @@ export function ThreadEntry({
             <EntryFrame
               key={reply.id}
               nested
-              avatar={{ kind: "person", name: reply.author.name }}
+              avatar={avatarFor(reply.author)}
               who={reply.author.name}
               verb="replied"
               at={reply.created_at}
