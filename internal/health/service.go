@@ -65,6 +65,18 @@ type Item struct {
 	LastViewedAt   *time.Time
 	Skipped        string
 	Problems       []Problem
+	Repair         *Repair
+}
+
+type Repair struct {
+	RequestID, State string
+	Version          *int
+	Error            *string
+	UpdatedAt        time.Time
+}
+
+type Summary struct {
+	Dashboards, Failing, QueryFailed, VariableFailed, NoData, DuplicateTitles, Unopened int
 }
 
 type JobStatus struct {
@@ -77,8 +89,14 @@ type JobStatus struct {
 type Page struct {
 	Items      []Item
 	NextCursor string
+	Summary    *Summary
 	Job        JobStatus
 }
+
+const (
+	repairSucceeded = "succeeded"
+	repairFailed    = "failed"
+)
 
 func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Page, error) {
 	levels, err := s.access.Levels(ctx, by)
@@ -88,25 +106,25 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Pa
 	if p.FolderID.Valid && !levels.Of(p.FolderID).View {
 		return Page{}, ErrFolderNotFound
 	}
-	cursor, ok := httpapi.DecodeTimeCursor(p.Cursor)
+	cursor, ok := decodeRankCursor(p.Cursor)
 	if !ok {
 		return Page{}, ErrInvalidCursor
 	}
 	now := time.Now()
+	before := pgtype.Timestamptz{Time: unopenedBefore(now), Valid: true}
+	visible := levels.Visible()
 	params := dbsqlc.ListHealthParams{
-		Folders:        levels.Visible(),
+		Folders:        visible,
 		Folder:         p.FolderID,
-		WantChecked:    p.Kind == "" || p.Kind.checked(),
-		WantDuplicate:  p.Kind == "" || p.Kind == KindDuplicateTitle,
-		WantUnopened:   p.Kind == "" || p.Kind == KindUnopened,
-		UnopenedBefore: pgtype.Timestamptz{Time: unopenedBefore(now), Valid: true},
+		Kind:           string(p.Kind),
+		UnopenedBefore: before,
+		RepairPrefix:   repairPromptPrefix,
 		RowLimit:       httpapi.Int32(p.Limit + 1),
 	}
-	if p.Kind.checked() {
-		params.CheckedKind = string(p.Kind)
-	}
 	if cursor != nil {
-		params.CursorUpdatedAt = pgtype.Timestamptz{Time: cursor.Time, Valid: true}
+		params.CursorRank = pgtype.Int4{Int32: httpapi.Int32(cursor.Rank), Valid: true}
+		params.CursorSeen = pgtype.Timestamptz{Time: cursor.Seen, Valid: true}
+		params.CursorTitle = pgtype.Text{String: cursor.Title, Valid: true}
 		params.CursorID = cursor.ID
 	}
 	rows, err := s.db.Queries().ListHealth(ctx, params)
@@ -118,10 +136,25 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Pa
 		return Page{}, err
 	}
 	page := Page{Items: make([]Item, 0, min(len(rows), p.Limit)), Job: job}
+	if cursor == nil {
+		row, err := s.db.Queries().HealthSummary(ctx, dbsqlc.HealthSummaryParams{UnopenedBefore: before, Folders: visible, Folder: p.FolderID})
+		if err != nil {
+			return Page{}, fmt.Errorf("summarize health: %w", err)
+		}
+		page.Summary = &Summary{
+			Dashboards:      int(row.Dashboards),
+			Failing:         int(row.Failing),
+			QueryFailed:     int(row.QueryFailed),
+			VariableFailed:  int(row.VariableFailed),
+			NoData:          int(row.NoData),
+			DuplicateTitles: int(row.DuplicateTitles),
+			Unopened:        int(row.Unopened),
+		}
+	}
 	if len(rows) > p.Limit {
 		rows = rows[:p.Limit]
 		last := rows[len(rows)-1]
-		page.NextCursor = httpapi.EncodeTimeCursor(last.UpdatedAt.Time, last.ID.String())
+		page.NextCursor = encodeRankCursor(int(last.Rank), last.SeenAt.Time, last.Title, last.ID.String())
 	}
 	for _, row := range rows {
 		it, err := s.item(row, levels, p.Kind, now)
@@ -167,7 +200,23 @@ func (s *Service) item(row dbsqlc.ListHealthRow, levels folders.Levels, kind Kin
 		v := int(row.CheckedVersion.Int32)
 		it.CheckedVersion = &v
 	}
+	it.Repair = repairOf(row)
 	return it, nil
+}
+
+func repairOf(row dbsqlc.ListHealthRow) *Repair {
+	if !row.RepairID.Valid {
+		return nil
+	}
+	r := &Repair{RequestID: row.RepairID.String(), State: row.RepairStatus, UpdatedAt: row.RepairUpdatedAt.Time}
+	if r.State == repairSucceeded && row.RepairVersion.Valid {
+		v := int(row.RepairVersion.Int32)
+		r.Version = &v
+	}
+	if r.State == repairFailed && row.RepairError != "" {
+		r.Error = &row.RepairError
+	}
+	return r
 }
 
 func (s *Service) jobStatus(ctx context.Context, now time.Time) (JobStatus, error) {

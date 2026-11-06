@@ -86,6 +86,25 @@ type itemJSON struct {
 	LastViewedAt   *string       `json:"last_viewed_at"`
 	Skipped        *string       `json:"skipped"`
 	Problems       []problemJSON `json:"problems"`
+	Repair         *repairJSON   `json:"repair"`
+}
+
+type repairJSON struct {
+	State     string  `json:"state"`
+	RequestID string  `json:"request_id"`
+	Version   *int    `json:"version"`
+	Error     *string `json:"error"`
+	UpdatedAt string  `json:"updated_at"`
+}
+
+type summaryJSON struct {
+	Dashboards      int `json:"dashboards"`
+	Failing         int `json:"failing"`
+	QueryFailed     int `json:"query_failed"`
+	VariableFailed  int `json:"variable_failed"`
+	NoData          int `json:"no_data"`
+	DuplicateTitles int `json:"duplicate_titles"`
+	Unopened        int `json:"unopened"`
 }
 
 type jobJSON struct {
@@ -96,9 +115,10 @@ type jobJSON struct {
 }
 
 type listJSON struct {
-	Dashboards []itemJSON `json:"dashboards"`
-	NextCursor *string    `json:"next_cursor"`
-	Job        jobJSON    `json:"job"`
+	Dashboards []itemJSON   `json:"dashboards"`
+	NextCursor *string      `json:"next_cursor"`
+	Summary    *summaryJSON `json:"summary"`
+	Job        jobJSON      `json:"job"`
 }
 
 type queuedJSON struct {
@@ -134,6 +154,9 @@ func newItemJSON(it Item) itemJSON {
 		LastViewedAt:   formatTime(it.LastViewedAt),
 		Skipped:        httpapi.OptionalString(it.Skipped),
 		Problems:       make([]problemJSON, 0, len(it.Problems)),
+	}
+	if r := it.Repair; r != nil {
+		out.Repair = &repairJSON{State: r.State, RequestID: r.RequestID, Version: r.Version, Error: r.Error, UpdatedAt: httpapi.FormatTime(r.UpdatedAt)}
 	}
 	for _, p := range it.Problems {
 		out.Problems = append(out.Problems, problemJSON{
@@ -184,6 +207,9 @@ func (h *Handler) list(c *gin.Context) {
 			LastOutcome:    httpapi.OptionalString(page.Job.LastOutcome),
 			Running:        page.Job.Running,
 		},
+	}
+	if sum := page.Summary; sum != nil {
+		out.Summary = (*summaryJSON)(sum)
 	}
 	for _, it := range page.Items {
 		out.Dashboards = append(out.Dashboards, newItemJSON(it))

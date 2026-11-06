@@ -90,80 +90,141 @@ func (q *Queries) HealthRepairTarget(ctx context.Context, dashboardID pgtype.UUI
 	return i, err
 }
 
+const healthSummary = `-- name: HealthSummary :one
+SELECT
+  count(*) FILTER (WHERE s.query_failed OR s.no_data OR s.variable_failed OR s.duplicate_title
+    OR coalesce(s.last_viewed_at, s.created_at) < $1::timestamptz) AS dashboards,
+  count(*) FILTER (WHERE s.query_failed OR s.variable_failed) AS failing,
+  count(*) FILTER (WHERE s.query_failed) AS query_failed,
+  count(*) FILTER (WHERE s.variable_failed) AS variable_failed,
+  count(*) FILTER (WHERE s.no_data) AS no_data,
+  count(*) FILTER (WHERE s.duplicate_title) AS duplicate_titles,
+  count(*) FILTER (WHERE coalesce(s.last_viewed_at, s.created_at) < $1::timestamptz) AS unopened
+FROM dashboard_health_status s
+WHERE s.folder_id = ANY($2::uuid[])
+  AND ($3::uuid IS NULL OR s.folder_id = $3::uuid)
+`
+
+type HealthSummaryParams struct {
+	UnopenedBefore pgtype.Timestamptz
+	Folders        []pgtype.UUID
+	Folder         pgtype.UUID
+}
+
+type HealthSummaryRow struct {
+	Dashboards      int64
+	Failing         int64
+	QueryFailed     int64
+	VariableFailed  int64
+	NoData          int64
+	DuplicateTitles int64
+	Unopened        int64
+}
+
+func (q *Queries) HealthSummary(ctx context.Context, arg HealthSummaryParams) (HealthSummaryRow, error) {
+	row := q.db.QueryRow(ctx, healthSummary, arg.UnopenedBefore, arg.Folders, arg.Folder)
+	var i HealthSummaryRow
+	err := row.Scan(
+		&i.Dashboards,
+		&i.Failing,
+		&i.QueryFailed,
+		&i.VariableFailed,
+		&i.NoData,
+		&i.DuplicateTitles,
+		&i.Unopened,
+	)
+	return i, err
+}
+
 const listHealth = `-- name: ListHealth :many
-SELECT d.id, d.title, d.created_at, d.updated_at, d.folder_id,
-  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal,
-  h.version AS checked_version, h.checked_at, coalesce(h.skipped, '')::text AS skipped,
-  coalesce(h.issues, '[]'::jsonb)::jsonb AS issues,
-  lv.viewed_at::timestamptz AS last_viewed_at,
-  dup.duplicate::boolean AS duplicate_title
-FROM dashboards d
-JOIN folders f ON f.id = d.folder_id
-LEFT JOIN dashboard_health h ON h.dashboard_id = d.id
+SELECT r.id, r.title, r.created_at, r.folder_id, r.folder_title, r.folder_general, r.folder_personal,
+  r.checked_version, r.checked_at, r.skipped, r.issues, r.last_viewed_at, r.duplicate_title,
+  r.rank::integer AS rank, r.seen_at::timestamptz AS seen_at,
+  rep.id AS repair_id, coalesce(rep.status, '')::text AS repair_status,
+  rep.result_version AS repair_version, coalesce(rep.error, '')::text AS repair_error,
+  rep.updated_at AS repair_updated_at
+FROM (
+  SELECT s.id, s.title, s.created_at, s.folder_id, s.folder_title, s.folder_general, s.folder_personal, s.checked_version, s.checked_at, s.skipped, s.issues, s.query_failed, s.no_data, s.variable_failed, s.last_viewed_at, s.duplicate_title,
+    CASE WHEN s.query_failed OR s.variable_failed THEN 0 WHEN s.no_data THEN 1
+      WHEN s.duplicate_title THEN 2 ELSE 3 END AS rank,
+    coalesce(s.last_viewed_at, 'epoch'::timestamptz) AS seen_at
+  FROM dashboard_health_status s
+  WHERE s.folder_id = ANY($1::uuid[])
+    AND ($2::uuid IS NULL OR s.folder_id = $2::uuid)
+    AND CASE $3::text
+      WHEN '' THEN s.query_failed OR s.no_data OR s.variable_failed OR s.duplicate_title
+        OR coalesce(s.last_viewed_at, s.created_at) < $4::timestamptz
+      WHEN 'query_failed' THEN s.query_failed
+      WHEN 'no_data' THEN s.no_data
+      WHEN 'variable_failed' THEN s.variable_failed
+      WHEN 'duplicate_title' THEN s.duplicate_title
+      WHEN 'unopened' THEN coalesce(s.last_viewed_at, s.created_at) < $4::timestamptz
+      ELSE false END
+) r
 LEFT JOIN LATERAL (
-  SELECT max(dv.viewed_at) AS viewed_at FROM dashboard_views dv WHERE dv.dashboard_id = d.id
-) lv ON true
-CROSS JOIN LATERAL (
-  SELECT EXISTS (
-    SELECT 1 FROM dashboards o
-    WHERE o.folder_id = d.folder_id AND o.id <> d.id AND lower(o.title) = lower(d.title)
-  ) AS duplicate
-) dup
-WHERE d.folder_id = ANY($1::uuid[])
-  AND ($2::uuid IS NULL OR d.folder_id = $2::uuid)
-  AND (
-    ($3::boolean AND (
-      CASE WHEN $4::text = '' THEN jsonb_array_length(coalesce(h.issues, '[]'::jsonb)) > 0
-      ELSE coalesce(h.issues, '[]'::jsonb) @> jsonb_build_array(jsonb_build_object('kind', $4::text)) END))
-    OR ($5::boolean AND dup.duplicate)
-    OR ($6::boolean AND coalesce(lv.viewed_at, d.created_at) < $7::timestamptz)
-  )
-  AND ($8::timestamptz IS NULL
-    OR (d.updated_at, d.id) < ($8::timestamptz, $9::uuid))
-ORDER BY d.updated_at DESC, d.id DESC
+  SELECT a.id, a.status, a.result_version, a.error,
+    coalesce(a.finished_at, a.started_at, a.created_at) AS updated_at
+  FROM agent_requests a
+  WHERE a.dashboard_id = r.id AND a.source = 'prompt' AND starts_with(a.prompt, $5::text)
+  ORDER BY a.created_at DESC, a.id DESC
+  LIMIT 1
+) rep ON true
+WHERE $6::integer IS NULL
+  OR r.rank > $6::integer
+  OR (r.rank = $6::integer AND (
+       r.seen_at < $7::timestamptz
+       OR (r.seen_at = $7::timestamptz
+           AND (r.title, r.id) > ($8::text, $9::uuid))))
+ORDER BY r.rank, r.seen_at DESC, r.title, r.id
 LIMIT $10
 `
 
 type ListHealthParams struct {
-	Folders         []pgtype.UUID
-	Folder          pgtype.UUID
-	WantChecked     bool
-	CheckedKind     string
-	WantDuplicate   bool
-	WantUnopened    bool
-	UnopenedBefore  pgtype.Timestamptz
-	CursorUpdatedAt pgtype.Timestamptz
-	CursorID        pgtype.UUID
-	RowLimit        int32
+	Folders        []pgtype.UUID
+	Folder         pgtype.UUID
+	Kind           string
+	UnopenedBefore pgtype.Timestamptz
+	RepairPrefix   string
+	CursorRank     pgtype.Int4
+	CursorSeen     pgtype.Timestamptz
+	CursorTitle    pgtype.Text
+	CursorID       pgtype.UUID
+	RowLimit       int32
 }
 
 type ListHealthRow struct {
-	ID             pgtype.UUID
-	Title          string
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
-	FolderID       pgtype.UUID
-	FolderTitle    string
-	FolderGeneral  bool
-	FolderPersonal bool
-	CheckedVersion pgtype.Int4
-	CheckedAt      pgtype.Timestamptz
-	Skipped        string
-	Issues         []byte
-	LastViewedAt   pgtype.Timestamptz
-	DuplicateTitle bool
+	ID              pgtype.UUID
+	Title           string
+	CreatedAt       pgtype.Timestamptz
+	FolderID        pgtype.UUID
+	FolderTitle     string
+	FolderGeneral   bool
+	FolderPersonal  bool
+	CheckedVersion  pgtype.Int4
+	CheckedAt       pgtype.Timestamptz
+	Skipped         string
+	Issues          []byte
+	LastViewedAt    pgtype.Timestamptz
+	DuplicateTitle  bool
+	Rank            int32
+	SeenAt          pgtype.Timestamptz
+	RepairID        pgtype.UUID
+	RepairStatus    string
+	RepairVersion   pgtype.Int4
+	RepairError     string
+	RepairUpdatedAt pgtype.Timestamptz
 }
 
 func (q *Queries) ListHealth(ctx context.Context, arg ListHealthParams) ([]ListHealthRow, error) {
 	rows, err := q.db.Query(ctx, listHealth,
 		arg.Folders,
 		arg.Folder,
-		arg.WantChecked,
-		arg.CheckedKind,
-		arg.WantDuplicate,
-		arg.WantUnopened,
+		arg.Kind,
 		arg.UnopenedBefore,
-		arg.CursorUpdatedAt,
+		arg.RepairPrefix,
+		arg.CursorRank,
+		arg.CursorSeen,
+		arg.CursorTitle,
 		arg.CursorID,
 		arg.RowLimit,
 	)
@@ -178,7 +239,6 @@ func (q *Queries) ListHealth(ctx context.Context, arg ListHealthParams) ([]ListH
 			&i.ID,
 			&i.Title,
 			&i.CreatedAt,
-			&i.UpdatedAt,
 			&i.FolderID,
 			&i.FolderTitle,
 			&i.FolderGeneral,
@@ -189,6 +249,13 @@ func (q *Queries) ListHealth(ctx context.Context, arg ListHealthParams) ([]ListH
 			&i.Issues,
 			&i.LastViewedAt,
 			&i.DuplicateTitle,
+			&i.Rank,
+			&i.SeenAt,
+			&i.RepairID,
+			&i.RepairStatus,
+			&i.RepairVersion,
+			&i.RepairError,
+			&i.RepairUpdatedAt,
 		); err != nil {
 			return nil, err
 		}

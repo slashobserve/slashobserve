@@ -135,3 +135,51 @@ func TestHealthPageCutsTheProblemsOfOneDashboardThatDoesNotFit(t *testing.T) {
 		t.Errorf("truncated %v with %d problems", d.ProblemsTruncated, len(d.Problems))
 	}
 }
+
+func TestHealthDescriptionNamesTheRanking(t *testing.T) {
+	for _, want := range []string{"Failing queries or variables come first, then no data, duplicate titles and unopened dashboards", "the most recently opened first", "summary", "latest repair"} {
+		if !strings.Contains(descListDashboardHealth, want) {
+			t.Errorf("description does not say %q", want)
+		}
+	}
+}
+
+func TestHealthItemOfCarriesTheLatestRepair(t *testing.T) {
+	version, failure := 4, strings.Repeat("e", 2*maxProblemTextBytes)
+	cases := []struct {
+		repair *health.Repair
+		want   *healthRepairOut
+	}{
+		{nil, nil},
+		{&health.Repair{RequestID: "r1", State: "queued"}, &healthRepairOut{State: "queued"}},
+		{&health.Repair{RequestID: "r2", State: "succeeded", Version: &version}, &healthRepairOut{State: "succeeded", Version: &version}},
+		{&health.Repair{RequestID: "r3", State: "failed", Error: &failure}, &healthRepairOut{State: "failed", Error: clip(failure, maxProblemTextBytes)}},
+	}
+	for _, c := range cases {
+		got := healthItemOf(health.Item{ID: "d", Repair: c.repair}).Repair
+		gotJSON, _ := json.Marshal(got)
+		wantJSON, _ := json.Marshal(c.want)
+		if string(gotJSON) != string(wantJSON) {
+			t.Errorf("repair %+v = %s, want %s", c.repair, gotJSON, wantJSON)
+		}
+	}
+}
+
+func TestHealthPageKeepsTheSummaryWhenItTrims(t *testing.T) {
+	summary := &health.Summary{Dashboards: 9, Failing: 2, QueryFailed: 1, VariableFailed: 1, NoData: 3, DuplicateTitles: 2, Unopened: 2}
+	out, _, retry := healthPage(health.Page{Items: []health.Item{bigHealthItem("a", 100)}, Summary: summary})
+	if retry || jsonSize(out) > listBudget || !out.Dashboards[0].ProblemsTruncated {
+		t.Fatalf("retry %v, %d bytes, truncated %v", retry, jsonSize(out), out.Dashboards[0].ProblemsTruncated)
+	}
+	if out.Summary == nil || *out.Summary != healthSummaryOut(*summary) {
+		t.Errorf("summary = %+v, want %+v", out.Summary, summary)
+	}
+	raw, _ := json.Marshal(out)
+	if !strings.Contains(string(raw), `"summary":{"dashboards":9,"failing":2,"query_failed":1,"variable_failed":1,"no_data":3,"duplicate_titles":2,"unopened":2}`) {
+		t.Errorf("first page JSON has no summary: %.200s", raw)
+	}
+	later, _, _ := healthPage(health.Page{Items: []health.Item{bigHealthItem("b", 1)}})
+	if raw, _ := json.Marshal(later); strings.Contains(string(raw), "summary") {
+		t.Errorf("later page carries a summary: %.200s", raw)
+	}
+}

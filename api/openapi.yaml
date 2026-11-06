@@ -3322,7 +3322,7 @@ components:
     HealthItem:
       type: object
       additionalProperties: false
-      required: [id, title, url, folder, can_edit, checked_version, checked_at, last_viewed_at, skipped, problems]
+      required: [id, title, url, folder, can_edit, checked_version, checked_at, last_viewed_at, skipped, problems, repair]
       properties:
         id:
           type: string
@@ -3359,6 +3359,35 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/HealthProblem"
+        repair:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/HealthRepair"
+          description: The dashboard's latest health repair, whatever its age; null when it never had one.
+    HealthRepair:
+      type: object
+      additionalProperties: false
+      required: [state, request_id, version, error, updated_at]
+      properties:
+        state:
+          type: string
+          enum: [queued, running, succeeded, failed]
+        request_id:
+          type: string
+          format: uuid
+          description: The revision request of the repair.
+        version:
+          type: integer
+          nullable: true
+          description: The version a succeeded repair saved; null in any other state.
+        error:
+          type: string
+          nullable: true
+          description: The failure sentence of a failed repair; null in any other state.
+        updated_at:
+          type: string
+          format: date-time
+          description: When the repair finished, else when it started, else when it was queued.
     HealthJob:
       type: object
       additionalProperties: false
@@ -3381,7 +3410,7 @@ components:
     HealthList:
       type: object
       additionalProperties: false
-      required: [dashboards, next_cursor, job]
+      required: [dashboards, next_cursor, summary, job]
       properties:
         dashboards:
           type: array
@@ -3390,8 +3419,36 @@ components:
         next_cursor:
           type: string
           nullable: true
+        summary:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/HealthSummary"
+          description: Counts over every dashboard in the visible folders, narrowed by `folder_id` and never by `kind`; set on the first page and null when `cursor` is sent.
         job:
           $ref: "#/components/schemas/HealthJob"
+    HealthSummary:
+      type: object
+      additionalProperties: false
+      required: [dashboards, failing, query_failed, variable_failed, no_data, duplicate_titles, unopened]
+      description: Each count is of dashboards, not problems.
+      properties:
+        dashboards:
+          type: integer
+          description: Dashboards with any problem.
+        failing:
+          type: integer
+          description: Dashboards with a `query_failed` or `variable_failed` problem.
+        query_failed:
+          type: integer
+        variable_failed:
+          type: integer
+        no_data:
+          type: integer
+        duplicate_titles:
+          type: integer
+          description: Dashboards with a `duplicate_title` problem.
+        unopened:
+          type: integer
     ApplyResult:
       type: object
       additionalProperties: false

@@ -1972,7 +1972,7 @@ export interface paths {
         };
         /**
          * List dashboards with health problems.
-         * @description Anyone with a role can call this endpoint. It lists every dashboard, in folders the caller can see, with at least one problem, most recently updated first. `no_data`, `query_failed` and `variable_failed` come from the last health check of the dashboard: an hourly job checks each dashboard about once a day, oldest check first, running every panel and variable query of its latest version over the last 7 days with no viewer. `duplicate_title` means another dashboard in the same folder has the same title, compared case-insensitively, and `unopened` means nobody opened the dashboard in the last 90 days, counting from its creation when nobody ever did; both are computed on every read. A dashboard whose queries read the viewer (`${__user.*}`) is not checked and has `skipped` set to `depends_on_viewer`. `job` is the state of the health job.
+         * @description Anyone with a role can call this endpoint. It lists every dashboard, in folders the caller can see, with at least one problem. `no_data`, `query_failed` and `variable_failed` come from the last health check of the dashboard: an hourly job checks each dashboard about once a day, oldest check first, running every panel and variable query of its latest version over the last 7 days with no viewer. `duplicate_title` means another dashboard in the same folder has the same title, compared case-insensitively, and `unopened` means nobody opened the dashboard in the last 90 days, counting from its creation when nobody ever did; both are computed on every read. A dashboard whose queries read the viewer (`${__user.*}`) is not checked and has `skipped` set to `depends_on_viewer`. Dashboards are ranked: 0 with a `query_failed` or `variable_failed` problem, 1 with `no_data`, 2 with `duplicate_title`, 3 with only `unopened`. The list is ordered by rank, then by `last_viewed_at` newest first with never-opened dashboards last, then by title; a `kind` filter keeps each dashboard's rank, so the same order holds inside one kind. `next_cursor` pages through that order; a cursor from a server before this order answers 400 `invalid_request` and the client restarts from the first page. The first page, sent without `cursor`, carries `summary`: counts of dashboards, not problems, over every dashboard in folders the caller can see, narrowed by `folder_id` and never by `kind`; later pages have `summary` null. Each dashboard carries `repair`, its latest health repair (a revision whose prompt starts as `POST /health/repairs` writes it) whatever its age, or null when it never had one. `job` is the state of the health job.
          */
         get: operations["listDashboardHealth"];
         put?: never;
@@ -3585,6 +3585,26 @@ export interface components {
              */
             skipped: "depends_on_viewer" | null;
             problems: components["schemas"]["HealthProblem"][];
+            /** @description The dashboard's latest health repair, whatever its age; null when it never had one. */
+            repair: components["schemas"]["HealthRepair"] | null;
+        };
+        HealthRepair: {
+            /** @enum {string} */
+            state: "queued" | "running" | "succeeded" | "failed";
+            /**
+             * Format: uuid
+             * @description The revision request of the repair.
+             */
+            request_id: string;
+            /** @description The version a succeeded repair saved; null in any other state. */
+            version: number | null;
+            /** @description The failure sentence of a failed repair; null in any other state. */
+            error: string | null;
+            /**
+             * Format: date-time
+             * @description When the repair finished, else when it started, else when it was queued.
+             */
+            updated_at: string;
         };
         HealthJob: {
             /** Format: date-time */
@@ -3598,7 +3618,22 @@ export interface components {
         HealthList: {
             dashboards: components["schemas"]["HealthItem"][];
             next_cursor: string | null;
+            /** @description Counts over every dashboard in the visible folders, narrowed by `folder_id` and never by `kind`; set on the first page and null when `cursor` is sent. */
+            summary: components["schemas"]["HealthSummary"] | null;
             job: components["schemas"]["HealthJob"];
+        };
+        /** @description Each count is of dashboards, not problems. */
+        HealthSummary: {
+            /** @description Dashboards with any problem. */
+            dashboards: number;
+            /** @description Dashboards with a `query_failed` or `variable_failed` problem. */
+            failing: number;
+            query_failed: number;
+            variable_failed: number;
+            no_data: number;
+            /** @description Dashboards with a `duplicate_title` problem. */
+            duplicate_titles: number;
+            unopened: number;
         };
         ApplyResult: {
             path: string;

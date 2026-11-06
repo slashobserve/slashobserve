@@ -141,23 +141,35 @@ func user(t *testing.T, database *dbtest.Database, name string, role auth.Role) 
 	return auth.Principal{Kind: auth.KindUser, ID: row.ID.String(), Name: name, Email: name + "@example.com", Role: role}
 }
 
-func boardSpec(title string, queries ...string) []byte {
+func panelsJSON(queries []string) string {
 	var panels []string
 	for i, q := range queries {
 		panels = append(panels, fmt.Sprintf(`{"id":"p%d","type":"timeseries","title":"Panel %d","gridPos":{"x":0,"y":%d,"w":12,"h":8},"datasource":"prom","queries":[{"query":%q}]}`, i, i, i*8, q))
 	}
-	return []byte(fmt.Sprintf(`{"specVersion":"0","title":%q,"time":{"from":"now-15m","to":"now"},"panels":[%s]}`, title, strings.Join(panels, ",")))
+	return strings.Join(panels, ",")
 }
 
-func variableSpec(title string) []byte {
+func boardSpec(title string, queries ...string) []byte {
+	return []byte(fmt.Sprintf(`{"specVersion":"0","title":%q,"time":{"from":"now-15m","to":"now"},"panels":[%s]}`, title, panelsJSON(queries)))
+}
+
+func variableSpec(title string, queries ...string) []byte {
+	if len(queries) == 0 {
+		queries = []string{"up"}
+	}
 	return []byte(fmt.Sprintf(`{"specVersion":"0","title":%q,"time":{"from":"now-15m","to":"now"},`+
 		`"variables":[{"name":"pod","type":"query","datasource":"prom","query":"label_values(gone, pod)"}],`+
-		`"panels":[{"id":"p0","type":"timeseries","title":"Panel 0","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":"prom","queries":[{"query":"up"}]}]}`, title))
+		`"panels":[%s]}`, title, panelsJSON(queries)))
 }
 
 func (r *rig) create(t *testing.T, raw []byte) pgtype.UUID {
 	t.Helper()
-	dash, _, err := r.dashboards.Create(t.Context(), r.editor, r.shared, raw, "create")
+	return r.createIn(t, r.shared, raw)
+}
+
+func (r *rig) createIn(t *testing.T, folder pgtype.UUID, raw []byte) pgtype.UUID {
+	t.Helper()
+	dash, _, err := r.dashboards.Create(t.Context(), r.editor, folder, raw, "create")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,6 +191,52 @@ func (r *rig) list(t *testing.T, by auth.Principal, kind health.Kind) map[string
 		items[it.ID] = it
 	}
 	return items
+}
+
+func (r *rig) folder(t *testing.T, title string) pgtype.UUID {
+	t.Helper()
+	f, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: title})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return f.ID
+}
+
+func (r *rig) openedAgo(t *testing.T, id pgtype.UUID, ago time.Duration) {
+	t.Helper()
+	if err := r.svc.RecordView(t.Context(), r.viewer, id); err != nil {
+		t.Fatal(err)
+	}
+	r.db.Exec(t, `UPDATE dashboard_views SET viewed_at = now() - make_interval(secs => $2) WHERE dashboard_id = $1`, id.String(), ago.Seconds())
+}
+
+func (r *rig) createdAgo(t *testing.T, id pgtype.UUID, ago time.Duration) {
+	t.Helper()
+	r.db.Exec(t, `UPDATE dashboards SET created_at = now() - make_interval(secs => $2) WHERE id = $1`, id.String(), ago.Seconds())
+}
+
+type request struct {
+	prompt, status string
+	resultVersion  *int
+	failure        *string
+	ago            time.Duration
+}
+
+func (r *rig) request(t *testing.T, dashboard pgtype.UUID, req request) string {
+	t.Helper()
+	const insert = `INSERT INTO agent_requests (dashboard_id, source, prompt, base_version, status, result_version, error,
+		requested_by_kind, requested_by_id, requested_by_name, created_at, started_at, finished_at)
+	SELECT $1, 'prompt', $2, 1, $3, $4, $5, 'user', $6, 'eda', at,
+		CASE WHEN $3 <> 'queued' THEN at + interval '1 second' END,
+		CASE WHEN $3 IN ('succeeded', 'failed') THEN at + interval '2 seconds' END
+	FROM (SELECT now() - make_interval(secs => $7) AS at) t
+	RETURNING id`
+	var id string
+	row := r.db.SQLDB(t).QueryRowContext(t.Context(), insert, dashboard.String(), req.prompt, req.status, req.resultVersion, req.failure, r.editor.ID, req.ago.Seconds())
+	if err := row.Scan(&id); err != nil {
+		t.Fatalf("insert agent request: %v", err)
+	}
+	return id
 }
 
 func kinds(it health.Item) []health.Kind {
