@@ -47,7 +47,7 @@ export function PeopleTable() {
   }
 
   return (
-    <TableCard label="People" minWidth={920}>
+    <TableCard label="People" minWidth={920} stackOnNarrow>
       <thead>
         <tr>
           <HeaderCell>Name</HeaderCell>
@@ -90,7 +90,7 @@ export function PeopleTable() {
                 </span>
               )}
             </Cell>
-            <Cell className="text-right">
+            <Cell data-cell="action" className="text-right">
               <SignOutEverywhereButton user={user} />
             </Cell>
           </tr>
