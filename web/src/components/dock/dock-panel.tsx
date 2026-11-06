@@ -27,15 +27,18 @@ type Props = {
   children: ReactNode
 }
 
-const frameClass = "relative flex min-h-0 min-w-0 flex-col bg-background"
+const frameClass =
+  "relative flex min-h-0 min-w-0 flex-col bg-background duration-(--duration-panel) ease-panel motion-safe:animate-in motion-safe:fade-in-0"
 
 const modeClass = {
   sheet:
-    "fixed inset-x-0 bottom-0 z-40 h-[85svh] rounded-t-card border-t data-[peek]:h-14 data-[peek]:overflow-hidden data-[peek]:[&>:not([data-slot^=dock])]:invisible",
-  stacked: "h-[70svh] w-full flex-none border-t",
-  docked: "max-h-full max-w-full flex-[0_0_var(--dock-w)] border-l",
+    "motion-safe:slide-in-from-bottom-2 fixed inset-x-0 bottom-0 z-40 h-[85svh] rounded-t-card border-t data-[peek]:h-14 data-[peek]:overflow-hidden data-[peek]:[&>:not([data-slot^=dock])]:invisible",
+  stacked:
+    "motion-safe:slide-in-from-right-2 h-[70svh] w-full flex-none border-t",
+  docked:
+    "motion-safe:slide-in-from-right-2 max-h-full max-w-full flex-[0_0_var(--dock-w)] border-l",
   container:
-    "max-h-full max-w-full flex-[0_0_min(var(--dock-w),calc(100cqw_-_560px))] border-l @max-[1000px]:max-h-none @max-[1000px]:flex-[1_1_100%] @max-[1000px]:border-t @max-[1000px]:border-l-0",
+    "motion-safe:slide-in-from-right-2 max-h-full max-w-full flex-[0_0_min(var(--dock-w),calc(100cqw_-_560px))] border-l @max-[1000px]:max-h-none @max-[1000px]:flex-[1_1_100%] @max-[1000px]:border-t @max-[1000px]:border-l-0",
 }
 
 export function DockPanel({
