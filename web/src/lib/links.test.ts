@@ -92,8 +92,16 @@ describe("logs and trace addresses", () => {
     expect(traceLink(traceId, "tempo")).toEqual({
       to: "/t/$traceId",
       params: { traceId },
-      search: { ds: "tempo", from: undefined, to: undefined },
+      search: { ds: "tempo", from: undefined, to: undefined, span: undefined },
     })
+  })
+
+  it("adds the span after the range", () => {
+    const span = "7f3a9c12e4b0d5a1"
+    expect(traceUrl(traceId, "ch", { from: "1", to: "now" }, span)).toBe(
+      `/t/${traceId}?ds=ch&from=1&to=now&span=${span}`
+    )
+    expect(traceLink(traceId, "tempo", undefined, span).search.span).toBe(span)
   })
 
   it("percent-encodes the logs query", () => {
