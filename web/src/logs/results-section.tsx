@@ -157,7 +157,6 @@ export function ResultsSection() {
         >
           <TabsList variant="line">
             <TabsTrigger value="documents">Documents</TabsTrigger>
-            <TabsTrigger value="patterns">Patterns</TabsTrigger>
           </TabsList>
         </Tabs>
         {hits === null ? null : (

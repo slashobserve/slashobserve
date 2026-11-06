@@ -73,7 +73,7 @@ describe("QueryBar", () => {
     const group = screen.getByRole("radiogroup", { name: "Query mode" })
     expect(group).toBeInTheDocument()
     expect(screen.getByRole("radio", { name: label })).toBeChecked()
-    expect(screen.getByRole("radio", { name: "Builder" })).toBeDisabled()
+    expect(screen.queryByRole("radio", { name: "Builder" })).toBeNull()
   })
 
   it("runs the query from the Run query button", async () => {

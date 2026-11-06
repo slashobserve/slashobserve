@@ -120,22 +120,40 @@ function count(n: number): string {
   return n.toLocaleString("en")
 }
 
-export function compareDescription(result: TraceCompare): string {
-  return `Attribute values that appear far more often in the ${count(result.selected.read)} selected traces than in the other ${count(result.baseline.read)}. Ranked by the size of the gap.`
+function sampleText(
+  set: TraceCompare["selected"],
+  total: number,
+  group: (n: number) => string
+): string {
+  if (set.read >= total) return group(total)
+  if (set.read === set.requested) {
+    return `the ${count(set.read)} newest of ${group(total)}`
+  }
+  return `${count(set.read)} of ${group(total)}`
 }
 
-export function compareNote(
+export function compareDescription(
   result: TraceCompare,
-  selectedCount: number
+  selectedCount: number,
+  otherCount: number
 ): string {
+  const selected = sampleText(
+    result.selected,
+    selectedCount,
+    (n) => `the ${count(n)} selected traces`
+  )
+  const others = sampleText(
+    result.baseline,
+    otherCount,
+    (n) => `the other ${count(n)}`
+  )
+  return `Attribute values that appear far more often in ${selected} than in ${others}. Ranked by the size of the gap.`
+}
+
+export function compareNote(result: TraceCompare): string {
   const parts = [
     `Compared ${count(result.attributes)} attributes across the spans of each trace. Attributes with one value everywhere are left out.`,
   ]
-  if (result.selected.requested < selectedCount) {
-    parts.push(
-      `Compared the newest ${count(result.selected.requested)} of the ${count(selectedCount)} selected traces.`
-    )
-  }
   if (result.partial) {
     const unread =
       result.selected.requested -

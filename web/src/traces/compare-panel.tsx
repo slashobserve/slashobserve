@@ -107,12 +107,10 @@ function LegendSwatch({
 
 function Differences({
   result,
-  selectedCount,
   filterFor,
   onFilter,
 }: {
   result: TraceCompare
-  selectedCount: number
   filterFor: (difference: TraceDifference) => Partial<TraceSearch> | null
   onFilter: (next: Partial<TraceSearch>) => void
 }) {
@@ -153,7 +151,7 @@ function Differences({
         </ul>
       )}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <p>{compareNote(result, selectedCount)}</p>
+        <p>{compareNote(result)}</p>
         {weak.length > 0 && !showWeak ? (
           <Button
             type="button"
@@ -233,7 +231,6 @@ export function ComparePanel({
     content = (
       <Differences
         result={compare.data}
-        selectedCount={selectedCount}
         filterFor={filterFor}
         onFilter={onFilter}
       />
@@ -251,7 +248,11 @@ export function ComparePanel({
         </h2>
         {compare.data !== undefined && comparable ? (
           <p className="text-xs text-muted-foreground">
-            {compareDescription(compare.data)}
+            {compareDescription(
+              compare.data,
+              selectedCount,
+              rows.length - selectedCount
+            )}
           </p>
         ) : null}
       </div>

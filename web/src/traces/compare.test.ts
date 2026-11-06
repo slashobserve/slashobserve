@@ -131,32 +131,81 @@ describe("share texts", () => {
 })
 
 describe("compareDescription", () => {
-  it("counts the traces that were read in each set", () => {
-    expect(
-      compareDescription(
-        result({
-          selected: { requested: 50, read: 48 },
-          baseline: { requested: 150, read: 1214 },
-        })
-      )
-    ).toBe(
-      "Attribute values that appear far more often in the 48 selected traces than in the other 1,214. Ranked by the size of the gap."
+  const tail = " Ranked by the size of the gap."
+  const head = "Attribute values that appear far more often in "
+
+  it.each([
+    [
+      "both sets are under the cap",
+      {
+        selected: { requested: 48, read: 48 },
+        baseline: { requested: 90, read: 90 },
+      },
+      48,
+      90,
+      "the 48 selected traces than in the other 90",
+    ],
+    [
+      "both sets are exactly at the cap",
+      {
+        selected: { requested: 50, read: 50 },
+        baseline: { requested: 150, read: 150 },
+      },
+      50,
+      150,
+      "the 50 selected traces than in the other 150",
+    ],
+    [
+      "the selected set is over the cap",
+      {
+        selected: { requested: 50, read: 50 },
+        baseline: { requested: 90, read: 90 },
+      },
+      93,
+      90,
+      "the 50 newest of the 93 selected traces than in the other 90",
+    ],
+    [
+      "the other set is over the cap",
+      {
+        selected: { requested: 48, read: 48 },
+        baseline: { requested: 150, read: 150 },
+      },
+      48,
+      1214,
+      "the 48 selected traces than in the 150 newest of the other 1,214",
+    ],
+    [
+      "both sets are over the cap",
+      {
+        selected: { requested: 50, read: 50 },
+        baseline: { requested: 150, read: 150 },
+      },
+      93,
+      1214,
+      "the 50 newest of the 93 selected traces than in the 150 newest of the other 1,214",
+    ],
+    [
+      "traces were left unread before the time limit",
+      {
+        selected: { requested: 50, read: 45 },
+        baseline: { requested: 90, read: 80 },
+      },
+      93,
+      90,
+      "45 of the 93 selected traces than in 80 of the other 90",
+    ],
+  ])("is truthful when %s", (_name, sets, selectedCount, otherCount, text) => {
+    expect(compareDescription(result(sets), selectedCount, otherCount)).toBe(
+      `${head}${text}.${tail}`
     )
   })
 })
 
 describe("compareNote", () => {
   it("says how many attributes were compared", () => {
-    expect(compareNote(result(), 48)).toBe(
+    expect(compareNote(result())).toBe(
       "Compared 31 attributes across the spans of each trace. Attributes with one value everywhere are left out."
-    )
-  })
-
-  it("says when only the newest selected traces were sent", () => {
-    expect(
-      compareNote(result({ selected: { requested: 50, read: 50 } }), 60)
-    ).toBe(
-      "Compared 31 attributes across the spans of each trace. Attributes with one value everywhere are left out. Compared the newest 50 of the 60 selected traces."
     )
   })
 
@@ -167,8 +216,7 @@ describe("compareNote", () => {
           selected: { requested: 48, read: 45 },
           baseline: { requested: 150, read: 140 },
           partial: true,
-        }),
-        48
+        })
       )
     ).toBe(
       "Compared 31 attributes across the spans of each trace. Attributes with one value everywhere are left out. 13 traces were not read before the time limit; the shares are from the rest."

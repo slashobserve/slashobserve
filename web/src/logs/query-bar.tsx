@@ -19,7 +19,6 @@ import { useLogsWorkspace } from "./workspace"
 const askPlaceholder =
   "Ask in plain language, like: errors from checkout in the last hour with a trace id"
 const noModelText = "Add a model key to ask in plain language"
-const builderText = "Builder arrives with the next plan"
 const modeOrder: InputMode[] = ["query", "ask"]
 const segmentClass =
   "inline-flex h-full items-center rounded-control border px-2.5 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -93,20 +92,6 @@ function ModeSwitch() {
       aria-keyshortcuts="Control+I Meta+I"
       className="inline-flex h-8 items-center gap-0.5 rounded-control bg-muted p-0.5"
     >
-      <button
-        type="button"
-        role="radio"
-        aria-checked={false}
-        disabled
-        title={builderText}
-        tabIndex={-1}
-        className={cn(
-          segmentClass,
-          "cursor-not-allowed border-transparent text-muted-foreground opacity-60"
-        )}
-      >
-        Builder
-      </button>
       {segment("query", queryModeLabel(datasource.type))}
       {segment("ask", "Ask")}
     </div>
