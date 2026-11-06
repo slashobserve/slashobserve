@@ -1,0 +1,79 @@
+{
+ "request": {
+  "aggs": {
+   "svc": {
+    "terms": {
+     "field": "service.name"
+    },
+    "aggs": {
+     "avg_ms": {
+      "avg": {
+       "field": "d"
+      }
+     },
+     "max_ms": {
+      "max": {
+       "field": "d"
+      }
+     },
+     "spread": {
+      "stats": {
+       "field": "d"
+      }
+     }
+    }
+   }
+  }
+ },
+ "response": {
+  "svc": {
+   "buckets": [
+    {
+     "key": "checkout",
+     "doc_count": 3,
+     "avg_ms": {
+      "value": 4
+     },
+     "max_ms": {
+      "value": 9
+     },
+     "spread": {
+      "count": 3,
+      "min": 1,
+      "max": 9,
+      "avg": 4,
+      "sum": 12
+     }
+    }
+   ]
+  }
+ },
+ "want": {
+  "table": {
+   "columns": [
+    "service.name",
+    "count",
+    "avg_ms",
+    "max_ms",
+    "spread avg",
+    "spread sum",
+    "spread min",
+    "spread max",
+    "spread count"
+   ],
+   "rows": [
+    [
+     "checkout",
+     3,
+     4,
+     9,
+     4,
+     12,
+     1,
+     9,
+     3
+    ]
+   ]
+  }
+ }
+}

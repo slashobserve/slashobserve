@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +22,8 @@ const (
 	mappingTTL       = time.Minute
 	mappingWindow    = "now-7d"
 	maxMappingFields = 5000
+
+	defaultResultWindow = 10000
 )
 
 type FieldKind string
@@ -76,6 +79,7 @@ type Field struct {
 type Mapping struct {
 	Fields    map[string]Field
 	Truncated bool
+	Window    int
 }
 
 func (m *Mapping) Names() []string {
@@ -190,6 +194,15 @@ func (d *Datasource) Roles(ctx context.Context) (FieldRoles, error) {
 }
 
 func (d *Datasource) fetchMapping(ctx context.Context) (*Mapping, error) {
+	m, err := d.fetchFields(ctx)
+	if err != nil {
+		return nil, err
+	}
+	m.Window = d.resultWindow(ctx)
+	return m, nil
+}
+
+func (d *Datasource) fetchFields(ctx context.Context) (*Mapping, error) {
 	recentIndices := map[string]any{"index_filter": map[string]any{"range": map[string]any{d.opts.TimeField: map[string]any{"gte": mappingWindow}}}}
 	m, err := d.fieldCaps(ctx, recentIndices)
 	if err != nil || len(m.Fields) > 0 {
@@ -197,6 +210,41 @@ func (d *Datasource) fetchMapping(ctx context.Context) (*Mapping, error) {
 	}
 	var everyIndex any
 	return d.fieldCaps(ctx, everyIndex)
+}
+
+// A missing settings permission must not break queries, so any failure keeps the server default.
+func (d *Datasource) resultWindow(ctx context.Context) int {
+	params := url.Values{"filter_path": {"*.settings.index.max_result_window"}}
+	maps.Copy(params, lenientIndices)
+	raw, err := d.call(ctx, http.MethodGet, d.indexPath("/_settings"), params, nil)
+	if err != nil {
+		return defaultResultWindow
+	}
+	return parseResultWindow(raw)
+}
+
+func parseResultWindow(raw []byte) int {
+	var indices map[string]struct {
+		Settings struct {
+			Index struct {
+				MaxResultWindow json.RawMessage `json:"max_result_window"`
+			} `json:"index"`
+		} `json:"settings"`
+	}
+	if json.Unmarshal(raw, &indices) != nil {
+		return defaultResultWindow
+	}
+	window := 0
+	for _, idx := range indices {
+		n, err := strconv.Atoi(strings.Trim(string(idx.Settings.Index.MaxResultWindow), `" `))
+		if err == nil && n > 0 && (window == 0 || n < window) {
+			window = n
+		}
+	}
+	if window == 0 {
+		return defaultResultWindow
+	}
+	return window
 }
 
 func (d *Datasource) fieldCaps(ctx context.Context, body any) (*Mapping, error) {

@@ -360,3 +360,151 @@ func TestIntegrationDiscoverAndVariables(t *testing.T) {
 		}
 	})
 }
+
+const shopServices = "service.name:(checkout or frontend or payments)"
+
+func TestIntegrationQueryInstantReturnsNewestLinesFirst(t *testing.T) {
+	eachFlavor(t, func(t *testing.T, flavor elasticsearch.Flavor) {
+		ds := integrationDS(t, flavor)
+		frames, err := ds.QueryInstant(context.Background(), datasource.Query{Text: shopServices, Limits: datasource.Limits{MaxRows: 1000}}, aroundIndexing())
+		if err != nil || len(frames) != 1 {
+			t.Fatalf("frames = %v, err = %v", frames, err)
+		}
+		f := frames[0]
+		if f.Rows() != documents {
+			t.Fatalf("rows = %d, want %d", f.Rows(), documents)
+		}
+		for i := range f.Rows() {
+			want := indexedAt.Add(time.Duration(documents-1-i) * time.Second).UTC()
+			if got := f.Fields[1].Values[i]; got != strconv.FormatInt(want.UnixNano(), 10) {
+				t.Fatalf("row %d TimeNs = %v, want %d", i, got, want.UnixNano())
+			}
+		}
+		if f.Meta == nil || f.Meta.Truncated || f.Meta.RowsTotal != documents {
+			t.Fatalf("meta = %+v", f.Meta)
+		}
+	})
+}
+
+func TestIntegrationQueryInstantOnADateTimeFieldMixesIndices(t *testing.T) {
+	eachFlavor(t, func(t *testing.T, flavor elasticsearch.Flavor) {
+		ds := integrationDS(t, flavor, func(o *elasticsearch.Options) { o.TimeField = "event.ingested" })
+		frames, err := ds.QueryInstant(context.Background(), datasource.Query{Limits: datasource.Limits{MaxRows: 5}}, aroundIndexing())
+		if err != nil {
+			t.Fatal(err)
+		}
+		newest := indexedAt.Add(time.Duration(documents-1) * time.Second)
+		if got := frames[0].Fields[1].Values[0]; got != strconv.FormatInt(newest.UnixNano(), 10) {
+			t.Fatalf("TimeNs = %v, want %d", got, newest.UnixNano())
+		}
+		if !frames[0].Meta.Truncated {
+			t.Fatalf("meta = %+v, want Truncated at the limit", frames[0].Meta)
+		}
+	})
+}
+
+func TestIntegrationQueryRangeCountHasOneBucketPerStep(t *testing.T) {
+	eachFlavor(t, func(t *testing.T, flavor elasticsearch.Flavor) {
+		ds := integrationDS(t, flavor)
+		from := indexedAt.Truncate(time.Minute).Add(-time.Minute)
+		r := datasource.TimeRange{From: from, To: from.Add(6 * time.Minute)}
+		frames, err := ds.QueryRange(context.Background(), datasource.Query{}, r, time.Minute)
+		if err != nil || len(frames) != 1 || frames[0].Name != "count" {
+			t.Fatalf("frames = %v, err = %v", frames, err)
+		}
+		if frames[0].Rows() != 7 {
+			t.Fatalf("buckets = %d, want 7", frames[0].Rows())
+		}
+		sum := 0.0
+		for _, v := range frames[0].Fields[1].Values {
+			sum += v.(float64)
+		}
+		if sum != documents+1 {
+			t.Fatalf("counted %v documents, want %d", sum, documents+1)
+		}
+	})
+}
+
+func TestIntegrationDSLTermsTable(t *testing.T) {
+	eachFlavor(t, func(t *testing.T, flavor elasticsearch.Flavor) {
+		ds := integrationDS(t, flavor)
+		text := `{"aggs": {"svc": {"terms": {"field": "service.name"}}}}`
+		frames, err := ds.QueryInstant(context.Background(), datasource.Query{Text: text}, aroundIndexing())
+		if err != nil || len(frames) != 1 {
+			t.Fatalf("frames = %v, err = %v", frames, err)
+		}
+		counts := map[any]any{}
+		for i, name := range frames[0].Fields[0].Values {
+			counts[name] = frames[0].Fields[1].Values[i]
+		}
+		want := map[any]any{"checkout": 67.0, "frontend": 67.0, "payments": 66.0, "legacy": 1.0}
+		if frames[0].Fields[0].Name != "service.name" || frames[0].Fields[1].Name != "count" || fmt.Sprint(counts) != fmt.Sprint(want) {
+			t.Fatalf("table = %+v", frames[0].Fields)
+		}
+	})
+}
+
+func TestIntegrationLuceneAndAdhocFilter(t *testing.T) {
+	eachFlavor(t, func(t *testing.T, flavor elasticsearch.Flavor) {
+		ds := integrationDS(t, flavor)
+		frames, err := ds.QueryInstant(context.Background(), datasource.Query{Text: "lucene:log.level:error AND service.name:*"}, aroundIndexing())
+		if err != nil || frames[0].Meta.RowsTotal != documents/4 {
+			t.Fatalf("lucene meta = %+v, err = %v", frames[0].Meta, err)
+		}
+		filters := []datasource.AdhocFilter{{Key: "service.name", Op: "=", Value: "checkout"}}
+		narrowed, err := ds.QueryInstant(context.Background(), datasource.Query{Filters: filters}, aroundIndexing())
+		if err != nil || narrowed[0].Meta.RowsTotal != 67 {
+			t.Fatalf("ad hoc meta = %+v, err = %v", narrowed[0].Meta, err)
+		}
+		if _, err := ds.QueryInstant(context.Background(), datasource.Query{Text: "service.name:(a or"}, aroundIndexing()); !errors.Is(err, datasource.ErrInvalidQuery) {
+			t.Fatalf("bad kql error = %v", err)
+		}
+	})
+}
+
+func TestIntegrationQueryPage(t *testing.T) {
+	eachFlavor(t, func(t *testing.T, flavor elasticsearch.Flavor) {
+		ds := integrationDS(t, flavor)
+		ctx := context.Background()
+		frames, info, err := ds.QueryPage(ctx, datasource.PageRequest{Range: aroundIndexing(), Page: 5, PageSize: 50})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if frames[0].Rows() != 1 || info.Total != documents+1 || info.TotalRelation != datasource.TotalExact || info.HasNext || info.Next != nil || info.Window != 10000 {
+			t.Fatalf("rows = %d, info = %+v", frames[0].Rows(), info)
+		}
+		_, info, err = ds.QueryPage(ctx, datasource.PageRequest{Range: aroundIndexing(), Page: 2, PageSize: 100})
+		if err != nil || !info.HasNext || info.Page != 2 {
+			t.Fatalf("info = %+v, err = %v", info, err)
+		}
+		if _, _, err := ds.QueryPage(ctx, datasource.PageRequest{Range: aroundIndexing(), Page: 201, PageSize: 50}); !errors.Is(err, datasource.ErrInvalidQuery) {
+			t.Fatalf("page past the window: %v", err)
+		}
+	})
+}
+
+func TestIntegrationLint(t *testing.T) {
+	eachFlavor(t, func(t *testing.T, flavor elasticsearch.Flavor) {
+		ds := integrationDS(t, flavor)
+		ctx := context.Background()
+		for _, tc := range []struct {
+			text     string
+			severity datasource.Severity
+		}{
+			{"lucene:log.level:[", datasource.SeverityError},
+			{`{"query": {"query_string": {"query": "log.level:["}}}`, datasource.SeverityError},
+			{`{"size": 1, "foo": 2}`, datasource.SeverityError},
+			{"nosuch:1", datasource.SeverityWarning},
+		} {
+			diags, err := ds.Lint(ctx, tc.text)
+			if err != nil || len(diags) != 1 || diags[0].Severity != tc.severity {
+				t.Errorf("%q: diagnostics = %+v, err = %v", tc.text, diags, err)
+			}
+		}
+		for _, text := range []string{"lucene:log.level:error", "service.name:checkout", `{"query": {"match_all": {}}}`} {
+			if diags, err := ds.Lint(ctx, text); err != nil || len(diags) != 0 {
+				t.Errorf("%q: diagnostics = %+v, err = %v", text, diags, err)
+			}
+		}
+	})
+}

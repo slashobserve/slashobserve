@@ -523,7 +523,7 @@ func (c *parseCache) storeFilters(name string, raw []string, filters []datasourc
 
 func implicitScope(dsType string, use queryUse) func(spec.Variable) bool {
 	switch dsType {
-	case string(spec.Prometheus):
+	case string(spec.Prometheus), string(spec.Elasticsearch), string(spec.OpenSearch):
 		return func(spec.Variable) bool { return true }
 	case string(spec.ClickHouse):
 		return func(v spec.Variable) bool { return v.ApplyToAll && !use.variables[v.Name] }

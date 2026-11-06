@@ -1,0 +1,101 @@
+{
+ "request": {
+  "aggs": {
+   "over_time": {
+    "date_histogram": {
+     "field": "@timestamp",
+     "fixed_interval": "1m"
+    },
+    "aggs": {
+     "by_service": {
+      "terms": {
+       "field": "service.name"
+      },
+      "aggs": {
+       "latency": {
+        "avg": {
+         "field": "duration"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "response": {
+  "over_time": {
+   "buckets": [
+    {
+     "key": 1000000,
+     "doc_count": 5,
+     "by_service": {
+      "buckets": [
+       {
+        "key": "checkout",
+        "doc_count": 3,
+        "latency": {
+         "value": 12.5
+        }
+       },
+       {
+        "key": "cart",
+        "doc_count": 2,
+        "latency": {
+         "value": 7
+        }
+       }
+      ]
+     }
+    },
+    {
+     "key": 1060000,
+     "doc_count": 1,
+     "by_service": {
+      "buckets": [
+       {
+        "key": "checkout",
+        "doc_count": 1,
+        "latency": {
+         "value": null
+        }
+       }
+      ]
+     }
+    }
+   ]
+  }
+ },
+ "want": {
+  "series": [
+   {
+    "name": "latency",
+    "labels": {
+     "service.name": "cart"
+    },
+    "points": [
+     [
+      1000000,
+      7
+     ]
+    ]
+   },
+   {
+    "name": "latency",
+    "labels": {
+     "service.name": "checkout"
+    },
+    "points": [
+     [
+      1000000,
+      12.5
+     ],
+     [
+      1060000,
+      null
+     ]
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,85 @@
+{
+ "request": {
+  "aggs": {
+   "t": {
+    "date_histogram": {
+     "field": "@timestamp",
+     "fixed_interval": "1m"
+    },
+    "aggs": {
+     "lat": {
+      "percentiles": {
+       "field": "d",
+       "percents": [
+        50,
+        99
+       ]
+      }
+     }
+    }
+   }
+  }
+ },
+ "response": {
+  "t": {
+   "buckets": [
+    {
+     "key": 0,
+     "doc_count": 4,
+     "lat": {
+      "values": {
+       "50.0": 10,
+       "99.0": 40
+      }
+     }
+    },
+    {
+     "key": 60000,
+     "doc_count": 2,
+     "lat": {
+      "values": {
+       "50.0": 12,
+       "99.0": null
+      }
+     }
+    }
+   ]
+  }
+ },
+ "want": {
+  "series": [
+   {
+    "name": "lat",
+    "labels": {
+     "percentile": "50"
+    },
+    "points": [
+     [
+      0,
+      10
+     ],
+     [
+      60000,
+      12
+     ]
+    ]
+   },
+   {
+    "name": "lat",
+    "labels": {
+     "percentile": "99"
+    },
+    "points": [
+     [
+      0,
+      40
+     ],
+     [
+      60000,
+      null
+     ]
+    ]
+   }
+  ]
+ }
+}
