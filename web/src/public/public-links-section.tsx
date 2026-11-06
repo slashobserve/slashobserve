@@ -19,6 +19,13 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatDateTime } from "@/lib/time"
 import { loadProblemText } from "@/service-accounts/queries"
@@ -46,9 +53,6 @@ type Props = {
   variables: readonly Variable[] | undefined
   vars: Record<string, string[]>
 }
-
-const selectClass =
-  "h-8 min-w-0 flex-1 rounded-control border border-input bg-background px-2 text-[13px] outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring narrow:text-base"
 
 export function PublicLinksSection({ dashboardId, variables, vars }: Props) {
   const headingId = useId()
@@ -136,36 +140,50 @@ function CreatePublicLink({ dashboardId, variables, vars }: Props) {
       aria-label="Create public link"
     >
       <div className="flex gap-1.5">
-        <label htmlFor={`${ids}-mode`} className="sr-only">
-          Variables
-        </label>
-        <select
-          id={`${ids}-mode`}
+        <Select
+          items={modeChoices}
           value={mode}
-          onChange={(event) => setMode(event.target.value as PublicMode)}
-          className={selectClass}
+          onValueChange={(next) => {
+            if (next !== null) setMode(next)
+          }}
         >
-          {modeChoices.map((choice) => (
-            <option key={choice.value} value={choice.value}>
-              {choice.label}
-            </option>
-          ))}
-        </select>
-        <label htmlFor={`${ids}-expiry`} className="sr-only">
-          Expires
-        </label>
-        <select
-          id={`${ids}-expiry`}
+          <SelectTrigger
+            id={`${ids}-mode`}
+            aria-label="Variables"
+            className="min-w-0 flex-1"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false} align="start">
+            {modeChoices.map((choice) => (
+              <SelectItem key={choice.value} value={choice.value}>
+                {choice.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          items={expiryChoices}
           value={expiry}
-          onChange={(event) => setExpiry(event.target.value as ExpiryChoice)}
-          className={selectClass}
+          onValueChange={(next) => {
+            if (next !== null) setExpiry(next)
+          }}
         >
-          {expiryChoices.map((choice) => (
-            <option key={choice.value} value={choice.value}>
-              {choice.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            id={`${ids}-expiry`}
+            aria-label="Expires"
+            className="min-w-0 flex-1"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false} align="start">
+            {expiryChoices.map((choice) => (
+              <SelectItem key={choice.value} value={choice.value}>
+                {choice.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       {expiry === "date" ? (
         <div className="flex flex-col gap-1">

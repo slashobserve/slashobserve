@@ -106,7 +106,10 @@ describe("PublicLinksSection", () => {
         vars={{ env: ["dev"] }}
       />
     )
-    await user.selectOptions(await screen.findByLabelText("Variables"), "free")
+    await user.click(await screen.findByRole("combobox", { name: "Variables" }))
+    await user.click(
+      await screen.findByRole("option", { name: "Free: viewers choose" })
+    )
     await user.click(screen.getByRole("button", { name: "Create public link" }))
     await screen.findByLabelText("Public link")
     expect(posted).toEqual([
@@ -123,7 +126,8 @@ describe("PublicLinksSection", () => {
         vars={{}}
       />
     )
-    await user.selectOptions(await screen.findByLabelText("Expires"), "date")
+    await user.click(await screen.findByRole("combobox", { name: "Expires" }))
+    await user.click(await screen.findByRole("option", { name: "On a date" }))
     await user.click(screen.getByRole("button", { name: "Create public link" }))
     expect(await screen.findByText("Choose a date.")).toBeInTheDocument()
     expect(posted).toEqual([])

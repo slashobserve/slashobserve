@@ -29,8 +29,14 @@ import {
   takeCommand,
   withCommand,
 } from "@/chat/slash-commands"
-import { NativeSelect } from "@/components/native-select"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useAddComment } from "@/comments/queries"
 import { liveRegionText } from "@/lib/live-region"
@@ -55,6 +61,21 @@ import { useActivityStore } from "./activity-store"
 import type { AgentGate } from "./agent-gate"
 
 export type Target = { kind: "dashboard" } | { kind: "panel"; panelId: string }
+
+export const noPanelValue = "*"
+
+export function panelItems(
+  noPanelLabel: string,
+  panels: readonly { id: string; title: string }[]
+): { value: string; label: string }[] {
+  return [
+    { value: noPanelValue, label: noPanelLabel },
+    ...panels.map((panel) => ({
+      value: panel.id,
+      label: panel.title === "" ? "Untitled panel" : panel.title,
+    })),
+  ]
+}
 
 type Props = {
   dashboardId: string
@@ -360,6 +381,7 @@ export function ActivityComposer({
     [showCounter ? counterId : null, failure ? errorId : null]
       .filter(Boolean)
       .join(" ") || undefined
+  const targetItems = panelItems("The whole dashboard", panels)
 
   return (
     <form
@@ -401,27 +423,34 @@ export function ActivityComposer({
           <label htmlFor={targetId} className="text-xs text-muted-foreground">
             On
           </label>
-          <NativeSelect
-            id={targetId}
-            size="sm"
-            aria-label="On"
-            className="max-w-[240px] truncate"
-            value={panelId ?? ""}
-            onChange={(event) =>
+          <Select
+            items={targetItems}
+            value={panelId ?? noPanelValue}
+            onValueChange={(next) => {
+              if (next === null) return
               onTargetChange(
-                event.target.value === ""
+                next === noPanelValue
                   ? { kind: "dashboard" }
-                  : { kind: "panel", panelId: event.target.value }
+                  : { kind: "panel", panelId: next }
               )
-            }
+            }}
           >
-            <option value="">The whole dashboard</option>
-            {panels.map((panel) => (
-              <option key={panel.id} value={panel.id}>
-                {panel.title === "" ? "Untitled panel" : panel.title}
-              </option>
-            ))}
-          </NativeSelect>
+            <SelectTrigger
+              id={targetId}
+              size="sm"
+              aria-label="On"
+              className="max-w-[240px]"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent alignItemWithTrigger={false} align="start">
+              {targetItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {model !== null ? (
             <span className="ml-auto truncate text-xs text-muted-foreground">
               {model}
