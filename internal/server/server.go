@@ -99,7 +99,7 @@ func New(opts Options) (http.Handler, error) {
 			return nil, err
 		}
 	}
-	return engine, nil
+	return compressReads(engine)
 }
 
 func recoverPanics(logger *slog.Logger) gin.HandlerFunc {
