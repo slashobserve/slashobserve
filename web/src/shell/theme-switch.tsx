@@ -7,17 +7,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useTheme, type ThemePreference } from "@/lib/theme"
-
-const themeChoices: readonly { value: ThemePreference; label: string }[] = [
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-  { value: "system", label: "Match the system" },
-]
-
-function isThemePreference(value: unknown): value is ThemePreference {
-  return themeChoices.some((choice) => choice.value === value)
-}
+import { isThemePreference, themeChoices, useTheme } from "@/lib/theme"
 
 export function useToggleTheme() {
   const { resolved, setPreference } = useTheme()
