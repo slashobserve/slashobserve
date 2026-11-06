@@ -102,6 +102,10 @@ paths:
     $ref: "./paths/traces.yaml#/datasources-uid-traces-trace-id"
   /datasources/{uid}/trace-stats:
     $ref: "./paths/traces.yaml#/datasources-uid-trace-stats"
+  /datasources/{uid}/log-context:
+    $ref: "./paths/log-context.yaml#/datasources-uid-log-context"
+  /datasources/{uid}/tail:
+    $ref: "./paths/tail.yaml#/datasources-uid-tail"
   /datasources/{uid}/draft-query:
     $ref: "./paths/draft-query.yaml#/datasources-uid-draft-query"
   /datasources/{uid}/metrics:
@@ -1543,6 +1547,31 @@ components:
           description: The upper edge of the bucket in milliseconds; the bucket holds the spans whose duration is at most this value and above the previous edge.
         count:
           type: integer
+    LogContext:
+      type: object
+      additionalProperties: false
+      required: [anchor, before, after]
+      properties:
+        anchor:
+          type: string
+          description: The `TimeNs` of the request.
+        before:
+          $ref: "#/components/schemas/LogContextSide"
+        after:
+          $ref: "#/components/schemas/LogContextSide"
+    LogContextSide:
+      type: object
+      additionalProperties: false
+      required: [frames, truncated]
+      properties:
+        frames:
+          type: array
+          description: The lines of this side in the panel data frame shape, every frame with `ref` `A` and a `TimeNs` string field beside `Time`.
+          items:
+            $ref: "#/components/schemas/Frame"
+        truncated:
+          type: boolean
+          description: More lines exist in the window on this side than were asked for.
     PanelData:
       type: object
       additionalProperties: false

@@ -15,8 +15,18 @@ import (
 )
 
 type column struct {
-	name string
-	typ  datasource.FieldType
+	name   string
+	typ    datasource.FieldType
+	dbType string
+}
+
+const (
+	timestampColumn    = "Timestamp"
+	nanosecondDateTime = "DateTime64(9)"
+)
+
+func (c column) hasNanoseconds() bool {
+	return c.name == timestampColumn && unwrapType(c.dbType) == nanosecondDateTime
 }
 
 type resultSet struct {
@@ -64,7 +74,7 @@ func scanRows(rows driver.Rows, maxRows int) (*resultSet, error) {
 	types := rows.ColumnTypes()
 	rs := &resultSet{columns: make([]column, len(types))}
 	for i, ct := range types {
-		rs.columns[i] = column{name: ct.Name(), typ: fieldType(ct.DatabaseTypeName())}
+		rs.columns[i] = column{name: ct.Name(), typ: fieldType(ct.DatabaseTypeName()), dbType: ct.DatabaseTypeName()}
 	}
 	for rows.Next() {
 		if maxRows > 0 && len(rs.rows) >= maxRows {
@@ -174,6 +184,12 @@ func (rs *resultSet) tableFrame() datasource.Frame {
 			values[r] = convert(row[i], c.typ)
 		}
 		fields[i] = datasource.Field{Name: c.name, Type: c.typ, Values: values}
+	}
+	for i, c := range rs.columns {
+		if c.hasNanoseconds() {
+			fields = append(fields, datasource.TimeNsField(fields[i].Values))
+			break
+		}
 	}
 	return datasource.Frame{Fields: fields}
 }

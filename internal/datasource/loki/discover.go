@@ -137,7 +137,7 @@ func linesFrame(frames []datasource.Frame, n int) datasource.Frame {
 		for k := range f.Labels {
 			keys[k] = struct{}{}
 		}
-		if len(f.Fields) > 2 {
+		if _, ok := levelField(f); ok {
 			withLevel = true
 		}
 		for row, v := range f.Fields[0].Values {
@@ -165,8 +165,8 @@ func linesFrame(frames []datasource.Frame, n int) datasource.Frame {
 		fields[1].Values = append(fields[1].Values, f.Fields[1].Values[ref.row])
 		if withLevel {
 			var level any
-			if len(f.Fields) > 2 {
-				level = f.Fields[2].Values[ref.row]
+			if lf, ok := levelField(f); ok {
+				level = lf.Values[ref.row]
 			}
 			fields[2].Values = append(fields[2].Values, level)
 		}
@@ -179,6 +179,15 @@ func linesFrame(frames []datasource.Frame, n int) datasource.Frame {
 		}
 	}
 	return datasource.Frame{Fields: fields}
+}
+
+func levelField(f datasource.Frame) (datasource.Field, bool) {
+	for _, field := range f.Fields {
+		if field.Name == "level" {
+			return field, true
+		}
+	}
+	return datasource.Field{}, false
 }
 
 func (d *Datasource) discoverStreams(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {

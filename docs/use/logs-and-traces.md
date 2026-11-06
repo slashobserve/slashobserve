@@ -63,14 +63,20 @@ Without a model, the page stays in Query, and the Ask side of the toggle is disa
 ## Context around a line
 
 Open a line and press **Show context** to see the 50 lines before it and the 50 lines after it.
-The lines come from the same stream: the same Loki index labels, or the same ClickHouse `ServiceName`, within an hour of the line.
-On Loki, the lines after are found by widening a window step by step, so they may be incomplete when more than 1,000 lines arrived in the 10 seconds after the line.
+The server reads both sides in one request, anchored on the line's nanosecond time, so the context is exact: the lines just before are the newest ones older than the line, the lines just after are the oldest ones newer than it, within an hour on each side.
+The lines come from the same query the page ran.
+Each side says when more lines exist in its hour than it shows.
+Scripts call the same endpoint, `POST /api/v1/datasources/{uid}/log-context`, with the line's `TimeNs` as `anchor`.
 
 ## Live tail
 
-**Live tail** asks for new lines every 2 seconds, starting from the newest line shown.
-It keeps the newest 1,000 lines on the page.
-It stops when you press **Stop live tail**, or when the query, the datasource or the time range changes.
+**Live tail** opens one stream from the server, which polls the datasource every second for lines newer than the last one it sent and pushes them to the page.
+The browser runs no query of its own and holds no datasource credential.
+Each poll returns at most 500 lines, so a tail shows at most 500 lines per second, and a poll that hit that limit is followed by another at once.
+The page keeps the newest 1,000 lines.
+A tail stops when you press **Stop live tail**, when the query, the datasource or the time range changes, when the datasource fails five polls in a row, or after 30 minutes.
+Each person may hold 5 tails at a time, and the server 200.
+Scripts open the same stream with `GET /api/v1/datasources/{uid}/tail?query=...`, which is Server-Sent Events.
 
 ## Add to dashboard
 

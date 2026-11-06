@@ -225,6 +225,7 @@ func streamFrame(s stream) (datasource.Frame, error) {
 		Fields: []datasource.Field{
 			{Name: "Time", Type: datasource.FieldTime, Values: times},
 			{Name: "Body", Type: datasource.FieldString, Values: lines},
+			datasource.TimeNsField(times),
 		},
 	}
 	if level, ok := streamLevel(s.Stream); ok {

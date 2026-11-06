@@ -37,6 +37,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `list_label_values` | Editor |
 | `list_labels` | Editor |
 | `list_metrics` | Editor |
+| `log_context` | Editor |
 | `log_facets` | Editor |
 | `logs_for_trace` | Editor |
 | `query_instant` | Editor |
@@ -130,6 +131,11 @@ A client repairs a failing panel itself: it reads the panel with `get_panels` an
 It turns a question into a checked LogQL, ClickHouse SQL or TraceQL query, or trace search filters, for one Loki, ClickHouse or Tempo datasource, as [Ask](logs-and-traces.md#ask-in-plain-language) does.
 It spends at most two of this server's model calls per question, checks the query with the lint and a short sample, and never runs the full query; run the answer with `query_instant`.
 A question it cannot turn into a query returns the tool error `cannot_translate` with the reason, and a server with no model returns `agent_unavailable`.
+
+`log_context` reads the log lines just before and just after one line on a Loki or ClickHouse datasource, as [Show context](logs-and-traces.md#context-around-a-line) does.
+Pass the datasource, the query and the line's `time_ns` from a `query_instant` result as `anchor`; `before` and `after` default to 20 lines each and take at most 100.
+The answer holds each side's lines with `time`, `time_ns`, `body` and `labels`, the before side newest first and the after side oldest first, and says when more lines exist within an hour on either side.
+The built-in agent has the same tool.
 
 `list_annotations` lists [annotations](annotations.md), such as deploy markers, newest first: the global ones, plus one dashboard's own with `dashboard_id`, narrowed by `from` and `to` (RFC 3339) and `tags`, 50 per page by default and at most 100.
 It is the one annotation tool the built-in agent also has, and only in investigate runs, so an investigation can see a deploy beside a spike.

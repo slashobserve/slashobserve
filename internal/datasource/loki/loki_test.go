@@ -127,7 +127,7 @@ func TestLogQueryReturnsOneFramePerStream(t *testing.T) {
 	if checkout.Labels["service_name"] != "checkout" || frontend.Labels["service_name"] != "frontend" || payments.Labels["service_name"] != "payments" {
 		t.Fatalf("frames are not ordered by labels: %v, %v, %v", checkout.Labels, frontend.Labels, payments.Labels)
 	}
-	if got, want := fieldNames(checkout), []string{"time:Time", "string:Body", "string:level"}; !slices.Equal(got, want) {
+	if got, want := fieldNames(checkout), []string{"time:Time", "string:Body", "string:TimeNs", "string:level"}; !slices.Equal(got, want) {
 		t.Fatalf("fields = %v, want %v", got, want)
 	}
 	if got := fieldValues(t, checkout, "Body"); !slices.Equal(got, []any{"retrying", "payment failed"}) {
@@ -136,13 +136,16 @@ func TestLogQueryReturnsOneFramePerStream(t *testing.T) {
 	if got := fieldValues(t, checkout, "Time"); got[0] != time.Unix(0, 1793966400000000001).UTC() || got[1] != time.Unix(0, 1793966400000000000).UTC() {
 		t.Fatalf("times = %v", got)
 	}
+	if got := fieldValues(t, checkout, "TimeNs"); !slices.Equal(got, []any{"1793966400000000001", "1793966400000000000"}) {
+		t.Fatalf("nanosecond times = %v", got)
+	}
 	if got := fieldValues(t, checkout, "level"); !slices.Equal(got, []any{"error", "error"}) {
 		t.Fatalf("levels = %v", got)
 	}
 	if got := fieldValues(t, frontend, "level"); !slices.Equal(got, []any{"warn"}) {
 		t.Fatalf("detected level = %v", got)
 	}
-	if got, want := fieldNames(payments), []string{"time:Time", "string:Body"}; !slices.Equal(got, want) {
+	if got, want := fieldNames(payments), []string{"time:Time", "string:Body", "string:TimeNs"}; !slices.Equal(got, want) {
 		t.Fatalf("a stream without a level has fields %v, want %v", got, want)
 	}
 	if slices.ContainsFunc(frames, func(f datasource.Frame) bool { return f.Meta != nil }) {

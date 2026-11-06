@@ -22,6 +22,7 @@ This lists only the packages whose purpose the name does not make obvious.
   A tool file registers its entries with `registerEntries` in its own `init` and keeps its `name`, `desc`, `prop` and `schema` constants, its role assertion and its text under the 2000-byte agent cap (`wording_test.go`) in that file; `schemas.go` holds only the shared `prop*` constants; no test pins the tool count or the tool list.
   `docs/use/mcp.md` has one row per MCP tool with its lowest role, and `docs_test.go` fails when a tool has no row or the wrong role.
 - `drafthttp`: `POST /datasources/{uid}/draft-query`, the HTTP face of `tools.Registry.DraftQuery`, which the `draft_query` MCP tool also calls; drafts are synchronous, stored nowhere and limited in process (3 per caller, 10 per process).
+- `tailhttp`: `GET /datasources/{uid}/tail`, the SSE live tail; one poller per stream, 5 per person, no query slot.
 - `findings`: stores findings: investigate results and the answers of new-dashboard and revision requests that only ask a question; `revisions` reads them only through sqlc and the `ObserveOptions.Finding` func, and never imports `findings`.
 - `stars`: each person's starred dashboards, stored on the server so they follow the person across browsers; keys get 403 `user_session_required`, and recently viewed dashboards stay in the browser.
 - `public`: public dashboard links, their tokens, the public Spec without query text and the frozen and free variable rule (`EffectiveSelections`); `proxyhttp` imports it, never the reverse.
@@ -190,6 +191,8 @@ This lists only the packages whose purpose the name does not make obvious.
   `GET /api/v1/public/{token}` serves the Spec with every panel and variable `query` emptied.
 - The sixth exception is `POST /api/v1/datasources/{uid}/trace-logs` (`proxyhttp/tracelogs.go`), the trace view's and the `logs_for_trace` tool's path to the lines of a trace or span: `datasource.TraceLogSource` (Loki and ClickHouse) builds the query itself from the hex-checked ids, so no query text crosses the API, and it runs under `DraftLimits` with the explore slots and error codes.
 - `POST /api/v1/datasources/{uid}/log-facets` (`proxyhttp/facets.go`) and the `log_facets` tool count the top values of a logs query's fields through `datasource.LogFacetSource` (Loki and ClickHouse), a direct datasource call under `DraftLimits` and one upstream slot, in which the adapter fans out at most 4 calls at a time; Loki index labels count bytes from the index volume API and say `unit: bytes`, every other field says whether it is exact or sampled.
+- `POST /api/v1/datasources/{uid}/log-context` (`proxyhttp/context.go`) and the `log_context` tool read the lines just before and just after one line through `datasource.LineSource` (Loki and ClickHouse), anchored on the line's `TimeNs`, as two `Lines` calls at once under `DraftLimits`, each with one upstream slot; the endpoint counts against the explore slots.
+  `GET /api/v1/datasources/{uid}/tail` (`tailhttp`) polls the same `Lines` forward from the newest `TimeNs` plus one nanosecond, so a line is sent once.
 - `spec/examples/time/resolve-cases.json` keeps the Go and TS relative time resolution in step.
 - Variable values reach queries only through `internal/datasource/macros`.
 - A Spec names a datasource by uid or as `${name}` naming a datasource variable.
