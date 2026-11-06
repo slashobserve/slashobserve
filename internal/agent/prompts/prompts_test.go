@@ -17,11 +17,15 @@ var sectionHeadings = map[spec.DatasourceType]string{
 	spec.ClickHouse: "## ClickHouse (OpenTelemetry exporter tables)",
 	spec.Loki:       "## Loki (LogQL)",
 	spec.Tempo:      "## Tempo (TraceQL)",
+
+	spec.Elasticsearch: searchHeading,
 }
+
+const searchHeading = "## Elasticsearch and OpenSearch (KQL, Lucene, Query DSL)"
 
 func TestGuideForNoTypesIsTheCore(t *testing.T) {
 	core := prompts.GuideFor(nil)
-	for _, heading := range []string{"## Prometheus", "## ClickHouse", "## Loki", "## Tempo"} {
+	for _, heading := range []string{"## Prometheus", "## ClickHouse", "## Loki", "## Tempo", "## Elasticsearch"} {
 		if strings.Contains(core, heading) {
 			t.Errorf("the core holds %q", heading)
 		}
@@ -53,7 +57,7 @@ func TestGuideForKeepsTheFixedOrderAndIgnoresDuplicatesAndUnknownTypes(t *testin
 }
 
 func TestSpecGuideHoldsEverySection(t *testing.T) {
-	all := []spec.DatasourceType{spec.Prometheus, spec.ClickHouse, spec.Loki, spec.Tempo}
+	all := []spec.DatasourceType{spec.Prometheus, spec.ClickHouse, spec.Loki, spec.Tempo, spec.Elasticsearch, spec.OpenSearch}
 	if prompts.SpecGuide() != prompts.GuideFor(all) {
 		t.Fatal("SpecGuide is not the guide for every type")
 	}
@@ -61,6 +65,28 @@ func TestSpecGuideHoldsEverySection(t *testing.T) {
 		if !strings.Contains(prompts.SpecGuide(), heading) {
 			t.Errorf("SpecGuide lacks %q", heading)
 		}
+	}
+}
+
+func TestSearchSectionAppearsOnceForEitherOrBothSearchTypes(t *testing.T) {
+	for name, types := range map[string][]spec.DatasourceType{
+		"elasticsearch": {spec.Elasticsearch},
+		"opensearch":    {spec.OpenSearch},
+		"both":          {spec.OpenSearch, spec.Elasticsearch},
+	} {
+		t.Run(name, func(t *testing.T) {
+			guide := prompts.GuideFor(types)
+			if got := strings.Count(guide, searchHeading); got != 1 {
+				t.Fatalf("search section appears %d times, want 1", got)
+			}
+			want := strings.TrimRight(prompts.GuideFor(nil), "\n") + "\n\n" + section(t, "search") + "\n"
+			if guide != want {
+				t.Errorf("guide is not the core and the search section")
+			}
+		})
+	}
+	if strings.Contains(prompts.GuideFor([]spec.DatasourceType{spec.Loki}), searchHeading) {
+		t.Errorf("a Loki-only guide holds the search section")
 	}
 }
 

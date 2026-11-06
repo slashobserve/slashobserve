@@ -20,6 +20,9 @@ var clickhouseGuide string
 //go:embed guide/loki.md
 var lokiGuide string
 
+//go:embed guide/search.md
+var searchGuide string
+
 //go:embed guide/tempo.md
 var tempoGuide string
 
@@ -30,15 +33,21 @@ var system string
 var scope string
 
 var sections = []struct {
-	datasource spec.DatasourceType
-	text       string
-}{{spec.Prometheus, prometheusGuide}, {spec.ClickHouse, clickhouseGuide}, {spec.Loki, lokiGuide}, {spec.Tempo, tempoGuide}}
+	datasources []spec.DatasourceType
+	text        string
+}{
+	{[]spec.DatasourceType{spec.Prometheus}, prometheusGuide},
+	{[]spec.DatasourceType{spec.ClickHouse}, clickhouseGuide},
+	{[]spec.DatasourceType{spec.Loki}, lokiGuide},
+	{[]spec.DatasourceType{spec.Tempo}, tempoGuide},
+	{[]spec.DatasourceType{spec.Elasticsearch, spec.OpenSearch}, searchGuide},
+}
 
 func GuideFor(types []spec.DatasourceType) string {
 	var b strings.Builder
 	b.WriteString(strings.TrimRight(specGuide, "\n"))
 	for _, s := range sections {
-		if slices.Contains(types, s.datasource) {
+		if slices.ContainsFunc(s.datasources, func(t spec.DatasourceType) bool { return slices.Contains(types, t) }) {
 			b.WriteString("\n\n")
 			b.WriteString(strings.TrimRight(s.text, "\n"))
 		}
@@ -48,7 +57,7 @@ func GuideFor(types []spec.DatasourceType) string {
 }
 
 func SpecGuide() string {
-	return GuideFor([]spec.DatasourceType{spec.Prometheus, spec.ClickHouse, spec.Loki, spec.Tempo})
+	return GuideFor([]spec.DatasourceType{spec.Prometheus, spec.ClickHouse, spec.Loki, spec.Tempo, spec.Elasticsearch})
 }
 
 func System() string { return system }

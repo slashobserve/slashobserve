@@ -312,7 +312,7 @@ func TestOutlineTargetsAreCapped(t *testing.T) {
 
 const (
 	systemTextBudget     = 23335
-	fullSystemTextBudget = 25770
+	fullSystemTextBudget = 27690
 )
 
 var demoTypes = []spec.DatasourceType{spec.Prometheus, spec.ClickHouse}
@@ -340,7 +340,7 @@ func TestBuildSystemHoldsTheRulesTheGuideAndTheExampleButNotTheSchema(t *testing
 }
 
 func TestBuildSystemForEveryTypeStaysWithinBudget(t *testing.T) {
-	system := buildSystem([]spec.DatasourceType{spec.Prometheus, spec.ClickHouse, spec.Loki, spec.Tempo})
+	system := buildSystem([]spec.DatasourceType{spec.Prometheus, spec.ClickHouse, spec.Loki, spec.Tempo, spec.Elasticsearch, spec.OpenSearch})
 	if len(system) > fullSystemTextBudget {
 		t.Fatalf("system text for every datasource type is %d bytes, over the %d byte budget", len(system), fullSystemTextBudget)
 	}
