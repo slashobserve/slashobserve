@@ -99,6 +99,7 @@ A trace over 20,000 spans opens with its earliest 20,000 spans and a banner that
 
 Open **Traces** in the sidebar to find traces by service, span name, minimum and maximum duration, and errors only.
 The search runs as soon as the page opens, with the fields the address carries, or with none.
+The page opens on the last datasource you used in this browser, else Tempo when one is configured; the datasource and the time range sit in the title row, and the **Search traces** button sits under the fields with Ctrl+Enter or Cmd+Enter as its shortcut.
 Durations take a number and a unit, such as `250ms` or `1.5s`.
 On Tempo you can also write TraceQL, which replaces the fields.
 Press **Search traces**, or Enter in Service, Span name or a duration field, to run it; Enter in the TraceQL field adds a line.
@@ -113,15 +114,15 @@ On a phone the table becomes a list.
 
 ## Ask on the trace search
 
-With a model configured on the server, the trace search has the same **Ask** and **Query** toggle as the logs page, in the top right corner of the search box.
+With a model configured on the server, the trace search has the same **Ask** and **Query** toggle as the logs page, in the row above the search box.
 Ctrl+I or Cmd+I switches it, Enter asks, Shift+Enter adds a line and Esc cancels a question that is still running.
 The mode you last chose on either page is the one both pages open in, and the trace search opens in Query when the address carries a search field.
 **Recent** and Up bring back earlier questions, kept apart from those of the logs page.
 The answer fills Service, Span name, the durations and Errors only, or on Tempo the TraceQL field when the question needs TraceQL.
 A duration the form cannot read is left empty.
 The search runs at once, and the address keeps the question as `ask`.
-The explanation and any warnings show under the question, above the filled form.
-Editing a field switches to Query, with a "From: <question>" line and **Ask again**, which brings the question back.
+The explanation and any warnings show under the question, with **Edit the query**, which switches to Query with the answer's values in the form.
+The Run row then shows a "From: <question>" line and **Ask again**, which brings the question back.
 When the model cannot turn the question into a query, the page says "I could not turn that into a query." with the reason, switches to Query and puts the cursor in Service.
 Changing the datasource drops the question, because it was answered for the other one.
 Without a model, the page stays in Query, and the Ask side of the toggle is disabled and says "Add a model key to ask in plain language".

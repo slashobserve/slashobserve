@@ -1,7 +1,6 @@
 import { useId, useRef, useState, type FormEvent, type Ref } from "react"
 import { useQuery } from "@tanstack/react-query"
 
-import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -83,6 +82,7 @@ function ServiceOptions({ id, uid }: { id: string; uid: string }) {
 }
 
 export function TraceSearchForm({
+  id,
   type,
   uid,
   value,
@@ -91,6 +91,7 @@ export function TraceSearchForm({
   onEdited,
   serviceRef,
 }: {
+  id: string
   type: string
   uid: string
   value: TraceSearch
@@ -138,6 +139,7 @@ export function TraceSearchForm({
 
   return (
     <form
+      id={id}
       aria-label="Search traces"
       noValidate
       onSubmit={submit}
@@ -199,9 +201,6 @@ export function TraceSearchForm({
           </p>
         </div>
       ) : null}
-      <div>
-        <Button type="submit">Search traces</Button>
-      </div>
     </form>
   )
 }

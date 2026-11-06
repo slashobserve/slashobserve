@@ -1,34 +1,31 @@
-import { useEffect, useId, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Link, useNavigate, useSearch } from "@tanstack/react-router"
+import { useNavigate, useSearch } from "@tanstack/react-router"
 
 import { AskField } from "@/ask/ask-field"
-import {
-  draftFailure,
-  draftQueryRequest,
-  type DraftFailure,
-} from "@/ask/draft-query"
 import { nextMode, useInputMode, type InputMode } from "@/ask/input-mode"
 import { InputModeToggle } from "@/ask/input-mode-toggle"
+import { useAsk } from "@/ask/use-ask"
 import { useInputModeShortcut } from "@/ask/use-input-mode-shortcut"
 import { PageHeader } from "@/components/page-header"
 import { StatusLabel } from "@/components/status-label"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TimeRangeControl } from "@/dashboards/time-range-picker"
+import {
+  rememberDatasource,
+  rememberedDatasource,
+} from "@/datasources/datasource-memory"
 import { useDatasources, type DatasourceStatus } from "@/datasources/queries"
-import { traceLink } from "@/lib/links"
+import { isModEnter } from "@/lib/shortcuts"
 import { lowerFirst } from "@/lib/text"
-import { describeRange, zonedDateTimeMs } from "@/lib/time"
-import { cn } from "@/lib/utils"
+import { describeRange } from "@/lib/time"
 import {
   eligibleDatasources,
   ExploreDatasourcePicker,
 } from "@/logs/datasource-picker"
 import { exploreErrorText, exploreQuery, offlineText } from "@/logs/explore"
-import { useDefaultDatasource } from "@/logs/logs-page"
 import { useAgentInfo } from "@/observe/queries"
 
 import { traceSearchFromAnswer } from "./ask-answer"
@@ -39,21 +36,12 @@ import {
 } from "./search"
 import { traceSearchParams, traceSearchRows } from "./search-query"
 import { TraceSearchForm } from "./trace-search-form"
-import {
-  countText,
-  hasErrorCounts,
-  hasSpanCounts,
-  traceRows,
-  type TraceRow,
-} from "./trace-rows"
+import { traceRows } from "./trace-rows"
+import { TraceTable } from "./trace-table"
 
 const skeletonRows = [0, 1, 2, 3, 4]
 const askPlaceholder =
   "Ask in plain language, like: checkout requests slower than 2s with errors"
-
-type AskProblem = Exclude<DraftFailure, { kind: "aborted" }>
-
-type Answer = { explanation: string; warnings: string[] }
 
 type FocusRequest = { target: InputMode; count: number }
 
@@ -65,10 +53,25 @@ function useTraceSearch() {
   return { search, update }
 }
 
-function durationText(ms: number | null): string {
-  return ms === null
-    ? "-"
-    : `${ms.toLocaleString("en", { maximumFractionDigits: 1 })} ms`
+function useTraceDatasource(
+  current: DatasourceStatus | undefined,
+  eligible: readonly DatasourceStatus[]
+) {
+  const navigate = useNavigate()
+  const fallback =
+    current === undefined ? rememberedDatasource("traces", eligible) : undefined
+  const uid = current?.uid
+  useEffect(() => {
+    if (fallback === undefined) return
+    void navigate({
+      to: ".",
+      search: (state: Record<string, unknown>) => ({ ...state, ds: fallback }),
+      replace: true,
+    })
+  }, [fallback, navigate])
+  useEffect(() => {
+    if (uid !== undefined) rememberDatasource("traces", uid)
+  }, [uid])
 }
 
 export function TracesPage() {
@@ -77,7 +80,7 @@ export function TracesPage() {
   const datasources = useDatasources()
   const eligible = eligibleDatasources(datasources.data, traceDatasourceTypes)
   const datasource = eligible.find((candidate) => candidate.uid === search.ds)
-  useDefaultDatasource(datasource, eligible)
+  useTraceDatasource(datasource, eligible)
   const range = tracesTimeRange(search)
 
   if (!datasources.isPending && eligible.length === 0) {
@@ -93,19 +96,23 @@ export function TracesPage() {
   }
 
   return (
-    <>
+    <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         title="Traces"
-        actions={<TimeRangeControl value={range} onChange={update} />}
+        actions={
+          <>
+            <ExploreDatasourcePicker
+              id={`${ids}-datasource`}
+              types={traceDatasourceTypes}
+              value={datasource?.uid}
+              onChange={(ds) => update({ ds, ask: undefined })}
+              label="Datasource"
+            />
+            <TimeRangeControl value={range} onChange={update} />
+          </>
+        }
       />
-      <div className="flex flex-col gap-4">
-        <ExploreDatasourcePicker
-          id={`${ids}-datasource`}
-          types={traceDatasourceTypes}
-          value={datasource?.uid}
-          onChange={(ds) => update({ ds, ask: undefined })}
-          label="Datasource"
-        />
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
         {datasource ? (
           <TraceSearchWorkspace
             key={datasource.uid}
@@ -117,7 +124,7 @@ export function TracesPage() {
           <ResultSkeleton />
         )}
       </div>
-    </>
+    </div>
   )
 }
 
@@ -141,6 +148,7 @@ function TraceSearchWorkspace({
   search: TraceSearch
   update: (next: Partial<TraceSearch>) => void
 }) {
+  const formId = useId()
   const uid = datasource.uid
   const type = datasource.type
   const range = tracesTimeRange(search)
@@ -151,19 +159,22 @@ function TraceSearchWorkspace({
     hasQuery: hasTraceFilters(search),
     hasAsk: search.ask !== undefined,
   })
-  const [question, setQuestion] = useState(search.ask ?? "")
-  const [fromQuestion, setFromQuestion] = useState<string | null>(
-    search.ask ?? null
-  )
-  const [answer, setAnswer] = useState<Answer | null>(null)
-  const [asking, setAsking] = useState(false)
-  const [askProblem, setAskProblem] = useState<AskProblem | null>(null)
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null)
   const askFieldRef = useRef<HTMLTextAreaElement>(null)
   const serviceRef = useRef<HTMLInputElement>(null)
-  const askAbort = useRef<AbortController | null>(null)
-
-  useEffect(() => () => askAbort.current?.abort(), [])
+  const ask = useAsk({
+    uid,
+    signal: "traces",
+    range,
+    initialQuestion: search.ask,
+    initialFromQuestion: search.ask ?? null,
+    onAnswer: (drafted, question) =>
+      update({ ...traceSearchFromAnswer(drafted, type), ask: question }),
+    onCannotTranslate: () => {
+      setMode("query", false)
+      focusNext("query")
+    },
+  })
 
   useEffect(() => {
     if (focusRequest === null) return
@@ -186,142 +197,134 @@ function TraceSearchWorkspace({
 
   useInputModeShortcut(() => switchMode(nextMode(mode, agentAvailable)))
 
-  async function ask(text: string) {
-    askAbort.current?.abort()
-    const controller = new AbortController()
-    askAbort.current = controller
-    setAsking(true)
-    setAskProblem(null)
-    try {
-      const drafted = await draftQueryRequest(
-        uid,
-        { question: text, from: range.from, to: range.to, signal: "traces" },
-        controller.signal
-      )
-      if (controller.signal.aborted) return
-      setAnswer({
-        explanation: drafted.explanation,
-        warnings: drafted.warnings,
-      })
-      setFromQuestion(text)
-      update({ ...traceSearchFromAnswer(drafted, type), ask: text })
-    } catch (error) {
-      const failure = draftFailure(error)
-      if (failure.kind === "aborted") return
-      setAskProblem(failure)
-      if (failure.kind === "cannot_translate") {
-        setMode("query", false)
-        focusNext("query")
-      }
-    } finally {
-      if (askAbort.current === controller) {
-        askAbort.current = null
-        setAsking(false)
-      }
-    }
-  }
-
   function askAgain() {
-    if (fromQuestion !== null) setQuestion(fromQuestion)
+    ask.askAgain()
     switchMode("ask")
   }
 
-  const formShown = mode === "query" || fromQuestion !== null
-  const modeToggle = (
-    <div className="absolute top-2 right-2 z-10">
-      <InputModeToggle
-        mode={mode}
-        agentAvailable={agentAvailable}
-        onChange={switchMode}
-      />
-    </div>
-  )
+  function submitOnModEnter(event: KeyboardEvent<HTMLDivElement>) {
+    if (!isModEnter(event) || event.nativeEvent.isComposing) return
+    event.preventDefault()
+    event.currentTarget.querySelector("form")?.requestSubmit()
+  }
+
+  const answered = ask.answer !== null || ask.fromQuestion !== null
 
   return (
     <>
+      <div className="flex h-8 shrink-0 items-center gap-2">
+        <InputModeToggle
+          mode={mode}
+          agentAvailable={agentAvailable}
+          onChange={switchMode}
+        />
+      </div>
       {mode === "ask" ? (
-        <div className="relative">
-          {modeToggle}
+        <div className="w-full shrink-0 [&_textarea]:pr-2.5">
           <AskField
             ref={askFieldRef}
             signal="traces"
-            value={question}
-            onChange={setQuestion}
-            onAsk={(text) => void ask(text)}
-            pending={asking}
-            onCancel={() => askAbort.current?.abort()}
+            value={ask.question}
+            onChange={ask.setQuestion}
+            onAsk={ask.ask}
+            pending={ask.asking}
+            onCancel={ask.cancel}
             placeholder={askPlaceholder}
           />
         </div>
-      ) : fromQuestion !== null ? (
-        <p className="text-xs text-muted-foreground">
-          From: {fromQuestion}{" "}
-          <button
-            type="button"
-            onClick={askAgain}
-            className="text-foreground underline underline-offset-3"
-          >
-            Ask again
-          </button>
-        </p>
-      ) : null}
-      {mode === "ask" && answer !== null ? (
-        <div className="flex flex-col gap-1">
-          {answer.explanation !== "" ? (
+      ) : (
+        <>
+          <div className="shrink-0" onKeyDownCapture={submitOnModEnter}>
+            <TraceSearchForm
+              key={JSON.stringify([
+                search.service,
+                search.span,
+                search.min,
+                search.max,
+                search.errors,
+                search.q,
+                search.ask,
+              ])}
+              id={formId}
+              type={type}
+              uid={uid}
+              value={search}
+              onSubmit={(next) => {
+                ask.clearProblem()
+                update(next)
+              }}
+              serviceRef={serviceRef}
+            />
+          </div>
+          <div className="flex h-8 shrink-0 items-center gap-3">
+            <Button
+              type="submit"
+              form={formId}
+              title="Search traces (Ctrl+Enter or Cmd+Enter)"
+              aria-keyshortcuts="Control+Enter Meta+Enter"
+            >
+              Search traces
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              or press Ctrl+Enter or Cmd+Enter
+            </span>
+            {ask.fromQuestion !== null ? (
+              <span className="min-w-0 truncate text-xs text-muted-foreground">
+                From: {ask.fromQuestion}
+              </span>
+            ) : null}
+            {answered || ask.problem !== null ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={askAgain}
+              >
+                Ask again
+              </Button>
+            ) : null}
+          </div>
+        </>
+      )}
+      {mode === "ask" && answered ? (
+        <div className="flex shrink-0 flex-col items-start gap-1">
+          {ask.answer !== null && ask.answer.explanation !== "" ? (
             <p className="text-xs text-muted-foreground">
-              {answer.explanation}
+              {ask.answer.explanation}
             </p>
           ) : null}
-          {answer.warnings.map((warning) => (
+          {ask.answer?.warnings.map((warning) => (
             <p key={warning} className="text-xs">
               <StatusLabel tone="warning">{warning}</StatusLabel>
             </p>
           ))}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => switchMode("query")}
+          >
+            Edit the query
+          </Button>
         </div>
       ) : null}
-      {askProblem !== null ? (
-        <Alert variant="destructive">
+      {ask.problem !== null ? (
+        <Alert variant="destructive" className="shrink-0">
           <AlertDescription className="flex flex-col items-start gap-1">
-            {askProblem.kind === "cannot_translate" ? (
+            {ask.problem.kind === "cannot_translate" ? (
               <>
                 <p>I could not turn that into a query.</p>
-                <p className="text-muted-foreground">{askProblem.reason}</p>
+                <p className="text-muted-foreground">{ask.problem.reason}</p>
               </>
             ) : (
-              <p>{askProblem.text}</p>
+              <p>{ask.problem.text}</p>
             )}
           </AlertDescription>
         </Alert>
       ) : null}
-      {formShown ? (
-        <div
-          className={cn(
-            "relative rounded-card border border-border p-3",
-            mode === "query" && "pt-10"
-          )}
-        >
-          {mode === "query" ? modeToggle : null}
-          <TraceSearchForm
-            key={JSON.stringify([
-              search.service,
-              search.span,
-              search.min,
-              search.max,
-              search.errors,
-              search.q,
-              search.ask,
-            ])}
-            type={type}
-            uid={uid}
-            value={search}
-            onSubmit={update}
-            answered={mode === "ask" && fromQuestion !== null}
-            onEdited={() => setMode("query", false)}
-            serviceRef={serviceRef}
-          />
-        </div>
-      ) : null}
-      <TraceResults datasource={datasource} search={search} />
+      <div className="min-h-0 flex-1 overflow-auto">
+        <TraceResults datasource={datasource} search={search} />
+      </div>
     </>
   )
 }
@@ -386,87 +389,5 @@ function TraceResults({
       ) : null}
       <TraceTable rows={rows} datasourceUid={datasource.uid} range={range} />
     </div>
-  )
-}
-
-function TraceStatus({ errors }: { errors: number }) {
-  return errors > 0 ? (
-    <StatusLabel tone="critical">
-      Failed · {countText(errors, "error")}
-    </StatusLabel>
-  ) : (
-    <StatusLabel tone="ok">OK</StatusLabel>
-  )
-}
-
-function TraceTable({
-  rows,
-  datasourceUid,
-  range,
-}: {
-  rows: TraceRow[]
-  datasourceUid: string
-  range: { from: string; to: string }
-}) {
-  const spans = hasSpanCounts(rows)
-  const status = hasErrorCounts(rows)
-  const slowest = Math.max(0, ...rows.map((row) => row.durationMs ?? 0))
-  return (
-    <TableCard label="Traces" stackOnNarrow minWidth={760}>
-      <thead>
-        <tr>
-          <HeaderCell>Started</HeaderCell>
-          <HeaderCell>Service</HeaderCell>
-          <HeaderCell>Span</HeaderCell>
-          <HeaderCell className="text-right">Duration</HeaderCell>
-          {spans ? <HeaderCell className="text-right">Spans</HeaderCell> : null}
-          {status ? <HeaderCell>Status</HeaderCell> : null}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.traceId}>
-            <Cell className="whitespace-nowrap">
-              <Link
-                {...traceLink(row.traceId, datasourceUid, range)}
-                aria-label={`Open trace ${row.traceId}`}
-                className="font-medium tabular-nums underline-offset-3 hover:underline"
-              >
-                {row.start === null ? (
-                  <span className="font-mono">{row.traceId.slice(0, 8)}</span>
-                ) : (
-                  zonedDateTimeMs(row.start, undefined)
-                )}
-              </Link>
-            </Cell>
-            <Cell>{row.service || "-"}</Cell>
-            <Cell className="max-w-80 truncate">{row.span || "-"}</Cell>
-            <Cell className="text-right whitespace-nowrap tabular-nums">
-              {durationText(row.durationMs)}
-              <div
-                aria-hidden="true"
-                className="mt-1 h-0.5 rounded-full bg-series-1"
-                style={{
-                  width:
-                    row.durationMs !== null && slowest > 0
-                      ? `${(row.durationMs / slowest) * 100}%`
-                      : 0,
-                }}
-              />
-            </Cell>
-            {spans ? (
-              <Cell className="text-right tabular-nums">
-                {row.spans === null ? "-" : row.spans.toLocaleString("en")}
-              </Cell>
-            ) : null}
-            {status && row.errors !== null ? (
-              <Cell className="whitespace-nowrap">
-                <TraceStatus errors={row.errors} />
-              </Cell>
-            ) : null}
-          </tr>
-        ))}
-      </tbody>
-    </TableCard>
   )
 }

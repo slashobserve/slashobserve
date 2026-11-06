@@ -79,7 +79,7 @@ function useLogsSearch() {
   return { search, update }
 }
 
-export function useDefaultDatasource(
+function useDefaultDatasource(
   current: DatasourceStatus | undefined,
   eligible: readonly DatasourceStatus[]
 ) {
