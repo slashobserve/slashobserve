@@ -24,6 +24,7 @@ type Props = {
   bounds: WidthBounds
   onChange: (width: number) => void
   side?: HandleSide
+  className?: string
 }
 
 export function ResizeHandle({
@@ -31,6 +32,7 @@ export function ResizeHandle({
   bounds,
   onChange,
   side = "left",
+  className,
 }: Props) {
   const [dragging, setDragging] = useState(false)
   const start = useRef({ x: 0, width: 0 })
@@ -108,7 +110,8 @@ export function ResizeHandle({
       data-dragging={dragging ? "" : undefined}
       className={cn(
         "group absolute inset-y-0 z-10 grid w-2.5 cursor-col-resize touch-none place-items-center outline-none",
-        side === "left" ? "-left-[9px]" : "-right-[9px]"
+        side === "left" ? "-left-[9px]" : "-right-[9px]",
+        className
       )}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

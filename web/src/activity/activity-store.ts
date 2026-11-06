@@ -10,7 +10,8 @@ import {
   clampWidth,
   editWidth,
   isStacked,
-} from "./card-width"
+  panelWidth,
+} from "@/components/dock/card-width"
 
 const storageKey = "slashobserve-activity"
 const retiredReviseKey = "slashobserve-revise-on-comment"
@@ -26,6 +27,7 @@ type Persisted = {
   width: number
   editWidth: number
   chatWidth: number
+  panelWidth: number
 }
 
 type AgentKind = "revise" | "investigate"
@@ -38,6 +40,7 @@ type ActivityState = Persisted & {
   setWidth: (width: number) => void
   setEditWidth: (width: number) => void
   setChatWidth: (width: number) => void
+  setPanelWidth: (width: number) => void
   setAgentKind: (kind: AgentKind) => void
   setDraft: (dashboardId: string, text: string) => void
   setTarget: (dashboardId: string, panelId: string | null) => void
@@ -66,6 +69,11 @@ function sanitize(saved: unknown, current: ActivityState): ActivityState {
       chatPaneWidth,
       Number.POSITIVE_INFINITY
     ),
+    panelWidth: clampWidth(
+      number(stored.panelWidth, current.panelWidth),
+      panelWidth,
+      Number.POSITIVE_INFINITY
+    ),
   }
 }
 
@@ -76,6 +84,7 @@ export const useActivityStore = create<ActivityState>()(
       width: activityWidth.initial,
       editWidth: editWidth.initial,
       chatWidth: chatPaneWidth.initial,
+      panelWidth: panelWidth.initial,
       agentKind: "revise",
       drafts: {},
       targets: {},
@@ -92,6 +101,10 @@ export const useActivityStore = create<ActivityState>()(
         set({
           chatWidth: clampWidth(width, chatPaneWidth, Number.POSITIVE_INFINITY),
         }),
+      setPanelWidth: (width) =>
+        set({
+          panelWidth: clampWidth(width, panelWidth, Number.POSITIVE_INFINITY),
+        }),
       setAgentKind: (agentKind) => set({ agentKind }),
       setDraft: (dashboardId, text) =>
         set((state) => ({ drafts: { ...state.drafts, [dashboardId]: text } })),
@@ -102,11 +115,12 @@ export const useActivityStore = create<ActivityState>()(
     }),
     {
       name: storageKey,
-      partialize: ({ open, width, editWidth, chatWidth }) => ({
+      partialize: ({ open, width, editWidth, chatWidth, panelWidth }) => ({
         open,
         width,
         editWidth,
         chatWidth,
+        panelWidth,
       }),
       merge: sanitize,
     }
@@ -169,7 +183,7 @@ function subscribeToResize(callback: () => void) {
   return () => window.removeEventListener("resize", callback)
 }
 
-function useViewportWidth(): number {
+export function useViewportWidth(): number {
   return useSyncExternalStore(
     subscribeToResize,
     () => window.innerWidth,
@@ -198,5 +212,15 @@ export function useChatPaneLayout() {
     bounds: chatPaneWidth,
     width: clampWidth(stored, chatPaneWidth, viewport),
     stacked: chatPaneStacked(viewport),
+  }
+}
+
+export function usePanelLayout() {
+  const stored = useActivityStore((state) => state.panelWidth)
+  const viewport = useViewportWidth()
+  return {
+    bounds: panelWidth,
+    width: clampWidth(stored, panelWidth, viewport),
+    stacked: "container" as const,
   }
 }
