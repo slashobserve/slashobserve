@@ -61,3 +61,17 @@ The trace search answers keys of its own too, described in [Logs and traces](log
 | `⌘I` or `Ctrl+I` | Switch between Ask and Query, from anywhere on the page. |
 | `Enter` | Ask the question, or run the search from Service, Span name or a duration field. |
 | `Shift+Enter` | Add a line to the question. |
+
+## Trace view keys
+
+The waterfall of a trace answers keys of its own while a span row has the focus, described in [Logs and traces](logs-and-traces.md).
+
+| Keys | What they do |
+| --- | --- |
+| `j` or `↓` | Move to the next span. |
+| `k` or `↑` | Move to the previous span. |
+| `Enter` | Open the span's details, or close them when they are open. |
+| `Escape` | Close the open span's details. |
+| `←` | Collapse the span's children. |
+| `→` | Expand the span's children. |
+| `/` | Jump to the **Find in trace** field. |

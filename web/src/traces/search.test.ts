@@ -54,6 +54,15 @@ describe("validateTraceViewSearch", () => {
     })
     expect(traceViewRange({})).toEqual({ from: "now-24h", to: "now" })
   })
+
+  it.each([
+    ["keeps a 16 hex span id", "7f3a9c12e4b0d5a1", "7f3a9c12e4b0d5a1"],
+    ["lowercases the span id", "7F3A9C12E4B0D5A1", "7f3a9c12e4b0d5a1"],
+    ["drops a short span id", "7f3a9c12e4", undefined],
+    ["drops a span id with other characters", "7f3a9c12e4b0d5zz", undefined],
+  ])("%s", (_, raw, span) => {
+    expect(validateTraceViewSearch({ ds: "ch", span: raw }).span).toBe(span)
+  })
 })
 
 describe("normaliseTraceId", () => {

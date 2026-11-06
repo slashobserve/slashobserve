@@ -82,18 +82,27 @@ The save runs the query over the dashboard's time range and refuses a panel that
 ## Trace view
 
 A trace opens at `/t/<trace id>?ds=<datasource uid>`.
-The title reads **Trace** with the first 8 characters of the id, and **Copy trace id** copies the whole id.
+The title reads the root service and the root span, such as **frontend POST /checkout**, and under it a summary gives the duration, the number of spans, services and errors, the start time, and the slowest service on the critical path with the time it spent there.
+**Copy trace id** copies the whole id.
 **Open trace** on a log line opens it when the line carries a `TraceId`, `traceID`, `trace_id` or `traceId` field.
 A Loki line opens in the first Tempo datasource, and a ClickHouse line opens in the same ClickHouse datasource.
-A line above the waterfall reads the root service, the root span, the duration and the span count, with the number of errors when any span failed.
 The view draws the spans as a waterfall under a ruler that steps by 1, 2, 2.5 or 5 times a power of ten, so its labels are round numbers.
+The view fills the window, and the waterfall scrolls inside it.
+**Find in trace** matches a span's name, service, id or attribute values; the matching text is highlighted, the field counts the matches, and Enter opens the next one, Shift+Enter the previous one.
+**Critical path** outlines the spans on the longest chain, the ones that add up to the trace's duration, and dims the rest; the line under the waterfall says how many spans are on it.
+**Errors only** dims every span that neither failed nor contains a failed span.
+**Collapse all** folds every span with children, and **Expand all** opens them again.
+The services legend lists each service with its colour and span count; click a service to hide its spans, and click it again to show them.
+The overview strip above the ruler draws the whole trace in one line per span; drag on it, or on the ruler, to zoom the time axis to that window, and **Reset zoom** shows the whole trace again.
 A click on a span shows its span attributes and then its resource attributes in the pane beside it, or inline under the span on a screen 760 pixels wide or narrower.
 Each span offers **Logs**, which opens the logs page on the lines carrying the trace id (and the span id when the datasource stores it) during the trace.
+While a span is open the address carries `span=<span id>`, so a copied link opens on that span with its row scrolled into view.
+The keys the waterfall answers are listed in [Keyboard shortcuts](keyboard-shortcuts.md).
 On ClickHouse the view looks for the spans in the last 24 hours, or within an hour of the line when you came from the logs page; widen the time range for an older trace.
 Tempo finds a trace by its id at any time.
 The view loads the whole trace up to 20,000 spans.
 A trace over 20,000 spans opens with its earliest 20,000 spans and a banner that says how many the trace holds.
-**Copy link** copies the address of the trace with its datasource and time range, and **Search traces** opens the trace search on the same datasource.
+**Copy link** copies the address of the trace with its datasource, time range and open span, and **Search traces** opens the trace search on the same datasource.
 
 ## Trace search
 

@@ -1,20 +1,44 @@
-import { useEffect, useId, useMemo, useRef, useState, type Ref } from "react"
-import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode,
+  type Ref,
+} from "react"
+import { ChevronDownIcon, ChevronRightIcon, XIcon } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
 import { zonedDateTimeMs } from "@/lib/time"
 import { cn } from "@/lib/utils"
+import {
+  wholeTrace,
+  zoomedOffset,
+  zoomFromDrag,
+  type Zoom,
+} from "@/traces/minimap"
+import { highlightText } from "@/traces/trace-toolbar"
 
 import { styleForSlot } from "../colors"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
 import { niceTicks } from "./ruler"
-import { filterSpans, spanFilters, type SpanFilters } from "./span-filters"
+import {
+  ancestorIds,
+  filterSpans,
+  spanFilters,
+  type SpanFilters,
+} from "./span-filters"
 import { traceModel, visibleSpans, windowRows, type Span } from "./trace-model"
 
-const rowHeight = 28
+const rowHeight = 30
 const windowAfter = 200
 const overscan = 10
 const indentStep = 12
+const wideNameColumn = 600
 const ErrorIcon = thresholdIcons.critical
 
 export type TraceViewProps = {
@@ -24,6 +48,97 @@ export type TraceViewProps = {
   width: number
   height: number
   attributes: "inline" | "pane"
+  openId?: string | null
+  onOpenIdChange?: (id: string | null) => void
+  collapsed?: ReadonlySet<string>
+  onCollapsedChange?: (collapsed: ReadonlySet<string>) => void
+  toolbar?: ReactNode
+  highlighted?: ReadonlySet<string> | null
+  criticalPathIds?: ReadonlySet<string>
+  dimmed?: ReadonlySet<string>
+  zoom?: Zoom
+  onZoom?: (zoom: Zoom) => void
+}
+
+type Drag = { anchor: number; x: number; left: number; width: number }
+
+export function useZoomDrag(
+  zoom: Zoom,
+  onZoom: ((zoom: Zoom) => void) | undefined
+) {
+  const [drag, setDrag] = useState<Drag | null>(null)
+  const dragging = drag !== null
+
+  useEffect(() => {
+    if (!dragging) return
+    const cancel = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") setDrag(null)
+    }
+    window.addEventListener("keydown", cancel)
+    return () => window.removeEventListener("keydown", cancel)
+  }, [dragging])
+
+  function release(event: PointerEvent<HTMLElement>) {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  const handlers = onZoom
+    ? {
+        onPointerDown(event: PointerEvent<HTMLElement>) {
+          if (event.button !== 0) return
+          const rect = event.currentTarget.getBoundingClientRect()
+          event.currentTarget.setPointerCapture(event.pointerId)
+          const x = event.clientX - rect.left
+          setDrag({ anchor: x, x, left: rect.left, width: rect.width })
+        },
+        onPointerMove(event: PointerEvent<HTMLElement>) {
+          const x = event.clientX
+          setDrag((current) =>
+            current ? { ...current, x: x - current.left } : current
+          )
+        },
+        onPointerUp(event: PointerEvent<HTMLElement>) {
+          release(event)
+          if (drag) {
+            const next = zoomFromDrag(drag.anchor, drag.x, drag.width, zoom)
+            if (next) onZoom(next)
+          }
+          setDrag(null)
+        },
+        onPointerCancel(event: PointerEvent<HTMLElement>) {
+          release(event)
+          setDrag(null)
+        },
+      }
+    : {}
+  const selection =
+    drag && drag.width > 0
+      ? {
+          left: Math.min(drag.anchor, drag.x) / drag.width,
+          width: Math.abs(drag.x - drag.anchor) / drag.width,
+        }
+      : null
+  return { handlers, selection }
+}
+
+export function DragSelection({
+  selection,
+}: {
+  selection: { left: number; width: number } | null
+}) {
+  if (!selection) return null
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-y-0 border-x border-ring bg-selection/40"
+      style={{
+        left: `${selection.left * 100}%`,
+        width: `${selection.width * 100}%`,
+      }}
+    />
+  )
 }
 
 function tickClass(tick: number, duration: number): string {
@@ -32,20 +147,36 @@ function tickClass(tick: number, duration: number): string {
   return "-translate-x-1/2"
 }
 
+function nameColumns(width: number): string {
+  return width < wideNameColumn
+    ? "grid-cols-[minmax(12rem,40%)_minmax(0,1fr)]"
+    : "grid-cols-[300px_minmax(0,1fr)]"
+}
+
 function SpanRow({
   span,
+  columns,
   collapsed,
   open,
   matched,
+  needle,
+  onPath,
+  dim,
+  zoom,
   detailsId,
   formatDuration,
   onToggle,
   onOpen,
 }: {
   span: Span
+  columns: string
   collapsed: boolean
   open: boolean
   matched: boolean | null
+  needle: string
+  onPath: boolean | null
+  dim: boolean
+  zoom: Zoom
   detailsId: string
   formatDuration: (ms: number) => string
   onToggle: () => void
@@ -53,11 +184,15 @@ function SpanRow({
 }) {
   const CollapseIcon = collapsed ? ChevronRightIcon : ChevronDownIcon
   const label = span.operation || span.id
+  const bar = zoomedOffset(span, zoom)
+  const highlight = matched && needle !== ""
   return (
     <div
       className={cn(
-        "grid grid-cols-[minmax(12rem,40%)_minmax(0,1fr)] items-center text-xs",
-        open && "bg-selection"
+        "grid min-h-[30px] items-center text-xs",
+        columns,
+        open && "bg-selection",
+        (dim || onPath === false) && "opacity-[.42]"
       )}
       style={{ height: rowHeight - 1 }}
     >
@@ -68,6 +203,7 @@ function SpanRow({
         {span.hasChildren ? (
           <button
             type="button"
+            tabIndex={-1}
             aria-expanded={!collapsed}
             aria-label={`${collapsed ? "Expand" : "Collapse"} ${label}`}
             onClick={onToggle}
@@ -80,6 +216,7 @@ function SpanRow({
         )}
         <button
           type="button"
+          tabIndex={-1}
           aria-expanded={open}
           aria-controls={open ? detailsId : undefined}
           onClick={onOpen}
@@ -87,14 +224,18 @@ function SpanRow({
         >
           <span className="min-w-0 flex-1 truncate">
             {span.service ? (
-              <span className="text-muted-foreground">{span.service} </span>
+              <span className="text-muted-foreground">
+                {highlight
+                  ? highlightText(span.service, needle)
+                  : span.service}{" "}
+              </span>
             ) : null}
             <span
               className={
                 matched === false ? "text-muted-foreground" : "text-foreground"
               }
             >
-              {span.operation || span.id}
+              {highlight ? highlightText(label, needle) : label}
             </span>
             {matched ? (
               <span className="sr-only"> Matches the filters</span>
@@ -116,22 +257,26 @@ function SpanRow({
       </div>
       <div className="h-full min-w-0 px-2" onClick={onOpen}>
         <div className="relative h-full">
-          <div
-            aria-hidden="true"
-            className={cn(
-              "absolute top-1/2 h-3 -translate-y-1/2 rounded-sm",
-              span.error && "bg-status-critical",
-              matched === false && "opacity-30"
-            )}
-            style={{
-              left: `${span.offset * 100}%`,
-              width: `${span.width * 100}%`,
-              minWidth: 2,
-              backgroundColor: span.error
-                ? undefined
-                : styleForSlot(span.slot).color,
-            }}
-          />
+          {bar ? (
+            <div
+              aria-hidden="true"
+              className={cn(
+                "absolute top-[9px] h-3 rounded-[2px]",
+                span.error && "bg-status-critical",
+                matched === false && "opacity-30",
+                onPath &&
+                  "outline outline-2 -outline-offset-2 outline-foreground"
+              )}
+              style={{
+                left: `${bar.offset * 100}%`,
+                width: `${bar.width * 100}%`,
+                minWidth: 2,
+                backgroundColor: span.error
+                  ? undefined
+                  : styleForSlot(span.slot).color,
+              }}
+            />
+          ) : null}
         </div>
       </div>
     </div>
@@ -203,23 +348,36 @@ function SpanPane({
   span,
   zone,
   formatDuration,
+  onClose,
 }: {
   id: string
   span: Span | undefined
   zone: string | undefined
   formatDuration: (ms: number) => string
+  onClose: () => void
 }) {
   return (
     <aside
-      aria-label="Span attributes"
+      aria-label="Span details"
       id={id}
-      className="min-w-56 shrink-0 basis-2/5 overflow-auto border-l border-border p-2 text-xs"
+      className="w-[400px] max-w-1/2 shrink-0 overflow-auto border-l border-border p-2 text-xs"
     >
       {span ? (
         <>
-          <p className="truncate text-sm font-medium text-foreground">
-            {[span.service, span.operation].filter(Boolean).join(" ")}
-          </p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="min-w-0 truncate text-sm font-medium text-foreground">
+              {[span.service, span.operation].filter(Boolean).join(" ")}
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Close span details"
+              onClick={onClose}
+            >
+              <XIcon aria-hidden="true" />
+            </Button>
+          </div>
           <p className="flex flex-wrap gap-x-3 text-muted-foreground">
             <span>
               Span <span className="font-mono">{span.id}</span>
@@ -251,20 +409,62 @@ function SpanPane({
   )
 }
 
-export function TraceView({
-  model,
-  filters,
-  zone,
-  width,
-  height,
-  attributes,
-}: TraceViewProps) {
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
-  const [openId, setOpenId] = useState<string | null>(null)
+function withoutIds(
+  set: ReadonlySet<string>,
+  ids: readonly string[]
+): ReadonlySet<string> {
+  if (!ids.some((id) => set.has(id))) return set
+  const next = new Set(set)
+  for (const id of ids) next.delete(id)
+  return next
+}
+
+function rowSelector(id: string): string {
+  return `[data-span-id="${CSS.escape(id)}"]`
+}
+
+function isFormField(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    target.closest("input, textarea, select, [contenteditable]") !== null
+  )
+}
+
+export function TraceView(props: TraceViewProps) {
+  const { model, filters, zone, width, height, attributes, toolbar } = props
+  const [internalCollapsed, setInternalCollapsed] = useState<
+    ReadonlySet<string>
+  >(new Set())
+  const [internalOpenId, setInternalOpenId] = useState<string | null>(null)
+  const [focusedId, setFocusedId] = useState<string | null>(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [detailHeight, setDetailHeight] = useState(0)
   const detailRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const scrolledTo = useRef<string | null>(null)
+  const focusPending = useRef(false)
+  const initialOpenId = useRef(props.openId ?? null)
   const detailsId = useId()
+
+  const wanted = props.collapsed ?? internalCollapsed
+  const setCollapsed = (next: ReadonlySet<string>) => {
+    props.onCollapsedChange?.(next)
+    if (!props.onCollapsedChange) setInternalCollapsed(next)
+  }
+  const openId = props.onOpenIdChange ? (props.openId ?? null) : internalOpenId
+  const setOpenId = (id: string | null) => {
+    props.onOpenIdChange?.(id)
+    if (!props.onOpenIdChange) setInternalOpenId(id)
+  }
+  const zoom = props.zoom ?? wholeTrace
+  const openAncestors = useMemo(
+    () => (openId === null ? [] : ancestorIds(model.spans, openId)),
+    [model.spans, openId]
+  )
+  const collapsed = useMemo(
+    () => withoutIds(wanted, openAncestors),
+    [wanted, openAncestors]
+  )
 
   const filtered = useMemo(
     () => filterSpans(model.spans, filters),
@@ -274,7 +474,8 @@ export function TraceView({
     () => visibleSpans(filtered.spans, collapsed),
     [filtered.spans, collapsed]
   )
-  const ticks = niceTicks(model.duration)
+  const windowMs = (zoom.end - zoom.start) * model.duration
+  const ticks = niceTicks(windowMs)
   const openIndex = rows.findIndex((span) => span.id === openId)
   const inline = attributes === "inline"
   const windowed = rows.length > windowAfter
@@ -290,6 +491,10 @@ export function TraceView({
       })
     : { start: 0, end: rows.length, before: 0, after: 0 }
   const detailRendered = openIndex >= range.start && openIndex < range.end
+  const columns = nameColumns(width)
+  const matchedIds = props.highlighted ?? filtered.matched
+  const needle = props.highlighted ? filters.search : ""
+  const ruler = useZoomDrag(zoom, props.onZoom)
 
   useEffect(() => {
     const node = detailRef.current
@@ -301,12 +506,104 @@ export function TraceView({
     return () => observer.disconnect()
   }, [openId, detailRendered])
 
-  const toggle = (id: string) =>
-    setCollapsed((current) => {
-      const next = new Set(current)
-      if (!next.delete(id)) next.add(id)
-      return next
-    })
+  useEffect(() => {
+    const list = listRef.current
+    if (!list || openId === null || scrolledTo.current === openId) return
+    const row = list.querySelector(rowSelector(openId))
+    if (row) {
+      row.scrollIntoView({
+        block: openId === initialOpenId.current ? "center" : "nearest",
+      })
+      scrolledTo.current = openId
+    } else if (openIndex >= 0) {
+      list.scrollTop = Math.max(openIndex * rowHeight - height / 2, 0)
+    }
+  }, [openId, openIndex, range.start, range.end, height])
+
+  useEffect(() => {
+    const list = listRef.current
+    if (!list || !focusPending.current || focusedId === null) return
+    const row = list.querySelector<HTMLElement>(rowSelector(focusedId))
+    if (row) {
+      focusPending.current = false
+      row.focus()
+      row.scrollIntoView({ block: "nearest" })
+    }
+  }, [focusedId, range.start, range.end])
+
+  const toggle = (id: string) => {
+    const next = new Set(collapsed)
+    if (!next.delete(id)) {
+      next.add(id)
+      if (openAncestors.includes(id)) setOpenId(null)
+    }
+    setCollapsed(next)
+  }
+  const open = (id: string) => {
+    setFocusedId(id)
+    setOpenId(openId === id ? null : id)
+  }
+  const focusRow = (index: number) => {
+    const row = rows[Math.min(Math.max(index, 0), rows.length - 1)]
+    if (!row) return
+    focusPending.current = true
+    setFocusedId(row.id)
+    if (windowed) {
+      const top = index * rowHeight
+      const list = listRef.current
+      if (
+        list &&
+        (top < list.scrollTop || top + rowHeight > list.scrollTop + height)
+      ) {
+        list.scrollTop = Math.max(top - height / 2, 0)
+      }
+    }
+  }
+  const tabStopId =
+    [focusedId, openId].find(
+      (id) => id !== null && rows.some((span) => span.id === id)
+    ) ??
+    rows[0]?.id ??
+    null
+
+  function onKeyDown(event: KeyboardEvent<HTMLUListElement>) {
+    if (event.metaKey || event.ctrlKey || event.altKey) return
+    if (isFormField(event.target)) return
+    const target = event.target as HTMLElement
+    const currentId =
+      target.closest<HTMLElement>("[data-span-id]")?.dataset.spanId
+    const current = rows.findIndex((span) => span.id === currentId)
+    const span = current >= 0 ? rows[current] : undefined
+    switch (event.key) {
+      case "j":
+      case "ArrowDown":
+        focusRow(current + 1)
+        break
+      case "k":
+      case "ArrowUp":
+        focusRow(current <= 0 ? 0 : current - 1)
+        break
+      case "Enter":
+        if (!span || target.getAttribute("role") !== "treeitem") return
+        open(span.id)
+        break
+      case "Escape":
+        if (openId === null) return
+        setOpenId(null)
+        break
+      case "ArrowLeft":
+        if (!span?.hasChildren || collapsed.has(span.id)) return
+        toggle(span.id)
+        break
+      case "ArrowRight":
+        if (!span?.hasChildren || !collapsed.has(span.id)) return
+        toggle(span.id)
+        break
+      default:
+        return
+    }
+    event.preventDefault()
+  }
 
   return (
     <div className="flex flex-col" style={{ width, height }}>
@@ -326,6 +623,7 @@ export function TraceView({
           </span>
         </p>
       </div>
+      {toolbar}
       {[...model.notes, ...filtered.notes].map((note) => (
         <p
           key={note}
@@ -336,58 +634,91 @@ export function TraceView({
       ))}
       <div className="flex min-h-0 flex-1">
         <div
+          ref={listRef}
           className="min-h-0 min-w-0 flex-1 overflow-auto"
           onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
         >
-          <div className="sticky top-0 z-10 grid grid-cols-[minmax(12rem,40%)_minmax(0,1fr)] border-b border-border bg-background text-xs text-muted-foreground">
+          <div
+            className={cn(
+              "sticky top-0 z-10 grid border-b border-border bg-background text-xs text-muted-foreground",
+              columns
+            )}
+          >
             <span className="px-2 py-1">Service and operation</span>
-            <div className="relative h-6 px-2" aria-hidden="true">
+            <div
+              className={cn(
+                "relative h-6 px-2",
+                props.onZoom && "cursor-col-resize touch-none select-none"
+              )}
+              aria-hidden="true"
+              {...ruler.handlers}
+            >
               <div className="relative h-full">
                 {ticks.map((tick) => (
                   <span
                     key={tick}
                     className={cn(
                       "absolute top-1 whitespace-nowrap tabular-nums",
-                      tickClass(tick, model.duration)
+                      tickClass(tick, windowMs)
                     )}
                     style={
-                      tick === 0 || tick >= model.duration
+                      tick === 0 || tick >= windowMs
                         ? undefined
-                        : { left: `${(tick / model.duration) * 100}%` }
+                        : { left: `${(tick / windowMs) * 100}%` }
                     }
                   >
-                    {model.formatDuration(tick)}
+                    {model.formatDuration(zoom.start * model.duration + tick)}
                   </span>
                 ))}
+                <DragSelection selection={ruler.selection} />
               </div>
             </div>
           </div>
           <ul
-            role="list"
-            aria-label="Spans"
+            role="tree"
+            aria-label={`Spans of trace ${model.traceId.slice(0, 8)}, ${filtered.spans.length.toLocaleString("en")} spans`}
             data-span-count={rows.length}
             className="m-0 list-none p-0"
             style={{ paddingTop: range.before, paddingBottom: range.after }}
+            onKeyDown={onKeyDown}
           >
             {rows.slice(range.start, range.end).map((span) => {
-              const open = span.id === openId
+              const isOpen = span.id === openId
               return (
-                <li key={span.id} className="border-b border-border">
+                <li
+                  key={span.id}
+                  role="treeitem"
+                  data-span-id={span.id}
+                  aria-level={span.depth + 1}
+                  aria-expanded={
+                    span.hasChildren ? !collapsed.has(span.id) : undefined
+                  }
+                  aria-selected={isOpen}
+                  tabIndex={span.id === tabStopId ? 0 : -1}
+                  className="border-b border-border outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                >
                   <SpanRow
                     span={span}
+                    columns={columns}
                     collapsed={collapsed.has(span.id)}
-                    open={open}
+                    open={isOpen}
                     matched={
-                      filtered.matched === null
-                        ? null
-                        : filtered.matched.has(span.id)
+                      matchedIds === null ? null : matchedIds.has(span.id)
                     }
+                    needle={needle}
+                    onPath={
+                      props.criticalPathIds
+                        ? props.criticalPathIds.has(span.id)
+                        : null
+                    }
+                    dim={props.dimmed?.has(span.id) ?? false}
+                    zoom={zoom}
                     detailsId={detailsId}
                     formatDuration={model.formatDuration}
                     onToggle={() => toggle(span.id)}
-                    onOpen={() => setOpenId(open ? null : span.id)}
+                    onOpen={() => open(span.id)}
                   />
-                  {open && attributes === "inline" ? (
+                  {isOpen && inline ? (
                     <SpanAttributes
                       ref={detailRef}
                       id={detailsId}
@@ -406,6 +737,7 @@ export function TraceView({
             span={openIndex === -1 ? undefined : rows[openIndex]}
             zone={zone}
             formatDuration={model.formatDuration}
+            onClose={() => setOpenId(null)}
           />
         )}
       </div>
