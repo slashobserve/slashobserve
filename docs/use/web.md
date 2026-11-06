@@ -50,7 +50,8 @@ The old forms keep working and redirect with `301 Moved Permanently`, keeping th
 
 The server redirects only when the id is a UUID, and the web app does the same for links it follows itself.
 `/dashboards/by-title?title=<title>` is not an id address and keeps working as described in [ObserveSpec](../concepts/observespec.md).
-Opening a Grafana dashboard's own `/d/<uid>` address will come with the Grafana migration page.
+A Grafana dashboard's own address, `/d/<grafana uid>` or `/d/<grafana uid>/<slug>`, redirects with `302 Found` to `/d/<id>` of the dashboard imported from that uid, keeping the slug and the query string.
+It resolves only for a signed-in caller who can see the dashboard: a signed-out visitor signs in first and comes back to it, and a uid nobody imported, or whose dashboard is in a folder you cannot see, opens the app's not-found page.
 
 ## Home page and stars
 

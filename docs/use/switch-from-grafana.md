@@ -125,6 +125,7 @@ See [Dashboards as code](dashboards-as-code.md) for the layout, the matching rul
 
 ## Open old links
 
+A Grafana dashboard link keeps working with its host changed to SlashObserve's: `/d/<grafana uid>/<slug>` redirects with `302 Found` to `/d/<id>` of the imported dashboard, keeping the slug and the query string, as [Old addresses](web.md#old-addresses) describes.
 `GET /api/v1/grafana/resolve/{uid}` answers the `dashboard_id` and the web `url` of the dashboard imported from a Grafana uid.
 Any signed-in person can call it, and a uid whose dashboard is in a folder they cannot see answers `404`, like a uid nobody imported.
 

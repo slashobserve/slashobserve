@@ -159,7 +159,7 @@ func TestHTTPConnectsTestsListsImportsAndResolves(t *testing.T) {
 		DashboardID string `json:"dashboard_id"`
 		URL         string `json:"url"`
 	}](t, resolved)
-	if got.URL != "/dashboards/"+got.DashboardID {
+	if got.URL != "/d/"+got.DashboardID {
 		t.Fatalf("resolved %+v", got)
 	}
 	expect(t, h.call(t, http.MethodGet, "/api/v1/grafana/resolve/broken", ""), http.StatusNotFound, "not_found")

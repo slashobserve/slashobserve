@@ -401,6 +401,7 @@ func run() error {
 			Path:    "/mcp",
 			Handler: mcp.NewHandler(toolRegistry, authService, mcp.Options{PublicURL: cfg.PublicURL, Version: version, Logger: logger}),
 		}}, metricsMounts(cfg.Metrics, serverMetrics)...),
+		Redirects:     server.Redirects{GrafanaDashboard: grafanaService.DashboardRedirect(authService.RequestPrincipal)},
 		Metrics:       serverMetrics.HTTP(),
 		ContractCheck: cfg.APIContractCheck,
 		Readiness: []server.Check{

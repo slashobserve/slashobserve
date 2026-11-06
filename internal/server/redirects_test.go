@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -68,25 +67,44 @@ func TestRedirectLeavesOtherPathsToTheWebApp(t *testing.T) {
 	}
 }
 
-func TestRedirectResolveHook(t *testing.T) {
+func TestRedirectGrafanaUIDToTheImportedDashboard(t *testing.T) {
 	var asked []string
-	redirects := Redirects{Resolve: func(_ context.Context, kind, id string) (string, bool) {
-		asked = append(asked, kind+":"+id)
-		if id == "known uid" {
-			return "/d/" + redirectID + "/shop", true
+	redirects := Redirects{GrafanaDashboard: func(r *http.Request, uid string) (string, bool) {
+		asked = append(asked, uid)
+		if uid == "known uid" && r.Header.Get("Cookie") == "session=ok" {
+			return "/d/" + redirectID, true
 		}
 		return "", false
 	}}
-	rec := serveWeb(t, redirects, http.MethodGet, "/d/known%20uid/old-slug?from=now-1h")
-	if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/d/"+redirectID+"/shop?from=now-1h" {
-		t.Fatalf("known uid = %d to %q", rec.Code, rec.Header().Get("Location"))
+	cases := []struct{ name, from, to string }{
+		{"slug and query kept", "/d/known%20uid/checkout-health?orgId=1&var-pod=a", "/d/" + redirectID + "/checkout-health?orgId=1&var-pod=a"},
+		{"no slug", "/d/known%20uid", "/d/" + redirectID},
+		{"trailing slash", "/d/known%20uid/", "/d/" + redirectID},
 	}
-	for _, path := range []string{"/d/unknown", "/d/" + redirectID} {
-		if rec := serveWeb(t, redirects, http.MethodGet, path); rec.Header().Get("Location") != "" {
-			t.Fatalf("%s redirected to %q", path, rec.Header().Get("Location"))
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			engine := gin.New()
+			registerWebRoutes(engine, redirects)
+			req := httptest.NewRequest(http.MethodGet, tc.from, nil)
+			req.Header.Set("Cookie", "session=ok")
+			rec := httptest.NewRecorder()
+			engine.ServeHTTP(rec, req)
+			if rec.Code != http.StatusFound || rec.Header().Get("Location") != tc.to {
+				t.Fatalf("%s = %d to %q, want 302 to %q", tc.from, rec.Code, rec.Header().Get("Location"), tc.to)
+			}
+			if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+				t.Fatalf("Cache-Control %q, want no-store because the answer depends on the caller", got)
+			}
+		})
+	}
+	asked = nil
+	for _, path := range []string{"/d/known%20uid", "/d/unknown", "/d/" + redirectID} {
+		rec := serveWeb(t, redirects, http.MethodGet, path)
+		if rec.Header().Get("Location") != "" || rec.Code == http.StatusFound {
+			t.Fatalf("%s without the session redirected: %d to %q", path, rec.Code, rec.Header().Get("Location"))
 		}
 	}
-	if len(asked) != 2 || asked[0] != "dashboard:known uid" || asked[1] != "dashboard:unknown" {
+	if len(asked) != 2 || asked[0] != "known uid" || asked[1] != "unknown" {
 		t.Fatalf("resolver asked %v, want the two non-id dashboard paths only", asked)
 	}
 }
