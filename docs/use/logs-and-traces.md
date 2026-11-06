@@ -86,7 +86,7 @@ curl -fsS -X POST "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/query" \
 ```
 
 `limit` lowers the row limit and never raises it above 1,000.
-[The CLI](cli.md) has `observe logs` and `observe traces` for the same searches.
+[The CLI](cli.md) has `observe logs` and `observe traces` for the same searches, and `--ask` for questions.
 
 Scripts ask a question with `POST /api/v1/datasources/{uid}/draft-query`:
 

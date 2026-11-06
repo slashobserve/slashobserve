@@ -203,7 +203,7 @@ model       ok      anthropic claude-haiku-5-5, effort low
 `doctor` exits 1 when any check fails and 0 otherwise, since a warning never fails it.
 `--json` prints `{"ok": <bool>, "checks": [{"check", "status", "detail"}]}` instead of the table, and colour marks `ok` and `fail` only in a terminal.
 
-`bin/observe logs <query> --datasource <uid>` runs a log query on a Loki or ClickHouse datasource and prints the lines oldest first:
+`bin/observe logs [<query>] --datasource <uid>` runs a log query on a Loki or ClickHouse datasource and prints the lines oldest first:
 
 ```sh
 bin/observe logs '{app="shop"} |= "error"' --datasource loki --from now-15m
@@ -217,7 +217,18 @@ The message is the first column named `body`, `message`, `msg`, `line` or `log`,
 `--json` prints the response body, or with `--tail` one JSON object per line with `time`, `level`, `labels` and `line`.
 An invalid query exits 1 with the datasource's message.
 
-`bin/observe traces <trace id> --datasource <uid>` prints the spans of one trace from a Tempo or ClickHouse datasource as a tree:
+`--ask` takes a question instead of the query, and the server writes the query with [Ask](logs-and-traces.md#ask-in-plain-language):
+
+```sh
+bin/observe logs --ask "checkout errors" --datasource loki --from now-6h
+bin/observe logs --ask "checkout logs mentioning payment" --datasource clickhouse --dry-run
+```
+
+It prints `Query: <query>`, the explanation and one `Warning: <warning>` line per warning on standard error, then runs the query as if you had typed it, `--tail` included.
+`--dry-run` prints them and runs nothing, and needs `--ask`.
+A question the server cannot turn into a query exits 1 with the reason, and so does a server with no model.
+
+`bin/observe traces [<trace id>] --datasource <uid>` prints the spans of one trace from a Tempo or ClickHouse datasource as a tree:
 
 ```sh
 bin/observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource tempo
@@ -228,6 +239,18 @@ The id is 16 or 32 hexadecimal characters, and `--from` and `--to` (`now-24h` an
 On ClickHouse it reads the OpenTelemetry `otel_traces` table.
 It prints a header with the span count, the total duration and the root span, then one row per span with its service, its name indented under its parent, its start after the trace start, its duration and `ok`, `error` or `-`.
 A trace with no spans in the range exits 1, and `--json` prints the response body.
+
+`--ask` takes a question instead of the trace id and prints the newest 100 matching traces:
+
+```sh
+bin/observe traces --ask "checkout requests slower than 2s with errors" --datasource tempo
+bin/observe traces --ask "slow checkout requests" --datasource clickhouse --dry-run
+```
+
+It prints the answer on standard error, as `Filters: service=checkout min=2s errors` or `Query: <TraceQL>`, with the explanation and any warnings.
+Then it runs the same search as the Traces page: TraceQL on Tempo, and on ClickHouse a query over `otel_traces` grouped by trace.
+Each row shows the trace's start, service, span, duration, span count and error count, and a column the datasource does not return stays blank.
+`--dry-run` prints the answer and searches nothing, and `--json` prints the search's response body.
 
 `bin/observe grafana connect <url> --token-stdin` stores a Grafana connection for [Switch from Grafana](switch-from-grafana.md) and tests it, and needs an Admin key.
 The token comes only from standard input, so it never lands in shell history, and `--name` defaults to the URL's host:

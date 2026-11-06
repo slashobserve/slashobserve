@@ -230,3 +230,54 @@ func TestLogsTailJSONPrintsOneObjectPerLine(t *testing.T) {
 		t.Fatalf("stdout %q", got)
 	}
 }
+
+const lokiDraft = `{"query":"{service_name=\"checkout\"} |= \"error\"","language":"logql","trace_filters":null,"explanation":"Checkout error lines.","warnings":["No matches in the last 15 minutes."]}`
+
+func TestLogsAskDraftsTheQueryThenRunsIt(t *testing.T) {
+	f := newAskFake(t, "loki", lokiDraft, lokiFrames)
+	stdout, stderr, code := f.run("logs", "--ask", "checkout errors", "--from", "now-6h", "--limit", "50")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	draft := f.drafts[0]
+	if len(f.drafts) != 1 || draft["question"] != "checkout errors" || draft["from"] != "now-6h" || draft["to"] != "now" || draft["signal"] != "logs" {
+		t.Fatalf("drafts %v", f.drafts)
+	}
+	query := f.queries[0]
+	if len(f.queries) != 1 || query["query"] != `{service_name="checkout"} |= "error"` || query["kind"] != "range" || query["from"] != "now-6h" || query["limit"] != float64(50) {
+		t.Fatalf("queries %v", f.queries)
+	}
+	if stderr != "Query: {service_name=\"checkout\"} |= \"error\"\nCheckout error lines.\nWarning: No matches in the last 15 minutes.\n" {
+		t.Fatalf("stderr %q", stderr)
+	}
+	if !strings.Contains(stdout, "payment declined") {
+		t.Fatalf("stdout %q", stdout)
+	}
+}
+
+func TestLogsAskDryRunNeverRunsTheQuery(t *testing.T) {
+	f := newAskFake(t, "loki", lokiDraft, lokiFrames)
+	stdout, stderr, code := f.run("logs", "--ask", "checkout errors", "--dry-run")
+	if code != 0 || len(f.drafts) != 1 || len(f.queries) != 0 || stdout != "" || !strings.HasPrefix(stderr, "Query: ") {
+		t.Fatalf("exit %d, drafts %d, queries %d, stdout %q, stderr %q", code, len(f.drafts), len(f.queries), stdout, stderr)
+	}
+}
+
+func TestLogsAskUsageErrors(t *testing.T) {
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{`{app="shop"}`, "--ask", "checkout errors"}, "give a log query or --ask, not both"},
+		{nil, "logs needs a log query or --ask"},
+		{[]string{`{app="shop"}`, "--dry-run"}, "--dry-run needs --ask"},
+		{[]string{"--dry-run"}, "--dry-run needs --ask"},
+	}
+	for _, c := range cases {
+		f := newAskFake(t, "loki", lokiDraft, lokiFrames)
+		_, stderr, code := f.run("logs", c.args...)
+		if code != 2 || !strings.Contains(stderr, c.want) || len(f.drafts)+len(f.queries) != 0 {
+			t.Errorf("%v: exit %d, stderr %q", c.args, code, stderr)
+		}
+	}
+}

@@ -194,3 +194,86 @@ func TestTracesJSONPrintsTheResponse(t *testing.T) {
 		t.Fatalf("exit %d, stdout %q", code, stdout)
 	}
 }
+
+const traceSearchFrames = `{"frames":[{"ref":"A","fields":[
+	{"name":"TraceId","type":"string","values":["t1","t2"]},
+	{"name":"StartTime","type":"time","values":[1762000000000,1762000060000]},
+	{"name":"ServiceName","type":"string","values":["checkout","checkout"]},
+	{"name":"SpanName","type":"string","values":["POST /checkout","charge"]},
+	{"name":"Duration","type":"number","values":[1230000000,"612000000"]},
+	{"name":"Spans","type":"number","values":[5,3]}
+]}],"meta":{}}`
+
+func TestTracesAskRunsTheFiltersAsClickHouseSQL(t *testing.T) {
+	f := newAskFake(t, "clickhouse", `{"query":"","language":"filters","trace_filters":{"service":"checkout","min":"500ms"},"explanation":"Slow checkout traces.","warnings":[]}`, traceSearchFrames)
+	stdout, stderr, code := f.run("traces", "--ask", "slow checkout requests", "--from", "now-6h")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	if draft := f.drafts[0]; draft["signal"] != "traces" || draft["question"] != "slow checkout requests" || draft["from"] != "now-6h" {
+		t.Fatalf("draft %v", draft)
+	}
+	query := f.queries[0]
+	want := clickhouseTraceSearch(traceFilters{Service: "checkout", Min: "500ms"})
+	if len(f.queries) != 1 || query["query"] != want || query["kind"] != "instant" || query["limit"] != float64(100) || query["from"] != "now-6h" {
+		t.Fatalf("queries %v", f.queries)
+	}
+	if stderr != "Filters: service=checkout min=500ms\nSlow checkout traces.\n" {
+		t.Fatalf("stderr %q", stderr)
+	}
+	lines := strings.Split(strings.TrimRight(stdout, "\n"), "\n")
+	if len(lines) != 3 || strings.Join(strings.Fields(lines[0]), " ") != "STARTED SERVICE SPAN DURATION SPANS ERRORS" {
+		t.Fatalf("stdout %q", stdout)
+	}
+	if got := strings.Join(strings.Fields(lines[2]), " "); got != "2025-11-01T12:27:40Z checkout charge 612.0ms 3" {
+		t.Fatalf("row %q", lines[2])
+	}
+}
+
+func TestTracesAskOnTempo(t *testing.T) {
+	cases := []struct {
+		draft string
+		want  string
+	}{
+		{`{"query":"","language":"filters","trace_filters":{"service":"checkout","errors":true},"explanation":"E.","warnings":[]}`, `{resource.service.name = "checkout" && status = error}`},
+		{`{"query":"{ span.http.status_code = 500 }","language":"traceql","trace_filters":null,"explanation":"E.","warnings":[]}`, "{ span.http.status_code = 500 }"},
+	}
+	for _, c := range cases {
+		f := newAskFake(t, "tempo", c.draft, traceSearchFrames)
+		if _, stderr, code := f.run("traces", "--ask", "failed checkout"); code != 0 {
+			t.Fatalf("exit %d, stderr %q", code, stderr)
+		}
+		if got := f.queries[0]["query"]; got != c.want {
+			t.Errorf("query %q, want %q", got, c.want)
+		}
+	}
+}
+
+func TestTracesAskDryRunNeverSearches(t *testing.T) {
+	f := newAskFake(t, "tempo", `{"query":"{ }","language":"traceql","trace_filters":null,"explanation":"E.","warnings":[]}`, traceSearchFrames)
+	stdout, stderr, code := f.run("traces", "--ask", "all traces", "--dry-run")
+	if code != 0 || len(f.queries) != 0 || stdout != "" || stderr != "Query: { }\nE.\n" {
+		t.Fatalf("exit %d, queries %d, stdout %q, stderr %q", code, len(f.queries), stdout, stderr)
+	}
+}
+
+func TestTracesAskUsageErrors(t *testing.T) {
+	cases := []struct {
+		kind string
+		args []string
+		want string
+	}{
+		{"tempo", []string{traceID, "--ask", "slow"}, "give a trace id or --ask, not both"},
+		{"tempo", nil, "traces needs a trace id or --ask"},
+		{"tempo", []string{traceID, "--dry-run"}, "--dry-run needs --ask"},
+		{"tempo", []string{traceID, traceID}, "takes one trace id"},
+		{"prometheus", []string{"--ask", "slow"}, "traces reads Tempo or ClickHouse datasources; ds is prometheus"},
+	}
+	for _, c := range cases {
+		f := newAskFake(t, c.kind, `{}`, traceSearchFrames)
+		_, stderr, code := f.run("traces", c.args...)
+		if code != 2 || !strings.Contains(stderr, c.want) || len(f.drafts)+len(f.queries) != 0 {
+			t.Errorf("%v: exit %d, stderr %q", c.args, code, stderr)
+		}
+	}
+}
