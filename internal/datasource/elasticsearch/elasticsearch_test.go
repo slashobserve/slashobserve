@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/elasticsearch"
@@ -355,19 +354,5 @@ func TestRedirectsAreNotFollowed(t *testing.T) {
 	f.set(http.MethodGet, "/", func(request) reply { return reply{status: http.StatusFound, body: ""} })
 	if err := serve(t, f).CheckHealth(context.Background()); !errors.Is(err, datasource.ErrUnavailable) {
 		t.Fatalf("error = %v, want ErrUnavailable", err)
-	}
-}
-
-func TestQueriesAreNotAvailableYet(t *testing.T) {
-	ds := serve(t, healthyServer(t))
-	r := datasource.TimeRange{From: rangeEnd.Add(-time.Hour), To: rangeEnd}
-	if _, err := ds.QueryInstant(context.Background(), datasource.Query{Text: "a:b"}, r); !errors.Is(err, datasource.ErrInvalidQuery) {
-		t.Fatalf("QueryInstant error = %v", err)
-	}
-	if _, err := ds.QueryRange(context.Background(), datasource.Query{Text: "a:b"}, r, time.Minute); !errors.Is(err, datasource.ErrInvalidQuery) {
-		t.Fatalf("QueryRange error = %v", err)
-	}
-	if diags, err := ds.Lint(context.Background(), "a:b"); err != nil || len(diags) != 0 {
-		t.Fatalf("Lint = %v, %v", diags, err)
 	}
 }

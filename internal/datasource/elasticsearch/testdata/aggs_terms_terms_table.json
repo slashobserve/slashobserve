@@ -1,0 +1,78 @@
+{
+ "request": {
+  "aggs": {
+   "svc": {
+    "terms": {
+     "field": "service.name"
+    },
+    "aggs": {
+     "lvl": {
+      "terms": {
+       "field": "log.level"
+      }
+     }
+    }
+   }
+  }
+ },
+ "response": {
+  "svc": {
+   "buckets": [
+    {
+     "key": "checkout",
+     "doc_count": 3,
+     "lvl": {
+      "buckets": [
+       {
+        "key": "error",
+        "doc_count": 2
+       },
+       {
+        "key": "info",
+        "doc_count": 1
+       }
+      ]
+     }
+    },
+    {
+     "key": "cart",
+     "doc_count": 1,
+     "lvl": {
+      "buckets": [
+       {
+        "key": "info",
+        "doc_count": 1
+       }
+      ]
+     }
+    }
+   ]
+  }
+ },
+ "want": {
+  "table": {
+   "columns": [
+    "service.name",
+    "log.level",
+    "count"
+   ],
+   "rows": [
+    [
+     "checkout",
+     "error",
+     2
+    ],
+    [
+     "checkout",
+     "info",
+     1
+    ],
+    [
+     "cart",
+     "info",
+     1
+    ]
+   ]
+  }
+ }
+}

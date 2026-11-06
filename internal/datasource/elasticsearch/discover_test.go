@@ -254,7 +254,7 @@ func TestVariableValues(t *testing.T) {
 		t.Fatalf("expanded = %v, %v, field %s", expanded, err, termsField(t, f.last(t)))
 	}
 
-	for _, text := range []string{"service.name", "label_values()", `label_values(service.name:"x", level)`, "label_values(a b)", "values(x)"} {
+	for _, text := range []string{"service.name", "label_values()", "label_values(a b)", "values(x)"} {
 		if _, err := ds.VariableValues(context.Background(), datasource.Query{Text: text}, r); !errors.Is(err, datasource.ErrInvalidQuery) {
 			t.Errorf("%q: error = %v, want ErrInvalidQuery", text, err)
 		}

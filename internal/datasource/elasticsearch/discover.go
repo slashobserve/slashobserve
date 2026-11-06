@@ -78,7 +78,7 @@ func (d *Datasource) discoverLabelValues(ctx context.Context, req datasource.Dis
 	if req.Search != "" {
 		size = datasource.MaxDiscoverLimit
 	}
-	values, _, err := d.termsValues(ctx, field, r, size)
+	values, _, err := d.termsValues(ctx, field, r, size, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -123,11 +123,15 @@ func (d *Datasource) discoverSample(ctx context.Context, req datasource.Discover
 	return &datasource.Catalog{Sample: &frame}, nil
 }
 
-func (d *Datasource) termsValues(ctx context.Context, field string, r datasource.TimeRange, size int) ([]string, bool, error) {
+func (d *Datasource) termsValues(ctx context.Context, field string, r datasource.TimeRange, size int, filters []any) ([]string, bool, error) {
+	query := d.rangeQuery(r)
+	if len(filters) > 0 {
+		query = map[string]any{"bool": map[string]any{"filter": append([]any{query}, filters...)}}
+	}
 	raw, err := d.search(ctx, map[string]any{
 		"size":             0,
 		"track_total_hits": false,
-		"query":            d.rangeQuery(r),
+		"query":            query,
 		"aggs":             map[string]any{"values": map[string]any{"terms": map[string]any{"field": field, "size": size}}},
 	})
 	if err != nil {
@@ -180,7 +184,7 @@ func (d *Datasource) VariableValues(ctx context.Context, q datasource.Query, r d
 	if match == nil {
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "%s", variableQueryUsage)
 	}
-	name := strings.TrimSpace(match[1])
+	filterText, name := splitLabelValues(match[1])
 	if name == "" || strings.ContainsAny(name, ", \t\n\"()") {
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "%s", variableQueryUsage)
 	}
@@ -192,7 +196,11 @@ func (d *Datasource) VariableValues(ctx context.Context, q datasource.Query, r d
 	if err != nil {
 		return nil, err
 	}
-	values, more, err := d.termsValues(ctx, field, r, maxVariableValues)
+	filters, err := d.variableFilters(filterText, q.Filters, m)
+	if err != nil {
+		return nil, err
+	}
+	values, more, err := d.termsValues(ctx, field, r, maxVariableValues, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -201,6 +209,30 @@ func (d *Datasource) VariableValues(ctx context.Context, q datasource.Query, r d
 	}
 	slices.Sort(values)
 	return slices.Compact(values), nil
+}
+
+func splitLabelValues(args string) (query, field string) {
+	at := strings.LastIndex(args, ",")
+	if at < 0 {
+		return "", strings.TrimSpace(args)
+	}
+	return args[:at], strings.TrimSpace(args[at+1:])
+}
+
+func (d *Datasource) variableFilters(queryText string, adhoc []datasource.AdhocFilter, m *Mapping) ([]any, error) {
+	clauses, err := adhocClauses(m, adhoc)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(queryText) == "" {
+		return clauses, nil
+	}
+	form, body := Classify(queryText, d.opts.QueryLanguage)
+	user, err := compileUser(form, body, m)
+	if err != nil {
+		return nil, err
+	}
+	return append([]any{user.clause}, clauses...), nil
 }
 
 func filterSortLimit(values []string, search string, limit int) []string {

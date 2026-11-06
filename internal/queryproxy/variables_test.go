@@ -1642,3 +1642,31 @@ func TestSelectingAllLeavesOutAnEmptyStaticOption(t *testing.T) {
 		t.Fatalf("variables = %+v", got)
 	}
 }
+
+func TestImplicitScope(t *testing.T) {
+	plain := spec.Variable{Name: "f", Type: spec.AdhocVariable}
+	applyToAll := spec.Variable{Name: "g", Type: spec.AdhocVariable, ApplyToAll: true}
+	for _, tc := range []struct {
+		dsType                 spec.DatasourceType
+		hasScope, plainApplies bool
+		applyToAllApplies      bool
+	}{
+		{spec.Prometheus, true, true, true},
+		{spec.Elasticsearch, true, true, true},
+		{spec.OpenSearch, true, true, true},
+		{spec.ClickHouse, true, false, true},
+		{spec.Loki, false, false, false},
+		{spec.Tempo, false, false, false},
+	} {
+		applies := implicitScope(string(tc.dsType), queryUse{})
+		if (applies != nil) != tc.hasScope {
+			t.Fatalf("%s: has scope = %v, want %v", tc.dsType, applies != nil, tc.hasScope)
+		}
+		if applies == nil {
+			continue
+		}
+		if applies(plain) != tc.plainApplies || applies(applyToAll) != tc.applyToAllApplies {
+			t.Errorf("%s: plain = %v, applyToAll = %v", tc.dsType, applies(plain), applies(applyToAll))
+		}
+	}
+}

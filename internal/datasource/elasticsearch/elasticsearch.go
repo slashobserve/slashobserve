@@ -1,7 +1,6 @@
 package elasticsearch
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -207,20 +206,4 @@ func (d *Datasource) expand(q datasource.Query, r datasource.TimeRange, interval
 
 func instantInterval(r datasource.TimeRange, minimum time.Duration) time.Duration {
 	return max(time.Second, (r.To.Sub(r.From) / 1000).Truncate(time.Second), minimum)
-}
-
-func (d *Datasource) Lint(context.Context, string) ([]datasource.Diagnostic, error) {
-	return nil, nil
-}
-
-func (d *Datasource) QueryRange(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
-	return nil, d.queriesUnavailable()
-}
-
-func (d *Datasource) QueryInstant(context.Context, datasource.Query, datasource.TimeRange) ([]datasource.Frame, error) {
-	return nil, d.queriesUnavailable()
-}
-
-func (d *Datasource) queriesUnavailable() error {
-	return datasource.Errorf(datasource.ErrInvalidQuery, "queries on %s are not available yet; field discovery and variables are", d.opts.Flavor)
 }

@@ -1,0 +1,100 @@
+{
+ "request": {
+  "aggs": {
+   "t": {
+    "date_histogram": {
+     "field": "@timestamp",
+     "fixed_interval": "1m"
+    },
+    "aggs": {
+     "kinds": {
+      "filters": {
+       "filters": {
+        "errors": {
+         "term": {
+          "log.level": "error"
+         }
+        },
+        "warnings": {
+         "term": {
+          "log.level": "warn"
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "response": {
+  "t": {
+   "buckets": [
+    {
+     "key": 0,
+     "doc_count": 5,
+     "kinds": {
+      "buckets": {
+       "errors": {
+        "doc_count": 2
+       },
+       "warnings": {
+        "doc_count": 1
+       }
+      }
+     }
+    },
+    {
+     "key": 60000,
+     "doc_count": 1,
+     "kinds": {
+      "buckets": {
+       "errors": {
+        "doc_count": 0
+       },
+       "warnings": {
+        "doc_count": 1
+       }
+      }
+     }
+    }
+   ]
+  }
+ },
+ "want": {
+  "series": [
+   {
+    "name": "count",
+    "labels": {
+     "kinds": "errors"
+    },
+    "points": [
+     [
+      0,
+      2
+     ],
+     [
+      60000,
+      0
+     ]
+    ]
+   },
+   {
+    "name": "count",
+    "labels": {
+     "kinds": "warnings"
+    },
+    "points": [
+     [
+      0,
+      1
+     ],
+     [
+      60000,
+      1
+     ]
+    ]
+   }
+  ]
+ }
+}
