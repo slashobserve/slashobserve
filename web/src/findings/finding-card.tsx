@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { lazy, Suspense, useMemo } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 
@@ -10,13 +10,18 @@ import { cn } from "@/lib/utils"
 import { sentence } from "@/observe/queries"
 
 import { EvidencePanel } from "./evidence-panel"
-import { FindingMarkdown } from "./finding-markdown"
 import {
   evidencePanels,
   useMakeDashboard,
   usePinFinding,
   type Finding,
 } from "./queries"
+
+const FindingMarkdown = lazy(() =>
+  import("./finding-markdown").then((module) => ({
+    default: module.FindingMarkdown,
+  }))
+)
 
 const evidenceHeight = 220
 
@@ -88,7 +93,15 @@ export function FindingCard({
   const panels = useMemo(() => evidencePanels(finding), [finding])
   return (
     <div className="flex flex-col gap-3 rounded-card border px-3.5 py-3">
-      <FindingMarkdown markdown={finding.markdown} />
+      <Suspense
+        fallback={
+          <p className="text-sm leading-[1.55] whitespace-pre-wrap">
+            {finding.markdown}
+          </p>
+        }
+      >
+        <FindingMarkdown markdown={finding.markdown} />
+      </Suspense>
       {panels.length > 0 ? (
         <div className="@container">
           <div className="grid grid-cols-1 gap-2.5 @[640px]:grid-cols-2">
