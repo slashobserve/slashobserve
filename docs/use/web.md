@@ -99,6 +99,11 @@ Otherwise each row starts with a `series` column naming the series it came from.
 
 The PNG is the panel's body at twice the screen's pixel density, on the page's background colour, named after the panel title.
 
+## Open in Logs or Traces
+
+**Open in Logs** in a logs panel's menu, and **Open in Traces** in a traces panel's menu, open the explorer with the panel's query, its datasource and the dashboard's time range.
+The item is greyed, with the reason after it, when the panel has several queries, has no datasource, uses variables in its query, or is a ClickHouse SQL trace search.
+
 ## Keyboard shortcuts
 
 Dashboards answer `v`, `e`, `i`, `t z`, `t ←`, `t →`, `d r`, `d k` and `?`.

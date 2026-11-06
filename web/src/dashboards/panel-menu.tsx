@@ -1,7 +1,9 @@
-import type { ReactNode, RefObject } from "react"
+import { useMemo, type ReactNode, type RefObject } from "react"
+import { useNavigate, useSearch } from "@tanstack/react-router"
 import {
   ArrowLeftIcon,
   ChartLineIcon,
+  CompassIcon,
   DownloadIcon,
   EllipsisIcon,
   ExpandIcon,
@@ -24,14 +26,21 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
 import { focusMovedOutOfMenu } from "@/lib/focus"
 import { isEditablePanel } from "@/panel-editor/draft"
 import { useAgentInfo } from "@/observe/queries"
 import { isRenderable } from "@/panels"
 import { shortcutText } from "@/shortcuts/chords"
-import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
+import {
+  isDataPanel,
+  panelTitle,
+  resolveDatasourceRef,
+  type LayoutPanel,
+} from "@/spec"
 
-import { useSetDashboardSearch } from "./search"
+import { exploreProblemText, exploreTarget } from "./explore-link"
+import { useSetDashboardSearch, validateDashboardSearch } from "./search"
 
 type Props = {
   panel: LayoutPanel
@@ -73,6 +82,13 @@ export function PanelMenu({
   composerRef,
 }: Props) {
   const setSearch = useSetDashboardSearch()
+  const navigate = useNavigate()
+  const rawSearch = useSearch({ strict: false })
+  const dashboardSearch = useMemo(
+    () => validateDashboardSearch(rawSearch),
+    [rawSearch]
+  )
+  const datasources = useDatasources().data
   const agentAvailable = useAgentInfo().data?.available === true
   const items: MenuItem[] = []
   if (canComment) {
@@ -167,6 +183,29 @@ export function PanelMenu({
         }))
       },
       shortcut: shortcutText("inspect"),
+    })
+  }
+  if (data && (panel.type === "logs" || panel.type === "traces")) {
+    const explorer = panel.type === "logs" ? "Open in Logs" : "Open in Traces"
+    const explore = exploreTarget(
+      panel,
+      (ref) => resolveDatasourceRef(ref, dashboardSearch.vars),
+      (uid) => datasourceTypeOf(datasources, uid),
+      { from: dashboardSearch.from, to: dashboardSearch.to }
+    )
+    items.push({
+      id: "explore",
+      label:
+        "problem" in explore
+          ? `${explorer} (${exploreProblemText(explore.problem)})`
+          : explorer,
+      icon: <CompassIcon aria-hidden="true" />,
+      disabled: "problem" in explore,
+      onSelect: () => {
+        if ("problem" in explore) return
+        focusAfterClose = "none"
+        void navigate(explore.target)
+      },
     })
   }
   if (onDownloadCsv) {
