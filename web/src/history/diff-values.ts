@@ -6,6 +6,7 @@ export type ValueBlock = {
   label?: string
   text: string
   options: string
+  json?: true
 }
 
 function isQueryEntry(value: unknown): value is PanelQuery {
@@ -114,6 +115,37 @@ function reorderText(
     .join("\n")
 }
 
+type WholePanel = {
+  type: string
+  gridPos: object
+  title?: unknown
+  queries?: unknown
+}
+
+function isWholePanel(value: unknown): value is WholePanel {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false
+  }
+  const { type, gridPos } = value as { type?: unknown; gridPos?: unknown }
+  return (
+    typeof type === "string" && typeof gridPos === "object" && gridPos !== null
+  )
+}
+
+function panelSummary(panel: WholePanel): string {
+  return typeof panel.title === "string" && panel.title !== ""
+    ? `${panel.title} · ${panel.type}`
+    : panel.type
+}
+
+function panelBlocks(panel: WholePanel): ValueBlock[] {
+  return [
+    { label: "Panel", text: panelSummary(panel), options: "" },
+    ...queryBlocks(queryEntries("queries", panel.queries) ?? [], true),
+    { text: plainText(panel), options: "", json: true },
+  ]
+}
+
 function plainText(value: unknown): string {
   if (typeof value === "string") return value
   if (value === undefined) return ""
@@ -132,6 +164,7 @@ export function formatValue(
   }
   const entries = queryEntries(field, value)
   if (entries !== null) return queryBlocks(entries, labelQueries)
+  if (isWholePanel(value)) return panelBlocks(value)
   return (
     queryChangeBlocks(field, value) ?? [{ text: plainText(value), options: "" }]
   )
@@ -144,6 +177,10 @@ export function limitBlocks(
   const shown: ValueBlock[] = []
   let remaining = limit
   for (const block of blocks) {
+    if (block.json) {
+      shown.push(block)
+      continue
+    }
     if (remaining === 0) return { blocks: shown, cut: true }
     const { text, options } = block
     if (text.length + options.length <= remaining) {

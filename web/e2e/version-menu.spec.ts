@@ -150,7 +150,7 @@ for (const scheme of themes) {
         .click()
       await expect(page).toHaveURL(new RegExp(`/d/${id}/versions\\?back=`))
       await expect(
-        page.getByRole("heading", { level: 1, name: /: history$/ })
+        page.getByRole("heading", { level: 1, name: /^Versions of / })
       ).toBeVisible()
 
       await page.getByRole("link", { name: "Back to dashboard" }).click()

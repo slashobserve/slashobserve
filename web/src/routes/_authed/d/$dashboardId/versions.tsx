@@ -14,7 +14,7 @@ import { useKnownLatestVersion } from "@/history/use-version-history"
 import { VersionDiff } from "@/history/version-diff"
 import { VersionList } from "@/history/version-list"
 import { dashboardLink } from "@/lib/links"
-import { ThemeSwitch } from "@/shell/theme-switch"
+import { Sidebar } from "@/shell/sidebar"
 
 type FocusRequest = { from: number; to: number }
 
@@ -58,7 +58,7 @@ function HistoryRoute() {
   useEffect(() => {
     if (title === undefined) return
     const previous = document.title
-    document.title = `History - ${title} - SlashObserve`
+    document.title = `Versions of ${title} - SlashObserve`
     return () => {
       document.title = previous
     }
@@ -97,51 +97,51 @@ function HistoryRoute() {
     search.from !== undefined || search.to !== undefined || latestVersion >= 2
 
   return (
-    <>
-      <header className="flex items-start justify-between gap-x-6 border-b px-6 py-2.5">
-        <div className="flex min-h-[30px] min-w-0 flex-row items-center gap-2.5 narrow:flex-col narrow:items-start narrow:gap-1">
-          <Link
-            {...dashboardLink(dashboardId, title)}
-            search={dashboardSearchFromBack(search.back)}
-            className="flex shrink-0 items-center gap-1.5 rounded-sm text-[13px] text-muted-foreground no-underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <ArrowLeftIcon aria-hidden="true" className="size-3.5" />
-            Back to dashboard
-          </Link>
-          <span
-            aria-hidden="true"
-            className="text-muted-foreground narrow:hidden"
-          >
-            /
-          </span>
-          <h1 className="min-w-0 text-[17px] font-semibold wrap-anywhere">
-            {title ? `${title}: history` : "History"}
-          </h1>
-        </div>
-        <div className="ml-auto flex flex-none items-center">
-          <ThemeSwitch />
-        </div>
-      </header>
-      <main className="mx-auto w-full max-w-5xl p-6">
-        <VersionList
-          dashboardId={dashboardId}
-          latestVersion={latestVersion}
-          back={search.back}
-          onCompare={onCompare}
-          onRestored={onRestored}
-        />
-        {showDiff && latestVersion > 0 ? (
-          <VersionDiff
+    <div className="flex min-h-svh bg-chrome">
+      <Sidebar rail />
+      <div className="flex min-w-0 flex-1 flex-col bg-background text-foreground">
+        <header className="flex items-start gap-x-6 border-b px-6 py-2.5">
+          <div className="flex min-h-[30px] min-w-0 flex-row items-center gap-2.5 narrow:flex-col narrow:items-start narrow:gap-1">
+            <Link
+              {...dashboardLink(dashboardId, title)}
+              search={dashboardSearchFromBack(search.back)}
+              className="flex shrink-0 items-center gap-1.5 rounded-sm text-[13px] text-muted-foreground no-underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <ArrowLeftIcon aria-hidden="true" className="size-3.5" />
+              Back to dashboard
+            </Link>
+            <span
+              aria-hidden="true"
+              className="text-muted-foreground narrow:hidden"
+            >
+              /
+            </span>
+            <h1 className="min-w-0 text-[17px] font-semibold wrap-anywhere">
+              {title ? `Versions of ${title}` : "Versions"}
+            </h1>
+          </div>
+        </header>
+        <main className="mx-auto w-full max-w-5xl p-6">
+          <VersionList
             dashboardId={dashboardId}
             latestVersion={latestVersion}
-            from={search.from}
-            to={search.to}
-            focusRequest={focusRequest}
-            onFocused={onFocused}
-            onChange={onRange}
+            back={search.back}
+            onCompare={onCompare}
+            onRestored={onRestored}
           />
-        ) : null}
-      </main>
-    </>
+          {showDiff && latestVersion > 0 ? (
+            <VersionDiff
+              dashboardId={dashboardId}
+              latestVersion={latestVersion}
+              from={search.from}
+              to={search.to}
+              focusRequest={focusRequest}
+              onFocused={onFocused}
+              onChange={onRange}
+            />
+          ) : null}
+        </main>
+      </div>
+    </div>
   )
 }

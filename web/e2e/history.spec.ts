@@ -45,7 +45,7 @@ async function createHistory(request: APIRequestContext) {
 async function openHistory(page: Page, id: string, search = "") {
   await page.goto(`/d/${id}/versions${search}`)
   await expect(
-    page.getByRole("heading", { level: 1, name: /: history$/ })
+    page.getByRole("heading", { level: 1, name: /^Versions of / })
   ).toBeVisible()
   await expect(page.getByRole("table", { name: "Versions" })).toBeVisible()
 }
@@ -93,7 +93,7 @@ test("lists versions newest first", async ({ page, request }) => {
   await openVersionsFromMenu(page)
   await expect(page).toHaveURL(new RegExp(`/d/${id}/versions$`))
   await expect(page).toHaveTitle(
-    `History - ${spec.title} renamed - SlashObserve`
+    `Versions of ${spec.title} renamed - SlashObserve`
   )
 
   const rows = page.getByRole("table", { name: "Versions" }).getByRole("row")

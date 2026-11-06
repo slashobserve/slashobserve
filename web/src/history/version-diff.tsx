@@ -135,8 +135,45 @@ function VersionSelect({
   )
 }
 
+function BlockText({ block, id }: { block: ValueBlock; id?: string }) {
+  return (
+    <pre
+      id={id}
+      tabIndex={0}
+      className="max-h-64 overflow-auto px-2.5 py-1.5 font-mono text-xs break-words whitespace-pre-wrap outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {block.text === "" ? (
+        <span className="font-sans text-muted-foreground">(empty)</span>
+      ) : (
+        block.text
+      )}
+    </pre>
+  )
+}
+
+function JsonBlockView({ block }: { block: ValueBlock }) {
+  const jsonId = useId()
+  const [shown, setShown] = useState(false)
+  return (
+    <div>
+      <Button
+        variant="ghost"
+        size="xs"
+        className="mx-1.5 my-1"
+        aria-expanded={shown}
+        aria-controls={shown ? jsonId : undefined}
+        onClick={() => setShown(!shown)}
+      >
+        {shown ? "Hide JSON" : "Show JSON"}
+      </Button>
+      {shown ? <BlockText block={block} id={jsonId} /> : null}
+    </div>
+  )
+}
+
 function BlockView({ block }: { block: ValueBlock }) {
   const labelId = useId()
+  if (block.json) return <JsonBlockView block={block} />
   return (
     <div
       role={block.label ? "group" : undefined}
@@ -147,16 +184,7 @@ function BlockView({ block }: { block: ValueBlock }) {
           {block.label}
         </p>
       ) : null}
-      <pre
-        tabIndex={0}
-        className="max-h-64 overflow-auto px-2.5 py-1.5 font-mono text-xs break-words whitespace-pre-wrap outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        {block.text === "" ? (
-          <span className="font-sans text-muted-foreground">(empty)</span>
-        ) : (
-          block.text
-        )}
-      </pre>
+      <BlockText block={block} />
       {block.options !== "" ? (
         <p className="px-2.5 pb-1.5 text-xs wrap-anywhere text-muted-foreground">
           {block.options}
@@ -184,7 +212,7 @@ function ValueBox({
       role="group"
       aria-label={caption}
       className={cn(
-        "min-w-0 rounded-md border",
+        "min-w-0 rounded-control border",
         tone === "before" ? "bg-destructive/10" : "bg-threshold-ok/10"
       )}
     >

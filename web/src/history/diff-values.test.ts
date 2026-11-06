@@ -231,6 +231,46 @@ describe("formatValue for reorders", () => {
   )
 })
 
+describe("formatValue for a whole panel", () => {
+  const latency = {
+    id: "latency",
+    type: "timeseries",
+    title: "Latency",
+    gridPos: { x: 0, y: 0, w: 12, h: 8 },
+    queries: [{ query: "histogram_quantile(0.95, x)", legend: "p95" }],
+  }
+
+  test("an added panel reads as a summary, its queries and hidden JSON", () => {
+    expect(formatValue("", latency, titles, false, false)).toEqual([
+      { label: "Panel", text: "Latency · timeseries", options: "" },
+      {
+        label: "Query A",
+        text: "histogram_quantile(0.95, x)",
+        options: "legend: p95",
+      },
+      { text: JSON.stringify(latency, null, 2), options: "", json: true },
+    ])
+  })
+
+  test("a panel without a title or queries shows its type and JSON", () => {
+    const note = { id: "n", type: "text", gridPos: { x: 0, y: 0, w: 6, h: 4 } }
+    expect(formatValue("", note, titles, false, false)).toEqual([
+      { label: "Panel", text: "text", options: "" },
+      { text: JSON.stringify(note, null, 2), options: "", json: true },
+    ])
+  })
+
+  test.each([
+    ["an object without gridPos", { type: "timeseries", title: "x" }],
+    ["a non-string type", { type: 1, gridPos: { x: 0 } }],
+    ["a null gridPos", { type: "stat", gridPos: null }],
+  ])("a non-panel object stays one JSON block for %s", (_, value) => {
+    expect(formatValue("", value, titles, false, false)).toEqual([
+      { text: JSON.stringify(value, null, 2), options: "" },
+    ])
+  })
+})
+
 describe("limitBlocks", () => {
   const block = (text: string, options = "", label?: string): ValueBlock => ({
     label,
@@ -290,6 +330,14 @@ describe("limitBlocks", () => {
     expect(limitBlocks([block("abcdef", "legend: long")], 4).blocks).toEqual([
       block("...", "lege..."),
     ])
+  })
+
+  test("keeps a JSON block whole without counting it", () => {
+    const json: ValueBlock = { text: "j".repeat(50), options: "", json: true }
+    expect(limitBlocks([block("abc"), json], 3)).toEqual({
+      blocks: [block("abc"), json],
+      cut: false,
+    })
   })
 
   test("stops at exactly zero remaining, even before an empty block", () => {
