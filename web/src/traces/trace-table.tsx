@@ -7,16 +7,11 @@ import { zonedDateTimeMs } from "@/lib/time"
 
 import {
   countText,
+  durationText,
   hasErrorCounts,
   hasSpanCounts,
   type TraceRow,
 } from "./trace-rows"
-
-function durationText(ms: number | null): string {
-  return ms === null
-    ? "-"
-    : `${ms.toLocaleString("en", { maximumFractionDigits: 1 })} ms`
-}
 
 function TraceStatus({ errors }: { errors: number }) {
   return errors > 0 ? (

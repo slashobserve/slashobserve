@@ -4,9 +4,17 @@ import type { WireFrame } from "@/dashboards/queries"
 
 import {
   countText,
+  defaultTraceSort,
+  durationText,
   hasErrorCounts,
   hasSpanCounts,
+  nextSort,
+  openTraceLabel,
+  percentile,
+  sortHint,
+  sortTraceRows,
   traceRows,
+  type TraceRow,
 } from "./trace-rows"
 
 describe("traceRows", () => {
@@ -180,5 +188,124 @@ describe("countText", () => {
     expect(countText(1, "error")).toBe("1 error")
     expect(countText(3, "error")).toBe("3 errors")
     expect(countText(1200, "span")).toBe("1,200 spans")
+  })
+})
+
+describe("durationText", () => {
+  it("formats milliseconds with one decimal at most", () => {
+    expect(durationText(12.54)).toBe("12.5 ms")
+    expect(durationText(2410)).toBe("2,410 ms")
+    expect(durationText(null)).toBe("-")
+  })
+})
+
+describe("openTraceLabel", () => {
+  const row: TraceRow = {
+    traceId: "4bf92f3577b34da6a3ce929d0e0e4736",
+    start: null,
+    service: "checkout",
+    span: "POST /checkout",
+    durationMs: 2410,
+    spans: null,
+    errors: null,
+  }
+
+  it("names the short id, the span and the duration in seconds", () => {
+    expect(openTraceLabel(row)).toBe(
+      "Open trace 4bf92f35, POST /checkout, 2.41 seconds"
+    )
+  })
+
+  it("leaves out the span and duration it does not have", () => {
+    expect(openTraceLabel({ ...row, span: "", durationMs: null })).toBe(
+      "Open trace 4bf92f35"
+    )
+  })
+})
+
+function row(overrides: Partial<TraceRow> & { traceId: string }): TraceRow {
+  return {
+    start: null,
+    service: "",
+    span: "",
+    durationMs: null,
+    spans: null,
+    errors: null,
+    ...overrides,
+  }
+}
+
+describe("sortTraceRows", () => {
+  const rows = [
+    row({ traceId: "a", durationMs: 5, service: "cart" }),
+    row({ traceId: "b", durationMs: null, service: "" }),
+    row({ traceId: "c", durationMs: 50, service: "Billing" }),
+    row({ traceId: "d", durationMs: 5, service: "auth" }),
+  ]
+  const ids = (sorted: TraceRow[]) => sorted.map((r) => r.traceId)
+
+  it("puts rows without a value last in both directions and keeps ties in order", () => {
+    expect(
+      ids(sortTraceRows(rows, { key: "duration", direction: "descending" }))
+    ).toEqual(["c", "a", "d", "b"])
+    expect(
+      ids(sortTraceRows(rows, { key: "duration", direction: "ascending" }))
+    ).toEqual(["a", "d", "c", "b"])
+  })
+
+  it("compares names case-insensitively and treats empty names as missing", () => {
+    expect(
+      ids(sortTraceRows(rows, { key: "service", direction: "ascending" }))
+    ).toEqual(["d", "c", "a", "b"])
+  })
+
+  it("returns a copy in the original order without a sort", () => {
+    const unsorted = sortTraceRows(rows, null)
+    expect(ids(unsorted)).toEqual(["a", "b", "c", "d"])
+    expect(unsorted).not.toBe(rows)
+  })
+})
+
+describe("nextSort", () => {
+  it("opens slowest first and cycles duration through descending, ascending, none", () => {
+    expect(defaultTraceSort).toEqual({ key: "duration", direction: "descending" })
+    const first = nextSort(null, "duration")
+    expect(first).toEqual({ key: "duration", direction: "descending" })
+    const second = nextSort(first, "duration")
+    expect(second).toEqual({ key: "duration", direction: "ascending" })
+    expect(nextSort(second, "duration")).toBeNull()
+  })
+
+  it("cycles other columns through ascending, descending, none", () => {
+    const first = nextSort(defaultTraceSort, "service")
+    expect(first).toEqual({ key: "service", direction: "ascending" })
+    const second = nextSort(first, "service")
+    expect(second).toEqual({ key: "service", direction: "descending" })
+    expect(nextSort(second, "service")).toBeNull()
+  })
+})
+
+describe("sortHint", () => {
+  it("names the active order before the sorting hint", () => {
+    expect(sortHint(defaultTraceSort)).toBe(
+      "Slowest first. Click a column to sort."
+    )
+    expect(sortHint({ key: "start", direction: "descending" })).toBe(
+      "Newest first. Click a column to sort."
+    )
+    expect(sortHint(null)).toBe("Click a column to sort.")
+  })
+})
+
+describe("percentile", () => {
+  it("uses the nearest rank", () => {
+    const values = Array.from({ length: 100 }, (_, i) => i + 1)
+    expect(percentile(values, 95)).toBe(95)
+    expect(percentile([30, 10, 20], 50)).toBe(20)
+    expect(percentile([7], 95)).toBe(7)
+  })
+
+  it("is null for no values", () => {
+    expect(percentile([], 95)).toBeNull()
   })
 })
