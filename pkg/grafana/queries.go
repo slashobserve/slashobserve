@@ -52,6 +52,7 @@ type targetBuild struct {
 	src      *sourceDS
 	used     map[string]bool
 	rewrites []string
+	rules    targetRules
 
 	splitInstant bool
 	expanded     bool
@@ -61,6 +62,11 @@ type targetBuild struct {
 	timeType     timeColumnType
 	roundSeconds string
 	extrapolate  bool
+}
+
+type targetRules struct {
+	silent   map[string]bool
+	defaults map[string]any
 }
 
 var targetSilent = map[string]bool{
@@ -224,6 +230,8 @@ const (
 	queryPrometheus  queryKind = "prometheus"
 	queryAltinity    queryKind = "altinity"
 	queryClickHouse  queryKind = "clickhouse"
+	queryLoki        queryKind = "loki"
+	queryTempo       queryKind = "tempo"
 )
 
 func altinityFlavor(target map[string]any, src *sourceDS) bool {
@@ -248,6 +256,10 @@ func queryKindOf(ref dsRef, target map[string]any) queryKind {
 		return queryUnsupported
 	case ref.src.kind == kindPrometheus:
 		return queryPrometheus
+	case ref.src.kind == kindLoki:
+		return queryLoki
+	case ref.src.kind == kindTempo:
+		return queryTempo
 	case altinityFlavor(target, ref.src):
 		return queryAltinity
 	}
@@ -281,10 +293,16 @@ func (tb *targetBuild) convert(ref dsRef, declared map[string]bool) (spec.Query,
 	case queryDashboard:
 		return tb.dashboardSource()
 	case queryUnsupported:
-		return spec.Query{}, ref.label() + " is not supported yet."
+		return spec.Query{}, ref.unsupportedReason()
 	case queryPrometheus:
 		tb.src = ref.src
 		q, reason = tb.prometheus()
+	case queryLoki:
+		tb.src = ref.src
+		q, reason = tb.loki()
+	case queryTempo:
+		tb.src = ref.src
+		q, reason = tb.tempo()
 	case queryAltinity:
 		tb.src = ref.src
 		q, reason = tb.altinity(declared)
@@ -304,15 +322,18 @@ func (tb *targetBuild) reportUnconsumed() {
 		v := tb.t[key]
 		path := tb.path + "." + key
 		def, hasDefault := targetDefaults[key]
+		kindDef, hasKindDefault := tb.rules.defaults[key]
 		switch {
 		case !present(v), tb.b.issues.covers(path):
 		case tb.used[key]:
 			tb.b.record(path, outcomeMapped)
-		case targetSilent[key]:
+		case targetSilent[key], tb.rules.silent[key]:
 			tb.b.record(path, outcomeBookkeeping)
 		case targetIgnored[key] != "":
 			tb.b.recordImplicit(path, outcomeNoEffect)
 		case hasDefault && sameJSON(v, def):
+			tb.b.recordImplicit(path, outcomeDefault)
+		case hasKindDefault && sameJSON(v, kindDef):
 			tb.b.recordImplicit(path, outcomeDefault)
 		default:
 			tb.b.partial(path, genericQueryNote)
@@ -347,20 +368,24 @@ func (tb *targetBuild) minStepOf(key string) (string, bool) {
 	if value, ok := tb.b.c.minStep(text); ok {
 		return value, true
 	}
-	tb.partial(key, fmt.Sprintf("The min step %s cannot be kept; SlashObserve picks the step.", text))
+	tb.partial(key, minStepLostReason(text))
 	return "", true
 }
 
-func (tb *targetBuild) resolutionFactor() int {
-	tb.use("intervalFactor")
-	factor, ok := asFloat(tb.t["intervalFactor"])
+func minStepLostReason(text string) string {
+	return fmt.Sprintf("The min step %s cannot be kept; SlashObserve picks the step.", text)
+}
+
+func (tb *targetBuild) resolutionFactor(key string) int {
+	tb.use(key)
+	factor, ok := asFloat(tb.t[key])
 	switch {
 	case !ok || factor == 1:
 		return 0
 	case factor == math.Trunc(factor) && factor >= minResolutionFactor && factor <= maxResolutionFactor:
 		return int(factor)
 	}
-	tb.partial("intervalFactor", "The resolution factor of this query is not supported yet.")
+	tb.partial(key, "The resolution factor of this query is not supported yet.")
 	return 0
 }
 
@@ -383,7 +408,7 @@ func (tb *targetBuild) prometheus() (spec.Query, string) {
 	if strings.TrimSpace(expr) == "" {
 		return spec.Query{}, emptyQueryReason
 	}
-	q := spec.Query{Query: expr, Legend: tb.legend(), Interval: tb.minInterval(), IntervalFactor: tb.resolutionFactor()}
+	q := spec.Query{Query: expr, Legend: tb.legend(), Interval: tb.minInterval(), IntervalFactor: tb.resolutionFactor("intervalFactor")}
 	if truthy(tb.t["instant"]) {
 		tb.splitInstant = truthy(tb.t["range"])
 		q.Instant = !tb.splitInstant
@@ -454,7 +479,7 @@ func (tb *targetBuild) altinity(declared map[string]bool) (spec.Query, string) {
 	if reason != "" {
 		return spec.Query{}, reason
 	}
-	q := spec.Query{Query: text, Interval: tb.minInterval(), IntervalFactor: tb.resolutionFactor()}
+	q := spec.Query{Query: text, Interval: tb.minInterval(), IntervalFactor: tb.resolutionFactor("intervalFactor")}
 	switch asString(tb.t["format"]) {
 	case "table":
 		q.Format = "table"

@@ -42,7 +42,7 @@ func describe(err error) string {
 func unmatched(e *imports.UnresolvedError) int {
 	n := 0
 	for _, d := range e.Datasources {
-		if d.Kind != nil && d.Match == nil {
+		if d.Unmatched() {
 			n++
 		}
 	}

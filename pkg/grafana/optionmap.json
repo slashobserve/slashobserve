@@ -12099,6 +12099,97 @@
    }
   }
  },
+ "query:loki": {
+  "expr": {
+   "fields": [
+    "query"
+   ],
+   "values": {
+    "s:sum(rate({app=\"web\"}[$__auto]))": [
+     "query"
+    ],
+    "s:{app=\"web\"}": [
+     "query"
+    ]
+   }
+  },
+  "hide": {
+   "fields": [
+    "hide"
+   ],
+   "values": {
+    "b:true": [
+     "hide"
+    ]
+   }
+  },
+  "instant": {
+   "fields": [
+    "instant"
+   ],
+   "values": {
+    "b:true": [
+     "instant"
+    ]
+   }
+  },
+  "legendFormat": {
+   "fields": [
+    "legend"
+   ],
+   "values": {
+    "s:{{app}}": [
+     "legend"
+    ]
+   }
+  },
+  "queryType": {
+   "fields": [
+    "instant"
+   ],
+   "values": {
+    "s:instant": [
+     "instant"
+    ]
+   }
+  },
+  "refId": {
+   "fields": [
+    "ref"
+   ],
+   "values": {
+    "s:B": [
+     "ref"
+    ]
+   }
+  },
+  "resolution": {
+   "fields": [
+    "intervalFactor"
+   ],
+   "values": {
+    "n:10": [
+     "intervalFactor"
+    ],
+    "n:2": [
+     "intervalFactor"
+    ],
+    "n:5": [
+     "intervalFactor"
+    ]
+   }
+  },
+  "step": {
+   "fields": [
+    "interval"
+   ],
+   "values": {
+    "s:1m": [
+     "interval"
+    ]
+   }
+  }
+ },
  "query:prometheus": {
   "": {
    "fields": [
@@ -12257,6 +12348,38 @@
    "values": {
     "n:30": [
      "interval"
+    ]
+   }
+  }
+ },
+ "query:tempo": {
+  "hide": {
+   "fields": [
+    "hide"
+   ],
+   "values": {
+    "b:true": [
+     "hide"
+    ]
+   }
+  },
+  "query": {
+   "fields": [
+    "query"
+   ],
+   "values": {
+    "s:{ duration \u003e 1s }": [
+     "query"
+    ]
+   }
+  },
+  "refId": {
+   "fields": [
+    "ref"
+   ],
+   "values": {
+    "s:B": [
+     "ref"
     ]
    }
   }
@@ -14416,6 +14539,14 @@
      "datasourceType",
      "default"
     ],
+    "s:loki": [
+     "datasourceType",
+     "default"
+    ],
+    "s:tempo": [
+     "datasourceType",
+     "default"
+    ],
     "s:vertamedia-clickhouse-datasource": [
      "datasourceType",
      "default"
@@ -14660,6 +14791,9 @@
    ],
    "values": {
     "type:grafana-clickhouse-datasource": [
+     "datasource"
+    ],
+    "type:loki": [
      "datasource"
     ]
    }

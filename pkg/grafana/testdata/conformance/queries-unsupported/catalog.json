@@ -6,6 +6,6 @@
   ],
   "root": "panels[0]",
   "entries": [
-    { "id": "targets[1]=hidden-loki-query", "path": "targets[1]", "value": {"refId": "B", "expr": "{app=\"web\"}", "hide": true, "datasource": {"type": "loki", "uid": "loki"}}, "with": {"datasource": {"type": "datasource", "uid": "-- Mixed --"}}, "expect": "bookkeeping" }
+    { "id": "targets[1]=hidden-elasticsearch-query", "path": "targets[1]", "value": {"refId": "B", "query": "service:web", "hide": true, "datasource": {"type": "elasticsearch", "uid": "es"}}, "with": {"datasource": {"type": "datasource", "uid": "-- Mixed --"}}, "expect": "bookkeeping" }
   ]
 }

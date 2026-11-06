@@ -60,7 +60,7 @@ func TestDatasourcesShowTheAutomaticMatch(t *testing.T) {
 	}
 	want := []grafanaconn.DatasourceMatch{
 		{UID: "graf-ch", Name: "ClickHouse", Type: "grafana-clickhouse-datasource", Kind: "clickhouse", Candidates: []string{"ch"}, MatchedUID: "ch"},
-		{UID: "graf-loki", Name: "Loki", Type: "loki", Candidates: []string{}},
+		{UID: "graf-loki", Name: "Loki", Type: "loki", Kind: "loki", Candidates: []string{}},
 		{UID: "graf-prom", Name: "Prometheus", Type: "prometheus", Kind: "prometheus", Candidates: []string{"prom"}, MatchedUID: "prom"},
 	}
 	if !reflect.DeepEqual(got, want) {

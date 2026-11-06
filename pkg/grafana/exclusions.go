@@ -62,6 +62,13 @@ var (
 	decisionPhotoFrames              = decision{"photo-frames", "Photo frames are not part of SlashObserve."}
 	decisionTransformationOptions    = decision{"transformation-options", "This transformation option is not part of SlashObserve."}
 	decisionDebugPanel               = decision{"debug-panel", "Grafana's debug panel modes are not part of SlashObserve; the panel shows its queries as a table, or as text when it has none."}
+	decisionLokiLineLimit            = decision{"loki-line-limit", "A line limit per Loki query is not part of SlashObserve; a logs panel shows up to the datasource's row limit."}
+	decisionLokiDirection            = decision{"loki-direction", "Reading Loki lines oldest first is not part of SlashObserve."}
+	decisionTempoSearchBuilder       = decision{"tempo-search-builder", "The Tempo search builder is not part of SlashObserve; write the search as a TraceQL query."}
+	decisionTempoServiceGraph        = decision{"tempo-service-graph", "The Tempo service graph is not part of SlashObserve."}
+	decisionTraceUpload              = decision{"trace-upload", "Uploaded trace files are not part of SlashObserve."}
+	decisionTraceQLMetrics           = decision{"traceql-metrics", "TraceQL metrics queries are not part of SlashObserve."}
+	decisionTempoSearchLimits        = decision{"tempo-search-limits", "Trace limits, span-set limits and span tables on a Tempo query are not part of SlashObserve; a search lists one row per trace."}
 )
 
 var decisions = []decision{
@@ -75,6 +82,8 @@ var decisions = []decision{
 	decisionReadOnlyDashboards, decisionLinkPlacement, decisionControlsMenu, decisionMultiDatasourceVariables,
 	decisionMappingIcons, decisionMapLibre, decisionDynamicGeoJSON, decisionLastPointTracker,
 	decisionPhotoFrames, decisionTransformationOptions, decisionDebugPanel,
+	decisionLokiLineLimit, decisionLokiDirection, decisionTempoSearchBuilder, decisionTempoServiceGraph,
+	decisionTraceUpload, decisionTraceQLMetrics, decisionTempoSearchLimits,
 }
 
 var valueAxisPanels = []spec.PanelType{spec.Timeseries, spec.Trend, spec.Candlestick, spec.Histogram, spec.BarChart, spec.XYChart}
@@ -183,6 +192,12 @@ var excludedOptions = slices.Concat(
 		onQuery(queryAltinity, excludedOption{path: "streamingMode", decision: decisionLive}),
 		onQuery(queryAltinity, excludedOption{path: "streamingLookback", decision: decisionLive}),
 		onQuery(queryPrometheus, excludedOption{path: "scopes", decision: decisionScopes}),
+		onQuery(queryLoki, excludedOption{path: "maxLines", decision: decisionLokiLineLimit}),
+		onQuery(queryLoki, excludedOption{path: "direction", values: []any{"forward", "scan"}, decision: decisionLokiDirection}),
+		onQuery(queryLoki, excludedOption{path: "queryType", values: []any{"stream"}, decision: decisionLive}),
+		onQuery(queryTempo, excludedOption{path: "limit", decision: decisionTempoSearchLimits}),
+		onQuery(queryTempo, excludedOption{path: "spss", decision: decisionTempoSearchLimits}),
+		onQuery(queryTempo, excludedOption{path: "tableType", values: []any{"spans", "raw"}, decision: decisionTempoSearchLimits}),
 
 		anyTransform(excludedOption{path: "topic", values: []any{"annotations"}, decision: decisionAnnotations}),
 		onTransform("convertFrameType", excludedOption{key: "options.targetType", values: []any{"annotation", "timeRegion", "exemplar"}, decision: decisionTransformationOptions}),

@@ -1,0 +1,32 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "packages/grafana-schema/src/raw/composable/loki/dataquery/x/LokiDataQuery_types.gen.ts",
+    "packages/grafana-data/src/types/dataQuery.ts"
+  ],
+  "root": "panels[0].targets[0]",
+  "entries": [
+    { "id": "expr=log-selector", "path": "expr", "value": "{app=\"web\"}" },
+    { "id": "expr=auto-interval", "path": "expr", "value": "sum(rate({app=\"web\"}[$__auto]))" },
+    { "id": "legendFormat=app", "path": "legendFormat", "value": "{{app}}" },
+    { "id": "legendFormat=on-log-query", "path": "legendFormat", "value": "{{app}}", "with": {"expr": "{app=\"web\"}"}, "expect": "bookkeeping" },
+    { "id": "queryType=instant", "path": "queryType", "value": "instant" },
+    { "id": "queryType=range", "path": "queryType", "value": "range", "expect": "bookkeeping" },
+    { "id": "queryType=stream", "path": "queryType", "value": "stream", "expect": "excluded" },
+    { "id": "instant=true", "path": "instant", "value": true },
+    { "id": "range=true", "path": "range", "value": true, "expect": "bookkeeping" },
+    { "id": "resolution=2", "path": "resolution", "value": 2 },
+    { "id": "resolution=5", "path": "resolution", "value": 5 },
+    { "id": "resolution=10", "path": "resolution", "value": 10 },
+    { "id": "step=1m", "path": "step", "value": "1m", "expect": "convert_noted" },
+    { "id": "step=interval-macro", "path": "step", "value": "$__interval", "expect": "bookkeeping" },
+    { "id": "maxLines=100+log-query", "path": "maxLines", "value": 100, "with": {"expr": "{app=\"web\"}"}, "expect": "excluded" },
+    { "id": "maxLines=100", "path": "maxLines", "value": 100, "expect": "bookkeeping" },
+    { "id": "direction=forward", "path": "direction", "value": "forward", "with": {"expr": "{app=\"web\"}"}, "expect": "excluded" },
+    { "id": "direction=scan", "path": "direction", "value": "scan", "with": {"expr": "{app=\"web\"}"}, "expect": "excluded" },
+    { "id": "editorMode=builder", "path": "editorMode", "value": "builder", "expect": "bookkeeping" },
+    { "id": "supportingQueryType=logsVolume", "path": "supportingQueryType", "value": "logsVolume", "expect": "bookkeeping" },
+    { "id": "hide=true", "path": "hide", "value": true },
+    { "id": "refId=B", "path": "refId", "value": "B" }
+  ]
+}
