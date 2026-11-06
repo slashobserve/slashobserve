@@ -224,7 +224,7 @@ function ResizeGrip({
   )
 }
 
-function SidebarContent({
+export function SidebarContent({
   collapsed,
   onNavigate,
 }: {
