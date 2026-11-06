@@ -4,7 +4,7 @@ import { ApiError } from "@/api/errors"
 
 import type { Panel } from "@/spec"
 
-import { maxDataPointsFor, panelRetry } from "./use-panel-data"
+import { maxDataPointsFor, missedRefresh, panelRetry } from "./use-panel-data"
 
 const error = (status: number, code: string) =>
   new ApiError(status, code, "failed")
@@ -66,5 +66,29 @@ describe("maxDataPointsFor", () => {
     ["row", 640, undefined],
   ])("%s at %i pixels asks for %s points", (type, width, expected) => {
     expect(maxDataPointsFor(panelOfType(type), width)).toBe(expected)
+  })
+})
+
+describe("missedRefresh", () => {
+  const now = 100_000
+
+  it("never catches up without a refresh interval", () => {
+    expect(missedRefresh(now - 60_000, now, null)).toBe(false)
+  })
+
+  it("leaves a panel that never loaded to its first fetch", () => {
+    expect(missedRefresh(0, now, 5_000)).toBe(false)
+  })
+
+  it("skips data younger than one interval", () => {
+    expect(missedRefresh(now - 4_999, now, 5_000)).toBe(false)
+  })
+
+  it("catches up data exactly one interval old", () => {
+    expect(missedRefresh(now - 5_000, now, 5_000)).toBe(true)
+  })
+
+  it("catches up data older than one interval", () => {
+    expect(missedRefresh(now - 30_000, now, 5_000)).toBe(true)
   })
 })

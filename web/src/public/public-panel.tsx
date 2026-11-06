@@ -7,8 +7,8 @@ import {
   type PanelState,
 } from "@/dashboards/panel-chrome"
 import { stateScope, type PanelSource } from "@/dashboards/panel-source"
+import { useInView } from "@/dashboards/use-in-view"
 import { maxDataPointsFor, usePanelData } from "@/dashboards/use-panel-data"
-import { useSeen } from "@/dashboards/use-seen"
 import { VariableLoadError } from "@/dashboards/variables"
 import { isRenderable, isStaticPanel, preloadRenderer } from "@/panels"
 import { createFieldResolver } from "@/panels/field-config"
@@ -77,7 +77,7 @@ export const PublicPanel = memo(function PublicPanel({
     [sourcePanel, title]
   )
   const ref = useRef<HTMLDivElement>(null)
-  const seen = useSeen(ref)
+  const { seen, inView } = useInView(ref)
   const body = panelBodySize(Math.floor(width), Math.floor(height))
   const available = availableOnPublicLink(panel.type)
   const supported = available && isRenderable(panel.type)
@@ -107,6 +107,7 @@ export const PublicPanel = memo(function PublicPanel({
     maxDataPoints: maxDataPointsFor(dataPanel ?? panel, body.width),
     refreshMs,
     enabled: dataPanel !== undefined && supported && seen && selectionsReady,
+    inView,
   })
   const fields = useMemo(
     () => (dataPanel ? createFieldResolver(dataPanel, selections) : undefined),

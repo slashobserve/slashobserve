@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
+import { useEffect, useEffectEvent } from "react"
 
 import { api } from "@/api/client"
 import { ApiError, isRetryable, unwrap } from "@/api/errors"
@@ -28,6 +29,7 @@ type Args = {
   maxDataPoints?: number
   refreshMs: number | null
   enabled: boolean
+  inView: boolean
 }
 
 export function maxDataPointsFor(
@@ -49,6 +51,16 @@ export function panelRetry(count: number, error: unknown): boolean {
   return count < 3 && isRetryable(error)
 }
 
+export function missedRefresh(
+  dataUpdatedAt: number,
+  now: number,
+  refreshMs: number | null
+): boolean {
+  return (
+    refreshMs !== null && dataUpdatedAt > 0 && now - dataUpdatedAt >= refreshMs
+  )
+}
+
 export function usePanelData({
   source,
   panel,
@@ -59,10 +71,11 @@ export function usePanelData({
   maxDataPoints,
   refreshMs,
   enabled,
+  inView,
 }: Args) {
   const selections = sortSelections(vars)
   const fingerprint = source.kind === "build" ? panelFingerprint(panel) : ""
-  return useQuery({
+  const query = useQuery({
     queryKey: panelDataKey(source, panel.id, fingerprint, {
       from,
       to,
@@ -131,7 +144,17 @@ export function usePanelData({
         : undefined,
     staleTime: 0,
     gcTime: 300_000,
-    refetchInterval: refreshMs ?? false,
+    refetchInterval: inView && refreshMs !== null ? refreshMs : false,
     retry: panelRetry,
   })
+  const { refetch, dataUpdatedAt } = query
+  const catchUp = useEffectEvent(() => {
+    if (enabled && missedRefresh(dataUpdatedAt, Date.now(), refreshMs)) {
+      void refetch({ cancelRefetch: false })
+    }
+  })
+  useEffect(() => {
+    if (inView) catchUp()
+  }, [inView])
+  return query
 }

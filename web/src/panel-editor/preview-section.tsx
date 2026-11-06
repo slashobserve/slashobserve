@@ -184,6 +184,7 @@ function DataPreview({
     maxDataPoints,
     refreshMs: null,
     enabled: showGhost && ready,
+    inView: true,
   })
 
   const data = preview.data

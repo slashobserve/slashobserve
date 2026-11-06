@@ -47,8 +47,8 @@ import {
   type PanelSource,
 } from "./panel-source"
 import { useAnnotationTagFilter, useSetDashboardSearch } from "./search"
+import { useInView } from "./use-in-view"
 import { maxDataPointsFor, usePanelData } from "./use-panel-data"
-import { useSeen } from "./use-seen"
 import { UnverifiedLabel } from "./unverified-label"
 import { sortSelections, VariableLoadError } from "./variables"
 
@@ -175,7 +175,7 @@ export const PanelContainer = memo(function PanelContainer({
   )
   const ref = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
-  const seen = useSeen(ref)
+  const { seen, inView } = useInView(ref)
   const [tableView, setTableView] = useState(false)
   const setSearch = useSetDashboardSearch()
   const body = panelBodySize(Math.floor(width), Math.floor(height))
@@ -214,6 +214,7 @@ export const PanelContainer = memo(function PanelContainer({
     maxDataPoints,
     refreshMs,
     enabled: dataPanel !== undefined && supported && seen && selectionsReady,
+    inView,
   })
   const inspectKey = useMemo(
     () =>
