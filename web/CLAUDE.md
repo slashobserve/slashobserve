@@ -35,8 +35,8 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   Dashboard URL keys are parsed only by `web/src/dashboards/search.ts`.
 - Panel data and variable values go through a `PanelSource` (`web/src/dashboards/panel-source.ts`): a saved version or an agent build, so one panel component renders both.
   Build keys use the `observe-build` prefix, and the build's Spec is fetched only when its `saves` count changes.
-- A build's panel fades in once, when it is new in that save (`newPanelIds`), and only through `motion-safe:` classes on the panel frame's opacity, never on a chart.
-- `web/src/observe/request-actions.tsx` is the only place Cancel and Continue render.
+- A panel new in a build save or in a new dashboard version fades in once through `DashboardGrid`'s `newPanelIds`, only through `motion-safe:` classes on the panel frame's opacity, never on a chart.
+- `web/src/observe/request-actions.tsx` is the only place Cancel, Stop and Continue render.
   `can_cancel` comes from the server and is never recomputed in the browser.
   A chat turn reads its build state (`failure_code`, `build`, `build_saved_at`, `continued_by`) from its summary, so a turn whose request is not loaded still shows its build card.
 - A renderer declares the narrowest width it reads well at as `minWidth` in its manifest, and `fitLayout` (`web/src/dashboards/fit-layout.ts`) reflows the dashboard view from it, skipping fixed panels (`responsive: false`); the reflow never writes `gridPos`, edit mode shows the saved layout, and the web never decides a freeze (the save funnel does).
@@ -65,6 +65,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 
 - `PanelBody` prepares frames (`prepareFrames`), resolves field config (`createFieldResolver`), merges display defaults and lazy-loads the renderer.
   Each type has `web/src/panels/<type>/manifest.ts` found by `import.meta.glob`; a type is switched on in its own manifest, never in a shared file.
+- Finding evidence renders through `EvidencePanel` (`web/src/findings/`) with its own query, not a `PanelSource`, because it has no variables, comments or menu.
 - Panel states are exposed as `data-state` on the panel `article`, and threshold states as `data-threshold`; tests read both.
 - One source for each decision, so a second copy drifts:
   - field features: `createFieldResolver` and `displayValue` in `web/src/panels/field-config`, with `effectiveColorMode` deriving the color mode;
