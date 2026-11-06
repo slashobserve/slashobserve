@@ -70,7 +70,7 @@ export function Thumbnail({ panel, index }: { panel: Panel; index: number }) {
       style={{ gridColumn: `span ${thumbnailSpan(panel)}` }}
       className="flex h-[52px] min-w-0 flex-col justify-between rounded-[5px] border p-1.5"
     >
-      <span className="truncate text-[10px] text-muted-foreground">
+      <span className="truncate text-xs text-muted-foreground">
         {panelTitle(panel)}
       </span>
       <svg
