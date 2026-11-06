@@ -71,6 +71,7 @@
   --color-syntax-string: var(--syntax-string);
   --color-syntax-number: var(--syntax-number);
   --color-syntax-keyword: var(--syntax-keyword);
+  --ease-panel: var(--ease-panel);
   --radius-control: 6px;
   --radius-card: 10px;
   --radius-sm: calc(var(--radius) * 0.6);
@@ -144,6 +145,8 @@
   --sidebar-accent-foreground: #0a0a0a;
   --sidebar-border: #e4e4e7;
   --sidebar-ring: #0a0a0a;
+  --duration-panel: 220ms;
+  --ease-panel: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .dark {
