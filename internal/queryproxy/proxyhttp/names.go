@@ -20,7 +20,7 @@ const namesTimeout = 15 * time.Second
 
 var (
 	metricsParams = []string{"search", "limit"}
-	labelsParams  = []string{"metric", "table", "search", "limit"}
+	labelsParams  = []string{"metric", "table", "search", "limit", "from", "to", "timezone"}
 )
 
 type metricsResponse struct {
@@ -105,6 +105,7 @@ func namesRequest(rawQuery string, allowed []string) (req queryproxy.NamesReques
 	if err != nil {
 		return req, invalidf("the query string is malformed")
 	}
+	var from, to, timezone string
 	for _, name := range slices.Sorted(maps.Keys(query)) {
 		values := query[name]
 		if !slices.Contains(allowed, name) {
@@ -126,7 +127,35 @@ func namesRequest(rawQuery string, allowed []string) (req queryproxy.NamesReques
 				return req, invalidf("limit must be between 1 and %d", queryproxy.MaxNamesLimit)
 			}
 			req.Limit = n
+		case "from":
+			from = values[0]
+		case "to":
+			to = values[0]
+		case "timezone":
+			timezone = values[0]
 		}
 	}
+	if req.Range, err = namesRange(from, to, timezone, time.Now()); err != nil {
+		return req, err
+	}
 	return req, nil
+}
+
+func namesRange(from, to, timezone string, now time.Time) (datasource.TimeRange, error) {
+	if from == "" && to == "" {
+		return datasource.TimeRange{}, nil
+	}
+	if from == "" || to == "" {
+		return datasource.TimeRange{}, invalidf("from and to must be given together")
+	}
+	q := url.Values{paramFrom: {from}, paramTo: {to}}
+	if timezone != "" {
+		q.Set(paramTimezone, timezone)
+	}
+	p, err := parseParams(q, false)
+	if err != nil {
+		return datasource.TimeRange{}, err
+	}
+	rng, _, err := p.timeRange(exploreDashboard("", "", queryproxy.KindInstant), now)
+	return rng, err
 }

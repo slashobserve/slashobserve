@@ -71,6 +71,45 @@ func TestListToolsPassTheirDeclaredFieldsToDiscovery(t *testing.T) {
 	}
 }
 
+func TestLabelToolsPassFromAndToTogether(t *testing.T) {
+	for tool, base := range map[string]string{nameListLabels: `"datasource":"fake"`, nameListLabelValues: `"datasource":"fake","label":"l"`} {
+		t.Run(tool, func(t *testing.T) {
+			ds := &fakeDS{}
+			r := newTestRegistry(t, ds, nil)
+			res, err := call(t, r, tool, `{`+base+`,"from":"now-6h","to":"now"}`)
+			if err != nil || res.IsError {
+				t.Fatalf("res = %#v, err = %v", res, err)
+			}
+			rng := ds.lastRequest().Range
+			if span := rng.To.Sub(rng.From); rng.From.IsZero() || span < 6*time.Hour-time.Minute || span > 6*time.Hour+time.Minute {
+				t.Fatalf("range = %v to %v, want about six hours", rng.From, rng.To)
+			}
+			res, err = call(t, r, tool, `{`+base+`}`)
+			if err != nil || res.IsError {
+				t.Fatalf("res = %#v, err = %v", res, err)
+			}
+			if rng := ds.lastRequest().Range; !rng.From.IsZero() || !rng.To.IsZero() {
+				t.Fatalf("range without from and to = %v to %v, want zero", rng.From, rng.To)
+			}
+			for _, input := range []string{`{` + base + `,"from":"now-6h"}`, `{` + base + `,"to":"now"}`} {
+				res, err := call(t, r, tool, input)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got := errorCode(t, res); got != codeInvalidRequest {
+					t.Fatalf("code = %q, want %q", got, codeInvalidRequest)
+				}
+				if got, want := res.Content.(errorBody).Message, "from and to must be given together"; got != want {
+					t.Fatalf("message = %q, want %q", got, want)
+				}
+			}
+			if len(ds.requests) != 2 {
+				t.Fatalf("discovery ran %d times, want 2", len(ds.requests))
+			}
+		})
+	}
+}
+
 func TestListToolsReportABusyUpstreamAsTooManyRequests(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 	reg, err := datasource.NewRegistry(logger, datasource.Instance{UID: fakeUID, Name: "Fake", Datasource: &fakeDS{}})

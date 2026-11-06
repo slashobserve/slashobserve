@@ -112,6 +112,11 @@ func TestNamesRequestParsing(t *testing.T) {
 		{name: "metric is unknown for the metrics route", raw: "metric=m", allowed: metricsParams, message: "invalid request: unknown query parameter"},
 		{name: "table is unknown for the metrics route", raw: "table=t", allowed: metricsParams, message: "invalid request: unknown query parameter"},
 		{name: "label is a path parameter only", raw: "label=l", allowed: labelsParams, message: "invalid request: unknown query parameter"},
+		{name: "from without to", raw: "from=now-6h", allowed: labelsParams, message: "invalid request: from and to must be given together"},
+		{name: "to without from", raw: "to=now", allowed: labelsParams, message: "invalid request: from and to must be given together"},
+		{name: "from after to", raw: "from=now&to=now-6h", allowed: labelsParams, message: "invalid request: from must be before to"},
+		{name: "unknown time zone", raw: "from=now-6h&to=now&timezone=Mars/Olympus", allowed: labelsParams, message: "invalid request: tz is not a known time zone"},
+		{name: "from is unknown for the metrics route", raw: "from=now-6h&to=now", allowed: metricsParams, message: "invalid request: unknown query parameter"},
 		{name: "repeated search", raw: "search=a&search=b", allowed: metricsParams, message: "invalid request: search must be given once"},
 		{name: "repeated and empty", raw: "search=&search=", allowed: metricsParams, message: "invalid request: search must be given once"},
 		{name: "malformed query string", raw: "search=%zz", allowed: metricsParams, message: "invalid request: the query string is malformed"},
@@ -134,6 +139,45 @@ func TestNamesRequestParsing(t *testing.T) {
 				t.Fatalf("request = %#v, want %#v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestNamesRequestResolvesFromAndToTogether(t *testing.T) {
+	got, err := namesRequest("from=1760000000123&to=1760000060456&limit=3", labelsParams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Limit != 3 || got.Range.From.UnixMilli() != 1760000000123 || got.Range.To.UnixMilli() != 1760000060456 {
+		t.Fatalf("request = %#v, want limit 3 over the exact bounds", got)
+	}
+	if got, err := namesRequest("search=s", labelsParams); err != nil || !got.Range.From.IsZero() || !got.Range.To.IsZero() {
+		t.Fatalf("request without a range = %#v, err %v, want a zero range", got, err)
+	}
+}
+
+func TestLabelRoutesPassTheRangeToTheDatasource(t *testing.T) {
+	hn := newHarness(t)
+	for _, path := range []string{
+		"/api/v1/datasources/prom/labels?from=now-6h&to=now",
+		"/api/v1/datasources/prom/labels/service/values?from=now-6h&to=now&timezone=Europe/Paris",
+	} {
+		before := len(hn.ds.discoverRequests())
+		if rec := hn.get(path, ""); rec.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d, body %s", path, rec.Code, rec.Body.String())
+		}
+		reqs := hn.ds.discoverRequests()
+		if len(reqs) != before+1 {
+			t.Fatalf("%s: discover calls = %d, want %d", path, len(reqs), before+1)
+		}
+		rng := reqs[len(reqs)-1].Range
+		if span := rng.To.Sub(rng.From); rng.From.IsZero() || span < 6*time.Hour-time.Minute || span > 6*time.Hour+time.Minute {
+			t.Fatalf("%s: range = %v to %v, want about six hours", path, rng.From, rng.To)
+		}
+	}
+	rec := hn.get("/api/v1/datasources/prom/labels?from=now-6h", "")
+	expectError(t, rec, http.StatusBadRequest, "invalid_request")
+	if got, want := decodeError(t, rec).Error, "invalid request: from and to must be given together"; got != want {
+		t.Fatalf("error = %q, want %q", got, want)
 	}
 }
 
