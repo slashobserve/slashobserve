@@ -31,7 +31,7 @@ type Annotations interface {
 	List(ctx context.Context, by auth.Principal, q ListQuery) (Page, error)
 }
 
-type annotationJSON struct {
+type JSON struct {
 	ID            string   `json:"id"`
 	DashboardID   *string  `json:"dashboard_id"`
 	PanelID       *string  `json:"panel_id"`
@@ -45,8 +45,8 @@ type annotationJSON struct {
 }
 
 type listJSON struct {
-	Annotations []annotationJSON `json:"annotations"`
-	NextCursor  *string          `json:"next_cursor"`
+	Annotations []JSON  `json:"annotations"`
+	NextCursor  *string `json:"next_cursor"`
 }
 
 type Handler struct {
@@ -65,8 +65,8 @@ func (h *Handler) Register(api auth.Routes) {
 	g.DELETE("/:id", auth.RoleViewer, h.remove)
 }
 
-func annotationJSONOf(a Annotation) annotationJSON {
-	out := annotationJSON{
+func JSONOf(a Annotation) JSON {
+	out := JSON{
 		ID:            a.ID,
 		DashboardID:   httpapi.OptionalString(a.DashboardID),
 		PanelID:       httpapi.OptionalString(a.PanelID),
@@ -97,9 +97,9 @@ func (h *Handler) list(c *gin.Context) {
 		h.fail(c, "list annotations", err)
 		return
 	}
-	body := listJSON{Annotations: make([]annotationJSON, 0, len(page.Annotations))}
+	body := listJSON{Annotations: make([]JSON, 0, len(page.Annotations))}
 	for _, a := range page.Annotations {
-		body.Annotations = append(body.Annotations, annotationJSONOf(a))
+		body.Annotations = append(body.Annotations, JSONOf(a))
 	}
 	if page.Next != nil {
 		next := httpapi.EncodeTimeCursor(page.Next.Time, page.Next.ID.String())
@@ -183,7 +183,7 @@ func (h *Handler) create(c *gin.Context) {
 	}
 	h.logger.InfoContext(ctx, "created an annotation", slog.String("actor_id", caller.ID), slog.String("annotation_id", a.ID), slog.String("dashboard_id", a.DashboardID))
 	c.Header("Location", "/api/v1/annotations/"+a.ID)
-	c.JSON(http.StatusCreated, annotationJSONOf(a))
+	c.JSON(http.StatusCreated, JSONOf(a))
 }
 
 func (h *Handler) remove(c *gin.Context) {

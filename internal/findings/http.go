@@ -55,18 +55,6 @@ type findingListJSON struct {
 	NextCursor *string       `json:"next_cursor"`
 }
 
-type annotationJSON struct {
-	ID          string   `json:"id"`
-	DashboardID *string  `json:"dashboard_id"`
-	PanelID     *string  `json:"panel_id"`
-	TimeFrom    string   `json:"time_from"`
-	TimeTo      *string  `json:"time_to"`
-	Text        string   `json:"text"`
-	Tags        []string `json:"tags"`
-	CreatedBy   *string  `json:"created_by"`
-	CreatedAt   string   `json:"created_at"`
-}
-
 func JSONOf(f Finding, url string) FindingJSON {
 	evidence := f.Evidence
 	if evidence == nil {
@@ -86,27 +74,6 @@ func JSONOf(f Finding, url string) FindingJSON {
 		CreatedAt:      httpapi.FormatTime(f.CreatedAt),
 		URL:            url,
 	}
-}
-
-func annotationJSONOf(a annotations.Annotation) annotationJSON {
-	out := annotationJSON{
-		ID:          a.ID,
-		DashboardID: httpapi.OptionalString(a.DashboardID),
-		PanelID:     httpapi.OptionalString(a.PanelID),
-		TimeFrom:    httpapi.FormatTime(a.From),
-		Text:        a.Text,
-		Tags:        a.Tags,
-		CreatedBy:   httpapi.OptionalString(a.CreatedBy),
-		CreatedAt:   httpapi.FormatTime(a.CreatedAt),
-	}
-	if out.Tags == nil {
-		out.Tags = []string{}
-	}
-	if a.To != nil {
-		to := httpapi.FormatTime(*a.To)
-		out.TimeTo = &to
-	}
-	return out
 }
 
 type Handler struct {
@@ -183,11 +150,11 @@ func (h *Handler) pin(c *gin.Context) {
 		return
 	}
 	if !created {
-		c.JSON(http.StatusOK, annotationJSONOf(a))
+		c.JSON(http.StatusOK, annotations.JSONOf(a))
 		return
 	}
 	c.Header("Location", "/api/v1/annotations/"+a.ID)
-	c.JSON(http.StatusCreated, annotationJSONOf(a))
+	c.JSON(http.StatusCreated, annotations.JSONOf(a))
 }
 
 func (h *Handler) saveDashboard(c *gin.Context) {
