@@ -90,6 +90,7 @@ Continuing a revision fails when its dashboard has a newer version than the buil
 `bin/observe dashboards show <dashboard-id>` lists the panels of the latest version, or of one given with `--version N`, and `bin/observe dashboards versions <dashboard-id>` lists its versions.
 The lists and the panel table print as columns aligned with spaces.
 `bin/observe --help` shows the rest.
+`bin/observe dashboards export <folder-id-or-title> --dir <dir>` writes the latest version of each dashboard in a folder to `<dir>/<folder>/<name>.json`, and `bin/observe dashboards apply --dir <dir>` saves every `.json` file of a directory back as dashboards, never deleting one, and exits 1 when any file failed (see [Dashboards as code](dashboards-as-code.md)).
 `bin/observe dashboards delete <dashboard-id> --yes` deletes a dashboard with every version, comment and agent request, for everyone; it needs Edit on the dashboard, cannot be undone, and refuses to run without `--yes`.
 It fails with `409` and the code `dashboard_being_created` while the agent request that is creating the dashboard is still queued or running.
 `bin/observe import dashboard.json` (or `-` for standard input) imports a Grafana dashboard of up to 8 MiB and prints its address; `--map '<grafana>=<uid>'` picks our datasource for a Grafana one, `--folder <title>` chooses the folder (see [Import Grafana dashboards](import-grafana.md)) and `--preview` shows the report without saving.

@@ -148,6 +148,10 @@ paths:
     $ref: "./paths/provision.yaml#/provision"
   /provision/run:
     $ref: "./paths/provision.yaml#/provision-run"
+  /provision/apply:
+    $ref: "./paths/provision.yaml#/provision-apply"
+  /provision/applied:
+    $ref: "./paths/provision.yaml#/provision-applied"
   /grafana:
     $ref: "./paths/grafana.yaml#/grafana"
   /grafana/{id}:
@@ -3217,6 +3221,40 @@ components:
           nullable: true
         job:
           $ref: "#/components/schemas/HealthJob"
+    ApplyResult:
+      type: object
+      additionalProperties: false
+      required: [path, outcome, dashboard_id, version]
+      properties:
+        path:
+          type: string
+        outcome:
+          type: string
+          enum: [created, updated, unchanged]
+        dashboard_id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+          description: The version saved, or the latest version when nothing changed.
+    AppliedList:
+      type: object
+      additionalProperties: false
+      required: [applied]
+      properties:
+        applied:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [path, dashboard_id]
+            properties:
+              path:
+                type: string
+              dashboard_id:
+                type: string
+                format: uuid
   responses:
     BadRequest:
       description: The request is malformed or fails validation.

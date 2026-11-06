@@ -375,6 +375,7 @@ func run() error {
 			assets.NewHandler(assetsClient, logger),
 			annotationsHandler,
 			dashprovision.NewHandler(provisioner, logger),
+			dashprovision.NewApplyHandler(dashprovision.NewApplier(database, dashboardsService, folderAccess), logger),
 			healthHandler,
 		},
 		Mounts: append([]server.Mount{{

@@ -76,6 +76,14 @@ type Annotation struct {
 	CreatedAt   pgtype.Timestamptz
 }
 
+type AppliedDashboard struct {
+	Path          string
+	DashboardID   pgtype.UUID
+	ContentSha256 string
+	AppliedByID   pgtype.UUID
+	UpdatedAt     pgtype.Timestamptz
+}
+
 type Dashboard struct {
 	ID                  pgtype.UUID
 	Title               string

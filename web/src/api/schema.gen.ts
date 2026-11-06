@@ -1521,6 +1521,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/provision/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save one dashboard file from a dashboards-as-code directory.
+         * @description Editors and Admins can call this endpoint; `observe dashboards apply` calls it once per file. `path` is the file's path relative to the applied directory, with `/` between directories: a file name, or a folder directory and a file name. The directory names the folder, with `%` written as `%25` and `/` as `%2F`, and a file at the root goes to General. A path that was applied before saves into the same dashboard. Otherwise the one dashboard in that folder whose title matches the Spec's title, compared case-insensitively, is adopted, and the path is bound to it; when no dashboard matches a new one is created, with the folder when it does not exist yet. A version is saved as the caller, with the summary `Applied from <path>`, only when the file changed since it was last applied and differs from the latest version. Apply never deletes a dashboard. It answers 409 `ambiguous` when more than one dashboard in the folder has the title, 409 `provisioned` when the dashboard comes from the server's provisioning directory, and 409 `version_conflict` when another save landed during the apply.
+         */
+        post: operations["applyDashboardFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/provision/applied": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the file paths bound to the dashboards of a folder.
+         * @description Anyone with a role can call this endpoint for a folder they can see; `observe dashboards export` reads it to keep the file names a folder was applied from. Each entry is a path that `POST /provision/apply` bound to a dashboard now in the folder, sorted by `path` in byte order.
+         */
+        get: operations["listAppliedDashboards"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/grafana": {
         parameters: {
             query?: never;
@@ -3279,6 +3319,22 @@ export interface components {
             dashboards: components["schemas"]["HealthItem"][];
             next_cursor: string | null;
             job: components["schemas"]["HealthJob"];
+        };
+        ApplyResult: {
+            path: string;
+            /** @enum {string} */
+            outcome: "created" | "updated" | "unchanged";
+            /** Format: uuid */
+            dashboard_id: string;
+            /** @description The version saved, or the latest version when nothing changed. */
+            version: number;
+        };
+        AppliedList: {
+            applied: {
+                path: string;
+                /** Format: uuid */
+                dashboard_id: string;
+            }[];
         };
     };
     responses: {
@@ -7218,6 +7274,71 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    applyDashboardFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    path: string;
+                    /** @description The ObserveSpec document of the file. */
+                    spec: {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description What the file became. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplyResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["TooLarge"];
+            422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listAppliedDashboards: {
+        parameters: {
+            query: {
+                folder_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The bound paths. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppliedList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
         };
     };
     listGrafanaConnections: {

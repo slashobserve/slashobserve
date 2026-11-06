@@ -79,11 +79,11 @@ type versionList struct {
 func (a *app) dashboardsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dashboards",
-		Short: "List, inspect and delete dashboards",
+		Short: "List, inspect, delete, export and apply dashboards",
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.listCommand(), a.showCommand(), a.versionsCommand(), a.deleteCommand())
+	cmd.AddCommand(a.listCommand(), a.showCommand(), a.versionsCommand(), a.deleteCommand(), a.exportCommand(), a.applyCommand())
 	return cmd
 }
 
