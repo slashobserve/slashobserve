@@ -49,15 +49,6 @@ type listJSON struct {
 	NextCursor  *string          `json:"next_cursor"`
 }
 
-type createRequest struct {
-	DashboardID *string  `json:"dashboard_id"`
-	PanelID     string   `json:"panel_id"`
-	TimeFrom    *string  `json:"time_from"`
-	TimeTo      *string  `json:"time_to"`
-	Text        string   `json:"text"`
-	Tags        []string `json:"tags"`
-}
-
 type Handler struct {
 	annotations Annotations
 	logger      *slog.Logger
@@ -143,7 +134,7 @@ func listQuery(c *gin.Context) (ListQuery, bool) {
 	}
 	if raw := c.Query("tags"); raw != "" {
 		if q.Tags, ok = CleanTags(strings.Split(raw, ",")); !ok {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", messageInvalidTags)
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", MessageInvalidTags)
 			return q, false
 		}
 	}
@@ -168,12 +159,16 @@ func timeParam(c *gin.Context, name string) (*time.Time, bool) {
 }
 
 func (h *Handler) create(c *gin.Context) {
-	var req createRequest
+	var req CreateRequest
 	if !httpapi.DecodeBody(c, &req, maxBodyBytes) {
 		return
 	}
-	in, ok := createInput(c, req)
-	if !ok {
+	in, err := ParseCreate(req)
+	if errors.Is(err, ErrInvalidDashboardID) {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	if h.refuse(c, err, "dashboard not found") {
 		return
 	}
 	caller := httpapi.Caller(c)
@@ -189,35 +184,6 @@ func (h *Handler) create(c *gin.Context) {
 	h.logger.InfoContext(ctx, "created an annotation", slog.String("actor_id", caller.ID), slog.String("annotation_id", a.ID), slog.String("dashboard_id", a.DashboardID))
 	c.Header("Location", "/api/v1/annotations/"+a.ID)
 	c.JSON(http.StatusCreated, annotationJSONOf(a))
-}
-
-func createInput(c *gin.Context, req createRequest) (CreateInput, bool) {
-	in := CreateInput{PanelID: req.PanelID, Text: req.Text, Tags: req.Tags}
-	if req.DashboardID != nil {
-		id, err := db.ParseUUID(*req.DashboardID)
-		if err != nil {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "dashboard_id must be a UUID")
-			return in, false
-		}
-		in.DashboardID = id
-	}
-	if req.TimeFrom != nil {
-		from, err := time.Parse(time.RFC3339, *req.TimeFrom)
-		if err != nil {
-			httpapi.AbortError(c, http.StatusUnprocessableEntity, "invalid_time", messageInvalidTime)
-			return in, false
-		}
-		in.From = from
-	}
-	if req.TimeTo != nil {
-		to, err := time.Parse(time.RFC3339, *req.TimeTo)
-		if err != nil {
-			httpapi.AbortError(c, http.StatusUnprocessableEntity, "invalid_time", messageInvalidTime)
-			return in, false
-		}
-		in.To = &to
-	}
-	return in, true
 }
 
 func (h *Handler) remove(c *gin.Context) {

@@ -5,7 +5,7 @@ description: Mark deploys, incidents and maintenance on a moment or a range of t
 
 An annotation is a note pinned to a moment or a range of time, such as a deploy, an incident or a maintenance window.
 Annotations are stored on the server beside your dashboards and never inside a dashboard's [ObserveSpec](../concepts/observespec.md), so adding one saves no version.
-Charts draw them as markers, you add them with the CLI or the HTTP API, and you list and delete them through the HTTP API.
+Charts draw them as markers, you add them with the CLI, the HTTP API or an MCP client, you list them through the HTTP API or an MCP client, and you delete them through the HTTP API.
 
 ## Global and dashboard annotations
 
@@ -87,6 +87,14 @@ In GitHub Actions, store the key as a repository secret named `OBSERVE_TOKEN` an
 ```
 
 A pipeline that needs a key before anyone signs in can get one from the [service-accounts file](../operate/service-account-keys.md#declare-service-accounts-in-a-file).
+
+## From MCP clients
+
+An MCP client such as Claude Code lists annotations with `list_annotations` and adds one with `create_annotation`, so the agent that just deployed can post the marker itself.
+`create_annotation` takes the fields of `POST /api/v1/annotations` and needs an Editor key.
+The built-in agent reads annotations with `list_annotations` when it investigates, so it can see a deploy beside a spike, and it never adds one.
+No tool deletes an annotation.
+See [MCP](mcp.md).
 
 ## Deploy markers in the demo
 

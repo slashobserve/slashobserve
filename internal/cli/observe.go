@@ -29,11 +29,12 @@ type agentRequest struct {
 	Error       *string     `json:"error"`
 	Steps       []agentStep `json:"steps"`
 
-	QueuePosition *int          `json:"queue_position"`
-	FailureCode   *string       `json:"failure_code"`
-	Build         *buildSummary `json:"build"`
-	BuildSavedAt  *string       `json:"build_saved_at"`
-	ContinuedBy   *string       `json:"continued_by"`
+	QueuePosition *int            `json:"queue_position"`
+	FailureCode   *string         `json:"failure_code"`
+	Build         *buildSummary   `json:"build"`
+	BuildSavedAt  *string         `json:"build_saved_at"`
+	ContinuedBy   *string         `json:"continued_by"`
+	Finding       *findingSummary `json:"finding"`
 }
 
 type buildSummary struct {
@@ -174,7 +175,7 @@ func printRequest(out *output, req agentRequest) {
 	if req.ResultVer != nil {
 		version = strconv.Itoa(*req.ResultVer)
 	}
-	out.fields([][2]string{
+	fields := [][2]string{
 		{"ID", text(req.ID)},
 		{"Status", text(req.Status)},
 		{"Source", text(req.Source)},
@@ -182,7 +183,11 @@ func printRequest(out *output, req agentRequest) {
 		{"Version", version},
 		{"URL", orDash(req.URL)},
 		{"Error", orDash(req.Error)},
-	})
+	}
+	if req.Finding != nil {
+		fields = append(fields, [2]string{"Finding", text(req.Finding.Title)}, [2]string{"Finding URL", text(req.Finding.URL)})
+	}
+	out.fields(fields)
 	switch {
 	case req.Status == "queued" && req.QueuePosition != nil:
 		out.line("Queued, position %d", *req.QueuePosition)
@@ -218,6 +223,9 @@ func (a *app) waitAndReport(ctx context.Context, c *client, id string, timeout t
 		}
 		return fmt.Errorf("observe failed: %s", reason)
 	}
+	if req.Source == sourceInvestigate {
+		return a.reportFinding(out, req)
+	}
 	address, err := dashboardAddress(c, req)
 	if a.json {
 		if err == nil {
@@ -235,6 +243,17 @@ func (a *app) waitAndReport(ctx context.Context, c *client, id string, timeout t
 	}
 	reportSaved(out, req.ResultVer, address)
 	a.openLink(out, address)
+	return nil
+}
+
+func (a *app) reportFinding(out *output, req agentRequest) error {
+	if req.Finding == nil {
+		return fmt.Errorf("the investigation finished without a finding: observe status %s", text(req.ID))
+	}
+	if !a.json {
+		printFinding(out, *req.Finding)
+	}
+	a.openLink(out, text(req.Finding.URL))
 	return nil
 }
 

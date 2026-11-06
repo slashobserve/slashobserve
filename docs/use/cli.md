@@ -62,7 +62,7 @@ Colour is used only in a terminal, and setting `NO_COLOR` to any value turns it 
 It opens only `http` and `https` addresses.
 `status --wait`, `continue`, `run` and `import` accept `--open` too.
 
-A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `status`, `cancel`, `continue`, `annotate`, `open`, `doctor`, `logs`, `traces`, `grafana`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
+A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `investigate`, `status`, `cancel`, `continue`, `annotate`, `health`, `open`, `doctor`, `logs`, `traces`, `grafana`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
 `--timeout` (2 hours by default, so a large build can finish while you wait) stops the waiting and not the request, which keeps running on the server; `bin/observe status <request-id> --wait` waits again.
@@ -73,7 +73,7 @@ The CLI exits with these codes:
 | Code | When |
 | ---- | ---- |
 | `0` | The command succeeded, including when `--open` could not open the browser and when `observe logs --tail` ends with Ctrl-C. |
-| `1` | The server refused or failed the request, the agent request failed, the waiting stopped at `--timeout` or an interrupt, `observe open` could not open the browser, an `observe doctor` check failed, or an `observe grafana import` had a dashboard fail. |
+| `1` | The server refused or failed the request, the agent request failed, the waiting stopped at `--timeout` or an interrupt, `observe open` could not open the browser, an `observe doctor` check failed, an `observe grafana import` had a dashboard fail, or `observe health repair` queued no repair. |
 | `2` | The command line is wrong: an unknown command or flag, a missing argument or an invalid id. |
 
 `bin/observe cancel <request-id>` cancels a queued or running request and prints it.
@@ -105,6 +105,20 @@ for f in dashboards/*.json; do bin/observe import "$f" --folder Platform || echo
 `bin/observe run <name>` runs a saved prompt that someone shared with everyone on the server, waits like a prompt does and prints the dashboard address; the name ignores case and its words need no quotes, and `bin/observe run` alone lists the shared prompts.
 A key never sees private prompts, so share a prompt from the chat home before running it from the CLI.
 
+`bin/observe investigate <question...>` asks the agent a question about your data, as in [Investigate](investigate.md), and needs an Editor key:
+
+```sh
+bin/observe investigate why did checkout errors rise after 10:00
+bin/observe investigate --dashboard <dashboard-id> --panel <panel-id> --from now-6h --to now what changed
+```
+
+`--dashboard` makes it about one dashboard, `--panel` about one of its panels, and `--from` and `--to` set the window, together, as relative times such as `now-6h` or epoch milliseconds.
+`--panel` without `--dashboard`, or one of `--from` and `--to` alone, exits 2.
+It shows the steps like a prompt, then prints the finding's title, its answer as plain text and its address.
+`--open` opens the finding in the browser, `--no-wait` prints the request id and returns at once, and `--timeout` stops the waiting as it does for a prompt.
+It exits 1 when the investigation fails or ends without a finding.
+`bin/observe status <request-id>` on an investigation shows the finding's title and address, and with `--wait` prints the finding.
+
 Comments on a dashboard can be worked from the terminal:
 
 - `bin/observe comments list <dashboard-id>` lists the comments of open threads, replies included, oldest first; `--status resolved` shows resolved threads instead, `--status all` shows both, and `--panel <panel-id>` narrows it to one panel.
@@ -127,6 +141,30 @@ bin/observe annotate "Database failover" --dashboard <dashboard-id> --at now-15m
 `--tags` takes comma-separated tags, and `--dashboard` puts the annotation on one dashboard instead of every dashboard.
 `--at` places it in the past, as `now-<N>` with `s`, `m`, `h` or `d`, or as an RFC 3339 time such as `2026-11-01T10:00:00Z`.
 It prints `Added annotation <id> at <time> on every dashboard`, which `-q` hides; a global annotation needs a key with the Editor role.
+
+`bin/observe health` lists the dashboards with [health problems](dashboard-health.md) in the folders the key can see, one row per problem:
+
+```sh
+bin/observe health
+bin/observe health --kind no_data --folder <folder-id>
+bin/observe health repair <dashboard-id> <dashboard-id>
+bin/observe health run
+```
+
+```text
+ID                                    DASHBOARD  FOLDER  KIND             PANEL OR VARIABLE  CHECKED
+0a1b2c3d-0000-4000-8000-000000000001  Checkout   Shop    no_data          Requests (p_rps)   2026-11-06T03:00Z
+0a1b2c3d-0000-4000-8000-000000000001  Checkout   Shop    variable_failed  $pod               2026-11-06T03:00Z
+Last check finished 2026-11-06T03:04Z: succeeded.
+```
+
+`--kind` takes `no_data`, `query_failed`, `variable_failed`, `duplicate_title` or `unopened`, `--folder` takes a folder id, and `--limit` lists up to 100 dashboards (50 by default).
+A variable shows as `$<name>`, and the last line says how the last daily check went.
+Listing exits 0 whatever it finds, and `--json` prints the response of `GET /api/v1/health`.
+
+`bin/observe health repair <dashboard-id>...` asks the agent to repair 1 to 50 dashboards and prints one row per dashboard with `queued` and the request id, or the reason it was skipped: `active`, `nothing_to_repair`, `not_found`, `forbidden_role` or `queue_full`.
+It needs an Editor key and a model on the server, and exits 1 when it queued no repair.
+`bin/observe health run` starts a check of every dashboard now and needs an Admin key; results appear as each dashboard is checked.
 
 `bin/observe open` prints an address on the server and opens it in the browser:
 

@@ -170,6 +170,9 @@ func TestGuideVariant(t *testing.T) {
 
 func TestFolderVariant(t *testing.T) {
 	for _, tool := range New(Deps{}).List() {
+		if tool.MCPOnly {
+			continue
+		}
 		_, mcp := schemaProperties(t, tool.InputSchema)["folder_id"]
 		_, agent := schemaProperties(t, tool.ForAgent().InputSchema)["folder_id"]
 		if mcp != (tool.Name == nameCreateDashboard) || agent {

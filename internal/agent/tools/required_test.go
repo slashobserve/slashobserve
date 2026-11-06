@@ -19,6 +19,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
@@ -42,6 +43,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 	access := folders.NewAccess(database.DB)
 	service := dashboards.New(database.DB, runner, access, logger)
 	comments := dashboards.NewComments(database.DB, service, nil)
+	notes := annotations.New(database.DB, access)
 	registry := New(Deps{
 		Datasources: datasources,
 		Runner:      runner,
@@ -49,7 +51,9 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		Comments:    comments,
 		Imports:     imports.New(database.DB, service, access, datasources, logger),
 		Folders:     access,
-		Findings:    findings.New(database.DB, access, annotations.New(database.DB, access), service, logger),
+		Findings:    findings.New(database.DB, access, notes, service, logger),
+		Health:      health.New(health.Deps{DB: database.DB, Runner: runner, Access: access, Logger: logger, Job: "dashboard_health"}),
+		Annotations: notes,
 		Logger:      logger,
 	})
 	ctx := auth.WithPrincipal(context.Background(), placeholderUser)
@@ -80,6 +84,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"ids":            json.RawMessage(`["p1"]`),
 		"summary":        json.RawMessage(`"Change a panel"`),
 		"markdown":       json.RawMessage(`"checkout errors are up"`),
+		"text":           json.RawMessage(`"deployed checkout v2"`),
 		"json":           json.RawMessage(`"{\"title\":\"Imported\",\"schemaVersion\":39,\"panels\":[]}"`),
 	}
 

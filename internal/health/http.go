@@ -34,16 +34,17 @@ type Jobs interface {
 }
 
 type Handler struct {
-	svc    *Service
-	access *folders.Access
-	jobs   Jobs
-	life   context.Context
-	logger *slog.Logger
-	runs   sync.WaitGroup
+	svc     *Service
+	repairs *Repairs
+	access  *folders.Access
+	jobs    Jobs
+	life    context.Context
+	logger  *slog.Logger
+	runs    sync.WaitGroup
 }
 
-func NewHandler(life context.Context, svc *Service, jobs Jobs) *Handler {
-	return &Handler{svc: svc, access: svc.access, jobs: jobs, life: life, logger: svc.logger}
+func NewHandler(life context.Context, svc *Service, repairs *Repairs, jobs Jobs) *Handler {
+	return &Handler{svc: svc, repairs: repairs, access: svc.access, jobs: jobs, life: life, logger: svc.logger}
 }
 
 func (h *Handler) Register(api auth.Routes) {
@@ -202,7 +203,7 @@ func (h *Handler) repair(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", invalidRepairsBody)
 		return
 	}
-	outcome, err := h.svc.Repair(c.Request.Context(), httpapi.Caller(c), ids)
+	outcome, err := h.repairs.Repair(c.Request.Context(), httpapi.Caller(c), ids)
 	if err != nil {
 		h.fail(c, "request health repairs", err)
 		return

@@ -154,7 +154,7 @@ var fakeToolList = []tools.Tool{
 	{Name: "update_dashboard", Description: "update", InputSchema: json.RawMessage(`{"type":"object"}`)},
 	{Name: "update_panels", Description: "patch", InputSchema: json.RawMessage(`{"type":"object"}`)},
 	{Name: "get_panels", Description: "panels", InputSchema: json.RawMessage(`{"type":"object"}`), ReadOnly: true},
-	{Name: "save_finding", Description: "finding", InputSchema: json.RawMessage(`{"type":"object"}`), AgentOnly: true},
+	{Name: "save_finding", Description: "finding", InputSchema: json.RawMessage(`{"type":"object"}`), AgentOnly: true, InvestigateOnly: true},
 }
 
 func offeredIn(mode tools.Mode) []tools.Tool {
@@ -1946,12 +1946,12 @@ func TestAgentDoesNotOfferMCPOnlyTools(t *testing.T) {
 			t.Errorf("%s: offered in create = %v, offered to the model = %v", tool.Name, tool.OfferedIn(tools.ModeCreate), offered[tool.Name])
 		}
 	}
-	for _, name := range []string{"list_comments", "list_folders", "reply_to_comment", "resolve_comment", "create_finding", "list_findings", "save_finding"} {
+	for _, name := range []string{"list_comments", "list_folders", "reply_to_comment", "resolve_comment", "create_finding", "list_findings", "save_finding", "list_dashboard_health", "list_annotations", "create_annotation"} {
 		if offered[name] {
 			t.Errorf("%s is offered to the model", name)
 		}
 	}
-	if !offered["get_spec_guide"] || mcpOnly != 6 || len(offered) != len(registry.List())-7 {
+	if !offered["get_spec_guide"] || mcpOnly != 8 || len(offered) != len(registry.List())-10 {
 		t.Fatalf("mcp-only tools = %d, offered = %d of %d", mcpOnly, len(offered), len(registry.List()))
 	}
 }

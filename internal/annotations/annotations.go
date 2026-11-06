@@ -25,7 +25,7 @@ const (
 
 const (
 	messageInvalidText  = "text must be 1 to 2000 characters without control or bidirectional override characters"
-	messageInvalidTags  = "tags must be at most 10 lowercase tags of 1 to 40 letters, digits, _, . or -, starting with a letter or digit"
+	MessageInvalidTags  = "tags must be at most 10 lowercase tags of 1 to 40 letters, digits, _, . or -, starting with a letter or digit"
 	messageInvalidTime  = "time_to must not be before time_from, and both must be after 1970-01-01"
 	messageInvalidPanel = "panel_id must be 1 to 64 characters without NUL and needs a dashboard_id"
 )
@@ -34,6 +34,8 @@ var (
 	ErrNotFound   = errors.New("annotation not found")
 	ErrForbidden  = errors.New("the caller's level does not allow this")
 	ErrNotCreator = errors.New("only the creator or an admin can delete this annotation")
+
+	ErrInvalidDashboardID = errors.New("dashboard_id must be a UUID")
 )
 
 var tagPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,39}$`)
@@ -65,6 +67,41 @@ type CreateInput struct {
 	To          *time.Time
 	Text        string
 	Tags        []string
+}
+
+type CreateRequest struct {
+	DashboardID *string  `json:"dashboard_id"`
+	PanelID     string   `json:"panel_id"`
+	TimeFrom    *string  `json:"time_from"`
+	TimeTo      *string  `json:"time_to"`
+	Text        string   `json:"text"`
+	Tags        []string `json:"tags"`
+}
+
+func ParseCreate(req CreateRequest) (CreateInput, error) {
+	in := CreateInput{PanelID: req.PanelID, Text: req.Text, Tags: req.Tags}
+	if req.DashboardID != nil {
+		id, err := db.ParseUUID(*req.DashboardID)
+		if err != nil {
+			return in, ErrInvalidDashboardID
+		}
+		in.DashboardID = id
+	}
+	if req.TimeFrom != nil {
+		from, err := time.Parse(time.RFC3339, *req.TimeFrom)
+		if err != nil {
+			return in, &InvalidError{Code: "invalid_time", Message: messageInvalidTime}
+		}
+		in.From = from
+	}
+	if req.TimeTo != nil {
+		to, err := time.Parse(time.RFC3339, *req.TimeTo)
+		if err != nil {
+			return in, &InvalidError{Code: "invalid_time", Message: messageInvalidTime}
+		}
+		in.To = &to
+	}
+	return in, nil
 }
 
 type ListQuery struct {
@@ -198,7 +235,7 @@ func validate(in CreateInput) (CreateInput, error) {
 	}
 	tags, ok := CleanTags(in.Tags)
 	if !ok {
-		return in, &InvalidError{Code: "invalid_tags", Message: messageInvalidTags}
+		return in, &InvalidError{Code: "invalid_tags", Message: MessageInvalidTags}
 	}
 	in.Tags = tags
 	return in, nil

@@ -86,7 +86,8 @@ type rig struct {
 	dashboards *dashboards.Service
 	revisions  *revisions.Service
 	svc        *health.Service
-	noAgent    *health.Service
+	repairs    *health.Repairs
+	noAgent    *health.Repairs
 	broken     *atomic.Bool
 	editor     auth.Principal
 	viewer     auth.Principal
@@ -111,9 +112,7 @@ func newRig(t *testing.T) *rig {
 	runner := queryproxy.NewRunner(registry, logger)
 	queue := revisions.NewService(database.DB, noopReviser{}, logger, revisions.WithAccess(access))
 	none := revisions.NewService(database.DB, nil, logger, revisions.WithAccess(access))
-	deps := func(r *revisions.Service) health.Deps {
-		return health.Deps{DB: database.DB, Runner: runner, Access: access, Revisions: r, PublicURL: base, Logger: logger, Job: "dashboard_health"}
-	}
+	svc := health.New(health.Deps{DB: database.DB, Runner: runner, Access: access, PublicURL: base, Logger: logger, Job: "dashboard_health"})
 	shared, err := database.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Shop"})
 	if err != nil {
 		t.Fatal(err)
@@ -122,8 +121,9 @@ func newRig(t *testing.T) *rig {
 		db:         database,
 		dashboards: dashboards.New(database.DB, runner, access, logger),
 		revisions:  queue,
-		svc:        health.New(deps(queue)),
-		noAgent:    health.New(deps(none)),
+		svc:        svc,
+		repairs:    health.NewRepairs(svc, queue),
+		noAgent:    health.NewRepairs(svc, none),
 		broken:     broken,
 		editor:     user(t, database, "eda", auth.RoleEditor),
 		viewer:     user(t, database, "vic", auth.RoleViewer),
