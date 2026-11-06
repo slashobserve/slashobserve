@@ -1,12 +1,13 @@
 import { useId, useState, type Dispatch } from "react"
 
+import { NativeSelect } from "@/components/native-select"
 import { Input } from "@/components/ui/input"
 import { unitGroups, unitLabel } from "@/lib/unit-catalog"
 import { customUnitKinds, parseUnit, type CustomUnitKind } from "@/lib/units"
 import type { Unit } from "@/spec"
 
 import type { DraftAction } from "./draft"
-import { Field, NativeSelect } from "./field-controls"
+import { Field } from "./field-controls"
 
 const customPrefix = "custom:"
 
@@ -121,6 +122,7 @@ export function UnitSelect({
       <Field label="Unit" htmlFor={selectId}>
         <NativeSelect
           id={selectId}
+          className="w-full"
           value={selected}
           disabled={readOnly}
           onChange={(event) => choose(event.target.value)}

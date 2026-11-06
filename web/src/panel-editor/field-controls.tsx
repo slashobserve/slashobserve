@@ -1,25 +1,10 @@
-import { useId, type ComponentProps, type ReactNode } from "react"
+import { useId, type ReactNode } from "react"
 
+import { NativeSelect } from "@/components/native-select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { cn } from "@/lib/utils"
 
 export type Option = { value: string; label: string }
-
-export function NativeSelect({
-  className,
-  ...props
-}: ComponentProps<"select">) {
-  return (
-    <select
-      className={cn(
-        "min-h-8 min-w-0 rounded-control border border-input bg-background px-2.5 text-[13px] font-normal text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 narrow:text-base",
-        className
-      )}
-      {...props}
-    />
-  )
-}
 
 export function Field({
   label,
@@ -59,6 +44,7 @@ export function SelectField({
     <Field label={label} htmlFor={id}>
       <NativeSelect
         id={id}
+        className="w-full"
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
