@@ -6,98 +6,12 @@ import (
 	"reflect"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 	"time"
-
-	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/ttlcache"
 )
-
-type fakeColumn struct {
-	name, typ string
-}
-
-func (c fakeColumn) Name() string             { return c.name }
-func (c fakeColumn) Nullable() bool           { return false }
-func (c fakeColumn) DatabaseTypeName() string { return c.typ }
-func (c fakeColumn) ScanType() reflect.Type {
-	if c.typ == "UInt64" {
-		return reflect.TypeFor[uint64]()
-	}
-	return reflect.TypeFor[string]()
-}
-
-type fakeRows struct {
-	driver.Rows
-	columns []fakeColumn
-	rows    [][]any
-	at      int
-}
-
-func (r *fakeRows) Next() bool { r.at++; return r.at <= len(r.rows) }
-func (r *fakeRows) Scan(dest ...any) error {
-	for i, v := range r.rows[r.at-1] {
-		switch d := dest[i].(type) {
-		case *string:
-			*d = v.(string)
-		case *uint64:
-			*d = v.(uint64)
-		}
-	}
-	return nil
-}
-func (r *fakeRows) ColumnTypes() []driver.ColumnType {
-	out := make([]driver.ColumnType, len(r.columns))
-	for i, c := range r.columns {
-		out[i] = c
-	}
-	return out
-}
-func (r *fakeRows) Close() error { return nil }
-func (r *fakeRows) Err() error   { return nil }
-
-type fakeConn struct {
-	driver.Conn
-	mu         sync.Mutex
-	statements []string
-	columns    []string
-	keys       []string
-	values     map[string][][]any
-}
-
-func (c *fakeConn) Query(_ context.Context, query string, _ ...any) (driver.Rows, error) {
-	c.mu.Lock()
-	c.statements = append(c.statements, query)
-	c.mu.Unlock()
-	switch {
-	case strings.HasPrefix(query, "SELECT * FROM ("):
-		columns := make([]fakeColumn, len(c.columns))
-		for i, name := range c.columns {
-			columns[i] = fakeColumn{name: name, typ: "String"}
-		}
-		return &fakeRows{columns: columns}, nil
-	case strings.HasPrefix(query, "SELECT arrayJoin(mapKeys("):
-		rows := make([][]any, len(c.keys))
-		var remaining uint64 = 1 << 10
-		for i, key := range c.keys {
-			rows[i] = []any{key, remaining}
-			remaining--
-		}
-		return &fakeRows{columns: []fakeColumn{{"K", "String"}, {"count()", "UInt64"}}, rows: rows}, nil
-	}
-	_, after, _ := strings.Cut(query, "SELECT toString(")
-	expr, _, _ := strings.Cut(after, ") AS Value")
-	return &fakeRows{columns: []fakeColumn{{"Value", "String"}, {"Count", "UInt64"}}, rows: c.values[expr]}, nil
-}
-
-func (c *fakeConn) sent() []string {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return append([]string(nil), c.statements...)
-}
 
 func facetsDS(conn *fakeConn) *Datasource {
 	d := &Datasource{conn: conn, limits: datasource.Limits{}.WithDefaults(datasource.DefaultLimits), database: "otel", columns: ttlcache.New[tableName, []string](columnCacheTTL, columnCacheCost)}
@@ -114,7 +28,7 @@ const facetInner = "SELECT Timestamp, SeverityText, Body, ServiceName, TraceId, 
 
 func TestLogFacetsGroupsEachDefaultColumnAndAttributeKey(t *testing.T) {
 	conn := &fakeConn{
-		columns: []string{"Timestamp", "SeverityText", "Body", "ServiceName", "TraceId", "SpanId", "LogAttributes"},
+		columns: stringColumns("Timestamp", "SeverityText", "Body", "ServiceName", "TraceId", "SpanId", "LogAttributes"),
 		keys:    []string{"http.method", "http.route"},
 		values: map[string][][]any{
 			"`ServiceName`":                 {{"frontend", uint64(48210)}, {"checkout", uint64(9931)}},
@@ -166,7 +80,7 @@ func TestLogFacetsGroupsEachDefaultColumnAndAttributeKey(t *testing.T) {
 }
 
 func TestLogFacetsCountsOnlyTheRequestedFields(t *testing.T) {
-	conn := &fakeConn{columns: []string{"Timestamp", "Body", "ServiceName", "LogAttributes"}, values: map[string][][]any{
+	conn := &fakeConn{columns: stringColumns("Timestamp", "Body", "ServiceName", "LogAttributes"), values: map[string][][]any{
 		"`Body`":                        {{"hello", uint64(1)}},
 		"`LogAttributes`[{key:String}]": {{"/cart", uint64(7)}},
 	}}
@@ -186,7 +100,7 @@ func TestLogFacetsCountsOnlyTheRequestedFields(t *testing.T) {
 	if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), `field "Missing" is not a column of the query`) {
 		t.Fatalf("err = %v", err)
 	}
-	_, err = facetsDS(&fakeConn{columns: []string{"Body"}}).LogFacets(context.Background(), facetReq("SELECT Body FROM otel_logs", []string{"LogAttributes.http.route"}, 10))
+	_, err = facetsDS(&fakeConn{columns: stringColumns("Body")}).LogFacets(context.Background(), facetReq("SELECT Body FROM otel_logs", []string{"LogAttributes.http.route"}, 10))
 	if !errors.Is(err, datasource.ErrInvalidQuery) {
 		t.Fatalf("an attribute key of a query without LogAttributes: err = %v", err)
 	}

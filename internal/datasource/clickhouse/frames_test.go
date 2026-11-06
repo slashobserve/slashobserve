@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -52,5 +53,45 @@ func TestSeriesFramesMarkTruncationOnTheFirstFrameOnly(t *testing.T) {
 	}
 	if frames[0].Meta == nil || !frames[0].Meta.Truncated || frames[1].Meta != nil {
 		t.Fatalf("metas = %+v, %+v: want truncated on the first frame only", frames[0].Meta, frames[1].Meta)
+	}
+}
+
+func TestTableFrameAddsNanosecondTimesForADateTime64_9Timestamp(t *testing.T) {
+	at := time.Date(2026, 11, 6, 12, 0, 0, 123456789, time.UTC)
+	cases := []struct {
+		name   string
+		column column
+		want   []string
+	}{
+		{"DateTime64(9)", column{name: "Timestamp", typ: datasource.FieldTime, dbType: "DateTime64(9)"}, []string{"time:Timestamp", "string:Body", "string:TimeNs"}},
+		{"Nullable DateTime64(9)", column{name: "Timestamp", typ: datasource.FieldTime, dbType: "Nullable(DateTime64(9))"}, []string{"time:Timestamp", "string:Body", "string:TimeNs"}},
+		{"DateTime64(3)", column{name: "Timestamp", typ: datasource.FieldTime, dbType: "DateTime64(3)"}, []string{"time:Timestamp", "string:Body"}},
+		{"DateTime", column{name: "Timestamp", typ: datasource.FieldTime, dbType: "DateTime"}, []string{"time:Timestamp", "string:Body"}},
+		{"another column name", column{name: "At", typ: datasource.FieldTime, dbType: "DateTime64(9)"}, []string{"time:At", "string:Body"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rs := &resultSet{columns: []column{tc.column, {name: "Body", typ: datasource.FieldString}}, rows: [][]any{{at, "line"}, {nil, "gap"}}}
+			f := rs.tableFrame()
+			var names []string
+			for _, field := range f.Fields {
+				names = append(names, string(field.Type)+":"+field.Name)
+			}
+			if fmt.Sprint(names) != fmt.Sprint(tc.want) {
+				t.Fatalf("fields = %v, want %v", names, tc.want)
+			}
+			if len(tc.want) != 3 {
+				return
+			}
+			if got := f.Fields[2].Values; len(got) != 2 || got[0] != "1793966400123456789" || got[1] != nil {
+				t.Fatalf("TimeNs = %v", got)
+			}
+			if ns, ok := datasource.TimeNsOf(f, 0); !ok || ns != 1793966400123456789 {
+				t.Fatalf("TimeNsOf = %d, %v", ns, ok)
+			}
+			if _, ok := datasource.TimeNsOf(f, 1); ok {
+				t.Fatal("TimeNsOf found a value in a null row")
+			}
+		})
 	}
 }
