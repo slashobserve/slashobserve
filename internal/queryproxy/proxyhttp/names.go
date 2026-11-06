@@ -20,7 +20,7 @@ const namesTimeout = 15 * time.Second
 
 var (
 	metricsParams = []string{"search", "limit"}
-	labelsParams  = []string{"metric", "table", "search", "limit"}
+	labelsParams  = []string{"metric", "table", "search", "limit", "from", "to", "timezone"}
 )
 
 type metricsResponse struct {
@@ -106,27 +106,48 @@ func namesRequest(rawQuery string, allowed []string) (req queryproxy.NamesReques
 		return req, invalidf("the query string is malformed")
 	}
 	for _, name := range slices.Sorted(maps.Keys(query)) {
-		values := query[name]
 		if !slices.Contains(allowed, name) {
 			return req, invalidf("unknown query parameter")
 		}
-		if len(values) != 1 {
+		if len(query[name]) != 1 {
 			return req, invalidf("%s must be given once", name)
 		}
-		switch name {
-		case "search":
-			req.Search = values[0]
-		case "metric":
-			req.Metric = values[0]
-		case "table":
-			req.Table = values[0]
-		case "limit":
-			n, err := strconv.Atoi(values[0])
-			if err != nil || strconv.Itoa(n) != values[0] || n < 1 || n > queryproxy.MaxNamesLimit {
-				return req, invalidf("limit must be between 1 and %d", queryproxy.MaxNamesLimit)
-			}
-			req.Limit = n
+	}
+	req.Search, req.Metric, req.Table = query.Get("search"), query.Get("metric"), query.Get("table")
+	if query.Has("limit") {
+		if req.Limit, err = namesLimit(query.Get("limit")); err != nil {
+			return req, err
 		}
 	}
+	if req.Range, err = namesRange(query.Get("from"), query.Get("to"), query.Get("timezone"), time.Now()); err != nil {
+		return req, err
+	}
 	return req, nil
+}
+
+func namesLimit(value string) (int, error) {
+	n, err := strconv.Atoi(value)
+	if err != nil || strconv.Itoa(n) != value || n < 1 || n > queryproxy.MaxNamesLimit {
+		return 0, invalidf("limit must be between 1 and %d", queryproxy.MaxNamesLimit)
+	}
+	return n, nil
+}
+
+func namesRange(from, to, timezone string, now time.Time) (datasource.TimeRange, error) {
+	if from == "" && to == "" {
+		return datasource.TimeRange{}, nil
+	}
+	if from == "" || to == "" {
+		return datasource.TimeRange{}, invalidf("from and to must be given together")
+	}
+	q := url.Values{paramFrom: {from}, paramTo: {to}}
+	if timezone != "" {
+		q.Set(paramTimezone, timezone)
+	}
+	p, err := parseParams(q, false)
+	if err != nil {
+		return datasource.TimeRange{}, err
+	}
+	rng, _, err := p.timeRange(exploreDashboard("", "", queryproxy.KindInstant), now)
+	return rng, err
 }

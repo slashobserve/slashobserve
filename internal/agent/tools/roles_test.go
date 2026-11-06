@@ -26,6 +26,7 @@ func TestToolRoles(t *testing.T) {
 		nameLintQuery:       auth.RoleEditor,
 		nameQueryRange:      auth.RoleEditor,
 		nameQueryInstant:    auth.RoleEditor,
+		nameLogsForTrace:    auth.RoleEditor,
 		nameCreateDashboard: auth.RoleEditor,
 		nameUpdateDashboard: auth.RoleEditor,
 		nameUpdatePanels:    auth.RoleEditor,

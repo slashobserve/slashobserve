@@ -96,6 +96,8 @@ paths:
     $ref: "./paths/explore.yaml#/datasources-uid-log-volume"
   /datasources/{uid}/log-facets:
     $ref: "./paths/log-facets.yaml#/datasources-uid-log-facets"
+  /datasources/{uid}/trace-logs:
+    $ref: "./paths/trace-logs.yaml#/datasources-uid-trace-logs"
   /datasources/{uid}/draft-query:
     $ref: "./paths/draft-query.yaml#/datasources-uid-draft-query"
   /datasources/{uid}/metrics:

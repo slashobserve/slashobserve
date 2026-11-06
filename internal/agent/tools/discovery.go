@@ -145,6 +145,8 @@ type listLabelsInput struct {
 	Metric     string `json:"metric"`
 	Table      string `json:"table"`
 	Search     string `json:"search"`
+	From       string `json:"from"`
+	To         string `json:"to"`
 	Limit      *int   `json:"limit"`
 	Offset     *int   `json:"offset"`
 }
@@ -155,8 +157,20 @@ type listLabelValuesInput struct {
 	Metric     string `json:"metric"`
 	Table      string `json:"table"`
 	Search     string `json:"search"`
+	From       string `json:"from"`
+	To         string `json:"to"`
 	Limit      *int   `json:"limit"`
 	Offset     *int   `json:"offset"`
+}
+
+func namesRange(from, to string) (datasource.TimeRange, Result, bool) {
+	switch {
+	case from == "" && to == "":
+		return datasource.TimeRange{}, Result{}, true
+	case from == "" || to == "":
+		return datasource.TimeRange{}, invalid("from and to must be given together"), false
+	}
+	return resolveRange(from, to, time.Now())
 }
 
 func namesLimit(p *int) int {
@@ -390,6 +404,10 @@ func (r *Registry) listLabels(ctx context.Context, input json.RawMessage) (Resul
 	if !ok {
 		return res, nil
 	}
+	rng, res, ok := namesRange(in.From, in.To)
+	if !ok {
+		return res, nil
+	}
 	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
 		Datasource: in.Datasource,
 		Kind:       datasource.DiscoverLabels,
@@ -397,6 +415,7 @@ func (r *Registry) listLabels(ctx context.Context, input json.RawMessage) (Resul
 		Metric:     in.Metric,
 		Table:      in.Table,
 		Limit:      pagedNamesLimit(in.Limit, offset),
+		Range:      rng,
 	}, "labels")
 	if !ok || err != nil {
 		return res, err
@@ -422,6 +441,10 @@ func (r *Registry) listLabelValues(ctx context.Context, input json.RawMessage) (
 	if !ok {
 		return res, nil
 	}
+	rng, res, ok := namesRange(in.From, in.To)
+	if !ok {
+		return res, nil
+	}
 	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
 		Datasource: in.Datasource,
 		Kind:       datasource.DiscoverLabelValues,
@@ -430,6 +453,7 @@ func (r *Registry) listLabelValues(ctx context.Context, input json.RawMessage) (
 		Label:      in.Label,
 		Table:      in.Table,
 		Limit:      pagedNamesLimit(in.Limit, offset),
+		Range:      rng,
 	}, "label values")
 	if !ok || err != nil {
 		return res, err

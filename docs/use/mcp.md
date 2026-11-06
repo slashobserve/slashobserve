@@ -12,14 +12,14 @@ The endpoint is stateless, refuses an `Origin` that is not `SLASHOBSERVE_PUBLIC_
 On `initialize` the server returns an `Mcp-Session-Id` that only carries the client's self-reported name and holds no state.
 Each version and agent request records its origin (`web`, `cli`, `mcp` or `api`) and, for `mcp`, that client name.
 
-The server offers 27 tools.
+The server offers 29 tools.
 Each has a lowest role, which the server checks when a client calls it, using the role of the key's service account:
 
 | Role      | Tools                                                                                                                                                         |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Viewer    | `list_dashboards`, `get_dashboard`, `get_panels`, `get_spec_guide`, `list_comments`, `list_folders`, `list_findings`, `list_dashboard_health`, `list_annotations`, `draft_query` |
 | Commenter | `reply_to_comment`, `resolve_comment`                                                                                                                         |
-| Editor    | `create_dashboard`, `update_dashboard`, `update_panels`, `import_grafana_dashboard`, `list_datasources`, `list_metrics`, `list_labels`, `list_label_values`, `get_schema`, `sample_rows`, `lint_query`, `query_range`, `query_instant`, `log_facets`, `create_finding`, `create_annotation` |
+| Editor    | `create_dashboard`, `update_dashboard`, `update_panels`, `import_grafana_dashboard`, `list_datasources`, `list_metrics`, `list_labels`, `list_label_values`, `get_schema`, `sample_rows`, `lint_query`, `query_range`, `query_instant`, `log_facets`, `logs_for_trace`, `create_finding`, `create_annotation` |
 
 A call below the key's role returns the tool error `forbidden_role`.
 Folder access applies on top: a tool that names a dashboard or folder the key cannot see returns `not_found`, and changing a dashboard needs Edit on its folder.
@@ -56,6 +56,8 @@ An overlap is reported at the panel the patch upserted or moved, with both panel
 `get_panels` reads the full JSON of up to 20 panels by `ids`, at the latest version or at `version`, together with the variables; ids it did not return are in `missing`, and `truncated` is true when the result was cut to fit.
 It returns at least one panel, and a panel too large to return is listed in `too_large`.
 `list_metrics`, `list_labels`, `list_label_values` and `get_schema` take an `offset` and answer `truncated`, `truncated_by` (`limit` or `bytes`) and `next_offset`, so a client pages through a long list by passing `next_offset` back as `offset`.
+`list_labels` and `list_label_values` also take `from` and `to`, both or neither, so Loki and Tempo answer only the names seen in that window instead of their own default one.
+`logs_for_trace` reads the log lines that carry a trace id, or one span id, from a Loki or ClickHouse datasource over a window, the same lines the trace view opens from a span, and answers the table summary of `query_instant`.
 
 `list_metrics` also takes `scope`: a series selector such as `{job="checkout"}` on Prometheus, or a table name on ClickHouse.
 With `scope` it answers every metric family in that scope in one result: the name, type, unit, label keys and series count of each family, `families_total`, and `grouped`, the families that share a name prefix such as `http_server`.

@@ -102,6 +102,7 @@ type DiscoverRequest struct {
 	Label  string
 	Scope  string
 	Limit  int
+	Range  TimeRange
 }
 
 func (r DiscoverRequest) EffectiveLimit() int {

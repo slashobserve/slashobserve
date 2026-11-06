@@ -47,11 +47,15 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 		return d.discoverStreams(ctx, req)
 	}
 	limit := req.EffectiveLimit()
+	params := url.Values{}
+	if req.Metric != "" {
+		params.Set("query", req.Metric)
+	}
+	if !req.Range.From.IsZero() {
+		params.Set("start", lokiTime(req.Range.From))
+		params.Set("end", lokiTime(req.Range.To))
+	}
 	if req.Kind == datasource.DiscoverLabels {
-		params := url.Values{}
-		if req.Metric != "" {
-			params.Set("query", req.Metric)
-		}
 		names, err := d.getStrings(ctx, "/loki/api/v1/labels", params)
 		if err != nil {
 			return nil, err
@@ -60,10 +64,6 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 	}
 	if err := validateLabel(req.Label); err != nil {
 		return nil, err
-	}
-	params := url.Values{}
-	if req.Metric != "" {
-		params.Set("query", req.Metric)
 	}
 	values, err := d.getStrings(ctx, labelValuesPath(req.Label), params)
 	if err != nil {

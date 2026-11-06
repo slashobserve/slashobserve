@@ -15,6 +15,7 @@ const (
 	nameListLabelValues = "list_label_values"
 	nameListLabels      = "list_labels"
 	nameListMetrics     = "list_metrics"
+	nameLogsForTrace    = "logs_for_trace"
 	nameQueryInstant    = "query_instant"
 	nameQueryRange      = "query_range"
 	nameReplyToComment  = "reply_to_comment"
@@ -39,9 +40,10 @@ const (
 	descListDashboards  = "List the saved dashboards you can see, most recently updated first, with id, title, tags, folder, latest version and URL, 20 per page by default. Pass next_cursor as cursor for the next page. Use it to find the dashboard_id of a dashboard to read or revise."
 	descListDatasources = "List the configured datasources with their uid, type (prometheus, clickhouse, loki or tempo) and health. Every discovery and query tool, and every panel, names its datasource by this uid; call it first unless you already know the uids."
 	descListFolders     = "List the folders you can see, with their id and whether you can create dashboards in each. Pass a folder id as folder_id to create_dashboard to save a dashboard there."
-	descListLabelValues = "List the values of one label or attribute key, optionally only those seen on metric, a stream selector on Loki or a TraceQL filter such as { span.http.method = \"POST\" } on Tempo. On ClickHouse pass table or metric. Use it to learn real services, routes or pods before filtering on them. " + pagingNote
-	descListLabels      = "List the label names of a datasource: stream labels on Loki, TraceQL attributes on Tempo, OpenTelemetry attribute keys on ClickHouse, optionally only those seen on metric, a stream selector on Loki or a TraceQL filter on Tempo. On ClickHouse pass table, an otel_* table from get_schema, or metric. Use it to find the dimensions to group or filter by. " + pagingNote
+	descListLabelValues = "List the values of one label or attribute key, optionally only those seen on metric, a stream selector on Loki or a TraceQL filter such as { span.http.method = \"POST\" } on Tempo. On ClickHouse pass table or metric. Use it to learn real services, routes or pods before filtering on them. Pass from and to to see only names seen in that range. " + pagingNote
+	descListLabels      = "List the label names of a datasource: stream labels on Loki, TraceQL attributes on Tempo, OpenTelemetry attribute keys on ClickHouse, optionally only those seen on metric, a stream selector on Loki or a TraceQL filter on Tempo. On ClickHouse pass table, an otel_* table from get_schema, or metric. Use it to find the dimensions to group or filter by. Pass from and to to see only names seen in that range. " + pagingNote
 	descListMetrics     = "List the metric names of a Prometheus datasource, or the OpenTelemetry metric names of a ClickHouse datasource, optionally filtered by search; with scope, list every metric family in that scope instead, or every stream label key on Loki. Use it to find real metric names before writing a query. " + pagingNote
+	descLogsForTrace    = "Read the log lines that carry a trace id, or one span id, from a Loki or ClickHouse logs datasource over a time window. Use it after get_trace or a TraceQL query to see what the services logged while the trace ran; pass the trace's start and end as from and to."
 	descQueryInstant    = "Run a PromQL, LogQL, TraceQL or ClickHouse SQL query as an instant query, PromQL evaluated once at to, and get a compact summary of the rows or series it returns. Use it to check a query with instant: true, or a table panel's query, before saving; for other panels use query_range. It takes no format or max_data_points. Pass variables for each $variable the query uses, and dashboard_title when it uses $__dashboard."
 	descQueryRange      = "Run a PromQL, LogQL, TraceQL or ClickHouse SQL query over a time range, as a range query, and get a compact summary: up to 20 series with points, min, max and last, or the first rows of a table. This is how most panels run, a stat or gauge included; use it to check a panel query returns data before saving. Use query_instant instead for a query with instant: true or a table panel's query. Pass format as the panel's query has it, variables for each $variable the query uses, and dashboard_title when it uses $__dashboard."
 	descReplyToComment  = "Reply to a comment thread, for example to say what you changed or why you did not. A reply to a reply joins the same thread."
@@ -58,6 +60,8 @@ const (
 	propDiscLimit     = `"limit":{"type":"integer","minimum":1,"maximum":500,"description":"Maximum items to return. Default 100."}`
 	propScope         = `"scope":{"type":"string","maxLength":256,"description":"A label selector such as {job=\"checkout\"}, a stream selector on Loki, or a table name on ClickHouse; returns every metric family in that scope in one result with type, unit, label keys and series count, and on Loki each stream label key with its stream count. Use it once per create run before planning."}`
 	propOffset        = `"offset":{"type":"integer","minimum":0,"maximum":499,"description":"Skip this many items; pass next_offset from an earlier result to page on."}`
+	propNamesFrom     = `"from":{"type":"string","description":"Only names seen from this time, relative such as now-6h or absolute; give from and to together or neither."}`
+	propNamesTo       = `"to":{"type":"string","description":"Only names seen up to this time, relative such as now or absolute; give from and to together or neither."}`
 	propQuery         = `"query":{"type":"string","minLength":1,"maxLength":65536,"description":"PromQL, LogQL, TraceQL or ClickHouse SQL. It may use $variables and the macros in the authoring guide, such as $__rate_interval or $__timeFilter(Timestamp)."}`
 	propFrom          = `"from":{"type":"string","description":"Start time such as now-1h or an RFC 3339 time. Default now-1h."}`
 	propTo            = `"to":{"type":"string","description":"End time such as now or an RFC 3339 time. Default now."}`
@@ -77,9 +81,9 @@ const (
 
 	schemaListMetrics = `{"type":"object","properties":{` + propDatasource + `,` + propSearch + `,` + propScope + `,` + propDiscLimit + `,` + propOffset + `},"required":["datasource"],"additionalProperties":false}`
 
-	schemaListLabels = `{"type":"object","properties":{` + propDatasource + `,"metric":{"type":"string","description":"Only labels seen on this metric."},` + propTable + `,` + propSearch + `,` + propDiscLimit + `,` + propOffset + `},"required":["datasource"],"additionalProperties":false}`
+	schemaListLabels = `{"type":"object","properties":{` + propDatasource + `,"metric":{"type":"string","description":"Only labels seen on this metric."},` + propTable + `,` + propSearch + `,` + propNamesFrom + `,` + propNamesTo + `,` + propDiscLimit + `,` + propOffset + `},"required":["datasource"],"additionalProperties":false}`
 
-	schemaListLabelValues = `{"type":"object","properties":{` + propDatasource + `,"label":{"type":"string","description":"Label name or attribute key."},"metric":{"type":"string","description":"Only values seen on this metric."},` + propTable + `,` + propSearch + `,` + propDiscLimit + `,` + propOffset + `},"required":["datasource","label"],"additionalProperties":false}`
+	schemaListLabelValues = `{"type":"object","properties":{` + propDatasource + `,"label":{"type":"string","description":"Label name or attribute key."},"metric":{"type":"string","description":"Only values seen on this metric."},` + propTable + `,` + propSearch + `,` + propNamesFrom + `,` + propNamesTo + `,` + propDiscLimit + `,` + propOffset + `},"required":["datasource","label"],"additionalProperties":false}`
 
 	schemaGetSchema = `{"type":"object","properties":{` + propDatasource + `,"table":{"type":"string","description":"Table to describe. Omit to list tables."},` + propOffset + `},"required":["datasource"],"additionalProperties":false}`
 
@@ -90,6 +94,8 @@ const (
 	schemaQueryRange = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,"max_data_points":{"type":"integer","minimum":10,"maximum":1000,"description":"Target points per series. Default 200."},` + propFormat + `,` + propVariables + `,` + propDashTitle + `},"required":["datasource","query"],"additionalProperties":false}`
 
 	schemaQueryInstant = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propVariables + `,` + propDashTitle + `},"required":["datasource","query"],"additionalProperties":false}`
+
+	schemaLogsForTrace = `{"type":"object","properties":{` + propDatasource + `,"trace_id":{"type":"string","description":"The trace id, 16 or 32 hex characters."},"span_id":{"type":"string","description":"Only the lines of this span, 16 hex characters."},"service":{"type":"string","description":"The span's service name, to narrow the Loki stream selector; ClickHouse ignores it."},` + propFrom + `,` + propTo + `,"limit":{"type":"integer","minimum":1,"maximum":200,"description":"Lines to return. Default 50."}},"required":["datasource","trace_id"],"additionalProperties":false}`
 
 	schemaImportGrafana = `{"type":"object","additionalProperties":false,"required":["json"],"properties":{"json":{"type":"string","minLength":1,"description":"The Grafana dashboard JSON text."},"mapping":{"type":"object","maxProperties":50,"additionalProperties":{"type":"string","minLength":1,"maxLength":200},"description":"Grafana datasource key (uid, name or ${DS_X}) to our datasource uid."},"folder":{"type":"string","minLength":1,"maxLength":100,"description":"Folder title for the new dashboard. Default the folder named in the Grafana export, else your default folder."}}}`
 

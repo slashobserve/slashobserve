@@ -240,14 +240,6 @@ func sampleFacet(frames []datasource.Frame, name string, cardinality, limit int)
 	return field
 }
 
-func lineCount(frames []datasource.Frame) int {
-	n := 0
-	for _, f := range frames {
-		n += len(f.Fields[0].Values)
-	}
-	return n
-}
-
 func selectorOf(text string) string {
 	for i := 0; i < len(text); i++ {
 		switch text[i] {

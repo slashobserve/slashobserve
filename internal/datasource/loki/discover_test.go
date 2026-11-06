@@ -96,6 +96,35 @@ func TestDiscoverLabelsSendsTheSelector(t *testing.T) {
 	}
 }
 
+func TestDiscoverLabelsSendTheRange(t *testing.T) {
+	const valuesPath = "/loki/api/v1/label/service_name/values"
+	from := time.Date(2026, 11, 6, 6, 0, 0, 0, time.UTC)
+	rng := datasource.TimeRange{From: from, To: from.Add(6 * time.Hour)}
+	ds, fake := serveRoutes(t, map[string]string{labelsPath: labelList("service_name"), valuesPath: labelList("checkout")})
+	for _, req := range []datasource.DiscoverRequest{
+		{Kind: datasource.DiscoverLabels, Range: rng},
+		{Kind: datasource.DiscoverLabelValues, Label: "service_name", Range: rng},
+		{Kind: datasource.DiscoverLabels},
+		{Kind: datasource.DiscoverLabelValues, Label: "service_name"},
+	} {
+		if _, err := ds.Discover(context.Background(), req); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, path := range []string{labelsPath, valuesPath} {
+		sent := fake.to(path)
+		if len(sent) != 2 {
+			t.Fatalf("%s: %d requests, want 2", path, len(sent))
+		}
+		if got := sent[0].params; got.Get("start") != "2026-11-06T06:00:00Z" || got.Get("end") != "2026-11-06T12:00:00Z" {
+			t.Fatalf("%s: ranged request sent start %q end %q", path, got.Get("start"), got.Get("end"))
+		}
+		if got := sent[1].params; got.Has("start") || got.Has("end") {
+			t.Fatalf("%s: a request without a range sent start %q end %q", path, got.Get("start"), got.Get("end"))
+		}
+	}
+}
+
 func TestDiscoverSampleMergesStreamsNewestFirst(t *testing.T) {
 	streams := success("streams", `[
 		{"stream":{"service_name":"checkout"},"values":[["1793966400000000003","checkout line"],["1793966400000000001","older checkout line"]]},

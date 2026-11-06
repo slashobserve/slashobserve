@@ -226,6 +226,29 @@ func TestNamesClipsHelpAtAUTF8Boundary(t *testing.T) {
 	}
 }
 
+func TestNamesPassesTheRangeToDiscoveryAndRejectsHalfOfOne(t *testing.T) {
+	from := time.Date(2026, 11, 6, 6, 0, 0, 0, time.UTC)
+	to := from.Add(6 * time.Hour)
+	fake := newFake("loki")
+	runner := namesRunner(t, fake)
+	if _, err := runner.Names(context.Background(), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverLabels, Range: datasource.TimeRange{From: from, To: to}}); err != nil {
+		t.Fatal(err)
+	}
+	sent := fake.discoverRequests()
+	if len(sent) != 1 || !sent[0].Range.From.Equal(from) || !sent[0].Range.To.Equal(to) {
+		t.Fatalf("discover requests = %#v, want one over %v to %v", sent, from, to)
+	}
+	for name, rng := range map[string]datasource.TimeRange{"from only": {From: from}, "to only": {To: to}} {
+		_, err := runner.Names(context.Background(), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverLabels, Range: rng})
+		if !errors.Is(err, ErrInvalidRequest) || err.Error() != "from and to must be given together" {
+			t.Fatalf("%s: err = %v, want the half range rejected", name, err)
+		}
+	}
+	if len(fake.discoverRequests()) != 1 {
+		t.Fatal("discovery ran for a half range")
+	}
+}
+
 func TestNamesReleasesTheSlotWhenDiscoveryIsCanceled(t *testing.T) {
 	fake := newFake("prometheus")
 	fake.onDiscover = func(ctx context.Context, _ datasource.DiscoverRequest) (*datasource.Catalog, error) {

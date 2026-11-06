@@ -29,6 +29,7 @@ type NamesRequest struct {
 	Scope      string
 	Inventory  bool
 	Limit      int // 0 means DefaultNamesLimit
+	Range      datasource.TimeRange
 }
 
 type Names struct {
@@ -77,6 +78,9 @@ func (req NamesRequest) validate() (limit int, err error) {
 	if req.Kind == datasource.DiscoverLabelValues && req.Label == "" {
 		return 0, invalidNamesf("label is required")
 	}
+	if req.Range.From.IsZero() != req.Range.To.IsZero() {
+		return 0, invalidNamesf("from and to must be given together")
+	}
 	return limit, nil
 }
 
@@ -115,6 +119,7 @@ func (r *Runner) Names(ctx context.Context, req NamesRequest) (Names, error) {
 		Table:  req.Table,
 		Scope:  req.Scope,
 		Limit:  limit + 1,
+		Range:  req.Range,
 	})
 	if err != nil {
 		return Names{}, err
