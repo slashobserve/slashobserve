@@ -1,0 +1,1 @@
+{"title":"Conformance","schemaVersion":41,"time":{"from":"now-6h","to":"now"},"panels":[{"id":1,"type":"table","title":"Panel","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":{"type":"tempo","uid":"tempo"},"targets":[{"refId":"A","queryType":"traceql","query":"{resource.service.name=\"checkout\"}","datasource":{"type":"tempo","uid":"tempo"}}]}]}

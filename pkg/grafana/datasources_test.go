@@ -98,8 +98,8 @@ func TestVariableOnlyDefaultDatasourceTakesTheDashboardsOnlyKind(t *testing.T) {
 }
 
 func TestPanelOnAnUnsupportedDatasourceWithoutTargetsNamesIt(t *testing.T) {
-	res := convertDoc(t, dashboardJSON("", `{"id":1,"type":"logs","title":"Logs","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":{"type":"loki","uid":"loki1"}}`))
-	if got := panelLine(t, res, "p1").Reasons[0]; got != "Loki is not supported yet." {
+	res := convertDoc(t, dashboardJSON("", `{"id":1,"type":"logs","title":"Logs","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":{"type":"elasticsearch","uid":"es1"}}`))
+	if got := panelLine(t, res, "p1").Reasons[0]; got != "Elasticsearch is not supported yet." {
 		t.Fatalf("reason = %q", got)
 	}
 }

@@ -479,3 +479,22 @@ func TestScanQueryManyClosedConditionalAlls(t *testing.T) {
 		t.Fatalf("deeply nested: %v", err)
 	}
 }
+
+func TestLogQLReturnsLines(t *testing.T) {
+	cases := []struct {
+		text string
+		want bool
+	}{
+		{`{a="b"}`, true},
+		{"  \n\t{a=\"b\"} |= \"x\"", true},
+		{"# lines\n  # more\n{a=\"b\"}", true},
+		{`rate({a="b"}[5m])`, false},
+		{"# only a comment", false},
+		{"", false},
+	}
+	for _, c := range cases {
+		if got := spec.LogQLReturnsLines(c.text); got != c.want {
+			t.Errorf("LogQLReturnsLines(%q) = %v, want %v", c.text, got, c.want)
+		}
+	}
+}

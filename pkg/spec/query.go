@@ -108,6 +108,23 @@ func Macros(t DatasourceType) []Macro {
 	return out
 }
 
+func LogQLReturnsLines(text string) bool {
+	i := 0
+	for i < len(text) {
+		switch text[i] {
+		case ' ', '\t', '\n', '\r':
+			i++
+		case '#':
+			for i < len(text) && text[i] != '\n' {
+				i++
+			}
+		default:
+			return text[i] == '{'
+		}
+	}
+	return false
+}
+
 func knownMacro(name string) bool {
 	return slices.ContainsFunc(macroTable, func(m macroDef) bool { return m.Name == name })
 }

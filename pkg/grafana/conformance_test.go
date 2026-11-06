@@ -39,6 +39,8 @@ var (
 var conformanceOptions = Options{Datasources: []Datasource{
 	{UID: "prom", Type: "prometheus"},
 	{UID: "ch", Type: "clickhouse"},
+	{UID: "loki", Type: "loki"},
+	{UID: "tempo", Type: "tempo"},
 }}
 
 type conformanceEntry struct {
@@ -261,7 +263,7 @@ func observeConversion(raw []byte) conformanceObservation {
 			continue
 		}
 		parts = append(parts, fmt.Sprintf("panel %s %s %s %s", p.PanelID, p.Status, strings.Join(p.Reasons, " "), strings.Join(p.Paths, " ")))
-		issues = append(issues, conformanceIssue{paths: p.Paths, reasons: p.Reasons})
+		issues = append(issues, conformanceIssue{paths: underPanel(p.GrafanaPath, p.Paths), reasons: p.Reasons})
 	}
 	for _, n := range res.Report.Notes {
 		parts = append(parts, fmt.Sprintf("note %s: %s %s", n.Subject, n.Reason, strings.Join(n.Paths, " ")))
@@ -271,6 +273,14 @@ func observeConversion(raw []byte) conformanceObservation {
 		return conformanceObservation{detail: "reported: " + strings.Join(parts, "; "), spec: specJSON, issues: issues}
 	}
 	return conformanceObservation{clean: true, spec: specJSON}
+}
+
+func underPanel(panelPath string, paths []string) []string {
+	out := make([]string, len(paths))
+	for i, p := range paths {
+		out[i] = joinPath(panelPath, p)
+	}
+	return out
 }
 
 func classifyConformance(e conformanceEntry, fullPath string, variant conformanceObservation, changed, cosmetic bool) string {

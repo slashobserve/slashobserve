@@ -269,7 +269,7 @@ func (c *converter) debugPanel(n *panelNode) *builtPanel {
 
 func (c *converter) datasourceReason(n *panelNode) string {
 	if own := n.ds.own; len(n.ds.targets) == 0 && own.kind == refSource && !own.supported() {
-		return own.label() + " is not supported yet."
+		return own.unsupportedReason()
 	}
 	if len(n.ds.targets) == 0 {
 		return ""
@@ -279,7 +279,7 @@ func (c *converter) datasourceReason(n *panelNode) string {
 			return ""
 		}
 	}
-	return n.ds.targets[0].label() + " is not supported yet."
+	return n.ds.targets[0].unsupportedReason()
 }
 
 func (c *converter) unsupportedReason(n *panelNode) string {

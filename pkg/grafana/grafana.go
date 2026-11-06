@@ -56,6 +56,10 @@ type SourceDatasource struct {
 	Candidates []string `json:"candidates"`
 }
 
+func (d SourceDatasource) Unmatched() bool {
+	return d.Kind != nil && d.Match == nil && len(d.Candidates) > 0
+}
+
 type Status string
 
 const (

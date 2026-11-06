@@ -46,6 +46,7 @@ export function openMatches(
   return supported(datasources).filter((datasource) => {
     const pick = picks[datasource.uid]
     return (
+      datasource.candidates.length > 0 &&
       datasource.matched_uid === null &&
       (pick === undefined || !datasource.candidates.includes(pick))
     )

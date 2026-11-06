@@ -17,7 +17,7 @@ function datasource(
   return {
     uid,
     name: uid,
-    type: kind ?? "loki",
+    type: kind ?? "elasticsearch",
     kind,
     candidates,
     matched_uid: matched,
@@ -27,8 +27,8 @@ function datasource(
 const matched = datasource("graf-prom", "prometheus", ["prom", "prom2"], "prom")
 const open = datasource("graf-prom-b", "prometheus", ["prom", "prom2"], null)
 const noCandidates = datasource("graf-ch", "clickhouse", [], null)
-const loki = datasource("graf-loki", null, [], null)
-const all = [matched, open, noCandidates, loki]
+const elasticsearch = datasource("graf-es", null, [], null)
+const all = [matched, open, noCandidates, elasticsearch]
 
 describe("prefilledMapping", () => {
   it("prefills only supported datasources the server matched", () => {
@@ -52,7 +52,7 @@ describe("mappingToSend", () => {
     ["a pick that is not a candidate is dropped", { "graf-prom-b": "ch" }, {}],
     [
       "a pick for an unsupported datasource is dropped",
-      { "graf-loki": "prom" },
+      { "graf-es": "prom" },
       {},
     ],
     ["no picks send nothing", {}, {}],
@@ -63,16 +63,20 @@ describe("mappingToSend", () => {
 
 describe("openMatches", () => {
   it.each([
-    ["no picks", {}, 2],
-    ["one open match picked", { "graf-prom-b": "prom" }, 1],
-    ["a pick that is not a candidate stays open", { "graf-prom-b": "x" }, 2],
+    ["no picks", {}, 1],
+    ["one open match picked", { "graf-prom-b": "prom" }, 0],
+    ["a pick that is not a candidate stays open", { "graf-prom-b": "x" }, 1],
   ])("%s", (_name, picks, want) => {
     expect(openMatches(all, picks)).toBe(want)
+  })
+
+  it("does not count a datasource whose kind has none configured", () => {
+    expect(openMatches([noCandidates], {})).toBe(0)
   })
 })
 
 describe("unsupported", () => {
   it("lists the datasources with no kind", () => {
-    expect(unsupported(all)).toEqual([loki])
+    expect(unsupported(all)).toEqual([elasticsearch])
   })
 })

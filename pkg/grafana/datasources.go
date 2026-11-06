@@ -1,6 +1,7 @@
 package grafana
 
 import (
+	"fmt"
 	"maps"
 	"regexp"
 	"slices"
@@ -12,11 +13,28 @@ import (
 const (
 	kindPrometheus = "prometheus"
 	kindClickHouse = "clickhouse"
+	kindLoki       = "loki"
+	kindTempo      = "tempo"
 
 	unmatchedUID  = "unmatched"
 	defaultSource = "default"
 	maxSamples    = 20
 )
+
+type kindTraits struct {
+	label           string
+	variableQueries bool
+	adhoc           bool
+}
+
+var kinds = map[string]kindTraits{
+	kindPrometheus: {"Prometheus", true, true},
+	kindClickHouse: {"ClickHouse", true, true},
+	kindLoki:       {"Loki", true, false},
+	kindTempo:      {"Tempo", false, false},
+}
+
+var tempoQueryTypes = []string{"traceql", "traceqlSearch", "nativeSearch", "serviceMap", "traceId", "upload"}
 
 type refKind int
 
@@ -77,11 +95,23 @@ func kindOf(pluginID string) string {
 		return kindPrometheus
 	case pluginID == "grafana-clickhouse-datasource", pluginID == "vertamedia-clickhouse-datasource":
 		return kindClickHouse
+	case pluginID == kindLoki:
+		return kindLoki
+	case pluginID == kindTempo:
+		return kindTempo
 	}
 	return ""
 }
 
 func inferType(samples []map[string]any) string {
+	for _, t := range samples {
+		if slices.Contains(tempoQueryTypes, asString(t["queryType"])) {
+			return kindTempo
+		}
+		if _, ok := t["maxLines"]; ok || spec.LogQLReturnsLines(asString(t["expr"])) {
+			return kindLoki
+		}
+	}
 	for _, t := range samples {
 		if _, ok := t["expr"]; ok {
 			return "prometheus"
@@ -417,16 +447,19 @@ func ChooseDatasource(uid, name, pluginID string, ours []Datasource) DatasourceC
 }
 
 func kindOfOurs(t string) string {
-	switch t {
-	case kindPrometheus, kindClickHouse:
+	if _, ok := kinds[t]; ok {
 		return t
 	}
 	return ""
 }
 
+func (s *sourceDS) available() bool {
+	return s.kind != "" && len(s.candidates) > 0
+}
+
 func (r *registry) ready() bool {
 	for _, s := range r.list {
-		if s.kind != "" && s.match == "" {
+		if s.available() && s.match == "" {
 			return false
 		}
 	}
@@ -497,5 +530,19 @@ func (ref dsRef) isDashboard() bool {
 }
 
 func (ref dsRef) supported() bool {
-	return ref.kind == refSource && ref.src.kind != ""
+	return ref.kind == refSource && ref.src.available()
+}
+
+func (ref dsRef) unconfiguredKind() (kindTraits, bool) {
+	if ref.kind != refSource || ref.src.kind == "" || ref.src.available() {
+		return kindTraits{}, false
+	}
+	return kinds[ref.src.kind], true
+}
+
+func (ref dsRef) unsupportedReason() string {
+	if traits, ok := ref.unconfiguredKind(); ok {
+		return fmt.Sprintf("No %s datasource is configured.", traits.label)
+	}
+	return ref.label() + " is not supported yet."
 }

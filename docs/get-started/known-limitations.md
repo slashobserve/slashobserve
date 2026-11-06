@@ -8,10 +8,11 @@ These are the gaps that most often decide whether it fits.
 
 ## Datasources
 
-Prometheus and ClickHouse are the only datasource types.
+Prometheus, ClickHouse, Loki and Tempo are the only datasource types.
 A datasources file entry with any other `type` is refused (see [Datasources file](../reference/datasources-file.md)).
-When you import a Grafana panel that queries another type, such as Loki, the report says "Loki is not supported yet." and the datasource cannot be mapped.
-The agent finds metrics, labels, tables and columns on these two only.
+When you import a Grafana panel that queries another type, such as Elasticsearch, it imports as a placeholder that says "Elasticsearch is not supported yet." and the datasource cannot be mapped.
+Tempo search builder queries and TraceQL metrics queries are dropped from an import by decision; write the search as a TraceQL query instead.
+The agent finds metrics, labels, tables, columns, log labels and trace attributes on these four only.
 
 ## No alerting, and no separate logs or traces pages
 
@@ -31,7 +32,7 @@ The CLI and MCP clients use service-account keys, which an Admin creates after s
 ## Grafana import
 
 The import reads dashboard JSON that you provide.
-It does not connect to a Grafana server, so it cannot list or fetch dashboards through Grafana's HTTP API.
+It also fetches dashboards from a running Grafana, with their folders (see [Switch from Grafana](../use/switch-from-grafana.md)).
 
 Alert rules and annotations are not imported.
 The report marks them as excluded by decision, and a panel whose only report lines are such decisions still counts as imported.

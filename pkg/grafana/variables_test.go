@@ -163,7 +163,7 @@ func TestAllowCustomValueFollowsGrafanasDefault(t *testing.T) {
 			res := convertVariables(t,
 				`{"name":"q","type":"query","datasource":`+promRef+`,"query":"label_values(up, job)"`+tc.member+`}`,
 				`{"name":"c","type":"custom","query":"a,b"`+tc.member+`}`,
-				`{"name":"f","type":"query","datasource":{"uid":"other","type":"loki"},"query":"x","options":[{"value":"a"}]`+tc.member+`}`,
+				`{"name":"f","type":"query","datasource":{"uid":"other","type":"elasticsearch"},"query":"x","options":[{"value":"a"}]`+tc.member+`}`,
 			)
 			for _, name := range []string{"q", "c", "f"} {
 				if got := variableNamed(t, res, name).AllowCustomValue; got != tc.want {

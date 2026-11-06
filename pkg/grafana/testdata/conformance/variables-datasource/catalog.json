@@ -8,6 +8,8 @@
   "entries": [
     { "id": "query=clickhouse", "path": "query", "value": "grafana-clickhouse-datasource" },
     { "id": "query=altinity", "path": "query", "value": "vertamedia-clickhouse-datasource" },
+    { "id": "query=loki", "path": "query", "value": "loki" },
+    { "id": "query=tempo", "path": "query", "value": "tempo" },
     { "id": "regex=matching", "path": "regex", "value": "/prom.*/" },
     { "id": "regex=excluding", "path": "regex", "value": "/^never$/" },
     { "id": "multi=true", "path": "multi", "value": true, "expect": "excluded" },

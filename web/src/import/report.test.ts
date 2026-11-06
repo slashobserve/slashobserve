@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import type { ImportSourceDatasource } from "./errors"
 import {
   blockingReason,
+  datasourceKindLabel,
   filterCounts,
   filterLines,
   initialFilter,
@@ -181,7 +182,11 @@ describe("statusLabel", () => {
 describe("visibleDatasources", () => {
   it("hides unsupported sources no panel uses", () => {
     const builtin = datasource({ key: "-- Grafana --", kind: null, panels: 0 })
-    const unsupported = datasource({ key: "loki", kind: null, panels: 2 })
+    const unsupported = datasource({
+      key: "elasticsearch",
+      kind: null,
+      panels: 2,
+    })
     const supported = datasource({ panels: 0 })
     expect(visibleDatasources([builtin, unsupported, supported])).toEqual([
       unsupported,
@@ -195,7 +200,7 @@ describe("blockingReason", () => {
     expect(
       blockingReason([
         datasource({}),
-        datasource({ key: "loki", kind: null, match: null }),
+        datasource({ key: "elasticsearch", kind: null, match: null }),
       ])
     ).toBeNull()
   })
@@ -209,9 +214,32 @@ describe("blockingReason", () => {
     ).toBe("Choose a datasource for a.")
   })
 
-  it("says some are not configured when the blocking source has no candidates", () => {
+  it("does not block on a source whose kind has no configured datasource", () => {
     expect(
-      blockingReason([datasource({ key: "a", match: null, candidates: [] })])
-    ).toBe("Some datasources are not configured.")
+      blockingReason([
+        datasource({ key: "a", kind: "loki", match: null, candidates: [] }),
+      ])
+    ).toBeNull()
+  })
+
+  it("skips a source with no candidates to name the next open one", () => {
+    expect(
+      blockingReason([
+        datasource({ key: "a", kind: "tempo", match: null, candidates: [] }),
+        datasource({ key: "b", match: null, candidates: ["p1", "p2"] }),
+      ])
+    ).toBe("Choose a datasource for b.")
+  })
+})
+
+describe("datasourceKindLabel", () => {
+  it.each([
+    ["prometheus", "Prometheus"],
+    ["clickhouse", "ClickHouse"],
+    ["loki", "Loki"],
+    ["tempo", "Tempo"],
+    ["other", "other"],
+  ])("labels %s as %s", (kind, want) => {
+    expect(datasourceKindLabel(kind)).toBe(want)
   })
 })
