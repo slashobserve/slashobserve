@@ -5,6 +5,12 @@ import reactRefresh from "eslint-plugin-react-refresh"
 import tseslint from "typescript-eslint"
 import { defineConfig, globalIgnores } from "eslint/config"
 
+const nativeSelectSelector = {
+  selector: "JSXOpeningElement[name.name='select']",
+  message:
+    "Dropdowns use Select from @/components/ui/select (or Combobox for long lists), never a native select.",
+}
+
 const rawHtmlSelectors = [
   {
     selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
@@ -52,6 +58,7 @@ export default defineConfig([
           message:
             "Wrap buttonVariants() in cn() so variant classes override base classes.",
         },
+        nativeSelectSelector,
         ...rawHtmlSelectors,
       ],
     },
@@ -81,7 +88,13 @@ export default defineConfig([
   },
   {
     files: ["src/components/ui/**"],
-    rules: { "no-restricted-syntax": ["error", ...rawHtmlSelectors] },
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        nativeSelectSelector,
+        ...rawHtmlSelectors,
+      ],
+    },
   },
   {
     files: [
