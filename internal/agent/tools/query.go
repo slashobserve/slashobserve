@@ -8,6 +8,7 @@ import (
 	"math"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -39,6 +40,14 @@ const (
 	adhocPanelID       = "adhoc"
 	defaultDashTitle   = "Untitled dashboard"
 	maxDashTitleChars  = 200
+)
+
+const (
+	propPageSize = `"page_size":{"type":"integer","minimum":50,"maximum":500,"description":"Rows per page, 50 to 500; turns paging on. Prefer it to from and to windows when you need to walk results."}`
+	propPage     = `"page":{"type":"integer","minimum":1,"description":"Page to read, from 1; on Loki and Tempo pass cursor instead of a page above 1."}`
+	propCursor   = `"cursor":{"type":"string","maxLength":2048,"description":"The next value of an earlier page of the same query."}`
+
+	schemaQueryInstant = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propVariables + `,` + propDashTitle + `,` + propPageSize + `,` + propPage + `,` + propCursor + `},"required":["datasource","query"],"additionalProperties":false}`
 )
 
 var queryFormats = []string{"timeseries", "table", "heatmap", "logs"}
@@ -134,6 +143,10 @@ type instantInput struct {
 	Variables  map[string][]string `json:"variables"`
 
 	DashboardTitle string `json:"dashboard_title"`
+
+	PageSize *int   `json:"page_size"`
+	Page     *int   `json:"page"`
+	Cursor   string `json:"cursor"`
 }
 
 type rangeInput struct {
@@ -162,7 +175,68 @@ func (r *Registry) queryInstant(ctx context.Context, input json.RawMessage) (Res
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
+	if in.PageSize != nil {
+		return r.runPage(ctx, in)
+	}
+	if in.Page != nil || in.Cursor != "" {
+		return invalid("%s", queryproxy.PageNeedsSize), nil
+	}
 	return r.runAdhoc(ctx, spec.Table, in, "", 0)
+}
+
+func (r *Registry) runPage(ctx context.Context, in instantInput) (Result, error) {
+	inst, res, ok := r.instance(in.Datasource)
+	if !ok {
+		return res, nil
+	}
+	if res, ok := checkQueryText(in.Query); !ok {
+		return res, nil
+	}
+	size, res, ok := boundedInt(in.PageSize, 0, datasource.MinPageSize, datasource.MaxPageSize, "page_size")
+	if !ok {
+		return res, nil
+	}
+	page, res, ok := boundedInt(in.Page, 1, 1, math.MaxInt32, "page")
+	if !ok {
+		return res, nil
+	}
+	if res, ok := checkLength("cursor", in.Cursor, datasource.MaxCursorBytes); !ok {
+		return res, nil
+	}
+	rng, res, ok := resolveRange(in.From, in.To, time.Now())
+	if !ok {
+		return res, nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, queryproxy.DraftLimits.Timeout+queryproxy.DraftGrace)
+	defer cancel()
+	principal, _ := auth.FromContext(ctx)
+	out, err := r.deps.Runner.RunPage(ctx, inst, queryproxy.PageParams{
+		UID:      inst.UID,
+		Query:    datasource.Query{Text: in.Query, Limits: queryproxy.DraftLimits, User: queryproxy.UserFor(principal)},
+		Range:    rng,
+		Page:     page,
+		PageSize: size,
+		Cursor:   in.Cursor,
+	})
+	if err != nil {
+		return datasourceFailure("Ran a query on "+inst.UID, err)
+	}
+	summary := summarize(queryproxy.Result{
+		Queries: []queryproxy.QueryResult{{Ref: "A", Kind: queryproxy.KindInstant, Frames: out.Frames}},
+		Kind:    queryproxy.KindInstant,
+		Range:   out.Range,
+	})
+	summary.Page = pageOutOf(out)
+	return success("Ran a query on "+inst.UID+": "+summary.describe(), summary), nil
+}
+
+func pageOutOf(out queryproxy.PageResult) *pageOut {
+	p := &pageOut{Page: out.Info.Page, PageSize: out.Info.PageSize, TotalRelation: string(out.Info.TotalRelation), HasNext: out.Info.HasNext, Next: out.Next}
+	if out.Info.TotalRelation != datasource.TotalUnknown {
+		total := out.Info.Total
+		p.Total = &total
+	}
+	return p
 }
 
 func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in instantInput, format string, dataPoints int) (Result, error) {
@@ -284,6 +358,43 @@ type tableOut struct {
 	TotalRows int         `json:"total_rows"`
 }
 
+type pageOut struct {
+	Page          int    `json:"page"`
+	PageSize      int    `json:"page_size"`
+	Total         *int64 `json:"total,omitempty"`
+	TotalRelation string `json:"total_relation"`
+	HasNext       bool   `json:"has_next"`
+	Next          string `json:"next,omitempty"`
+}
+
+func (p pageOut) describe() string {
+	out := " (page " + strconv.Itoa(p.Page)
+	switch {
+	case p.Total == nil:
+		out += ", total unknown"
+	case p.TotalRelation == string(datasource.TotalAtLeast):
+		out += " of at least " + withCommas(*p.Total) + " rows"
+	default:
+		out += " of " + withCommas(*p.Total) + " rows"
+	}
+	if p.HasNext {
+		out += "; " + queryproxy.PageWalkSentence
+	}
+	return out + ")"
+}
+
+func withCommas(n int64) string {
+	digits := strconv.FormatInt(n, 10)
+	var b strings.Builder
+	for i, c := range digits {
+		if i > 0 && (len(digits)-i)%3 == 0 {
+			b.WriteByte(',')
+		}
+		b.WriteRune(c)
+	}
+	return b.String()
+}
+
 type querySummary struct {
 	Kind      queryproxy.Kind `json:"kind"`
 	From      string          `json:"from"`
@@ -296,6 +407,7 @@ type querySummary struct {
 	Partial   bool            `json:"partial,omitempty"`
 	Series    []seriesOut     `json:"series,omitempty"`
 	Table     *tableOut       `json:"table,omitempty"`
+	Page      *pageOut        `json:"page,omitempty"`
 }
 
 func (s querySummary) describe() string {
@@ -323,6 +435,9 @@ func (s querySummary) describeLimits() string {
 	}
 	if s.Partial {
 		out += " (partial: the datasource did not search every block)"
+	}
+	if s.Page != nil {
+		out += s.Page.describe()
 	}
 	return out
 }

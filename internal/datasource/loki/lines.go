@@ -14,18 +14,23 @@ const linesNeedLogQuery = `lines need a log query that starts with a stream sele
 var _ datasource.LineSource = (*Datasource)(nil)
 
 func (d *Datasource) Lines(ctx context.Context, req datasource.LinesRequest) ([]datasource.Frame, error) {
+	frames, _, err := d.lines(ctx, req)
+	return frames, err
+}
+
+func (d *Datasource) lines(ctx context.Context, req datasource.LinesRequest) (frames []datasource.Frame, fetched int, err error) {
 	if err := req.Range.Validate(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	lim := d.opts.Limits.Tighten(req.Query.Limits)
 	ctx, cancel := bound(ctx, lim.Timeout)
 	defer cancel()
 	text, err := expand(req.Query, req.Range, instantInterval(req.Range, req.Query.MinInterval))
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if !spec.LogQLReturnsLines(text) {
-		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "%s", linesNeedLogQuery)
+		return nil, 0, datasource.Errorf(datasource.ErrInvalidQuery, "%s", linesNeedLogQuery)
 	}
 	limit := min(max(req.Limit, 1), maxLogLines)
 	params := url.Values{
@@ -35,7 +40,14 @@ func (d *Datasource) Lines(ctx context.Context, req datasource.LinesRequest) ([]
 		"limit":     {strconv.Itoa(limit)},
 		"direction": {string(direction(req.Direction))},
 	}
-	return d.run(ctx, "/loki/api/v1/query_range", params, lim, limit)
+	frames, err = d.run(ctx, "/loki/api/v1/query_range", params, lim, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	for _, f := range frames {
+		fetched += f.Rows()
+	}
+	return frames, fetched, nil
 }
 
 func direction(d datasource.LineDirection) datasource.LineDirection {

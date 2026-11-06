@@ -164,7 +164,7 @@ func TestUnknownFieldNamesTheFieldsOfTheCallersSurface(t *testing.T) {
 	}
 
 	if got, want := message(t, WithRun(principal, Run{}), nameQueryInstant, `{"datasource":"fake","query":"up","format":"table"}`),
-		`unknown field "format"; query_instant takes dashboard_title, datasource, from, query, to and variables`; got != want {
+		`unknown field "format"; query_instant takes cursor, dashboard_title, datasource, from, page, page_size, query, to and variables`; got != want {
 		t.Errorf("message = %q, want %q", got, want)
 	}
 	if got, want := message(t, principal, nameListDatasources, `{"x":1}`), `unknown field "x"; list_datasources takes no fields`; got != want {

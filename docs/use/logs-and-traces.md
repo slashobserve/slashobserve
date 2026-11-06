@@ -25,6 +25,10 @@ On Loki the query must start with a stream selector.
 When more lines match than the page shows, the page says so and **Load older** fetches the lines before the oldest one shown.
 **Live tail** and **Add to dashboard** stay disabled until a query has run, and say "Run a query first."
 
+The lines page 100 at a time, and the page size goes from 50 to 500.
+On ClickHouse the page shows the exact count of matching lines and jumps to any page number.
+On Loki the pages follow time, newest first, so the count reads "at least N" until the last page makes it exact, and a page is reached through the page before it.
+
 The volume strip above the lines counts every line the query matches over the whole time range by level, not only the lines shown.
 It comes from its own log volume request, so the lines never wait for it, and it hides when that request fails or while live tail shows its lines.
 On Loki a line's level is the first of its `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, including a `level` that a `| json` or `| logfmt` stage extracts.
@@ -148,6 +152,10 @@ ClickHouse lists the newest 100 traces with a matching span, shows each trace's 
 Tempo shows the root span of each trace, and sums the span and error span counts from Tempo's per-service stats; when Tempo does not report those stats, both columns are left out.
 When Tempo stopped searching at its time limit, a note says older traces may be missing and which times the found traces cover, with **Keep only** to narrow the range to them.
 On a phone the table becomes a list.
+
+The results page 100 traces at a time, and the page size goes from 50 to 500.
+On ClickHouse the page shows the exact count of matching traces and jumps to any page number.
+On Tempo the pages follow time, newest first, so the count reads "at least N" until the last page makes it exact, a page is reached through the page before it, and the count is unknown while a search is partial.
 
 Drag across the duration scatter to select traces by time and duration; the dots outside the selection fade, and the selection's start, end and duration floor are handles that the arrow keys move.
 The table then shows only the selection, and **Keep only the selection** turns it into the search: the time range and the duration bounds go into the fields, or on Tempo into the written TraceQL, where the button is disabled when the query has no spanset to add them to.

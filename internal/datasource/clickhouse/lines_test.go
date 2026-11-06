@@ -54,7 +54,7 @@ func TestLinesWrapsTheQueryWithExclusiveNanosecondBoundsInEachDirection(t *testi
 			if want := "SELECT * FROM (\n" + inner + "\n) LIMIT 0"; conn.statements[0] != want {
 				t.Fatalf("probe =\n%s\nwant\n%s", conn.statements[0], want)
 			}
-			want := "SELECT * FROM (\n" + inner + "\n)\nWHERE `Timestamp` >= {from:DateTime64(9, 'UTC')} AND `Timestamp` < {to:DateTime64(9, 'UTC')}\nORDER BY `Timestamp` " + order + "\nLIMIT {limit:UInt64}"
+			want := "SELECT * FROM (\n" + inner + "\n)\nWHERE `Timestamp` >= {from:DateTime64(9, 'UTC')} AND `Timestamp` < {to:DateTime64(9, 'UTC')}\nORDER BY `Timestamp` " + order + "\nLIMIT {limit:UInt64}\nOFFSET {offset:UInt64}"
 			if conn.statements[1] != want {
 				t.Fatalf("query =\n%s\nwant\n%s", conn.statements[1], want)
 			}
@@ -69,8 +69,8 @@ func TestLinesWrapsTheQueryWithExclusiveNanosecondBoundsInEachDirection(t *testi
 }
 
 func TestLinesParametersCarryTheExactBoundsAndLimit(t *testing.T) {
-	got := linesParameters(datasource.TimeRange{From: linesStart, To: linesEnd}, 7)
-	want := ch.Parameters{"from": "2026-11-06 11:00:00.123456789", "to": "2026-11-06 12:00:00.000000005", "limit": "7"}
+	got := linesParameters(datasource.TimeRange{From: linesStart, To: linesEnd}, 7, 0)
+	want := ch.Parameters{"from": "2026-11-06 11:00:00.123456789", "to": "2026-11-06 12:00:00.000000005", "limit": "7", "offset": "0"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("parameters = %v, want %v", got, want)
 	}

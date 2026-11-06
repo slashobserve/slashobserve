@@ -14,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
@@ -335,5 +336,230 @@ func TestExploreMetaCarriesJobsAndElapsed(t *testing.T) {
 		if _, ok := raw.Meta[key]; ok {
 			t.Fatalf("meta.%s = %s on a series query, want it absent", key, raw.Meta[key])
 		}
+	}
+}
+
+type pageSource struct {
+	*typedDatasource
+	byOffset bool
+	onPage   func(req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error)
+
+	pageMu sync.Mutex
+	pages  []datasource.PageRequest
+}
+
+func (d *pageSource) PagesByOffset() bool { return d.byOffset }
+
+func (d *pageSource) QueryPage(_ context.Context, req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {
+	d.pageMu.Lock()
+	d.pages = append(d.pages, req)
+	d.pageMu.Unlock()
+	if d.onPage != nil {
+		return d.onPage(req)
+	}
+	return logFrames(), datasource.PageInfo{Page: req.Page, PageSize: req.PageSize, Total: 300, TotalRelation: datasource.TotalAtLeast, HasNext: true, Next: &datasource.PageCursor{Page: req.Page + 1, EndNs: 5, Seen: []string{"fp"}}}, nil
+}
+
+func (d *pageSource) pageRequests() []datasource.PageRequest {
+	d.pageMu.Lock()
+	defer d.pageMu.Unlock()
+	return append([]datasource.PageRequest(nil), d.pages...)
+}
+
+func newPageHarness(t *testing.T) (*harness, *pageSource) {
+	t.Helper()
+	hn := newHarness(t)
+	logs := &pageSource{typedDatasource: &typedDatasource{fakeDatasource: &fakeDatasource{}, kind: spec.Loki}}
+	registry, err := datasource.NewRegistry(hn.h.logger,
+		datasource.Instance{UID: "prom", Datasource: hn.ds},
+		datasource.Instance{UID: "logs", Datasource: logs},
+	)
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	hn.runner = queryproxy.NewRunner(registry, hn.h.logger)
+	hn.h.runner, hn.h.registry = hn.runner, registry
+	return hn, logs
+}
+
+const pagedQuery = `{service_name="checkout"}`
+
+func pagedBody(size int) map[string]any {
+	body := instantBody(pagedQuery)
+	body["page_size"] = size
+	return body
+}
+
+func rawMeta(t *testing.T, rec *httptest.ResponseRecorder) map[string]json.RawMessage {
+	t.Helper()
+	var raw struct {
+		Meta map[string]json.RawMessage `json:"meta"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
+		t.Fatal(err)
+	}
+	return raw.Meta
+}
+
+func rawPage(t *testing.T, rec *httptest.ResponseRecorder) map[string]json.RawMessage {
+	t.Helper()
+	var page map[string]json.RawMessage
+	if err := json.Unmarshal(rawMeta(t, rec)["page"], &page); err != nil {
+		t.Fatal(err)
+	}
+	return page
+}
+
+func TestExplorePagesWithMetaPage(t *testing.T) {
+	hn, logs := newPageHarness(t)
+	rec := hn.explore(auth.KindUser, "logs", pagedBody(100))
+	body := decodeData(t, rec)
+	page := body.Meta.Page
+	if page == nil {
+		t.Fatalf("meta = %+v, want a page", body.Meta)
+	}
+	if page.Page != 1 || page.PageSize != 100 || page.Total == nil || *page.Total != 300 || page.TotalRelation != "gte" || !page.HasNext || page.HasPrev || page.Next == "" || page.Prev != "" {
+		t.Fatalf("page = %+v, want page 1 of 100 with at least 300 rows, a next cursor and no prev", page)
+	}
+	if body.Meta.Truncated || body.Meta.RowsTotal != 0 || body.Meta.Rows != 3 || body.Meta.Kind != queryproxy.KindInstant || body.Meta.Cached {
+		t.Fatalf("meta = %+v, want 3 rows, not truncated, no rows_total", body.Meta)
+	}
+	if body.Meta.Oldest != "2026-11-06T11:59:58.5Z" || body.Meta.Newest != "2026-11-06T12:00:00.000000001Z" {
+		t.Fatalf("edges = %q to %q", body.Meta.Oldest, body.Meta.Newest)
+	}
+	cursor, err := datasource.DecodeCursor(page.Next, datasource.CursorScope("logs", pagedQuery))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cursor.Page != 2 || cursor.EndNs != 5 || cursor.FromNs != 1760000000123000000 || cursor.ToNs != 1760000060456000000 {
+		t.Fatalf("next = %+v, want page 2 pinned to the request range", cursor)
+	}
+	reqs := logs.pageRequests()
+	if len(reqs) != 1 || reqs[0].Page != 1 || reqs[0].PageSize != 100 || reqs[0].Cursor != nil || reqs[0].Query.Text != pagedQuery || reqs[0].Query.Limits != queryproxy.DraftLimits {
+		t.Fatalf("page requests = %+v, want one for page 1 of 100 under draft limits", reqs)
+	}
+	meta, pageRaw := rawMeta(t, rec), rawPage(t, rec)
+	for _, key := range []string{"prev", "window"} {
+		if _, ok := pageRaw[key]; ok {
+			t.Fatalf("meta.page.%s = %s on page 1, want it absent", key, pageRaw[key])
+		}
+	}
+	if _, ok := meta["rows_total"]; ok {
+		t.Fatalf("meta.rows_total = %s with paging on, want it absent", meta["rows_total"])
+	}
+}
+
+func TestExplorePageTwoWithCursor(t *testing.T) {
+	hn, logs := newPageHarness(t)
+	cursor := datasource.EncodeCursor(datasource.PageCursor{Scope: datasource.CursorScope("logs", pagedQuery), Page: 2, FromNs: 1760000000000000000, ToNs: 1760000060000000000, EndNs: 9, Seen: []string{"a"}})
+	body := pagedBody(100)
+	body["cursor"] = cursor
+	body["page"] = 2
+	data := decodeData(t, hn.explore(auth.KindUser, "logs", body))
+	page := data.Meta.Page
+	if page == nil || page.Page != 2 || !page.HasPrev || page.Prev != cursor || !page.HasNext || page.Next == "" {
+		t.Fatalf("page = %+v, want page 2 with the cursor echoed as prev", page)
+	}
+	if data.Meta.From != "2025-10-09T08:53:20Z" || data.Meta.To != "2025-10-09T08:54:20Z" {
+		t.Fatalf("range = %q to %q, want the range pinned by the cursor", data.Meta.From, data.Meta.To)
+	}
+	reqs := logs.pageRequests()
+	if len(reqs) != 1 || reqs[0].Page != 2 || reqs[0].Cursor == nil || reqs[0].Cursor.EndNs != 9 || reqs[0].Range.From.UnixNano() != 1760000000000000000 {
+		t.Fatalf("page requests = %+v, want page 2 over the cursor's range", reqs)
+	}
+}
+
+func TestExplorePageMetaCarriesTheWindowOnlyWhenSet(t *testing.T) {
+	hn, logs := newPageHarness(t)
+	for _, window := range []int{0, 10000} {
+		logs.onPage = func(req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {
+			return logFrames(), datasource.PageInfo{Page: 1, PageSize: 100, Total: 3, TotalRelation: datasource.TotalExact, Window: window}, nil
+		}
+		rec := hn.explore(auth.KindUser, "logs", pagedBody(100))
+		got, present := rawPage(t, rec)["window"]
+		if present != (window > 0) || (present && string(got) != "10000") {
+			t.Fatalf("window = %s (present %v) for %d", got, present, window)
+		}
+		if page := decodeData(t, rec).Meta.Page; page.Window != window || page.HasNext || page.Next != "" {
+			t.Fatalf("page = %+v, want window %d and no next", page, window)
+		}
+	}
+}
+
+func TestExplorePageWithUnknownTotalLeavesTotalOut(t *testing.T) {
+	hn, logs := newPageHarness(t)
+	logs.onPage = func(req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {
+		frames := logFrames()
+		frames[0].Meta = &datasource.FrameMeta{Partial: true, JobsDone: 1, JobsTotal: 4}
+		return frames, datasource.PageInfo{Page: 1, PageSize: 100, TotalRelation: datasource.TotalUnknown}, nil
+	}
+	rec := hn.explore(auth.KindUser, "logs", pagedBody(100))
+	body := decodeData(t, rec)
+	if body.Meta.Page.Total != nil || body.Meta.Page.TotalRelation != "unknown" || !body.Meta.Partial || body.Meta.JobsDone != 1 {
+		t.Fatalf("meta = %+v page %+v, want an unknown total and the partial meta", body.Meta, body.Meta.Page)
+	}
+	if total, ok := rawPage(t, rec)["total"]; ok {
+		t.Fatalf("meta.page.total = %s, want it absent", total)
+	}
+}
+
+func TestExploreRejectsBadPaging(t *testing.T) {
+	hn, logs := newPageHarness(t)
+	with := func(edit func(map[string]any)) map[string]any {
+		body := pagedBody(100)
+		edit(body)
+		return body
+	}
+	tests := []struct {
+		name    string
+		uid     string
+		body    map[string]any
+		message string
+	}{
+		{"page_size on a range query", "logs", with(func(b map[string]any) { b["kind"] = "range" }), "paging applies to instant queries"},
+		{"page_size with limit", "logs", with(func(b map[string]any) { b["limit"] = 10 }), "limit and page_size cannot both be given"},
+		{"page without page_size", "logs", with(func(b map[string]any) { delete(b, "page_size"); b["page"] = 2 }), "page and cursor need page_size"},
+		{"cursor without page_size", "logs", with(func(b map[string]any) { delete(b, "page_size"); b["cursor"] = "x" }), "page and cursor need page_size"},
+		{"page_size below 50", "logs", with(func(b map[string]any) { b["page_size"] = 49 }), "page_size must be from 50 to 500"},
+		{"page_size above 500", "logs", with(func(b map[string]any) { b["page_size"] = 501 }), "page_size must be from 50 to 500"},
+		{"page zero", "logs", with(func(b map[string]any) { b["page"] = 0 }), "page must be at least 1"},
+		{"cursor over 2 KiB", "logs", with(func(b map[string]any) { b["cursor"] = strings.Repeat("x", 2049) }), "cursor must be at most 2 KiB"},
+		{"page 2 without a cursor on a cursor store", "logs", with(func(b map[string]any) { b["page"] = 2 }), "this datasource pages by cursor; pass the cursor of the previous page"},
+		{"a cursor of another query", "logs", with(func(b map[string]any) {
+			b["cursor"] = datasource.EncodeCursor(datasource.PageCursor{Scope: datasource.CursorScope("logs", "other"), Page: 2})
+		}), "cursor does not belong to this query"},
+		{"an unreadable cursor", "logs", with(func(b map[string]any) { b["cursor"] = "nope" }), "cursor is not readable"},
+		{"a datasource that does not page", "prom", pagedBody(100), "paging reads logs and trace datasources"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := hn.explore(auth.KindUser, tt.uid, tt.body)
+			expectError(t, rec, http.StatusBadRequest, "invalid_request")
+			var body map[string]any
+			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+				t.Fatal(err)
+			}
+			if body["error"] != tt.message {
+				t.Fatalf("error = %q, want %q", body["error"], tt.message)
+			}
+		})
+	}
+	if n := len(logs.pageRequests()); n != 0 {
+		t.Fatalf("%d pages ran for invalid requests", n)
+	}
+	if held := hn.heldSlots(); held != 0 {
+		t.Fatalf("%d slots still held", held)
+	}
+}
+
+func TestExplorePageMapsDatasourceErrors(t *testing.T) {
+	hn, logs := newPageHarness(t)
+	logs.onPage = func(req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {
+		return nil, datasource.PageInfo{}, datasource.Errorf(datasource.ErrLimitExceeded, "%s", datasource.PageTimestampShared)
+	}
+	rec := hn.explore(auth.KindUser, "logs", pagedBody(100))
+	expectError(t, rec, http.StatusUnprocessableEntity, "limit_exceeded")
+	if !strings.Contains(rec.Body.String(), "more than page_size rows share one timestamp") {
+		t.Fatalf("body = %s", rec.Body.String())
 	}
 }
