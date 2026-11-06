@@ -61,9 +61,9 @@ function thread(
   }
 }
 
-function renderThread(status: Comment["status"]) {
-  render(
-    <QueryClientProvider client={new QueryClient()}>
+function threadView(status: Comment["status"], client: QueryClient) {
+  return (
+    <QueryClientProvider client={client}>
       <ol>
         <ThreadEntry
           dashboardId="dashboard"
@@ -78,6 +78,14 @@ function renderThread(status: Comment["status"]) {
       </ol>
     </QueryClientProvider>
   )
+}
+
+function renderThread(status: Comment["status"]) {
+  const client = new QueryClient()
+  const { rerender } = render(threadView(status, client))
+  return {
+    rerender: (next: Comment["status"]) => rerender(threadView(next, client)),
+  }
 }
 
 describe("ThreadEntry", () => {
@@ -118,5 +126,17 @@ describe("ThreadEntry", () => {
     await user.click(screen.getByRole("button", { name: "Reply" }))
     expect(screen.getByText("Looking now")).toBeInTheDocument()
     expect(screen.getByRole("textbox", { name: "Reply" })).toHaveFocus()
+  })
+
+  it("folds a thread resolved after replying while it was open", async () => {
+    const user = userEvent.setup()
+    const { rerender } = renderThread("open")
+    await user.click(screen.getByRole("button", { name: "Reply" }))
+    rerender("resolved")
+    expect(screen.getByRole("button", { name: "Show thread" })).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    )
+    expect(screen.queryByText("Looking now")).toBeNull()
   })
 })

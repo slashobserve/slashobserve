@@ -82,7 +82,7 @@ export function ThreadEntry({
   }
 
   function openReply() {
-    setExpanded(true)
+    if (folded) setExpanded(true)
     setReplying(true)
   }
 
