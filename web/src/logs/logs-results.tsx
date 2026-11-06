@@ -7,12 +7,13 @@ import type { WireFrame } from "@/dashboards/queries"
 import type { DatasourceStatus } from "@/datasources/queries"
 import { traceLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
-import { LogsView } from "@/panels/logs/logs-panel"
-import type { Labels, LogEntry, LogsDisplay } from "@/panels/logs/logs-model"
+import type { LogEntry, LogsDisplay } from "@/panels/logs/logs-model"
+import { LogsView, type LogSelection } from "@/panels/logs/logs-panel"
 import type { DataPanel } from "@/spec"
 
 import { serviceNameOf } from "./context-query"
 import { usePrepared } from "./prepared"
+import { isSearchFamily } from "./search"
 import { traceIdOf, traceRangeAround } from "./trace-link"
 import { useElementSize } from "./use-element-size"
 
@@ -22,8 +23,11 @@ type ExploreLogsProps = {
   title: string
   height: number
   display: Record<string, unknown>
-  detailActions?: (entry: LogEntry, streamLabels: Labels) => React.ReactNode
+  detailActions?: (selection: LogSelection) => React.ReactNode
   isMarked?: (entry: LogEntry) => boolean
+  selectedKey?: string | null
+  onSelectedChange?: (selection: LogSelection | null) => void
+  detailsId?: string
 }
 
 export function ExploreLogs({
@@ -34,6 +38,9 @@ export function ExploreLogs({
   display,
   detailActions,
   isMarked,
+  selectedKey,
+  onSelectedChange,
+  detailsId,
 }: ExploreLogsProps) {
   const panel = useMemo<DataPanel>(
     () => ({
@@ -62,6 +69,9 @@ export function ExploreLogs({
           height={height}
           detailActions={detailActions}
           isMarked={isMarked}
+          selectedKey={selectedKey}
+          onSelectedChange={onSelectedChange}
+          detailsId={detailsId}
         />
       ) : null}
     </div>
@@ -76,52 +86,85 @@ function subscribePhone(onChange: () => void) {
   return () => media.removeEventListener("change", onChange)
 }
 
-function useDetailsMode(): "inline" | "sidebar" {
-  const phone = useSyncExternalStore(
+function usePhone(): boolean {
+  return useSyncExternalStore(
     subscribePhone,
     () => window.matchMedia(phoneQuery).matches,
     () => false
   )
-  return phone ? "inline" : "sidebar"
 }
 
 const resultsDisplay = {
   showTime: true,
   showLabels: true,
   details: true,
+  detailsMode: "inline",
   controls: true,
 }
 
-export type ContextRequest = { entry: LogEntry; streamLabels: Labels }
+export function contextBlocker(
+  datasource: DatasourceStatus,
+  entry: LogEntry
+): string | undefined {
+  if (isSearchFamily(datasource.type)) {
+    return "Surrounding documents are not available on this datasource type yet."
+  }
+  if (entry.time === null) return "This line has no time."
+  if (datasource.type === "clickhouse" && serviceNameOf(entry) === null) {
+    return "This line has no ServiceName."
+  }
+  return undefined
+}
+
+export function OpenTraceLink({
+  traceId,
+  traceDatasource,
+  time,
+  className,
+  children,
+}: {
+  traceId: string
+  traceDatasource: string
+  time: number
+  className?: string
+  children: React.ReactNode
+}) {
+  return (
+    <Link
+      {...traceLink(traceId, traceDatasource, traceRangeAround(time))}
+      aria-label={`Open trace ${traceId}`}
+      className={className}
+    >
+      {children}
+    </Link>
+  )
+}
 
 export function LogsResults({
   frames,
   datasource,
-  onContext,
   traceDatasource,
   height,
+  selectedKey,
+  onSelect,
+  onContext,
+  detailsId,
 }: {
   frames: WireFrame[]
   datasource: DatasourceStatus
-  onContext: (request: ContextRequest) => void
   traceDatasource: string | null
   height: number
+  selectedKey: string | null
+  onSelect: (selection: LogSelection | null) => void
+  onContext: (selection: LogSelection) => void
+  detailsId: string
 }) {
-  const clickhouse = datasource.type === "clickhouse"
-  const detailsMode = useDetailsMode()
-  const display = useMemo(
-    () => ({ ...resultsDisplay, detailsMode }),
-    [detailsMode]
-  )
+  const phone = usePhone()
   const detailActions = useCallback(
-    (entry: LogEntry, streamLabels: Labels) => {
+    (selection: LogSelection) => {
+      const { entry } = selection
       const traceId = traceIdOf(entry)
-      const noContext =
-        entry.time === null
-          ? "This line has no time."
-          : clickhouse && serviceNameOf(entry) === null
-            ? "This line has no ServiceName."
-            : undefined
+      const noContext = contextBlocker(datasource, entry)
       return (
         <>
           <Button
@@ -130,24 +173,21 @@ export function LogsResults({
             size="xs"
             disabled={noContext !== undefined}
             title={noContext}
-            onClick={() => onContext({ entry, streamLabels })}
+            onClick={() => onContext(selection)}
           >
             Show context
           </Button>
           {traceId !== null &&
           traceDatasource !== null &&
           entry.time !== null ? (
-            <Link
-              {...traceLink(
-                traceId,
-                traceDatasource,
-                traceRangeAround(entry.time)
-              )}
-              aria-label={`Open trace ${traceId}`}
+            <OpenTraceLink
+              traceId={traceId}
+              traceDatasource={traceDatasource}
+              time={entry.time}
               className={cn(buttonVariants({ variant: "outline", size: "xs" }))}
             >
               Open trace
-            </Link>
+            </OpenTraceLink>
           ) : null}
           <CopyButton
             text={entry.message}
@@ -161,7 +201,7 @@ export function LogsResults({
         </>
       )
     },
-    [clickhouse, onContext, traceDatasource]
+    [datasource, onContext, traceDatasource]
   )
   return (
     <ExploreLogs
@@ -169,8 +209,11 @@ export function LogsResults({
       datasourceUid={datasource.uid}
       title="Query results"
       height={height}
-      display={display}
-      detailActions={detailActions}
+      display={resultsDisplay}
+      detailActions={phone ? detailActions : undefined}
+      selectedKey={selectedKey}
+      onSelectedChange={phone ? undefined : onSelect}
+      detailsId={detailsId}
     />
   )
 }

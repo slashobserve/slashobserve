@@ -33,6 +33,7 @@ import {
   showsAttributes,
   type DedupStrategy,
   type Labels,
+  type LogDetail,
   type LogEntry,
   type LogLevelKind,
   type LogsDisplay,
@@ -75,12 +76,18 @@ const orderOptions: { value: ViewState["order"]; label: string }[] = [
   { value: "oldest", label: "Oldest first" },
 ]
 
-type DetailActions = (entry: LogEntry, streamLabels: Labels) => ReactNode
+export type LogSelection = {
+  entry: LogEntry
+  streamLabels: Labels
+  fields: FieldResolver
+}
+
+type DetailActions = (selection: LogSelection) => ReactNode
 
 const windowAfter = 200
 const overscan = 10
 
-type DetailsMode = "off" | "inline" | "sidebar"
+type DetailsMode = "off" | "inline" | "sidebar" | "external"
 
 function labelText(labels: Labels): string {
   return Object.entries(labels)
@@ -101,18 +108,20 @@ function Message({ text, highlight }: { text: string; highlight: boolean }) {
   ))
 }
 
-function LogDetails({
-  entry,
+export function LogDetails({
+  details,
   fields,
   zone,
   id,
   actions,
+  layout = "panel",
 }: {
-  entry: LogEntry
+  details: readonly LogDetail[]
   fields: FieldResolver
   zone: string | undefined
-  id: string
-  actions: ReactNode
+  id?: string
+  actions?: ReactNode
+  layout?: "panel" | "drawer"
 }) {
   return (
     <>
@@ -127,11 +136,23 @@ function LogDetails({
       ) : null}
       <dl
         id={id}
-        className="grid grid-cols-[minmax(5rem,max-content)_minmax(0,1fr)] gap-x-3 gap-y-0.5 px-2 pt-0.5 pb-2"
+        className={cn(
+          "grid gap-x-3 gap-y-0.5",
+          layout === "drawer"
+            ? "grid-cols-[minmax(0,8rem)_minmax(0,1fr)] text-xs"
+            : "grid-cols-[minmax(5rem,max-content)_minmax(0,1fr)] px-2 pt-0.5 pb-2"
+        )}
       >
-        {entry.details.map((detail, index) => (
+        {details.map((detail, index) => (
           <div key={`${index}:${detail.name}`} className="contents">
-            <dt className="text-muted-foreground">{detail.name}</dt>
+            <dt
+              className={cn(
+                "text-muted-foreground",
+                layout === "drawer" && "font-mono [overflow-wrap:anywhere]"
+              )}
+            >
+              {detail.name}
+            </dt>
             <dd className="font-mono [overflow-wrap:anywhere] whitespace-pre-wrap">
               {detailText(fields, detail, zone)}
             </dd>
@@ -154,7 +175,7 @@ type RowProps = {
   levelColumn: boolean
   detailsMode: DetailsMode
   selected: boolean
-  sidebarId: string
+  controlsId: string
   onSelect: (key: string | null) => void
   marked: boolean
   detailActions: DetailActions | undefined
@@ -178,7 +199,7 @@ const LogRow = memo(function LogRow({
   levelColumn,
   detailsMode,
   selected,
-  sidebarId,
+  controlsId,
   onSelect,
   marked,
   detailActions,
@@ -190,7 +211,8 @@ const LogRow = memo(function LogRow({
   const detailsId = useId()
   const kind = entry.level?.kind ?? "other"
   const Icon = kind === "other" ? null : levelIcons[kind]
-  const expanded = detailsMode === "sidebar" ? selected : open
+  const controlled = detailsMode === "sidebar" || detailsMode === "external"
+  const expanded = controlled ? selected : open
   const wraps = wrap || entry.message.includes("\n")
   const line = (
     <>
@@ -272,14 +294,10 @@ const LogRow = memo(function LogRow({
           type="button"
           aria-expanded={expanded}
           aria-controls={
-            expanded
-              ? detailsMode === "sidebar"
-                ? sidebarId
-                : detailsId
-              : undefined
+            expanded ? (controlled ? controlsId : detailsId) : undefined
           }
           onClick={() =>
-            detailsMode === "sidebar"
+            controlled
               ? onSelect(selected ? null : entry.key)
               : setOpen((current) => !current)
           }
@@ -293,11 +311,15 @@ const LogRow = memo(function LogRow({
       )}
       {detailsMode === "inline" && open ? (
         <LogDetails
-          entry={entry}
+          details={entry.details}
           fields={fields}
           zone={zone}
           id={detailsId}
-          actions={detailActions?.(entry, { ...commonLabels, ...entry.labels })}
+          actions={detailActions?.({
+            entry,
+            streamLabels: { ...commonLabels, ...entry.labels },
+            fields,
+          })}
         />
       ) : null}
     </li>
@@ -393,6 +415,9 @@ export type LogsViewProps = {
   height: number
   detailActions?: DetailActions
   isMarked?: (entry: LogEntry) => boolean
+  selectedKey?: string | null
+  onSelectedChange?: (selection: LogSelection | null) => void
+  detailsId?: string
 }
 
 function useRowHeights(enabled: boolean) {
@@ -476,6 +501,9 @@ export function LogsView({
   height,
   detailActions,
   isMarked,
+  selectedKey: controlledKey = null,
+  onSelectedChange,
+  detailsId,
 }: LogsViewProps) {
   const [view, setView] = useState<ViewState>({
     order: display.order,
@@ -483,7 +511,7 @@ export function LogsView({
     showTime: display.showTime,
     dedup: display.dedup,
   })
-  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [internalKey, setInternalKey] = useState<string | null>(null)
   const sidebarId = useId()
   const change = useCallback(
     (next: Partial<ViewState>) =>
@@ -519,10 +547,34 @@ export function LogsView({
   )
   const detailsMode: DetailsMode = !display.details
     ? "off"
-    : display.detailsMode === "sidebar"
-      ? "sidebar"
-      : "inline"
-  const selected = entries.find((entry) => entry.key === selectedKey)
+    : onSelectedChange
+      ? "external"
+      : display.detailsMode === "sidebar"
+        ? "sidebar"
+        : "inline"
+  const selected = entries.find(
+    (entry) =>
+      entry.key === (detailsMode === "external" ? controlledKey : internalKey)
+  )
+  const select = useCallback(
+    (key: string | null) => {
+      if (!onSelectedChange) {
+        setInternalKey(key)
+        return
+      }
+      const entry = entries.find((candidate) => candidate.key === key)
+      onSelectedChange(
+        entry
+          ? {
+              entry,
+              streamLabels: { ...commonLabels, ...entry.labels },
+              fields,
+            }
+          : null
+      )
+    },
+    [onSelectedChange, entries, commonLabels, fields]
+  )
   const commonText = labelText(commonLabels)
   const windowed = entries.length > windowAfter
   const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(
@@ -615,8 +667,8 @@ export function LogsView({
                 levelColumn={levelColumn}
                 detailsMode={detailsMode}
                 selected={entry.key === selected?.key}
-                sidebarId={sidebarId}
-                onSelect={setSelectedKey}
+                controlsId={detailsId ?? sidebarId}
+                onSelect={select}
                 marked={isMarked?.(entry) ?? false}
                 detailActions={detailActions}
                 commonLabels={commonLabels}
@@ -632,13 +684,14 @@ export function LogsView({
             className="min-w-48 shrink-0 basis-2/5 overflow-auto border-l border-border"
           >
             <LogDetails
-              entry={selected}
+              details={selected.details}
               fields={fields}
               zone={zone}
               id={sidebarId}
-              actions={detailActions?.(selected, {
-                ...commonLabels,
-                ...selected.labels,
+              actions={detailActions?.({
+                entry: selected,
+                streamLabels: { ...commonLabels, ...selected.labels },
+                fields,
               })}
             />
           </aside>

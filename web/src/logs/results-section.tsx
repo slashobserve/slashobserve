@@ -57,7 +57,7 @@ export function ResultsSection() {
     tail,
     mode,
     update,
-    openContext,
+    detail,
     labels,
   } = useLogsWorkspace()
   const allDatasources = useDatasources()
@@ -135,9 +135,12 @@ export function ResultsSection() {
       <LogsResults
         frames={frames}
         datasource={datasource}
-        onContext={openContext}
         traceDatasource={traceDatasource}
         height={height}
+        selectedKey={detail.selection?.entry.key ?? null}
+        onSelect={detail.select}
+        onContext={(selection) => detail.select(selection, "context")}
+        detailsId={detail.drawerId}
       />
     ) : null
   }

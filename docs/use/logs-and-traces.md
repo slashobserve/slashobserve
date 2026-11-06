@@ -70,9 +70,11 @@ On Elasticsearch the cluster's `categorize_text` aggregation answers over the wh
 Patterns come by count descending, 20 by default and at most 100, and `truncated` says when more exist.
 Every pattern carries a `trend` of 30 equal buckets over the range, empty ones included with a count of 0, and a `level` (`error`, `warning`, `info`, `other` or empty): for `source: loki` it is the first level word in the pattern, for `source: server` the level most of the pattern's lines carry.
 
-Open a line to see its details in the panel on the right, or inline under the line on a screen 760 pixels wide or narrower.
+Open a line to see it in the panel on the right, beside the results, or inline under the line on a screen 760 pixels wide or narrower.
+The panel has a **Table** tab, a **JSON** tab that prints the whole line, and a **Context** tab; press Escape to close it and return to the line.
+On Elasticsearch and OpenSearch the panel is titled **Document** and the table groups **Core fields** (time, level, service, trace id, span id and document id) apart from **Other fields**, which hold the rest of the document and its index as `_index`.
 A field whose value is a JSON object, such as the ClickHouse `LogAttributes` map, shows one row per key, named `<field>.<key>`, one level deep.
-The details offer **Show context**, **Open trace** and **Copy line**, which copies the line's text.
+The panel offers **Show context**, **Copy line**, which copies the line's text, and **Copy link**, and an **Open trace** link when the line carries a trace id.
 
 The address keeps the search as `/logs?ds=<datasource uid>&q=<query>&from=<from>&to=<to>`, so you can share it or bookmark it.
 A query written from a question also keeps the question as `ask` beside `q`, and the link opens the query with its question above it.
@@ -126,7 +128,7 @@ Without a model, the page stays out of Ask, and the Ask segment is disabled and 
 
 ## Context around a line
 
-Open a line and press **Show context** to see the 50 lines before it and the 50 lines after it.
+Open a line and choose **Context** to see the 50 lines before it and the 50 lines after it.
 The server reads both sides in one request, anchored on the line's nanosecond time, so the context is exact: the lines just before are the newest ones older than the line, the lines just after are the oldest ones newer than it, within an hour on each side.
 The lines come from the same query the page ran.
 Each side says when more lines exist in its hour than it shows.

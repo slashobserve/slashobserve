@@ -20,6 +20,7 @@ import { useDatasources, type DatasourceStatus } from "@/datasources/queries"
 import { liveRegionText } from "@/lib/live-region"
 import { roleAtLeast } from "@/lib/roles"
 import { useAgentInfo } from "@/observe/queries"
+import type { LogSelection } from "@/panels/logs/logs-panel"
 
 import { AddToDashboardPanel } from "./add-to-dashboard-panel"
 import { clickhouseLogsTemplate } from "./context-query"
@@ -30,7 +31,6 @@ import { exploreQuery } from "./explore"
 import { FieldsAside } from "./fields-aside"
 import { FilterPills } from "./filter-pills"
 import { rowCount } from "./frames"
-import type { ContextRequest } from "./logs-results"
 import { QueryBar } from "./query-bar"
 import { ResultSkeleton, ResultsSection } from "./results-section"
 import { logsDatasourceTypes, logsTimeRange, type LogsSearch } from "./search"
@@ -39,6 +39,7 @@ import { VolumeStrip } from "./volume-strip"
 import {
   LogsWorkspaceContext,
   resultRows,
+  type DetailTab,
   type LogsWorkspace,
 } from "./workspace"
 
@@ -152,7 +153,16 @@ function LogsWorkspaceView({
   const [tailSession, setTailSession] = useState(0)
   const [tailing, setTailing] = useState(false)
   const [tailShown, setTailShown] = useState(false)
-  const [selection, setSelection] = useState<ContextRequest | null>(null)
+  const [held, setHeld] = useState<{
+    selection: LogSelection
+    tab: DetailTab
+    scope: string
+  } | null>(null)
+  const drawerId = useId()
+  const resultsScope = `${q ?? ""}|${range.from}|${range.to}`
+  const current = held?.scope === resultsScope ? held : null
+  const selection = current?.selection ?? null
+  const detailTab = current?.tab ?? "table"
   const [adding, setAdding] = useState(false)
   const [labelsOpen, setLabelsOpen] = useState(
     type === "loki" && q === undefined
@@ -239,13 +249,23 @@ function LogsWorkspaceView({
     }
   }
 
-  function openContext(request: ContextRequest) {
-    selectionTrigger.current =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null
+  function selectLine(next: LogSelection | null, tab?: DetailTab) {
+    if (next === null) {
+      setHeld(null)
+      return
+    }
+    if (selection === null) {
+      selectionTrigger.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null
+    }
     setAdding(false)
-    setSelection(request)
+    setHeld({ selection: next, tab: tab ?? detailTab, scope: resultsScope })
+  }
+
+  function setDetailTab(tab: DetailTab) {
+    setHeld((current) => (current === null ? null : { ...current, tab }))
   }
 
   const workspace: LogsWorkspace = {
@@ -271,7 +291,13 @@ function LogsWorkspaceView({
     focusQuery: () => setFocusTick((tick) => tick + 1),
     registerQueryFocus,
     labels: { open: labelsOpen, setOpen: setLabelsOpen },
-    openContext,
+    detail: {
+      selection,
+      tab: detailTab,
+      drawerId,
+      select: selectLine,
+      setTab: setDetailTab,
+    },
   }
 
   return (
@@ -317,7 +343,7 @@ function LogsWorkspaceView({
               title={q === undefined ? "Run a query first." : undefined}
               aria-describedby={q === undefined ? notRunId : undefined}
               onClick={() => {
-                setSelection(null)
+                selectLine(null)
                 setAdding(true)
               }}
             >
@@ -346,8 +372,11 @@ function LogsWorkspaceView({
       {selection ? (
         <DetailDrawer
           selection={selection}
-          onClose={() => setSelection(null)}
+          tab={detailTab}
+          onTabChange={setDetailTab}
+          onClose={() => selectLine(null)}
           trigger={selectionTrigger}
+          id={drawerId}
         />
       ) : null}
       {adding && q !== undefined ? (
