@@ -54,6 +54,7 @@ type PageInfo struct {
 	TotalRelation  TotalRelation
 	HasNext        bool
 	Next           *PageCursor
+	Window         int
 }
 
 type PageSource interface {
