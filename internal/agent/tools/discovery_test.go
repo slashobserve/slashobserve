@@ -542,6 +542,54 @@ func TestSampleRowsWithoutATableSamplesEveryLokiStream(t *testing.T) {
 	}
 }
 
+func TestSampleRowsWithoutATableSamplesTheIndexPatternOfASearchDatasource(t *testing.T) {
+	for _, typ := range []string{"elasticsearch", "opensearch"} {
+		ds := &fakeDS{typ: typ}
+		res, err := call(t, newTestRegistry(t, ds, nil), nameSampleRows, `{"datasource":"fake"}`)
+		if err != nil || res.IsError {
+			t.Fatalf("%s: res = %#v err = %v", typ, res.Content, err)
+		}
+		if req := ds.lastRequest(); req.Kind != datasource.DiscoverSampleRows || req.Table != "" {
+			t.Fatalf("%s: discovery request = %+v", typ, req)
+		}
+		if !strings.Contains(res.Step, "from the index pattern on fake") {
+			t.Fatalf("%s: step = %q", typ, res.Step)
+		}
+	}
+}
+
+func TestListMetricsScopeOnASearchDatasourceAnswersEmptyAndKeepsTheStoredInventory(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	promFamilies := []datasource.Family{{Name: "http_requests_total", Type: "counter", Series: 4}}
+	reg, err := datasource.NewRegistry(logger,
+		datasource.Instance{UID: "prom", Name: "Prometheus", Datasource: inventoryFake(promFamilies, false)},
+		datasource.Instance{UID: "es", Name: "Elasticsearch", Datasource: &fakeDS{typ: "elasticsearch"}},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Logger: logger})
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: "search-inventory-user", Role: auth.RoleEditor})
+	for _, tc := range []struct {
+		input    string
+		families int
+	}{
+		{`{"datasource":"prom","scope":"{job=\"shop\"}"}`, 1},
+		{`{"datasource":"es","scope":"service.name:checkout"}`, 0},
+	} {
+		res, err := r.Call(ctx, nameListMetrics, []byte(tc.input))
+		if err != nil || res.IsError {
+			t.Fatalf("%s: res = %#v err = %v", tc.input, res.Content, err)
+		}
+		if got := res.Content.(inventoryOut).Families; len(got) != tc.families {
+			t.Fatalf("%s: families = %+v", tc.input, got)
+		}
+	}
+	if got, ok := inventories.get(ctx); !ok || !reflect.DeepEqual(got, promFamilies) {
+		t.Fatalf("stored inventory = %v, %v; want the Prometheus families", got, ok)
+	}
+}
+
 func TestSampleRowsPassesALokiSelectorAndRendersTheLines(t *testing.T) {
 	at := time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)
 	ds := &fakeDS{typ: "loki", discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {

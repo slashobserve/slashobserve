@@ -25,6 +25,7 @@ const (
 
 	languageLogQL         = "logql"
 	languageClickHouseSQL = "clickhouse_sql"
+	languageKQL           = "kql"
 	languageTraceQL       = "traceql"
 	languageFilters       = "filters"
 
@@ -55,12 +56,18 @@ func brokeRule(rule string) error {
 	return &CannotTranslate{Reason: "The model's answer broke a rule: " + rule + "."}
 }
 
+var logsQueryLanguages = map[spec.DatasourceType]string{
+	spec.Loki:          languageLogQL,
+	spec.ClickHouse:    languageClickHouseSQL,
+	spec.Elasticsearch: languageKQL,
+	spec.OpenSearch:    languageKQL,
+}
+
 func languageFor(dsType spec.DatasourceType, signal string, hasQuery bool) (string, bool) {
+	if language, ok := logsQueryLanguages[dsType]; ok && signal == signalLogs && hasQuery {
+		return language, true
+	}
 	switch {
-	case dsType == spec.Loki && signal == signalLogs && hasQuery:
-		return languageLogQL, true
-	case dsType == spec.ClickHouse && signal == signalLogs && hasQuery:
-		return languageClickHouseSQL, true
 	case dsType == spec.ClickHouse && signal == signalTraces && !hasQuery:
 		return languageFilters, true
 	case dsType == spec.Tempo && signal == signalTraces && hasQuery:
@@ -77,6 +84,8 @@ func languageRule(dsType spec.DatasourceType, signal string) string {
 		return "answer: a LogQL log query in submit_query's query."
 	case dsType == spec.ClickHouse && signal == signalLogs:
 		return "answer: a ClickHouse SQL query in submit_query's query."
+	case isSearch(dsType):
+		return "answer: a KQL query in submit_query's query (Kibana query language, such as service.name:checkout and log.level:error); prefix lucene: only when KQL cannot express it."
 	case dsType == spec.ClickHouse:
 		return "answer: trace_filters in submit_query; this datasource takes no query."
 	}

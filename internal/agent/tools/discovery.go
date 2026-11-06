@@ -90,6 +90,28 @@ func typeOf(inst datasource.Instance) spec.DatasourceType {
 	return spec.DatasourceType(inst.Datasource.Type())
 }
 
+func isSearch(t spec.DatasourceType) bool {
+	return t == spec.Elasticsearch || t == spec.OpenSearch
+}
+
+func isLogStore(t spec.DatasourceType) bool {
+	return t == spec.Loki || isSearch(t)
+}
+
+func untabledSource(t spec.DatasourceType) string {
+	if isSearch(t) {
+		return "the index pattern"
+	}
+	return "every stream"
+}
+
+func searchName(t spec.DatasourceType) string {
+	if t == spec.OpenSearch {
+		return "OpenSearch"
+	}
+	return "Elasticsearch"
+}
+
 func (r *Registry) discover(ctx context.Context, uid string, req datasource.DiscoverRequest, failStep string) (*datasource.Catalog, Result, bool, error) {
 	inst, res, ok := r.instance(uid)
 	if !ok {
@@ -293,7 +315,7 @@ func (r *Registry) listInventory(ctx context.Context, in listMetricsInput, offse
 	if !ok || err != nil {
 		return res, err
 	}
-	if inst, ok := r.deps.Datasources.Get(names.Datasource); !ok || typeOf(inst) != spec.Loki {
+	if inst, ok := r.deps.Datasources.Get(names.Datasource); !ok || !isLogStore(typeOf(inst)) {
 		inventories.put(ctx, names.Families)
 	}
 	out := compactInventory(inventoryOut{Datasource: names.Datasource, Scope: in.Scope, FamiliesTotal: names.FamiliesTotal, RuntimeFamilies: names.RuntimeFamilies}, names.Families, offset, names.Truncated)
@@ -612,10 +634,10 @@ func (r *Registry) sampleRows(ctx context.Context, input json.RawMessage) (Resul
 	if !ok {
 		return res, nil
 	}
-	if in.Table == "" && typeOf(inst) != spec.Loki {
+	if in.Table == "" && !isLogStore(typeOf(inst)) {
 		return invalid("table is required"), nil
 	}
-	source := clip(cmp.Or(in.Table, "every stream"), maxStepNameBytes)
+	source := clip(cmp.Or(in.Table, untabledSource(typeOf(inst))), maxStepNameBytes)
 	cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverSampleRows, Table: in.Table, Limit: limit}, "Sampling "+source)
 	if !ok || err != nil {
 		return res, err

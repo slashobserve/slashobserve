@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/slashobserve/slashobserve/internal/datasource/elasticsearch"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -11,6 +12,8 @@ import (
 const (
 	warnEveryStream   = "This selector matches every stream."
 	warnEveryTrace    = "This query matches every trace."
+	warnEveryDocument = "This query matches every document."
+	warnLucene        = "This is a Lucene query; the explorer's Builder cannot edit it."
 	warnNoTimeFilter  = "This query has no $__timeFilter, so it reads the whole table."
 	warnNoLimit       = "This query has no LIMIT; the page shows at most 1,000 rows."
 	timeFilterMacro   = "$__timeFilter"
@@ -29,8 +32,22 @@ func draftWarnings(dsType spec.DatasourceType, query string) []string {
 		}
 	case spec.ClickHouse:
 		return clickhouseWarnings(query)
+	case spec.Elasticsearch, spec.OpenSearch:
+		return searchWarnings(query)
 	}
 	return nil
+}
+
+func searchWarnings(query string) []string {
+	form, body := elasticsearch.Classify(query, elasticsearch.QueryLanguageKQL)
+	var warnings []string
+	if form != elasticsearch.FormDSL && (body == "" || body == "*") {
+		warnings = append(warnings, warnEveryDocument)
+	}
+	if form == elasticsearch.FormLucene {
+		warnings = append(warnings, warnLucene)
+	}
+	return warnings
 }
 
 func firstSelector(query string) ([]string, bool) {

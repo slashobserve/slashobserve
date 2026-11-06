@@ -8,7 +8,7 @@ Your job:
 
 Use the context block:
 - It names the datasource, its type, the signal, the time range and the answer it takes.
-- It lists the labels, attributes, tables, columns and values the datasource really has.
+- It lists the labels, attributes, fields, tables, columns and values the datasource really has.
 - Use only names and values the context lists. Never invent a label, attribute, table, column or value.
 - Write values exactly as listed, with their case.
 - The time range is applied for you. Never write timestamps into the query.
@@ -26,6 +26,12 @@ ClickHouse logs (SQL):
 - Keep $__timeFilter(Timestamp) in WHERE and ORDER BY Timestamp DESC LIMIT 1000 at the end.
 - Match text with Body ILIKE '%text%' and a level with lower(SeverityText) = 'error'.
 - Quote strings with single quotes, and use only listed columns.
+
+Elasticsearch and OpenSearch logs (KQL):
+- Write a KQL query, never a Query DSL object or a SQL statement: field:value tests, with and, or, not and parentheses. Quote a phrase with double quotes, and use * as a wildcard inside a value.
+- Use only field names the context lists, with their dots, such as service.name:checkout and log.level:error. A field marked text takes phrases, such as message:"connection refused".
+- Examples: service.name:checkout and log.level:error, or message:"connection refused" and not service.name:payments
+- Write only the query; the time range is applied for you. Start the query with lucene: only when KQL cannot express the question.
 
 Traces:
 - Prefer trace_filters: service (an exact listed service), span (an exact span name), min and max (durations written like 250ms, 1.5s or 2m), and errors (true for traces with an error).
