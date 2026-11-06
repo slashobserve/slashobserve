@@ -14,7 +14,7 @@ This page walks a team through the move from Grafana in the order that works: ea
 7. [Open old links](#open-old-links) to Grafana dashboards at their new address.
 
 [What maps, what changes and what waits](#what-maps-what-changes-and-what-waits) compares the two in one table, and [The API](#the-api) does every step without the web app.
-Screenshots of each step come with a later release.
+The screens come from the [demo stack](../operate/demo.md), which runs no Grafana, so the connection form is shown empty; screens of the import report and the repair queue come with a later release.
 
 ## Before you start
 
@@ -23,11 +23,14 @@ Screenshots of each step come with a later release.
 - In Grafana, create a service account with the Viewer role on the folders you want to bring over, and a token for it.
   The server only reads from Grafana: `/api/health`, `/api/folders`, `/api/search`, `/api/datasources` and `/api/dashboards/uid/<uid>`.
 
+The home page lists the dashboards you can see below the chat composer, with **Import from Grafana** beside the composer's datasources.
+
+![The home page with the chat composer, its datasources and Import from Grafana, and the dashboard list with Demo shop overview, Node health and SlashObserve internals](images/switch-from-grafana/01-home.png)
+
 ## Connect
 
 An Admin stores a Grafana URL and a service-account token once and lets the server import every dashboard from that Grafana, instead of importing one file at a time.
 Each dashboard goes through the same importer as [Import Grafana dashboards](import-grafana.md), with the same datasource matching, the same report and one import record per dashboard.
-
 
 Open Settings and scroll to the Grafana connection section; only Admins see it.
 Give the connection a name, the Grafana URL and the service account token, and choose Add connection.
@@ -101,16 +104,20 @@ After a large import, an Admin can choose **Run now** instead of waiting for the
 Delete or merge the duplicates and the unopened dashboards before the next step, so nobody shares or commits them.
 See [Dashboard health](dashboard-health.md) for the rules and the API.
 
+![The Dashboard health page with the All problems and All folders filters and Run now, listing a Node Exporter Full dashboard whose panels return no data, with a Repair button on its row](images/switch-from-grafana/05-health.png)
+
 ## Share with public links and TV mode
 
 Grafana's public dashboards and kiosk mode have their counterparts here.
+
+![The Demo shop overview dashboard over the last 6 hours, with the Share button in its top row and the Activity pane beside the panels](images/switch-from-grafana/06-shop-overview.png)
 
 - A [public link](public-links.md) lets someone without an account, such as a vendor or a status screen, open one dashboard at `/p/<token>`.
   A person who manages the dashboard's folder creates it in the dashboard's **Share** pane, chooses whether viewers may change the variables, can set an expiry, and can revoke it at any time.
   A public view runs only that dashboard's saved queries and never shows query text, annotations, comments or the agent, and a dashboard in My Dashboards or one whose queries read the viewer cannot get a link.
 - TV mode shows a dashboard on a wall screen without the top row, the variables bar, the links or the activity card, and Esc leaves it.
   Add `kiosk=true` to the dashboard's address, `cycle=rows` to scroll through its rows or `cycle=folder` to move through its folder's dashboards, and `interval=<seconds>` to set the pace (60 by default).
-  Cycling through a folder takes the place of a Grafana playlist; see [the web app](web.md).
+  Cycling through a folder takes the place of a Grafana playlist; see [Show it on a wall](public-links.md#show-it-on-a-wall).
 
 ## Keep dashboards in Git
 

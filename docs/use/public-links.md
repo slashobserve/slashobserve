@@ -1,6 +1,6 @@
 ---
-title: Public links
-description: Share one dashboard read-only with people who have no account, through a revocable link that can expire.
+title: Public links and TV mode
+description: Share one dashboard read-only with people who have no account through a revocable link that can expire, and show a dashboard on a wall screen in TV mode.
 ---
 
 A public link opens one dashboard read-only for anyone who has the link, with no sign-in.
@@ -53,6 +53,28 @@ The dashboard list, news and geomap panels need the signed-in app, so they show 
 Remote images in text and canvas panels load through the signed-in assets route, so they do not show on a public view.
 Panel data goes through the same query proxy as the app, which runs only the dashboard's saved queries, and each link may have 8 requests in flight.
 An address that is unknown, revoked or expired reads "This link has expired or was turned off."
+
+## Show it on a wall
+
+TV mode shows a dashboard on a wall screen with nothing but its panels: the top row, the variables bar, the links and the activity card are hidden.
+Start it with **TV mode** in the dashboard's **More** menu, or with `d` then `k`.
+Press `Esc` to leave it; a hint saying so shows for three seconds when TV mode starts and whenever the mouse moves.
+
+TV mode lives in the address, so a TV can open a bookmark straight into it:
+
+| Query key | Meaning |
+| --- | --- |
+| `kiosk=1` | TV mode; `kiosk` alone or `kiosk=true` work too. |
+| `cycle=rows` | Bring each expanded row to the top of the screen in turn. |
+| `cycle=folder` | Open each dashboard of the same folder in turn, ordered by title. |
+| `interval=<seconds>` | Seconds between steps of a cycle, from 10 to 3600; the default is 60. |
+
+**TV mode for this folder** in the **More** menu starts `cycle=folder`, and is not offered for a personal folder.
+A folder cycle keeps the time range and the auto-refresh, and opens each dashboard with its default variable values.
+It reads up to 100 dashboards of the folder.
+
+TV mode is part of the signed-in app, so the screen signs in as someone who can view the dashboard.
+A public link's view at `/p/<token>` has no TV mode and ignores these keys; a screen without an account opens a public link and shows the whole public view.
 
 ## API
 

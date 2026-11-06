@@ -10,17 +10,20 @@ These are the gaps that most often decide whether it fits.
 
 Prometheus, ClickHouse, Loki and Tempo are the only datasource types.
 A datasources file entry with any other `type` is refused (see [Datasources file](../reference/datasources-file.md)).
+There is no Jaeger, Elasticsearch, InfluxDB, CloudWatch or SQL database datasource such as MySQL or PostgreSQL.
 When you import a Grafana panel that queries another type, such as Elasticsearch, it imports as a placeholder that says "Elasticsearch is not supported yet." and the datasource cannot be mapped.
 Tempo search builder queries and TraceQL metrics queries are dropped from an import by decision; write the search as a TraceQL query instead.
 The agent finds metrics, labels, tables, columns, log labels and trace attributes on these four only.
 
-## No alerting, and no separate logs or traces pages
+## No alerting
 
-There are no alert rules, no notifications and no Alertmanager integration.
+There are no alert rules, no notifications and no Alertmanager integration; alerting is the next stage of the roadmap.
 An alert list panel shows the firing and pending alerts that a Prometheus `ALERTS` query returns, and that is all it does with alerts.
 
-The web app has no log search page and no trace explorer.
-Logs and traces appear as panels on a dashboard, fed by ClickHouse queries, and you change them through the panel editor or a prompt (see [Edit a panel](../use/edit-panel.md)).
+## Exploring data
+
+The [logs page and the trace search](../use/logs-and-traces.md) read Loki, Tempo and ClickHouse.
+Metrics have no explore page of their own; try a PromQL or SQL query in the panel editor's live preview (see [Edit a panel](../use/edit-panel.md)), or ask the agent.
 
 ## Sign-in needs an OIDC provider
 
@@ -33,10 +36,16 @@ The CLI and MCP clients use service-account keys, which an Admin creates after s
 
 The import reads dashboard JSON that you provide.
 It also fetches dashboards from a running Grafana, with their folders (see [Switch from Grafana](../use/switch-from-grafana.md)).
+Panel types and options the ObserveSpec format cannot hold are reported at their path (see [Import Grafana dashboards](../use/import-grafana.md)); the [import coverage table](https://slashobserve.com/grafana) on slashobserve.com shows which Grafana features map, change or wait.
 
 Alert rules and annotations are not imported.
 The report marks them as excluded by decision, and a panel whose only report lines are such decisions still counts as imported.
-Other options the ObserveSpec format cannot hold are reported at their path (see [Import Grafana dashboards](../use/import-grafana.md)).
+Library panels import as placeholders, and users, teams, folder permissions and playlists stay in Grafana (see [Switch from Grafana](../use/switch-from-grafana.md#what-maps-what-changes-and-what-waits)).
+
+## Wall screens
+
+TV mode is part of the signed-in app, so a wall screen signs in as someone who can view the dashboard.
+A public link's view has no TV mode and cannot cycle through rows or dashboards (see [Show it on a wall](../use/public-links.md#show-it-on-a-wall)).
 
 ## The ObserveSpec format may change
 
