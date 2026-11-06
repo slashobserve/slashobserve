@@ -23,6 +23,8 @@ const (
 	nameUpdateDashboard = "update_dashboard"
 	nameUpdatePanels    = "update_panels"
 	nameLogFacets       = "log_facets"
+	nameGetTrace        = "get_trace"
+	nameTraceStats      = "trace_stats"
 )
 
 const pagingNote = "When truncated is true, pass next_offset as offset to page on; to find one name, narrow with search instead."

@@ -39,6 +39,8 @@ func TestToolRoles(t *testing.T) {
 		nameCreateAnnotation:    auth.RoleEditor,
 		nameDraftQuery:          auth.RoleViewer,
 		nameLogFacets:           auth.RoleEditor,
+		nameGetTrace:            auth.RoleEditor,
+		nameTraceStats:          auth.RoleEditor,
 	}
 	listed := newTestRegistry(t, &fakeDS{}, nil).List()
 	if len(listed) != len(want) {

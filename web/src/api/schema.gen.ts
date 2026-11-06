@@ -952,6 +952,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasources/{uid}/traces/{trace_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+                /** @description The trace id as 16 or 32 hex characters, in either case. */
+                trace_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read one trace whole from a Tempo or ClickHouse datasource.
+         * @description Answers every span of the trace as one frame with ref `A` and the columns `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `ServiceName`, `StartTime`, `Duration`, `StatusCode`, `SpanAttributes`, `ResourceAttributes`, `SpanKind` and `SpanEvents`, sorted by `StartTime` then `SpanId`. `SpanKind` is one of `Server`, `Client`, `Producer`, `Consumer`, `Internal` or `Unspecified`, and `SpanEvents` is a JSON array string of `{"time_ms", "name", "attributes"}` objects, `[]` when the span has none. A trace over 20,000 spans is cut to its earliest 20,000: `meta.rows` is the number of spans returned, `meta.rows_total` the number in the trace and `meta.truncated` says the two differ. `meta.kind` is `instant` and `meta.cached` is always false. `from` and `to` bound the search and default to the last 24 hours; they take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The call runs with the agent tools' 15 second timeout, is never cached, and counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included.
+         */
+        get: operations["getTrace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/trace-stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Count spans and errors per bucket and give the duration distribution of the spans a filter matches.
+         * @description On Tempo `query` is a TraceQL spanset filter such as `{ resource.service.name = "checkout" }`, and `{}` matches every span; on ClickHouse it is a SQL boolean expression over `otel_traces` such as `ServiceName = 'checkout'`, and an empty string matches every span. The server picks a whole-second step of at least one second so the range fits in at most `buckets` buckets, aligns the range to it, and returns every bucket, oldest first, zero-filled. Each bucket carries its span and error counts and the p50, p95 and p99 span durations in milliseconds, null when the bucket has no spans. `histogram` is the duration distribution of every matched span over the whole range in powers-of-two buckets, ascending by `le_ms`, empty when nothing matched. `partial` is true when Tempo did not search every block, so the counts are a lower bound. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+         */
+        post: operations["traceStats"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasources/{uid}/draft-query": {
         parameters: {
             query?: never;
@@ -2718,6 +2764,38 @@ export interface components {
             }[];
             /** @description More fields exist than the 50 returned. */
             truncated: boolean;
+        };
+        TraceStats: {
+            /** @description The width of every bucket in milliseconds, a whole number of seconds and at least one. */
+            step_ms: number;
+            /** @description True when Tempo did not search every block, so the counts are a lower bound; always false on ClickHouse. */
+            partial: boolean;
+            /** @description The sum of every bucket's spans. */
+            spans: number;
+            /** @description The sum of every bucket's errors. */
+            errors: number;
+            /** @description Every bucket of the aligned range, oldest first, empty buckets included. */
+            buckets: components["schemas"]["TraceStatsBucket"][];
+            /** @description The duration distribution of every matched span, ascending by `le_ms`, empty when nothing matched. */
+            histogram: components["schemas"]["DurationBucket"][];
+        };
+        TraceStatsBucket: {
+            /**
+             * Format: date-time
+             * @description The bucket covers this instant up to, but not including, `start` plus `step_ms`.
+             */
+            start: string;
+            spans: number;
+            errors: number;
+            /** @description The median span duration in milliseconds, null when the bucket has no spans. */
+            p50_ms: number | null;
+            p95_ms: number | null;
+            p99_ms: number | null;
+        };
+        DurationBucket: {
+            /** @description The upper edge of the bucket in milliseconds; the bucket holds the spans whose duration is at most this value and above the previous edge. */
+            le_ms: number;
+            count: number;
         };
         PanelData: {
             frames: components["schemas"]["Frame"][];
@@ -6371,6 +6449,184 @@ export interface operations {
             };
             413: components["responses"]["TooLarge"];
             /** @description The query cannot run: `query_invalid` for a Loki metric query, a ClickHouse query with a top-level UNION, INTERSECT, EXCEPT or LIMIT BY, a requested field that is not a column of the query, or an upstream rejection; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query; the body carries no `ref`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    getTrace: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                /** @description The browser's IANA time zone, used to resolve relative times such as `now/d`. */
+                timezone?: string;
+            };
+            header?: never;
+            path: {
+                uid: string;
+                /** @description The trace id as 16 or 32 hex characters, in either case. */
+                trace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The spans of the trace. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelData"];
+                };
+            };
+            /** @description The trace id is not 16 or 32 hex characters, `from` or `to` is not a valid time, or the datasource is not Tempo or ClickHouse (`invalid_request`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist, or no span of the trace lies in the range (`not_found`); widen `from` and `to`. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The response is over 32 MiB (`limit_exceeded`); the body carries no `ref`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    traceStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description A TraceQL spanset filter on Tempo, or a SQL boolean expression over `otel_traces` on ClickHouse. */
+                    query: string;
+                    from: string;
+                    to: string;
+                    /**
+                     * @description The most buckets wanted.
+                     * @default 60
+                     */
+                    buckets?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The span counts, error counts, quantiles and duration histogram. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraceStats"];
+                };
+            };
+            /** @description The request is malformed or fails validation, `buckets` is out of range, or the datasource is not Tempo or ClickHouse (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The filter cannot run: `query_invalid` for a Tempo query that is not a `{ ... }` spanset filter or that Tempo rejects, or a ClickHouse expression the server rejects; `query_forbidden` or `limit_exceeded` as for the explore query; the body carries no `ref`. */
             422: {
                 headers: {
                     [name: string]: unknown;

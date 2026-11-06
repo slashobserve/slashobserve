@@ -12,7 +12,7 @@ The endpoint is stateless, refuses an `Origin` that is not `SLASHOBSERVE_PUBLIC_
 On `initialize` the server returns an `Mcp-Session-Id` that only carries the client's self-reported name and holds no state.
 Each version and agent request records its origin (`web`, `cli`, `mcp` or `api`) and, for `mcp`, that client name.
 
-The server offers 27 tools.
+The server offers 30 tools.
 Each has a lowest role, which the server checks when a client calls it, using the role of the key's service account:
 
 | Role      | Tools                                                                                                                                                         |

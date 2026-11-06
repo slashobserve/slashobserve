@@ -370,7 +370,7 @@ func TestDescriptionsOfferOnlySearchTheToolTakes(t *testing.T) {
 	}
 }
 
-const agentToolTextBudget = 20972
+const agentToolTextBudget = 24016
 
 func TestAgentToolTextStaysWithinBudget(t *testing.T) {
 	listed := New(Deps{}).List()
