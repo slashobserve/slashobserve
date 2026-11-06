@@ -121,6 +121,45 @@ export function criticalPath(spans: readonly Span[]): Set<string> {
   return path
 }
 
+function parentsOf(spans: readonly Span[]): Map<string, string | null> {
+  return new Map(spans.map((span) => [span.id, span.parentId]))
+}
+
+function walkUp(
+  parents: Map<string, string | null>,
+  id: string,
+  visit: (ancestor: string) => boolean
+) {
+  let current = parents.get(id) ?? null
+  while (current !== null && visit(current))
+    current = parents.get(current) ?? null
+}
+
+export function ancestorIds(spans: readonly Span[], id: string): string[] {
+  const ancestors: string[] = []
+  walkUp(parentsOf(spans), id, (ancestor) => {
+    if (ancestors.includes(ancestor)) return false
+    ancestors.push(ancestor)
+    return true
+  })
+  return ancestors
+}
+
+export function errorAncestors(spans: readonly Span[]): Set<string> {
+  const parents = parentsOf(spans)
+  const marked = new Set<string>()
+  for (const span of spans) {
+    if (!span.error) continue
+    marked.add(span.id)
+    walkUp(parents, span.id, (ancestor) => {
+      if (marked.has(ancestor)) return false
+      marked.add(ancestor)
+      return true
+    })
+  }
+  return marked
+}
+
 function withChildrenMarked(spans: Span[]): Span[] {
   return spans.map((span, index) => {
     const hasChildren =
