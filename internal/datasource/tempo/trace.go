@@ -39,6 +39,7 @@ type span struct {
 	End          unixNanos       `json:"endTimeUnixNano"`
 	Attributes   []keyValue      `json:"attributes"`
 	Events       []spanEvent     `json:"events"`
+	Links        []spanLink      `json:"links"`
 	Status       struct {
 		Code json.RawMessage `json:"code"`
 	} `json:"status"`
@@ -50,12 +51,18 @@ type spanEvent struct {
 	Attributes []keyValue `json:"attributes"`
 }
 
+type spanLink struct {
+	TraceID    string     `json:"traceId"`
+	SpanID     string     `json:"spanId"`
+	Attributes []keyValue `json:"attributes"`
+}
+
 type spanRow struct {
 	traceID, spanID, parentID, name, service string
 	start                                    time.Time
 	duration                                 int64
 	status, attributes, resource             string
-	kind, events                             string
+	kind, events, links                      string
 	spans, errors                            *int64
 }
 
@@ -92,8 +99,9 @@ func (d *Datasource) trace(ctx context.Context, id string, r datasource.TimeRang
 		return datasource.Frame{}, traceNotFound()
 	}
 	f := spanFrame(rows[:min(len(rows), maxSpans)])
+	f.Meta = &datasource.FrameMeta{Bytes: int64(len(raw))}
 	if len(rows) > maxSpans {
-		f.Meta = &datasource.FrameMeta{Truncated: true, RowsTotal: len(rows)}
+		f.Meta.Truncated, f.Meta.RowsTotal = true, len(rows)
 	}
 	return f, nil
 }
@@ -133,7 +141,8 @@ func toRow(s span, service, resource string) (spanRow, error) {
 	parentID, err3 := hexID(s.ParentSpanID)
 	attributes, err4 := json.Marshal(attributeMap(s.Attributes))
 	events, err5 := eventsJSON(s.Events)
-	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || spanID == "" {
+	links, err6 := linksJSON(s.Links)
+	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || spanID == "" {
 		return spanRow{}, unreadable()
 	}
 	return spanRow{
@@ -149,6 +158,7 @@ func toRow(s span, service, resource string) (spanRow, error) {
 		resource:   resource,
 		kind:       kindName(s.Kind),
 		events:     events,
+		links:      links,
 	}, nil
 }
 
@@ -158,6 +168,22 @@ func eventsJSON(events []spanEvent) (string, error) {
 		out[i] = datasource.SpanEvent{TimeMS: time.Unix(0, int64(e.Time)).UnixMilli(), Name: e.Name, Attributes: attributeMap(e.Attributes)}
 	}
 	return datasource.SpanEventsJSON(out)
+}
+
+func linksJSON(links []spanLink) (string, error) {
+	out := make([]datasource.SpanLink, len(links))
+	for i, l := range links {
+		traceID, err := hexID(l.TraceID)
+		if err != nil {
+			return "", err
+		}
+		spanID, err := hexID(l.SpanID)
+		if err != nil {
+			return "", err
+		}
+		out[i] = datasource.SpanLink{TraceID: traceID, SpanID: spanID, Attributes: attributeMap(l.Attributes)}
+	}
+	return datasource.SpanLinksJSON(out)
 }
 
 func kindName(raw json.RawMessage) string {
@@ -247,6 +273,7 @@ func spanFrame(rows []spanRow) datasource.Frame {
 		{"ResourceAttributes", datasource.FieldString, func(r spanRow) any { return r.resource }},
 		{"SpanKind", datasource.FieldString, func(r spanRow) any { return r.kind }},
 		{"SpanEvents", datasource.FieldString, func(r spanRow) any { return r.events }},
+		{"SpanLinks", datasource.FieldString, func(r spanRow) any { return r.links }},
 	}
 	f := datasource.Frame{Fields: make([]datasource.Field, len(columns))}
 	for i, c := range columns {

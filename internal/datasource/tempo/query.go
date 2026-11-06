@@ -55,12 +55,21 @@ func quotedInt64(b []byte) (int64, error) {
 }
 
 type searchMetrics struct {
-	CompletedJobs int64 `json:"completedJobs"`
-	TotalJobs     int64 `json:"totalJobs"`
+	CompletedJobs  int64       `json:"completedJobs"`
+	TotalJobs      int64       `json:"totalJobs"`
+	InspectedBytes json.Number `json:"inspectedBytes"`
 }
 
 func (m searchMetrics) partial() bool {
 	return m.TotalJobs > 0 && m.CompletedJobs < m.TotalJobs
+}
+
+func (m searchMetrics) inspectedBytes() int64 {
+	n, err := m.InspectedBytes.Int64()
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 type searchResponse struct {
@@ -172,8 +181,14 @@ func (d *Datasource) search(ctx context.Context, text string, r datasource.TimeR
 		return cmp.Or(b.start.Compare(a.start), strings.Compare(a.traceID, b.traceID))
 	})
 	f := traceFrame(rows)
-	if truncated, partial := len(rows) == lim.MaxRows, resp.Metrics.partial(); truncated || partial {
-		f.Meta = &datasource.FrameMeta{Truncated: truncated, Partial: partial}
+	if truncated, partial := len(rows) == lim.MaxRows, resp.Metrics.partial(); truncated || partial || resp.Metrics.TotalJobs > 0 {
+		f.Meta = &datasource.FrameMeta{
+			Truncated:      truncated,
+			Partial:        partial,
+			JobsDone:       resp.Metrics.CompletedJobs,
+			JobsTotal:      resp.Metrics.TotalJobs,
+			InspectedBytes: resp.Metrics.inspectedBytes(),
+		}
 	}
 	return []datasource.Frame{f}, nil
 }

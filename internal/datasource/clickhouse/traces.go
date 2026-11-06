@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	ch "github.com/ClickHouse/clickhouse-go/v2"
@@ -14,12 +15,13 @@ import (
 const (
 	traceWhere = "FROM otel_traces WHERE TraceId = {id:String} AND Timestamp >= {from:DateTime64(9, 'UTC')} AND Timestamp <= {to:DateTime64(9, 'UTC')}"
 	traceQuery = "SELECT TraceId, SpanId, ParentSpanId, SpanName, ServiceName, Timestamp AS StartTime, Duration, StatusCode, SpanAttributes, ResourceAttributes, SpanKind, " +
-		"Events.Timestamp AS EventTimes, Events.Name AS EventNames, Events.Attributes AS EventAttributes\n" + traceWhere + "\nORDER BY Timestamp, SpanId LIMIT {n:UInt64}"
+		"Events.Timestamp AS EventTimes, Events.Name AS EventNames, Events.Attributes AS EventAttributes, " +
+		"Links.TraceId AS LinkTraceIds, Links.SpanId AS LinkSpanIds, Links.Attributes AS LinkAttributes\n" + traceWhere + "\nORDER BY Timestamp, SpanId LIMIT {n:UInt64}"
 	traceCountQuery  = "SELECT count() " + traceWhere
 	parameterTimeFmt = "2006-01-02 15:04:05.000000000"
 )
 
-var spanColumns = []string{"TraceId", "SpanId", "ParentSpanId", "SpanName", "ServiceName", "StartTime", "Duration", "StatusCode", "SpanAttributes", "ResourceAttributes", "SpanKind", "SpanEvents"}
+var spanColumns = []string{"TraceId", "SpanId", "ParentSpanId", "SpanName", "ServiceName", "StartTime", "Duration", "StatusCode", "SpanAttributes", "ResourceAttributes", "SpanKind", "SpanEvents", "SpanLinks"}
 
 func (d *Datasource) Trace(ctx context.Context, id string, r datasource.TimeRange, maxSpans int) (datasource.Frame, error) {
 	lim := d.limits
@@ -129,8 +131,28 @@ func spanCell(name string, row []any, at map[string]int) (any, error) {
 			return nil, err
 		}
 		return datasource.SpanEventsJSON(events)
+	case "SpanLinks":
+		return datasource.SpanLinksJSON(foldLinks(cell("LinkTraceIds"), cell("LinkSpanIds"), cell("LinkAttributes")))
 	}
 	return stringOf(orEmpty(cell(name))), nil
+}
+
+func foldLinks(traceIDs, spanIDs, attributes any) []datasource.SpanLink {
+	ts, ss, as := elements(traceIDs), elements(spanIDs), elements(attributes)
+	links := make([]datasource.SpanLink, 0, len(ts))
+	for i, t := range ts {
+		l := datasource.SpanLink{TraceID: strings.ToLower(stringOf(t)), Attributes: map[string]any{}}
+		if i < len(ss) {
+			l.SpanID = strings.ToLower(stringOf(ss[i]))
+		}
+		if i < len(as) {
+			if m, ok := jsonValue(reflect.ValueOf(as[i])).(map[string]any); ok {
+				l.Attributes = m
+			}
+		}
+		links = append(links, l)
+	}
+	return links
 }
 
 func foldEvents(times, names, attributes any) ([]datasource.SpanEvent, error) {

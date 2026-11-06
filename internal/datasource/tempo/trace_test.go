@@ -18,6 +18,8 @@ const eventTraceBody = `{"batches":[{
 		{"traceId":"CvdlGRbNQ92ESOshHIAxnA==","spanId":"t61rcWkgMzE=","name":"POST /checkout","kind":"SPAN_KIND_SERVER",
 		 "startTimeUnixNano":"1793983968658000000","endTimeUnixNano":"1793983968700000000",
 		 "events":[{"timeUnixNano":"1793983968658500000","name":"exception","attributes":[{"key":"exception.type","value":{"stringValue":"TimeoutError"}}]}],
+		 "links":[{"traceId":"APBnqgupArcA8GeqC6kCtw==","spanId":"APBnqgupArc=","traceState":"","attributes":[]},
+		          {"traceId":"00F067AA0BA902B700F067AA0BA902B7","spanId":"B7AD6B7169203331","attributes":[{"key":"kind","value":{"stringValue":"follows_from"}}]}],
 		 "status":{"code":"STATUS_CODE_ERROR"}},
 		{"traceId":"CvdlGRbNQ92ESOshHIAxnA==","spanId":"APBnqgupArc=","parentSpanId":"t61rcWkgMzE=","name":"charge","kind":3,
 		 "startTimeUnixNano":"1793983968660000000","endTimeUnixNano":"1793983968690000000","status":{}},
@@ -65,8 +67,33 @@ func TestTraceKeepsTheEarliestSpansUnderTheBudget(t *testing.T) {
 		t.Fatalf("first start = %v, want %v", got, traceStart)
 	}
 	whole, err := ds.Trace(context.Background(), traceID, lastHour, 25)
-	if err != nil || whole.Rows() != 25 || whole.Meta != nil {
-		t.Fatalf("rows = %d, meta = %+v, %v; want every span and no meta at the budget", whole.Rows(), whole.Meta, err)
+	if err != nil || whole.Rows() != 25 || whole.Meta == nil || whole.Meta.Truncated || whole.Meta.RowsTotal != 0 {
+		t.Fatalf("rows = %d, meta = %+v, %v; want every span and no cut at the budget", whole.Rows(), whole.Meta, err)
+	}
+}
+
+func TestTraceCarriesLinksAndBytes(t *testing.T) {
+	ds, _ := serve(t, map[string]reply{tracePath: {0, eventTraceBody}})
+	f, err := ds.Trace(context.Background(), traceID, lastHour, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []any{
+		`[{"trace_id":"00f067aa0ba902b700f067aa0ba902b7","span_id":"00f067aa0ba902b7","attributes":{}},` +
+			`{"trace_id":"00f067aa0ba902b700f067aa0ba902b7","span_id":"b7ad6b7169203331","attributes":{"kind":"follows_from"}}]`,
+		`[]`,
+		`[]`,
+	}
+	if got := fieldValues(t, f, "SpanLinks"); !slices.Equal(got, want) {
+		t.Fatalf("links = %v, want %v", got, want)
+	}
+	if f.Meta == nil || f.Meta.Bytes != int64(len(eventTraceBody)) || f.Meta.Truncated {
+		t.Fatalf("meta = %+v, want bytes %d", f.Meta, len(eventTraceBody))
+	}
+	badLink := strings.Replace(eventTraceBody, `"spanId":"APBnqgupArc=","traceState"`, `"spanId":"not-an-id","traceState"`, 1)
+	ds, _ = serve(t, map[string]reply{tracePath: {0, badLink}})
+	if _, err := ds.Trace(context.Background(), traceID, lastHour, 100); !errors.Is(err, datasource.ErrUnavailable) {
+		t.Fatalf("err = %v, want an unreadable upstream error for a bad link id", err)
 	}
 }
 
@@ -120,7 +147,7 @@ func TestTraceIDReturnsOneRowPerSpan(t *testing.T) {
 	want := []string{
 		"string:TraceId", "string:SpanId", "string:ParentSpanId", "string:SpanName", "string:ServiceName",
 		"time:StartTime", "number:Duration", "string:StatusCode", "string:SpanAttributes", "string:ResourceAttributes",
-		"string:SpanKind", "string:SpanEvents",
+		"string:SpanKind", "string:SpanEvents", "string:SpanLinks",
 	}
 	if got := fieldNames(f); !slices.Equal(got, want) {
 		t.Fatalf("fields = %v, want %v", got, want)
@@ -141,6 +168,7 @@ func TestTraceIDReturnsOneRowPerSpan(t *testing.T) {
 		"ResourceAttributes": {`{"k8s.pod.name":"checkout-0","service.name":"checkout"}`, `{"k8s.pod.name":"checkout-0","service.name":"checkout"}`},
 		"SpanKind":           {"Server", "Client"},
 		"SpanEvents":         {"[]", "[]"},
+		"SpanLinks":          {"[]", "[]"},
 	}
 	for name, values := range checks {
 		if got := fieldValues(t, f, name); !slices.Equal(got, values) {
