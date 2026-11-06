@@ -62,10 +62,12 @@ func (f *facetLoki) to(path string) []request {
 	return out
 }
 
-func volumeVector(label string, counts map[string]string) string {
+type volumeEntry struct{ value, bytes string }
+
+func volumeVector(label string, smallestFirst ...volumeEntry) string {
 	var entries []string
-	for value, bytes := range counts {
-		entries = append(entries, `{"metric":{"`+label+`":"`+value+`"},"value":[1793984001,"`+bytes+`"]}`)
+	for _, e := range smallestFirst {
+		entries = append(entries, `{"metric":{"`+label+`":"`+e.value+`"},"value":[1793984001,"`+e.bytes+`"]}`)
 	}
 	return success("vector", "["+strings.Join(entries, ",")+"]")
 }
@@ -74,8 +76,8 @@ func serveFacets(t *testing.T) (*loki.Datasource, *facetLoki) {
 	t.Helper()
 	fake := &facetLoki{
 		volumes: map[string]string{
-			"service_name": volumeVector("service_name", map[string]string{"frontend": "3218239", "checkout": "9931"}),
-			"k8s_pod_name": volumeVector("k8s_pod_name", map[string]string{"frontend-0": "3218239"}),
+			"service_name": volumeVector("service_name", volumeEntry{"checkout", "9931"}, volumeEntry{"frontend", "3218239"}),
+			"k8s_pod_name": volumeVector("k8s_pod_name", volumeEntry{"frontend-0", "3218239"}),
 		},
 		streams: success("streams", `[
 			{"stream":{"service_name":"frontend","http_request_method":"POST","detected_level":"info"},"values":[["1793966400000000003","a"],["1793966400000000002","b"],["1793966400000000001","c"]]},

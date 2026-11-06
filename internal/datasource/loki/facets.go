@@ -163,10 +163,18 @@ func (d *Datasource) labelFacet(ctx context.Context, selector string, window url
 		return datasource.FacetField{}, err
 	}
 	field.Cardinality = len(field.Values)
-	if len(field.Values) > limit {
-		field.Values, field.Truncated = field.Values[:limit], true
-	}
+	field.Values, field.Truncated = rankValues(field.Values, limit)
 	return field, nil
+}
+
+func rankValues(values []datasource.FacetValue, limit int) (ranked []datasource.FacetValue, truncated bool) {
+	slices.SortFunc(values, func(a, b datasource.FacetValue) int {
+		return cmp.Or(cmp.Compare(b.Count, a.Count), cmp.Compare(a.Value, b.Value))
+	})
+	if len(values) > limit {
+		return values[:limit], true
+	}
+	return values, false
 }
 
 func (d *Datasource) detectedFields(ctx context.Context, text string, window url.Values) ([]detectedField, bool, error) {
@@ -229,14 +237,11 @@ func sampleFacet(frames []datasource.Frame, name string, cardinality, limit int)
 		counts[value] += int64(len(f.Fields[0].Values))
 	}
 	field := datasource.FacetField{Name: name, Kind: datasource.FacetKindField, Values: make([]datasource.FacetValue, 0, len(counts))}
-	for _, value := range slices.Sorted(maps.Keys(counts)) {
-		field.Values = append(field.Values, datasource.FacetValue{Value: value, Count: counts[value]})
+	for value, count := range counts {
+		field.Values = append(field.Values, datasource.FacetValue{Value: value, Count: count})
 	}
-	slices.SortStableFunc(field.Values, func(a, b datasource.FacetValue) int { return cmp.Compare(b.Count, a.Count) })
 	field.Cardinality = max(cardinality, len(counts))
-	if len(field.Values) > limit {
-		field.Values, field.Truncated = field.Values[:limit], true
-	}
+	field.Values, field.Truncated = rankValues(field.Values, limit)
 	return field
 }
 
