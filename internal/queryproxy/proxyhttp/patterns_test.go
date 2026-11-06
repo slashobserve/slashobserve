@@ -314,7 +314,7 @@ func TestLogPatternsRefusesOtherDatasourceTypesAndUnknownUIDs(t *testing.T) {
 	hn, _, _ := newPatternsHarness(t)
 	rec := hn.logPatterns("prom", patternsBody("up"))
 	expectError(t, rec, http.StatusBadRequest, "invalid_request")
-	if got := decodeError(t, rec).Error; got != "patterns read Loki and ClickHouse datasources" {
+	if got := decodeError(t, rec).Error; got != "patterns read Loki, ClickHouse, Elasticsearch and OpenSearch datasources" {
 		t.Fatalf("error = %q", got)
 	}
 	expectError(t, hn.logPatterns("missing", patternsBody("up")), http.StatusNotFound, "not_found")
@@ -359,5 +359,54 @@ func TestLogPatternsAnswersTooManyRequestsWhenEverySlotIsHeld(t *testing.T) {
 	}
 	if n := len(logs.patternRequests()); n != 0 {
 		t.Fatalf("%d pattern calls while every slot is held", n)
+	}
+}
+
+func newSearchPatternsHarness(t *testing.T) (*harness, *patternSource, *patternSource) {
+	t.Helper()
+	hn := newHarness(t)
+	elastic := &patternSource{lineSource: &lineSource{typedDatasource: &typedDatasource{fakeDatasource: &fakeDatasource{}, kind: spec.Elasticsearch}}}
+	opensearch := &patternSource{lineSource: &lineSource{typedDatasource: &typedDatasource{fakeDatasource: &fakeDatasource{}, kind: spec.OpenSearch}}}
+	registry, err := datasource.NewRegistry(hn.h.logger,
+		datasource.Instance{UID: "es", Datasource: elastic},
+		datasource.Instance{UID: "os", Datasource: opensearch},
+	)
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	hn.runner = queryproxy.NewRunner(registry, hn.h.logger)
+	hn.h.runner, hn.h.registry = hn.runner, registry
+	return hn, elastic, opensearch
+}
+
+func TestLogPatternsOnElasticsearchAnswerFromTheClustersOwnCategories(t *testing.T) {
+	hn, elastic, _ := newSearchPatternsHarness(t)
+	elastic.onPatterns = func(datasource.PatternRequest) ([]datasource.NativePattern, error) {
+		return []datasource.NativePattern{{Pattern: "payment failed for order", Samples: []datasource.PatternSample{{At: volumeStart, Count: 4}, {At: volumeStart.Add(time.Minute), Count: 3}}}}, nil
+	}
+	got := decodePatterns(t, hn.logPatterns("es", patternsBody("message:payment")))
+	if got.Source != "elasticsearch" || got.LinesSampled != 0 || got.LinesMatched != 7 || len(got.Patterns) != 1 || len(got.Patterns[0].Trend) != 30 {
+		t.Fatalf("patterns = %+v", got)
+	}
+	if elastic.calls() != 0 {
+		t.Fatalf("%d line reads beside a native answer", elastic.calls())
+	}
+}
+
+func TestLogPatternsOnSearchDatasourcesWithoutCategoriesAreComputedFromTheNewestLines(t *testing.T) {
+	hn, elastic, opensearch := newSearchPatternsHarness(t)
+	for _, ds := range []*patternSource{elastic, opensearch} {
+		ds.onPatterns = func(datasource.PatternRequest) ([]datasource.NativePattern, error) {
+			return nil, datasource.Errorf(datasource.ErrNotFound, "no categorize_text")
+		}
+		ds.onLines = func(datasource.LinesRequest) ([]datasource.Frame, error) {
+			return patternSampleFrames("payment failed for order 11", "payment failed for order 12"), nil
+		}
+	}
+	for _, uid := range []string{"es", "os"} {
+		got := decodePatterns(t, hn.logPatterns(uid, patternsBody("message:payment")))
+		if got.Source != "server" || got.LinesSampled != 2 || len(got.Patterns) != 1 || got.Patterns[0].Pattern != "payment failed for order <*>" {
+			t.Fatalf("%s patterns = %+v", uid, got)
+		}
 	}
 }

@@ -1711,8 +1711,8 @@ components:
       properties:
         source:
           type: string
-          enum: [loki, server]
-          description: "`loki` when Loki's pattern index answered, `server` when the patterns were computed from a sample of the newest lines."
+          enum: [loki, elasticsearch, server]
+          description: "`loki` when Loki's pattern index answered, `elasticsearch` when the cluster's `categorize_text` aggregation answered, `server` when the patterns were computed from a sample of the newest lines."
         lines_sampled:
           type: integer
           description: The lines the server read to compute the patterns; 0 when the datasource's index answered.

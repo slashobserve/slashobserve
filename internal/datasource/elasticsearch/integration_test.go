@@ -508,3 +508,77 @@ func TestIntegrationLint(t *testing.T) {
 		}
 	})
 }
+
+func documentTimeNs(i int) string {
+	return strconv.FormatInt(indexedAt.Add(time.Duration(i)*time.Second).UnixNano(), 10)
+}
+
+func timeNsColumn(t *testing.T, frames []datasource.Frame) []any {
+	t.Helper()
+	if len(frames) != 1 {
+		t.Fatalf("frames = %d, want 1", len(frames))
+	}
+	return frames[0].Fields[1].Values
+}
+
+func TestIntegrationLinesReadTheNeighboursOfAnAnchor(t *testing.T) {
+	eachFlavor(t, func(t *testing.T, flavor elasticsearch.Flavor) {
+		ds := integrationDS(t, flavor)
+		anchor := indexedAt.Add(100 * time.Second)
+		before, err := ds.Lines(context.Background(), datasource.LinesRequest{
+			Query: datasource.Query{Text: shopServices}, Range: datasource.TimeRange{From: anchor.Add(-time.Hour), To: anchor},
+			Direction: datasource.Backward, Limit: 3,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := timeNsColumn(t, before), []any{documentTimeNs(99), documentTimeNs(98), documentTimeNs(97)}; !slices.Equal(got, want) {
+			t.Fatalf("lines before the anchor = %v, want %v", got, want)
+		}
+		if before[0].Meta == nil || !before[0].Meta.Truncated {
+			t.Fatalf("meta = %+v, want truncated at the limit", before[0].Meta)
+		}
+		after, err := ds.Lines(context.Background(), datasource.LinesRequest{
+			Query: datasource.Query{Text: shopServices}, Range: datasource.TimeRange{From: anchor.Add(time.Nanosecond), To: anchor.Add(time.Hour)},
+			Direction: datasource.Forward, Limit: 3,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := timeNsColumn(t, after), []any{documentTimeNs(101), documentTimeNs(102), documentTimeNs(103)}; !slices.Equal(got, want) {
+			t.Fatalf("lines after the anchor = %v, want %v", got, want)
+		}
+	})
+}
+
+func TestIntegrationTraceLogsFindTheLinesOfASeededTrace(t *testing.T) {
+	eachFlavor(t, func(t *testing.T, flavor elasticsearch.Flavor) {
+		ds := integrationDS(t, flavor)
+		req := datasource.TraceLogsRequest{TraceID: fmt.Sprintf("%032x", 42), SpanID: fmt.Sprintf("%016x", 42), Service: "checkout", Range: aroundIndexing(), Limit: 10}
+		frames, err := ds.TraceLogs(context.Background(), req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := timeNsColumn(t, frames), []any{documentTimeNs(42)}; !slices.Equal(got, want) {
+			t.Fatalf("trace lines = %v, want %v", got, want)
+		}
+		if body := frames[0].Fields[2].Values[0]; body != "request 42 handled" {
+			t.Fatalf("Body = %v", body)
+		}
+		req.Service = "payments"
+		frames, err = ds.TraceLogs(context.Background(), req)
+		if err != nil || frames[0].Rows() != 0 {
+			t.Fatalf("another service: rows = %d, err = %v", frames[0].Rows(), err)
+		}
+	})
+}
+
+func TestIntegrationLogPatternsFallBackWhereTheClusterCannotCategorize(t *testing.T) {
+	eachFlavor(t, func(t *testing.T, flavor elasticsearch.Flavor) {
+		ds := integrationDS(t, flavor)
+		_, err := ds.LogPatterns(context.Background(), datasource.PatternRequest{Query: datasource.Query{Text: shopServices}, Range: aroundIndexing(), Step: time.Minute})
+		if !errors.Is(err, datasource.ErrNotFound) {
+			t.Fatalf("error = %v, want not found so the server clusters the lines", err)
+		}
+	})
+}

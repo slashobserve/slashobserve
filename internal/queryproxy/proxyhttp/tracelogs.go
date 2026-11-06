@@ -62,7 +62,7 @@ func (h *Handler) traceLogs(c *gin.Context) {
 	}
 	source, supported := inst.Datasource.(datasource.TraceLogSource)
 	if !supported {
-		abortError(c, http.StatusBadRequest, string(queryproxy.CodeInvalidRequest), "trace logs read Loki and ClickHouse datasources")
+		abortError(c, http.StatusBadRequest, string(queryproxy.CodeInvalidRequest), "trace logs read Loki, ClickHouse, Elasticsearch and OpenSearch datasources")
 		return
 	}
 	p, err := parseParams(req.values(), false)

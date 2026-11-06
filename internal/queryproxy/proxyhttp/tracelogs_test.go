@@ -196,7 +196,7 @@ func TestTraceLogsRefuseOtherDatasourceTypesAndUnknownUIDs(t *testing.T) {
 	hn, _, _ := newTraceLogsHarness(t)
 	rec := hn.traceLogs("prom", traceLogsBody())
 	expectError(t, rec, http.StatusBadRequest, "invalid_request")
-	if got := decodeError(t, rec).Error; got != "trace logs read Loki and ClickHouse datasources" {
+	if got := decodeError(t, rec).Error; got != "trace logs read Loki, ClickHouse, Elasticsearch and OpenSearch datasources" {
 		t.Fatalf("error = %q", got)
 	}
 	expectError(t, hn.traceLogs("missing", traceLogsBody()), http.StatusNotFound, "not_found")

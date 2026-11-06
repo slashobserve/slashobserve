@@ -2988,10 +2988,10 @@ export interface components {
         };
         LogPatterns: {
             /**
-             * @description `loki` when Loki's pattern index answered, `server` when the patterns were computed from a sample of the newest lines.
+             * @description `loki` when Loki's pattern index answered, `elasticsearch` when the cluster's `categorize_text` aggregation answered, `server` when the patterns were computed from a sample of the newest lines.
              * @enum {string}
              */
-            source: "loki" | "server";
+            source: "loki" | "elasticsearch" | "server";
             /** @description The lines the server read to compute the patterns; 0 when the datasource's index answered. */
             lines_sampled: number;
             /** @description The sum of every pattern's count, before the `limit` cut. */

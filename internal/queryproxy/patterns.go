@@ -20,7 +20,7 @@ const (
 	patternSteps      = 60
 	patternBodyField  = "Body"
 	patternsNeedBody  = "patterns need a query that selects Body"
-	patternsReadTypes = "patterns read Loki and ClickHouse datasources"
+	patternsReadTypes = "patterns read Loki, ClickHouse, Elasticsearch and OpenSearch datasources"
 )
 
 var patternLevelFields = []string{"level", "SeverityText"}
@@ -67,7 +67,7 @@ func (r *Runner) LogPatterns(ctx context.Context, inst datasource.Instance, req 
 		found, err := r.nativePatterns(ctx, native, req)
 		switch {
 		case err == nil:
-			return foldNative(found, req.Limit, req.Range), nil
+			return foldNative(found, req.Limit, req.Range, inst.Datasource.Type()), nil
 		case !errors.Is(err, datasource.ErrNotFound):
 			return LogPatterns{}, err
 		}
@@ -108,8 +108,8 @@ func (r *Runner) sampleLines(ctx context.Context, source datasource.LineSource, 
 	return source.Lines(ctx, datasource.LinesRequest{Query: query, Range: req.Range, Direction: datasource.Backward, Limit: req.Sample})
 }
 
-func foldNative(found []datasource.NativePattern, limit int, rng datasource.TimeRange) LogPatterns {
-	out := LogPatterns{Source: PatternSourceLoki, Patterns: []LogPattern{}}
+func foldNative(found []datasource.NativePattern, limit int, rng datasource.TimeRange, source string) LogPatterns {
+	out := LogPatterns{Source: source, Patterns: []LogPattern{}}
 	for _, p := range found {
 		var count int64
 		var first, last time.Time

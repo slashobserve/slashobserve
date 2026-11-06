@@ -41,7 +41,11 @@ const (
 	maxTimeParamBytes   = 128
 	eventStreamContent  = "text/event-stream"
 	frameRef            = "A"
-	notLineSource       = "tail reads Loki and ClickHouse datasources"
+	notLineSource       = "tail reads Loki, ClickHouse, Elasticsearch and OpenSearch datasources"
+	maxSeenKeys         = 10000
+	idFieldName         = "ID"
+	indexFieldName      = "Index"
+	bodyFieldName       = "Body"
 )
 
 type Sessions interface {
@@ -79,6 +83,7 @@ type tailRequest struct {
 	limit  int
 	user   datasource.QueryUser
 	source datasource.LineSource
+	lag    time.Duration
 }
 
 type readyData struct {
@@ -111,6 +116,9 @@ func (h *Handler) serve(c *gin.Context) {
 	defer h.release(key)
 
 	t := &tail{h: h, c: c, req: req, last: req.from}
+	if req.lag > 0 {
+		t.seen = newSeenRows(2*req.lag, maxSeenKeys)
+	}
 	first, err := t.poll()
 	if err != nil {
 		h.failBeforeStream(c, req.uid, err)
@@ -176,6 +184,9 @@ func (h *Handler) parse(c *gin.Context) (tailRequest, bool) {
 		return invalid(notLineSource)
 	}
 	req.source = source
+	if lagged, ok := inst.Datasource.(datasource.LagSource); ok {
+		req.lag = lagged.TailLag()
+	}
 	principal, _ := auth.FromContext(c.Request.Context())
 	req.user = queryproxy.UserFor(principal)
 	return req, true
@@ -208,10 +219,12 @@ func parseFrom(values url.Values, now time.Time) (time.Time, error) {
 }
 
 type tail struct {
-	h    *Handler
-	c    *gin.Context
-	req  tailRequest
-	last time.Time
+	h          *Handler
+	c          *gin.Context
+	req        tailRequest
+	last       time.Time
+	seen       *seenRows
+	catchingUp bool
 }
 
 type pollResult struct {
@@ -237,19 +250,38 @@ func (t *tail) poll() (pollResult, error) {
 	}
 	frames, err := t.req.source.Lines(ctx, datasource.LinesRequest{
 		Query:     datasource.Query{Text: t.req.query, Limits: queryproxy.DraftLimits, User: t.req.user},
-		Range:     datasource.TimeRange{From: t.last, To: now},
+		Range:     datasource.TimeRange{From: t.rangeStart(), To: now},
 		Direction: datasource.Forward,
 		Limit:     t.req.limit,
 	})
 	if err != nil {
 		return pollResult{}, err
 	}
-	res := pollResult{frames: frames, truncated: datasource.MergeMeta(frames).Truncated}
+	res := pollResult{truncated: datasource.MergeMeta(frames).Truncated}
 	if newest, ok := newestOf(frames); ok {
-		res.newest = newest
-		t.last = newest.Add(time.Nanosecond)
+		t.last = laterOf(t.last, newest.Add(time.Nanosecond))
 	}
+	if t.seen != nil {
+		frames = t.seen.fresh(frames)
+	}
+	res.frames = frames
+	res.newest, _ = newestOf(frames)
+	t.catchingUp = res.truncated
 	return res, nil
+}
+
+func (t *tail) rangeStart() time.Time {
+	if t.req.lag == 0 || t.catchingUp {
+		return t.last
+	}
+	return laterOf(t.last.Add(-t.req.lag), t.req.from)
+}
+
+func laterOf(a, b time.Time) time.Time {
+	if b.After(a) {
+		return b
+	}
+	return a
 }
 
 func newestOf(frames []datasource.Frame) (time.Time, bool) {
@@ -440,4 +472,102 @@ func write(c *gin.Context, s string) bool {
 
 func abort(c *gin.Context, status int, code, message string) {
 	c.AbortWithStatusJSON(status, gin.H{"error": message, "code": code})
+}
+
+type seenKey struct {
+	key string
+	ns  int64
+}
+
+type seenRows struct {
+	window time.Duration
+	limit  int
+	keys   map[string]struct{}
+	order  []seenKey
+	newest int64
+}
+
+func newSeenRows(window time.Duration, limit int) *seenRows {
+	return &seenRows{window: window, limit: limit, keys: map[string]struct{}{}}
+}
+
+func (s *seenRows) fresh(frames []datasource.Frame) []datasource.Frame {
+	var out []datasource.Frame
+	for _, f := range frames {
+		rows := f.Rows()
+		keep := make([]bool, rows)
+		kept := 0
+		for row := range rows {
+			key := rowKey(f, row)
+			if _, dup := s.keys[key]; dup {
+				continue
+			}
+			at, _ := rowTime(f, row)
+			s.add(key, at.UnixNano())
+			keep[row] = true
+			kept++
+		}
+		switch kept {
+		case 0:
+		case rows:
+			out = append(out, f)
+		default:
+			out = append(out, keepRows(f, keep))
+		}
+	}
+	s.prune()
+	return out
+}
+
+func (s *seenRows) add(key string, ns int64) {
+	s.keys[key] = struct{}{}
+	s.order = append(s.order, seenKey{key: key, ns: ns})
+	s.newest = max(s.newest, ns)
+}
+
+func (s *seenRows) prune() {
+	cutoff := s.newest - s.window.Nanoseconds()
+	drop := 0
+	for drop < len(s.order) && (s.order[drop].ns < cutoff || len(s.order)-drop > s.limit) {
+		delete(s.keys, s.order[drop].key)
+		drop++
+	}
+	s.order = append(s.order[:0], s.order[drop:]...)
+}
+
+func rowKey(f datasource.Frame, row int) string {
+	var id, index, body, ns string
+	for _, field := range f.Fields {
+		if row >= len(field.Values) {
+			continue
+		}
+		text, _ := field.Values[row].(string)
+		switch field.Name {
+		case idFieldName:
+			id = text
+		case indexFieldName:
+			index = text
+		case bodyFieldName:
+			body = text
+		case datasource.TimeNsFieldName:
+			ns = text
+		}
+	}
+	if id != "" {
+		return index + "\x00" + id
+	}
+	return ns + "\x00" + body
+}
+
+func keepRows(f datasource.Frame, keep []bool) datasource.Frame {
+	out := datasource.Frame{Name: f.Name, Labels: f.Labels, Meta: f.Meta, Fields: make([]datasource.Field, len(f.Fields))}
+	for i, field := range f.Fields {
+		out.Fields[i] = datasource.Field{Name: field.Name, Type: field.Type}
+		for row, v := range field.Values {
+			if row < len(keep) && keep[row] {
+				out.Fields[i].Values = append(out.Fields[i].Values, v)
+			}
+		}
+	}
+	return out
 }

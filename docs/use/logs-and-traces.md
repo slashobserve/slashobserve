@@ -48,6 +48,7 @@ On ClickHouse every field is counted exactly with one `GROUP BY` per field: each
 Patterns group the lines a query matches into line templates with counts, the variable tokens written `<*>`, through `POST /api/v1/datasources/{uid}/log-patterns` and the `log_patterns` tool, so a noisy service reads as a few templates instead of thousands of lines.
 On a Loki whose pattern ingester is enabled, a query that is a bare stream selector answers from Loki's pattern index over the whole range, and the response says `source: loki`.
 Otherwise, on a Loki without the pattern ingester, a Loki query with filters or stages, or ClickHouse, the server reads the newest 2,000 lines by default, up to 5,000, masks numbers, identifiers, addresses and timestamps, clusters lines that share at least 60% of their tokens, and answers `source: server` with each pattern's newest line as its sample.
+On Elasticsearch the cluster's `categorize_text` aggregation answers over the whole range with `source: elasticsearch`, each pattern being the words its lines share; OpenSearch has no such aggregation, and a cluster without it or without the licence for it falls back to the `source: server` clustering above.
 Patterns come by count descending, 20 by default and at most 100, and `truncated` says when more exist.
 Every pattern carries a `trend` of 30 equal buckets over the range, empty ones included with a count of 0, and a `level` (`error`, `warning`, `info`, `other` or empty): for `source: loki` it is the first level word in the pattern, for `source: server` the level most of the pattern's lines carry.
 
@@ -102,6 +103,7 @@ Open a line and press **Show context** to see the 50 lines before it and the 50 
 The server reads both sides in one request, anchored on the line's nanosecond time, so the context is exact: the lines just before are the newest ones older than the line, the lines just after are the oldest ones newer than it, within an hour on each side.
 The lines come from the same query the page ran.
 Each side says when more lines exist in its hour than it shows.
+On an Elasticsearch or OpenSearch time field of type `date`, which keeps milliseconds, context is exact to the millisecond, and the lines in the anchor's own millisecond are left out on both sides.
 Scripts call the same endpoint, `POST /api/v1/datasources/{uid}/log-context`, with the line's `TimeNs` as `anchor`.
 
 ## Live tail
@@ -112,6 +114,7 @@ Each poll returns at most 500 lines, so a tail shows at most 500 lines per secon
 The page keeps the newest 1,000 lines.
 A tail stops when you press **Stop live tail**, when the query, the datasource or the time range changes, when the datasource fails five polls in a row, or after 30 minutes.
 Each person may hold 5 tails at a time, and the server 200.
+Documents reach an Elasticsearch or OpenSearch index a few seconds after their timestamp, so each poll there starts 5 seconds before the newest line sent and skips the lines it already sent, and a tail that stops cancels its search because the cluster cancels a search when its connection closes.
 Scripts open the same stream with `GET /api/v1/datasources/{uid}/tail?query=...`, which is Server-Sent Events.
 
 ## Add to dashboard

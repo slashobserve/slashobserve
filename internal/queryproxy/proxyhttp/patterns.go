@@ -21,7 +21,7 @@ const (
 	defaultPatternSample = 2000
 	minPatternSample     = 100
 	maxPatternSample     = 5000
-	patternsReadTypes    = "patterns read Loki and ClickHouse datasources"
+	patternsReadTypes    = "patterns read Loki, ClickHouse, Elasticsearch and OpenSearch datasources"
 )
 
 type patternsRequest struct {

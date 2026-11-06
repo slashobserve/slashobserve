@@ -23,7 +23,7 @@ const (
 	minWindowMS         = int64(time.Second / time.Millisecond)
 	maxWindowMS         = int64(24 * time.Hour / time.Millisecond)
 	contextFrameRef     = "A"
-	notLineSource       = "log context reads Loki and ClickHouse datasources"
+	notLineSource       = "log context reads Loki, ClickHouse, Elasticsearch and OpenSearch datasources"
 )
 
 func init() {
