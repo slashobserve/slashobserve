@@ -153,7 +153,7 @@ func writeSummaryRow(b *strings.Builder, model string, base, next runSummary) {
 }
 
 func writeScenarioDeltas(b *strings.Builder, base, next Report) {
-	baseByID, nextByID := firstByID(base.Results), firstByID(next.Results)
+	baseByID, nextByID := runsByID(base.Results), runsByID(next.Results)
 	b.WriteString("| Scenario | Status | Latency base / new | Latency delta | Cost base / new | Cost delta | Quality base / new | Quality delta |\n")
 	b.WriteString("| --- | --- | --- | --- | --- | --- | --- | --- |\n")
 	var onlyBase, onlyNew []string
@@ -166,9 +166,9 @@ func writeScenarioDeltas(b *strings.Builder, base, next Report) {
 		}
 		fmt.Fprintf(b, "| %s | %s | %s / %s | %s | %s / %s | %s | %s / %s | %s |\n",
 			escapeCell(id), statusChange(was, now),
-			optionalSeconds(was.LatencySeconds), optionalSeconds(now.LatencySeconds), secondsDelta(was.LatencySeconds, now.LatencySeconds),
-			usd(was.CostUSD), usd(now.CostUSD), usdDelta(was.CostUSD, now.CostUSD),
-			optionalScore(was.Quality), optionalScore(now.Quality), scoreDelta(was.Quality, now.Quality))
+			optionalSeconds(was.latency), optionalSeconds(now.latency), secondsDelta(was.latency, now.latency),
+			usd(was.cost), usd(now.cost), usdDelta(was.cost, now.cost),
+			optionalScore(was.quality), optionalScore(now.quality), scoreDelta(was.quality, now.quality))
 	}
 	for _, id := range slices.Sorted(maps.Keys(nextByID)) {
 		if _, ok := baseByID[id]; !ok {
@@ -183,18 +183,66 @@ func writeScenarioDeltas(b *strings.Builder, base, next Report) {
 	}
 }
 
-func firstByID(results []Result) map[string]Result {
-	byID := map[string]Result{}
+type scenarioRuns struct {
+	results                []Result
+	passed                 Tally
+	latency, cost, quality *float64
+}
+
+func runsByID(results []Result) map[string]scenarioRuns {
+	grouped := map[string][]Result{}
 	for _, r := range results {
-		if _, seen := byID[r.ID]; !seen {
-			byID[r.ID] = r
+		grouped[r.ID] = append(grouped[r.ID], r)
+	}
+	byID := make(map[string]scenarioRuns, len(grouped))
+	for id, runs := range grouped {
+		var passed, scored int
+		var latencies, costs, qualities []float64
+		for _, r := range runs {
+			if r.Skipped {
+				continue
+			}
+			scored++
+			if r.Passed {
+				passed++
+			}
+			latencies = appendValue(latencies, r.LatencySeconds)
+			costs = appendValue(costs, r.CostUSD)
+			qualities = appendValue(qualities, r.Quality)
 		}
+		byID[id] = scenarioRuns{results: runs, passed: tally(passed, scored), latency: median(latencies), cost: mean(costs), quality: median(qualities)}
 	}
 	return byID
 }
 
-func statusChange(was, now Result) string {
-	before, after := verdictOf(was), verdictOf(now)
+func median(values []float64) *float64 {
+	stats := latencyStats(values)
+	if stats == nil {
+		return nil
+	}
+	return &stats.P50
+}
+
+func mean(values []float64) *float64 {
+	if len(values) == 0 {
+		return nil
+	}
+	total := 0.0
+	for _, v := range values {
+		total += v
+	}
+	m := total / float64(len(values))
+	return &m
+}
+
+func statusChange(was, now scenarioRuns) string {
+	if len(was.results) == 1 && len(now.results) == 1 {
+		return change(verdictOf(was.results[0]), verdictOf(now.results[0]))
+	}
+	return change(percent(was.passed), percent(now.passed))
+}
+
+func change(before, after string) string {
 	if before == after {
 		return after
 	}

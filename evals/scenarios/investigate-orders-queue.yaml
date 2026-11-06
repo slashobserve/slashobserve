@@ -1,0 +1,12 @@
+id: investigate-orders-queue
+prompt: Orders are taking longer than usual to be processed. Find out why.
+kind: investigate
+suites: [live]
+fault:
+  pod: checkout-0
+  type: queue
+  pct: 100
+  soak_seconds: 120
+expect:
+  finding_mentions: ["checkout-0", "queue"]
+  evidence_min: 1

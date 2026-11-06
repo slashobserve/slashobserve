@@ -2,47 +2,29 @@ package main
 
 import (
 	"math"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/slashobserve/slashobserve/internal/taste"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-func qualityStat(id string, x int) spec.Panel {
-	limit := 0.05
-	p := spec.Panel{
-		ID: id, Type: spec.Stat, Title: "Stat " + id, Description: "What " + id + " means",
-		GridPos: spec.GridPos{X: x, Y: 0, W: 6, H: 4},
-		Queries: []spec.Query{{Query: "sum(rate(http_requests_total[5m]))"}},
-	}
-	p.Unit = "reqps"
-	p.Thresholds = []spec.Threshold{{Color: "green"}, {Value: &limit, Color: "red"}}
-	return p
-}
+var referenceDashboards = []string{"Demo/shop-overview.json", "Demo/node-health.json", "SlashObserve/internals.json"}
 
-func qualitySeries(id string, x int, query, legend, unit string) spec.Panel {
-	p := spec.Panel{
-		ID: id, Type: spec.Timeseries, Title: "Series " + id,
-		GridPos: spec.GridPos{X: x, Y: 4, W: 12, H: 8},
-		Queries: []spec.Query{{Query: query, Legend: legend}},
+func referenceDashboard(t *testing.T, path string) *spec.Dashboard {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("..", "..", "deploy", "compose", "dashboards", path)) //nolint:gosec // a fixed path inside the repository
+	if err != nil {
+		t.Fatal(err)
 	}
-	p.Unit = unit
-	return p
-}
-
-func perfectQualityDashboard() *spec.Dashboard {
-	table := spec.Panel{
-		ID: "slowest", Type: spec.Table, Title: "Slowest routes",
-		GridPos: spec.GridPos{X: 0, Y: 13, W: 24, H: 8},
-		Queries: []spec.Query{{Query: "topk(5, sum by (route) (rate(http_requests_total[5m])))"}},
+	d, err := spec.Parse(raw)
+	if err != nil {
+		t.Fatal(err)
 	}
-	return &spec.Dashboard{Title: "Checkout", Panels: []spec.Panel{
-		qualityStat("rps", 0), qualityStat("errors", 6), qualityStat("p95", 12), qualityStat("saturation", 18),
-		qualitySeries("by-route", 0, "sum by (route) (rate(http_requests_total[5m]))", "{{route}}", "reqps"),
-		qualitySeries("total", 12, "sum(rate(http_requests_total[5m]))", "", "reqps"),
-		{ID: "detail", Type: spec.Row, Title: "Detail", GridPos: spec.GridPos{X: 0, Y: 12, W: 24, H: 1}, Panels: []spec.Panel{table}},
-	}}
+	return d
 }
 
 func panelByID(t *testing.T, d *spec.Dashboard, id string) *spec.Panel {
@@ -54,127 +36,99 @@ func panelByID(t *testing.T, d *spec.Dashboard, id string) *spec.Panel {
 	return e.Panel
 }
 
-func assertScore(t *testing.T, d *spec.Dashboard, want float64) []string {
-	t.Helper()
-	score, findings := scoreQuality(d)
-	if math.Abs(score-want) > 1e-9 {
-		t.Fatalf("quality = %v, want %v; findings %q", score, want, findings)
+func checkedBy(d *spec.Dashboard, rule string) int {
+	for _, j := range taste.Judge(d) {
+		if j.Rule == rule {
+			return j.Checked
+		}
 	}
-	return findings
+	return 0
 }
 
-func TestQualityWeightsSumToOne(t *testing.T) {
+func TestQualityWeightsSumToOneAndCoverEveryRule(t *testing.T) {
 	total := 0.0
-	for _, rule := range qualityRules {
-		total += rule.weight
+	for _, rule := range taste.Rules {
+		weight, ok := qualityWeights[rule]
+		if !ok {
+			t.Errorf("rule %s has no weight", rule)
+		}
+		total += weight
+	}
+	if len(qualityWeights) != len(taste.Rules) {
+		t.Errorf("weights name %d rules, taste has %d", len(qualityWeights), len(taste.Rules))
 	}
 	if math.Abs(total-1) > 1e-9 {
 		t.Fatalf("rule weights sum to %v", total)
 	}
 }
 
-func TestQualityOfAPerfectDashboardIsOne(t *testing.T) {
-	if findings := assertScore(t, perfectQualityDashboard(), 1); len(findings) != 0 {
-		t.Fatalf("findings = %q", findings)
+func TestQualityOfTheReferenceDashboardsIsOne(t *testing.T) {
+	for _, path := range referenceDashboards {
+		score, findings := scoreQuality(referenceDashboard(t, path))
+		if score != 1 || len(findings) != 0 {
+			t.Errorf("%s: quality %v, findings %q", path, score, findings)
+		}
 	}
 }
 
-func TestQualityWithoutUnitsAndLegendsLosesBothWeights(t *testing.T) {
-	d := perfectQualityDashboard()
-	for _, e := range d.DataPanels() {
+func TestQualityLosesABrokenRulesWeightTimesItsFailedShare(t *testing.T) {
+	tests := []struct {
+		rule    string
+		failed  int
+		spoil   func(t *testing.T, d *spec.Dashboard)
+		finding string
+	}{
+		{taste.Units, 2, func(t *testing.T, d *spec.Dashboard) {
+			panelByID(t, d, "p_requests").Unit = ""
+			panelByID(t, d, "p_queue_age_by_pod").Unit = ""
+		}, "units: p_requests: a stat needs a unit, p_queue_age_by_pod: a timeseries needs a unit"},
+		{taste.Legends, 1, func(t *testing.T, d *spec.Dashboard) {
+			panelByID(t, d, "p_requests_by_route").Queries[0].Legend = ""
+		}, "legends: p_requests_by_route: query A needs a legend"},
+		{taste.Headline, 1, func(t *testing.T, d *spec.Dashboard) {
+			panelByID(t, d, "p_requests").Type = spec.Gauge
+		}, "headline: p_requests: the headline holds only stat panels, not gauge"},
+		{taste.RowQuestions, 1, func(t *testing.T, d *spec.Dashboard) {
+			panelByID(t, d, "r_orders").Title = "Orders"
+		}, `row_questions: r_orders: row title "Orders" does not end with ?`},
+		{taste.FullLines, 1, func(t *testing.T, d *spec.Dashboard) {
+			panelByID(t, d, "p_cache_hit_ratio").GridPos.W = 6
+		}, "full_lines: p_pool_by_pod: line at y 31 in r_database spans 22 of 24 columns"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.rule, func(t *testing.T) {
+			d := referenceDashboard(t, "Demo/shop-overview.json")
+			checked := checkedBy(d, tt.rule)
+			tt.spoil(t, d)
+			score, findings := scoreQuality(d)
+			want := 1 - qualityWeights[tt.rule]*float64(tt.failed)/float64(checked)
+			if math.Abs(score-want) > 1e-9 {
+				t.Errorf("quality = %v, want %v; findings %q", score, want, findings)
+			}
+			if !slices.Equal(findings, []string{tt.finding}) {
+				t.Errorf("findings = %q, want %q", findings, tt.finding)
+			}
+		})
+	}
+}
+
+func TestQualityListsTheFirstFiveFailuresOfARule(t *testing.T) {
+	d := referenceDashboard(t, "Demo/node-health.json")
+	for _, e := range d.AllPanels() {
 		e.Panel.Unit = ""
 	}
-	panelByID(t, d, "by-route").Queries[0].Legend = ""
-	findings := assertScore(t, d, 0.65)
-	want := []string{
-		"units: rps, errors, p95, saturation, by-route and 1 more show numbers without a unit",
-		"legends: by-route/A are multi-series time series queries without a legend",
-	}
-	if !slices.Equal(findings, want) {
-		t.Fatalf("findings = %q, want %q", findings, want)
-	}
-}
-
-func TestQualityScoresAPerPanelRuleByItsShareOfPanels(t *testing.T) {
-	d := perfectQualityDashboard()
-	panelByID(t, d, "rps").Unit = ""
-	panelByID(t, d, "total").Unit = ""
-	panelByID(t, d, "errors").Description = " "
-	assertScore(t, d, 1-0.20*2/6-0.10*1/4)
-}
-
-func TestQualityCountsEveryQueryOfAMultiQueryTimeseries(t *testing.T) {
-	d := perfectQualityDashboard()
-	total := panelByID(t, d, "total")
-	total.Queries = append(total.Queries, spec.Query{Query: "sum(rate(http_requests_total{status=~\"5..\"}[5m]))", Legend: "errors"}, spec.Query{Query: "vector(1)", Hide: true})
-	findings := assertScore(t, d, 1-0.15*1/3)
-	if !slices.Equal(findings, []string{"legends: total/A are multi-series time series queries without a legend"}) {
+	_, findings := scoreQuality(d)
+	if len(findings) != 1 || !strings.HasPrefix(findings[0], "units: p_cpu_busy: a stat needs a unit, ") || !strings.HasSuffix(findings[0], " and 14 more") {
 		t.Fatalf("findings = %q", findings)
 	}
 }
 
-func TestQualityFlagsLinesThatDoNotFillTheGrid(t *testing.T) {
-	d := perfectQualityDashboard()
-	panelByID(t, d, "total").GridPos.W = 6
-	panelByID(t, d, "slowest").GridPos.W = 12
-	findings := assertScore(t, d, 1-0.15*2/3)
-	if !slices.Contains(findings, "full_rows: line y=4, line y=13 of row detail do not fill the 24 columns") {
-		t.Fatalf("findings = %q", findings)
-	}
-}
-
-func TestQualityCountsATallPanelOnEveryLineItSpans(t *testing.T) {
-	tall := spec.Panel{ID: "tall", Type: spec.Text, GridPos: spec.GridPos{X: 0, Y: 0, W: 12, H: 8}}
-	top := qualitySeries("top", 12, "sum(up)", "", "short")
-	top.GridPos = spec.GridPos{X: 12, Y: 0, W: 12, H: 4}
-	bottom := qualitySeries("bottom", 12, "sum(up)", "", "short")
-	bottom.GridPos = spec.GridPos{X: 12, Y: 4, W: 12, H: 4}
-	assertScore(t, &spec.Dashboard{Panels: []spec.Panel{tall, top, bottom}}, 1)
-}
-
-func TestQualityWantsAHeadlineOfStatsOnlyAboveFourPanels(t *testing.T) {
-	d := perfectQualityDashboard()
-	panelByID(t, d, "rps").Type = spec.Gauge
-	findings := assertScore(t, d, 0.9)
-	if !slices.Contains(findings, "headline: the dashboard has more than 4 panels and no section opens with a line of stats") {
-		t.Fatalf("findings = %q", findings)
-	}
-
-	small := &spec.Dashboard{Panels: d.Panels[:4]}
-	assertScore(t, small, 1)
-}
-
-func TestQualityAcceptsAHeadlineThatOpensARow(t *testing.T) {
-	d := perfectQualityDashboard()
-	for i := range 4 {
-		d.Panels[i].Type = spec.Gauge
-	}
-	row := &d.Panels[len(d.Panels)-1]
-	row.Panels = append(row.Panels, qualityStat("in-row", 0))
-	row.Panels[1].GridPos.Y = 13
-	row.Panels[0].GridPos.Y = 17
-	row.Panels[1].GridPos.W = 24
-	assertScore(t, d, 1)
-}
-
-func TestQualityFlagsThresholdsOnPanelsThatDoNotShowThem(t *testing.T) {
-	d := perfectQualityDashboard()
-	limit := 1.0
-	panelByID(t, d, "by-route").Thresholds = []spec.Threshold{{Color: "green"}, {Value: &limit, Color: "red"}}
-	panelByID(t, d, "total").Thresholds = []spec.Threshold{{Color: "green"}}
-	findings := assertScore(t, d, 1-0.15*1/5)
-	if !slices.Contains(findings, "thresholds: by-route have thresholds on a panel type that does not show them") {
-		t.Fatalf("findings = %q", findings)
-	}
-}
-
-func TestQualityListsTitlesMissingFromDataPanels(t *testing.T) {
-	d := perfectQualityDashboard()
-	panelByID(t, d, "slowest").Title = ""
-	panelByID(t, d, "detail").Title = ""
-	findings := assertScore(t, d, 1-0.15*1/7)
-	if !slices.Contains(findings, "titles: slowest have no title") {
-		t.Fatalf("findings = %q", findings)
+func TestQualityIgnoresTheRulesTheServerOwns(t *testing.T) {
+	d := referenceDashboard(t, "Demo/shop-overview.json")
+	panelByID(t, d, "p_requests").ID = "requests"
+	panelByID(t, d, "r_logs").GridPos.Y = 40
+	if score, findings := scoreQuality(d); score != 1 || len(findings) != 0 {
+		t.Fatalf("quality %v, findings %q", score, findings)
 	}
 }
 
@@ -229,7 +183,7 @@ func TestQualityFlagBounds(t *testing.T) {
 }
 
 func TestFinishScoresTheSavedDashboard(t *testing.T) {
-	obs := observation{request: okRequest(), dashboard: perfectQualityDashboard(), panels: map[string]panelOutcome{}}
+	obs := observation{request: okRequest(), dashboard: referenceDashboard(t, "Demo/shop-overview.json"), panels: map[string]panelOutcome{}}
 	res := finish(Scenario{ID: "q", Kind: kindCreate}, Pricing{}, Result{}, obs)
 	if res.Quality == nil || *res.Quality != 1 || res.QualityFindings != nil {
 		t.Fatalf("quality = %v, findings %q", res.Quality, res.QualityFindings)

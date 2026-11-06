@@ -1,0 +1,12 @@
+id: investigate-checkout-latency-on-one-pod
+prompt: Checkout has become slow for some customers. Find out why.
+kind: investigate
+suites: [live]
+fault:
+  pod: checkout-0
+  type: latency
+  pct: 30
+  soak_seconds: 120
+expect:
+  finding_mentions: ["checkout-0", "latency"]
+  evidence_min: 1
