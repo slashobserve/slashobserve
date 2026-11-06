@@ -86,22 +86,24 @@ func NewHandler(runner *queryproxy.Runner, specs SpecSource, builds BuildSpecs, 
 	}
 }
 
+func init() {
+	registerRoutes(func(h *Handler, api auth.Routes) {
+		api.GET("/dashboards/:id/versions/:version/panels/:panel_id/data", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.data)
+		api.GET("/dashboards/:id/versions/:version/variables/:name/values", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.values)
+		api.POST("/datasources/:uid/lint", auth.RoleViewer, h.lint)
+	})
+}
+
+var routeRegistrars []func(h *Handler, api auth.Routes)
+
+func registerRoutes(f func(h *Handler, api auth.Routes)) {
+	routeRegistrars = append(routeRegistrars, f)
+}
+
 func (h *Handler) Register(api auth.Routes) {
-	api.GET("/dashboards/:id/versions/:version/panels/:panel_id/data", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.data)
-	api.GET("/dashboards/:id/versions/:version/variables/:name/values", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.values)
-	api.GET("/observe/:id/build/panels/:panel_id/data", auth.RoleViewer, h.buildData)
-	api.GET("/observe/:id/build/variables/:name/values", auth.RoleViewer, h.buildValues)
-	api.POST("/datasources/:uid/lint", auth.RoleViewer, h.lint)
-	api.POST("/datasources/:uid/preview", auth.RoleViewer, h.preview)
-	api.POST("/datasources/:uid/query", auth.RoleViewer, h.explore)
-	api.POST("/datasources/:uid/log-volume", auth.RoleViewer, h.volume)
-	api.POST("/datasources/:uid/log-facets", auth.RoleViewer, h.facets)
-	api.POST("/datasources/:uid/trace-logs", auth.RoleViewer, h.traceLogs)
-	api.GET("/datasources/:uid/traces/:trace_id", auth.RoleViewer, h.trace)
-	api.POST("/datasources/:uid/trace-stats", auth.RoleViewer, h.traceStats)
-	api.GET("/datasources/:uid/metrics", auth.RoleViewer, h.metrics)
-	api.GET("/datasources/:uid/labels", auth.RoleViewer, h.labels)
-	api.GET("/datasources/:uid/labels/:name/values", auth.RoleViewer, h.labelValues)
+	for _, f := range routeRegistrars {
+		f(h, api)
+	}
 }
 
 type dataMeta struct {

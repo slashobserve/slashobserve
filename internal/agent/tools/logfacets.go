@@ -25,6 +25,8 @@ const (
 	schemaLogFacetsBody = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propFacetFields + `,` + propFacetLimit + `},"required":["datasource","query"],"additionalProperties":false}`
 )
 
+func init() { registerEntries((*Registry).facetEntries) }
+
 func (r *Registry) facetEntries() []entry {
 	return []entry{
 		{Tool{Name: nameLogFacets, Description: descLogFacets, InputSchema: json.RawMessage(schemaLogFacetsBody), ReadOnly: true, MinRole: auth.RoleEditor}, r.logFacets},

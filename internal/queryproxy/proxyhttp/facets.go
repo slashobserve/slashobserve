@@ -36,6 +36,12 @@ type facetsRequest struct {
 	Sample   *int     `json:"sample"`
 }
 
+func init() {
+	registerRoutes(func(h *Handler, api auth.Routes) {
+		api.POST("/datasources/:uid/log-facets", auth.RoleViewer, h.facets)
+	})
+}
+
 func (h *Handler) facets(c *gin.Context) {
 	release, ok := h.acquire(c)
 	if !ok {

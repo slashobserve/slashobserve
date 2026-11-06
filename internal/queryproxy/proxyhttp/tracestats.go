@@ -47,6 +47,12 @@ type durationBucketJSON struct {
 	Count int64   `json:"count"`
 }
 
+func init() {
+	registerRoutes(func(h *Handler, api auth.Routes) {
+		api.POST("/datasources/:uid/trace-stats", auth.RoleViewer, h.traceStats)
+	})
+}
+
 func (h *Handler) traceStats(c *gin.Context) {
 	release, ok := h.acquire(c)
 	if !ok {

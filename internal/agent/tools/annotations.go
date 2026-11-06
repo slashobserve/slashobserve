@@ -43,6 +43,8 @@ const (
 
 var errAnnotationsNotConfigured = errors.New("annotations are not configured")
 
+func init() { registerEntries((*Registry).annotationEntries) }
+
 func (r *Registry) annotationEntries() []entry {
 	return []entry{
 		{Tool{Name: nameListAnnotations, Description: descListAnnotations, InputSchema: json.RawMessage(schemaListAnnotations), ReadOnly: true, InvestigateOnly: true, MinRole: auth.RoleViewer}, r.listAnnotations},

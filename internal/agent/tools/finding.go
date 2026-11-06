@@ -49,6 +49,8 @@ const (
 
 var errFindingsNotConfigured = errors.New("findings are not configured")
 
+func init() { registerEntries((*Registry).findingEntries) }
+
 func (r *Registry) findingEntries() []entry {
 	return []entry{
 		{Tool{Name: nameSaveFinding, Description: descSaveFinding, InputSchema: json.RawMessage(schemaSaveFinding), AgentOnly: true, Answers: true, MinRole: auth.RoleEditor}, r.saveFinding},

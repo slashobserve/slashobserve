@@ -38,6 +38,8 @@ var queryIssueCodes = []spec.IssueCode{
 	queryproxy.CodeVariableUnresolved, queryproxy.CodeDatasourceDown, queryproxy.CodeUnknownDatasource,
 }
 
+func init() { registerEntries((*Registry).panelEntries) }
+
 func (r *Registry) panelEntries() []entry {
 	return []entry{
 		{Tool{Name: nameGetPanels, Description: descGetPanels, InputSchema: json.RawMessage(schemaGetPanels), ReadOnly: true, MinRole: auth.RoleViewer}, r.getPanels},

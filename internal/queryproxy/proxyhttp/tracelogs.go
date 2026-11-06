@@ -34,6 +34,12 @@ type traceLogsRequest struct {
 	Limit    *int    `json:"limit"`
 }
 
+func init() {
+	registerRoutes(func(h *Handler, api auth.Routes) {
+		api.POST("/datasources/:uid/trace-logs", auth.RoleViewer, h.traceLogs)
+	})
+}
+
 func (h *Handler) traceLogs(c *gin.Context) {
 	release, ok := h.acquire(c)
 	if !ok {

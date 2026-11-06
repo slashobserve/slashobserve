@@ -33,6 +33,8 @@ const (
 	schemaTraceStats = `{"type":"object","properties":{` + propDatasource + `,` + propTraceFilter + `,` + propFrom + `,` + propTo + `,"buckets":{"type":"integer","minimum":1,"maximum":60,"description":"The most time buckets wanted. Default 60."}},"required":["datasource","query"],"additionalProperties":false}`
 )
 
+func init() { registerEntries((*Registry).traceEntries) }
+
 func (r *Registry) traceEntries() []entry {
 	return []entry{
 		{Tool{Name: nameGetTrace, Description: descGetTrace, InputSchema: json.RawMessage(schemaGetTrace), ReadOnly: true, MinRole: auth.RoleEditor}, r.getTrace},

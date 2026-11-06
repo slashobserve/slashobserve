@@ -27,6 +27,8 @@ const (
 
 var errCommentsNotConfigured = errors.New("comments are not configured")
 
+func init() { registerEntries((*Registry).commentEntries) }
+
 func (r *Registry) commentEntries() []entry {
 	return []entry{
 		{Tool{Name: nameListComments, Description: descListComments, InputSchema: json.RawMessage(schemaListComments), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listComments},

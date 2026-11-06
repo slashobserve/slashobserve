@@ -34,6 +34,12 @@ type exploreRequest struct {
 	Limit         *int    `json:"limit"`
 }
 
+func init() {
+	registerRoutes(func(h *Handler, api auth.Routes) {
+		api.POST("/datasources/:uid/query", auth.RoleViewer, h.explore)
+	})
+}
+
 func (h *Handler) explore(c *gin.Context) {
 	release, ok := h.acquire(c)
 	if !ok {

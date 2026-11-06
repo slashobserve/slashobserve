@@ -43,6 +43,12 @@ type previewRequest struct {
 	Variables     map[string][]string `json:"variables"`
 }
 
+func init() {
+	registerRoutes(func(h *Handler, api auth.Routes) {
+		api.POST("/datasources/:uid/preview", auth.RoleViewer, h.preview)
+	})
+}
+
 func (h *Handler) preview(c *gin.Context) {
 	ctx := c.Request.Context()
 	principal, _ := auth.FromContext(ctx)

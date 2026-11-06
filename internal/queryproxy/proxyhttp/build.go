@@ -14,6 +14,13 @@ import (
 
 const userSessionRequiredMessage = "the data of a build is for signed-in users; MCP clients and scripts use query_range"
 
+func init() {
+	registerRoutes(func(h *Handler, api auth.Routes) {
+		api.GET("/observe/:id/build/panels/:panel_id/data", auth.RoleViewer, h.buildData)
+		api.GET("/observe/:id/build/variables/:name/values", auth.RoleViewer, h.buildValues)
+	})
+}
+
 func (h *Handler) buildData(c *gin.Context) {
 	query, ok := h.readQuery(c)
 	if !ok {

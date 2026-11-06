@@ -19,6 +19,8 @@ This lists only the packages whose purpose the name does not make obvious.
 - `queryproxy`: panel query runner shared by save validation and the proxy.
   `queryproxy/proxyhttp` holds its HTTP handlers, a subpackage because it reads versions through `dashboards`, which imports `queryproxy`.
 - `agent`: the agent loop; `agent/tools` is the only place agent tools are defined; `agent/prompts` holds the embedded prompts.
+  A tool file registers its entries with `registerEntries` in its own `init` and keeps its `name`, `desc`, `prop` and `schema` constants, its role assertion and its text under the 2000-byte agent cap (`wording_test.go`) in that file; `schemas.go` holds only the shared `prop*` constants; no test pins the tool count or the tool list.
+  `docs/use/mcp.md` has one row per MCP tool with its lowest role, and `docs_test.go` fails when a tool has no row or the wrong role.
 - `drafthttp`: `POST /datasources/{uid}/draft-query`, the HTTP face of `tools.Registry.DraftQuery`, which the `draft_query` MCP tool also calls; drafts are synchronous, stored nowhere and limited in process (3 per caller, 10 per process).
 - `findings`: stores findings: investigate results and the answers of new-dashboard and revision requests that only ask a question; `revisions` reads them only through sqlc and the `ObserveOptions.Finding` func, and never imports `findings`.
 - `stars`: each person's starred dashboards, stored on the server so they follow the person across browsers; keys get 403 `user_session_required`, and recently viewed dashboards stay in the browser.
@@ -54,7 +56,8 @@ This lists only the packages whose purpose the name does not make obvious.
 - A tool's `MinRole` is checked when the tool is called, not when tools are listed, and only for keys outside agent runs.
   Inside a run the requester's folder level decides.
 - Every `/api/v1` route except `/api/v1/auth/*` and `/api/v1/public/*` is registered through `auth.Routes` with its lowest role (`auth.RequireRole`).
-  Feature packages register through `Register(api auth.Routes)` and never see a raw gin group, except a `server.PublicRegistrar`, whose `RegisterPublic` gets the `/api/v1/public` group: no session, `Cache-Control: no-store`, and the token in the path as the only credential.
+  Feature packages register through `Register(api auth.Routes)`; in `queryproxy/proxyhttp` each handler file registers its routes with `registerRoutes` in its own `init`, and `Register` only replays them.
+  They never see a raw gin group, except a `server.PublicRegistrar`, whose `RegisterPublic` gets the `/api/v1/public` group: no session, `Cache-Control: no-store`, and the token in the path as the only credential.
   Only `public.Handler` and `proxyhttp.PublicData` register there.
   Handlers never check roles.
   `auth.RequireUser` is a separate principal-kind check after the role, so a key cannot manage keys whatever its role.

@@ -43,6 +43,8 @@ var (
 	errInvalidRun = errors.New("invalid run scope")
 )
 
+func init() { registerEntries((*Registry).dashboardEntries) }
+
 func (r *Registry) dashboardEntries() []entry {
 	return []entry{
 		{Tool{Name: nameListDashboards, Description: descListDashboards, InputSchema: json.RawMessage(schemaListDashboards), ReadOnly: true, MinRole: auth.RoleViewer}, r.listDashboards},

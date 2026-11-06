@@ -45,6 +45,8 @@ var queryFormats = []string{"timeseries", "table", "heatmap", "logs"}
 
 var variableName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,63}$`)
 
+func init() { registerEntries((*Registry).queryEntries) }
+
 func (r *Registry) queryEntries() []entry {
 	return []entry{
 		{Tool{Name: nameLintQuery, Description: descLintQuery, InputSchema: json.RawMessage(schemaLintQuery), ReadOnly: true, MinRole: auth.RoleEditor}, r.lintQuery},

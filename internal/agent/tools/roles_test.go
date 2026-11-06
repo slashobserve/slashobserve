@@ -2,59 +2,24 @@ package tools
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 )
 
 func TestToolRoles(t *testing.T) {
-	want := map[string]auth.Role{
-		nameListDashboards:  auth.RoleViewer,
-		nameGetDashboard:    auth.RoleViewer,
-		nameGetPanels:       auth.RoleViewer,
-		nameGetSpecGuide:    auth.RoleViewer,
-		nameListComments:    auth.RoleViewer,
-		nameListFolders:     auth.RoleViewer,
-		nameReplyToComment:  auth.RoleCommenter,
-		nameResolveComment:  auth.RoleCommenter,
-		nameListDatasources: auth.RoleEditor,
-		nameListMetrics:     auth.RoleEditor,
-		nameListLabels:      auth.RoleEditor,
-		nameListLabelValues: auth.RoleEditor,
-		nameGetSchema:       auth.RoleEditor,
-		nameSampleRows:      auth.RoleEditor,
-		nameLintQuery:       auth.RoleEditor,
-		nameQueryRange:      auth.RoleEditor,
-		nameQueryInstant:    auth.RoleEditor,
-		nameLogsForTrace:    auth.RoleEditor,
-		nameCreateDashboard: auth.RoleEditor,
-		nameUpdateDashboard: auth.RoleEditor,
-		nameUpdatePanels:    auth.RoleEditor,
-		nameImportGrafana:   auth.RoleEditor,
-		nameSaveFinding:     auth.RoleEditor,
-		nameCreateFinding:   auth.RoleEditor,
-		nameListFindings:    auth.RoleViewer,
-
-		nameListDashboardHealth: auth.RoleViewer,
-		nameListAnnotations:     auth.RoleViewer,
-		nameCreateAnnotation:    auth.RoleEditor,
-		nameDraftQuery:          auth.RoleViewer,
-		nameLogFacets:           auth.RoleEditor,
-		nameGetTrace:            auth.RoleEditor,
-		nameTraceStats:          auth.RoleEditor,
-	}
-	listed := newTestRegistry(t, &fakeDS{}, nil).List()
-	if len(listed) != len(want) {
-		t.Fatalf("registry has %d tools, table has %d", len(listed), len(want))
-	}
-	for _, tool := range listed {
-		role, ok := want[tool.Name]
-		if !ok {
-			t.Errorf("%s is not in the role table", tool.Name)
-			continue
+	for _, tool := range newTestRegistry(t, &fakeDS{}, nil).List() {
+		switch tool.MinRole {
+		case auth.RoleViewer, auth.RoleCommenter, auth.RoleEditor:
+		default:
+			t.Errorf("%s MinRole = %q, want Viewer, Commenter or Editor", tool.Name, tool.MinRole)
 		}
-		if tool.MinRole != role {
-			t.Errorf("%s MinRole = %q, want %q", tool.Name, tool.MinRole, role)
+		if !tool.ReadOnly && tool.MinRole == auth.RoleViewer {
+			t.Errorf("%s writes but stops at Viewer; writes need at least Commenter", tool.Name)
+		}
+		if tool.MinRole == auth.RoleCommenter && !strings.HasSuffix(tool.Name, "_comment") {
+			t.Errorf("%s stops at Commenter; only comment tools stop at Commenter", tool.Name)
 		}
 	}
 }

@@ -12,6 +12,8 @@ import (
 	"github.com/slashobserve/slashobserve/spec/examples"
 )
 
+func init() { registerEntries((*Registry).guideEntries) }
+
 func (r *Registry) guideEntries() []entry {
 	return []entry{
 		{Tool{Name: nameGetSpecGuide, Description: descGetSpecGuide, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MinRole: auth.RoleViewer}, r.getSpecGuide},

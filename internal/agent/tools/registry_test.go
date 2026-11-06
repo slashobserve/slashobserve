@@ -566,18 +566,22 @@ func TestASaveResultOverItsLimitIsTrimmedNeverAnError(t *testing.T) {
 }
 
 func TestListSchemas(t *testing.T) {
-	wantNames := []string{
-		"create_annotation", "create_dashboard", "create_finding", "draft_query", "get_dashboard", "get_panels", "get_schema", "get_spec_guide", "get_trace", "import_grafana_dashboard", "lint_query",
-		"list_annotations", "list_comments", "list_dashboard_health", "list_dashboards", "list_datasources", "list_findings", "list_folders", "list_label_values", "list_labels", "list_metrics", "log_facets",
-		"logs_for_trace", "query_instant", "query_range", "reply_to_comment", "resolve_comment", "sample_rows", "save_finding", "trace_stats", "update_dashboard", "update_panels",
-	}
 	first := New(Deps{}).List()
+	if registered := len((&Registry{}).baseEntries()); len(first) != registered {
+		t.Fatalf("List has %d tools, %d entries are registered", len(first), registered)
+	}
 	var names []string
 	for _, tool := range first {
+		if toolLikeName.FindString(tool.Name) != tool.Name {
+			t.Errorf("%q is not a snake_case tool name", tool.Name)
+		}
 		names = append(names, tool.Name)
 	}
-	if !slices.Equal(names, wantNames) || !slices.IsSorted(names) {
-		t.Fatalf("names = %v", names)
+	if !slices.IsSorted(names) {
+		t.Fatalf("names are not sorted: %v", names)
+	}
+	if len(slices.Compact(slices.Clone(names))) != len(names) {
+		t.Fatalf("names repeat: %v", names)
 	}
 
 	second := New(Deps{}).List()

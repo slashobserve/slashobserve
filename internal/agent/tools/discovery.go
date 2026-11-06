@@ -31,6 +31,8 @@ const (
 	sampleRowsBudget  = 10 << 10
 )
 
+func init() { registerEntries((*Registry).discoveryEntries) }
+
 func (r *Registry) discoveryEntries() []entry {
 	return []entry{
 		{Tool{Name: nameListDatasources, Description: descListDatasources, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MinRole: auth.RoleEditor}, r.listDatasources},

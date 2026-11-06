@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
@@ -40,6 +41,14 @@ type labelValuesResponse struct {
 	Label      string   `json:"label"`
 	Values     []string `json:"values"`
 	Truncated  bool     `json:"truncated"`
+}
+
+func init() {
+	registerRoutes(func(h *Handler, api auth.Routes) {
+		api.GET("/datasources/:uid/metrics", auth.RoleViewer, h.metrics)
+		api.GET("/datasources/:uid/labels", auth.RoleViewer, h.labels)
+		api.GET("/datasources/:uid/labels/:name/values", auth.RoleViewer, h.labelValues)
+	})
 }
 
 func (h *Handler) metrics(c *gin.Context) {

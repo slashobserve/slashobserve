@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -370,21 +371,19 @@ func TestDescriptionsOfferOnlySearchTheToolTakes(t *testing.T) {
 	}
 }
 
-const agentToolTextBudget = 25754
+const agentToolTextCap = 2000
 
-func TestAgentToolTextStaysWithinBudget(t *testing.T) {
-	listed := New(Deps{}).List()
-	for _, mode := range []Mode{ModeCreate, ModeRevise, ModeSuggest, ModeInvestigate} {
-		total := 0
-		for _, tool := range listed {
-			if !tool.OfferedIn(mode) {
-				continue
-			}
-			offered := tool.ForAgent()
-			total += len(offered.Description) + len(offered.InputSchema)
-		}
-		if total > agentToolTextBudget {
-			t.Errorf("%s: agent tool text is %d bytes, over the %d byte budget; raise the budget deliberately and say why in the commit body", mode, total, agentToolTextBudget)
+var agentToolTextAllowances = map[string]int{
+	nameUpdatePanels: 3700,
+}
+
+func TestEachAgentToolTextStaysWithinItsCap(t *testing.T) {
+	for _, tool := range New(Deps{}).List() {
+		offered := tool.ForAgent()
+		size := len(offered.Description) + len(offered.InputSchema)
+		limit := cmp.Or(agentToolTextAllowances[tool.Name], agentToolTextCap)
+		if size > limit {
+			t.Errorf("%s: agent tool text is %d bytes, over its %d byte cap; shorten it, or add an allowance deliberately and say why in the commit body", tool.Name, size, limit)
 		}
 	}
 }

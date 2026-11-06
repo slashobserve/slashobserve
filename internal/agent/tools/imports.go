@@ -27,6 +27,8 @@ const (
 
 var errImportsNotConfigured = errors.New("imports are not configured")
 
+func init() { registerEntries((*Registry).importEntries) }
+
 func (r *Registry) importEntries() []entry {
 	return []entry{
 		{Tool{Name: nameImportGrafana, Description: descImportGrafana, InputSchema: json.RawMessage(schemaImportGrafana), MinRole: auth.RoleEditor}, r.importGrafana},

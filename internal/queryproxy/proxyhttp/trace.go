@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -24,6 +25,12 @@ const (
 	traceSourcesMessage  = "traces read Tempo and ClickHouse datasources"
 	traceIDMessage       = "trace_id must be 16 or 32 hex characters"
 )
+
+func init() {
+	registerRoutes(func(h *Handler, api auth.Routes) {
+		api.GET("/datasources/:uid/traces/:trace_id", auth.RoleViewer, h.trace)
+	})
+}
 
 func (h *Handler) trace(c *gin.Context) {
 	release, ok := h.acquire(c)

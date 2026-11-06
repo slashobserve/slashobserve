@@ -59,6 +59,12 @@ var volumeSources = map[string]volumeSource{
 	string(spec.ClickHouse): {kind: queryproxy.KindInstant, derive: clickhouse.VolumeQuery, fold: foldClickHouseVolume},
 }
 
+func init() {
+	registerRoutes(func(h *Handler, api auth.Routes) {
+		api.POST("/datasources/:uid/log-volume", auth.RoleViewer, h.volume)
+	})
+}
+
 func (h *Handler) volume(c *gin.Context) {
 	release, ok := h.acquire(c)
 	if !ok {

@@ -38,6 +38,8 @@ func healthKindsJSON() string {
 	return string(raw)
 }
 
+func init() { registerEntries((*Registry).healthEntries) }
+
 func (r *Registry) healthEntries() []entry {
 	return []entry{
 		{Tool{Name: nameListDashboardHealth, Description: descListDashboardHealth, InputSchema: json.RawMessage(schemaListDashboardHealth), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listDashboardHealth},

@@ -12,14 +12,41 @@ The endpoint is stateless, refuses an `Origin` that is not `SLASHOBSERVE_PUBLIC_
 On `initialize` the server returns an `Mcp-Session-Id` that only carries the client's self-reported name and holds no state.
 Each version and agent request records its origin (`web`, `cli`, `mcp` or `api`) and, for `mcp`, that client name.
 
-The server offers 31 tools.
-Each has a lowest role, which the server checks when a client calls it, using the role of the key's service account:
+Each tool has a lowest role, which the server checks when a client calls it, using the role of the key's service account:
 
-| Role      | Tools                                                                                                                                                         |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Viewer    | `list_dashboards`, `get_dashboard`, `get_panels`, `get_spec_guide`, `list_comments`, `list_folders`, `list_findings`, `list_dashboard_health`, `list_annotations`, `draft_query` |
-| Commenter | `reply_to_comment`, `resolve_comment`                                                                                                                         |
-| Editor    | `create_dashboard`, `update_dashboard`, `update_panels`, `import_grafana_dashboard`, `list_datasources`, `list_metrics`, `list_labels`, `list_label_values`, `get_schema`, `sample_rows`, `lint_query`, `query_range`, `query_instant`, `log_facets`, `logs_for_trace`, `get_trace`, `trace_stats`, `create_finding`, `create_annotation` |
+| Tool | Lowest role |
+| ---- | ----------- |
+| `create_annotation` | Editor |
+| `create_dashboard` | Editor |
+| `create_finding` | Editor |
+| `draft_query` | Viewer |
+| `get_dashboard` | Viewer |
+| `get_panels` | Viewer |
+| `get_schema` | Editor |
+| `get_spec_guide` | Viewer |
+| `get_trace` | Editor |
+| `import_grafana_dashboard` | Editor |
+| `lint_query` | Editor |
+| `list_annotations` | Viewer |
+| `list_comments` | Viewer |
+| `list_dashboard_health` | Viewer |
+| `list_dashboards` | Viewer |
+| `list_datasources` | Editor |
+| `list_findings` | Viewer |
+| `list_folders` | Viewer |
+| `list_label_values` | Editor |
+| `list_labels` | Editor |
+| `list_metrics` | Editor |
+| `log_facets` | Editor |
+| `logs_for_trace` | Editor |
+| `query_instant` | Editor |
+| `query_range` | Editor |
+| `reply_to_comment` | Commenter |
+| `resolve_comment` | Commenter |
+| `sample_rows` | Editor |
+| `trace_stats` | Editor |
+| `update_dashboard` | Editor |
+| `update_panels` | Editor |
 
 A call below the key's role returns the tool error `forbidden_role`.
 Folder access applies on top: a tool that names a dashboard or folder the key cannot see returns `not_found`, and changing a dashboard needs Edit on its folder.
