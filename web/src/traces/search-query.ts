@@ -77,31 +77,41 @@ export function traceQLFor(form: TraceForm): string {
   return `{${conditions.join(" && ")}}`
 }
 
-function clickhouseMatch(column: string, value: string): string {
-  return ` AND ${matcherInsert("clickhouse", column, value)}`
-}
-
 const clickhouseErrorStatus =
   "lower(StatusCode) IN ('error', 'status_code_error')"
 
-export function clickhouseTraceSearch(form: TraceForm): string {
+function clickhouseConditions(form: TraceForm, column: string): string[] {
   const min = form.min ? parseDuration(form.min) : null
   const max = form.max ? parseDuration(form.max) : null
-  const conditions = [
+  return [
     form.service
-      ? clickhouseMatch("otel_traces.ServiceName", form.service)
+      ? matcherInsert("clickhouse", column + "ServiceName", form.service)
       : "",
-    form.span ? clickhouseMatch("otel_traces.SpanName", form.span) : "",
-    min !== null ? ` AND otel_traces.Duration >= ${min}` : "",
-    max !== null ? ` AND otel_traces.Duration <= ${max}` : "",
-    form.errors ? ` AND ${clickhouseErrorStatus}` : "",
-  ].join("")
+    form.span
+      ? matcherInsert("clickhouse", column + "SpanName", form.span)
+      : "",
+    min !== null ? `${column}Duration >= ${min}` : "",
+    max !== null ? `${column}Duration <= ${max}` : "",
+    form.errors ? clickhouseErrorStatus : "",
+  ].filter((condition) => condition !== "")
+}
+
+export function clickhouseTraceSearch(form: TraceForm): string {
+  const conditions = clickhouseConditions(form, "otel_traces.")
+    .map((condition) => ` AND ${condition}`)
+    .join("")
   return `SELECT TraceId, min(Timestamp) AS StartTime, argMax(otel_traces.ServiceName, otel_traces.Duration) AS ServiceName, argMax(otel_traces.SpanName, otel_traces.Duration) AS SpanName, max(otel_traces.Duration) AS Duration, count() AS Spans, countIf(${clickhouseErrorStatus}) AS Errors
 FROM otel_traces
 WHERE $__timeFilter(Timestamp)${conditions}
 GROUP BY TraceId
 ORDER BY StartTime DESC
 LIMIT 100`
+}
+
+export function traceStatsFilter(type: string, search: TraceSearch): string {
+  const form = traceFormOf(search)
+  if (type === "tempo") return search.q ?? traceQLFor(form)
+  return clickhouseConditions(form, "").join(" AND ")
 }
 
 export const traceSearchRows = 100
