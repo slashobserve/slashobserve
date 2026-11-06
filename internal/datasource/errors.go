@@ -21,6 +21,14 @@ var (
 	ErrUnsafeGrant    = refine(ErrForbiddenQuery)
 	ErrAuthFailed     = refine(ErrUnavailable)
 	ErrHostNotAllowed = refine(ErrUnavailable)
+
+	ErrWrongFlavor        = refine(ErrInvalidQuery)
+	ErrIsOpenSearch       = refine(ErrWrongFlavor)
+	ErrIsElasticsearch    = refine(ErrWrongFlavor)
+	ErrUnsupportedVersion = refine(ErrInvalidQuery)
+	ErrNoIndex            = refine(ErrInvalidQuery)
+	ErrNoTimeField        = refine(ErrInvalidQuery)
+	ErrNoRoleField        = refine(ErrInvalidQuery)
 )
 
 // refinedKind reads and matches as its parent, so it adds a distinguishable kind without changing any error text.

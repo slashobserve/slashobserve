@@ -189,28 +189,34 @@ func (r *Registry) check(ctx context.Context, in Instance) Status {
 }
 
 // Status messages reach browsers and the agent, so an error's own text, which can echo an address or a user, never does.
+var healthTexts = []struct {
+	kind error
+	text string
+}{
+	{ErrTimeout, "Timed out waiting for the datasource"},
+	{context.DeadlineExceeded, "Timed out waiting for the datasource"},
+	{ErrAuthFailed, "The datasource refused the credentials"},
+	{ErrHostNotAllowed, "The ClickHouse user may not connect from this server's address"},
+	{ErrUnavailable, "The datasource is not answering"},
+	{ErrNotReadOnly, "The ClickHouse user must be readonly = 2"},
+	{ErrUnsafeGrant, "The ClickHouse user holds a grant that reaches outside systems; revoke it"},
+	{ErrForbiddenQuery, "The datasource refused the health check"},
+	{ErrLimitExceeded, "The health check hit a datasource limit"},
+	{ErrIsOpenSearch, "The server is OpenSearch, configure it as type opensearch"},
+	{ErrIsElasticsearch, "The server is Elasticsearch, configure it as type elasticsearch"},
+	{ErrUnsupportedVersion, "The datasource version is not supported: Elasticsearch 8.x or 9.x, OpenSearch 2.x or 3.x"},
+	{ErrNoIndex, "The index pattern matches no index"},
+	{ErrNoTimeField, "The time field is missing or is not a date"},
+	{ErrNoRoleField, "A configured field is missing from the mapping"},
+	{ErrInvalidQuery, "The datasource rejected the health check"},
+	{context.Canceled, "The health check was cancelled"},
+}
+
 func healthMessage(err error) string {
-	switch {
-	case errors.Is(err, ErrTimeout), errors.Is(err, context.DeadlineExceeded):
-		return "Timed out waiting for the datasource"
-	case errors.Is(err, ErrAuthFailed):
-		return "The datasource refused the credentials"
-	case errors.Is(err, ErrHostNotAllowed):
-		return "The ClickHouse user may not connect from this server's address"
-	case errors.Is(err, ErrUnavailable):
-		return "The datasource is not answering"
-	case errors.Is(err, ErrNotReadOnly):
-		return "The ClickHouse user must be readonly = 2"
-	case errors.Is(err, ErrUnsafeGrant):
-		return "The ClickHouse user holds a grant that reaches outside systems; revoke it"
-	case errors.Is(err, ErrForbiddenQuery):
-		return "The datasource refused the health check"
-	case errors.Is(err, ErrLimitExceeded):
-		return "The health check hit a datasource limit"
-	case errors.Is(err, ErrInvalidQuery):
-		return "The datasource rejected the health check"
-	case errors.Is(err, context.Canceled):
-		return "The health check was cancelled"
+	for _, h := range healthTexts {
+		if errors.Is(err, h.kind) {
+			return h.text
+		}
 	}
 	return "The health check failed"
 }

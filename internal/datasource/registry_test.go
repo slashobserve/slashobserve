@@ -39,6 +39,12 @@ func TestHealthMessageNeverCarriesTheDatasourceAddress(t *testing.T) {
 		{"host not allowed", datasource.Errorf(datasource.ErrHostNotAllowed, "user bob at %s", address), "The ClickHouse user may not connect from this server's address"},
 		{"limit", datasource.Errorf(datasource.ErrLimitExceeded, "%s sent too much", address), "The health check hit a datasource limit"},
 		{"invalid", datasource.Errorf(datasource.ErrInvalidQuery, "%s rejected", address), "The datasource rejected the health check"},
+		{"is opensearch", datasource.Errorf(datasource.ErrIsOpenSearch, "%s is opensearch", address), "The server is OpenSearch, configure it as type opensearch"},
+		{"is elasticsearch", datasource.Errorf(datasource.ErrIsElasticsearch, "%s is elasticsearch", address), "The server is Elasticsearch, configure it as type elasticsearch"},
+		{"unsupported version", datasource.Errorf(datasource.ErrUnsupportedVersion, "%s runs 7.10", address), "The datasource version is not supported: Elasticsearch 8.x or 9.x, OpenSearch 2.x or 3.x"},
+		{"no index", datasource.Errorf(datasource.ErrNoIndex, "%s has no logs-*", address), "The index pattern matches no index"},
+		{"no time field", datasource.Errorf(datasource.ErrNoTimeField, "%s lacks @timestamp", address), "The time field is missing or is not a date"},
+		{"no role field", datasource.Errorf(datasource.ErrNoRoleField, "%s lacks severity", address), "A configured field is missing from the mapping"},
 		{"deadline", fmt.Errorf("%s: %w", address, context.DeadlineExceeded), "Timed out waiting for the datasource"},
 		{"wrapped", errors.Join(errors.New(address), datasource.Errorf(nil, "%s down", address)), "The datasource is not answering"},
 	}
