@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils"
 import { isNarrow, type WidthBounds } from "./card-width"
 import { ResizeHandle } from "./resize-handle"
 
-export type DockStacking = boolean | "container"
+type DockStacking = boolean | "container"
 
 type Props = {
   labelledBy: string
