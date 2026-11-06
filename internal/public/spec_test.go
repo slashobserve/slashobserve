@@ -2,17 +2,19 @@ package public
 
 import (
 	"encoding/json"
+	"io/fs"
 	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
+var examples = os.DirFS("../../spec/examples")
+
 func fixtureSpec(t *testing.T, name string) *spec.Dashboard {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "..", "spec", "examples", name))
+	raw, err := fs.ReadFile(examples, name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,12 +61,11 @@ func queryHolders(doc map[string]any) []map[string]any {
 }
 
 func TestPublicSpecDropsOnlyQueryText(t *testing.T) {
-	fixtures, err := filepath.Glob(filepath.Join("..", "..", "spec", "examples", "*.json"))
+	fixtures, err := fs.Glob(examples, "*.json")
 	if err != nil || len(fixtures) == 0 {
 		t.Fatalf("no fixtures: %v", err)
 	}
-	for _, path := range fixtures {
-		name := filepath.Base(path)
+	for _, name := range fixtures {
 		t.Run(name, func(t *testing.T) {
 			original := fixtureSpec(t, name)
 			before := asJSON(t, original)

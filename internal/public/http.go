@@ -183,7 +183,7 @@ func (h *Handler) view(c *gin.Context) {
 		Datasources: make([]datasourceJSON, 0, len(v.Datasources)),
 	}
 	for _, ds := range v.Datasources {
-		body.Datasources = append(body.Datasources, datasourceJSON{UID: ds.UID, Type: ds.Type})
+		body.Datasources = append(body.Datasources, datasourceJSON(ds))
 	}
 	c.JSON(http.StatusOK, body)
 }

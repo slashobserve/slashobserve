@@ -2,6 +2,7 @@ package proxyhttp
 
 import (
 	"context"
+	"crypto/rand"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -31,7 +32,13 @@ func (hn *harness) publicRouter(links fakePublicLinks) *gin.Engine {
 }
 
 func (hn *harness) publicLink(mode public.Mode, version int, stored map[string][]string) public.Resolved {
-	return public.Resolved{LinkID: pgtype.UUID{Bytes: [16]byte{7, byte(version), byte(len(mode))}, Valid: true}, DashboardID: hn.id, Version: version, Mode: mode, Selections: stored}
+	return public.Resolved{LinkID: randomLinkID(), DashboardID: hn.id, Version: version, Mode: mode, Selections: stored}
+}
+
+func randomLinkID() pgtype.UUID {
+	id := pgtype.UUID{Valid: true}
+	_, _ = rand.Read(id.Bytes[:])
+	return id
 }
 
 func ranWith(t *testing.T, q datasource.Query, name, want string) {

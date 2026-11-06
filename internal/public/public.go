@@ -130,6 +130,28 @@ func (s *Service) latest(ctx context.Context, dashboardID pgtype.UUID) (int, *sp
 	return version, d, err
 }
 
+func (s *Service) checkInput(d *spec.Dashboard, in CreateInput) error {
+	if queryproxy.DashboardUsesUser(d) {
+		return ErrUserScoped
+	}
+	if in.ExpiresAt != nil && !in.ExpiresAt.After(s.now()) {
+		return ErrInvalidExpiry
+	}
+	for name := range in.Selections {
+		if !slices.ContainsFunc(d.Variables, func(v spec.Variable) bool { return v.Name == name }) {
+			return fmt.Errorf("%w: %q", ErrUnknownVariable, name)
+		}
+	}
+	return nil
+}
+
+func storedSelections(selections map[string][]string) ([]byte, error) {
+	if selections == nil {
+		selections = map[string][]string{}
+	}
+	return json.Marshal(selections)
+}
+
 func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, in CreateInput) (Created, error) {
 	if !in.Mode.valid() {
 		return Created{}, ErrInvalidMode
@@ -141,16 +163,8 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 	if err != nil {
 		return Created{}, err
 	}
-	if queryproxy.DashboardUsesUser(d) {
-		return Created{}, ErrUserScoped
-	}
-	if in.ExpiresAt != nil && !in.ExpiresAt.After(s.now()) {
-		return Created{}, ErrInvalidExpiry
-	}
-	for name := range in.Selections {
-		if !slices.ContainsFunc(d.Variables, func(v spec.Variable) bool { return v.Name == name }) {
-			return Created{}, fmt.Errorf("%w: %q", ErrUnknownVariable, name)
-		}
+	if err := s.checkInput(d, in); err != nil {
+		return Created{}, err
 	}
 	count, err := s.db.Queries().CountPublicLinks(ctx, dashboardID)
 	if err != nil {
@@ -163,11 +177,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 	if err != nil {
 		return Created{}, folders.ErrForbidden
 	}
-	selections := in.Selections
-	if selections == nil {
-		selections = map[string][]string{}
-	}
-	stored, err := json.Marshal(selections)
+	stored, err := storedSelections(in.Selections)
 	if err != nil {
 		return Created{}, err
 	}
