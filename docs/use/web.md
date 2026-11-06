@@ -11,7 +11,7 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/f/<folder id>` | A folder's settings. |
 | `/c/<request id>` | The conversation of an agent request. |
 | `/b/<request id>` | The live view of an agent request's build. |
-| `/logs` | The logs page; `ds`, `q`, `from` and `to` in the query string reopen a search. |
+| `/logs` | The logs page; `ds`, `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
 | `/traces` | The trace search. |
 | `/t/<trace id>?ds=<datasource uid>` | One trace in a Tempo or ClickHouse datasource. |
 | `/p/<token>` | A dashboard opened through a public link, with no sign-in. |
