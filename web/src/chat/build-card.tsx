@@ -271,7 +271,7 @@ export function BuildCard({
             params={{ requestId: request.id }}
             className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
           >
-            Watch live
+            Open build
           </Link>
         ) : null}
       </div>
