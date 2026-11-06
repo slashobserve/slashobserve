@@ -70,6 +70,8 @@ paths:
     $ref: "./paths/dashboards.yaml#/dashboards-id-duplicate"
   /dashboards/{id}/diff:
     $ref: "./paths/dashboards.yaml#/dashboards-id-diff"
+  /dashboards/{id}/views:
+    $ref: "./paths/dashboards.yaml#/dashboards-id-views"
   /dashboards/{id}/import:
     $ref: "./paths/imports.yaml#/dashboards-id-import"
   /dashboards/{id}/actions:
@@ -146,6 +148,10 @@ paths:
     $ref: "./paths/provision.yaml#/provision"
   /provision/run:
     $ref: "./paths/provision.yaml#/provision-run"
+  /provision/apply:
+    $ref: "./paths/provision.yaml#/provision-apply"
+  /provision/applied:
+    $ref: "./paths/provision.yaml#/provision-applied"
   /grafana:
     $ref: "./paths/grafana.yaml#/grafana"
   /grafana/{id}:
@@ -178,6 +184,12 @@ paths:
     $ref: "./paths/public.yaml#/public-token-panels-panel-id-data"
   /public/{token}/variables/{name}/values:
     $ref: "./paths/public.yaml#/public-token-variables-name-values"
+  /health:
+    $ref: "./paths/health.yaml#/health"
+  /health/repairs:
+    $ref: "./paths/health.yaml#/health-repairs"
+  /health/run:
+    $ref: "./paths/health.yaml#/health-run"
 components:
   securitySchemes:
     sessionCookie:
@@ -3244,6 +3256,141 @@ components:
                 type: string
               type:
                 type: string
+    HealthProblemKind:
+      type: string
+      enum: [no_data, query_failed, variable_failed, duplicate_title, unopened]
+    HealthProblem:
+      type: object
+      additionalProperties: false
+      required: [kind, panel_id, panel_title, variable, code, message]
+      properties:
+        kind:
+          $ref: "#/components/schemas/HealthProblemKind"
+        panel_id:
+          type: string
+          nullable: true
+          description: The panel the problem is in, or null for a variable or a dashboard-wide problem.
+        panel_title:
+          type: string
+          nullable: true
+        variable:
+          type: string
+          nullable: true
+          description: The variable that resolves to nothing, for `variable_failed`.
+        code:
+          type: string
+          nullable: true
+          description: The check's issue code, such as `query_empty`, or `check_failed` when the check itself could not run; null for `duplicate_title` and `unopened`.
+        message:
+          type: string
+          nullable: true
+    HealthItem:
+      type: object
+      additionalProperties: false
+      required: [id, title, url, folder, can_edit, checked_version, checked_at, last_viewed_at, skipped, problems]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        url:
+          type: string
+          description: The dashboard's address in the web app.
+        folder:
+          $ref: "#/components/schemas/DashboardFolder"
+        can_edit:
+          type: boolean
+          description: Whether the caller may edit the dashboard, and so ask for a repair.
+        checked_version:
+          type: integer
+          nullable: true
+          description: The version the last health check ran on; null before the first check.
+        checked_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_viewed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: The latest time anyone opened the dashboard; null when nobody did since opens are recorded.
+        skipped:
+          type: string
+          nullable: true
+          enum: [depends_on_viewer]
+          description: Why the last check ran no query.
+        problems:
+          type: array
+          items:
+            $ref: "#/components/schemas/HealthProblem"
+    HealthJob:
+      type: object
+      additionalProperties: false
+      required: [last_started_at, last_finished_at, last_outcome, running]
+      properties:
+        last_started_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_outcome:
+          type: string
+          nullable: true
+          enum: [succeeded, failed, interrupted]
+        running:
+          type: boolean
+    HealthList:
+      type: object
+      additionalProperties: false
+      required: [dashboards, next_cursor, job]
+      properties:
+        dashboards:
+          type: array
+          items:
+            $ref: "#/components/schemas/HealthItem"
+        next_cursor:
+          type: string
+          nullable: true
+        job:
+          $ref: "#/components/schemas/HealthJob"
+    ApplyResult:
+      type: object
+      additionalProperties: false
+      required: [path, outcome, dashboard_id, version]
+      properties:
+        path:
+          type: string
+        outcome:
+          type: string
+          enum: [created, updated, unchanged]
+        dashboard_id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+          description: The version saved, or the latest version when nothing changed.
+    AppliedList:
+      type: object
+      additionalProperties: false
+      required: [applied]
+      properties:
+        applied:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [path, dashboard_id]
+            properties:
+              path:
+                type: string
+              dashboard_id:
+                type: string
+                format: uuid
   responses:
     BadRequest:
       description: The request is malformed or fails validation.

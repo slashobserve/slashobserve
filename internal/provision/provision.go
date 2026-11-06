@@ -22,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/specfiles"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -29,7 +30,6 @@ const (
 	pollInterval    = 30 * time.Second
 	maxMessageBytes = 2048
 	summaryPrefix   = "Provisioned from "
-	specFileExt     = ".json"
 )
 
 var (
@@ -89,11 +89,6 @@ type FileError struct {
 	SeenAt  time.Time
 }
 
-type specFile struct {
-	path   string
-	folder string
-}
-
 func (p *Provisioner) Report(ctx context.Context) (Report, error) {
 	rows, err := p.store.dashboards(ctx)
 	if err != nil {
@@ -119,7 +114,7 @@ func (p *Provisioner) Run(ctx context.Context) error {
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	files, err := scan(p.dir)
+	files, err := specfiles.Scan(p.dir)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrDirUnreadable, err)
 	}
@@ -135,9 +130,9 @@ func (p *Provisioner) Run(ctx context.Context) error {
 	present := make(map[string]bool, len(files))
 	failing := false
 	for _, f := range files {
-		present[f.path] = true
-		delete(p.gone, f.path)
-		row, found := known[f.path]
+		present[f.Path] = true
+		delete(p.gone, f.Path)
+		row, found := known[f.Path]
 		failed, err := p.provisionFile(ctx, f, row, found)
 		if err != nil {
 			return err
@@ -198,8 +193,8 @@ func (p *Provisioner) retrying() bool {
 	return p.failing
 }
 
-func (p *Provisioner) provisionFile(ctx context.Context, f specFile, row dbsqlc.ProvisionedDashboard, found bool) (bool, error) {
-	raw, err := os.ReadFile(filepath.Join(p.dir, filepath.FromSlash(f.path)))
+func (p *Provisioner) provisionFile(ctx context.Context, f specfiles.File, row dbsqlc.ProvisionedDashboard, found bool) (bool, error) {
+	raw, err := os.ReadFile(filepath.Join(p.dir, filepath.FromSlash(f.Path)))
 	if err != nil {
 		return p.fail(ctx, f, found, err)
 	}
@@ -209,10 +204,10 @@ func (p *Provisioner) provisionFile(ctx context.Context, f specFile, row dbsqlc.
 		if row.LastError == "" {
 			return false, nil
 		}
-		delete(p.logged, f.path)
-		return false, p.store.dashboardFailed(ctx, f.path, "")
+		delete(p.logged, f.Path)
+		return false, p.store.dashboardFailed(ctx, f.Path, "")
 	}
-	summary := summaryPrefix + f.path
+	summary := summaryPrefix + f.Path
 	if found {
 		latest, err := p.dashboards.LatestVersion(ctx, row.DashboardID)
 		if err != nil {
@@ -223,9 +218,9 @@ func (p *Provisioner) provisionFile(ctx context.Context, f specFile, row dbsqlc.
 			return p.fail(ctx, f, found, err)
 		}
 		p.saved(ctx, f, row.DashboardID.String(), ver.Number)
-		return false, p.store.saved(ctx, f.path, row.DashboardID, sum, row.FolderTitle)
+		return false, p.store.saved(ctx, f.Path, row.DashboardID, sum, row.FolderTitle)
 	}
-	target, err := p.folders.ForImport(ctx, principal, f.folder)
+	target, err := p.folders.ForImport(ctx, principal, f.Folder)
 	if err != nil {
 		return p.fail(ctx, f, found, err)
 	}
@@ -238,24 +233,24 @@ func (p *Provisioner) provisionFile(ctx context.Context, f specFile, row dbsqlc.
 		return false, err
 	}
 	p.saved(ctx, f, dash.ID, ver.Number)
-	return false, p.store.saved(ctx, f.path, id, sum, target.Folder.Title)
+	return false, p.store.saved(ctx, f.Path, id, sum, target.Folder.Title)
 }
 
-func (p *Provisioner) saved(ctx context.Context, f specFile, dashboardID string, version int) {
-	delete(p.logged, f.path)
-	p.logger.InfoContext(ctx, "provisioned a dashboard", slog.String("path", f.path), slog.String("dashboard_id", dashboardID), slog.Int("version", version))
+func (p *Provisioner) saved(ctx context.Context, f specfiles.File, dashboardID string, version int) {
+	delete(p.logged, f.Path)
+	p.logger.InfoContext(ctx, "provisioned a dashboard", slog.String("path", f.Path), slog.String("dashboard_id", dashboardID), slog.Int("version", version))
 }
 
-func (p *Provisioner) fail(ctx context.Context, f specFile, found bool, cause error) (bool, error) {
+func (p *Provisioner) fail(ctx context.Context, f specfiles.File, found bool, cause error) (bool, error) {
 	message, code := describe(cause)
-	if p.logged[f.path] != message {
-		p.logged[f.path] = message
-		p.logger.WarnContext(ctx, "provisioning a file failed", logattrs.Failure(code, cause, slog.String("path", f.path))...)
+	if p.logged[f.Path] != message {
+		p.logged[f.Path] = message
+		p.logger.WarnContext(ctx, "provisioning a file failed", logattrs.Failure(code, cause, slog.String("path", f.Path))...)
 	}
 	if found {
-		return true, p.store.dashboardFailed(ctx, f.path, message)
+		return true, p.store.dashboardFailed(ctx, f.Path, message)
 	}
-	return true, p.store.fileFailed(ctx, f.path, message)
+	return true, p.store.fileFailed(ctx, f.Path, message)
 }
 
 func (p *Provisioner) clearRemovedErrors(ctx context.Context, present map[string]bool) error {
@@ -311,49 +306,19 @@ func truncate(s string, limit int) string {
 	return s[:cut]
 }
 
-func scan(dir string) ([]specFile, error) {
-	var files []specFile
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if path != dir && strings.HasPrefix(d.Name(), ".") {
-			if d.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if d.IsDir() || !strings.HasSuffix(d.Name(), specFileExt) {
-			return nil
-		}
-		rel, err := filepath.Rel(dir, path)
-		if err != nil {
-			return err
-		}
-		rel = filepath.ToSlash(rel)
-		folder, _, nested := strings.Cut(rel, "/")
-		if !nested {
-			folder = ""
-		}
-		files = append(files, specFile{path: rel, folder: folder})
-		return nil
-	})
-	return files, err
-}
-
 func fingerprint(dir string) (string, error) {
-	files, err := scan(dir)
+	files, err := specfiles.Scan(dir)
 	if err != nil {
 		return "", err
 	}
 	h := sha256.New()
 	for _, f := range files {
-		info, err := os.Stat(filepath.Join(dir, filepath.FromSlash(f.path)))
+		info, err := os.Stat(filepath.Join(dir, filepath.FromSlash(f.Path)))
 		if err != nil {
-			_, _ = fmt.Fprintf(h, "%s\x00missing\n", f.path)
+			_, _ = fmt.Fprintf(h, "%s\x00missing\n", f.Path)
 			continue
 		}
-		_, _ = fmt.Fprintf(h, "%s\x00%d\x00%d\n", f.path, info.Size(), info.ModTime().UnixNano())
+		_, _ = fmt.Fprintf(h, "%s\x00%d\x00%d\n", f.Path, info.Size(), info.ModTime().UnixNano())
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
 }

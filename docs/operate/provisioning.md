@@ -12,6 +12,7 @@ The server reads the directory once at startup and then checks it every 30 secon
 Each file whose name ends in `.json` is one dashboard, written as an [ObserveSpec](../concepts/observespec.md) document.
 A file directly in the directory goes to General.
 A file in a subdirectory goes to the folder named like its first subdirectory, which is created when no folder has that title; `team/payments/api.json` goes to the `team` folder too, because folders are flat.
+A directory name cannot hold `/`, so a folder title is written with `%` as `%25` and `/` as `%2F`, and nothing else changes: the directory `Team %2F Payments` is the folder `Team / Payments`.
 A subdirectory named General or My Dashboards, or one whose name is not a valid folder title, puts its files in General.
 Files and directories whose names start with `.` are skipped, so `.git` is never read, and files with other extensions are ignored.
 
@@ -87,6 +88,22 @@ Both endpoints are for Admins only.
 
 `POST /api/v1/provision/run` reads the directory now and answers the same body.
 It answers 409 `provisioning_off` when `SLASHOBSERVE_PROVISION_DIR` is unset, and 500 `provision_dir_unreadable` when the directory cannot be read.
+
+## Provisioning and apply
+
+Provisioning reads a directory on the server's own disk, saves as the `Provisioning` account and needs no key.
+[`observe dashboards apply`](../use/dashboards-as-code.md) sends files from anywhere, such as a CI job, saves as the key's account with the summary `Applied from <path>`, and follows the same directory layout.
+
+The two keep separate records, so one dashboard belongs to at most one of them.
+Apply refuses a dashboard that came from the provisioning directory with 409 `provisioned`, because the next change to the server's file would replace what apply saved; change that file instead.
+
+| | Provisioning | Apply |
+| --- | --- | --- |
+| Where the files are | `SLASHOBSERVE_PROVISION_DIR` on the server | Anywhere the CLI runs |
+| Who saves | The `Provisioning` account | The key or person running it, with their folder access |
+| When | At startup and within 30 seconds of a change | When the command runs |
+| A renamed file | Becomes a new dashboard | Adopts the dashboard with the same title in the folder |
+| A removed file | Its dashboard stays | Its dashboard stays |
 
 ## Demo stack
 

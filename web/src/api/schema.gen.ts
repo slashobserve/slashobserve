@@ -660,6 +660,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboards/{id}/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record that the caller opened the dashboard.
+         * @description Needs View on the dashboard. The web app calls it once each time it loads a dashboard page. It keeps the caller's latest open, at most once every 10 minutes, and the dashboard health list reads it to find dashboards nobody opens. A service-account key gets 204 and nothing is written, because only people count as opens.
+         */
+        post: operations["recordDashboardView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboards/{id}/import": {
         parameters: {
             query?: never;
@@ -1502,6 +1524,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/provision/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save one dashboard file from a dashboards-as-code directory.
+         * @description Editors and Admins can call this endpoint; `observe dashboards apply` calls it once per file. `path` is the file's path relative to the applied directory, with `/` between directories: a file name, or a folder directory and a file name. The directory names the folder, with `%` written as `%25` and `/` as `%2F`, and a file at the root goes to General. A path that was applied before saves into the same dashboard. Otherwise the one dashboard in that folder whose title matches the Spec's title, compared case-insensitively, is adopted, and the path is bound to it; when no dashboard matches a new one is created, with the folder when it does not exist yet. A version is saved as the caller, with the summary `Applied from <path>`, only when the file changed since it was last applied and differs from the latest version. Apply never deletes a dashboard. It answers 409 `ambiguous` when more than one dashboard in the folder has the title, 409 `provisioned` when the dashboard comes from the server's provisioning directory, and 409 `version_conflict` when another save landed during the apply.
+         */
+        post: operations["applyDashboardFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/provision/applied": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the file paths bound to the dashboards of a folder.
+         * @description Anyone with a role can call this endpoint for a folder they can see; `observe dashboards export` reads it to keep the file names a folder was applied from. Each entry is a path that `POST /provision/apply` bound to a dashboard now in the folder, sorted by `path` in byte order.
+         */
+        get: operations["listAppliedDashboards"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/grafana": {
         parameters: {
             query?: never;
@@ -1873,6 +1935,66 @@ export interface paths {
         get: operations["getPublicVariableValues"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List dashboards with health problems.
+         * @description Anyone with a role can call this endpoint. It lists every dashboard, in folders the caller can see, with at least one problem, most recently updated first. `no_data`, `query_failed` and `variable_failed` come from the last health check of the dashboard: an hourly job checks each dashboard about once a day, oldest check first, running every panel and variable query of its latest version over the last 7 days with no viewer. `duplicate_title` means another dashboard in the same folder has the same title, compared case-insensitively, and `unopened` means nobody opened the dashboard in the last 90 days, counting from its creation when nobody ever did; both are computed on every read. A dashboard whose queries read the viewer (`${__user.*}`) is not checked and has `skipped` set to `depends_on_viewer`. `job` is the state of the health job.
+         */
+        get: operations["listDashboardHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/repairs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue the agent to repair the failing panels and variables the health check found.
+         * @description Editors and Admins can call this endpoint. Each dashboard gets one ordinary revision with source `prompt` whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 health repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         */
+        post: operations["requestHealthRepairs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a health run now.
+         * @description Admins only. The run starts in the background and checks the dashboards that are due, as the hourly run does; when a run is already going, nothing more starts. Read `job` from `GET /health` to follow it.
+         */
+        post: operations["runDashboardHealth"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3383,6 +3505,74 @@ export interface components {
             datasources: {
                 uid: string;
                 type: string;
+            }[];
+        };
+        /** @enum {string} */
+        HealthProblemKind: "no_data" | "query_failed" | "variable_failed" | "duplicate_title" | "unopened";
+        HealthProblem: {
+            kind: components["schemas"]["HealthProblemKind"];
+            /** @description The panel the problem is in, or null for a variable or a dashboard-wide problem. */
+            panel_id: string | null;
+            panel_title: string | null;
+            /** @description The variable that resolves to nothing, for `variable_failed`. */
+            variable: string | null;
+            /** @description The check's issue code, such as `query_empty`, or `check_failed` when the check itself could not run; null for `duplicate_title` and `unopened`. */
+            code: string | null;
+            message: string | null;
+        };
+        HealthItem: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            /** @description The dashboard's address in the web app. */
+            url: string;
+            folder: components["schemas"]["DashboardFolder"];
+            /** @description Whether the caller may edit the dashboard, and so ask for a repair. */
+            can_edit: boolean;
+            /** @description The version the last health check ran on; null before the first check. */
+            checked_version: number | null;
+            /** Format: date-time */
+            checked_at: string | null;
+            /**
+             * Format: date-time
+             * @description The latest time anyone opened the dashboard; null when nobody did since opens are recorded.
+             */
+            last_viewed_at: string | null;
+            /**
+             * @description Why the last check ran no query.
+             * @enum {string|null}
+             */
+            skipped: "depends_on_viewer" | null;
+            problems: components["schemas"]["HealthProblem"][];
+        };
+        HealthJob: {
+            /** Format: date-time */
+            last_started_at: string | null;
+            /** Format: date-time */
+            last_finished_at: string | null;
+            /** @enum {string|null} */
+            last_outcome: "succeeded" | "failed" | "interrupted" | null;
+            running: boolean;
+        };
+        HealthList: {
+            dashboards: components["schemas"]["HealthItem"][];
+            next_cursor: string | null;
+            job: components["schemas"]["HealthJob"];
+        };
+        ApplyResult: {
+            path: string;
+            /** @enum {string} */
+            outcome: "created" | "updated" | "unchanged";
+            /** Format: uuid */
+            dashboard_id: string;
+            /** @description The version saved, or the latest version when nothing changed. */
+            version: number;
+        };
+        AppliedList: {
+            applied: {
+                path: string;
+                /** Format: uuid */
+                dashboard_id: string;
             }[];
         };
     };
@@ -5066,6 +5256,31 @@ export interface operations {
                         changes: components["schemas"]["SpecChange"][];
                     };
                 };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    recordDashboardView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The open is recorded, or there was nothing to record. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
@@ -7318,6 +7533,71 @@ export interface operations {
             };
         };
     };
+    applyDashboardFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    path: string;
+                    /** @description The ObserveSpec document of the file. */
+                    spec: {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description What the file became. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplyResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["TooLarge"];
+            422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listAppliedDashboards: {
+        parameters: {
+            query: {
+                folder_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The bound paths. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppliedList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
     listGrafanaConnections: {
         parameters: {
             query?: never;
@@ -8265,6 +8545,98 @@ export interface operations {
                     "application/json": components["schemas"]["PanelDataError"];
                 };
             };
+        };
+    };
+    listDashboardHealth: {
+        parameters: {
+            query?: {
+                /** @description Only dashboards in this folder; a folder the caller cannot see answers 404 `not_found`. */
+                folder_id?: string;
+                /** @description Only dashboards with this kind of problem, and only problems of this kind. */
+                kind?: components["schemas"]["HealthProblemKind"];
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of dashboards with problems. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    requestHealthRepairs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    dashboard_ids: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description The repairs that were queued and the dashboards that were skipped. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepairsQueued"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["TooLarge"];
+            500: components["responses"]["Internal"];
+            /** @description No LLM provider is configured (`agent_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    runDashboardHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The run is starting. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
 }

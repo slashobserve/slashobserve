@@ -625,3 +625,32 @@ dashboards-id-diff:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+dashboards-id-views:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: recordDashboardView
+    summary: Record that the caller opened the dashboard.
+    description: >-
+      Needs View on the dashboard.
+      The web app calls it once each time it loads a dashboard page.
+      It keeps the caller's latest open, at most once every 10 minutes, and the dashboard health list reads it to find dashboards nobody opens.
+      A service-account key gets 204 and nothing is written, because only people count as opens.
+    responses:
+      "204":
+        description: The open is recorded, or there was nothing to record.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

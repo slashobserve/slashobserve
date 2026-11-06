@@ -76,6 +76,14 @@ type Annotation struct {
 	CreatedAt   pgtype.Timestamptz
 }
 
+type AppliedDashboard struct {
+	Path          string
+	DashboardID   pgtype.UUID
+	ContentSha256 string
+	AppliedByID   pgtype.UUID
+	UpdatedAt     pgtype.Timestamptz
+}
+
 type Dashboard struct {
 	ID                  pgtype.UUID
 	Title               string
@@ -114,6 +122,14 @@ type DashboardComment struct {
 	ResolvedByVersion pgtype.Int4
 }
 
+type DashboardHealth struct {
+	DashboardID pgtype.UUID
+	Version     int32
+	CheckedAt   pgtype.Timestamptz
+	Skipped     string
+	Issues      []byte
+}
+
 type DashboardStar struct {
 	UserID      pgtype.UUID
 	DashboardID pgtype.UUID
@@ -137,6 +153,12 @@ type DashboardVersion struct {
 	OriginClient   pgtype.Text
 	DatasourceUids []string
 	Unverified     []byte
+}
+
+type DashboardView struct {
+	UserID      pgtype.UUID
+	DashboardID pgtype.UUID
+	ViewedAt    pgtype.Timestamptz
 }
 
 type Finding struct {

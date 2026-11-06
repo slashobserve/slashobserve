@@ -37,10 +37,11 @@ describe("visibleNavItems", () => {
   const labels = (role: Parameters<typeof visibleNavItems>[0]) =>
     visibleNavItems(role).map((item) => item.label)
 
-  test("an Admin sees all eight pages", () => {
+  test("an Admin sees all nine pages", () => {
     expect(labels("admin")).toEqual([
       "Observe",
       "Dashboards",
+      "Health",
       "Logs",
       "Traces",
       "Datasources",
@@ -56,6 +57,7 @@ describe("visibleNavItems", () => {
       expect(labels(role)).toEqual([
         "Observe",
         "Dashboards",
+        "Health",
         "Logs",
         "Traces",
         "Settings",

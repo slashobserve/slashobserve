@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/slashobserve/slashobserve/internal/specfiles"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -36,13 +37,13 @@ var (
 const gridWidth = 24
 
 func TestReferenceDashboardsLandInTheirFolders(t *testing.T) {
-	files, err := scan(referenceDir)
+	files, err := specfiles.Scan(referenceDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	found := map[string]string{}
 	for _, f := range files {
-		found[f.path] = f.folder
+		found[f.Path] = f.Folder
 	}
 	for path, folder := range referenceFolders {
 		got, ok := found[path]
@@ -57,7 +58,7 @@ func TestReferenceDashboardsLandInTheirFolders(t *testing.T) {
 }
 
 func TestReferenceDashboardsFollowTheLayoutRules(t *testing.T) {
-	files, err := scan(referenceDir)
+	files, err := specfiles.Scan(referenceDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,8 +67,8 @@ func TestReferenceDashboardsFollowTheLayoutRules(t *testing.T) {
 	}
 	dir := os.DirFS(referenceDir)
 	for _, f := range files {
-		t.Run(f.path, func(t *testing.T) {
-			data, err := fs.ReadFile(dir, f.path)
+		t.Run(f.Path, func(t *testing.T) {
+			data, err := fs.ReadFile(dir, f.Path)
 			if err != nil {
 				t.Fatal(err)
 			}

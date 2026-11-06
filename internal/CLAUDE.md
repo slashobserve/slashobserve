@@ -21,6 +21,10 @@ This lists only the packages whose purpose the name does not make obvious.
 - `findings`: stores investigate results; `revisions` reads them only through sqlc and the `ObserveOptions.Finding` func, and never imports `findings`.
 - `stars`: each person's starred dashboards, stored on the server so they follow the person across browsers; keys get 403 `user_session_required`, and recently viewed dashboards stay in the browser.
 - `public`: public dashboard links, their tokens, the public Spec without query text and the frozen and free variable rule (`EffectiveSelections`); `proxyhttp` imports it, never the reverse.
+- `health`: the `dashboard_health` job, registered hourly in `cmd/slashobserve-server/main.go`, the `/health` routes and dashboard opens (`dashboard_views`, written by `POST /dashboards/{id}/views` for people only).
+  A run stops after 8 minutes, under the scheduler's 10 minute lease, checks 2 dashboards at once with `CheckSpec` over the last 7 days and no user, and skips dashboards checked in the last 23 hours, so each is checked about once a day.
+  `duplicate_title` and `unopened` are computed on read, never stored, and a repair's prompt starts with `repairPromptPrefix`, which the per-requester cap matches.
+- `specfiles`: the dashboard file layout shared by the provisioner and the CLI; a folder directory name escapes only `%` and `/` (`DirName`, `FolderTitle`), so any title round-trips.
 
 ## Secrets and configuration
 

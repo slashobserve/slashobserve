@@ -8,6 +8,7 @@ import {
 import {
   ChartGanttIcon,
   DatabaseIcon,
+  HeartPulseIcon,
   KeyIcon,
   LayoutDashboardIcon,
   LogsIcon,
@@ -45,6 +46,7 @@ import {
 const icons: Record<NavPath, LucideIcon> = {
   "/": TerminalIcon,
   "/dashboards": LayoutDashboardIcon,
+  "/health": HeartPulseIcon,
   "/logs": LogsIcon,
   "/traces": ChartGanttIcon,
   "/datasources": DatabaseIcon,
