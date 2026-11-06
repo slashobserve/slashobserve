@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router"
 import { ApiError } from "@/api/errors"
 import { StatusLabel, type StatusTone } from "@/components/status-label"
 import { Skeleton } from "@/components/ui/skeleton"
+import { importedFilter } from "@/health/health-labels"
 import { dashboardLink } from "@/lib/links"
 import { SettingsCard, SettingsProblem } from "@/settings/settings-card"
 
@@ -174,8 +175,12 @@ function Results({ results }: { results: GrafanaImportResult[] }) {
       </Group>
       {groups.needsRepair.length === 0 ? null : (
         <div className="border-b px-4 py-3 text-[13px]">
-          <Link to="/import/repair" className="underline underline-offset-2">
-            Open the repair queue
+          <Link
+            to="/health"
+            search={{ kind: importedFilter }}
+            className="text-[13px] font-medium hover:text-muted-foreground"
+          >
+            Open in Health
           </Link>
         </div>
       )}
