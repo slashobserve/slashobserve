@@ -33,6 +33,8 @@ function nameQuery(params: NameListParams) {
     search: params.search || undefined,
     metric: params.metric,
     table: params.table,
+    from: params.from,
+    to: params.to,
     limit: nameLimit,
   }
 }

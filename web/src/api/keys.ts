@@ -109,6 +109,8 @@ export type NameListParams = {
   search?: string
   metric?: string
   table?: string
+  from?: string
+  to?: string
 }
 
 export const datasourceKeys = {
@@ -222,6 +224,14 @@ export type ContextParams = {
   window_ms: number
 }
 
+export type LogFacetsParams = {
+  query: string
+  from: string
+  to: string
+  limit: number
+  fields?: string[]
+}
+
 export type TraceStatsParams = { query: string; from: string; to: string }
 export type TraceCompareParams = {
   selected: string[]
@@ -248,6 +258,8 @@ export const exploreKeys = {
     ["explore", uid, "context", params] as const,
   trace: (uid: string, id: string, range: { from: string; to: string }) =>
     ["explore", uid, "trace", id, range] as const,
+  facets: (uid: string, params: LogFacetsParams) =>
+    ["explore", uid, "facets", params] as const,
   traceStats: (uid: string, params: TraceStatsParams) =>
     ["explore", uid, "trace-stats", params] as const,
   traceCompare: (uid: string, params: TraceCompareParams) =>

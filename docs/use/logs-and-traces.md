@@ -112,6 +112,29 @@ The editor highlights JSON as soon as the text starts with `{`.
 Date math in a range value, such as `@timestamp >= now-15m`, is passed to the cluster as written, so the server cannot lint it.
 A field the mapping does not have is reported as a warning in lint, and the query still runs.
 
+## Fields
+
+The column on the left of the results lists the fields of the datasource: the mapped fields of the index on Elasticsearch and OpenSearch, the stream labels and the fields the query shows on Loki, and the columns of the query on ClickHouse.
+The note under **Fields** says where the list comes from, and the search box narrows it by name.
+Columns you chose for the results come first under **Selected**; the rest are under **Available**.
+A badge beside each name says its kind: keyword, text, number, date, boolean, IP, or on Loki a label, a parsed field or structured metadata.
+
+Open a field to see its top five values with their counts and a bar scaled to the largest.
+The line under the values says how they were counted.
+Where the datasource counts, the counts are exact and cover every matching line.
+Where it cannot, the counts come from the newest 1,000 lines and the line says so; on Loki that is the parsed fields and the structured metadata.
+Loki counts its index labels in bytes, not lines, and shows a size.
+A field the query does not return, or that has no countable values, says "No values in this range."
+
+Click a value to keep only the lines that have it, or its exclude button to drop them.
+The page rewrites the query and runs it, so **Back** returns to the previous one.
+On Elasticsearch and OpenSearch the page adds a KQL clause; a Lucene or Query DSL query is not rewritten, and its buttons stay disabled.
+On Loki the page adds a `| field="value"` stage to a log query.
+On ClickHouse the page adds a condition to the `WHERE` clause, and a query without one keeps its buttons disabled.
+
+**Hide fields** folds the column to a strip with **Show fields**, and the page remembers the choice.
+Below 1,000 pixels wide the column is hidden.
+
 ## Ask on the logs page
 
 The mode switch in the top right corner of the query box switches between a question, the builder and the query.
