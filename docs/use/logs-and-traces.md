@@ -56,6 +56,7 @@ Durations take a number and a unit, such as `250ms` or `1.5s`.
 On Tempo you can also write TraceQL, which replaces the fields.
 ClickHouse lists the newest 100 traces with a matching span and shows that trace's longest matching span.
 Tempo shows the root span of each trace.
+Tempo results also carry each trace's span count and error span count, summed from Tempo's per-service stats; when Tempo does not report those stats, both counts are left out.
 
 ## Who can use them and limits
 

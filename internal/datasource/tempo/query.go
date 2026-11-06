@@ -86,6 +86,10 @@ type searchResponse struct {
 		RootTraceName   string    `json:"rootTraceName"`
 		Start           unixNanos `json:"startTimeUnixNano"`
 		DurationMs      int64     `json:"durationMs"`
+		ServiceStats    map[string]struct {
+			SpanCount  int64 `json:"spanCount"`
+			ErrorCount int64 `json:"errorCount"`
+		} `json:"serviceStats"`
 	} `json:"traces"`
 }
 
@@ -94,6 +98,7 @@ type spanRow struct {
 	start                                    time.Time
 	duration                                 int64
 	status, attributes, resource             string
+	spans, errors                            *int64
 }
 
 func (d *Datasource) QueryRange(ctx context.Context, q datasource.Query, r datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
@@ -331,14 +336,23 @@ func (d *Datasource) search(ctx context.Context, text string, r datasource.TimeR
 		if len(id) < traceIDHexLen {
 			id = strings.Repeat("0", traceIDHexLen-len(id)) + id
 		}
-		rows = append(rows, spanRow{
+		row := spanRow{
 			traceID:  id,
 			spanID:   id,
 			name:     t.RootTraceName,
 			service:  t.RootServiceName,
 			start:    time.Unix(0, int64(t.Start)).UTC(),
 			duration: t.DurationMs * int64(time.Millisecond),
-		})
+		}
+		if t.ServiceStats != nil {
+			var spans, errors int64
+			for _, s := range t.ServiceStats {
+				spans += s.SpanCount
+				errors += s.ErrorCount
+			}
+			row.spans, row.errors = &spans, &errors
+		}
+		rows = append(rows, row)
 	}
 	if len(rows) == 0 {
 		return []datasource.Frame{}, nil
@@ -365,5 +379,15 @@ func traceFrame(rows []spanRow) datasource.Frame {
 			f.Fields = append(f.Fields, field)
 		}
 	}
+	if slices.ContainsFunc(rows, func(r spanRow) bool { return r.spans == nil }) {
+		return f
+	}
+	spans, errors := make([]any, len(rows)), make([]any, len(rows))
+	for i, r := range rows {
+		spans[i], errors[i] = datasource.Number(float64(*r.spans)), datasource.Number(float64(*r.errors))
+	}
+	f.Fields = append(f.Fields,
+		datasource.Field{Name: "Spans", Type: datasource.FieldNumber, Values: spans},
+		datasource.Field{Name: "Errors", Type: datasource.FieldNumber, Values: errors})
 	return f
 }
