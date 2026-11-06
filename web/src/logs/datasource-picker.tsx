@@ -12,6 +12,12 @@ const typeNames: Record<string, string> = {
   loki: "Loki",
   clickhouse: "ClickHouse",
   tempo: "Tempo",
+  elasticsearch: "Elasticsearch",
+  opensearch: "OpenSearch",
+}
+
+export function typeName(type: string): string {
+  return typeNames[type] ?? type
 }
 
 export function eligibleDatasources(
@@ -22,7 +28,7 @@ export function eligibleDatasources(
 }
 
 export function optionText(datasource: DatasourceStatus): string {
-  const type = typeNames[datasource.type] ?? datasource.type
+  const type = typeName(datasource.type)
   const text =
     datasource.name.toLowerCase() === type.toLowerCase()
       ? type

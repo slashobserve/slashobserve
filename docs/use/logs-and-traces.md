@@ -8,12 +8,17 @@ They read from the datasources an Admin configured, as described in [Connect Lok
 
 ## Logs page
 
-Open **Logs** in the sidebar and pick a Loki or ClickHouse datasource.
-The picker names each one with its type, such as "checkout-logs (ClickHouse)", or only "ClickHouse" when the name is the type.
+Open **Logs** in the sidebar and pick one datasource in the toolbar: Elasticsearch, OpenSearch, Loki or ClickHouse.
+The datasource control shows the name and type, and on Elasticsearch and OpenSearch also the index pattern and time field.
+It opens a list of the datasources grouped by type, with a search field, and **Apply** switches to the one you chose.
+Switching keeps the time range and clears the query, unless both datasources are Elasticsearch or OpenSearch, which both speak KQL.
+The page searches that one datasource in its own language, which the mode switch names: KQL on Elasticsearch and OpenSearch, LogQL on Loki and SQL on ClickHouse.
+On Elasticsearch and OpenSearch a query starting with `lucene:` is Lucene, a query that is a `{...}` body is Query DSL, and anything else is KQL.
+The address keeps `ds`, `q`, `from` and `to`, so **Copy link** copies a search that opens the same way.
 The page starts as soon as it opens.
 On ClickHouse it runs a template that reads `otel_logs` and shows the newest 1,000 lines of the time range at once.
-On Loki it opens **Label browser** and waits for a stream selector.
-**Label browser** lists the labels of the datasource and their values, and a click inserts a matcher at the cursor.
+On Loki it opens the label browser, which the **Labels** button toggles, and waits for a stream selector.
+The label browser lists the labels of the datasource and their values, and a click inserts a matcher at the cursor.
 With a model configured on the server, the query box opens in Ask mode, as [Ask on the logs page](#ask-on-the-logs-page) describes.
 
 In Query mode you write the query yourself.

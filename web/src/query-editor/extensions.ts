@@ -83,6 +83,7 @@ function languageExtension(type: string | undefined): Extension {
   if (type === "clickhouse") {
     return sql({ dialect: StandardSQL, upperCaseKeywords: true })
   }
+  if (type === "elasticsearch" || type === "opensearch") return []
   return []
 }
 
