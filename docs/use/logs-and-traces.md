@@ -91,6 +91,8 @@ A click on a span shows its span attributes and then its resource attributes in 
 Each span offers **Logs**, which opens the logs page on the lines carrying the trace id (and the span id when the datasource stores it) during the trace.
 On ClickHouse the view looks for the spans in the last 24 hours, or within an hour of the line when you came from the logs page; widen the time range for an older trace.
 Tempo finds a trace by its id at any time.
+The view loads the whole trace up to 20,000 spans.
+A trace over 20,000 spans opens with its earliest 20,000 spans and a banner that says how many the trace holds.
 **Copy link** copies the address of the trace with its datasource and time range, and **Search traces** opens the trace search on the same datasource.
 
 ## Trace search
@@ -106,6 +108,7 @@ Each row shows **Started**, which opens the trace, then **Service**, **Span**, *
 **Spans** and **Status** show only when every row carries the count.
 ClickHouse lists the newest 100 traces with a matching span, shows each trace's longest matching span, and counts only the matching spans.
 Tempo shows the root span of each trace, and sums the span and error span counts from Tempo's per-service stats; when Tempo does not report those stats, both columns are left out.
+The result is marked partial when Tempo did not search every block of the range, so a trace in an unsearched block is missing; narrow the time range or search again.
 On a phone the table becomes a list.
 
 ## Ask on the trace search

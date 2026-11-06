@@ -97,6 +97,8 @@ func (h *Handler) Register(api auth.Routes) {
 	api.POST("/datasources/:uid/log-volume", auth.RoleViewer, h.volume)
 	api.POST("/datasources/:uid/log-facets", auth.RoleViewer, h.facets)
 	api.POST("/datasources/:uid/trace-logs", auth.RoleViewer, h.traceLogs)
+	api.GET("/datasources/:uid/traces/:trace_id", auth.RoleViewer, h.trace)
+	api.POST("/datasources/:uid/trace-stats", auth.RoleViewer, h.traceStats)
 	api.GET("/datasources/:uid/metrics", auth.RoleViewer, h.metrics)
 	api.GET("/datasources/:uid/labels", auth.RoleViewer, h.labels)
 	api.GET("/datasources/:uid/labels/:name/values", auth.RoleViewer, h.labelValues)

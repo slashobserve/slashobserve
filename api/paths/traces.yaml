@@ -1,0 +1,193 @@
+datasources-uid-traces-trace-id:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: trace_id
+      in: path
+      required: true
+      description: The trace id as 16 or 32 hex characters, in either case.
+      schema:
+        type: string
+        pattern: "^[0-9a-fA-F]{16}$|^[0-9a-fA-F]{32}$"
+  get:
+    operationId: getTrace
+    summary: Read one trace whole from a Tempo or ClickHouse datasource.
+    description: >-
+      Answers every span of the trace as one frame with ref `A` and the columns `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `ServiceName`, `StartTime`, `Duration`, `StatusCode`, `SpanAttributes`, `ResourceAttributes`, `SpanKind` and `SpanEvents`, sorted by `StartTime` then `SpanId`.
+      `SpanKind` is one of `Server`, `Client`, `Producer`, `Consumer`, `Internal` or `Unspecified`, and `SpanEvents` is a JSON array string of `{"time_ms", "name", "attributes"}` objects, `[]` when the span has none.
+      A trace over 20,000 spans is cut to its earliest 20,000: `meta.rows` is the number of spans returned, `meta.rows_total` the number in the trace and `meta.truncated` says the two differ.
+      `meta.kind` is `instant` and `meta.cached` is always false.
+      `from` and `to` bound the search and default to the last 24 hours; they take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+      The call runs with the agent tools' 15 second timeout, is never cached, and counts against the caller's 8 in-flight query requests.
+      Viewers and above may call it, service-account keys included.
+    parameters:
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: timezone
+        in: query
+        required: false
+        description: The browser's IANA time zone, used to resolve relative times such as `now/d`.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+    responses:
+      "200":
+        description: The spans of the trace.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelData"
+      "400":
+        description: The trace id is not 16 or 32 hex characters, `from` or `to` is not a valid time, or the datasource is not Tempo or ClickHouse (`invalid_request`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        description: The datasource does not exist, or no span of the trace lies in the range (`not_found`); widen `from` and `to`.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "422":
+        description: The response is over 32 MiB (`limit_exceeded`); the body carries no `ref`.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        description: The server failed to handle the request, including a datasource call that failed without a classified cause.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "502":
+        description: The datasource is unavailable.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "504":
+        description: The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+datasources-uid-trace-stats:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+  post:
+    operationId: traceStats
+    summary: Count spans and errors per bucket and give the duration distribution of the spans a filter matches.
+    description: >-
+      On Tempo `query` is a TraceQL spanset filter such as `{ resource.service.name = "checkout" }`, and `{}` matches every span; on ClickHouse it is a SQL boolean expression over `otel_traces` such as `ServiceName = 'checkout'`, and an empty string matches every span.
+      The server picks a whole-second step of at least one second so the range fits in at most `buckets` buckets, aligns the range to it, and returns every bucket, oldest first, zero-filled.
+      Each bucket carries its span and error counts and the p50, p95 and p99 span durations in milliseconds, null when the bucket has no spans.
+      `histogram` is the duration distribution of every matched span over the whole range in powers-of-two buckets, ascending by `le_ms`, empty when nothing matched.
+      `partial` is true when Tempo did not search every block, so the counts are a lower bound.
+      The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests.
+      Viewers and above may call it, service-account keys included.
+      `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [query, from, to]
+            properties:
+              query:
+                type: string
+                minLength: 0
+                maxLength: 65536
+                description: A TraceQL spanset filter on Tempo, or a SQL boolean expression over `otel_traces` on ClickHouse.
+              from:
+                type: string
+                minLength: 1
+                maxLength: 128
+              to:
+                type: string
+                minLength: 1
+                maxLength: 128
+              buckets:
+                type: integer
+                minimum: 1
+                maximum: 200
+                default: 60
+                description: The most buckets wanted.
+    responses:
+      "200":
+        description: The span counts, error counts, quantiles and duration histogram.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/TraceStats"
+      "400":
+        description: >-
+          The request is malformed or fails validation, `buckets` is out of range, or the datasource is not Tempo or ClickHouse (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        description: The datasource does not exist (`not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: >-
+          The filter cannot run: `query_invalid` for a Tempo query that is not a `{ ... }` spanset filter or that Tempo rejects, or a ClickHouse expression the server rejects; `query_forbidden` or `limit_exceeded` as for the explore query; the body carries no `ref`.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        description: The server failed to handle the request, including a datasource call that failed without a classified cause.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "502":
+        description: The datasource is unavailable.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "504":
+        description: The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
