@@ -176,6 +176,26 @@ func TestSchedulerCountsRunsAndTracksTheOnesInFlight(t *testing.T) {
 	}
 }
 
+func TestSchedulerServesARegisteredJobAtZeroBeforeItRuns(t *testing.T) {
+	r := metrics.New()
+	r.Scheduler().JobRegistered("scheduler_heartbeat", []string{"succeeded", "failed", "interrupted"})
+
+	body := scrape(t, r)
+	for _, want := range []string{
+		`slashobserve_scheduler_job_running{job="scheduler_heartbeat"} 0`,
+		`slashobserve_scheduler_jobs_total{job="scheduler_heartbeat",outcome="succeeded"} 0`,
+		`slashobserve_scheduler_jobs_total{job="scheduler_heartbeat",outcome="failed"} 0`,
+		`slashobserve_scheduler_jobs_total{job="scheduler_heartbeat",outcome="interrupted"} 0`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("scrape lacks %q", want)
+		}
+	}
+	if n := strings.Count(body, "slashobserve_scheduler_jobs_total{"); n != 3 {
+		t.Errorf("scrape serves %d job counter samples, want 3:\n%s", n, body)
+	}
+}
+
 type fakeSession struct {
 	turn llm.Turn
 	err  error

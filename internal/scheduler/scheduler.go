@@ -21,6 +21,8 @@ const (
 	HeartbeatJob = "scheduler_heartbeat"
 )
 
+var outcomes = []string{OutcomeSucceeded, OutcomeFailed, OutcomeInterrupted}
+
 const (
 	tick           = 15 * time.Second
 	maxLease       = 10 * time.Minute
@@ -65,6 +67,7 @@ func (s *Scheduler) Register(name string, every time.Duration, fn func(context.C
 		panic("scheduler: job " + name + " is registered twice")
 	}
 	s.jobs[name] = job{name: name, every: every, run: fn}
+	s.metrics.JobRegistered(name, outcomes)
 }
 
 func (s *Scheduler) Run(ctx context.Context) {

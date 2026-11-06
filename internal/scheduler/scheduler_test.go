@@ -21,9 +21,19 @@ func TestMain(m *testing.M) {
 }
 
 type recordedMetrics struct {
-	mu       sync.Mutex
-	started  []string
-	finished []string
+	mu         sync.Mutex
+	registered map[string][]string
+	started    []string
+	finished   []string
+}
+
+func (m *recordedMetrics) JobRegistered(job string, outcomes []string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.registered == nil {
+		m.registered = map[string][]string{}
+	}
+	m.registered[job] = outcomes
 }
 
 func (m *recordedMetrics) JobStarted(job string) {
@@ -297,6 +307,39 @@ func TestShutdownReleasesTheLeaseAndKeepsTheJobDue(t *testing.T) {
 	}
 	if got := metrics.finishedOf("interrupted"); !slices.Equal(got, []string{"interrupted=interrupted"}) {
 		t.Errorf("metrics %v", got)
+	}
+}
+
+func TestRegisterReportsEveryJobWithEveryOutcome(t *testing.T) {
+	m := &recordedMetrics{}
+	s := New(nil, nil, m, "server-a")
+	s.Register("cleanup", time.Minute, func(context.Context) error { return nil })
+
+	want := []string{OutcomeSucceeded, OutcomeFailed, OutcomeInterrupted}
+	if len(m.registered) != 2 {
+		t.Fatalf("registered %v, want the heartbeat and cleanup", m.registered)
+	}
+	for _, name := range []string{HeartbeatJob, "cleanup"} {
+		if got := m.registered[name]; !slices.Equal(got, want) {
+			t.Errorf("job %s registered with outcomes %v, want %v", name, got, want)
+		}
+	}
+}
+
+func TestEveryOutcomeOfARunIsARegisteredOutcome(t *testing.T) {
+	canceled, cancel := context.WithCancel(t.Context())
+	cancel()
+	for _, tc := range []struct {
+		ctx context.Context
+		err error
+	}{
+		{t.Context(), nil},
+		{t.Context(), errors.New("boom")},
+		{canceled, context.Canceled},
+	} {
+		if got := outcomeOf(tc.ctx, tc.err); !slices.Contains(outcomes, got) {
+			t.Errorf("outcome %q is not in %v", got, outcomes)
+		}
 	}
 }
 

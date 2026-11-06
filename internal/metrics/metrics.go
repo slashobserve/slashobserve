@@ -144,6 +144,7 @@ func (p Proxy) ProxyCache(hit bool) {
 }
 
 type Scheduler interface {
+	JobRegistered(job string, outcomes []string)
 	JobStarted(job string)
 	JobFinished(job, outcome string)
 }
@@ -155,6 +156,13 @@ type schedulerMetrics struct {
 
 func (r *Registry) Scheduler() Scheduler {
 	return schedulerMetrics{jobs: r.schedulerJobs, running: r.schedulerRunning}
+}
+
+func (s schedulerMetrics) JobRegistered(job string, outcomes []string) {
+	s.running.WithLabelValues(job).Set(0)
+	for _, outcome := range outcomes {
+		s.jobs.WithLabelValues(job, outcome).Add(0)
+	}
 }
 
 func (s schedulerMetrics) JobStarted(job string) {
