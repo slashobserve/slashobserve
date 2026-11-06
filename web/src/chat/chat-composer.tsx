@@ -70,6 +70,7 @@ export function useOpenSent(append?: (request: ObserveRequest) => void) {
     await navigate({
       to: opens === "build" ? "/b/$requestId" : "/c/$requestId",
       params: { requestId: request.id },
+      viewTransition: opens === "build",
     })
   }
 }

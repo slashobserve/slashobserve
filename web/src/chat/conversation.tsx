@@ -297,19 +297,28 @@ function ConversationView({
           <TurnSkeleton />
         ) : (
           turns.map((turn, index) => (
-            <RequestTurn
+            <div
               key={turn.id}
-              summary={turn.summary}
-              dashboardTitle={dashboardTitle}
-              loadSteps={index >= loadFrom || turn.id === requestId}
-              onRetried={appended}
-              buildOnScreen={pane && turn.id === requestId}
-              opensRunsIn={pane ? "build" : "chat"}
-            />
+              style={
+                index === turns.length - 1
+                  ? { viewTransitionName: "chat-prompt" }
+                  : undefined
+              }
+            >
+              <RequestTurn
+                summary={turn.summary}
+                dashboardTitle={dashboardTitle}
+                loadSteps={index >= loadFrom || turn.id === requestId}
+                onRetried={appended}
+                buildOnScreen={pane && turn.id === requestId}
+                opensRunsIn={pane ? "build" : "chat"}
+              />
+            </div>
           ))
         )}
       </div>
       <div
+        style={{ viewTransitionName: "chat-composer" }}
         className={cn(
           "sticky w-full bg-background pt-2 pb-1",
           pane ? "bottom-0" : "-bottom-7 max-w-[760px]"

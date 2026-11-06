@@ -233,6 +233,19 @@
   }
 }
 
+::view-transition-group(*) {
+  animation-duration: var(--duration-panel);
+  animation-timing-function: var(--ease-panel);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none;
+  }
+}
+
 [data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
   box-shadow: none;
 }
