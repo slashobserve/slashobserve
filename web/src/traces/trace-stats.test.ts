@@ -56,6 +56,7 @@ describe("partialNote", () => {
     ]
     expect(partialNote(rows, "UTC")).toEqual({
       text: "The 3 found cover 2026-11-06 14:06:00 to 2026-11-06 14:20:00.",
+      covers: "2026-11-06 14:06:00 to 2026-11-06 14:20:00",
       from: "2026-11-06T14:06:00.000Z",
       to: "2026-11-06T14:20:00.000Z",
     })

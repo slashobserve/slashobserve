@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useSearch } from "@tanstack/react-router"
+import { CircleAlertIcon } from "lucide-react"
 
 import { AskField } from "@/ask/ask-field"
 import { nextMode, useInputMode, type InputMode } from "@/ask/input-mode"
@@ -12,6 +13,11 @@ import { StatusLabel } from "@/components/status-label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { TimeRangeControl } from "@/dashboards/time-range-picker"
 import {
   rememberDatasource,
@@ -34,9 +40,15 @@ import {
   tracesTimeRange,
   type TraceSearch,
 } from "./search"
-import { traceSearchParams, traceSearchRows } from "./search-query"
+import { traceSearchParams, traceStatsFilter } from "./search-query"
 import { TraceSearchForm } from "./trace-search-form"
-import { traceRows } from "./trace-rows"
+import { countText, durationText, traceRows } from "./trace-rows"
+import {
+  histogramPercentile,
+  p95Label,
+  partialNote,
+  traceStatsQuery,
+} from "./trace-stats"
 import { TraceTable } from "./trace-table"
 
 const skeletonRows = [0, 1, 2, 3, 4]
@@ -323,7 +335,7 @@ function TraceSearchWorkspace({
         </Alert>
       ) : null}
       <div className="min-h-0 flex-1 overflow-auto">
-        <TraceResults datasource={datasource} search={search} />
+        <TraceResults datasource={datasource} search={search} update={update} />
       </div>
     </>
   )
@@ -342,13 +354,21 @@ function ResultSkeleton() {
 function TraceResults({
   datasource,
   search,
+  update,
 }: {
   datasource: DatasourceStatus
   search: TraceSearch
+  update: (next: Partial<TraceSearch>) => void
 }) {
   const range = tracesTimeRange(search)
   const results = useQuery(
     exploreQuery(datasource.uid, traceSearchParams(datasource.type, search))
+  )
+  const stats = useQuery(
+    traceStatsQuery(datasource.uid, {
+      query: traceStatsFilter(datasource.type, search),
+      ...range,
+    })
   )
 
   if (results.fetchStatus === "paused" && !results.data) {
@@ -380,14 +400,72 @@ function TraceResults({
       </p>
     )
   }
+  const meta = results.data.meta
+  const p95 =
+    stats.data === undefined || stats.isError
+      ? undefined
+      : histogramPercentile(stats.data.histogram, 95)
+  const label = p95Label(search)
+  const covered = meta.partial ? partialNote(rows, undefined) : null
   return (
     <div className="flex flex-col gap-2">
-      {rows.length >= traceSearchRows ? (
-        <p className="text-[13px] text-muted-foreground">
-          Showing the newest 100 traces. Narrow the search.
-        </p>
+      <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+        <span>
+          {countText(meta.rows, "trace")}
+          {meta.truncated
+            ? ". Showing the newest 100 traces. Narrow the search."
+            : null}
+        </span>
+        {stats.isError ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={<span className="inline-flex" />}
+              aria-label="Stats failed"
+            >
+              <CircleAlertIcon
+                aria-hidden="true"
+                className="size-3.5 text-status-critical"
+              />
+            </TooltipTrigger>
+            <TooltipContent>
+              Stats failed: {exploreErrorText(stats.error)}
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+      </p>
+      {meta.partial ? (
+        <Alert>
+          <AlertDescription className="flex flex-col items-start gap-2">
+            <p>
+              Tempo stopped searching at its time limit, so older traces may be
+              missing.
+              {covered !== null ? ` ${covered.text}` : null}
+            </p>
+            {covered !== null ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => update({ from: covered.from, to: covered.to })}
+              >
+                Keep only {covered.covers}
+              </Button>
+            ) : null}
+          </AlertDescription>
+        </Alert>
       ) : null}
-      <TraceTable rows={rows} datasourceUid={datasource.uid} range={range} />
+      <TraceTable
+        rows={rows}
+        datasourceUid={datasource.uid}
+        range={range}
+        p95Ms={p95}
+        p95Label={label}
+        footerNote={
+          p95 === undefined || p95 === null
+            ? undefined
+            : `The tick on each bar is the ${durationText(p95)} ${label} in this range.`
+        }
+      />
     </div>
   )
 }

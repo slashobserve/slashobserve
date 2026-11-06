@@ -35,7 +35,7 @@ import {
 } from "./trace-rows"
 
 const pageSize = 20
-const p95Label = "p95 of these traces"
+const rowsP95Label = "p95 of these traces"
 
 type Column = {
   key: TraceSortKey
@@ -266,19 +266,28 @@ function ColumnsMenu({
   )
 }
 
+type TraceP95 = {
+  p95Ms?: number | null
+  p95Label?: string
+  footerNote?: string
+}
+
 function SortedTraceTable({
   rows,
   datasourceUid,
   range,
   hidden,
   onToggleColumn,
+  p95Ms,
+  p95Label = rowsP95Label,
+  footerNote,
 }: {
   rows: TraceRow[]
   datasourceUid: string
   range: TraceRange
   hidden: ReadonlySet<TraceSortKey>
   onToggleColumn: (key: TraceSortKey, visible: boolean) => void
-}) {
+} & TraceP95) {
   const [sort, setSort] = useState<TraceSort | null>(defaultTraceSort)
   const [shown, setShown] = useState(pageSize)
   const [highlighted, setHighlighted] = useState<string | null>(null)
@@ -293,7 +302,7 @@ function SortedTraceTable({
     row.durationMs === null ? [] : [row.durationMs]
   )
   const slowest = Math.max(0, ...durations)
-  const p95 = percentile(durations, 95)
+  const p95 = p95Ms === undefined ? percentile(durations, 95) : p95Ms
   const spans = hasSpanCounts(rows)
   const status = hasErrorCounts(rows)
   const shownColumns = columns.filter(
@@ -368,9 +377,11 @@ function SortedTraceTable({
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <p>
           {Math.min(shown, rows.length)} of {rows.length} traces shown.
-          {p95 !== null
-            ? ` The tick on each bar is the ${durationText(p95)} ${p95Label}.`
-            : null}
+          {footerNote !== undefined
+            ? ` ${footerNote}`
+            : p95 !== null
+              ? ` The tick on each bar is the ${durationText(p95)} ${p95Label}.`
+              : null}
         </p>
         {shown < rows.length ? (
           <Button
@@ -391,11 +402,12 @@ export function TraceTable({
   rows,
   datasourceUid,
   range,
+  ...p95
 }: {
   rows: TraceRow[]
   datasourceUid: string
   range: TraceRange
-}) {
+} & TraceP95) {
   const [hidden, setHidden] = useState<ReadonlySet<TraceSortKey>>(
     () => new Set()
   )
@@ -417,6 +429,7 @@ export function TraceTable({
       range={range}
       hidden={hidden}
       onToggleColumn={toggleColumn}
+      {...p95}
     />
   )
 }

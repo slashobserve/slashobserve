@@ -114,7 +114,7 @@ export function traceStatsFilter(type: string, search: TraceSearch): string {
   return clickhouseConditions(form, "").join(" AND ")
 }
 
-export const traceSearchRows = 100
+const traceSearchRows = 100
 
 export function traceSearchParams(
   type: string,

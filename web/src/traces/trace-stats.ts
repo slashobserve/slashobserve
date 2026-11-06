@@ -64,14 +64,16 @@ export function p95Label(search: TraceSearch): string {
 export function partialNote(
   rows: readonly TraceRow[],
   zone: string | undefined
-): { text: string; from: string; to: string } | null {
+): { text: string; covers: string; from: string; to: string } | null {
   const starts = rows.flatMap((row) => (row.start === null ? [] : [row.start]))
   if (starts.length === 0) return null
   const earliest = Math.min(...starts)
   const latest = Math.max(...starts)
   const at = (ms: number) => zonedTimeValue(String(ms), zone)
+  const covers = `${at(earliest)} to ${at(latest)}`
   return {
-    text: `The ${rows.length.toLocaleString("en")} found cover ${at(earliest)} to ${at(latest)}.`,
+    text: `The ${rows.length.toLocaleString("en")} found cover ${covers}.`,
+    covers,
     from: new Date(earliest).toISOString(),
     to: new Date(latest).toISOString(),
   }
