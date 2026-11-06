@@ -39,6 +39,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `list_metrics` | Editor |
 | `log_context` | Editor |
 | `log_facets` | Editor |
+| `log_patterns` | Editor |
 | `logs_for_trace` | Editor |
 | `query_instant` | Editor |
 | `query_range` | Editor |
@@ -135,6 +136,11 @@ A question it cannot turn into a query returns the tool error `cannot_translate`
 `log_context` reads the log lines just before and just after one line on a Loki or ClickHouse datasource, as [Show context](logs-and-traces.md#context-around-a-line) does.
 Pass the datasource, the query and the line's `time_ns` from a `query_instant` result as `anchor`; `before` and `after` default to 20 lines each and take at most 100.
 The answer holds each side's lines with `time`, `time_ns`, `body` and `labels`, the before side newest first and the after side oldest first, and says when more lines exist within an hour on either side.
+The built-in agent has the same tool.
+
+`log_patterns` groups the lines a logs query matches into patterns with counts on a Loki or ClickHouse datasource, as [Patterns](logs-and-traces.md#logs-page) does: from Loki's pattern index when it has one, otherwise from the newest 2,000 lines.
+Pass the datasource, the query and optionally `from`, `to` and `limit`, 10 patterns by default and at most 30.
+The answer says `source` (`loki` or `server`), `lines_sampled`, `lines_matched` and each pattern's `count`, `sample` cut to 200 bytes, `first` and `last`.
 The built-in agent has the same tool.
 
 `list_annotations` lists [annotations](annotations.md), such as deploy markers, newest first: the global ones, plus one dashboard's own with `dashboard_id`, narrowed by `from` and `to` (RFC 3339) and `tags`, 50 per page by default and at most 100.
