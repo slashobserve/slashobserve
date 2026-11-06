@@ -11,9 +11,34 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const activeKeyByName = `-- name: ActiveKeyByName :one
+SELECT id, token_hash FROM service_account_keys
+WHERE service_account_id = $1 AND name = $2
+  AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())
+ORDER BY created_at DESC
+LIMIT 1
+`
+
+type ActiveKeyByNameParams struct {
+	ServiceAccountID pgtype.UUID
+	Name             string
+}
+
+type ActiveKeyByNameRow struct {
+	ID        pgtype.UUID
+	TokenHash []byte
+}
+
+func (q *Queries) ActiveKeyByName(ctx context.Context, arg ActiveKeyByNameParams) (ActiveKeyByNameRow, error) {
+	row := q.db.QueryRow(ctx, activeKeyByName, arg.ServiceAccountID, arg.Name)
+	var i ActiveKeyByNameRow
+	err := row.Scan(&i.ID, &i.TokenHash)
+	return i, err
+}
+
 const createServiceAccount = `-- name: CreateServiceAccount :one
 INSERT INTO service_accounts (name, description, created_by, role) VALUES ($1, $2, $3, $4)
-RETURNING id, name, description, created_by, created_at, role
+RETURNING id, name, description, created_by, created_at, role, provisioned
 `
 
 type CreateServiceAccountParams struct {
@@ -38,6 +63,7 @@ func (q *Queries) CreateServiceAccount(ctx context.Context, arg CreateServiceAcc
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.Role,
+		&i.Provisioned,
 	)
 	return i, err
 }
@@ -121,7 +147,7 @@ func (q *Queries) GetKeyPrincipal(ctx context.Context, tokenHash []byte) (GetKey
 }
 
 const getServiceAccount = `-- name: GetServiceAccount :one
-SELECT id, name, description, created_by, created_at, role FROM service_accounts WHERE id = $1
+SELECT id, name, description, created_by, created_at, role, provisioned FROM service_accounts WHERE id = $1
 `
 
 func (q *Queries) GetServiceAccount(ctx context.Context, id pgtype.UUID) (ServiceAccount, error) {
@@ -134,6 +160,26 @@ func (q *Queries) GetServiceAccount(ctx context.Context, id pgtype.UUID) (Servic
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.Role,
+		&i.Provisioned,
+	)
+	return i, err
+}
+
+const getServiceAccountByName = `-- name: GetServiceAccountByName :one
+SELECT id, name, description, created_by, created_at, role, provisioned FROM service_accounts WHERE name = $1
+`
+
+func (q *Queries) GetServiceAccountByName(ctx context.Context, name string) (ServiceAccount, error) {
+	row := q.db.QueryRow(ctx, getServiceAccountByName, name)
+	var i ServiceAccount
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.Role,
+		&i.Provisioned,
 	)
 	return i, err
 }
@@ -203,7 +249,7 @@ func (q *Queries) ListServiceAccountKeys(ctx context.Context, serviceAccountID p
 }
 
 const listServiceAccounts = `-- name: ListServiceAccounts :many
-SELECT id, name, description, created_by, created_at, role FROM service_accounts ORDER BY name
+SELECT id, name, description, created_by, created_at, role, provisioned FROM service_accounts ORDER BY name
 `
 
 func (q *Queries) ListServiceAccounts(ctx context.Context) ([]ServiceAccount, error) {
@@ -222,6 +268,7 @@ func (q *Queries) ListServiceAccounts(ctx context.Context) ([]ServiceAccount, er
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.Role,
+			&i.Provisioned,
 		); err != nil {
 			return nil, err
 		}
@@ -231,6 +278,32 @@ func (q *Queries) ListServiceAccounts(ctx context.Context) ([]ServiceAccount, er
 		return nil, err
 	}
 	return items, nil
+}
+
+const replaceProvisionedKey = `-- name: ReplaceProvisionedKey :exec
+WITH revoked AS (
+  UPDATE service_account_keys SET revoked_at = now()
+  WHERE service_account_id = $1 AND name = $2 AND revoked_at IS NULL
+)
+INSERT INTO service_account_keys (service_account_id, name, display_prefix, token_hash)
+VALUES ($1, $2, $3, $4)
+`
+
+type ReplaceProvisionedKeyParams struct {
+	ServiceAccountID pgtype.UUID
+	Name             string
+	DisplayPrefix    string
+	TokenHash        []byte
+}
+
+func (q *Queries) ReplaceProvisionedKey(ctx context.Context, arg ReplaceProvisionedKeyParams) error {
+	_, err := q.db.Exec(ctx, replaceProvisionedKey,
+		arg.ServiceAccountID,
+		arg.Name,
+		arg.DisplayPrefix,
+		arg.TokenHash,
+	)
+	return err
 }
 
 const revokeServiceAccountKey = `-- name: RevokeServiceAccountKey :execrows
@@ -253,7 +326,7 @@ func (q *Queries) RevokeServiceAccountKey(ctx context.Context, arg RevokeService
 
 const setServiceAccountRole = `-- name: SetServiceAccountRole :one
 UPDATE service_accounts SET role = $1 WHERE id = $2
-RETURNING id, name, description, created_by, created_at, role
+RETURNING id, name, description, created_by, created_at, role, provisioned
 `
 
 type SetServiceAccountRoleParams struct {
@@ -271,6 +344,7 @@ func (q *Queries) SetServiceAccountRole(ctx context.Context, arg SetServiceAccou
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.Role,
+		&i.Provisioned,
 	)
 	return i, err
 }
@@ -283,4 +357,32 @@ WHERE id = $1 AND (last_used_at IS NULL OR last_used_at < now() - interval '5 mi
 func (q *Queries) TouchServiceAccountKey(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, touchServiceAccountKey, id)
 	return err
+}
+
+const upsertProvisionedServiceAccount = `-- name: UpsertProvisionedServiceAccount :one
+INSERT INTO service_accounts (name, description, role, provisioned) VALUES ($1, $2, $3, true)
+ON CONFLICT (name) DO UPDATE SET role = EXCLUDED.role, description = EXCLUDED.description
+WHERE service_accounts.provisioned
+RETURNING id, name, description, created_by, created_at, role, provisioned
+`
+
+type UpsertProvisionedServiceAccountParams struct {
+	Name        string
+	Description string
+	Role        string
+}
+
+func (q *Queries) UpsertProvisionedServiceAccount(ctx context.Context, arg UpsertProvisionedServiceAccountParams) (ServiceAccount, error) {
+	row := q.db.QueryRow(ctx, upsertProvisionedServiceAccount, arg.Name, arg.Description, arg.Role)
+	var i ServiceAccount
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.Role,
+		&i.Provisioned,
+	)
+	return i, err
 }

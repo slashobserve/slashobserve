@@ -92,6 +92,8 @@ const (
 
 	envDatasourcesFile = "SLASHOBSERVE_DATASOURCES_FILE"
 
+	envServiceAccountsFile = "SLASHOBSERVE_SERVICE_ACCOUNTS_FILE"
+
 	envAPIContractCheck = "SLASHOBSERVE_API_CONTRACT_CHECK"
 
 	envOutboundDomains = "SLASHOBSERVE_OUTBOUND_DOMAINS"
@@ -130,7 +132,7 @@ var serverEnvNames = []string{
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
 	envLLMLogProviderErrors, envAgentRunTimeout, envAgentSessionRenewKiB, envAgentLogToolInputs,
-	envProvisionDir, envMetrics, envSecretKey,
+	envProvisionDir, envMetrics, envSecretKey, envServiceAccountsFile,
 }
 
 type GroupRoleSetting struct {
@@ -178,6 +180,9 @@ type Config struct {
 
 	DatasourcesFile string
 	Datasources     []Datasource
+
+	ServiceAccountsFile string
+	ServiceAccounts     []ServiceAccount
 
 	APIContractCheck bool
 	LLM              LLM
@@ -236,6 +241,15 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 			errs = append(errs, fmt.Errorf("%s: %w", envDatasourcesFile, err))
 		}
 		cfg.Datasources = datasources
+	}
+
+	if path := get(lookup, envServiceAccountsFile); path != "" {
+		cfg.ServiceAccountsFile = path
+		accounts, err := loadServiceAccounts(path)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", envServiceAccountsFile, err))
+		}
+		cfg.ServiceAccounts = accounts
 	}
 
 	cfg.APIContractCheck, err = loadBool(lookup, envAPIContractCheck, false)

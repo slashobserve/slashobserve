@@ -65,3 +65,7 @@ description: What SlashObserve protects and what an operator should know.
   Responses carry `X-Frame-Options: DENY` and `frame-ancestors 'none'` in the policy.
 - **Keep keys short-lived.**
   Prefer an expiry, one service account per tool or person, and revoke on the API keys page when a laptop or pipeline is retired.
+- **Keys from a file are the operator's.**
+  `SLASHOBSERVE_SERVICE_ACCOUNTS_FILE` lets the server create service accounts and their keys at boot from files on its own disk (see [Service-account keys](service-account-keys.md#declare-service-accounts-in-a-file)).
+  Anyone who can write those files or the server's environment can mint a key with the listed role, so protect them like the database URL.
+  The server stores only the key's hash, never logs it, never takes over an account that was created in the web app, and refuses role changes and revocation of a file key through the API, so the file stays the one place that decides them.

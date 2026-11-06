@@ -131,6 +131,15 @@ func datasourcesExit(err error) error {
 	return exit
 }
 
+func serviceAccountsExit(err error) error {
+	exit := &exitError{code: "service_accounts_failed", cause: err}
+	var refused *auth.ProvisionRefusedError
+	if errors.As(err, &refused) {
+		exit.detail = refused.Error()
+	}
+	return exit
+}
+
 func migrationExit(err error) error {
 	exit := &exitError{code: "migration_failed", cause: err}
 	if version, ok := db.FailedMigrationVersion(err); ok {
@@ -256,6 +265,9 @@ func run() error {
 	authService, err := newAuthService(ctx, cfg, database.Queries(), logger)
 	if err != nil {
 		return err
+	}
+	if err := authService.EnsureProvisioned(ctx, cfg.ServiceAccounts); err != nil {
+		return serviceAccountsExit(err)
 	}
 
 	folderAccess := folders.NewAccess(database)

@@ -137,7 +137,7 @@ export interface paths {
         head?: never;
         /**
          * Change the role a service account's keys act with.
-         * @description Service accounts cannot call this endpoint.
+         * @description Service accounts cannot call this endpoint. An account from the service-accounts file answers 409 `provisioned`, because its role comes from the file.
          */
         patch: operations["updateServiceAccountRole"];
         trace?: never;
@@ -175,7 +175,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Revoke a key of a service account. */
+        /**
+         * Revoke a key of a service account.
+         * @description A key of an account from the service-accounts file answers 409 `provisioned`; rotate the file key by writing a new key to its file and restarting the server.
+         */
         delete: operations["revokeServiceAccountKey"];
         options?: never;
         head?: never;
@@ -1821,6 +1824,8 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             role: components["schemas"]["Role"];
+            /** @description The account comes from the server's service-accounts file (`SLASHOBSERVE_SERVICE_ACCOUNTS_FILE`); its role, description and file key change only there. */
+            provisioned: boolean;
         };
         ServiceAccountList: {
             items: components["schemas"]["ServiceAccount"][];
@@ -3532,6 +3537,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The account comes from the service-accounts file (`provisioned`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };
@@ -3616,6 +3630,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The account comes from the service-accounts file (`provisioned`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };

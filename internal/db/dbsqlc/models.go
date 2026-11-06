@@ -276,6 +276,7 @@ type ServiceAccount struct {
 	CreatedBy   pgtype.UUID
 	CreatedAt   pgtype.Timestamptz
 	Role        string
+	Provisioned bool
 }
 
 type ServiceAccountKey struct {

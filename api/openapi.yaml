@@ -298,7 +298,7 @@ components:
     ServiceAccount:
       type: object
       additionalProperties: false
-      required: [id, name, description, created_by, created_at, role]
+      required: [id, name, description, created_by, created_at, role, provisioned]
       properties:
         id:
           type: string
@@ -316,6 +316,9 @@ components:
           format: date-time
         role:
           $ref: "#/components/schemas/Role"
+        provisioned:
+          type: boolean
+          description: The account comes from the server's service-accounts file (`SLASHOBSERVE_SERVICE_ACCOUNTS_FILE`); its role, description and file key change only there.
     ServiceAccountList:
       type: object
       additionalProperties: false
