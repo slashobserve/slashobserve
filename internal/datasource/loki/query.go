@@ -15,6 +15,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
@@ -89,7 +90,7 @@ func (d *Datasource) query(ctx context.Context, q datasource.Query, r datasource
 	}
 	params := url.Values{"query": {text}}
 	switch {
-	case isLogQuery(text):
+	case spec.LogQLReturnsLines(text):
 		params.Set("start", lokiTime(r.From))
 		params.Set("end", lokiTime(r.To))
 		params.Set("limit", strconv.Itoa(min(lim.MaxRows, maxLogLines)))
@@ -128,23 +129,6 @@ func expand(q datasource.Query, r datasource.TimeRange, interval time.Duration) 
 
 func lokiTime(t time.Time) string {
 	return t.UTC().Format(time.RFC3339Nano)
-}
-
-func isLogQuery(text string) bool {
-	i := 0
-	for i < len(text) {
-		switch text[i] {
-		case ' ', '\t', '\n', '\r':
-			i++
-		case '#':
-			for i < len(text) && text[i] != '\n' {
-				i++
-			}
-		default:
-			return text[i] == '{'
-		}
-	}
-	return false
 }
 
 func (d *Datasource) run(ctx context.Context, path string, params url.Values, lim datasource.Limits) ([]datasource.Frame, error) {
