@@ -10,7 +10,7 @@ import {
   clampWidth,
   editWidth,
   isStacked,
-} from "./card-width"
+} from "@/components/dock/card-width"
 
 const storageKey = "slashobserve-activity"
 const retiredReviseKey = "slashobserve-revise-on-comment"

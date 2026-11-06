@@ -3,7 +3,7 @@ import type { QueryKey } from "@tanstack/react-query"
 
 import { useActivityLayout, useActivityStore } from "@/activity/activity-store"
 import { CardHeader } from "@/activity/card-header"
-import { ResizeHandle } from "@/activity/resize-handle"
+import { ResizeHandle } from "@/components/dock/resize-handle"
 import type { Selections } from "@/api/keys"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { PanelDataResponse } from "@/dashboards/queries"

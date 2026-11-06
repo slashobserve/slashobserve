@@ -21,7 +21,7 @@ import { ActivityFeed } from "./activity-feed"
 import { useActivityLayout, useActivityStore } from "./activity-store"
 import { clientNameFrom } from "./client-name"
 import { EditPane, type EditGuard } from "./edit-pane"
-import { ResizeHandle } from "./resize-handle"
+import { ResizeHandle } from "@/components/dock/resize-handle"
 
 export const activityCardId = "activity-card"
 

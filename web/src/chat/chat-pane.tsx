@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react"
 
 import { useActivityStore, useChatPaneLayout } from "@/activity/activity-store"
-import { ResizeHandle } from "@/activity/resize-handle"
+import { ResizeHandle } from "@/components/dock/resize-handle"
 import { cn } from "@/lib/utils"
 
 import { Conversation } from "./conversation"
