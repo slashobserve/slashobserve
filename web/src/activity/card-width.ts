@@ -22,3 +22,21 @@ export function clampWidth(
 export function isStacked(bounds: WidthBounds, viewport: number): boolean {
   return viewport < pageReserve + bounds.min
 }
+
+export const chatPaneWidth: WidthBounds = { min: 320, max: 560, initial: 400 }
+const chatPaneBreakpoint = 1200
+
+export function chatPaneStacked(viewport: number): boolean {
+  return viewport <= chatPaneBreakpoint
+}
+
+export type HandleSide = "left" | "right"
+
+export function draggedWidth(
+  side: HandleSide,
+  startWidth: number,
+  startX: number,
+  x: number
+): number {
+  return side === "left" ? startWidth + (startX - x) : startWidth + (x - startX)
+}

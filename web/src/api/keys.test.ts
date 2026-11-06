@@ -1,6 +1,12 @@
 import { describe, expect, test } from "vitest"
 
-import { dashboardKeys, datasourceKeys, editorKeys, observeKeys } from "./keys"
+import {
+  dashboardKeys,
+  datasourceKeys,
+  editorKeys,
+  findingKeys,
+  observeKeys,
+} from "./keys"
 
 function isPrefix(prefix: readonly unknown[], key: readonly unknown[]) {
   return prefix.every((part, index) => part === key[index])
@@ -75,20 +81,31 @@ describe("filtered dashboard lists", () => {
 
 describe("observeKeys", () => {
   test("the caller's requests share the mineAll root", () => {
-    expect(isPrefix(observeKeys.mineAll(), observeKeys.mine("all", 20))).toBe(
-      true
-    )
-    expect(
-      isPrefix(observeKeys.mineAll(), observeKeys.mine("observe", 5))
-    ).toBe(true)
+    for (const filters of [
+      {},
+      { source: "observe" as const },
+      { q: "latency", pinned: true, dashboardId: "d1" },
+    ]) {
+      expect(
+        isPrefix(observeKeys.mineAll(), observeKeys.mine(filters, 20))
+      ).toBe(true)
+    }
   })
 
-  test("the caller's requests differ by source and by limit", () => {
-    expect(observeKeys.mine("all", 5)).not.toEqual(observeKeys.mine("all", 20))
-    expect(observeKeys.mine("all", 5)).not.toEqual(
-      observeKeys.mine("observe", 5)
+  test("the caller's requests differ by filters and by limit", () => {
+    expect(observeKeys.mine({}, 5)).not.toEqual(observeKeys.mine({}, 20))
+    expect(observeKeys.mine({}, 5)).not.toEqual(
+      observeKeys.mine({ source: "observe" }, 5)
     )
-    expect(observeKeys.mine("all", 5)).toEqual(observeKeys.mine("all", 5))
+    expect(observeKeys.mine({ q: "a" }, 5)).not.toEqual(
+      observeKeys.mine({ q: "b" }, 5)
+    )
+    expect(observeKeys.mine({ dashboardId: "d1" }, 5)).not.toEqual(
+      observeKeys.mine({ dashboardId: "d2" }, 5)
+    )
+    expect(observeKeys.mine({ q: "a", pinned: true }, 5)).toEqual(
+      observeKeys.mine({ q: "a", pinned: true }, 5)
+    )
   })
 
   test("a single request is not under the caller's requests", () => {
@@ -137,5 +154,26 @@ describe("editorKeys", () => {
     expect(isPrefix(dashboardKeys.all, editorKeys.suggestion("d", "s"))).toBe(
       false
     )
+  })
+})
+
+describe("findingKeys", () => {
+  test("every finding key sits under the findings prefix", () => {
+    for (const key of [
+      findingKeys.one("f1"),
+      findingKeys.forDashboard("d1"),
+      findingKeys.panelData("f1", "p1", { from: "now-1h", to: "now" }),
+    ]) {
+      expect(isPrefix(findingKeys.all, key)).toBe(true)
+    }
+  })
+
+  test("panel data sits under its finding", () => {
+    expect(
+      isPrefix(findingKeys.one("f1"), findingKeys.panelData("f1", "p1", {}))
+    ).toBe(true)
+    expect(
+      isPrefix(findingKeys.one("f2"), findingKeys.panelData("f1", "p1", {}))
+    ).toBe(false)
   })
 })

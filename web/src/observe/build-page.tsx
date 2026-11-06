@@ -4,11 +4,10 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
-import { Link, useNavigate, useRouteContext } from "@tanstack/react-router"
+import { useNavigate } from "@tanstack/react-router"
 
-import { ApiError } from "@/api/errors"
-import { StatusIcon } from "@/components/status-label"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { useChatPaneLayout } from "@/activity/activity-store"
+import { ChatPane } from "@/chat/chat-pane"
 import { DashboardGrid } from "@/dashboards/dashboard-grid"
 import { DashboardTopRow } from "@/dashboards/dashboard-top-row"
 import { PanelContainer } from "@/dashboards/panel-container"
@@ -17,28 +16,17 @@ import type { PanelSource } from "@/dashboards/panel-source"
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { useVariables } from "@/dashboards/use-variables"
 import { useDocumentTitle } from "@/lib/document-title"
-import { cn } from "@/lib/utils"
 import { createSharedCursor } from "@/panels/shared-cursor"
 import { ThemeSwitch } from "@/shell/theme-switch"
 import { isDataPanel, sourcePanelOf, type Dashboard } from "@/spec"
 import { dashboardLink } from "@/lib/links"
 
-import {
-  buildQuery,
-  buildStatusText,
-  canSaveBuild,
-  newPanelIds,
-  saveBuildErrorText,
-  useSaveBuild,
-} from "./build"
+import { buildQuery, newPanelIds } from "./build"
 import { buildPageNotice, buildPageTitle } from "./build-page-model"
-import { observeRequestQuery, sentence, type ObserveRequest } from "./queries"
-import { CancelRequestButton, ContinueBuildButton } from "./request-actions"
+import { observeRequestQuery } from "./queries"
 
 const noPanels: ReadonlySet<string> = new Set()
 const noUrlVars: Record<string, string[]> = {}
-const fadeIn =
-  "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300"
 
 function ignoreFocus() {}
 
@@ -87,46 +75,45 @@ function BuildGrid({
       spec={spec}
       selections={selections}
       values={values}
+      newPanelIds={fresh}
       renderPanel={(item, size) => (
-        <div className={cn("size-full", fresh.has(item.panel.id) && fadeIn)}>
-          <PanelContainer
-            source={source}
-            cursor={cursor}
-            panel={item.panel}
-            reused={
-              isDataPanel(item.panel)
-                ? sourcePanelOf(spec, item.panel)
-                : undefined
-            }
-            variables={variables}
-            title={item.title}
-            repeatOf={item.key === item.panel.id ? undefined : item.panel.id}
-            width={size.width}
-            height={size.height}
-            from={spec.time.from}
-            to={spec.time.to}
-            timezone={spec.timezone}
-            rangeFrom={spec.time.from}
-            rangeTo={spec.time.to}
-            selections={item.selections}
-            selectionsReady={ready}
-            blockedBy={blockedBy}
-            onRetryBlocked={onRetryBlocked}
-            refreshMs={null}
-            mixedDatasources={mixedDatasources}
-            editable={false}
-            layoutSession={false}
-            openComments={0}
-            unverifiedReason={undefined}
-            highlighted={false}
-            editingPanel={false}
-            canComment={false}
-            canEdit={false}
-            focusOnRender={false}
-            onFocused={ignoreFocus}
-            composerRef={composerRef}
-          />
-        </div>
+        <PanelContainer
+          source={source}
+          cursor={cursor}
+          panel={item.panel}
+          reused={
+            isDataPanel(item.panel)
+              ? sourcePanelOf(spec, item.panel)
+              : undefined
+          }
+          variables={variables}
+          title={item.title}
+          repeatOf={item.key === item.panel.id ? undefined : item.panel.id}
+          width={size.width}
+          height={size.height}
+          from={spec.time.from}
+          to={spec.time.to}
+          timezone={spec.timezone}
+          rangeFrom={spec.time.from}
+          rangeTo={spec.time.to}
+          selections={item.selections}
+          selectionsReady={ready}
+          blockedBy={blockedBy}
+          onRetryBlocked={onRetryBlocked}
+          refreshMs={null}
+          mixedDatasources={mixedDatasources}
+          editable={false}
+          layoutSession={false}
+          openComments={0}
+          unverifiedReason={undefined}
+          highlighted={false}
+          editingPanel={false}
+          canComment={false}
+          canEdit={false}
+          focusOnRender={false}
+          onFocused={ignoreFocus}
+          composerRef={composerRef}
+        />
       )}
     />
   )
@@ -140,103 +127,10 @@ function Notice({ children }: { children: string }) {
   )
 }
 
-function openDashboardLink(request: ObserveRequest, label: string) {
-  if (request.dashboard_id === null) return null
-  return (
-    <Link
-      {...dashboardLink(request.dashboard_id)}
-      className="rounded-sm text-foreground underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      {label}
-    </Link>
-  )
-}
-
-function StoppedStrip({ request }: { request: ObserveRequest }) {
-  const { principal } = useRouteContext({ from: "/_authed" })
-  const navigate = useNavigate()
-  const save = useSaveBuild(request.id)
-  const isRequester = request.requested_by.id === principal.id
-  const mayRetry = canSaveBuild({
-    status: request.status,
-    build: request.build,
-    buildSavedAt: request.build_saved_at,
-    isRequester,
-  })
-  const error = save.error
-  const code = error instanceof ApiError ? error.code : ""
-  return (
-    <div className="flex flex-col gap-2 pr-2.5 pb-2.5 pl-4 text-[13px]">
-      {request.error !== null ? (
-        <p className="text-muted-foreground">{sentence(request.error)}</p>
-      ) : null}
-      {request.build_saved_at !== null && request.result_version !== null ? (
-        <p className="flex flex-wrap items-center gap-x-2">
-          <span>
-            You saved what was built as version {request.result_version}.
-          </span>
-          {openDashboardLink(request, "Open the dashboard")}
-        </p>
-      ) : null}
-      {request.continued_by !== null ? (
-        <p>
-          <Link
-            to="/b/$requestId"
-            params={{ requestId: request.continued_by }}
-            className="rounded-sm text-foreground underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Continued in a new run
-          </Link>
-        </p>
-      ) : null}
-      {mayRetry && request.continued_by === null ? (
-        <div className="flex flex-wrap items-start gap-3">
-          <div className="flex flex-col items-start gap-1">
-            <Button
-              disabled={save.isPending}
-              aria-busy={save.isPending}
-              onClick={() =>
-                save.mutate(undefined, {
-                  onSuccess: (saved) =>
-                    void navigate(dashboardLink(saved.dashboard_id)),
-                })
-              }
-            >
-              {save.isPending ? "Saving" : "Save what was built"}
-            </Button>
-            {request.dashboard_id === null ? (
-              <p className="text-muted-foreground">
-                Saves to your My Dashboards.
-              </p>
-            ) : null}
-          </div>
-          <ContinueBuildButton
-            request={request}
-            isRequester={isRequester}
-            onContinued={(next) =>
-              void navigate({
-                to: "/b/$requestId",
-                params: { requestId: next.id },
-              })
-            }
-          />
-          {error !== null ? (
-            <p role="alert" className="flex flex-wrap items-center gap-x-2">
-              <span>{saveBuildErrorText(code, error.message)}</span>
-              {code === "version_conflict"
-                ? openDashboardLink(request, "Open the dashboard")
-                : null}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
 export function BuildPage({ requestId }: { requestId: string }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { stacked } = useChatPaneLayout()
   const requestQuery = useQuery(observeRequestQuery(requestId))
   const request = requestQuery.data
   const dashboardId = request?.dashboard_id ?? null
@@ -269,12 +163,15 @@ export function BuildPage({ requestId }: { requestId: string }) {
     })
   }
 
-  const succeededId =
-    request?.status === "succeeded" ? request.dashboard_id : null
+  const savedId =
+    request !== undefined &&
+    (request.status === "succeeded" || request.build_saved_at !== null)
+      ? request.dashboard_id
+      : null
   useEffect(() => {
-    if (succeededId === null) return
-    void navigate({ ...dashboardLink(succeededId), replace: true })
-  }, [succeededId, navigate])
+    if (savedId === null) return
+    void navigate({ ...dashboardLink(savedId), replace: true })
+  }, [savedId, navigate])
 
   const active = request?.status === "queued" || request?.status === "running"
   const knownTitle = buildPageTitle({
@@ -292,17 +189,6 @@ export function BuildPage({ requestId }: { requestId: string }) {
     hasRequest: request !== undefined,
     buildError: buildResult.error,
   })
-  const status = request
-    ? buildStatusText({
-        status: request.status,
-        build: request.build,
-        failureCode: request.failure_code,
-        queuePosition: request.queue_position,
-        canceling: request.cancel_requested_at !== null,
-        continued: request.continued_by !== null,
-      })
-    : ""
-
   let body
   if (notice !== undefined) {
     body = <Notice>{notice}</Notice>
@@ -321,43 +207,34 @@ export function BuildPage({ requestId }: { requestId: string }) {
     body = <main className="min-h-0 flex-1" aria-busy={active} />
   }
 
+  const topRow = (
+    <DashboardTopRow
+      title={knownTitle ?? (dashboardId === null ? "New dashboard" : title)}
+      madeBy={null}
+      versionControl={null}
+      controls={[]}
+      editing={null}
+      actions={[<ThemeSwitch key="theme" />]}
+    />
+  )
+
+  if (stacked) {
+    return (
+      <div className="flex min-h-svh flex-col bg-background text-foreground">
+        {topRow}
+        {body}
+        <ChatPane requestId={requestId} />
+      </div>
+    )
+  }
+
   return (
-    <div className="flex min-h-svh flex-col bg-background text-foreground">
-      <DashboardTopRow
-        title={knownTitle ?? (dashboardId === null ? "New dashboard" : title)}
-        madeBy={null}
-        versionControl={null}
-        controls={[
-          <p
-            key="status"
-            aria-live="polite"
-            className="flex items-center gap-2 text-[13px]"
-          >
-            {active ? <StatusIcon tone="running" /> : null}
-            {request?.status === "failed" ? (
-              <StatusIcon tone="critical" />
-            ) : null}
-            {status}
-          </p>,
-        ]}
-        editing={null}
-        actions={[
-          request ? (
-            <CancelRequestButton key="cancel" request={request} />
-          ) : null,
-          <Link
-            key="chat"
-            to="/c/$requestId"
-            params={{ requestId }}
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-          >
-            Back to chat
-          </Link>,
-          <ThemeSwitch key="theme" />,
-        ]}
-      />
-      {request?.status === "failed" ? <StoppedStrip request={request} /> : null}
-      {body}
+    <div className="flex h-svh bg-background text-foreground">
+      <ChatPane requestId={requestId} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        {topRow}
+        {body}
+      </div>
     </div>
   )
 }

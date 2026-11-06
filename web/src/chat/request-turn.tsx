@@ -1,8 +1,7 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { Link, useRouteContext } from "@tanstack/react-router"
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 
-import { dashboardKeys } from "@/api/keys"
 import { AgentMark } from "@/components/agent-mark"
 import { StatusIcon } from "@/components/status-label"
 import { buildStatusText, type BuildProgress } from "@/observe/build"
@@ -15,17 +14,22 @@ import {
   usePollFailures,
 } from "@/observe/queries"
 import { CancelRequestButton } from "@/observe/request-actions"
+import { useSettledRefresh } from "@/observe/use-settled-refresh"
+
+import { FindingCard } from "@/findings/finding-card"
 
 import { BuildCard } from "./build-card"
 import { ResultCard } from "./result-card"
-import { StepList } from "./step-list"
-import { resultFinishedAt, showsWorkingRow } from "./turn-model"
+import { RunningFor } from "./run-duration"
+import { StepTimeline } from "./step-timeline"
 import {
   RetryButton,
   Stalled,
   TurnFailure,
   useOpenNewRun,
+  type RunOpens,
 } from "./turn-failure"
+import { resultFinishedAt, showsWorkingRow, tookText } from "./turn-model"
 
 const reconnectingAfterFailures = 2
 
@@ -40,6 +44,7 @@ export type TurnSummary = {
   panel_id: string | null
   requested_by: { id: string; name: string }
   created_at: string
+  started_at: string | null
   finished_at: string | null
   failure_code: string | null
   build: BuildProgress | null
@@ -47,6 +52,8 @@ export type TurnSummary = {
   continues_id: string | null
   continued_by: string | null
   continue_note: string | null
+  from?: string | null
+  to?: string | null
 }
 
 type Props = {
@@ -54,6 +61,8 @@ type Props = {
   dashboardTitle?: string
   loadSteps: boolean
   onRetried: (request: ObserveRequest) => void
+  buildOnScreen?: boolean
+  opensRunsIn?: RunOpens
 }
 
 function isActive(status: TurnSummary["status"]): boolean {
@@ -96,13 +105,16 @@ export function RequestTurn({
   dashboardTitle,
   loadSteps,
   onRetried,
+  buildOnScreen = false,
+  opensRunsIn = "chat",
 }: Props) {
-  const queryClient = useQueryClient()
   const { principal } = useRouteContext({ from: "/_authed" })
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const investigates = summary.source === "investigate"
   const query = useQuery({
     ...observeRequestQuery(summary.id),
-    enabled: isActive(summary.status) || loadSteps || detailsOpen,
+    enabled:
+      isActive(summary.status) || loadSteps || detailsOpen || investigates,
   })
   const live = query.data
   const settled = !isActive(summary.status)
@@ -110,7 +122,7 @@ export function RequestTurn({
   const request: TurnSummary = showLive ? live : summary
   const detail = showLive ? live : undefined
   const build = request.build
-  const openNewRun = useOpenNewRun(request, onRetried)
+  const openNewRun = useOpenNewRun(request, onRetried, opensRunsIn)
   const isRequester = request.requested_by.id === principal.id
   const active = isActive(request.status)
   const stalled = active && stopsPolling(query.error)
@@ -121,25 +133,11 @@ export function RequestTurn({
   const savedBuild =
     request.status === "failed" && request.build_saved_at !== null
 
-  const wasActive = useRef(active)
-  const dashboardId = request.dashboard_id
-  const status = request.status
-  useEffect(() => {
-    if (wasActive.current && !active) {
-      if (status === "succeeded") {
-        void queryClient.invalidateQueries({ queryKey: dashboardKeys.list() })
-      }
-      if (dashboardId !== null) {
-        void queryClient.invalidateQueries({
-          queryKey: dashboardKeys.revisions(dashboardId),
-        })
-        void queryClient.invalidateQueries({
-          queryKey: dashboardKeys.latest(dashboardId),
-        })
-      }
-    }
-    wasActive.current = active
-  }, [active, status, dashboardId, queryClient])
+  useSettledRefresh({
+    active,
+    status: request.status,
+    dashboardId: request.dashboard_id,
+  })
 
   return (
     <section
@@ -160,12 +158,13 @@ export function RequestTurn({
         <div className="flex min-w-0 flex-1 flex-col gap-3 pt-[3px]">
           {active ? (
             <div className="flex flex-col gap-2.5">
-              {build !== null ? (
+              {build !== null && !investigates ? (
                 <BuildCard
                   request={detail ?? request}
                   build={build}
                   isRequester={isRequester}
                   onContinued={(next) => void openNewRun(next)}
+                  compact={buildOnScreen}
                 />
               ) : (
                 <span className="flex items-center gap-2 text-[13px]">
@@ -180,11 +179,13 @@ export function RequestTurn({
                         queuePosition: detail.queue_position,
                         canceling: detail.cancel_requested_at !== null,
                       })
-                    : dashboardTitle !== undefined
-                      ? `Revising ${dashboardTitle}`
-                      : request.dashboard_id !== null
-                        ? "Revising the dashboard"
-                        : "Building the dashboard"}
+                    : investigates
+                      ? "Investigating"
+                      : dashboardTitle !== undefined
+                        ? `Revising ${dashboardTitle}`
+                        : request.dashboard_id !== null
+                          ? "Revising the dashboard"
+                          : "Building the dashboard"}
                 </span>
               )}
               {detail?.can_cancel ? (
@@ -192,11 +193,14 @@ export function RequestTurn({
                   <CancelRequestButton request={detail} />
                 </div>
               ) : null}
-              <StepList
+              <StepTimeline
                 steps={steps}
                 working={showsWorkingRow(request, stalled)}
                 reconnecting={reconnecting}
               />
+              {request.status === "running" ? (
+                <RunningFor startedAt={request.started_at} />
+              ) : null}
               {stalled ? (
                 <Stalled
                   message={query.error?.message ?? ""}
@@ -210,11 +214,16 @@ export function RequestTurn({
               onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
             >
               <summary className="cursor-pointer text-[13px] text-muted-foreground">
-                {live === undefined ? "Show steps" : stepSummary(live.steps)}
+                {live === undefined
+                  ? "Show steps"
+                  : stepSummary(
+                      live.steps,
+                      tookText(request.started_at, request.finished_at)
+                    )}
               </summary>
               <div className="pt-2.5 pl-0.5">
                 {live !== undefined ? (
-                  <StepList
+                  <StepTimeline
                     steps={steps}
                     working={false}
                     reconnecting={false}
@@ -242,7 +251,17 @@ export function RequestTurn({
               You saved what was built as version {request.result_version}.
             </p>
           ) : null}
-          {(request.status === "succeeded" || savedBuild) &&
+          {investigates && request.status === "succeeded" ? (
+            live?.finding != null ? (
+              <FindingCard finding={live.finding} showOpenLink />
+            ) : live !== undefined ? (
+              <p className="text-[13px] text-muted-foreground">
+                The run finished without a finding.
+              </p>
+            ) : null
+          ) : null}
+          {!investigates &&
+          (request.status === "succeeded" || savedBuild) &&
           request.result_version !== null &&
           request.dashboard_id !== null ? (
             <ResultCard
@@ -252,14 +271,19 @@ export function RequestTurn({
               eager={loadSteps}
             />
           ) : null}
-          {request.status === "succeeded" &&
+          {!investigates &&
+          request.status === "succeeded" &&
           (request.result_version === null || request.dashboard_id === null) ? (
             <p className="text-[13px] text-muted-foreground">
               The request finished without a dashboard.
             </p>
           ) : null}
           {request.status === "failed" && !savedBuild ? (
-            <TurnFailure request={request} onRetried={onRetried} />
+            <TurnFailure
+              request={request}
+              onRetried={onRetried}
+              opensRunsIn={opensRunsIn}
+            />
           ) : null}
           {request.status === "failed" && !savedBuild && build !== null ? (
             <BuildCard
@@ -267,6 +291,7 @@ export function RequestTurn({
               build={build}
               isRequester={isRequester}
               onContinued={(next) => void openNewRun(next)}
+              compact={buildOnScreen}
             />
           ) : null}
           <Link

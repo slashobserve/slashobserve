@@ -1,3 +1,7 @@
+import { Link } from "@tanstack/react-router"
+
+import { tookText } from "@/chat/turn-model"
+
 import {
   EntryBody,
   EntryFrame,
@@ -10,12 +14,39 @@ import {
 import type { TimelineEntry } from "./timeline-model"
 
 type Props = {
+  dashboardId: string
   entry: Extract<TimelineEntry, { kind: "request" }>
   panelTitle: string | null
   onSelectPanel: (panelId: string) => void
 }
 
-export function RequestEntry({ entry, panelTitle, onSelectPanel }: Props) {
+function SavedVersionLink({
+  dashboardId,
+  version,
+}: {
+  dashboardId: string
+  version: number
+}) {
+  return (
+    <Link
+      to="/d/$dashboardId/versions"
+      params={{ dashboardId }}
+      search={
+        version > 1 ? { from: version - 1, to: version } : { to: version }
+      }
+      className="rounded-sm text-foreground underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <ResolvedState text={`Saved as version ${version}`} />
+    </Link>
+  )
+}
+
+export function RequestEntry({
+  dashboardId,
+  entry,
+  panelTitle,
+  onSelectPanel,
+}: Props) {
   const { request, panelId } = entry
   const panel =
     panelId !== null && panelTitle !== null
@@ -39,8 +70,9 @@ export function RequestEntry({ entry, panelTitle, onSelectPanel }: Props) {
         request.result_version === null ? (
           <MetaState>Finished, nothing changed</MetaState>
         ) : (
-          <ResolvedState
-            text={`Resolved by version ${request.result_version}`}
+          <SavedVersionLink
+            dashboardId={dashboardId}
+            version={request.result_version}
           />
         )
       break
@@ -48,6 +80,8 @@ export function RequestEntry({ entry, panelTitle, onSelectPanel }: Props) {
       state = <RequestFailure error={request.error} />
       break
   }
+
+  const took = tookText(request.started_at, request.finished_at)
 
   return (
     <EntryFrame
@@ -58,7 +92,10 @@ export function RequestEntry({ entry, panelTitle, onSelectPanel }: Props) {
       at={request.created_at}
     >
       <EntryBody>{request.prompt}</EntryBody>
-      <EntryMeta>{state}</EntryMeta>
+      <EntryMeta>
+        {state}
+        {took !== undefined ? <MetaState>Took {took}</MetaState> : null}
+      </EntryMeta>
     </EntryFrame>
   )
 }

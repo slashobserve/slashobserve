@@ -223,6 +223,10 @@ export function ActivityCard({
             onSelectPanel={onSelectPanel}
             back={back}
             composerRef={composerRef}
+            range={{
+              from: timeRange.from ?? spec.time.from,
+              to: timeRange.to ?? spec.time.to,
+            }}
           />
         </>
       )}

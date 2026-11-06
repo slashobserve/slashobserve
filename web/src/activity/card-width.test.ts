@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest"
 
 import {
   activityWidth,
+  chatPaneStacked,
   clampWidth,
+  draggedWidth,
   editWidth,
   isStacked,
   maxWidthFor,
@@ -54,5 +56,19 @@ describe("isStacked", () => {
     expect(isStacked(activityWidth, 890)).toBe(false)
     expect(isStacked(editWidth, 1129)).toBe(true)
     expect(isStacked(editWidth, 1130)).toBe(false)
+  })
+})
+
+describe("chatPaneStacked", () => {
+  it("stacks the chat pane at and below 1200px", () => {
+    expect(chatPaneStacked(1200)).toBe(true)
+    expect(chatPaneStacked(1201)).toBe(false)
+  })
+})
+
+describe("draggedWidth", () => {
+  it("widens toward the side the handle sits on", () => {
+    expect(draggedWidth("left", 400, 500, 450)).toBe(450)
+    expect(draggedWidth("right", 400, 500, 450)).toBe(350)
   })
 })

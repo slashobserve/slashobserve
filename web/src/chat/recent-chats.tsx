@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useId } from "react"
+import { LayoutDashboardIcon } from "lucide-react"
 
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
@@ -12,7 +13,7 @@ const recentLimit = 5
 export function RecentChats() {
   const navigate = useNavigate()
   const headingId = useId()
-  const { requests, query } = useMyRequests("observe", recentLimit)
+  const { requests, query } = useMyRequests({ source: "observe" }, recentLimit)
 
   const failed = query.data === undefined && !query.isPending
 
@@ -75,7 +76,7 @@ export function RecentChats() {
                       }
                     >
                       <span className="min-w-0 flex-1 truncate text-[13px] narrow:basis-full">
-                        {request.prompt}
+                        {request.title}
                       </span>
                       <span className="flex flex-none items-center text-xs text-muted-foreground">
                         <StatusLabel tone={view.tone}>
@@ -84,6 +85,17 @@ export function RecentChats() {
                           </span>
                         </StatusLabel>
                       </span>
+                      {request.dashboard_title !== null ? (
+                        <span className="flex max-w-[200px] min-w-0 flex-none items-center gap-1 text-xs text-muted-foreground">
+                          <LayoutDashboardIcon
+                            aria-hidden="true"
+                            className="size-3.5 flex-none"
+                          />
+                          <span className="truncate">
+                            {request.dashboard_title}
+                          </span>
+                        </span>
+                      ) : null}
                       <span className="w-20 flex-none text-right text-xs text-muted-foreground narrow:ml-auto narrow:w-auto">
                         <RelativeTime iso={request.created_at} />
                       </span>

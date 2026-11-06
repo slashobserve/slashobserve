@@ -47,6 +47,14 @@ export function buildPath(requestId: string): string {
   return path("b", requestId)
 }
 
+export function findingPath(findingId: string): string {
+  return path("findings", findingId)
+}
+
+export function findingLink(findingId: string) {
+  return { to: "/findings/$findingId", params: { findingId } } as const
+}
+
 export type LogsLinkSearch = {
   ds?: string
   q?: string

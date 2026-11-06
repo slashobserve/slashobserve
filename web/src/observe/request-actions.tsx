@@ -1,4 +1,6 @@
 import { useId, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { SquareIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { ApiError } from "@/api/errors"
@@ -13,6 +15,7 @@ import {
   continueNoteError,
 } from "./build"
 import {
+  observeRequestQuery,
   useCancelRequest,
   useContinueRequest,
   type ObserveRequest,
@@ -24,30 +27,57 @@ function errorParts(error: unknown): { code: string; message: string } {
     : { code: "", message: "" }
 }
 
+function useCancelRun(id: string) {
+  const cancel = useCancelRequest(id)
+  function run() {
+    cancel.mutate(undefined, {
+      onError: (error) => {
+        const { code, message } = errorParts(error)
+        toast.error(cancelErrorText(code, message))
+      },
+    })
+  }
+  return { pending: cancel.isPending, run }
+}
+
 export function CancelRequestButton({
   request,
 }: {
   request: Pick<ObserveRequest, "id" | "can_cancel" | "cancel_requested_at">
 }) {
-  const cancel = useCancelRequest(request.id)
+  const cancel = useCancelRun(request.id)
   if (!request.can_cancel) return null
-  const canceling = request.cancel_requested_at !== null || cancel.isPending
+  const canceling = request.cancel_requested_at !== null || cancel.pending
   return (
     <Button
       variant="outline"
       size="sm"
       disabled={canceling}
-      aria-busy={cancel.isPending}
-      onClick={() =>
-        cancel.mutate(undefined, {
-          onError: (error) => {
-            const { code, message } = errorParts(error)
-            toast.error(cancelErrorText(code, message))
-          },
-        })
-      }
+      aria-busy={cancel.pending}
+      onClick={cancel.run}
     >
       {canceling ? "Canceling" : "Cancel run"}
+    </Button>
+  )
+}
+
+export function StopRequestButton({ requestId }: { requestId: string }) {
+  const request = useQuery(observeRequestQuery(requestId)).data
+  const cancel = useCancelRun(requestId)
+  if (request === undefined || !request.can_cancel) return null
+  const stopping = request.cancel_requested_at !== null || cancel.pending
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      className="size-8"
+      aria-label={stopping ? "Stopping" : "Stop the run"}
+      disabled={stopping}
+      aria-busy={cancel.pending}
+      onClick={cancel.run}
+    >
+      <SquareIcon />
     </Button>
   )
 }

@@ -69,6 +69,15 @@ describe("stepSummary", () => {
       stepSummary([{ phase: "repair" }, { phase: "repair" }, { phase: "save" }])
     ).toBe("Ran 3 steps, repaired 2 queries")
   })
+
+  it("adds how long the run took after the count", () => {
+    expect(stepSummary([{ phase: "query" }, { phase: "save" }], "1m 12s")).toBe(
+      "Ran 2 steps in 1m 12s"
+    )
+    expect(stepSummary([{ phase: "repair" }], "8s")).toBe(
+      "Ran 1 step in 8s, repaired 1 query"
+    )
+  })
 })
 
 describe("shortRequestId", () => {

@@ -6,7 +6,15 @@ import {
   type PointerEvent,
 } from "react"
 
-import { clampWidth, maxWidthFor, type WidthBounds } from "./card-width"
+import { cn } from "@/lib/utils"
+
+import {
+  clampWidth,
+  draggedWidth,
+  maxWidthFor,
+  type HandleSide,
+  type WidthBounds,
+} from "./card-width"
 
 const keyStep = 16
 const bigKeyStep = 64
@@ -15,9 +23,15 @@ type Props = {
   width: number
   bounds: WidthBounds
   onChange: (width: number) => void
+  side?: HandleSide
 }
 
-export function ResizeHandle({ width, bounds, onChange }: Props) {
+export function ResizeHandle({
+  width,
+  bounds,
+  onChange,
+  side = "left",
+}: Props) {
   const [dragging, setDragging] = useState(false)
   const start = useRef({ x: 0, width: 0 })
 
@@ -43,7 +57,9 @@ export function ResizeHandle({ width, bounds, onChange }: Props) {
 
   function onPointerMove(event: PointerEvent<HTMLDivElement>) {
     if (!dragging) return
-    change(start.current.width + (start.current.x - event.clientX))
+    change(
+      draggedWidth(side, start.current.width, start.current.x, event.clientX)
+    )
   }
 
   function endDrag(event: PointerEvent<HTMLDivElement>) {
@@ -55,11 +71,13 @@ export function ResizeHandle({ width, bounds, onChange }: Props) {
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const step = event.shiftKey ? bigKeyStep : keyStep
+    const widen = side === "left" ? "ArrowLeft" : "ArrowRight"
+    const narrow = side === "left" ? "ArrowRight" : "ArrowLeft"
     switch (event.key) {
-      case "ArrowLeft":
+      case widen:
         change(width + step)
         break
-      case "ArrowRight":
+      case narrow:
         change(width - step)
         break
       case "Home":
@@ -88,7 +106,10 @@ export function ResizeHandle({ width, bounds, onChange }: Props) {
       tabIndex={0}
       title="Drag to resize, double-click to reset"
       data-dragging={dragging ? "" : undefined}
-      className="group absolute inset-y-0 -left-[9px] z-10 grid w-2.5 cursor-col-resize touch-none place-items-center outline-none"
+      className={cn(
+        "group absolute inset-y-0 z-10 grid w-2.5 cursor-col-resize touch-none place-items-center outline-none",
+        side === "left" ? "-left-[9px]" : "-right-[9px]"
+      )}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}

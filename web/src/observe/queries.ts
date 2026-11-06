@@ -12,7 +12,7 @@ import {
 
 import { api } from "@/api/client"
 import { ApiError, maxRetryDelayMs, unwrap } from "@/api/errors"
-import { dashboardKeys, observeKeys } from "@/api/keys"
+import { type ChatListFilters, dashboardKeys, observeKeys } from "@/api/keys"
 import type { components, paths } from "@/api/schema.gen"
 import type { StatusTone } from "@/components/status-label"
 
@@ -104,15 +104,18 @@ export function requestStatusView(
   }
 }
 
-function myRequestsQuery(source: "all" | "observe", limit: number) {
+function myRequestsQuery(filters: ChatListFilters, limit: number) {
   return infiniteQueryOptions({
-    queryKey: observeKeys.mine(source, limit),
+    queryKey: observeKeys.mine(filters, limit),
     queryFn: ({ pageParam, signal }) =>
       api
         .GET("/observe", {
           params: {
             query: {
-              source: source === "observe" ? "observe" : undefined,
+              source: filters.source,
+              q: filters.q,
+              pinned: filters.pinned,
+              dashboard_id: filters.dashboardId,
               limit,
               cursor: pageParam,
             },
@@ -135,8 +138,8 @@ function myRequestsQuery(source: "all" | "observe", limit: number) {
   })
 }
 
-export function useMyRequests(source: "all" | "observe", limit = 20) {
-  const query = useInfiniteQuery(myRequestsQuery(source, limit))
+export function useMyRequests(filters: ChatListFilters, limit = 20) {
+  const query = useInfiniteQuery(myRequestsQuery(filters, limit))
   const requests = useMemo(() => {
     const seen = new Set<string>()
     const unique: RequestSummary[] = []
@@ -189,7 +192,14 @@ export function usePollFailures(id: string): number {
   return query === undefined ? 0 : pollFailures(query)
 }
 
-export type ObserveInput = { prompt: string; dashboardId?: string }
+export type ObserveInput = {
+  prompt: string
+  dashboardId?: string
+  kind?: "build" | "investigate"
+  panelId?: string
+  from?: string
+  to?: string
+}
 
 function recordRequest(queryClient: QueryClient, request: ObserveRequest) {
   queryClient.setQueryData(observeKeys.request(request.id), request)
@@ -206,9 +216,25 @@ export function useCreateObserveRequest() {
   return useMutation({
     mutationKey: observeKeys.create(),
     networkMode: "always",
-    mutationFn: ({ prompt, dashboardId }: ObserveInput) =>
+    mutationFn: ({
+      prompt,
+      dashboardId,
+      kind,
+      panelId,
+      from,
+      to,
+    }: ObserveInput) =>
       api
-        .POST("/observe", { body: { prompt, dashboard_id: dashboardId } })
+        .POST("/observe", {
+          body: {
+            prompt,
+            dashboard_id: dashboardId,
+            ...(kind === undefined ? {} : { kind }),
+            ...(panelId === undefined ? {} : { panel_id: panelId }),
+            ...(from === undefined ? {} : { from }),
+            ...(to === undefined ? {} : { to }),
+          },
+        })
         .then(unwrap)
         .then((body) => body.request),
     onSuccess: (request) => recordRequest(queryClient, request),
@@ -218,6 +244,47 @@ export function useCreateObserveRequest() {
       }
     },
   })
+}
+
+function useChatMutation<Input>(
+  id: string,
+  send: (input: Input) => Promise<unknown>
+) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: send,
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: observeKeys.mineAll() }),
+        queryClient.invalidateQueries({ queryKey: observeKeys.request(id) }),
+      ]),
+  })
+}
+
+export function useRenameChat(id: string) {
+  return useChatMutation(id, (title: string) => {
+    const trimmed = title.trim()
+    return api
+      .PATCH("/observe/{id}", {
+        params: { path: { id } },
+        body: { title: trimmed === "" ? null : trimmed },
+      })
+      .then(unwrap)
+  })
+}
+
+export function usePinChat(id: string) {
+  return useChatMutation(id, (pinned: boolean) =>
+    api
+      .PATCH("/observe/{id}", { params: { path: { id } }, body: { pinned } })
+      .then(unwrap)
+  )
+}
+
+export function useDeleteChat(id: string) {
+  return useChatMutation(id, () =>
+    api.DELETE("/observe/{id}", { params: { path: { id } } }).then(unwrap)
+  )
 }
 
 export function useCancelRequest(id: string) {
