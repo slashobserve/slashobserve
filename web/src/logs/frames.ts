@@ -19,7 +19,7 @@ function frameRows(frame: RowSource): number {
   )
 }
 
-export function rowKey(frame: RowSource, row: number): string {
+function rowKey(frame: RowSource, row: number): string {
   return JSON.stringify([
     sortedLabelPairs(frame.labels),
     ...frame.fields.map((field) => field.values[row]),

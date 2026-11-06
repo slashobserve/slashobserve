@@ -214,6 +214,14 @@ export type ExploreParams = {
   cursor?: string
 }
 
+export type ContextParams = {
+  query: string
+  anchor: string
+  before: number
+  after: number
+  window_ms: number
+}
+
 export type TraceStatsParams = { query: string; from: string; to: string }
 export type TraceCompareParams = {
   selected: string[]
@@ -236,8 +244,8 @@ export const exploreKeys = {
     ["explore", uid, "query", params] as const,
   tail: (uid: string, query: string, session: number) =>
     ["explore", uid, "tail", query, session] as const,
-  context: (uid: string, anchor: string) =>
-    ["explore", uid, "context", anchor] as const,
+  context: (uid: string, params: ContextParams) =>
+    ["explore", uid, "context", params] as const,
   trace: (uid: string, id: string, range: { from: string; to: string }) =>
     ["explore", uid, "trace", id, range] as const,
   traceStats: (uid: string, params: TraceStatsParams) =>

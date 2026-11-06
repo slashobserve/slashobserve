@@ -1,16 +1,21 @@
 import { describe, expect, it } from "vitest"
 
 import type { WireFrame } from "@/dashboards/queries"
+import type { LogDetail, LogEntry } from "@/panels/logs/logs-model"
+import type { PreparedFrame } from "@/panels/transforms"
 
 import {
-  clickhouseContextQueries,
+  anchorFrames,
+  anchorMatcher,
+  anchorNs,
+  clickhouseLogsTemplate,
   contextFrames,
-  lokiAfterQuery,
-  lokiBeforeQuery,
+  contextQueryFor,
+  dateFieldNote,
   lokiStreamSelector,
-  nextAfterStep,
+  moreLines,
+  type LogContext,
 } from "./context-query"
-import { rowCount, rowKey } from "./frames"
 
 describe("lokiStreamSelector", () => {
   const labels = {
@@ -47,123 +52,196 @@ describe("lokiStreamSelector", () => {
   })
 })
 
-describe("Loki context queries", () => {
-  it("reads the 51 newest lines of the hour before the line", () => {
-    expect(lokiBeforeQuery('{a="b"}', 1_760_000_000_000)).toEqual({
-      query: '{a="b"}',
-      kind: "instant",
-      from: "1759996400000",
-      to: "1760000000001",
-      limit: 51,
-    })
-  })
+function entryOf(
+  details: LogDetail[],
+  extra: Partial<LogEntry> = {}
+): LogEntry {
+  return {
+    key: "k",
+    time: null,
+    level: null,
+    message: "line",
+    labels: {},
+    repeats: 1,
+    details,
+    ...extra,
+  }
+}
 
-  it("widens the window after the line step by step", () => {
-    expect(lokiAfterQuery('{a="b"}', 1_760_000_000_000, 0)).toEqual({
-      query: '{a="b"}',
-      kind: "instant",
-      from: "1760000000000",
-      to: "1760000010000",
-      limit: 1000,
-    })
-    expect(lokiAfterQuery('{a="b"}', 1_760_000_000_000, 3).to).toBe(
-      "1760003600000"
+function texts(pairs: [string, string][]): LogDetail[] {
+  return pairs.map(([name, text]) => ({ name, text }))
+}
+
+describe("contextQueryFor", () => {
+  const labels = { service_name: "checkout", trace_id: "abc" }
+
+  it("gives the stream selector on Loki and nothing without a stream label", () => {
+    expect(contextQueryFor("loki", entryOf([]), labels, undefined)).toBe(
+      '{service_name="checkout"}'
     )
+    expect(
+      contextQueryFor("loki", entryOf([]), { trace_id: "abc" }, undefined)
+    ).toBeNull()
   })
 
-  it.each([
-    ["fewer than 50 lines after", 0, 10, false, 1],
-    ["50 lines after", 0, 50, false, null],
-    ["a saturated result", 0, 10, true, null],
-    ["the last step", 3, 10, false, null],
-  ])("for %s gives the next step %s", (_, step, after, saturated, next) => {
-    expect(nextAfterStep(step, after, saturated)).toBe(next)
-  })
-})
-
-describe("clickhouseContextQueries", () => {
-  it("builds the queries before and after the line in the same service", () => {
-    expect(clickhouseContextQueries("check'out", 1_760_000_000_000)).toEqual({
-      before: {
-        query: `SELECT Timestamp, SeverityText, Body, ServiceName, TraceId, SpanId, LogAttributes
+  it("narrows the ClickHouse template to the line's service before the ORDER BY", () => {
+    const entry = entryOf(texts([["ServiceName", "check'out"]]))
+    expect(contextQueryFor("clickhouse", entry, {}, undefined)).toBe(
+      `SELECT Timestamp, SeverityText, Body, ServiceName, TraceId, SpanId, LogAttributes
 FROM otel_logs
 WHERE $__timeFilter(Timestamp) AND ServiceName = 'check\\'out'
 ORDER BY Timestamp DESC
-LIMIT 51`,
-        kind: "instant",
-        from: "1759996400000",
-        to: "1760000000001",
-      },
-      after: {
-        query: `SELECT Timestamp, SeverityText, Body, ServiceName, TraceId, SpanId, LogAttributes
-FROM otel_logs
-WHERE $__timeFilter(Timestamp) AND ServiceName = 'check\\'out'
-ORDER BY Timestamp ASC
-LIMIT 51`,
-        kind: "instant",
-        from: "1760000000000",
-        to: "1760003600000",
-      },
-    })
+LIMIT 1000`
+    )
+  })
+
+  it("keeps the ClickHouse template when the line has no service", () => {
+    expect(contextQueryFor("clickhouse", entryOf([]), {}, undefined)).toBe(
+      clickhouseLogsTemplate
+    )
+  })
+
+  it.each(["elasticsearch", "opensearch"])(
+    "matches every document on %s",
+    (type) => {
+      expect(contextQueryFor(type, entryOf([]), {}, undefined)).toBe("*")
+    }
+  )
+
+  it("gives null for a datasource type with no lines", () => {
+    expect(
+      contextQueryFor("prometheus", entryOf([]), labels, undefined)
+    ).toBeNull()
   })
 })
 
-function frameOf(times: number[]): WireFrame {
+describe("anchorNs", () => {
+  it("reads the TimeNs detail", () => {
+    const entry = entryOf(texts([["TimeNs", "1760000000123456789"]]), {
+      time: 1_760_000_000_123,
+    })
+    expect(anchorNs(entry)).toBe("1760000000123456789")
+  })
+
+  it("falls back to the millisecond time", () => {
+    expect(anchorNs(entryOf([], { time: 1_760_000_000_123 }))).toBe(
+      "1760000000123000000"
+    )
+  })
+
+  it("is null with neither", () => {
+    expect(anchorNs(entryOf([]))).toBeNull()
+    expect(anchorNs(entryOf(texts([["TimeNs", " "]])))).toBeNull()
+  })
+})
+
+describe("anchorMatcher", () => {
+  const anchor = entryOf(texts([["TimeNs", "100"]]), { message: "boom" })
+
+  it.each([
+    ["the same line", "100", "boom", true],
+    ["another nanosecond", "101", "boom", false],
+    ["another message", "100", "other", false],
+  ])("for %s says %s", (_, ns, message, expected) => {
+    const candidate = entryOf(texts([["TimeNs", ns]]), { message })
+    expect(anchorMatcher(anchor)(candidate)).toBe(expected)
+  })
+})
+
+function frameOf(ns: string[]): PreparedFrame {
   return {
     ref: "A",
     labels: { service_name: "checkout" },
     fields: [
-      { name: "Time", type: "time", values: times },
-      { name: "Body", type: "string", values: times.map((t) => `line ${t}`) },
+      { name: "Time", type: "time", values: ns.map((n) => Number(n) / 1e6) },
+      { name: "TimeNs", type: "string", values: ns },
+      { name: "Body", type: "string", values: ns.map((n) => `line ${n}`) },
     ],
   }
 }
 
-function keptTimes(frames: WireFrame[]): number[] {
-  return frames
-    .flatMap((frame) => frame.fields[0].values as number[])
-    .sort((a, b) => a - b)
+function bodies(frames: readonly WireFrame[]): unknown[] {
+  return frames.flatMap(
+    (frame) => frame.fields.find((field) => field.name === "Body")?.values ?? []
+  )
 }
 
+describe("anchorFrames", () => {
+  it("keeps only the selected row of the frame it came from", () => {
+    const frame = frameOf(["3000000", "2000000", "1000000"])
+    const entry = entryOf(
+      [{ name: "Body", field: frame.fields[2], frame, index: 1 }],
+      { time: 2 }
+    )
+    const kept = anchorFrames(entry)
+    expect(kept).toHaveLength(1)
+    expect(bodies(kept)).toEqual(["line 2000000"])
+    expect(kept[0].labels).toEqual({ service_name: "checkout" })
+  })
+
+  it("gives no frame for an entry made of text details", () => {
+    expect(anchorFrames(entryOf(texts([["a", "b"]])))).toEqual([])
+  })
+})
+
 describe("contextFrames", () => {
-  it("keeps 50 lines before, the line and 50 after out of 300", () => {
-    const times = Array.from({ length: 300 }, (_, i) => 1_000 + i)
-    const frame = frameOf(times)
-    const kept = contextFrames([frame], {
-      time: 1_150,
-      key: rowKey(frame, 150),
-    })
-    expect(rowCount(kept)).toBe(101)
-    expect(keptTimes(kept)[0]).toBe(1_100)
-    expect(keptTimes(kept)[100]).toBe(1_200)
-  })
-
-  it("keeps what there is when one side has fewer than 50", () => {
-    const frame = frameOf(Array.from({ length: 100 }, (_, i) => 1_000 + i))
-    const kept = contextFrames([frame], { time: 1_010, key: null })
-    expect(keptTimes(kept)[0]).toBe(1_000)
-    expect(rowCount(kept)).toBe(61)
-  })
-
-  it("drops a row both queries returned", () => {
-    const before = frameOf([1, 2, 3])
-    const after = frameOf([3, 4])
-    const kept = contextFrames([before, after], {
-      time: 3,
-      key: rowKey(before, 2),
-    })
-    expect(keptTimes(kept)).toEqual([1, 2, 3, 4])
-  })
-
-  it("orders lines at the anchor's millisecond by position when the key differs", () => {
-    const frame: WireFrame = {
-      ref: "A",
-      fields: [
-        { name: "Time", type: "time", values: [5, 5, 5, 6] },
-        { name: "Body", type: "string", values: ["a", "b", "c", "d"] },
-      ],
+  it("lists the older lines oldest first, then the line, then the newer lines", () => {
+    const context: LogContext = {
+      anchor: "5000000",
+      before: {
+        frames: [frameOf(["4000000", "3000000"]), frameOf(["2500000"])],
+        truncated: false,
+      },
+      after: { frames: [frameOf(["6000000", "7000000"])], truncated: true },
     }
-    const kept = contextFrames([frame], { time: 5, key: rowKey(frame, 1) }, 1)
-    expect(kept[0].fields[1].values).toEqual(["a", "b", "c"])
+    const frames = contextFrames(context, [frameOf(["5000000"])])
+    expect(bodies(frames)).toEqual([
+      "line 2500000",
+      "line 3000000",
+      "line 4000000",
+      "line 5000000",
+      "line 6000000",
+      "line 7000000",
+    ])
+  })
+
+  it("does not change the response it was given", () => {
+    const before = frameOf(["2000000", "1000000"])
+    contextFrames(
+      {
+        anchor: "3000000",
+        before: { frames: [before], truncated: false },
+        after: { frames: [], truncated: false },
+      },
+      []
+    )
+    expect(bodies([before])).toEqual(["line 2000000", "line 1000000"])
+  })
+})
+
+describe("moreLines", () => {
+  it.each([
+    [50, 60],
+    [490, 500],
+    [495, 500],
+    [500, 500],
+  ])("takes %s lines to %s", (count, next) => {
+    expect(moreLines(count)).toBe(next)
+  })
+})
+
+describe("dateFieldNote", () => {
+  const whole = frameOf(["1760000000123000000"])
+  const fine = frameOf(["1760000000123456789"])
+
+  it.each([
+    ["elasticsearch", [whole], true],
+    ["opensearch", [fine, whole], true],
+    ["elasticsearch", [fine], false],
+    ["elasticsearch", [], false],
+    ["loki", [whole], false],
+    ["clickhouse", [whole], false],
+  ])("on %s with these lines says %s", (type, frames, expected) => {
+    expect(dateFieldNote(type, frames)).toBe(expected)
   })
 })
