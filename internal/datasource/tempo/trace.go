@@ -63,6 +63,7 @@ type spanRow struct {
 	duration                                 int64
 	status, attributes, resource             string
 	kind, events, links                      string
+	attrs, res                               map[string]any
 	spans, errors                            *int64
 }
 
@@ -73,37 +74,45 @@ func (d *Datasource) Trace(ctx context.Context, id string, r datasource.TimeRang
 }
 
 func (d *Datasource) trace(ctx context.Context, id string, r datasource.TimeRange, maxSpans int) (datasource.Frame, error) {
+	rows, payloadBytes, err := d.fetchSpans(ctx, id, r)
+	if err != nil {
+		return datasource.Frame{}, err
+	}
+	f := spanFrame(rows[:min(len(rows), maxSpans)])
+	f.Meta = &datasource.FrameMeta{Bytes: int64(payloadBytes)}
+	if len(rows) > maxSpans {
+		f.Meta.Truncated, f.Meta.RowsTotal = true, len(rows)
+	}
+	return f, nil
+}
+
+func (d *Datasource) fetchSpans(ctx context.Context, id string, r datasource.TimeRange) ([]spanRow, int, error) {
 	params := url.Values{
 		"start": {strconv.FormatInt(r.From.Unix(), 10)},
 		"end":   {strconv.FormatInt(ceilSeconds(r.To), 10)},
 	}
 	status, raw, err := d.fetch(ctx, "/api/traces/"+id, params)
 	if err != nil {
-		return datasource.Frame{}, err
+		return nil, 0, err
 	}
 	if status == http.StatusNotFound {
-		return datasource.Frame{}, traceNotFound()
+		return nil, 0, traceNotFound()
 	}
 	if err := statusError(status, raw); err != nil {
-		return datasource.Frame{}, err
+		return nil, 0, err
 	}
 	var resp traceResponse
 	if json.Unmarshal(raw, &resp) != nil {
-		return datasource.Frame{}, unreadable()
+		return nil, 0, unreadable()
 	}
 	rows, err := spanRows(resp)
 	if err != nil {
-		return datasource.Frame{}, err
+		return nil, 0, err
 	}
 	if len(rows) == 0 {
-		return datasource.Frame{}, traceNotFound()
+		return nil, 0, traceNotFound()
 	}
-	f := spanFrame(rows[:min(len(rows), maxSpans)])
-	f.Meta = &datasource.FrameMeta{Bytes: int64(len(raw))}
-	if len(rows) > maxSpans {
-		f.Meta.Truncated, f.Meta.RowsTotal = true, len(rows)
-	}
-	return f, nil
+	return rows, len(raw), nil
 }
 
 func traceNotFound() error {
@@ -121,7 +130,7 @@ func spanRows(resp traceResponse) ([]spanRow, error) {
 		}
 		for _, scope := range batch.ScopeSpans {
 			for _, s := range scope.Spans {
-				row, err := toRow(s, service, string(resourceJSON))
+				row, err := toRow(s, service, resource, string(resourceJSON))
 				if err != nil {
 					return nil, err
 				}
@@ -135,11 +144,12 @@ func spanRows(resp traceResponse) ([]spanRow, error) {
 	return rows, nil
 }
 
-func toRow(s span, service, resource string) (spanRow, error) {
+func toRow(s span, service string, resource map[string]any, resourceJSON string) (spanRow, error) {
 	traceID, err1 := hexID(s.TraceID)
 	spanID, err2 := hexID(s.SpanID)
 	parentID, err3 := hexID(s.ParentSpanID)
-	attributes, err4 := json.Marshal(attributeMap(s.Attributes))
+	attrs := attributeMap(s.Attributes)
+	attributes, err4 := json.Marshal(attrs)
 	events, err5 := eventsJSON(s.Events)
 	links, err6 := linksJSON(s.Links)
 	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || spanID == "" {
@@ -155,10 +165,12 @@ func toRow(s span, service, resource string) (spanRow, error) {
 		duration:   max(0, int64(s.End-s.Start)),
 		status:     statusName(s.Status.Code),
 		attributes: string(attributes),
-		resource:   resource,
+		resource:   resourceJSON,
 		kind:       kindName(s.Kind),
 		events:     events,
 		links:      links,
+		attrs:      attrs,
+		res:        resource,
 	}, nil
 }
 
@@ -205,13 +217,7 @@ func hexID(id string) (string, error) {
 }
 
 func statusName(code json.RawMessage) string {
-	switch strings.Trim(string(code), `"`) {
-	case "1", "STATUS_CODE_OK":
-		return "Ok"
-	case "2", "STATUS_CODE_ERROR":
-		return "Error"
-	}
-	return "Unset"
+	return datasource.SpanStatusName(strings.Trim(string(code), `"`))
 }
 
 func attributeMap(kvs []keyValue) map[string]any {
