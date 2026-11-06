@@ -103,7 +103,11 @@ The overview strip above the ruler draws the whole trace in one line per span; d
 A click on a span shows its details in the pane beside it, or inline under the span on a screen 760 pixels wide or narrower: the service and the span's kind (server, client, producer, consumer or internal), its name, its status, duration, share of the trace and start offset, then its span attributes, its resource attributes and its events.
 Each attribute row offers **Copy value** and, on Tempo, **Search traces where** the attribute is, or is not, that value, which opens the trace search with that TraceQL filter.
 An event, such as an `exception`, shows its name, its offset from the span's start and its attributes, and the span's bar carries a dot at each event.
-Each span offers **Logs**, which opens the logs page on the lines carrying the trace id (and the span id when the datasource stores it) during the trace.
+A span's details end with **Logs for this span**: the first lines that carry its trace id and span id, read from the Loki or ClickHouse logs datasource, with the count of lines found.
+**Open in Logs** continues with those lines on the logs page, filtered on the trace id and span id over the span's window plus a minute on each side.
+When a span logged nothing, **Try the whole trace** opens the trace's logs instead.
+**Logs for this trace** in the header opens a panel with every line of the trace, oldest first, up to the newest 500, and the same **Open in Logs** link.
+A ClickHouse trace reads its logs from a ClickHouse datasource and a Tempo trace from Loki; with more than one logs datasource, a select in the section picks one and the choice is remembered in the browser.
 While a span is open the address carries `span=<span id>`, so a copied link opens on that span with its row scrolled into view.
 The keys the waterfall answers are listed in [Keyboard shortcuts](keyboard-shortcuts.md).
 The view looks for the spans in the last 24 hours, or within an hour of the line when you came from the logs page; a trace outside the range says so and offers **Last 7 days** to widen it.
