@@ -225,17 +225,17 @@ func (s *session) checkResult(ctx context.Context, index, i int, r llm.ToolResul
 		wantError = *expect[i].IsError
 	}
 	if r.IsError != wantError {
-		s.logExpectationFailure(ctx, index, i, call.Name, r, wantError)
+		s.logExpectationFailure(ctx, index, i, call.Name, r, wantError, "")
 		return fmt.Errorf("%s: is_error was %t, expected %t", where, r.IsError, wantError)
 	}
 	if expect != nil && !strings.Contains(r.Content, expect[i].Contains) {
-		s.logExpectationFailure(ctx, index, i, call.Name, r, wantError)
+		s.logExpectationFailure(ctx, index, i, call.Name, r, wantError, expect[i].Contains)
 		return fmt.Errorf("%s: result does not contain %q", where, expect[i].Contains)
 	}
 	return nil
 }
 
-func (s *session) logExpectationFailure(ctx context.Context, turn, call int, tool string, r llm.ToolResult, wantError bool) {
+func (s *session) logExpectationFailure(ctx context.Context, turn, call int, tool string, r llm.ToolResult, wantError bool, missing string) {
 	attrs := []any{
 		slog.String("fixture", s.fixture.File),
 		slog.Int("turn", turn),
@@ -248,7 +248,10 @@ func (s *session) logExpectationFailure(ctx context.Context, turn, call int, too
 	if code := toolErrorCode(r); code != "" {
 		attrs = append(attrs, slog.String("tool_error_code", code))
 	}
-	s.logger.DebugContext(ctx, "replay expectation failed", attrs...)
+	if missing != "" {
+		attrs = append(attrs, slog.String("expected_contains", missing))
+	}
+	s.logger.WarnContext(ctx, "replay expectation failed", attrs...)
 }
 
 func toolErrorCode(r llm.ToolResult) string {
