@@ -410,3 +410,21 @@ describe("viewing keys", () => {
     )
   })
 })
+
+describe("chat", () => {
+  it("round-trips a request id through the URL", () => {
+    const state = validateDashboardSearch(parseSearch("?chat=a77cc709-4b1e_9"))
+    expect(state).toEqual({ chat: "a77cc709-4b1e_9", vars: {} })
+    expect(searchFromState(state)).toEqual({ chat: "a77cc709-4b1e_9" })
+    expect(validateDashboardSearch(searchFromState(state))).toEqual(state)
+  })
+
+  it.each([
+    ["an empty id", ""],
+    ["an id with a space", "a b"],
+    ["an id with a slash", "a/b"],
+    ["an id longer than 64 characters", "a".repeat(65)],
+  ])("drops %s", (_name, chat) => {
+    expect(validateDashboardSearch({ chat })).toEqual({ vars: {} })
+  })
+})
