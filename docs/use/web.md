@@ -44,3 +44,17 @@ The old forms keep working and redirect with `301 Moved Permanently`, keeping th
 The server redirects only when the id is a UUID, and the web app does the same for links it follows itself.
 `/dashboards/by-title?title=<title>` is not an id address and keeps working as described in [ObserveSpec](../concepts/observespec.md).
 Opening a Grafana dashboard's own `/d/<uid>` address will come with the Grafana migration page.
+
+## Home page and stars
+
+The home page lists your dashboards below the chat composer and its example prompts, or above the model note when no model is connected.
+Starred dashboards come first, newest star first, then Recently viewed: the last five dashboards you opened in this browser that are not starred.
+When you have neither, it lists the first eight dashboards you can see, folder by folder, so a fresh demo shows its three provisioned dashboards.
+The search box below them finds dashboards by title or description, and `tag:` words narrow it to tags: `tag:prod latency` finds dashboards tagged `prod` that mention `latency`.
+Arrow keys move through the results and Enter opens one.
+
+Star a dashboard with the **Star** button in its header; it then reads **Starred**, and pressing it again removes the star.
+Stars belong to you and are stored on the server, so they follow you to every browser, and `GET /api/v1/stars` lists them.
+Only people star: a service-account key gets `403 user_session_required`.
+A starred dashboard in a folder you can no longer see leaves the list, and deleting a dashboard removes its stars.
+Recently viewed dashboards stay in this browser's local storage, at most 20, and never reach the server.

@@ -232,3 +232,16 @@ export const annotationKeys = {
     ["annotations", dashboardId, "range", from, to] as const,
   tags: (dashboardId: string) => ["annotations", dashboardId, "tags"] as const,
 }
+
+export type HomeSearch = { q?: string; tag: string[] }
+
+export const starKeys = {
+  all: ["stars"] as const,
+  list: () => ["stars", "list"] as const,
+}
+
+export const homeKeys = {
+  firstDashboards: () => ["dashboards", "list", "home-first"] as const,
+  search: (search: HomeSearch) =>
+    ["dashboards", "list", "home-search", search] as const,
+}

@@ -19,6 +19,7 @@ import { useComments } from "@/comments/queries"
 import { openThreadCount, openThreadsByPanel } from "@/comments/threads"
 import { Skeleton } from "@/components/ui/skeleton"
 import { foldersQuery } from "@/folders/queries"
+import { StarToggle } from "@/home/star-toggle"
 import { cn } from "@/lib/utils"
 import { refreshToMs, timeOptionsFor } from "@/lib/time"
 import { madeByBreadcrumb } from "@/lib/origin"
@@ -443,6 +444,7 @@ function DashboardView({
       cursorSync={cursorSync}
       onCursorSyncChange={chooseCursorSync}
     />,
+    <StarToggle key="star" dashboardId={dashboardId} />,
     <ShareToggle
       key="share"
       pressed={search.share === true && !editing}

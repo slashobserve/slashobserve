@@ -35,6 +35,7 @@ The first run downloads about 0.7 GB of images, which take about 2.7 GB on disk,
 It passes `SLASHOBSERVE_LLM_PROVIDER`, `SLASHOBSERVE_LLM_MODEL`, `SLASHOBSERVE_LLM_API_KEY` and `SLASHOBSERVE_LLM_BASE_URL` from your shell to the server container; the other LLM settings are not forwarded.
 Run `make demo` again after changing them.
 Without a provider the demo still starts, but prompts get `503 agent_unavailable`.
+The home page then shows the three dashboards and the **Import from Grafana** link in place of the composer, so you can look around before you add a key.
 To build the server and shop images from your working tree instead of pulling them, which is for people changing the code, run `make demo-build`.
 Prometheus is on http://localhost:9090 and the shop's fault API on http://localhost:8081/fault.
 Stop the stack with `make demo-down`, or drop its data as well with `make demo-reset`.

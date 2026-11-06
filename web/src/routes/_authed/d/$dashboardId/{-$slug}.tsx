@@ -20,6 +20,7 @@ import {
   validateDashboardSearch,
   type DashboardSearchParams,
 } from "@/dashboards/search"
+import { useRecordRecent } from "@/home/recent"
 import { dashboardLink } from "@/lib/links"
 
 export const Route = createFileRoute("/_authed/d/$dashboardId/{-$slug}")({
@@ -105,6 +106,7 @@ function DashboardRoute() {
   const queryClient = useQueryClient()
   const title = useQuery(latestDashboardQuery(queryClient, dashboardId)).data
     ?.dashboard.title
+  useRecordRecent(dashboardId, title)
   useEffect(() => {
     if (title === undefined) return
     const canonical = dashboardLink(dashboardId, title)
