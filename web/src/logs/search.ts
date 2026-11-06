@@ -4,12 +4,15 @@ import { isTimeValue } from "@/lib/time"
 export type LogsSearch = {
   ds?: string
   q?: string
+  ask?: string
   from?: string
   to?: string
 }
 
 const datasourcePattern = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/
 const maxQueryLength = 8000
+const maxAskLength = 2000
+const controlCharacter = /\p{Cc}/u
 
 export const logsDatasourceTypes = ["loki", "clickhouse"] as const
 
@@ -33,6 +36,16 @@ export function validQuery(value: unknown): string | undefined {
     : undefined
 }
 
+export function validAsk(value: unknown): string | undefined {
+  const ask = firstString(value)
+  return ask !== undefined &&
+    ask.length >= 1 &&
+    ask.length <= maxAskLength &&
+    !controlCharacter.test(ask)
+    ? ask
+    : undefined
+}
+
 export function validRange(raw: Record<string, unknown>): {
   from: string | undefined
   to: string | undefined
@@ -51,6 +64,7 @@ export function validateLogsSearch(raw: Record<string, unknown>): LogsSearch {
   return {
     ds: validDatasource(raw.ds),
     q: validQuery(raw.q),
+    ask: validAsk(raw.ask),
     ...validRange(raw),
   }
 }
