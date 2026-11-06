@@ -100,6 +100,10 @@ It answers 503 `agent_unavailable` when no LLM provider is configured.
 
 `POST /api/v1/health/run` needs the Admin role and answers 202 while the run starts in the background.
 
+## From the CLI
+
+`observe health` lists the same problems in a terminal, `observe health repair <dashboard-id>...` queues repairs and `observe health run` starts a check; see [CLI](cli.md).
+
 ## From MCP clients
 
 MCP clients call `list_dashboard_health` with a Viewer key or higher: it takes `folder_id`, `kind`, `limit` (up to 50) and `cursor`, and answers the same dashboards and problems with the state of the job.
