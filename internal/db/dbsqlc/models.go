@@ -259,6 +259,21 @@ type ProvisionedDashboard struct {
 	UpdatedAt     pgtype.Timestamptz
 }
 
+type PublicLink struct {
+	ID            pgtype.UUID
+	DashboardID   pgtype.UUID
+	TokenHash     []byte
+	DisplayPrefix string
+	Variables     string
+	Selections    []byte
+	ExpiresAt     pgtype.Timestamptz
+	CreatedByKind string
+	CreatedByID   pgtype.UUID
+	CreatedByName string
+	CreatedAt     pgtype.Timestamptz
+	LastViewedAt  pgtype.Timestamptz
+}
+
 type SavedPrompt struct {
 	ID        pgtype.UUID
 	OwnerID   pgtype.UUID

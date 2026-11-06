@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -28,6 +29,10 @@ type Registrar interface {
 	Register(auth.Routes)
 }
 
+type PublicRegistrar interface {
+	RegisterPublic(*gin.RouterGroup)
+}
+
 type Mount struct {
 	Path    string
 	Handler http.Handler
@@ -48,6 +53,7 @@ type Options struct {
 	Datasources     *datasource.Registry
 	DatasourceUsage DatasourceUsage
 	API             []Registrar
+	Public          []PublicRegistrar
 	Mounts          []Mount
 	Redirects       Redirects
 	Metrics         RequestMetrics
@@ -74,6 +80,10 @@ func New(opts Options) (http.Handler, error) {
 		apiGroup.Use(checked.middleware)
 		opts.Logger.Warn("api contract check enabled")
 	}
+	public := apiGroup.Group(publicPrefix, noStore)
+	for _, r := range opts.Public {
+		r.RegisterPublic(public)
+	}
 	authenticated := opts.Auth.Mount(apiGroup)
 	authenticated.Use(origin.Middleware)
 	registerDatasourceRoutes(authenticated, opts.Datasources, opts.DatasourceUsage, opts.Logger)
@@ -96,7 +106,7 @@ func recoverPanics(logger *slog.Logger) gin.HandlerFunc {
 	return gin.CustomRecoveryWithWriter(io.Discard, func(c *gin.Context, recovered any) {
 		logger.ErrorContext(c.Request.Context(), "panic serving request",
 			slog.String("method", c.Request.Method),
-			slog.String("path", c.Request.URL.Path),
+			slog.String("path", loggedPath(c.Request.URL.Path)),
 			slog.String("panic_type", fmt.Sprintf("%T", recovered)))
 		c.AbortWithStatus(http.StatusInternalServerError)
 	})
@@ -120,11 +130,34 @@ func logRequests(logger *slog.Logger) gin.HandlerFunc {
 		}
 		logger.LogAttrs(c.Request.Context(), level, "http request",
 			slog.String("method", c.Request.Method),
-			slog.String("path", c.Request.URL.Path),
+			slog.String("path", loggedPath(c.Request.URL.Path)),
 			slog.Int("status", c.Writer.Status()),
 			slog.Int("bytes", c.Writer.Size()),
 			slog.Duration("duration", time.Since(start)))
 	}
+}
+
+const publicPrefix = "/public"
+
+var tokenPathPrefixes = []string{apiPrefix + publicPrefix + "/", "/p/"}
+
+func loggedPath(urlPath string) string {
+	for _, prefix := range tokenPathPrefixes {
+		rest, ok := strings.CutPrefix(urlPath, prefix)
+		if !ok || rest == "" {
+			continue
+		}
+		if _, tail, more := strings.Cut(rest, "/"); more {
+			return prefix + ":token/" + tail
+		}
+		return prefix + ":token"
+	}
+	return urlPath
+}
+
+func noStore(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
+	c.Next()
 }
 
 const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'self'; base-uri 'none'; frame-ancestors 'none'"

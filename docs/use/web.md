@@ -14,10 +14,17 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/logs` | The logs page; `ds`, `q`, `from` and `to` in the query string reopen a search. |
 | `/traces` | The trace search. |
 | `/t/<trace id>?ds=<datasource uid>` | One trace in a Tempo or ClickHouse datasource. |
+| `/p/<token>` | A dashboard opened through a public link, with no sign-in. |
 
 [Logs and traces](logs-and-traces.md) describes the logs page, the trace search and the trace view.
 
 The lists keep their names: `/dashboards` lists dashboards and `/` is the **Observe** chat home.
+
+## Public links
+
+A dashboard's Share pane can create a public link, whose `/p/<token>` address opens the dashboard read-only for anyone who has it, without signing in.
+The page reads only the time range, the refresh interval and, on a free link, the variables the viewer may choose from its address.
+[Public links](public-links.md) describes who can create one, what the view shows, and how to revoke one.
 
 ## Slugs
 

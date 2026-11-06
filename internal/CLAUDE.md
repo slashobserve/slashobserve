@@ -20,6 +20,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `agent`: the agent loop; `agent/tools` is the only place agent tools are defined; `agent/prompts` holds the embedded prompts.
 - `findings`: stores investigate results; `revisions` reads them only through sqlc and the `ObserveOptions.Finding` func, and never imports `findings`.
 - `stars`: each person's starred dashboards, stored on the server so they follow the person across browsers; keys get 403 `user_session_required`, and recently viewed dashboards stay in the browser.
+- `public`: public dashboard links, their tokens, the public Spec without query text and the frozen and free variable rule (`EffectiveSelections`); `proxyhttp` imports it, never the reverse.
 
 ## Secrets and configuration
 
@@ -43,12 +44,15 @@ This lists only the packages whose purpose the name does not make obvious.
   A comment tool called inside an agent run is rejected with `invalid_request`, because the server answers and resolves threads after a run; comment tools never queue revisions.
 - A tool's `MinRole` is checked when the tool is called, not when tools are listed, and only for keys outside agent runs.
   Inside a run the requester's folder level decides.
-- Every `/api/v1` route except `/api/v1/auth/*` is registered through `auth.Routes` with its lowest role (`auth.RequireRole`).
-  Feature packages register through `Register(api auth.Routes)` and never see a raw gin group.
+- Every `/api/v1` route except `/api/v1/auth/*` and `/api/v1/public/*` is registered through `auth.Routes` with its lowest role (`auth.RequireRole`).
+  Feature packages register through `Register(api auth.Routes)` and never see a raw gin group, except a `server.PublicRegistrar`, whose `RegisterPublic` gets the `/api/v1/public` group: no session, `Cache-Control: no-store`, and the token in the path as the only credential.
+  Only `public.Handler` and `proxyhttp.PublicData` register there.
   Handlers never check roles.
   `auth.RequireUser` is a separate principal-kind check after the role, so a key cannot manage keys whatever its role.
 - The OIDC `groups` scope is requested only when discovery lists it in `scopes_supported`.
-- Sessions and keys are opaque random tokens stored only as SHA-256.
+- Sessions, keys and public link tokens are opaque random tokens stored only as SHA-256.
+  Request and panic logs pass the path through `loggedPath`, which replaces the token of `/api/v1/public/<token>` and `/p/<token>` with `:token`.
+- Creating, listing and revoking a public link needs Manage on the dashboard's folder; the routes declare `RequireDashboard(NeedView)` and `public.Service` decides, so a dashboard in a personal folder answers 409 `personal_folder` and one whose latest version reads `${__user.*}` answers 422 `user_scoped`.
   Cookie-authenticated mutations pass `http.CrossOriginProtection`.
 - Origin is a display label and never an access decision.
 
@@ -168,6 +172,9 @@ This lists only the packages whose purpose the name does not make obvious.
 - The second exception is `GET /api/v1/observe/{id}/build/panels/{panel_id}/data` and `.../build/variables/{name}/values`: they load the requester's stored build on the server (`proxyhttp/build.go`), run under `DraftLimits`, never cache or coalesce, and refuse a bearer key (403 `user_session_required`).
 - The third exception is `POST /api/v1/datasources/{uid}/query` (`proxyhttp/explore.go`), the logs page's, trace view's and CLI's explore query: it runs the given text against one datasource as a one-query panel with no variables under `DraftLimits` (`limit` only lowers `MaxRows`), never caches, coalesces or aligns an instant range, counts against the in-flight cap and accepts service-account keys from Viewer up.
 - The fourth exception is `GET /api/v1/findings/{id}/panels/{panel_id}/data` (`proxyhttp/finding.go`): it runs only a query stored with a finding and checked when the finding was saved, under `DraftLimits`, never caches, and refuses a bearer key (403 `user_session_required`).
+- The fifth exception is `GET /api/v1/public/{token}/panels/{panel_id}/data` and `.../variables/{name}/values` (`proxyhttp/public.go`): no session, the link's dashboard at its latest version only, the shared caches, and in-flight slots keyed `public:<link id>`.
+  A frozen link uses its stored selections and a free one accepts a value only when `public.EffectiveSelections` finds it among the options the values path computes (through `variableOptions` and the values cache); a version that reads `${__user.*}` answers 404.
+  `GET /api/v1/public/{token}` serves the Spec with every panel and variable `query` emptied.
 - `spec/examples/time/resolve-cases.json` keeps the Go and TS relative time resolution in step.
 - Variable values reach queries only through `internal/datasource/macros`.
 - A Spec names a datasource by uid or as `${name}` naming a datasource variable.

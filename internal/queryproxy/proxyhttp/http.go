@@ -408,34 +408,40 @@ func (h *Handler) serveValues(c *gin.Context, p params, v loadedVersion, name st
 		h.fail(c, err)
 		return
 	}
-	rng = align(rng, queryproxy.KindRange, defaultMaxDataPoints).rng
-	user, scope := cacheScope(ctx, v)
-	if cached == nil {
-		options, truncated, err := h.runner.VariableValues(ctx, d, name, rng, p.selections, user)
-		if err != nil {
-			h.fail(c, err)
-			return
-		}
-		c.JSON(http.StatusOK, newValuesEntry(options, truncated).response(false))
-		return
-	}
-	key := valuesKey(cached.id, cached.version, name, rng.From, rng.To, p.selections, scope)
-	if entry, _, ok := h.caches.values.Get(key); ok {
-		c.JSON(http.StatusOK, entry.response(true))
-		return
-	}
-	options, truncated, err := h.runner.VariableValues(ctx, d, name, rng, p.selections, user)
+	entry, hit, err := h.variableOptions(ctx, v, cached, name, valuesRange(rng), p.selections)
 	if err != nil {
 		h.fail(c, err)
 		return
 	}
-	entry := newValuesEntry(options, truncated)
+	c.JSON(http.StatusOK, entry.response(hit))
+}
+
+func valuesRange(rng datasource.TimeRange) datasource.TimeRange {
+	return align(rng, queryproxy.KindRange, defaultMaxDataPoints).rng
+}
+
+func (h *Handler) variableOptions(ctx context.Context, v loadedVersion, cached *cachedVersion, name string, rng datasource.TimeRange, selections map[string]queryproxy.Selection) (entry valuesEntry, hit bool, err error) {
+	d := v.dashboard
+	user, scope := cacheScope(ctx, v)
+	if cached == nil {
+		options, truncated, err := h.runner.VariableValues(ctx, d, name, rng, selections, user)
+		return newValuesEntry(options, truncated), false, err
+	}
+	key := valuesKey(cached.id, cached.version, name, rng.From, rng.To, selections, scope)
+	if entry, _, ok := h.caches.values.Get(key); ok {
+		return entry, true, nil
+	}
+	options, truncated, err := h.runner.VariableValues(ctx, d, name, rng, selections, user)
+	if err != nil {
+		return valuesEntry{}, false, err
+	}
+	entry = newValuesEntry(options, truncated)
 	if i := slices.IndexFunc(d.Variables, func(v spec.Variable) bool { return v.Name == name }); i >= 0 && d.Variables[i].Type == spec.QueryVariable {
 		if entry.cost() <= valuesMaxEntry {
 			h.caches.values.Put(key, entry, entry.cost())
 		}
 	}
-	c.JSON(http.StatusOK, entry.response(false))
+	return entry, false, nil
 }
 
 func (h *Handler) lint(c *gin.Context) {
@@ -593,7 +599,11 @@ func (h *Handler) readQuery(c *gin.Context) (url.Values, bool) {
 
 func (h *Handler) acquire(c *gin.Context) (release func(), ok bool) {
 	principal, _ := auth.FromContext(c.Request.Context())
-	release, ok = h.slots.acquire(principal.ID)
+	return h.acquireKey(c, principal.ID)
+}
+
+func (h *Handler) acquireKey(c *gin.Context, key string) (release func(), ok bool) {
+	release, ok = h.slots.acquire(key)
 	if !ok {
 		tooManyRequests(c)
 	}

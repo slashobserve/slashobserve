@@ -82,34 +82,43 @@ export function usePanelData({
       if (tz !== undefined) query.tz = tz
       if (maxDataPoints !== undefined) query.max_data_points = maxDataPoints
       const params = withVariables(query, selections)
-      const read = () =>
-        panelRequestLimiter.run(
-          () =>
-            (source.kind === "version"
-              ? api.GET(
-                  "/dashboards/{id}/versions/{version}/panels/{panel_id}/data",
-                  {
-                    params: {
-                      path: {
-                        id: source.dashboardId,
-                        version: source.version,
-                        panel_id: panel.id,
-                      },
-                      query: params,
-                    },
-                    signal,
-                  }
-                )
-              : api.GET("/observe/{id}/build/panels/{panel_id}/data", {
-                  params: {
-                    path: { id: source.requestId, panel_id: panel.id },
-                    query: params,
+      const request = () => {
+        switch (source.kind) {
+          case "version":
+            return api.GET(
+              "/dashboards/{id}/versions/{version}/panels/{panel_id}/data",
+              {
+                params: {
+                  path: {
+                    id: source.dashboardId,
+                    version: source.version,
+                    panel_id: panel.id,
                   },
-                  signal,
-                })
-            ).then(unwrap),
-          signal
-        )
+                  query: params,
+                },
+                signal,
+              }
+            )
+          case "build":
+            return api.GET("/observe/{id}/build/panels/{panel_id}/data", {
+              params: {
+                path: { id: source.requestId, panel_id: panel.id },
+                query: params,
+              },
+              signal,
+            })
+          case "public":
+            return api.GET("/public/{token}/panels/{panel_id}/data", {
+              params: {
+                path: { token: source.token, panel_id: panel.id },
+                query: params,
+              },
+              signal,
+            })
+        }
+      }
+      const read = () =>
+        panelRequestLimiter.run(() => request().then(unwrap), signal)
       return source.kind === "build"
         ? readBuild(client, source.requestId, signal, read)
         : read()

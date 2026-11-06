@@ -245,3 +245,22 @@ export const homeKeys = {
   search: (search: HomeSearch) =>
     ["dashboards", "list", "home-search", search] as const,
 }
+
+export const publicKeys = {
+  links: (dashboardId: string) => ["public-links", dashboardId] as const,
+  dashboard: (token: string) => ["public", token] as const,
+  panelData: (
+    token: string,
+    version: number,
+    panelId: string,
+    params: PanelDataParams
+  ) =>
+    ["public", token, "versions", version, "panels", panelId, params] as const,
+  variableValues: (
+    token: string,
+    version: number,
+    name: string,
+    params: VariableValuesParams
+  ) =>
+    ["public", token, "versions", version, "variables", name, params] as const,
+}

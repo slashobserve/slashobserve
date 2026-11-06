@@ -33,7 +33,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   Never copy server data into a store: events from `useDashboardEvents` only invalidate query keys.
 - The router uses plain `URLSearchParams` serialization (`web/src/lib/search.ts`).
   Dashboard URL keys are parsed only by `web/src/dashboards/search.ts`.
-- Panel data and variable values go through a `PanelSource` (`web/src/dashboards/panel-source.ts`): a saved version or an agent build, so one panel component renders both.
+- Panel data and variable values go through a `PanelSource` (`web/src/dashboards/panel-source.ts`): a saved version, an agent build or a public link (`public`, keyed by token and version under `publicKeys`), so the same data hooks serve all three.
   Build keys use the `observe-build` prefix, and the build's Spec is fetched only when its `saves` count changes.
   Every build read (the build, its panel data and its variable values) goes through `readBuild` in `web/src/observe/build.ts`: a 404 `not_found` means the run finished, so it refetches the request once and holds the read while the page replaces itself with the dashboard, and a `panel_not_found` passes through.
 - A panel new in a build save or in a new dashboard version fades in once through `DashboardGrid`'s `newPanelIds`, only through `motion-safe:` classes on the panel frame's opacity, never on a chart.
@@ -44,11 +44,13 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - Panel data requests go through `panelRequestLimiter` (6 concurrent) because the proxy allows 8 in-flight requests per principal.
 - `maxQueuedRevisions` in `web/src/revisions/queries.ts` mirrors the server's cap of 5 queued or running revisions per dashboard.
 - Panel data requests always send an explicit `var-` selection for every declared variable, resolved by `web/src/dashboards/variables.ts`, so the panel and the variable list agree on defaults.
+- `useDatasources()` returns the list a `DatasourceListProvider` holds without a request, and fetches `GET /api/v1/datasources` only outside one.
 - The browser never calls a datasource.
   Query lint comes only from `POST /api/v1/datasources/{uid}/lint`, and codemirror-promql never gets a `remote`.
 - The browser never computes version diffs.
   It groups the server's `pkg/spec.Diff` changes with `groupChanges`.
 - A new API key lives only in the Create key panel's component state: the mutation uses `gcTime: 0`, and the response never reaches the query cache or storage.
+  A new public link's address lives the same way in the Create public link form's state (`web/src/public/public-links-section.tsx`).
   Key snippets reference `OBSERVE_TOKEN` instead of the key.
 - `web/src/home/` is the home page's dashboards section.
   Stars come from `GET /api/v1/stars` under `starKeys` and change only through `useStarMutation`; recently viewed dashboards live only in `localStorage` under `slashobserve-recent-dashboards` (at most 20, written by `useRecordRecent` in the dashboard route) and never reach the server.
@@ -60,6 +62,9 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - `_authed` only checks the session.
   Every page except the dashboard and the build renders inside the pathless `_authed/_shell` layout, and the dashboard routes under `_authed/d/$dashboardId` and the build route `_authed/b/$requestId` have no shell.
   Id-bearing pages live at `/d/<id>[/<slug>]`, `/f/<id>`, `/c/<id>` and `/b/<id>`, and every dashboard link and address string comes from `web/src/lib/links.ts`, whose `slugOf` matches `links.Slug` in Go; the old `/dashboards/<id>`, `/folders/<id>`, `/observe/<id>` and `/builds/<id>` route files only redirect.
+- `/p/$token` is the public dashboard page, outside `_authed` like `/login`, and the public page makes no request outside `/api/v1/public/`.
+  It renders `PublicPanel` (`web/src/public/`), never `PanelContainer`, whose menu calls the signed-in API, and wraps the page in `DatasourceListProvider` with the link's datasources.
+  Its search keeps only `from`, `to`, `refresh` and `var-` keys, and it writes them through its own route: `useSetDashboardSearch` navigates from the dashboard route, so a shared hook that writes the address takes a writer (`useVariables`' `setUrlVars`).
 - A shell route declares its breadcrumb with `staticData.crumbs`, sets its title with `useDocumentTitle` and never renders `<main>`, which the shell owns.
 - Side panels (Create key, History) are `SidePanel` columns, never dialogs or sheets.
 - A renderer or editor module that fails to load offers "Reload page", not "Retry", because the browser caches a failed module fetch for the life of the document.

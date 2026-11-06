@@ -20,6 +20,7 @@ const version: PanelSource = {
   version: 3,
 }
 const build: PanelSource = { kind: "build", requestId: "req", saves: 4 }
+const shared: PanelSource = { kind: "public", token: "pub_tok", version: 7 }
 const params = { selections: {} }
 
 describe("panelFingerprint", () => {
@@ -116,7 +117,42 @@ describe("panel data keys", () => {
   })
 })
 
+describe("public panel data keys", () => {
+  it("keys public data by token and version under the public prefix", () => {
+    expect(panelDataKey(shared, "p1", "ignored", params)).toEqual([
+      "public",
+      "pub_tok",
+      "versions",
+      7,
+      "panels",
+      "p1",
+      params,
+    ])
+    expect(variableValuesKey(shared, "host", "ignored", params)).toEqual([
+      "public",
+      "pub_tok",
+      "versions",
+      7,
+      "variables",
+      "host",
+      params,
+    ])
+    expect(panelDataKey(shared, "p1", "", params)).not.toEqual(
+      panelDataKey({ ...shared, version: 8 }, "p1", "", params)
+    )
+  })
+})
+
 describe("keepsPreviousData", () => {
+  it("keeps public data across a refetch of the same token and version only", () => {
+    const key = panelDataKey(shared, "p1", "", params)
+    expect(keepsPreviousData(shared, "", key)).toBe(true)
+    expect(keepsPreviousData({ ...shared, version: 8 }, "", key)).toBe(false)
+    expect(keepsPreviousData({ ...shared, token: "pub_other" }, "", key)).toBe(
+      false
+    )
+  })
+
   it("keeps data across a refetch of the same version only", () => {
     const key = panelDataKey(version, "p1", "", params)
     expect(keepsPreviousData(version, "", key)).toBe(true)
@@ -155,6 +191,15 @@ describe("scopes", () => {
     )
     expect(loadRangeScope(build, { from: "now-6h", to: "now-1h" })).not.toBe(
       loadRangeScope(build, range)
+    )
+  })
+
+  it("scopes a public source by token and version, and its state by token", () => {
+    expect(sourceScope(shared)).toBe("public:pub_tok:7")
+    expect(stateScope(shared)).toBe("public:pub_tok")
+    expect(stateScope({ ...shared, version: 8 })).toBe(stateScope(shared))
+    expect(loadRangeScope(shared, { from: "now-1h", to: "now" })).toBe(
+      loadRangeScope(shared, { from: "now-6h", to: "now" })
     )
   })
 

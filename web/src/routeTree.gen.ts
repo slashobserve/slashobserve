@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedShellRouteImport } from './routes/_authed/_shell'
+import { Route as PTokenRouteImport } from './routes/p/$token'
 import { Route as AuthedShellChatRouteImport } from './routes/_authed/_shell/_chat'
 import { Route as AuthedShellDatasourcesRouteImport } from './routes/_authed/_shell/datasources'
 import { Route as AuthedShellKeysRouteImport } from './routes/_authed/_shell/keys'
@@ -51,6 +52,11 @@ const LoginRoute = LoginRouteImport.update({
 const AuthedShellRoute = AuthedShellRouteImport.update({
   id: '/_shell',
   getParentRoute: () => AuthedRoute,
+} as any)
+const PTokenRoute = PTokenRouteImport.update({
+  id: '/p/$token',
+  path: '/p/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedShellChatRoute = AuthedShellChatRouteImport.update({
   id: '/_chat',
@@ -194,6 +200,7 @@ const AuthedShellChatCRequestIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AuthedShellChatIndexRoute
   '/login': typeof LoginRoute
+  '/p/$token': typeof PTokenRoute
   '/datasources': typeof AuthedShellDatasourcesRoute
   '/keys': typeof AuthedShellKeysRoute
   '/logs': typeof AuthedShellLogsRoute
@@ -222,6 +229,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof AuthedShellChatIndexRoute
   '/login': typeof LoginRoute
+  '/p/$token': typeof PTokenRoute
   '/datasources': typeof AuthedShellDatasourcesRoute
   '/keys': typeof AuthedShellKeysRoute
   '/logs': typeof AuthedShellLogsRoute
@@ -252,6 +260,7 @@ export interface FileRoutesById {
   '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
   '/_authed/_shell': typeof AuthedShellRouteWithChildren
+  '/p/$token': typeof PTokenRoute
   '/_authed/_shell/_chat': typeof AuthedShellChatRouteWithChildren
   '/_authed/_shell/datasources': typeof AuthedShellDatasourcesRoute
   '/_authed/_shell/keys': typeof AuthedShellKeysRoute
@@ -284,6 +293,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/p/$token'
     | '/datasources'
     | '/keys'
     | '/logs'
@@ -312,6 +322,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/p/$token'
     | '/datasources'
     | '/keys'
     | '/logs'
@@ -341,6 +352,7 @@ export interface FileRouteTypes {
     | '/_authed'
     | '/login'
     | '/_authed/_shell'
+    | '/p/$token'
     | '/_authed/_shell/_chat'
     | '/_authed/_shell/datasources'
     | '/_authed/_shell/keys'
@@ -372,6 +384,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  PTokenRoute: typeof PTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -396,6 +409,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AuthedShellRouteImport
       parentRoute: typeof AuthedRoute
+    }
+    '/p/$token': {
+      id: '/p/$token'
+      path: '/p/$token'
+      fullPath: '/p/$token'
+      preLoaderRoute: typeof PTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authed/_shell/_chat': {
       id: '/_authed/_shell/_chat'
@@ -670,6 +690,7 @@ const AuthedRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
   LoginRoute: LoginRoute,
+  PTokenRoute: PTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

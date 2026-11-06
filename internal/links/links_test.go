@@ -51,6 +51,8 @@ func TestAddresses(t *testing.T) {
 		{"build", Build(nil, id), "/b/" + id},
 		{"finding", Finding(public, "abc"), "https://observe.example/team/findings/abc"},
 		{"relative finding", Finding(nil, "abc"), "/findings/abc"},
+		{"public link", Public(public, "pub_AbC-_9"), "https://observe.example/team/p/pub_AbC-_9"},
+		{"relative public link", Public(nil, "pub_AbC-_9"), "/p/pub_AbC-_9"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

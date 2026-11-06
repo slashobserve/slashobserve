@@ -1759,6 +1759,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboards/{id}/public-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the public links of a dashboard.
+         * @description Lists at most 100 links, newest first. Only someone who manages the dashboard's folder may list them; anyone else with access gets 403 `forbidden_role`, and a dashboard in My Dashboards answers 409 `personal_folder`, because it cannot have links. `expired` is true once `expires_at` has passed, and `usable` is false when the link is expired or the dashboard's latest version reads the viewer's identity (`${__user.*}`).
+         */
+        get: operations["listPublicLinks"];
+        put?: never;
+        /**
+         * Create a public link that opens the dashboard read-only without sign-in.
+         * @description Needs Manage on the dashboard's folder, because the link widens access beyond the folder's permission list; service-account keys with that level may call it too. The link always shows the dashboard's latest version. The response carries the token and the link's URL once; the server keeps only the token's SHA-256 and a 12 character prefix, so a lost token cannot be shown again. `frozen` variables always use `selections`; `free` variables let the viewer choose values of query, custom, interval and datasource variables among the options the server computes, starting from `selections`. A dashboard has at most 20 links.
+         */
+        post: operations["createPublicLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboards/{id}/public-links/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke a public link.
+         * @description Deletes the link, so its URL stops working at once. Needs Manage on the dashboard's folder, like creating it.
+         */
+        delete: operations["deletePublicLink"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public link's token, the only credential of this request. */
+                token: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read the dashboard a public link shows.
+         * @description Needs no session or key: the token in the path is the only credential. Returns the latest version's Spec without query text: every panel query's `query` and every variable's `query` are left out. `datasources` lists the uid and type of each datasource the Spec can reach, so the page needs no other call. A token that is malformed, unknown, revoked or expired, or whose dashboard's latest version reads the viewer's identity, answers 404 `not_found`. Opening the link records its last view, at most once a minute.
+         */
+        get: operations["getPublicDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/{token}/panels/{panel_id}/data": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public link's token, the only credential of this request. */
+                token: string;
+                panel_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Run the saved queries of one panel of a public link's dashboard.
+         * @description Needs no session or key: the token in the path is the only credential. Behaves like the panel data of a dashboard version, for the link's latest version, with the same parameters, query-text refusal, limits and cache. A `frozen` link ignores every `var-<name>` parameter and uses its stored selections. A `free` link accepts a value for a query, custom, interval or datasource variable only when it is one of the options the server lists for it under the choices of the variables before it, `$__all` when the variable includes All, and answers 400 `selection_not_allowed` otherwise; textbox, adhoc, group by and constant variables always use the stored selections or the dashboard's defaults. Each link may have at most 8 requests in flight.
+         */
+        get: operations["getPublicPanelData"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/{token}/variables/{name}/values": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public link's token, the only credential of this request. */
+                token: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the values of one variable of a public link's dashboard.
+         * @description Needs no session or key: the token in the path is the only credential. Behaves like the variable values of a dashboard version, for the link's latest version. The `var-<name>` selections of earlier variables follow the link's rule, as for panel data, and a selection for the listed variable or a later one is ignored.
+         */
+        get: operations["getPublicVariableValues"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3196,6 +3316,74 @@ export interface components {
             dashboard_id: string;
             /** @description The web app path of the dashboard. */
             url: string;
+        };
+        /** @description Variable selections by variable name; `$__all` selects All. */
+        PublicLinkSelections: {
+            [key: string]: string[];
+        };
+        PublicLink: {
+            /** Format: uuid */
+            id: string;
+            /** @description The first 12 characters of the token, to tell links apart; the token itself is never shown again. */
+            prefix: string;
+            /** @enum {string} */
+            variables: "frozen" | "free";
+            selections: components["schemas"]["PublicLinkSelections"];
+            /** Format: date-time */
+            expires_at: string | null;
+            created_by: {
+                /** @enum {string} */
+                kind: "user" | "service_account";
+                /** Format: uuid */
+                id: string;
+                name: string;
+            };
+            /** Format: date-time */
+            created_at: string;
+            /**
+             * Format: date-time
+             * @description When the link was last opened, recorded at most once a minute.
+             */
+            last_viewed_at: string | null;
+            expired: boolean;
+            /** @description False when the link is expired or the dashboard's latest version reads the viewer's identity. */
+            usable: boolean;
+        };
+        CreatePublicLinkRequest: {
+            /** @enum {string} */
+            variables: "frozen" | "free";
+            selections?: components["schemas"]["PublicLinkSelections"];
+            /**
+             * Format: date-time
+             * @description When the link stops working; null or absent for no expiry.
+             */
+            expires_at?: string | null;
+        };
+        CreatedPublicLink: {
+            link: components["schemas"]["PublicLink"];
+            /** @description `pub_` plus 43 base64url characters, returned only in this response. */
+            token: string;
+            /** @description The address that opens the link, `<SLASHOBSERVE_PUBLIC_URL>/p/<token>`. */
+            url: string;
+        };
+        PublicDashboard: {
+            /** Format: uuid */
+            dashboard_id: string;
+            title: string;
+            version: number;
+            /** @description The latest version's ObserveSpec without query text. */
+            spec: {
+                [key: string]: unknown;
+            };
+            /** @enum {string} */
+            variables: "frozen" | "free";
+            selections: components["schemas"]["PublicLinkSelections"];
+            /** Format: date-time */
+            expires_at: string | null;
+            datasources: {
+                uid: string;
+                type: string;
+            }[];
         };
     };
     responses: {
@@ -7732,6 +7920,351 @@ export interface operations {
                 };
             };
             500: components["responses"]["Internal"];
+        };
+    };
+    listPublicLinks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The links, without their tokens. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_links: components["schemas"]["PublicLink"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The dashboard is in My Dashboards (`personal_folder`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    createPublicLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePublicLinkRequest"];
+            };
+        };
+        responses: {
+            /** @description The link is created. */
+            201: {
+                headers: {
+                    /** @description `/api/v1/dashboards/{id}/public-links/{link_id}` of the new link. */
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedPublicLink"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The dashboard is in My Dashboards (`personal_folder`); move it to a shared folder first. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The latest version reads the viewer's identity (`user_scoped`), `expires_at` is not in the future (`invalid_expiry`), `selections` names a variable the latest version does not declare (`unknown_variable`), or the dashboard already has 20 links (`too_many_links`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    deletePublicLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The link is revoked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The dashboard or the link does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The dashboard is in My Dashboards (`personal_folder`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    getPublicDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public link's token, the only credential of this request. */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The dashboard to render. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicDashboard"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getPublicPanelData: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                /** @description The browser's IANA time zone, as for panel data. */
+                tz?: string;
+                max_data_points?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The public link's token, the only credential of this request. */
+                token: string;
+                panel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The frames the saved queries returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelData"];
+                };
+            };
+            /** @description The request is malformed, a variable selection is invalid, or a free variable value is not one of its options (`selection_not_allowed`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The request carried query text; the code is `query_not_in_spec`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The link does not work (`not_found`), or the dashboard has no such panel (`panel_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A query or a variable cannot run, as for panel data. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource did not answer within the query timeout. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    getPublicVariableValues: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                /** @description The browser's IANA time zone, as for panel data. */
+                tz?: string;
+            };
+            header?: never;
+            path: {
+                /** @description The public link's token, the only credential of this request. */
+                token: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to 1000 values; `truncated` is true when there were more. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VariableValues"];
+                };
+            };
+            /** @description The request is malformed, or a free variable value is not one of its options (`selection_not_allowed`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The request carried query text; the code is `query_not_in_spec`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The link does not work (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The variable's query cannot run, as for variable values. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource did not answer within the query timeout. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
         };
     };
 }
