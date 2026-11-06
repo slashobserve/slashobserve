@@ -211,6 +211,15 @@ export type ExploreParams = {
   maxDataPoints?: number
 }
 
+export type TraceLogsParams = {
+  traceId: string
+  spanId?: string
+  service?: string
+  from: string
+  to: string
+  limit?: number
+}
+
 export const exploreKeys = {
   all: ["explore"] as const,
   query: (uid: string, params: ExploreParams) =>
@@ -221,6 +230,8 @@ export const exploreKeys = {
     ["explore", uid, "context", anchor] as const,
   trace: (uid: string, id: string, range: { from: string; to: string }) =>
     ["explore", uid, "trace", id, range] as const,
+  traceLogs: (uid: string, params: TraceLogsParams) =>
+    ["explore", uid, "trace-logs", params] as const,
   targets: (search: string) => ["explore", "targets", search] as const,
 }
 

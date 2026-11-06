@@ -33,6 +33,7 @@ import {
 import { exploreErrorText, offlineText } from "@/logs/explore"
 import { usePrepared } from "@/logs/prepared"
 import { useElementSize } from "@/logs/use-element-size"
+import { SidePanel } from "@/shell/side-panel"
 import {
   criticalPath,
   errorAncestors,
@@ -61,6 +62,7 @@ import {
   type TraceViewSearch,
 } from "./search"
 import { traceQLAttribute } from "./search-query"
+import { TraceLogsSection } from "./trace-logs-tab"
 import { traceNotes, traceQuery } from "./trace-query"
 import { TraceToolbar, type TraceService } from "./trace-toolbar"
 
@@ -68,6 +70,7 @@ type TraceModelData = TraceViewProps["model"]
 
 const noFilters = spanFilters({})
 const noIds: ReadonlySet<string> = new Set()
+const noDatasources: readonly DatasourceStatus[] = []
 const skeletonRows = [0, 1, 2, 3, 4, 5]
 const phoneQuery = "(max-width: 760px)"
 const toolbarHint = "Click a row for details. Drag on the ruler to zoom."
@@ -188,10 +191,12 @@ function TraceForId({ id }: { id: string }) {
 function TraceHeader({
   id,
   model,
+  traceActions,
   actions,
 }: {
   id: string
   model?: TraceModelData
+  traceActions?: ReactNode
   actions: ReactNode
 }) {
   const title = model
@@ -226,6 +231,7 @@ function TraceHeader({
               Copy trace id
             </CopyButton>
           ) : null}
+          {model ? traceActions : null}
           {actions}
         </>
       }
@@ -526,6 +532,7 @@ function TraceWaterfall({
   return (
     <TraceExplorer
       id={id}
+      datasource={datasource}
       model={model}
       searchLink={searchLink}
       openId={openId}
@@ -537,6 +544,7 @@ function TraceWaterfall({
 
 function TraceExplorer({
   id,
+  datasource,
   model,
   searchLink,
   openId,
@@ -544,6 +552,7 @@ function TraceExplorer({
   actions,
 }: {
   id: string
+  datasource: DatasourceStatus
   model: TraceModelData
   searchLink: SearchLink | undefined
   openId: string | null
@@ -560,6 +569,10 @@ function TraceExplorer({
     useState<ReadonlySet<string>>(noIds)
   const [zoom, setZoom] = useState<Zoom>(wholeTrace)
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(noIds)
+  const [logsOpen, setLogsOpen] = useState(false)
+  const logsTrigger = useRef<HTMLButtonElement>(null)
+  const datasources = useDatasources()
+  const all = datasources.data ?? noDatasources
   const spans = model.spans
 
   const filters = useMemo<SpanFilters>(
@@ -620,7 +633,21 @@ function TraceExplorer({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" onKeyDown={onKeyDown}>
-      <TraceHeader id={id} model={model} actions={actions} />
+      <TraceHeader
+        id={id}
+        model={model}
+        traceActions={
+          <Button
+            ref={logsTrigger}
+            type="button"
+            variant="outline"
+            onClick={() => setLogsOpen(true)}
+          >
+            Logs for this trace
+          </Button>
+        }
+        actions={actions}
+      />
       <TraceToolbar
         search={search}
         onSearchChange={setSearch}
@@ -674,12 +701,39 @@ function TraceExplorer({
             onZoom={setZoom}
             header={false}
             searchLink={searchLink}
+            spanPaneExtra={(span) => (
+              <TraceLogsSection
+                traceUid={datasource.uid}
+                traceId={id}
+                span={span}
+                trace={model}
+                all={all}
+                preview
+                onOpenTraceLogs={() => setLogsOpen(true)}
+              />
+            )}
           />
         ) : null}
       </div>
       <p aria-live="polite" className="text-xs text-muted-foreground">
         {status}
       </p>
+      {logsOpen ? (
+        <SidePanel
+          title="Logs for this trace"
+          description={id.slice(0, 8)}
+          onClose={() => setLogsOpen(false)}
+          trigger={logsTrigger}
+        >
+          <TraceLogsSection
+            traceUid={datasource.uid}
+            traceId={id}
+            trace={model}
+            all={all}
+            preview={false}
+          />
+        </SidePanel>
+      ) : null}
     </div>
   )
 }

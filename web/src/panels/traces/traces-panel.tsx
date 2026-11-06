@@ -82,6 +82,7 @@ export type TraceViewProps = {
   onZoom?: (zoom: Zoom) => void
   header?: boolean
   searchLink?: SearchLink
+  spanPaneExtra?: (span: Span) => ReactNode
 }
 
 type Drag = { anchor: number; x: number; left: number; width: number }
@@ -555,12 +556,14 @@ function SpanPane({
   span,
   model,
   searchLink,
+  extra,
   onClose,
 }: {
   id: string
   span: Span | undefined
   model: TraceViewProps["model"]
   searchLink: SearchLink | undefined
+  extra: ReactNode
   onClose: () => void
 }) {
   const share =
@@ -630,6 +633,7 @@ function SpanPane({
             searchLink={searchLink}
           />
           <EventList span={span} formatDuration={model.formatDuration} />
+          {extra}
         </div>
       ) : (
         <p className="text-muted-foreground">
@@ -708,6 +712,7 @@ export function TraceView(props: TraceViewProps) {
   const windowMs = (zoom.end - zoom.start) * model.duration
   const ticks = niceTicks(windowMs)
   const openIndex = rows.findIndex((span) => span.id === openId)
+  const openSpan = openIndex === -1 ? undefined : rows[openIndex]
   const inline = attributes === "inline"
   const windowed = rows.length > windowAfter
   const range = windowed
@@ -969,9 +974,14 @@ export function TraceView(props: TraceViewProps) {
         {inline ? null : (
           <SpanPane
             id={detailsId}
-            span={openIndex === -1 ? undefined : rows[openIndex]}
+            span={openSpan}
             model={model}
             searchLink={props.searchLink}
+            extra={
+              openSpan && props.spanPaneExtra
+                ? props.spanPaneExtra(openSpan)
+                : null
+            }
             onClose={() => setOpenId(null)}
           />
         )}
