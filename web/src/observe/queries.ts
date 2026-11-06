@@ -95,7 +95,13 @@ export function requestStatusView(
     case "running":
       return { tone: "running", text: "Working" }
     case "succeeded":
-      return { tone: "ok", text: r.dashboard_title ?? "Dashboard saved" }
+      return {
+        tone: "ok",
+        text:
+          r.result_version === null
+            ? "Saved"
+            : `Saved version ${r.result_version}`,
+      }
     case "failed":
       return {
         tone: "critical",

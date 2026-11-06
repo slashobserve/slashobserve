@@ -377,19 +377,15 @@ function HistoryRow({
 function HistoryMeta({ request }: { request: RequestSummary }) {
   const view = requestStatusView(request)
   const statusText =
-    request.status === "succeeded"
-      ? request.result_version !== null
-        ? `Saved version ${request.result_version}`
-        : "Finished"
-      : request.status === "failed" &&
-          (request.build !== null || request.continued_by !== null)
-        ? buildStatusText({
-            status: request.status,
-            build: request.build,
-            failureCode: request.failure_code,
-            continued: request.continued_by !== null,
-          })
-        : view.text
+    request.status === "failed" &&
+    (request.build !== null || request.continued_by !== null)
+      ? buildStatusText({
+          status: request.status,
+          build: request.build,
+          failureCode: request.failure_code,
+          continued: request.continued_by !== null,
+        })
+      : view.text
 
   return (
     <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
