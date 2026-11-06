@@ -23,10 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  useSetDashboardSearch,
-  validateDashboardSearch,
-} from "@/dashboards/search"
+import { useSetDashboardSearch } from "@/dashboards/search"
 import type { Selections } from "@/api/keys"
 import { Button } from "@/components/ui/button"
 import { guardLoad } from "@/panels/renderer-load"
@@ -37,6 +34,7 @@ import { findPanel, panelTitle, type Dashboard, type Panel } from "@/spec"
 import { CardHeader } from "./card-header"
 import { EditorBoundary } from "./editor-boundary"
 import { EditorViewSwitch } from "./editor-view-switch"
+import { leavesDraft } from "./leaves-draft"
 
 const PanelEditor = lazy(guardLoad(() => import("@/panel-editor/panel-editor")))
 
@@ -66,22 +64,6 @@ type Props = {
 function panelTrigger(panelId: string) {
   return document.querySelector<HTMLElement>(
     `[data-panel-menu="${CSS.escape(panelId)}"]`
-  )
-}
-
-function leavesDraft(
-  current: { pathname: string; search: unknown },
-  next: { pathname: string; search: unknown }
-): boolean {
-  if (current.pathname !== next.pathname) return true
-  const before = validateDashboardSearch(
-    current.search as Record<string, unknown>
-  )
-  const after = validateDashboardSearch(next.search as Record<string, unknown>)
-  return (
-    before.panel !== after.panel ||
-    after.edit === undefined ||
-    before.version !== after.version
   )
 }
 
