@@ -483,3 +483,26 @@ func TestLint(t *testing.T) {
 		})
 	}
 }
+
+func TestSearchReportsJobsAndInspectedBytes(t *testing.T) {
+	body := strings.Replace(searchBody, `"metrics":{"inspectedTraces":2}`, `"metrics":{"inspectedBytes":"324888","totalBlocks":3,"completedJobs":1,"totalJobs":6}`, 1)
+	ds, _ := serve(t, map[string]reply{"/api/search": {0, body}})
+	frames, err := ds.QueryInstant(context.Background(), datasource.Query{Text: `{}`, Limits: datasource.Limits{MaxRows: 20}}, lastHour)
+	if err != nil || len(frames) != 1 || frames[0].Meta == nil {
+		t.Fatalf("frames = %+v, %v; want one frame with meta", frames, err)
+	}
+	want := datasource.FrameMeta{Partial: true, JobsDone: 1, JobsTotal: 6, InspectedBytes: 324888}
+	if got := *frames[0].Meta; got != want {
+		t.Fatalf("meta = %+v, want %+v", got, want)
+	}
+	complete := strings.Replace(body, `"completedJobs":1`, `"completedJobs":6`, 1)
+	ds, _ = serve(t, map[string]reply{"/api/search": {0, complete}})
+	frames, err = ds.QueryInstant(context.Background(), datasource.Query{Text: `{}`, Limits: datasource.Limits{MaxRows: 20}}, lastHour)
+	if err != nil || len(frames) != 1 || frames[0].Meta == nil {
+		t.Fatalf("frames = %+v, %v; want one frame with meta", frames, err)
+	}
+	want = datasource.FrameMeta{JobsDone: 6, JobsTotal: 6, InspectedBytes: 324888}
+	if got := *frames[0].Meta; got != want {
+		t.Fatalf("meta = %+v, want every job done and not partial", got)
+	}
+}

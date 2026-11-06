@@ -129,7 +129,7 @@ Each row shows **Root service**, **Root span**, **Duration** with a bar scaled t
 **Spans** and **Errors** show only when every row carries the count.
 ClickHouse lists the newest 100 traces with a matching span, shows each trace's longest matching span, and counts only the matching spans.
 Tempo shows the root span of each trace, and sums the span and error span counts from Tempo's per-service stats; when Tempo does not report those stats, both columns are left out.
-The result is marked partial when Tempo did not search every block of the range, so a trace in an unsearched block is missing; narrow the time range or search again.
+The result is marked partial when Tempo did not finish every search job in the range (the response says how many ran and how many bytes it read); a trace in an unfinished job is missing, so narrow the time range or search again.
 On a phone the table becomes a list.
 
 ## Ask on the trace search

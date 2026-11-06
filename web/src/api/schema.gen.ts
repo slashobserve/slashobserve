@@ -987,7 +987,7 @@ export interface paths {
         };
         /**
          * Read one trace whole from a Tempo or ClickHouse datasource.
-         * @description Answers every span of the trace as one frame with ref `A` and the columns `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `ServiceName`, `StartTime`, `Duration`, `StatusCode`, `SpanAttributes`, `ResourceAttributes`, `SpanKind` and `SpanEvents`, sorted by `StartTime` then `SpanId`. `SpanKind` is one of `Server`, `Client`, `Producer`, `Consumer`, `Internal` or `Unspecified`, and `SpanEvents` is a JSON array string of `{"time_ms", "name", "attributes"}` objects, `[]` when the span has none. A trace over 20,000 spans is cut to its earliest 20,000: `meta.rows` is the number of spans returned, `meta.rows_total` the number in the trace and `meta.truncated` says the two differ. `meta.kind` is `instant` and `meta.cached` is always false. `from` and `to` bound the search and default to the last 24 hours; they take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The call runs with the agent tools' 15 second timeout, is never cached, and counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included.
+         * @description Answers every span of the trace as one frame with ref `A` and the columns `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `ServiceName`, `StartTime`, `Duration`, `StatusCode`, `SpanAttributes`, `ResourceAttributes`, `SpanKind`, `SpanEvents` and `SpanLinks`, sorted by `StartTime` then `SpanId`. `SpanKind` is one of `Server`, `Client`, `Producer`, `Consumer`, `Internal` or `Unspecified`, `SpanEvents` is a JSON array string of `{"time_ms", "name", "attributes"}` objects, and `SpanLinks` a JSON array string of `{"trace_id", "span_id", "attributes"}` objects with lowercase hex ids; both are `[]` when the span has none. A trace over 20,000 spans is cut to its earliest 20,000: `meta.rows` is the number of spans returned, `meta.rows_total` the number in the trace and `meta.truncated` says the two differ. `meta.bytes` is the size of Tempo's payload in bytes and `meta.elapsed_ms` the time the upstream read took; ClickHouse reports no `bytes`. `meta.kind` is `instant` and `meta.cached` is always false. `from` and `to` bound the search and default to the last 24 hours; they take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The call runs with the agent tools' 15 second timeout, is never cached, and counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included.
          */
         get: operations["getTrace"];
         put?: never;
@@ -2775,6 +2775,16 @@ export interface components {
              * @description The largest value of the first time field across all frames, RFC 3339 UTC with nanoseconds; absent when no frame has a time field or no rows. To load newer rows, repeat the request with `from` set to it.
              */
             newest?: string;
+            /** @description Tempo search jobs completed for this response; present only on Tempo search results. */
+            jobs_done?: number;
+            /** @description Tempo search jobs planned for this response; when jobs_done is lower the result is partial and the window the finished jobs covered is unknown. */
+            jobs_total?: number;
+            /** @description Bytes Tempo read for the search; present only on Tempo search results. */
+            inspected_bytes?: number;
+            /** @description Wall time in milliseconds of the upstream run that produced the data; a cached response repeats the value of the run that filled the cache, like executed_at. */
+            elapsed_ms?: number;
+            /** @description Size in bytes of the upstream trace payload on a Tempo trace read; absent on ClickHouse and on explore. */
+            bytes?: number;
         };
         PanelDataError: {
             error: string;

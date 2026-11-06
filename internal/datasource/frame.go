@@ -26,9 +26,13 @@ type Frame struct {
 }
 
 type FrameMeta struct {
-	Truncated bool `json:"truncated,omitempty"`
-	Partial   bool `json:"partial,omitempty"`
-	RowsTotal int  `json:"rows_total,omitempty"`
+	Truncated      bool  `json:"truncated,omitempty"`
+	Partial        bool  `json:"partial,omitempty"`
+	RowsTotal      int   `json:"rows_total,omitempty"`
+	JobsDone       int64 `json:"jobs_done,omitempty"`
+	JobsTotal      int64 `json:"jobs_total,omitempty"`
+	InspectedBytes int64 `json:"inspected_bytes,omitempty"`
+	Bytes          int64 `json:"bytes,omitempty"`
 }
 
 func MergeMeta(frames []Frame) FrameMeta {
@@ -42,6 +46,10 @@ func MergeMeta(frames []Frame) FrameMeta {
 		if merged.RowsTotal == 0 {
 			merged.RowsTotal = f.Meta.RowsTotal
 		}
+		merged.JobsDone += f.Meta.JobsDone
+		merged.JobsTotal += f.Meta.JobsTotal
+		merged.InspectedBytes += f.Meta.InspectedBytes
+		merged.Bytes += f.Meta.Bytes
 	}
 	return merged
 }

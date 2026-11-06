@@ -1390,6 +1390,26 @@ components:
           description: >-
             The largest value of the first time field across all frames, RFC 3339 UTC with nanoseconds; absent when no frame has a time field or no rows.
             To load newer rows, repeat the request with `from` set to it.
+        jobs_done:
+          type: integer
+          minimum: 0
+          description: Tempo search jobs completed for this response; present only on Tempo search results.
+        jobs_total:
+          type: integer
+          minimum: 0
+          description: Tempo search jobs planned for this response; when jobs_done is lower the result is partial and the window the finished jobs covered is unknown.
+        inspected_bytes:
+          type: integer
+          minimum: 0
+          description: Bytes Tempo read for the search; present only on Tempo search results.
+        elapsed_ms:
+          type: integer
+          minimum: 0
+          description: Wall time in milliseconds of the upstream run that produced the data; a cached response repeats the value of the run that filled the cache, like executed_at.
+        bytes:
+          type: integer
+          minimum: 0
+          description: Size in bytes of the upstream trace payload on a Tempo trace read; absent on ClickHouse and on explore.
     PanelDataError:
       type: object
       additionalProperties: false

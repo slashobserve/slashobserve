@@ -71,7 +71,9 @@ func (h *Handler) trace(c *gin.Context) {
 		return
 	}
 	defer releaseUpstream()
+	started := time.Now()
 	f, err := source.Trace(ctx, id, rng, datasource.TraceSpanBudget)
+	elapsed := time.Since(started)
 	switch {
 	case errors.Is(err, datasource.ErrNotFound):
 		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), traceNotFoundMessage)
@@ -96,7 +98,7 @@ func (h *Handler) trace(c *gin.Context) {
 		kind:       queryproxy.KindInstant,
 		from:       rng.From,
 		to:         rng.To,
-		meta:       resultMetaOf([]datasource.Frame{f}),
+		meta:       resultMetaOf([]datasource.Frame{f}).took(elapsed),
 		executedAt: time.Now(),
 	}
 	writeData(c, entry, false, entry.executedAt, "")

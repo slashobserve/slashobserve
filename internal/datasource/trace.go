@@ -84,7 +84,29 @@ func SpanEventsJSON(events []SpanEvent) (string, error) {
 			events[i].Attributes = map[string]any{}
 		}
 	}
-	b, err := json.Marshal(events)
+	return jsonText(events)
+}
+
+type SpanLink struct {
+	TraceID    string         `json:"trace_id"`
+	SpanID     string         `json:"span_id"`
+	Attributes map[string]any `json:"attributes"`
+}
+
+func SpanLinksJSON(links []SpanLink) (string, error) {
+	if len(links) == 0 {
+		return "[]", nil
+	}
+	for i := range links {
+		if links[i].Attributes == nil {
+			links[i].Attributes = map[string]any{}
+		}
+	}
+	return jsonText(links)
+}
+
+func jsonText(v any) (string, error) {
+	b, err := json.Marshal(v)
 	if err != nil {
 		return "", err
 	}
