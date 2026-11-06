@@ -107,34 +107,52 @@ func (h *Handler) Register(api auth.Routes) {
 }
 
 type dataMeta struct {
-	Kind        queryproxy.Kind `json:"kind"`
-	From        string          `json:"from"`
-	To          string          `json:"to"`
-	StepMS      int64           `json:"step_ms"`
-	Queries     []queryMeta     `json:"queries"`
-	Cached      bool            `json:"cached"`
-	ExecutedAt  string          `json:"executed_at"`
-	SourcePanel string          `json:"source_panel,omitempty"`
-	Truncated   bool            `json:"truncated"`
-	Partial     bool            `json:"partial"`
-	Rows        int             `json:"rows"`
-	RowsTotal   int             `json:"rows_total,omitempty"`
-	Oldest      string          `json:"oldest,omitempty"`
-	Newest      string          `json:"newest,omitempty"`
+	Kind           queryproxy.Kind `json:"kind"`
+	From           string          `json:"from"`
+	To             string          `json:"to"`
+	StepMS         int64           `json:"step_ms"`
+	Queries        []queryMeta     `json:"queries"`
+	Cached         bool            `json:"cached"`
+	ExecutedAt     string          `json:"executed_at"`
+	SourcePanel    string          `json:"source_panel,omitempty"`
+	Truncated      bool            `json:"truncated"`
+	Partial        bool            `json:"partial"`
+	Rows           int             `json:"rows"`
+	RowsTotal      int             `json:"rows_total,omitempty"`
+	Oldest         string          `json:"oldest,omitempty"`
+	Newest         string          `json:"newest,omitempty"`
+	JobsDone       int64           `json:"jobs_done,omitempty"`
+	JobsTotal      int64           `json:"jobs_total,omitempty"`
+	InspectedBytes int64           `json:"inspected_bytes,omitempty"`
+	ElapsedMS      int64           `json:"elapsed_ms,omitempty"`
+	Bytes          int64           `json:"bytes,omitempty"`
 }
 
 type resultMeta struct {
-	truncated bool
-	partial   bool
-	rows      int
-	rowsTotal int
-	oldest    time.Time
-	newest    time.Time
+	truncated      bool
+	partial        bool
+	rows           int
+	rowsTotal      int
+	oldest         time.Time
+	newest         time.Time
+	jobsDone       int64
+	jobsTotal      int64
+	inspectedBytes int64
+	bytes          int64
+	elapsed        time.Duration
 }
 
 func resultMetaOf(frames []datasource.Frame) resultMeta {
 	merged := datasource.MergeMeta(frames)
-	m := resultMeta{truncated: merged.Truncated, partial: merged.Partial, rowsTotal: merged.RowsTotal}
+	m := resultMeta{
+		truncated:      merged.Truncated,
+		partial:        merged.Partial,
+		rowsTotal:      merged.RowsTotal,
+		jobsDone:       merged.JobsDone,
+		jobsTotal:      merged.JobsTotal,
+		inspectedBytes: merged.InspectedBytes,
+		bytes:          merged.Bytes,
+	}
 	for _, f := range frames {
 		if !f.IsSeries() {
 			m.rows += f.Rows()
@@ -156,6 +174,11 @@ func resultMetaOf(frames []datasource.Frame) resultMeta {
 			}
 		}
 	}
+	return m
+}
+
+func (m resultMeta) took(elapsed time.Duration) resultMeta {
+	m.elapsed = elapsed
 	return m
 }
 
@@ -372,10 +395,12 @@ func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dat
 		}
 		return nil
 	}
+	started := time.Now()
 	res, err := h.runner.RunPanel(ctx, req)
 	if err != nil {
 		return dataEntry{}, err
 	}
+	elapsed := time.Since(started)
 	queries := make([]queryMeta, len(res.Queries))
 	asked := false
 	for i, q := range res.Queries {
@@ -386,7 +411,7 @@ func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dat
 	if asked {
 		exemplars = joinFrames(exemplarParts)
 	}
-	return dataEntry{frames: joinFrames(parts), exemplars: exemplars, queries: queries, kind: res.Kind, from: res.Range.From, to: res.Range.To, step: res.Step, meta: resultMetaOf(res.Frames()), executedAt: time.Now()}, nil
+	return dataEntry{frames: joinFrames(parts), exemplars: exemplars, queries: queries, kind: res.Kind, from: res.Range.From, to: res.Range.To, step: res.Step, meta: resultMetaOf(res.Frames()).took(elapsed), executedAt: time.Now()}, nil
 }
 
 func (h *Handler) logPanic(ctx context.Context, panelID string, p any) {
@@ -410,20 +435,25 @@ func writeData(c *gin.Context, e dataEntry, cached bool, executedAt time.Time, s
 		Frames:    e.frames,
 		Exemplars: e.exemplars,
 		Meta: dataMeta{
-			Kind:        e.kind,
-			From:        formatTime(e.from),
-			To:          formatTime(e.to),
-			StepMS:      e.step.Milliseconds(),
-			Queries:     e.queries,
-			Cached:      cached,
-			ExecutedAt:  formatTime(executedAt),
-			SourcePanel: sourcePanel,
-			Truncated:   e.meta.truncated,
-			Partial:     e.meta.partial,
-			Rows:        e.meta.rows,
-			RowsTotal:   e.meta.rowsTotal,
-			Oldest:      formatEdge(e.meta.oldest),
-			Newest:      formatEdge(e.meta.newest),
+			Kind:           e.kind,
+			From:           formatTime(e.from),
+			To:             formatTime(e.to),
+			StepMS:         e.step.Milliseconds(),
+			Queries:        e.queries,
+			Cached:         cached,
+			ExecutedAt:     formatTime(executedAt),
+			SourcePanel:    sourcePanel,
+			Truncated:      e.meta.truncated,
+			Partial:        e.meta.partial,
+			Rows:           e.meta.rows,
+			RowsTotal:      e.meta.rowsTotal,
+			Oldest:         formatEdge(e.meta.oldest),
+			Newest:         formatEdge(e.meta.newest),
+			JobsDone:       e.meta.jobsDone,
+			JobsTotal:      e.meta.jobsTotal,
+			InspectedBytes: e.meta.inspectedBytes,
+			ElapsedMS:      e.meta.elapsed.Milliseconds(),
+			Bytes:          e.meta.bytes,
 		},
 	})
 }

@@ -254,3 +254,21 @@ func TestTraceAnswersTooManyRequestsWhenEverySlotIsHeld(t *testing.T) {
 		t.Fatalf("%d upstream calls while every slot is held", calls)
 	}
 }
+
+func TestTraceMetaCarriesBytes(t *testing.T) {
+	hn, tempoDS := newTraceHarness(t)
+	tempoDS.onTrace = func(context.Context, string, datasource.TimeRange, int) (datasource.Frame, error) {
+		time.Sleep(2 * time.Millisecond)
+		f := spanFixture(3, 3)
+		f.Meta = &datasource.FrameMeta{Bytes: 4096}
+		return f, nil
+	}
+	body := decodeData(t, hn.trace(auth.KindUser, "tempo", traceFixtureID, ""))
+	meta := body.Meta
+	if meta.Bytes != 4096 || meta.Rows != 3 || meta.Truncated || meta.JobsTotal != 0 {
+		t.Fatalf("meta = %+v, want 4096 bytes, 3 rows and no search jobs", meta)
+	}
+	if meta.ElapsedMS < 2 {
+		t.Fatalf("elapsed_ms = %d, want at least the time the datasource took", meta.ElapsedMS)
+	}
+}

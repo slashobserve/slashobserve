@@ -307,3 +307,33 @@ func TestExploreLogsAnUpstreamFailureWithoutTheQueryText(t *testing.T) {
 		t.Fatalf("the log holds the query text:\n%s", logs)
 	}
 }
+
+func TestExploreMetaCarriesJobsAndElapsed(t *testing.T) {
+	hn, _ := newExploreHarness(t)
+	hn.ds.onInstant = func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) {
+		time.Sleep(2 * time.Millisecond)
+		frames := logFrames()
+		frames[0].Meta = &datasource.FrameMeta{JobsDone: 1, JobsTotal: 6, InspectedBytes: 10, Partial: true}
+		return frames, nil
+	}
+	body := decodeData(t, hn.explore(auth.KindUser, "prom", instantBody(`{}`)))
+	meta := body.Meta
+	if meta.JobsDone != 1 || meta.JobsTotal != 6 || meta.InspectedBytes != 10 || !meta.Partial || meta.Bytes != 0 {
+		t.Fatalf("meta = %+v, want 1 of 6 jobs, 10 inspected bytes, partial and no payload size", meta)
+	}
+	if meta.ElapsedMS < 2 {
+		t.Fatalf("elapsed_ms = %d, want at least the time the datasource took", meta.ElapsedMS)
+	}
+	hn.ds.onInstant = nil
+	var raw struct {
+		Meta map[string]json.RawMessage `json:"meta"`
+	}
+	if err := json.Unmarshal(hn.explore(auth.KindUser, "prom", instantBody("up")).Body.Bytes(), &raw); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"jobs_done", "jobs_total", "inspected_bytes", "bytes"} {
+		if _, ok := raw.Meta[key]; ok {
+			t.Fatalf("meta.%s = %s on a series query, want it absent", key, raw.Meta[key])
+		}
+	}
+}
