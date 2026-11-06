@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"net/http"
 	"net/url"
 	"strings"
@@ -12,10 +11,8 @@ import (
 )
 
 type Redirects struct {
-	Resolve func(ctx context.Context, kind, id string) (string, bool)
+	GrafanaDashboard func(r *http.Request, grafanaUID string) (string, bool)
 }
-
-const resolvableDashboard = "dashboard"
 
 type oldForm struct {
 	short        string
@@ -30,9 +27,12 @@ var oldForms = map[string]oldForm{
 }
 
 func (r Redirects) serve(c *gin.Context) bool {
-	target, status, ok := r.target(c.Request.Context(), c.Request.URL.EscapedPath())
+	target, status, ok := r.target(c.Request)
 	if !ok {
 		return false
+	}
+	if status == http.StatusFound {
+		c.Header("Cache-Control", "no-store")
 	}
 	if query := c.Request.URL.RawQuery; query != "" {
 		target += "?" + query
@@ -41,8 +41,8 @@ func (r Redirects) serve(c *gin.Context) bool {
 	return true
 }
 
-func (r Redirects) target(ctx context.Context, escapedPath string) (string, int, bool) {
-	segments := strings.Split(strings.TrimPrefix(escapedPath, "/"), "/")
+func (r Redirects) target(req *http.Request) (string, int, bool) {
+	segments := strings.Split(strings.TrimPrefix(req.URL.EscapedPath(), "/"), "/")
 	if len(segments) < 2 {
 		return "", 0, false
 	}
@@ -50,12 +50,15 @@ func (r Redirects) target(ctx context.Context, escapedPath string) (string, int,
 	if form, ok := oldForms[segments[0]]; ok && isID(id) && (form.keepsSubpath || len(segments) == 2) {
 		return "/" + form.short + "/" + strings.Join(segments[1:], "/"), http.StatusMovedPermanently, true
 	}
-	if segments[0] == "d" && !isID(id) && id != "" && r.Resolve != nil {
+	if segments[0] == "d" && !isID(id) && id != "" && r.GrafanaDashboard != nil {
 		uid, err := url.PathUnescape(id)
 		if err != nil {
 			return "", 0, false
 		}
-		if target, ok := r.Resolve(ctx, resolvableDashboard, uid); ok {
+		if target, ok := r.GrafanaDashboard(req, uid); ok {
+			if slug := strings.Join(segments[2:], "/"); slug != "" {
+				target += "/" + slug
+			}
 			return target, http.StatusFound, true
 		}
 	}

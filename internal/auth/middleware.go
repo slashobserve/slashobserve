@@ -78,6 +78,17 @@ func (s *Service) Valid(r *http.Request) (bool, error) {
 	return ok, err
 }
 
+func (s *Service) RequestPrincipal(r *http.Request) (Principal, bool, error) {
+	if h := r.Header.Get("Authorization"); h != "" {
+		return s.bearerPrincipal(r.Context(), h)
+	}
+	row, ok, err := s.sessionRow(r)
+	if err != nil || !ok {
+		return Principal{}, false, err
+	}
+	return s.sessionPrincipalOf(r.Context(), row), true, nil
+}
+
 func (s *Service) sessionPrincipal(c *gin.Context) (Principal, bool, error) {
 	row, ok, err := s.sessionRow(c.Request)
 	if err != nil || !ok {

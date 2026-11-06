@@ -145,3 +145,32 @@ func TestValidFollowsTheSessionWithoutTouchingIt(t *testing.T) {
 		t.Fatalf("Valid without credentials = %t, %v, want false", ok, err)
 	}
 }
+
+func TestRequestPrincipalNamesTheSignedInPerson(t *testing.T) {
+	r := newSessionRig(t)
+	s, err := New(Config{PublicURL: mustURL(t, "http://localhost:8080"), IssuerURL: "http://issuer.example/dex"}, r.db.Queries(), slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/d/checkout", nil)
+	req.Header.Set("Cookie", r.cookie)
+	p, ok, err := s.RequestPrincipal(req)
+	if err != nil || !ok || p.Kind != KindUser || p.ID != r.userID.String() || p.Role != RoleAdmin {
+		t.Fatalf("RequestPrincipal = %+v, %t, %v; want the session's admin user", p, ok, err)
+	}
+	bearer := httptest.NewRequest(http.MethodGet, "/d/checkout", nil)
+	bearer.Header.Set("Cookie", r.cookie)
+	bearer.Header.Set("Authorization", "Bearer not-a-key")
+	if _, ok, err := s.RequestPrincipal(bearer); err != nil || ok {
+		t.Fatalf("an invalid bearer key = %t, %v; want false even with a session cookie", ok, err)
+	}
+	if _, ok, err := s.RequestPrincipal(httptest.NewRequest(http.MethodGet, "/d/checkout", nil)); err != nil || ok {
+		t.Fatalf("no credentials = %t, %v; want false", ok, err)
+	}
+	if _, err := r.db.Queries().DeleteUserSessions(t.Context(), r.userID); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := s.RequestPrincipal(req); err != nil || ok {
+		t.Fatalf("after sign out = %t, %v; want false", ok, err)
+	}
+}
