@@ -3882,10 +3882,10 @@ components:
       properties:
         query:
           type: string
-          description: LogQL, ClickHouse SQL or TraceQL; empty when `language` is `filters`.
+          description: LogQL, ClickHouse SQL, TraceQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`.
         language:
           type: string
-          enum: [logql, clickhouse_sql, traceql, filters]
+          enum: [logql, clickhouse_sql, traceql, kql, filters]
         trace_filters:
           nullable: true
           allOf:

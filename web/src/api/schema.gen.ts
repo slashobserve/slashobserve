@@ -4058,10 +4058,10 @@ export interface components {
             signal?: "logs" | "traces";
         };
         DraftQuery: {
-            /** @description LogQL, ClickHouse SQL or TraceQL; empty when `language` is `filters`. */
+            /** @description LogQL, ClickHouse SQL, TraceQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`. */
             query: string;
             /** @enum {string} */
-            language: "logql" | "clickhouse_sql" | "traceql" | "filters";
+            language: "logql" | "clickhouse_sql" | "traceql" | "kql" | "filters";
             /** @description The Traces form's fields; null unless `language` is `filters`. */
             trace_filters: components["schemas"]["TraceFilters"] | null;
             explanation: string;
