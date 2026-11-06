@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent,
   type PointerEvent,
   type ReactNode,
@@ -20,6 +21,7 @@ import {
 
 import { CopyButton } from "@/components/copy-button"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { traceLink } from "@/lib/links"
 import { zonedDateTimeMs } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import {
@@ -33,6 +35,16 @@ import { highlightText } from "@/traces/trace-toolbar"
 import { styleForSlot } from "../colors"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
+import {
+  foldedRows,
+  foldLabel,
+  foldPage,
+  moreLabel,
+  noGroups,
+  revealSpan,
+  rowId,
+  type FoldGroup,
+} from "./fold"
 import { niceTicks } from "./ruler"
 import {
   ancestorIds,
@@ -43,7 +55,6 @@ import {
 import {
   eventTicks,
   traceModel,
-  visibleSpans,
   windowRows,
   type Span,
   type SpanAttribute,
@@ -83,7 +94,13 @@ export type TraceViewProps = {
   header?: boolean
   searchLink?: SearchLink
   spanPaneExtra?: (span: Span) => ReactNode
+  fold?: ReadonlyMap<string, FoldGroup>
+  traceLinks?: TraceLinkTarget
 }
+
+export type TraceLinkTarget = { ds: string; from: string; to: string }
+
+const noOpened: ReadonlyMap<string, number> = new Map()
 
 type Drag = { anchor: number; x: number; left: number; width: number }
 
@@ -319,6 +336,163 @@ function SpanRow({
   )
 }
 
+const foldHatch =
+  "bg-[repeating-linear-gradient(45deg,var(--fold-color)_0_3px,transparent_3px_6px)]"
+
+function FoldRow({
+  group,
+  columns,
+  open,
+  matched,
+  needle,
+  onPath,
+  dim,
+  zoom,
+  formatDuration,
+  onToggle,
+}: {
+  group: FoldGroup
+  columns: string
+  open: boolean
+  matched: boolean | null
+  needle: string
+  onPath: boolean | null
+  dim: boolean
+  zoom: Zoom
+  formatDuration: (ms: number) => string
+  onToggle: () => void
+}) {
+  const Icon = open ? ChevronDownIcon : ChevronRightIcon
+  const bar = zoomedOffset(group, zoom)
+  const label = foldLabel(group, formatDuration)
+  const count = group.count.toLocaleString("en")
+  const highlight = matched && needle !== ""
+  return (
+    <div
+      className={cn(
+        "grid min-h-[30px] items-center text-xs",
+        columns,
+        (dim || onPath === false) && "opacity-[.42]"
+      )}
+      style={{ height: rowHeight - 1 }}
+    >
+      <div
+        className="flex min-w-0 items-center gap-1 pr-2"
+        style={{ paddingLeft: 8 + group.depth * indentStep }}
+      >
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-expanded={open}
+          aria-label={`${open ? "Close" : "Open"} the ${count} folded ${group.operation} spans, slowest first`}
+          onClick={onToggle}
+          className="flex size-5 shrink-0 items-center justify-center rounded-control text-muted-foreground outline-none hover:bg-selection focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Icon className="size-3" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={onToggle}
+          className="min-w-0 flex-1 truncate rounded-control text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {group.service ? (
+            <span className="text-muted-foreground">
+              {highlight
+                ? highlightText(group.service, needle)
+                : group.service}{" "}
+            </span>
+          ) : null}
+          <span
+            className={
+              matched === false ? "text-muted-foreground" : "text-foreground"
+            }
+          >
+            {highlight
+              ? highlightText(group.operation, needle)
+              : group.operation}
+          </span>
+          <span className="text-muted-foreground"> x {count} folded</span>
+        </button>
+      </div>
+      <div className="h-full min-w-0 px-2" onClick={onToggle}>
+        <div className="relative h-full">
+          {bar ? (
+            <>
+              <div
+                aria-hidden="true"
+                className={cn(
+                  "absolute top-[9px] h-3 rounded-[2px]",
+                  foldHatch,
+                  matched === false && "opacity-30",
+                  onPath &&
+                    "outline outline-2 -outline-offset-2 outline-foreground"
+                )}
+                style={
+                  {
+                    left: `${bar.offset * 100}%`,
+                    width: `${bar.width * 100}%`,
+                    minWidth: 2,
+                    "--fold-color": styleForSlot(group.slot).color,
+                  } as CSSProperties
+                }
+              >
+                {group.errors > 0 ? (
+                  <span className="absolute inset-y-0 left-0 w-0.5 rounded-l-[2px] bg-status-critical" />
+                ) : null}
+              </div>
+              <span
+                aria-hidden="true"
+                className="absolute top-[6px] max-w-full truncate rounded-[2px] bg-background/80 px-1 leading-4 text-muted-foreground tabular-nums"
+                style={{
+                  left: `min(${bar.offset * 100}%, calc(100% - 12rem))`,
+                }}
+              >
+                {label}
+              </span>
+            </>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MoreRow({
+  group,
+  shown,
+  columns,
+  onMore,
+}: {
+  group: FoldGroup
+  shown: number
+  columns: string
+  onMore: () => void
+}) {
+  return (
+    <div
+      className={cn("grid items-center text-xs", columns)}
+      style={{ height: rowHeight - 1 }}
+    >
+      <div
+        className="flex min-w-0 items-center"
+        style={{ paddingLeft: 8 + group.depth * indentStep + 20 }}
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          tabIndex={-1}
+          onClick={onMore}
+        >
+          {moreLabel(group, shown)}
+        </Button>
+      </div>
+      <div className="h-full" />
+    </div>
+  )
+}
+
 function kindLine(span: Span): string {
   return [
     span.service,
@@ -366,24 +540,72 @@ function EventList({
                 +{formatDuration(event.time - span.start)}
               </span>
             </div>
-            {Object.entries(event.attributes).map(([key, value]) => (
-              <div
-                key={key}
-                className={cn("grid min-h-6 items-center gap-x-2", kv3Columns)}
-              >
-                <span className="font-mono [overflow-wrap:anywhere] text-muted-foreground">
-                  {key}
-                </span>
-                <span
-                  className={cn(
-                    "col-span-2 font-mono [overflow-wrap:anywhere]",
-                    key === "exception.message" && "whitespace-pre-wrap"
-                  )}
+            <TextPairRows pairs={event.attributes} />
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+function TextPairRows({ pairs }: { pairs: Record<string, string> }) {
+  return Object.entries(pairs).map(([key, value]) => (
+    <div
+      key={key}
+      className={cn("grid min-h-6 items-center gap-x-2", kv3Columns)}
+    >
+      <span className="font-mono [overflow-wrap:anywhere] text-muted-foreground">
+        {key}
+      </span>
+      <span
+        className={cn(
+          "col-span-2 font-mono [overflow-wrap:anywhere]",
+          key === "exception.message" && "whitespace-pre-wrap"
+        )}
+      >
+        {value}
+      </span>
+    </div>
+  ))
+}
+
+function LinkList({
+  span,
+  target,
+}: {
+  span: Span
+  target: TraceLinkTarget | undefined
+}) {
+  if (span.links.length === 0) return null
+  return (
+    <section className="flex flex-col gap-1">
+      <SectionHeading title="Links" count={span.links.length} />
+      <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
+        {span.links.map((link, index) => (
+          <li
+            key={index}
+            className="flex flex-col gap-0.5 rounded-control border border-border px-2 py-1.5"
+          >
+            <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+              <span className="text-muted-foreground">Trace</span>
+              {target ? (
+                <Link
+                  {...traceLink(link.traceId, target.ds, target, link.spanId)}
+                  className="font-mono [overflow-wrap:anywhere] underline-offset-3 hover:underline"
                 >
-                  {value}
+                  {link.traceId}
+                </Link>
+              ) : (
+                <span className="font-mono [overflow-wrap:anywhere]">
+                  {link.traceId}
                 </span>
-              </div>
-            ))}
+              )}
+              <span className="text-muted-foreground">Span</span>
+              <span className="font-mono [overflow-wrap:anywhere]">
+                {link.spanId}
+              </span>
+            </div>
+            <TextPairRows pairs={link.attributes} />
           </li>
         ))}
       </ol>
@@ -556,6 +778,7 @@ function SpanPane({
   span,
   model,
   searchLink,
+  traceLinks,
   extra,
   onClose,
 }: {
@@ -563,6 +786,7 @@ function SpanPane({
   span: Span | undefined
   model: TraceViewProps["model"]
   searchLink: SearchLink | undefined
+  traceLinks: TraceLinkTarget | undefined
   extra: ReactNode
   onClose: () => void
 }) {
@@ -633,6 +857,7 @@ function SpanPane({
             searchLink={searchLink}
           />
           <EventList span={span} formatDuration={model.formatDuration} />
+          <LinkList span={span} target={traceLinks} />
           {extra}
         </div>
       ) : (
@@ -692,6 +917,8 @@ export function TraceView(props: TraceViewProps) {
     if (!props.onOpenIdChange) setInternalOpenId(id)
   }
   const zoom = props.zoom ?? wholeTrace
+  const groups = props.fold ?? noGroups
+  const [opened, setOpened] = useState<ReadonlyMap<string, number>>(noOpened)
   const openAncestors = useMemo(
     () => (openId === null ? [] : ancestorIds(model.spans, openId)),
     [model.spans, openId]
@@ -700,19 +927,29 @@ export function TraceView(props: TraceViewProps) {
     () => withoutIds(wanted, openAncestors),
     [wanted, openAncestors]
   )
+  const shown = useMemo(
+    () =>
+      openId === null
+        ? opened
+        : revealSpan(opened, groups, model.spans, openId),
+    [opened, groups, model.spans, openId]
+  )
 
   const filtered = useMemo(
     () => filterSpans(model.spans, filters),
     [model.spans, filters]
   )
   const rows = useMemo(
-    () => visibleSpans(filtered.spans, collapsed),
-    [filtered.spans, collapsed]
+    () => foldedRows(filtered.spans, groups, collapsed, shown),
+    [filtered.spans, groups, collapsed, shown]
   )
   const windowMs = (zoom.end - zoom.start) * model.duration
   const ticks = niceTicks(windowMs)
-  const openIndex = rows.findIndex((span) => span.id === openId)
-  const openSpan = openIndex === -1 ? undefined : rows[openIndex]
+  const openIndex = rows.findIndex(
+    (row) => row.kind === "span" && row.span.id === openId
+  )
+  const openRow = openIndex === -1 ? undefined : rows[openIndex]
+  const openSpan = openRow?.kind === "span" ? openRow.span : undefined
   const inline = attributes === "inline"
   const windowed = rows.length > windowAfter
   const range = windowed
@@ -779,11 +1016,27 @@ export function TraceView(props: TraceViewProps) {
     setFocusedId(id)
     setOpenId(openId === id ? null : id)
   }
+  const showFold = (group: FoldGroup, count: number) => {
+    const next = new Map(shown)
+    if (count > 0) {
+      next.set(group.id, count)
+    } else {
+      next.delete(group.id)
+      const holdsOpen = group.spans.some(
+        (span) => span.id === openId || openAncestors.includes(span.id)
+      )
+      if (holdsOpen) setOpenId(null)
+    }
+    setOpened(next)
+  }
+  const foldOpen = (group: FoldGroup) => (shown.get(group.id) ?? 0) > 0
+  const toggleFold = (group: FoldGroup) =>
+    showFold(group, foldOpen(group) ? 0 : foldPage)
   const focusRow = (index: number) => {
     const row = rows[Math.min(Math.max(index, 0), rows.length - 1)]
     if (!row) return
     focusPending.current = true
-    setFocusedId(row.id)
+    setFocusedId(rowId(row))
     if (windowed) {
       const top = index * rowHeight
       const list = listRef.current
@@ -797,10 +1050,8 @@ export function TraceView(props: TraceViewProps) {
   }
   const tabStopId =
     [focusedId, openId].find(
-      (id) => id !== null && rows.some((span) => span.id === id)
-    ) ??
-    rows[0]?.id ??
-    null
+      (id) => id !== null && rows.some((row) => rowId(row) === id)
+    ) ?? (rows[0] ? rowId(rows[0]) : null)
 
   function onKeyDown(event: KeyboardEvent<HTMLUListElement>) {
     if (event.metaKey || event.ctrlKey || event.altKey) return
@@ -808,8 +1059,9 @@ export function TraceView(props: TraceViewProps) {
     const target = event.target as HTMLElement
     const currentId =
       target.closest<HTMLElement>("[data-span-id]")?.dataset.spanId
-    const current = rows.findIndex((span) => span.id === currentId)
-    const span = current >= 0 ? rows[current] : undefined
+    const current = rows.findIndex((row) => rowId(row) === currentId)
+    const row = current >= 0 ? rows[current] : undefined
+    const span = row?.kind === "span" ? row.span : undefined
     switch (event.key) {
       case "j":
       case "ArrowDown":
@@ -820,18 +1072,30 @@ export function TraceView(props: TraceViewProps) {
         focusRow(current <= 0 ? 0 : current - 1)
         break
       case "Enter":
-        if (!span || target.getAttribute("role") !== "treeitem") return
-        open(span.id)
+        if (!row || target.getAttribute("role") !== "treeitem") return
+        if (row.kind === "span") open(row.span.id)
+        else if (row.kind === "fold") toggleFold(row.group)
+        else showFold(row.group, row.shown + foldPage)
         break
       case "Escape":
         if (openId === null) return
         setOpenId(null)
         break
       case "ArrowLeft":
+        if (row?.kind === "fold") {
+          if (!foldOpen(row.group)) return
+          showFold(row.group, 0)
+          break
+        }
         if (!span?.hasChildren || collapsed.has(span.id)) return
         toggle(span.id)
         break
       case "ArrowRight":
+        if (row?.kind === "fold") {
+          if (foldOpen(row.group)) return
+          showFold(row.group, foldPage)
+          break
+        }
         if (!span?.hasChildren || !collapsed.has(span.id)) return
         toggle(span.id)
         break
@@ -920,7 +1184,79 @@ export function TraceView(props: TraceViewProps) {
             style={{ paddingTop: range.before, paddingBottom: range.after }}
             onKeyDown={onKeyDown}
           >
-            {rows.slice(range.start, range.end).map((span) => {
+            {rows.slice(range.start, range.end).map((row) => {
+              const id = rowId(row)
+              const itemClass =
+                "border-b border-border outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+              if (row.kind === "fold") {
+                const { group } = row
+                const isOpen = foldOpen(group)
+                return (
+                  <li
+                    key={id}
+                    role="treeitem"
+                    data-span-id={id}
+                    aria-level={group.depth + 1}
+                    aria-expanded={isOpen}
+                    aria-selected={false}
+                    aria-label={`${group.operation}, ${group.count.toLocaleString("en")} folded spans, ${foldLabel(group, model.formatDuration)}`}
+                    tabIndex={id === tabStopId ? 0 : -1}
+                    className={itemClass}
+                  >
+                    <FoldRow
+                      group={group}
+                      columns={columns}
+                      open={isOpen}
+                      matched={
+                        matchedIds === null
+                          ? null
+                          : group.spans.some((span) => matchedIds.has(span.id))
+                      }
+                      needle={needle}
+                      onPath={
+                        props.criticalPathIds
+                          ? group.spans.some((span) =>
+                              props.criticalPathIds!.has(span.id)
+                            )
+                          : null
+                      }
+                      dim={
+                        props.dimmed
+                          ? group.spans.every((span) =>
+                              props.dimmed!.has(span.id)
+                            )
+                          : false
+                      }
+                      zoom={zoom}
+                      formatDuration={model.formatDuration}
+                      onToggle={() => toggleFold(group)}
+                    />
+                  </li>
+                )
+              }
+              if (row.kind === "more") {
+                const { group } = row
+                return (
+                  <li
+                    key={id}
+                    role="treeitem"
+                    data-span-id={id}
+                    aria-level={group.depth + 1}
+                    aria-selected={false}
+                    aria-label={`${moreLabel(group, row.shown)} folded ${group.operation} spans`}
+                    tabIndex={id === tabStopId ? 0 : -1}
+                    className={itemClass}
+                  >
+                    <MoreRow
+                      group={group}
+                      shown={row.shown}
+                      columns={columns}
+                      onMore={() => showFold(group, row.shown + foldPage)}
+                    />
+                  </li>
+                )
+              }
+              const { span } = row
               const isOpen = span.id === openId
               return (
                 <li
@@ -933,7 +1269,7 @@ export function TraceView(props: TraceViewProps) {
                   }
                   aria-selected={isOpen}
                   tabIndex={span.id === tabStopId ? 0 : -1}
-                  className="border-b border-border outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                  className={itemClass}
                 >
                   <SpanRow
                     span={span}
@@ -977,6 +1313,7 @@ export function TraceView(props: TraceViewProps) {
             span={openSpan}
             model={model}
             searchLink={props.searchLink}
+            traceLinks={props.traceLinks}
             extra={
               openSpan && props.spanPaneExtra
                 ? props.spanPaneExtra(openSpan)

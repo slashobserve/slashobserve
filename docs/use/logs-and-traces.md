@@ -103,6 +103,7 @@ The overview strip above the ruler draws the whole trace in one line per span; d
 A click on a span shows its details in the pane beside it, or inline under the span on a screen 760 pixels wide or narrower: the service and the span's kind (server, client, producer, consumer or internal), its name, its status, duration, share of the trace and start offset, then its span attributes, its resource attributes and its events.
 Each attribute row offers **Copy value** and, on Tempo, **Search traces where** the attribute is, or is not, that value, which opens the trace search with that TraceQL filter.
 An event, such as an `exception`, shows its name, its offset from the span's start and its attributes, and the span's bar carries a dot at each event.
+A span's links are listed after its events: each shows the linked trace id, which opens that trace on the same datasource at the linked span, the linked span id and the link's attributes.
 A span's details end with **Logs for this span**: the first lines that carry its trace id and span id, read from the Loki or ClickHouse logs datasource, with the count of lines found.
 **Open in Logs** continues with those lines on the logs page, filtered on the trace id and span id over the span's window plus a minute on each side.
 When a span logged nothing, **Try the whole trace** opens the trace's logs instead.
@@ -112,8 +113,12 @@ While a span is open the address carries `span=<span id>`, so a copied link open
 The keys the waterfall answers are listed in [Keyboard shortcuts](keyboard-shortcuts.md).
 The view looks for the spans in the last 24 hours, or within an hour of the line when you came from the logs page; a trace outside the range says so and offers **Last 7 days** to widen it.
 The view loads the whole trace up to 20,000 spans.
-A trace over 20,000 spans opens with its earliest 20,000 spans by start time and a banner that says how many the trace holds and that the rest are not loaded.
+A trace with many repeated sibling spans, such as a batch job's, folds every set of more than 20 siblings with the same service and operation into one hatched row that carries their count, their total and slowest durations and how many failed, so the timeline still adds up.
+A banner says the trace folds, the find field searches folded spans too, and the services legend counts them.
+Open a folded row to see its slowest 50 spans, and **Show 50 more** for the rest; a search match or a linked span inside a folded group opens the group to it.
+A trace over 20,000 spans opens with its earliest 20,000 spans by start time and a banner that says how many the trace holds and that the rest are not loaded; **Critical path** is off for it, because the path needs every span.
 When Tempo did not search every block, a banner says that some spans may be missing.
+**Download JSON** saves the trace as the browser holds it, the trace endpoint's response, as `trace-<trace id>.json`.
 **Copy link** copies the address of the trace with its datasource, time range and open span, and **Search traces** opens the trace search on the same datasource.
 
 ## Trace search
