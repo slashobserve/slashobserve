@@ -1,0 +1,33 @@
+{
+  "prompt": "checkout lines with a timeout",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "submit_query",
+          "input": {
+            "query": "{service_name=\"checkout\" |= \"timeout\"",
+            "explanation": "Checkout lines that mention a timeout."
+          }
+        }
+      ]
+    },
+    {
+      "expect": [
+        {
+          "is_error": true,
+          "contains": "lint"
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "submit_query",
+          "input": {
+            "query": "{service_name=\"checkout\"} |= \"timeout\"",
+            "explanation": "Checkout lines that mention a timeout."
+          }
+        }
+      ]
+    }
+  ]
+}

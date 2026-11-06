@@ -1,0 +1,16 @@
+{
+  "prompt": "checkout logs mentioning payment",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "submit_query",
+          "input": {
+            "query": "SELECT Timestamp, SeverityText, Body, ServiceName, TraceId, SpanId, LogAttributes FROM otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName = 'checkout' AND Body ILIKE '%payment%' ORDER BY Timestamp DESC LIMIT 1000",
+            "explanation": "Returns checkout service logs from the time range whose Body contains \"payment\" case-insensitively, newest first."
+          }
+        }
+      ]
+    }
+  ]
+}

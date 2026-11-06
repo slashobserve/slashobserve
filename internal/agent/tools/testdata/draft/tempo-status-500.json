@@ -1,0 +1,16 @@
+{
+  "prompt": "checkout spans that returned http 500",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "submit_query",
+          "input": {
+            "query": "{ resource.service.name = \"checkout\" && span.http.status_code = 500 }",
+            "explanation": "Matches spans from the checkout service whose span.http.status_code is 500."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -908,6 +908,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasources/{uid}/draft-query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Turn a question into a checked log query, TraceQL query or trace filters for one datasource.
+         * @description The server reads the datasource's labels, attributes or columns first, then asks the model once with the question and those facts, capped at 12 KiB. The answer is checked with the lint and one sample run over the last 15 minutes of the range under the agent tools' limits; the full query is never run. Only when that check fails does the server make a second model call in the same session to correct it, so a draft spends at most two model calls, and a second failure answers `cannot_translate`. The whole draft has a 60 second deadline. Each caller may have 3 drafts in flight and each server process 10. Loki answers LogQL, ClickHouse logs answer ClickHouse SQL, ClickHouse traces answer trace filters, and Tempo answers trace filters or, when the question needs more, TraceQL. `signal` defaults to `logs` on Loki and `traces` on Tempo, and ClickHouse requires it. `from` and `to` default to `now-1h` and `now` and take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. Viewers and above may call it, service-account keys included. Without a configured model it answers 503 `agent_unavailable`.
+         */
+        post: operations["draftQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasources/{uid}/metrics": {
         parameters: {
             query?: never;
@@ -3575,6 +3597,39 @@ export interface components {
                 dashboard_id: string;
             }[];
         };
+        DraftQueryRequest: {
+            question: string;
+            from?: string;
+            to?: string;
+            /** @enum {string} */
+            signal?: "logs" | "traces";
+        };
+        DraftQuery: {
+            /** @description LogQL, ClickHouse SQL or TraceQL; empty when `language` is `filters`. */
+            query: string;
+            /** @enum {string} */
+            language: "logql" | "clickhouse_sql" | "traceql" | "filters";
+            /** @description The Traces form's fields; null unless `language` is `filters`. */
+            trace_filters: components["schemas"]["TraceFilters"] | null;
+            explanation: string;
+            warnings: string[];
+        };
+        /** @description Each field is present only when set. */
+        TraceFilters: {
+            service?: string;
+            span?: string;
+            /** @description A duration such as `250ms`. */
+            min?: string;
+            /** @description A duration such as `2s`. */
+            max?: string;
+            errors?: boolean;
+        };
+        CannotTranslate: {
+            error: string;
+            /** @enum {string} */
+            code: "cannot_translate";
+            reason: string;
+        };
     };
     responses: {
         /** @description The request is malformed or fails validation. */
@@ -6009,6 +6064,99 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    draftQuery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftQueryRequest"];
+            };
+        };
+        responses: {
+            /** @description The checked draft; `trace_filters` is null unless `language` is `filters`, and `query` is empty when it is. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftQuery"];
+                };
+            };
+            /** @description The body is malformed or fails validation, the signal does not fit the datasource type, or the datasource type has no drafts (`invalid_request`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The question could not be turned into a query (`cannot_translate`); `reason` says why in one sentence. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CannotTranslate"];
+                };
+            };
+            /** @description Too many drafts are in flight (`too_many_requests` for the caller, `agent_busy` for the server process). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description The model provider failed (`provider_error`), or every read of the datasource failed, with the datasource's own code such as `datasource_unavailable`. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No model is configured on this server (`agent_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The draft did not finish within its 60 second deadline (`draft_timeout`). */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };

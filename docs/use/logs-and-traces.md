@@ -53,6 +53,21 @@ On Tempo you can also write TraceQL, which replaces the fields.
 ClickHouse lists the newest 100 traces with a matching span and shows that trace's longest matching span.
 Tempo shows the root span of each trace.
 
+## Ask in plain language
+
+Ask turns a question such as "checkout errors in the last hour" into a query for one datasource.
+On Loki it writes LogQL, and on ClickHouse logs it writes ClickHouse SQL.
+For traces it fills the trace search fields: service, span name, minimum and maximum duration, and errors only.
+On Tempo it writes TraceQL instead when the question needs more than those fields.
+The server first reads the datasource's labels, attributes or columns and some of their values, so the query names real ones.
+Then it asks the model once.
+It checks the answer with the query lint and one sample run over the last 15 minutes of the time range, and never runs the full query.
+When that check fails, it asks the model once more to fix the query, so a question costs at most two model calls.
+The answer comes with a one-sentence explanation and warnings, such as a query that reads every stream, a ClickHouse query without `$__timeFilter` or `LIMIT`, or a sample with no matches.
+When the model cannot write a query for the question, or the fixed query still fails its check, the answer says it could not turn that into a query and why.
+Each person can have 3 questions in flight, and each question stops after 60 seconds.
+Without a model configured on the server, Ask is off.
+
 ## Who can use them and limits
 
 Every signed-in role from Viewer can use the logs page, the trace view and the trace search.
@@ -72,3 +87,16 @@ curl -fsS -X POST "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/query" \
 
 `limit` lowers the row limit and never raises it above 1,000.
 [The CLI](cli.md) has `observe logs` and `observe traces` for the same searches.
+
+Scripts ask a question with `POST /api/v1/datasources/{uid}/draft-query`:
+
+```sh
+curl -fsS -X POST "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/draft-query" \
+  -H "Authorization: Bearer $OBSERVE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"question":"checkout errors","from":"now-1h","to":"now"}'
+```
+
+The answer has `query`, `language` (`logql`, `clickhouse_sql`, `traceql` or `filters`), `trace_filters`, `explanation` and `warnings`.
+A ClickHouse datasource needs `"signal":"logs"` or `"signal":"traces"`.
+A question the model cannot turn into a query answers `422` with code `cannot_translate` and a `reason`, and a server with no model answers `503` `agent_unavailable`.

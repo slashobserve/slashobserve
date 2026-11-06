@@ -92,6 +92,8 @@ paths:
     $ref: "./paths/preview.yaml#/datasources-uid-preview"
   /datasources/{uid}/query:
     $ref: "./paths/explore.yaml#/datasources-uid-query"
+  /datasources/{uid}/draft-query:
+    $ref: "./paths/draft-query.yaml#/datasources-uid-draft-query"
   /datasources/{uid}/metrics:
     $ref: "./paths/names.yaml#/datasources-uid-metrics"
   /datasources/{uid}/labels:
@@ -3391,6 +3393,77 @@ components:
               dashboard_id:
                 type: string
                 format: uuid
+    DraftQueryRequest:
+      type: object
+      additionalProperties: false
+      required: [question]
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        from:
+          type: string
+          maxLength: 128
+        to:
+          type: string
+          maxLength: 128
+        signal:
+          type: string
+          enum: [logs, traces]
+    DraftQuery:
+      type: object
+      additionalProperties: false
+      required: [query, language, trace_filters, explanation, warnings]
+      properties:
+        query:
+          type: string
+          description: LogQL, ClickHouse SQL or TraceQL; empty when `language` is `filters`.
+        language:
+          type: string
+          enum: [logql, clickhouse_sql, traceql, filters]
+        trace_filters:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/TraceFilters"
+          description: The Traces form's fields; null unless `language` is `filters`.
+        explanation:
+          type: string
+        warnings:
+          type: array
+          items:
+            type: string
+    TraceFilters:
+      type: object
+      additionalProperties: false
+      description: Each field is present only when set.
+      properties:
+        service:
+          type: string
+          maxLength: 200
+        span:
+          type: string
+          maxLength: 200
+        min:
+          type: string
+          description: A duration such as `250ms`.
+        max:
+          type: string
+          description: A duration such as `2s`.
+        errors:
+          type: boolean
+    CannotTranslate:
+      type: object
+      additionalProperties: false
+      required: [error, code, reason]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [cannot_translate]
+        reason:
+          type: string
   responses:
     BadRequest:
       description: The request is malformed or fails validation.
