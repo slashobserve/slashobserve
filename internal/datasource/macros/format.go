@@ -19,6 +19,9 @@ var (
 		regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`),
 		regexp.MustCompile(`^[0-9]+(\.[0-9]+)?$`),
 	}
+	searchSafeTokens = []*regexp.Regexp{
+		regexp.MustCompile(`^[A-Za-z0-9_*][A-Za-z0-9_.@*-]*$`),
+	}
 
 	singleQuoteEscaper = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
 	doubleQuoteEscaper = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
@@ -62,6 +65,9 @@ func expandVariable(d Dialect, query string, ref spec.Reference, c ctx, vars []d
 	if slices.ContainsFunc(v.Values, hasControlByte) {
 		return "", refErrorf(ref, "variable %s has a value with a control character", refLabel(ref))
 	}
+	if d == Elasticsearch && ref.Format == "" {
+		return searchDefault(ref, c, v)
+	}
 	format := ref.Format
 	if format == "" {
 		format = defaultFormat(d, c)
@@ -74,9 +80,29 @@ func expandVariable(d Dialect, query string, ref spec.Reference, c ctx, vars []d
 	return escapeForContext(d, ref, c, format, text, v.Values)
 }
 
+func searchDefault(ref spec.Reference, c ctx, v datasource.Variable) (string, error) {
+	if len(v.Values) == 0 {
+		return "", noValuesError(ref, v)
+	}
+	if c.kind == ctxString {
+		if len(v.Values) != 1 {
+			return "", refErrorf(ref, "variable %s needs one value inside a quoted string; use a format such as :pipe", refLabel(ref))
+		}
+		return doubleQuoteEscaper.Replace(v.Values[0]), nil
+	}
+	quoted := make([]string, len(v.Values))
+	for i, value := range v.Values {
+		quoted[i] = `"` + doubleQuoteEscaper.Replace(value) + `"`
+	}
+	if len(quoted) == 1 {
+		return quoted[0], nil
+	}
+	return "(" + strings.Join(quoted, " or ") + ")", nil
+}
+
 func expandAdhoc(d Dialect, ref spec.Reference, c ctx, v datasource.Variable) (string, error) {
 	switch {
-	case d == PromQL:
+	case d == PromQL, d == Elasticsearch:
 		return "", refErrorf(ref, "adhoc variable %s applies to every query on its datasource and cannot be referenced", refLabel(ref))
 	case c.kind != ctxCode:
 		return "", refErrorf(ref, "adhoc variable %s is only allowed in code", refLabel(ref))
@@ -182,6 +208,11 @@ func defaultFormat(d Dialect, c ctx) string {
 			return "regex"
 		}
 		return "raw"
+	case Elasticsearch:
+		if c.kind == ctxString {
+			return "raw"
+		}
+		return "doublequote"
 	default:
 		if c.kind == ctxString {
 			return "raw"
@@ -272,7 +303,7 @@ func escapeForContext(d Dialect, ref spec.Reference, c ctx, format, text string,
 				return "", refErrorf(ref, "variable %s cannot contain a backtick in a raw string", refLabel(ref))
 			}
 			return text, nil
-		case d == PromQL && c.quote == '"':
+		case (d == PromQL || d == Elasticsearch) && c.quote == '"':
 			return doubleQuoteEscaper.Replace(text), nil
 		case d == PromQL:
 			return singleQuoteEscaper.Replace(text), nil
@@ -292,8 +323,11 @@ func escapeForContext(d Dialect, ref spec.Reference, c ctx, format, text string,
 		return "", refErrorf(ref, "format \"regex\" is not allowed in code for variable %s", refLabel(ref))
 	}
 	safe := promSafeTokens
-	if d == ClickHouse {
+	switch d {
+	case ClickHouse:
 		safe = clickHouseSafeTokens
+	case Elasticsearch:
+		safe = searchSafeTokens
 	}
 	for _, value := range values {
 		if !slices.ContainsFunc(safe, func(re *regexp.Regexp) bool { return re.MatchString(value) }) {

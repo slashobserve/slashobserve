@@ -19,6 +19,8 @@ const (
 	ClickHouse
 	LogQL
 	TraceQL
+	Elasticsearch
+	OpenSearch
 )
 
 const (
@@ -98,8 +100,11 @@ func Expand(d Dialect, query string, env Env) (Expansion, error) {
 }
 
 func lexicalDialect(d Dialect) Dialect {
-	if d == LogQL || d == TraceQL {
+	switch d {
+	case LogQL, TraceQL:
 		return PromQL
+	case OpenSearch:
+		return Elasticsearch
 	}
 	return d
 }
@@ -224,6 +229,10 @@ func datasourceType(d Dialect) (spec.DatasourceType, error) {
 		return spec.Loki, nil
 	case TraceQL:
 		return spec.Tempo, nil
+	case Elasticsearch:
+		return spec.Elasticsearch, nil
+	case OpenSearch:
+		return spec.OpenSearch, nil
 	}
 	return "", datasource.Errorf(datasource.ErrInvalidQuery, "unknown dialect %d", int(d))
 }
@@ -286,7 +295,7 @@ func expandMacro(d Dialect, dsType spec.DatasourceType, query string, ref spec.R
 	var out string
 	var ok bool
 	switch d {
-	case PromQL:
+	case PromQL, Elasticsearch:
 		out, ok = promMacro(ref.Name, env)
 	case ClickHouse:
 		out, ok = clickHouseMacro(ref.Name, args.Values, env)

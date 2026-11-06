@@ -186,7 +186,7 @@ func TestMacrosAndFormats(t *testing.T) {
 		t.Errorf("prometheus macros = %v, want %v", got, want)
 	}
 	wantLogsAndTraces := []string{"__interval", "__interval_ms", "__range", "__range_s", "__range_ms", "__from", "__to", "__dashboard", "__user.login", "__user.email", "__user.name", "__user.id"}
-	for _, typ := range []spec.DatasourceType{spec.Loki, spec.Tempo} {
+	for _, typ := range []spec.DatasourceType{spec.Loki, spec.Tempo, spec.Elasticsearch, spec.OpenSearch} {
 		if got := names(spec.Macros(typ)); !slices.Equal(got, wantLogsAndTraces) {
 			t.Errorf("%s macros = %v, want %v", typ, got, wantLogsAndTraces)
 		}

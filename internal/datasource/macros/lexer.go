@@ -72,8 +72,12 @@ func newLexer(d Dialect, query string, refs []spec.Reference) (lexer, error) {
 		c.region = len(l.regions)
 		l.regions = append(l.regions, region{start: start, end: end, ctx: c})
 	}
+	lex := lexPromQL
+	if d == Elasticsearch {
+		lex = lexSearch
+	}
 	for i := 0; i < len(query); {
-		end, c, err := lexPromQL(query, i)
+		end, c, err := lex(query, i)
 		if err != nil {
 			return lexer{}, err
 		}
@@ -91,7 +95,7 @@ func newLexer(d Dialect, query string, refs []spec.Reference) (lexer, error) {
 		add(codeStart, len(query), ctx{kind: ctxCode})
 	}
 	for i := range l.regions {
-		if l.regions[i].ctx.kind == ctxString {
+		if d == PromQL && l.regions[i].ctx.kind == ctxString {
 			l.regions[i].ctx.matcher = l.promMatcher(query, i)
 		}
 	}
@@ -214,6 +218,17 @@ func lexPromQL(q string, i int) (int, ctx, error) {
 		return lineEnd(q, i, true), ctx{kind: ctxComment}, nil
 	}
 	return 0, ctx{}, nil
+}
+
+func lexSearch(q string, i int) (int, ctx, error) {
+	if q[i] != '"' {
+		return 0, ctx{}, nil
+	}
+	end := scanQuoted(q, i, false)
+	if end < 0 {
+		return 0, ctx{}, unterminated("string", i)
+	}
+	return end, ctx{kind: ctxString, quote: '"'}, nil
 }
 
 func scanQuoted(q string, open int, doubling bool) int {
