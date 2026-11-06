@@ -19,43 +19,56 @@ const (
 var _ datasource.LineSource = (*Datasource)(nil)
 
 func (d *Datasource) Lines(ctx context.Context, req datasource.LinesRequest) ([]datasource.Frame, error) {
-	if err := req.Range.Validate(); err != nil {
-		return nil, err
+	var frames []datasource.Frame
+	err := d.readLines(ctx, req.Query, req.Range, func(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings) error {
+		lim.MaxRows = min(max(req.Limit, 1), lim.MaxRows)
+		rs, err := d.fetchWith(ctx, linesQuery(inner, req.Direction), lim, linesParameters(req.Range, lim.MaxRows, 0), extra)
+		if err != nil {
+			return err
+		}
+		frames = markTruncated([]datasource.Frame{rs.tableFrame()}, rs, lim)
+		return nil
+	})
+	return frames, err
+}
+
+type linesReader func(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings) error
+
+func (d *Datasource) readLines(ctx context.Context, q datasource.Query, r datasource.TimeRange, read linesReader) error {
+	if err := r.Validate(); err != nil {
+		return err
 	}
 	if err := d.readOnly(ctx); err != nil {
-		return nil, err
+		return err
 	}
-	lim := d.limits.Tighten(req.Query.Limits)
-	q := req.Query
-	exp, err := macros.Expand(macros.ClickHouse, q.Text, macros.Env{Range: wholeMilliseconds(req.Range), Interval: instantInterval(req.Range), Variables: q.Variables, Dashboard: q.Dashboard, User: q.User})
+	lim := d.limits.Tighten(q.Limits)
+	exp, err := macros.Expand(macros.ClickHouse, q.Text, macros.Env{Range: wholeMilliseconds(r), Interval: instantInterval(r), Variables: q.Variables, Dashboard: q.Dashboard, User: q.User})
 	if err != nil {
-		return nil, err
+		return err
 	}
 	text, err := d.guard(exp.Text)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	inner, err := volumeInner(text)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	lim.Timeout = d.clampTimeout(lim.Timeout)
-	lim.MaxRows = min(max(req.Limit, 1), lim.MaxRows)
 	timeout := effectiveTimeout(ctx, lim.Timeout)
 	ctx, cancel := context.WithTimeout(ctx, lim.Timeout)
 	defer cancel()
 	extra, err := d.tableFilters(ctx, text, q.Filters)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if err := d.requireTimestamp(ctx, inner, lim, extra); err != nil {
-		return nil, mapError(ctx, err, timeout)
+		return mapError(ctx, err, timeout)
 	}
-	rs, err := d.fetchWith(ctx, linesQuery(inner, req.Direction), lim, linesParameters(req.Range, lim.MaxRows), extra)
-	if err != nil {
-		return nil, mapError(ctx, err, timeout)
+	if err := read(ctx, inner, lim, extra); err != nil {
+		return mapError(ctx, err, timeout)
 	}
-	return markTruncated([]datasource.Frame{rs.tableFrame()}, rs, lim), nil
+	return nil
 }
 
 func wholeMilliseconds(r datasource.TimeRange) datasource.TimeRange {
@@ -86,15 +99,30 @@ func linesQuery(inner string, direction datasource.LineDirection) string {
 		order = "ASC"
 	}
 	ts := quoteIdent(timestampColumn)
-	return "SELECT * FROM (\n" + inner + "\n)\nWHERE " + ts + " >= {from:DateTime64(9, 'UTC')} AND " + ts + " < {to:DateTime64(9, 'UTC')}\n" +
-		"ORDER BY " + ts + " " + order + "\nLIMIT {limit:UInt64}"
+	return "SELECT * FROM (\n" + inner + "\n)\n" + rangeFilter() +
+		"ORDER BY " + ts + " " + order + "\nLIMIT {limit:UInt64}\nOFFSET {offset:UInt64}"
 }
 
-func linesParameters(r datasource.TimeRange, limit int) ch.Parameters {
+func countQuery(inner string) string {
+	return "SELECT count() FROM (\n" + inner + "\n)\n" + rangeFilter()
+}
+
+func rangeFilter() string {
+	ts := quoteIdent(timestampColumn)
+	return "WHERE " + ts + " >= {from:DateTime64(9, 'UTC')} AND " + ts + " < {to:DateTime64(9, 'UTC')}\n"
+}
+
+func linesParameters(r datasource.TimeRange, limit, offset int) ch.Parameters {
+	params := rangeParameters(r)
+	params["limit"] = strconv.Itoa(limit)
+	params["offset"] = strconv.Itoa(offset)
+	return params
+}
+
+func rangeParameters(r datasource.TimeRange) ch.Parameters {
 	return ch.Parameters{
-		"from":  parameterTime(r.From),
-		"to":    parameterTime(r.To),
-		"limit": strconv.Itoa(limit),
+		"from": parameterTime(r.From),
+		"to":   parameterTime(r.To),
 	}
 }
 
