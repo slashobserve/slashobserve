@@ -26,6 +26,18 @@ type ObserveBody = {
   }
 }
 
+async function finishedOnServer(page: Page, requestId: string) {
+  await expect
+    .poll(
+      async () => {
+        const response = await page.request.get(`/api/v1/observe/${requestId}`)
+        return ((await response.json()) as ObserveBody).request.status
+      },
+      { timeout: 90_000, intervals: [250] }
+    )
+    .toBe("succeeded")
+}
+
 test("creates a dashboard from a prompt", async ({ page }) => {
   let openGate!: () => void
   const gate = new Promise<void>((resolve) => (openGate = resolve))
@@ -50,6 +62,7 @@ test("creates a dashboard from a prompt", async ({ page }) => {
   await expect(
     chat.getByRole("list", { name: "Progress" }).getByText("Working")
   ).toHaveCount(0)
+  await finishedOnServer(page, requestId)
   openGate()
 
   await expect(page).toHaveURL(dashboardPath, { timeout: 90_000 })
@@ -301,11 +314,14 @@ test.describe("touch device", () => {
 
     await page.getByRole("button", { name: "Send" }).click()
     await expect(page).toHaveURL(buildPath)
+    const requestId = buildPath.exec(page.url())?.[1] ?? ""
     await expect(
       chatPane(page).getByText(redPrompt, { exact: true })
     ).toBeVisible()
+    await finishedOnServer(page, requestId)
     openGate()
 
     await expect(page).toHaveURL(dashboardPath, { timeout: 90_000 })
+    await expectPanelsReady(page)
   })
 })
