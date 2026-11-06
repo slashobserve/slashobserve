@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -75,9 +76,18 @@ func instantBody(query string) map[string]any {
 
 func TestExploreRunsAnInstantQueryOverTheExactRangeWithDraftLimits(t *testing.T) {
 	hn, recorder := newExploreHarness(t)
+	hn.ds.onInstant = func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) {
+		return logFrames(), nil
+	}
 	body := decodeData(t, hn.explore(auth.KindUser, "prom", instantBody(`{service_name="checkout"}`)))
 	if body.Meta.Kind != queryproxy.KindInstant {
 		t.Fatalf("kind = %q, want instant", body.Meta.Kind)
+	}
+	if body.Meta.Truncated || body.Meta.Partial || body.Meta.RowsTotal != 0 {
+		t.Fatalf("meta = %+v, want neither truncated nor partial and no rows_total", body.Meta)
+	}
+	if body.Meta.Rows != 3 || body.Meta.Oldest != "2026-11-06T11:59:58.5Z" || body.Meta.Newest != "2026-11-06T12:00:00.000000001Z" {
+		t.Fatalf("meta = %+v, want 3 rows between 11:59:58.5 and 12:00:00.000000001", body.Meta)
 	}
 	calls := recorder.instants()
 	if len(calls) != 1 {
@@ -201,16 +211,71 @@ func TestExploreRejectsInvalidRequests(t *testing.T) {
 	}
 }
 
-func TestExploreReportsAQueryErrorWithItsRef(t *testing.T) {
+func logFrames() []datasource.Frame {
+	at := time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)
+	return []datasource.Frame{
+		{Labels: map[string]string{"service_name": "checkout"}, Fields: []datasource.Field{
+			{Name: "Time", Type: datasource.FieldTime, Values: []any{at.Add(time.Nanosecond), at.Add(-1500 * time.Millisecond)}},
+			{Name: "Body", Type: datasource.FieldString, Values: []any{"retrying", "payment failed"}},
+		}},
+		{Labels: map[string]string{"service_name": "frontend"}, Fields: []datasource.Field{
+			{Name: "Time", Type: datasource.FieldTime, Values: []any{at.Add(-time.Second)}},
+			{Name: "Body", Type: datasource.FieldString, Values: []any{"slow"}},
+		}},
+	}
+}
+
+func TestExploreCountsNoRowsAndNoEdgesForSeries(t *testing.T) {
+	hn, _ := newExploreHarness(t)
+	body := decodeData(t, hn.explore(auth.KindUser, "prom", instantBody("up")))
+	if body.Meta.Rows != 0 {
+		t.Fatalf("rows = %d for series data, want 0", body.Meta.Rows)
+	}
+	if body.Meta.Oldest != "2025-10-09T08:53:20Z" || body.Meta.Newest != body.Meta.Oldest {
+		t.Fatalf("edges = %q to %q, want the one sample time", body.Meta.Oldest, body.Meta.Newest)
+	}
+	hn.ds.onInstant = func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) {
+		return []datasource.Frame{{Fields: []datasource.Field{{Name: "name", Type: datasource.FieldString, Values: []any{"a"}}}}}, nil
+	}
+	body = decodeData(t, hn.explore(auth.KindUser, "prom", instantBody("names")))
+	if body.Meta.Rows != 1 || body.Meta.Oldest != "" || body.Meta.Newest != "" {
+		t.Fatalf("meta = %+v, want 1 row and no edges without a time field", body.Meta)
+	}
+}
+
+func TestExploreReportsTruncationFromTheDatasource(t *testing.T) {
+	hn, _ := newExploreHarness(t)
+	hn.ds.onInstant = func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) {
+		frames := logFrames()
+		frames[1].Meta = &datasource.FrameMeta{Truncated: true, Partial: true, RowsTotal: 120}
+		return frames, nil
+	}
+	body := decodeData(t, hn.explore(auth.KindUser, "prom", instantBody(`{service_name="checkout"}`)))
+	if !body.Meta.Truncated || !body.Meta.Partial || body.Meta.RowsTotal != 120 || body.Meta.Rows != 3 {
+		t.Fatalf("meta = %+v, want truncated, partial, rows_total 120 and 3 rows", body.Meta)
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(hn.explore(auth.KindUser, "prom", instantBody("up")).Body.Bytes(), &raw); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw["frames"]), "meta") {
+		t.Fatalf("frames carry per-frame meta on the wire: %s", raw["frames"])
+	}
+}
+
+func TestExploreReportsAQueryErrorWithoutARef(t *testing.T) {
 	hn, _ := newExploreHarness(t)
 	hn.ds.onInstant = func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) {
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "parse error at line 1")
 	}
 	rec := hn.explore(auth.KindUser, "prom", instantBody("{"))
 	expectError(t, rec, http.StatusUnprocessableEntity, "query_invalid")
-	body := decodeError(t, rec)
-	if !strings.Contains(body.Error, "parse error at line 1") || body.Ref != "A" {
-		t.Fatalf("error = %+v, want the datasource message and ref A", body)
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if _, hasRef := body["ref"]; hasRef || !strings.Contains(body["error"].(string), "parse error at line 1") {
+		t.Fatalf("error = %v, want the datasource message and no ref", body)
 	}
 }
 

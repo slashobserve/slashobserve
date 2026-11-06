@@ -899,7 +899,7 @@ export interface paths {
         put?: never;
         /**
          * Run one query against a datasource and return its frames.
-         * @description The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables. `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step. The query runs with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows), and `limit` lowers the row limit. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The response has the shape of panel data, with `meta.cached` always false.
+         * @description The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables. `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step. The query runs with the agent tools' limits (15 seconds, 200 series for metric queries, 100,000 points, 1,000 rows; log lines count against the row limit only), and `limit` lowers the row limit. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times, fractional seconds included. The response has the shape of panel data, with `meta.cached` always false. `meta.truncated` says the query stopped at the row limit, `meta.partial` that the datasource did not cover the whole range, and `meta.oldest` and `meta.newest` are the time edges of the rows returned. To load older rows, repeat the request with `to` set to `meta.oldest`; to load newer rows, with `from` set to `meta.newest`. On Loki `end` is exclusive and `start` inclusive, so the oldest line is not repeated and the newest one is; on ClickHouse `$__timeFilter` includes both ends. Clients de-duplicate by time plus body.
          */
         post: operations["exploreQuery"];
         delete?: never;
@@ -2623,6 +2623,24 @@ export interface components {
             executed_at: string;
             /** @description The id of the panel whose queries ran, present only when the requested panel reuses another panel's results; the frames, queries and range are that panel's, and its transforms apply first when the reusing query sets withTransforms. */
             source_panel?: string;
+            /** @description True when a query stopped at its row limit, so more rows exist in the range. */
+            truncated: boolean;
+            /** @description True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks. */
+            partial: boolean;
+            /** @description The rows across all frames (log lines, traces, spans, table rows); 0 for series data. */
+            rows: number;
+            /** @description Present only when the datasource reports how many rows matched in the range. */
+            rows_total?: number;
+            /**
+             * Format: date-time
+             * @description The smallest value of the first time field across all frames, RFC 3339 UTC with nanoseconds; absent when no frame has a time field or no rows. To load older rows, repeat the request with `to` set to it.
+             */
+            oldest?: string;
+            /**
+             * Format: date-time
+             * @description The largest value of the first time field across all frames, RFC 3339 UTC with nanoseconds; absent when no frame has a time field or no rows. To load newer rows, repeat the request with `from` set to it.
+             */
+            newest?: string;
         };
         PanelDataError: {
             error: string;
@@ -6105,7 +6123,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`, with the query's `ref` `A`. */
+            /** @description The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`; the body carries no `ref`. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -6198,7 +6216,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The query cannot run: `query_invalid` for a Loki metric query, a ClickHouse query with a top-level UNION, INTERSECT, EXCEPT or LIMIT BY, or an upstream rejection such as an unknown column; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query. */
+            /** @description The query cannot run: `query_invalid` for a Loki metric query, a ClickHouse query with a top-level UNION, INTERSECT, EXCEPT or LIMIT BY, or an upstream rejection such as an unknown column; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query; the body carries no `ref`. */
             422: {
                 headers: {
                     [name: string]: unknown;

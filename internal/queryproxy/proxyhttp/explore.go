@@ -2,6 +2,7 @@ package proxyhttp
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -153,6 +154,10 @@ func (r exploreRequest) limits() datasource.Limits {
 func (h *Handler) exploreFail(c *gin.Context, uid string, err error) {
 	if status, code, _ := queryproxy.Classify(err); status > http.StatusInternalServerError {
 		h.logger.ErrorContext(c.Request.Context(), "explore query failed", logattrs.Failure(code, err, slog.String("datasource_uid", uid))...)
+	}
+	var qe *queryproxy.QueryError
+	if errors.As(err, &qe) {
+		err = qe.Err
 	}
 	h.fail(c, err)
 }

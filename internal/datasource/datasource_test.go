@@ -41,3 +41,45 @@ func TestTimeRangeValidate(t *testing.T) {
 		})
 	}
 }
+
+func TestMergeMeta(t *testing.T) {
+	frame := func(meta *datasource.FrameMeta) datasource.Frame { return datasource.Frame{Meta: meta} }
+	tests := []struct {
+		name   string
+		frames []datasource.Frame
+		want   datasource.FrameMeta
+	}{
+		{name: "nil metas", frames: []datasource.Frame{frame(nil), frame(nil)}},
+		{name: "one truncated", frames: []datasource.Frame{frame(nil), frame(&datasource.FrameMeta{Truncated: true}), frame(nil)}, want: datasource.FrameMeta{Truncated: true}},
+		{name: "rows total from the second frame", frames: []datasource.Frame{frame(&datasource.FrameMeta{Partial: true}), frame(&datasource.FrameMeta{RowsTotal: 42}), frame(&datasource.FrameMeta{RowsTotal: 7})}, want: datasource.FrameMeta{Partial: true, RowsTotal: 42}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := datasource.MergeMeta(tt.frames); got != tt.want {
+				t.Fatalf("MergeMeta = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFrameIsSeries(t *testing.T) {
+	field := func(typ datasource.FieldType) datasource.Field { return datasource.Field{Type: typ} }
+	tests := []struct {
+		name   string
+		fields []datasource.Field
+		want   bool
+	}{
+		{name: "time and number", fields: []datasource.Field{field(datasource.FieldTime), field(datasource.FieldNumber)}, want: true},
+		{name: "time and two numbers", fields: []datasource.Field{field(datasource.FieldTime), field(datasource.FieldNumber), field(datasource.FieldNumber)}, want: true},
+		{name: "time and string", fields: []datasource.Field{field(datasource.FieldTime), field(datasource.FieldString)}},
+		{name: "number first", fields: []datasource.Field{field(datasource.FieldNumber), field(datasource.FieldNumber)}},
+		{name: "time only", fields: []datasource.Field{field(datasource.FieldTime)}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := (datasource.Frame{Fields: tt.fields}).IsSeries(); got != tt.want {
+				t.Fatalf("IsSeries = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

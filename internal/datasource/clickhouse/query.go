@@ -32,7 +32,7 @@ func (d *Datasource) QueryRange(ctx context.Context, q datasource.Query, r datas
 	if len(frames) > lim.MaxSeries {
 		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "result exceeds %d series", lim.MaxSeries)
 	}
-	return checkPoints(frames, lim)
+	return checkPoints(markTruncated(frames, rs, lim), lim)
 }
 
 func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r datasource.TimeRange) ([]datasource.Frame, error) {
@@ -84,7 +84,14 @@ func rawFrames(rs *resultSet, lim datasource.Limits) ([]datasource.Frame, error)
 	if frame.Rows() > lim.MaxPoints {
 		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "result exceeds %d points", lim.MaxPoints)
 	}
-	return []datasource.Frame{frame}, nil
+	return markTruncated([]datasource.Frame{frame}, rs, lim), nil
+}
+
+func markTruncated(frames []datasource.Frame, rs *resultSet, lim datasource.Limits) []datasource.Frame {
+	if lim.MaxRows > 0 && len(rs.rows) == lim.MaxRows && len(frames) > 0 {
+		frames[0].Meta = &datasource.FrameMeta{Truncated: true}
+	}
+	return frames
 }
 
 func instantInterval(r datasource.TimeRange) time.Duration {

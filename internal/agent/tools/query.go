@@ -290,11 +290,17 @@ type querySummary struct {
 	Empty     bool            `json:"empty"`
 	Frames    int             `json:"frames"`
 	Truncated bool            `json:"truncated"`
+	MoreRows  bool            `json:"more_rows,omitempty"`
+	Partial   bool            `json:"partial,omitempty"`
 	Series    []seriesOut     `json:"series,omitempty"`
 	Table     *tableOut       `json:"table,omitempty"`
 }
 
 func (s querySummary) describe() string {
+	return s.describeData() + s.describeLimits()
+}
+
+func (s querySummary) describeData() string {
 	switch {
 	case s.Empty:
 		return "no data"
@@ -308,15 +314,29 @@ func (s querySummary) describe() string {
 	return "no data"
 }
 
+func (s querySummary) describeLimits() string {
+	var out string
+	if s.MoreRows {
+		out += " (more rows exist; narrow from and to)"
+	}
+	if s.Partial {
+		out += " (partial: the datasource did not search every block)"
+	}
+	return out
+}
+
 func summarize(res queryproxy.Result) querySummary {
 	frames := res.Frames()
+	meta := datasource.MergeMeta(frames)
 	s := querySummary{
-		Kind:   res.Kind,
-		From:   res.Range.From.UTC().Format(time.RFC3339),
-		To:     res.Range.To.UTC().Format(time.RFC3339),
-		StepMS: res.Step.Milliseconds(),
-		Empty:  framesEmpty(frames),
-		Frames: len(frames),
+		Kind:     res.Kind,
+		From:     res.Range.From.UTC().Format(time.RFC3339),
+		To:       res.Range.To.UTC().Format(time.RFC3339),
+		StepMS:   res.Step.Milliseconds(),
+		Empty:    framesEmpty(frames),
+		Frames:   len(frames),
+		MoreRows: meta.Truncated,
+		Partial:  meta.Partial,
 	}
 	if s.Empty {
 		return s
@@ -356,10 +376,7 @@ func framesEmpty(frames []datasource.Frame) bool {
 }
 
 func isSeriesFrame(f datasource.Frame) bool {
-	if len(f.Fields) < 2 || f.Fields[0].Type != datasource.FieldTime {
-		return false
-	}
-	return !slices.ContainsFunc(f.Fields[1:], func(field datasource.Field) bool { return field.Type != datasource.FieldNumber })
+	return f.IsSeries()
 }
 
 func frameSeries(f datasource.Frame) []seriesOut {

@@ -1319,7 +1319,7 @@ components:
     DataMeta:
       type: object
       additionalProperties: false
-      required: [kind, from, to, step_ms, queries, cached, executed_at]
+      required: [kind, from, to, step_ms, queries, cached, executed_at, truncated, partial, rows]
       properties:
         kind:
           type: string
@@ -1352,6 +1352,32 @@ components:
         source_panel:
           type: string
           description: The id of the panel whose queries ran, present only when the requested panel reuses another panel's results; the frames, queries and range are that panel's, and its transforms apply first when the reusing query sets withTransforms.
+        truncated:
+          type: boolean
+          description: True when a query stopped at its row limit, so more rows exist in the range.
+        partial:
+          type: boolean
+          description: True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks.
+        rows:
+          type: integer
+          minimum: 0
+          description: The rows across all frames (log lines, traces, spans, table rows); 0 for series data.
+        rows_total:
+          type: integer
+          minimum: 0
+          description: Present only when the datasource reports how many rows matched in the range.
+        oldest:
+          type: string
+          format: date-time
+          description: >-
+            The smallest value of the first time field across all frames, RFC 3339 UTC with nanoseconds; absent when no frame has a time field or no rows.
+            To load older rows, repeat the request with `to` set to it.
+        newest:
+          type: string
+          format: date-time
+          description: >-
+            The largest value of the first time field across all frames, RFC 3339 UTC with nanoseconds; absent when no frame has a time field or no rows.
+            To load newer rows, repeat the request with `from` set to it.
     PanelDataError:
       type: object
       additionalProperties: false

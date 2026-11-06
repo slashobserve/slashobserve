@@ -93,12 +93,13 @@ func (d *Datasource) query(ctx context.Context, q datasource.Query, r datasource
 	case spec.LogQLReturnsLines(text):
 		params.Set("start", lokiTime(r.From))
 		params.Set("end", lokiTime(r.To))
-		params.Set("limit", strconv.Itoa(min(lim.MaxRows, maxLogLines)))
+		lineLimit := min(lim.MaxRows, maxLogLines)
+		params.Set("limit", strconv.Itoa(lineLimit))
 		params.Set("direction", "backward")
-		return d.run(ctx, "/loki/api/v1/query_range", params, lim)
+		return d.run(ctx, "/loki/api/v1/query_range", params, lim, lineLimit)
 	case instant:
 		params.Set("time", lokiTime(r.To))
-		return d.run(ctx, "/loki/api/v1/query", params, lim)
+		return d.run(ctx, "/loki/api/v1/query", params, lim, 0)
 	}
 	steps := int64(r.To.Sub(r.From) / step)
 	if steps > maxStepPoints {
@@ -110,7 +111,7 @@ func (d *Datasource) query(ctx context.Context, q datasource.Query, r datasource
 	params.Set("start", lokiTime(r.From))
 	params.Set("end", lokiTime(r.To))
 	params.Set("step", strconv.FormatFloat(step.Seconds(), 'f', -1, 64))
-	return d.run(ctx, "/loki/api/v1/query_range", params, lim)
+	return d.run(ctx, "/loki/api/v1/query_range", params, lim, 0)
 }
 
 func expand(q datasource.Query, r datasource.TimeRange, interval time.Duration) (string, error) {
@@ -131,7 +132,7 @@ func lokiTime(t time.Time) string {
 	return t.UTC().Format(time.RFC3339Nano)
 }
 
-func (d *Datasource) run(ctx context.Context, path string, params url.Values, lim datasource.Limits) ([]datasource.Frame, error) {
+func (d *Datasource) run(ctx context.Context, path string, params url.Values, lim datasource.Limits, lineLimit int) ([]datasource.Frame, error) {
 	raw, err := d.get(ctx, path, params)
 	if err != nil {
 		return nil, err
@@ -142,7 +143,7 @@ func (d *Datasource) run(ctx context.Context, path string, params url.Values, li
 	}
 	switch data.ResultType {
 	case "streams":
-		return streamFrames(data.Result, lim)
+		return streamFrames(data.Result, lineLimit)
 	case "matrix", "vector":
 		return seriesFrames(data.Result, lim)
 	}
@@ -162,7 +163,7 @@ func decodeEach[T any](result json.RawMessage, maxItems int, each func(T) error)
 		return unreadable()
 	}
 	for n := 0; dec.More(); n++ {
-		if n == maxItems {
+		if maxItems > 0 && n == maxItems {
 			return datasource.Errorf(datasource.ErrLimitExceeded, "series limit exceeded: more than %d series", maxItems)
 		}
 		var item T
@@ -179,13 +180,11 @@ func decodeEach[T any](result json.RawMessage, maxItems int, each func(T) error)
 	return nil
 }
 
-func streamFrames(result json.RawMessage, lim datasource.Limits) ([]datasource.Frame, error) {
+func streamFrames(result json.RawMessage, lineLimit int) ([]datasource.Frame, error) {
 	frames := []datasource.Frame{}
-	rows := 0
-	err := decodeEach(result, lim.MaxSeries, func(s stream) error {
-		if rows += len(s.Values); rows > lim.MaxPoints {
-			return datasource.Errorf(datasource.ErrLimitExceeded, "points limit exceeded: more than %d log lines", lim.MaxPoints)
-		}
+	lines := 0
+	err := decodeEach(result, 0, func(s stream) error {
+		lines += len(s.Values)
 		f, err := streamFrame(s)
 		if err != nil {
 			return err
@@ -197,6 +196,9 @@ func streamFrames(result json.RawMessage, lim datasource.Limits) ([]datasource.F
 		return nil, err
 	}
 	sortFrames(frames)
+	if lineLimit > 0 && lines == lineLimit {
+		frames[0].Meta = &datasource.FrameMeta{Truncated: true}
+	}
 	return frames, nil
 }
 

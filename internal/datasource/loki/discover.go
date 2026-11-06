@@ -102,7 +102,7 @@ func (d *Datasource) discoverSample(ctx context.Context, req datasource.Discover
 		"limit":     {strconv.Itoa(n)},
 		"direction": {"backward"},
 	}
-	frames, err := d.run(ctx, "/loki/api/v1/query_range", params, d.opts.Limits)
+	frames, err := d.run(ctx, "/loki/api/v1/query_range", params, d.opts.Limits, n)
 	if err != nil {
 		return nil, err
 	}

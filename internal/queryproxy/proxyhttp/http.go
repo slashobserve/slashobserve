@@ -109,6 +109,55 @@ type dataMeta struct {
 	Cached      bool            `json:"cached"`
 	ExecutedAt  string          `json:"executed_at"`
 	SourcePanel string          `json:"source_panel,omitempty"`
+	Truncated   bool            `json:"truncated"`
+	Partial     bool            `json:"partial"`
+	Rows        int             `json:"rows"`
+	RowsTotal   int             `json:"rows_total,omitempty"`
+	Oldest      string          `json:"oldest,omitempty"`
+	Newest      string          `json:"newest,omitempty"`
+}
+
+type resultMeta struct {
+	truncated bool
+	partial   bool
+	rows      int
+	rowsTotal int
+	oldest    time.Time
+	newest    time.Time
+}
+
+func resultMetaOf(frames []datasource.Frame) resultMeta {
+	merged := datasource.MergeMeta(frames)
+	m := resultMeta{truncated: merged.Truncated, partial: merged.Partial, rowsTotal: merged.RowsTotal}
+	for _, f := range frames {
+		if !f.IsSeries() {
+			m.rows += f.Rows()
+		}
+		i := slices.IndexFunc(f.Fields, func(field datasource.Field) bool { return field.Type == datasource.FieldTime })
+		if i < 0 {
+			continue
+		}
+		for _, v := range f.Fields[i].Values {
+			at, ok := v.(time.Time)
+			if !ok {
+				continue
+			}
+			if m.oldest.IsZero() || at.Before(m.oldest) {
+				m.oldest = at
+			}
+			if m.newest.IsZero() || at.After(m.newest) {
+				m.newest = at
+			}
+		}
+	}
+	return m
+}
+
+func formatEdge(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return formatTime(t)
 }
 
 type dataResponse struct {
@@ -331,7 +380,7 @@ func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dat
 	if asked {
 		exemplars = joinFrames(exemplarParts)
 	}
-	return dataEntry{frames: joinFrames(parts), exemplars: exemplars, queries: queries, kind: res.Kind, from: res.Range.From, to: res.Range.To, step: res.Step, executedAt: time.Now()}, nil
+	return dataEntry{frames: joinFrames(parts), exemplars: exemplars, queries: queries, kind: res.Kind, from: res.Range.From, to: res.Range.To, step: res.Step, meta: resultMetaOf(res.Frames()), executedAt: time.Now()}, nil
 }
 
 func (h *Handler) logPanic(ctx context.Context, panelID string, p any) {
@@ -363,6 +412,12 @@ func writeData(c *gin.Context, e dataEntry, cached bool, executedAt time.Time, s
 			Cached:      cached,
 			ExecutedAt:  formatTime(executedAt),
 			SourcePanel: sourcePanel,
+			Truncated:   e.meta.truncated,
+			Partial:     e.meta.partial,
+			Rows:        e.meta.rows,
+			RowsTotal:   e.meta.rowsTotal,
+			Oldest:      formatEdge(e.meta.oldest),
+			Newest:      formatEdge(e.meta.newest),
 		},
 	})
 }

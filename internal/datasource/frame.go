@@ -22,6 +22,28 @@ type Frame struct {
 	Name   string            `json:"name,omitempty"`
 	Labels map[string]string `json:"labels,omitempty"`
 	Fields []Field           `json:"fields"`
+	Meta   *FrameMeta        `json:"meta,omitempty"`
+}
+
+type FrameMeta struct {
+	Truncated bool `json:"truncated,omitempty"`
+	Partial   bool `json:"partial,omitempty"`
+	RowsTotal int  `json:"rows_total,omitempty"`
+}
+
+func MergeMeta(frames []Frame) FrameMeta {
+	var merged FrameMeta
+	for _, f := range frames {
+		if f.Meta == nil {
+			continue
+		}
+		merged.Truncated = merged.Truncated || f.Meta.Truncated
+		merged.Partial = merged.Partial || f.Meta.Partial
+		if merged.RowsTotal == 0 {
+			merged.RowsTotal = f.Meta.RowsTotal
+		}
+	}
+	return merged
 }
 
 // NaN and Inf are not representable in JSON; they render as gaps.
@@ -37,6 +59,18 @@ func (f Frame) Rows() int {
 		return 0
 	}
 	return len(f.Fields[0].Values)
+}
+
+func (f Frame) IsSeries() bool {
+	if len(f.Fields) < 2 || f.Fields[0].Type != FieldTime {
+		return false
+	}
+	for _, field := range f.Fields[1:] {
+		if field.Type != FieldNumber {
+			return false
+		}
+	}
+	return true
 }
 
 func Points(frames []Frame) int {

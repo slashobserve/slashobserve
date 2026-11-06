@@ -22,7 +22,7 @@ On ClickHouse, the editor holds the template; keep `$__timeFilter(Timestamp)` in
 Press **Run query**, or Ctrl+Enter or Cmd+Enter in the editor, to run it over the time range at the top of the page.
 The page shows at most 1,000 lines, newest first.
 On Loki the query must start with a stream selector.
-When a selector matches more streams than the server allows, the page says "More than N streams match. Narrow the selector." and **Open label browser** opens the label browser to narrow it.
+When more lines match than the page shows, the page says so and **Load older** fetches the lines before the oldest one shown.
 **Live tail** and **Add to dashboard** stay disabled until a query has run, and say "Run a query first."
 
 The volume strip above the lines counts every line the query matches over the whole time range by level, not only the lines shown.

@@ -206,6 +206,45 @@ func TestQueryInstantLogTableThroughCall(t *testing.T) {
 	}
 }
 
+func TestQueryInstantSaysMoreRowsExistAndPartial(t *testing.T) {
+	cases := []struct {
+		name string
+		meta datasource.FrameMeta
+		want string
+	}{
+		{"truncated", datasource.FrameMeta{Truncated: true}, "Ran a query on fake: 3 rows (more rows exist; narrow from and to)"},
+		{"partial", datasource.FrameMeta{Partial: true}, "Ran a query on fake: 3 rows (partial: the datasource did not search every block)"},
+		{"both", datasource.FrameMeta{Truncated: true, Partial: true}, "Ran a query on fake: 3 rows (more rows exist; narrow from and to) (partial: the datasource did not search every block)"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := &fakeDS{
+				typ: "clickhouse",
+				instantFn: func(context.Context, datasource.Query, datasource.TimeRange) ([]datasource.Frame, error) {
+					f := logTableFrame()
+					for i := range f.Fields {
+						f.Fields[i].Values = append(f.Fields[i].Values, f.Fields[i].Values[0])
+					}
+					f.Meta = &tc.meta
+					return []datasource.Frame{f}, nil
+				},
+			}
+			r := newTestRegistry(t, ds, nil)
+			res, err := call(t, r, nameQueryInstant, `{"datasource":"fake","query":"SELECT Timestamp, ServiceName, Body FROM otel_logs"}`)
+			if err != nil || res.IsError {
+				t.Fatalf("res = %#v err = %v", res, err)
+			}
+			if res.Step != tc.want {
+				t.Fatalf("step = %q, want %q", res.Step, tc.want)
+			}
+			summary := res.Content.(querySummary)
+			if summary.MoreRows != tc.meta.Truncated || summary.Partial != tc.meta.Partial {
+				t.Fatalf("summary = %+v, want more_rows %v and partial %v", summary, tc.meta.Truncated, tc.meta.Partial)
+			}
+		})
+	}
+}
+
 func TestQueryRangeThroughCall(t *testing.T) {
 	ds := &fakeDS{rangeFn: func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
 		return []datasource.Frame{timeNumberFrame(map[string]string{"route": "/a"}, 1, 2)}, nil
