@@ -11,12 +11,13 @@ Press `?` on a dashboard to see them all in the app.
 | `v` | View the panel at full size, or go back to the dashboard. |
 | `e` | Edit the panel, when you may edit the dashboard. |
 | `i` | Open Inspect for the panel, or close it. |
-| `Esc` | Close Inspect, then the full-size view, then TV mode. |
+| `Esc` | Close Inspect, then the full-size view, then TV mode and full screen. |
 | `t` then `z` | Zoom the time range out to twice its length. |
 | `t` then `←` | Move the time range back by half its length. |
 | `t` then `→` | Move the time range forward by half its length. |
 | `d` then `r` | Refresh every panel. |
-| `d` then `k` | Enter TV mode. |
+| `d` then `k` | Enter TV mode in full screen. |
+| `f` | Go full screen in TV mode opened from a link. |
 | `?` | Show the keyboard shortcuts. |
 | `⌘O` or `Ctrl+O` | Change how chart hover is shared between panels. |
 | `⌘K` or `Ctrl+K` | Open the command palette. |

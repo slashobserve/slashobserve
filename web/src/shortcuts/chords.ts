@@ -8,6 +8,7 @@ export type ShortcutAction =
   | "shiftForward"
   | "refresh"
   | "tvMode"
+  | "fullscreen"
   | "help"
 
 export type Shortcut = {
@@ -35,7 +36,8 @@ export const dashboardShortcuts: readonly Shortcut[] = [
   {
     action: "close",
     keys: ["Escape"],
-    description: "Close the panel view or Inspect, or leave TV mode",
+    description:
+      "Close the panel view or Inspect, or leave TV mode and full screen",
   },
   {
     action: "zoomOut",
@@ -53,7 +55,16 @@ export const dashboardShortcuts: readonly Shortcut[] = [
     description: "Move the time range forward",
   },
   { action: "refresh", keys: ["d", "r"], description: "Refresh every panel" },
-  { action: "tvMode", keys: ["d", "k"], description: "Enter TV mode" },
+  {
+    action: "tvMode",
+    keys: ["d", "k"],
+    description: "Enter TV mode in full screen",
+  },
+  {
+    action: "fullscreen",
+    keys: ["f"],
+    description: "Go full screen in TV mode opened from a link",
+  },
   { action: "help", keys: ["?"], description: "Show keyboard shortcuts" },
 ]
 

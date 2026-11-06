@@ -94,6 +94,10 @@ import {
 import { downloadSpec } from "./export-spec"
 import { KioskHint } from "./kiosk/kiosk-hint"
 import { useKiosk } from "./kiosk/use-kiosk"
+import {
+  requestFullscreen,
+  useKioskFullscreen,
+} from "./kiosk/use-kiosk-fullscreen"
 import { MoreMenu } from "./more-menu"
 import { noNewPanels, panelsAddedSince, type SeenVersion } from "./new-panels"
 import { PanelContainer } from "./panel-container"
@@ -482,6 +486,13 @@ function DashboardView({
   )
 
   useKiosk({ dashboardId, folderId: access.folder.id, search, grid: gridBox })
+  const { offerFullscreen, leave: leaveKiosk } = useKioskFullscreen(kiosk, () =>
+    setSearch(withoutKiosk)
+  )
+  const enterKiosk = (update: (state: DashboardSearch) => DashboardSearch) => {
+    requestFullscreen()
+    setSearch(update)
+  }
 
   const timeHidden = spec.timePicker?.hidden === true
   const moveRange = (
@@ -529,7 +540,7 @@ function DashboardView({
       : viewed !== undefined
         ? closeView
         : kiosk
-          ? () => setSearch(withoutKiosk)
+          ? leaveKiosk
           : undefined,
     zoomOut: moveRange((now) =>
       zoomOut(effectiveFrom, effectiveTo, now, timeOptions)
@@ -546,7 +557,8 @@ function DashboardView({
       }),
     tvMode: kiosk
       ? undefined
-      : () => setSearch((state) => ({ ...state, kiosk: true })),
+      : () => enterKiosk((state) => ({ ...state, kiosk: true })),
+    fullscreen: offerFullscreen ? requestFullscreen : undefined,
     help: () => setShortcutsOpen(true),
   })
 
@@ -665,12 +677,12 @@ function DashboardView({
       }
       onDelete={() => setDeleting(true)}
       onExport={() => downloadSpec(spec, spec.title, version)}
-      onTvMode={() => setSearch((state) => ({ ...state, kiosk: true }))}
+      onTvMode={() => enterKiosk((state) => ({ ...state, kiosk: true }))}
       onTvModeFolder={
         access.folder.personal
           ? null
           : () =>
-              setSearch((state) => ({
+              enterKiosk((state) => ({
                 ...state,
                 kiosk: true,
                 cycle: "folder",
@@ -883,7 +895,7 @@ function DashboardView({
             onClose={closeInspect}
           />
         ) : null}
-        {kiosk ? <KioskHint /> : null}
+        {kiosk ? <KioskHint offerFullscreen={offerFullscreen} /> : null}
         <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
         <DetailsDialog
           dashboardId={dashboardId}

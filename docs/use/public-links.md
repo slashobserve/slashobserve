@@ -57,8 +57,11 @@ An address that is unknown, revoked or expired reads "This link has expired or w
 ## Show it on a wall
 
 TV mode shows a dashboard on a wall screen with nothing but its panels: the top row, the variables bar, the links and the activity card are hidden.
-Start it with **TV mode** in the dashboard's **More** menu, or with `d` then `k`.
-Press `Esc` to leave it; a hint saying so shows for three seconds when TV mode starts and whenever the mouse moves.
+Start it with **TV mode** in the dashboard's **More** menu, or with `d` then `k`; either one also puts the browser in full screen.
+Press `Esc` to leave both; a hint saying so shows for three seconds when TV mode starts and whenever the mouse moves.
+When the browser leaves full screen on its own, TV mode ends with it.
+A browser goes full screen only after a click or a key press, so TV mode opened from a link starts without it, as it does when the browser refuses full screen.
+The hint then also offers `f`, which puts the browser in full screen.
 
 TV mode lives in the address, so a TV can open a bookmark straight into it:
 

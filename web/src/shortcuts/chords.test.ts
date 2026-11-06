@@ -35,6 +35,8 @@ describe("feedKey", () => {
     [["t", "ArrowRight"], "shiftForward"],
     [["d", "r"], "refresh"],
     [["d", "k"], "tvMode"],
+    [["f"], "fullscreen"],
+    [["F"], "fullscreen"],
   ] as const)("maps %j to %s", (keys, action) => {
     expect(typeKeys(keys).at(-1)).toBe(action)
   })

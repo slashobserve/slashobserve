@@ -115,7 +115,7 @@ Grafana's public dashboards and kiosk mode have their counterparts here.
 - A [public link](public-links.md) lets someone without an account, such as a vendor or a status screen, open one dashboard at `/p/<token>`.
   A person who manages the dashboard's folder creates it in the dashboard's **Share** pane, chooses whether viewers may change the variables, can set an expiry, and can revoke it at any time.
   A public view runs only that dashboard's saved queries and never shows query text, annotations, comments or the agent, and a dashboard in My Dashboards or one whose queries read the viewer cannot get a link.
-- TV mode shows a dashboard on a wall screen without the top row, the variables bar, the links or the activity card, and Esc leaves it.
+- TV mode shows a dashboard full screen on a wall screen without the top row, the variables bar, the links or the activity card, and Esc leaves it.
   Add `kiosk=true` to the dashboard's address, `cycle=rows` to scroll through its rows or `cycle=folder` to move through its folder's dashboards, and `interval=<seconds>` to set the pace (60 by default).
   Cycling through a folder takes the place of a Grafana playlist; see [Show it on a wall](public-links.md#show-it-on-a-wall).
 

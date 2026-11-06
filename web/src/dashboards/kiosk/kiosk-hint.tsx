@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 
 const hintMs = 3000
 
-export function KioskHint() {
+export function KioskHint({ offerFullscreen }: { offerFullscreen: boolean }) {
   const [visible, setVisible] = useState(true)
   useEffect(() => {
     let timer = window.setTimeout(() => setVisible(false), hintMs)
@@ -25,8 +25,14 @@ export function KioskHint() {
     >
       {visible ? (
         <p className="rounded-control border bg-background px-3 py-1.5 text-[13px] text-foreground">
-          Press <kbd className="rounded-sm border px-1">Esc</kbd> to exit TV
-          mode
+          Press{" "}
+          {offerFullscreen ? (
+            <>
+              <kbd className="rounded-sm border px-1">F</kbd> for full screen
+              and{" "}
+            </>
+          ) : null}
+          <kbd className="rounded-sm border px-1">Esc</kbd> to exit TV mode
         </p>
       ) : null}
     </div>

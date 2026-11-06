@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { nextFolderDashboard, nextRowIndex } from "./kiosk"
+import { kioskStep, nextFolderDashboard, nextRowIndex } from "./kiosk"
 
 describe("nextRowIndex", () => {
   it.each([
@@ -55,4 +55,26 @@ describe("nextFolderDashboard", () => {
     ).toBeNull()
     expect(nextFolderDashboard([], "a")).toBeNull()
   })
+})
+
+describe("kioskStep", () => {
+  it.each([
+    ["fullscreen-changed", true, false, "leave-kiosk"],
+    ["fullscreen-changed", true, true, null],
+    ["fullscreen-changed", false, false, null],
+    ["fullscreen-changed", false, true, null],
+    ["kiosk-changed", false, true, "exit-fullscreen"],
+    ["kiosk-changed", false, false, null],
+    ["kiosk-changed", true, true, null],
+    ["kiosk-changed", true, false, null],
+    ["fullscreen-key", true, false, "enter-fullscreen"],
+    ["fullscreen-key", true, true, null],
+    ["fullscreen-key", false, false, null],
+    ["fullscreen-key", false, true, null],
+  ] as const)(
+    "on %s with kiosk %s and fullscreen %s takes %s",
+    (event, kiosk, fullscreen, expected) => {
+      expect(kioskStep(event, { kiosk, fullscreen })).toBe(expected)
+    }
+  )
 })
