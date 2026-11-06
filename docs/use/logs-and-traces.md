@@ -43,6 +43,16 @@ When a run fails, the box says "No results." with the time and size of the last 
 When more lines match than the page shows, the page says so and **Load older** fetches the lines before the oldest one shown.
 **Live tail** and **Add to dashboard** stay disabled until a query has run, and say "Run a query first."
 
+The row above the lines holds **Sort**, **Wrap**, **JSON** and **Columns**.
+**Sort** picks newest first or oldest first, and clicking the **Time** heading flips it.
+**Wrap** wraps long lines, and **JSON** reformats a line whose body is JSON over several rows.
+**Columns** lists the fields found in the loaded lines, and each field you tick becomes a column before the line, written to the address as `cols`.
+On Elasticsearch and OpenSearch the `service` field is a column until you choose others.
+The menu on a column heading sorts the loaded lines A to Z or Z to A, moves the column left or right, or removes it.
+Click a line, or focus it and press Enter, to open its details; press `j` and `k` in the list to move to the next and previous line.
+Opening a line adds `line` to the address, closing it removes `line`, and **Copy link** in the line's details copies an address that opens that line.
+When the linked line is not in the results, the page says so and **Clear** removes `line` from the address.
+
 The lines page 100 at a time, and the page size goes from 50 to 500.
 On ClickHouse the page shows the exact count of matching lines and jumps to any page number.
 On Loki the pages follow time, newest first, so the count reads "at least N" until the last page makes it exact, and a page is reached through the page before it.

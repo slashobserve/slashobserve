@@ -1,17 +1,41 @@
-import { useCallback, useMemo, useSyncExternalStore } from "react"
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react"
 import { Link } from "@tanstack/react-router"
 
 import { CopyButton } from "@/components/copy-button"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import type { WireFrame } from "@/dashboards/queries"
 import type { DatasourceStatus } from "@/datasources/queries"
 import { traceLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import type { LogEntry, LogsDisplay } from "@/panels/logs/logs-model"
-import { LogsView, type LogSelection } from "@/panels/logs/logs-panel"
+import {
+  LogsView,
+  type ColumnSort,
+  type LogSelection,
+  type LogsViewModel,
+} from "@/panels/logs/logs-panel"
 import type { DataPanel } from "@/spec"
 
 import { anchorNs, serviceNameOf } from "./context-query"
+import { ColumnsHeader, FieldsMenu } from "./fields-menu"
+import { defaultColumns, fieldNames, lineId } from "./line-fields"
 import { usePrepared } from "./prepared"
 import { traceIdOf, traceRangeAround } from "./trace-link"
 import { useElementSize } from "./use-element-size"
@@ -27,6 +51,9 @@ type ExploreLogsProps = {
   selectedKey?: string | null
   onSelectedChange?: (selection: LogSelection | null) => void
   detailsId?: string
+  columns?: readonly string[]
+  columnSort?: ColumnSort | null
+  onModel?: (model: LogsViewModel) => void
 }
 
 export function ExploreLogs({
@@ -40,6 +67,9 @@ export function ExploreLogs({
   selectedKey,
   onSelectedChange,
   detailsId,
+  columns,
+  columnSort,
+  onModel,
 }: ExploreLogsProps) {
   const panel = useMemo<DataPanel>(
     () => ({
@@ -71,6 +101,9 @@ export function ExploreLogs({
           selectedKey={selectedKey}
           onSelectedChange={onSelectedChange}
           detailsId={detailsId}
+          columns={columns}
+          columnSort={columnSort}
+          onModel={onModel}
         />
       ) : null}
     </div>
@@ -98,7 +131,59 @@ const resultsDisplay = {
   showLabels: true,
   details: true,
   detailsMode: "inline",
-  controls: true,
+  controls: false,
+}
+
+export type ResultsView = {
+  order: "newest" | "oldest"
+  wrap: boolean
+  prettify: boolean
+  columnSort: ColumnSort | null
+}
+
+type ResultsModel = LogsViewModel & { frames: WireFrame[] }
+
+const columnSortValue = "column"
+
+function sortOptions(sort: ColumnSort | null) {
+  return [
+    { value: "newest", label: "Newest first" },
+    { value: "oldest", label: "Oldest first" },
+    ...(sort === null
+      ? []
+      : [
+          {
+            value: columnSortValue,
+            label: `${sort.name} ${sort.direction === "asc" ? "A to Z" : "Z to A"}`,
+          },
+        ]),
+  ]
+}
+
+function TogglePill({
+  pressed,
+  label,
+  onToggle,
+  children,
+}: {
+  pressed: boolean
+  label?: string
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="xs"
+      aria-pressed={pressed}
+      aria-label={label}
+      className="aria-pressed:bg-selection"
+      onClick={onToggle}
+    >
+      {children}
+    </Button>
+  )
 }
 
 export function contextBlocker(
@@ -145,6 +230,12 @@ export function LogsResults({
   onSelect,
   onContext,
   detailsId,
+  view,
+  onViewChange,
+  columns,
+  onColumnsChange,
+  linkedId,
+  onLinkedChange,
 }: {
   frames: WireFrame[]
   datasource: DatasourceStatus
@@ -154,8 +245,92 @@ export function LogsResults({
   onSelect: (selection: LogSelection | null) => void
   onContext: (selection: LogSelection) => void
   detailsId: string
+  view: ResultsView
+  onViewChange: (change: Partial<ResultsView>) => void
+  columns: readonly string[]
+  onColumnsChange: (names: string[]) => void
+  linkedId: string | undefined
+  onLinkedChange: (id: string | undefined) => void
 }) {
   const phone = usePhone()
+  const sortId = useId()
+  const { ref: rowsRef, height: rowsHeight } = useElementSize<HTMLDivElement>()
+  const [emitted, setEmitted] = useState<ResultsModel | null>(null)
+  const model = emitted?.frames === frames ? emitted : null
+  const handleModel = useCallback(
+    (next: LogsViewModel) => setEmitted({ frames, ...next }),
+    [frames]
+  )
+  const names = useMemo(
+    () => (model === null ? [] : fieldNames(model.entries)),
+    [model]
+  )
+  const shownColumns = useMemo(
+    () =>
+      columns.length > 0 ? columns : defaultColumns(datasource.type, names),
+    [columns, datasource.type, names]
+  )
+  const levelColumn = useMemo(
+    () => model?.entries.some((entry) => entry.level !== null) ?? false,
+    [model]
+  )
+
+  const linked = useMemo(
+    () =>
+      model === null || linkedId === undefined
+        ? undefined
+        : model.entries.find((entry) => lineId(entry) === linkedId),
+    [model, linkedId]
+  )
+  const selectedId = useMemo(() => {
+    const entry =
+      selectedKey === null
+        ? undefined
+        : model?.entries.find((candidate) => candidate.key === selectedKey)
+    return entry === undefined ? null : lineId(entry)
+  }, [model, selectedKey])
+  const linkedMissing =
+    !phone && model !== null && linkedId !== undefined && linked === undefined
+  const opened = useRef<string | undefined>(undefined)
+  const hadSelection = useRef(false)
+
+  useEffect(() => {
+    if (linkedId === undefined) {
+      opened.current = undefined
+      return
+    }
+    if (phone || model === null || linked === undefined) return
+    if (opened.current === linkedId) return
+    opened.current = linkedId
+    const selection = model.selectionFor(linked.key)
+    if (selection !== null) onSelect(selection)
+  }, [linkedId, phone, model, linked, onSelect])
+
+  useEffect(() => {
+    if (phone) return
+    if (selectedKey === null) {
+      if (!hadSelection.current) return
+      hadSelection.current = false
+      if (linkedId !== undefined) onLinkedChange(undefined)
+      return
+    }
+    if (selectedId === null) return
+    hadSelection.current = true
+    if (selectedId !== linkedId) {
+      opened.current = selectedId
+      onLinkedChange(selectedId)
+    }
+  }, [phone, selectedKey, selectedId, linkedId, onLinkedChange])
+
+  const display = useMemo(
+    () => ({
+      ...resultsDisplay,
+      order: view.order,
+      wrap: view.wrap,
+      prettify: view.prettify,
+    }),
+    [view.order, view.wrap, view.prettify]
+  )
   const detailActions = useCallback(
     (selection: LogSelection) => {
       const { entry } = selection
@@ -199,17 +374,114 @@ export function LogsResults({
     },
     [datasource, onContext, traceDatasource]
   )
+  const options = sortOptions(view.columnSort)
   return (
-    <ExploreLogs
-      frames={frames}
-      datasourceUid={datasource.uid}
-      title="Query results"
-      height={height}
-      display={resultsDisplay}
-      detailActions={phone ? detailActions : undefined}
-      selectedKey={selectedKey}
-      onSelectedChange={phone ? undefined : onSelect}
-      detailsId={detailsId}
-    />
+    <div className="flex flex-col" style={{ height }}>
+      <div
+        role="toolbar"
+        aria-label="Results view"
+        className="flex h-8 shrink-0 items-center gap-3 px-2 text-[13px]"
+      >
+        <div className="flex items-center gap-2">
+          <Label htmlFor={sortId} className="text-[13px] font-normal">
+            Sort
+          </Label>
+          <Select
+            items={options}
+            value={view.columnSort === null ? view.order : columnSortValue}
+            onValueChange={(next) => {
+              if (next === "newest" || next === "oldest") {
+                onViewChange({ order: next, columnSort: null })
+              }
+            }}
+          >
+            <SelectTrigger id={sortId}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent alignItemWithTrigger={false} align="start">
+              {options.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <TogglePill
+          pressed={view.wrap}
+          onToggle={() => onViewChange({ wrap: !view.wrap })}
+        >
+          Wrap
+        </TogglePill>
+        <TogglePill
+          pressed={view.prettify}
+          label="Pretty-print JSON"
+          onToggle={() => onViewChange({ prettify: !view.prettify })}
+        >
+          JSON
+        </TogglePill>
+        {phone ? null : (
+          <FieldsMenu
+            names={names}
+            chosen={shownColumns}
+            onChange={onColumnsChange}
+          />
+        )}
+        <span className="ml-auto text-xs text-muted-foreground max-[760px]:hidden">
+          j and k move, Enter expands
+        </span>
+      </div>
+      {linkedMissing ? (
+        <div className="shrink-0 px-2 pb-2">
+          <Alert>
+            <AlertDescription className="flex items-center justify-between gap-2">
+              The linked line is not in these results.
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => onLinkedChange(undefined)}
+              >
+                Clear
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
+      ) : null}
+      {phone ? null : (
+        <ColumnsHeader
+          columns={shownColumns}
+          levelColumn={levelColumn}
+          order={view.order}
+          sort={view.columnSort}
+          onFlipOrder={() =>
+            onViewChange({
+              order: view.order === "newest" ? "oldest" : "newest",
+              columnSort: null,
+            })
+          }
+          onSort={(columnSort) => onViewChange({ columnSort })}
+          onColumnsChange={onColumnsChange}
+        />
+      )}
+      <div ref={rowsRef} className="min-h-0 flex-1">
+        {rowsHeight > 0 ? (
+          <ExploreLogs
+            frames={frames}
+            datasourceUid={datasource.uid}
+            title="Query results"
+            height={rowsHeight}
+            display={display}
+            detailActions={phone ? detailActions : undefined}
+            selectedKey={selectedKey}
+            onSelectedChange={phone ? undefined : onSelect}
+            detailsId={detailsId}
+            columns={phone ? undefined : shownColumns}
+            columnSort={view.columnSort}
+            onModel={handleModel}
+          />
+        ) : null}
+      </div>
+    </div>
   )
 }
