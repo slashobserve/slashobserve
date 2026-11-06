@@ -2,9 +2,15 @@ import { useId, useMemo, useState, type ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
-import { NativeSelect } from "@/components/native-select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button, buttonVariants } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { DatasourceStatus } from "@/datasources/queries"
 import { cn } from "@/lib/utils"
@@ -71,23 +77,33 @@ function DatasourceChoice({
   onChange: (uid: string) => void
 }) {
   const id = useId()
+  const items = candidates.map((candidate) => ({
+    value: candidate.uid,
+    label: candidate.name,
+  }))
   return (
     <div className="flex items-center gap-2">
       <label htmlFor={id} className="text-xs text-muted-foreground">
         Logs datasource
       </label>
-      <NativeSelect
-        id={id}
-        size="sm"
+      <Select
+        items={items}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onValueChange={(next) => {
+          if (next !== null) onChange(next)
+        }}
       >
-        {candidates.map((candidate) => (
-          <option key={candidate.uid} value={candidate.uid}>
-            {candidate.name}
-          </option>
-        ))}
-      </NativeSelect>
+        <SelectTrigger id={id} size="sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent alignItemWithTrigger={false} align="start">
+          {items.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }
