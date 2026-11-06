@@ -418,7 +418,7 @@ test.describe("on a phone", () => {
     ).toBe(true)
     expect(
       await dashboardsCard(page).evaluate(
-        (element) => element.scrollWidth > element.clientWidth
+        (element) => element.scrollWidth <= element.clientWidth
       )
     ).toBe(true)
   })

@@ -210,7 +210,7 @@ test.describe("on a phone", () => {
     ).toBe(true)
     expect(
       await card(page).evaluate(
-        (element) => element.scrollWidth > element.clientWidth
+        (element) => element.scrollWidth <= element.clientWidth
       )
     ).toBe(true)
   })

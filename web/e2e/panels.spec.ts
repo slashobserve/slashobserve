@@ -209,6 +209,7 @@ test("zooms by dragging", async ({ page, request }) => {
   await expectPanelsReady(page)
 
   const over = panel(page, rpsTitle).locator(".u-over")
+  await over.scrollIntoViewIfNeeded()
   const box = await over.boundingBox()
   expect(box).not.toBeNull()
   const { x, y, width, height } = box!

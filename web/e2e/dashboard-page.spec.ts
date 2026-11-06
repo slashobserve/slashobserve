@@ -50,6 +50,11 @@ for (const theme of themes) {
       const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" })
       await expect(
         breadcrumb.getByRole("link", { name: "/observe home" })
+      ).toBeHidden()
+      await expect(
+        page
+          .getByRole("navigation", { name: "Main" })
+          .getByRole("link", { name: "/observe home" })
       ).toHaveAttribute("href", "/")
       await expect(
         breadcrumb.getByRole("link", { name: "Dashboards", exact: true })

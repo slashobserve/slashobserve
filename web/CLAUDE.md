@@ -131,5 +131,5 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   A filtered empty is one "No <things> match these filters." line with a "Clear filters" button.
 - Use `FilterToolbar` for the filter row under a page header.
 - Every workspace table is a `TableCard` with `stackOnNarrow`, so its rows become lists on a phone and nothing scrolls sideways.
-- Only the right panel, the sidebar width and the chat build transition move, with `duration-(--duration-panel) ease-panel` under `motion-safe:`.
+- Only the right panel, the sidebar width and the chat build transition move, with `ease-panel` under `motion-safe:` and `animation-duration-(--duration-panel)` on the enter animation; never a bare `duration-*` without a transition property, because it transitions every property, including a resize.
   Anything else that moves needs a spec change.

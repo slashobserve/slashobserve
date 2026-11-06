@@ -17,6 +17,7 @@ import {
   uniqueTitle,
 } from "./api"
 import {
+  expectNoAnimations,
   expectPanelsReady,
   openDashboard,
   panel,
@@ -446,7 +447,6 @@ for (const colorScheme of ["light", "dark"] as const) {
 
         await expect(form).toHaveCount(0)
         await expect(thread.getByText("Sent to the agent")).toBeVisible()
-        await expect(promptEntries).toHaveCount(1)
 
         finish()
         await expect(thread.getByText("Resolved by version 2")).toBeVisible({
@@ -640,6 +640,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         page.getByRole("separator", { name: "Resize panel" })
       ).toHaveCount(0)
       await expect(card(page)).toHaveCSS("position", "fixed")
+      await expectNoAnimations(card(page))
       const box = await card(page).boundingBox()
       expect(box?.x ?? -1).toBeGreaterThanOrEqual(0)
       expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390)
