@@ -21,10 +21,6 @@ const (
 
 var Kinds = []Kind{KindNoData, KindQueryFailed, KindVariableFailed, KindDuplicateTitle, KindUnopened}
 
-func (k Kind) checked() bool {
-	return k == KindNoData || k == KindQueryFailed || k == KindVariableFailed
-}
-
 const unopenedAfter = 90 * 24 * time.Hour
 
 const variablesPointer = "/variables/"
