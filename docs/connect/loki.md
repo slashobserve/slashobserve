@@ -36,6 +36,7 @@ A query that starts with a stream selector, such as `{service_name="checkout"} |
 It returns one frame per stream, with the stream's labels and the fields `Time`, `Body` and, when the stream has a `level`, `lvl`, `severity_text`, `severity` or `detected_level` label, `level`.
 Lines come newest first, and one query returns at most the datasource's row limit or 5,000 lines, whichever is lower.
 Each line counts as one point against the points limit.
+Log patterns use Loki's pattern ingester (`pattern_ingester: enabled: true` in Loki's config) when it is enabled and the query is a bare stream selector; otherwise the server samples the newest lines and computes the patterns itself.
 
 Any other query, such as `sum by (service_name) (count_over_time({service_name=~".+"}[5m]))`, is a metric query.
 It returns series with `Time` and `Value` fields, like a Prometheus query, and the series and points limits apply.

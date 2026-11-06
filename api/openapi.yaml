@@ -104,6 +104,8 @@ paths:
     $ref: "./paths/traces.yaml#/datasources-uid-trace-stats"
   /datasources/{uid}/log-context:
     $ref: "./paths/log-context.yaml#/datasources-uid-log-context"
+  /datasources/{uid}/log-patterns:
+    $ref: "./paths/log-patterns.yaml#/datasources-uid-log-patterns"
   /datasources/{uid}/tail:
     $ref: "./paths/tail.yaml#/datasources-uid-tail"
   /datasources/{uid}/draft-query:
@@ -1592,6 +1594,49 @@ components:
         truncated:
           type: boolean
           description: More lines exist in the window on this side than were asked for.
+    LogPatterns:
+      type: object
+      additionalProperties: false
+      required: [source, lines_sampled, lines_matched, patterns, truncated]
+      properties:
+        source:
+          type: string
+          enum: [loki, server]
+          description: "`loki` when Loki's pattern index answered, `server` when the patterns were computed from a sample of the newest lines."
+        lines_sampled:
+          type: integer
+          description: The lines the server read to compute the patterns; 0 when the datasource's index answered.
+        lines_matched:
+          type: integer
+          description: The sum of every pattern's count, before the `limit` cut.
+        patterns:
+          type: array
+          description: The top patterns by count descending, then by pattern.
+          items:
+            $ref: "#/components/schemas/LogPattern"
+        truncated:
+          type: boolean
+          description: More patterns exist than `limit`.
+    LogPattern:
+      type: object
+      additionalProperties: false
+      required: [pattern, count, sample, first, last]
+      properties:
+        pattern:
+          type: string
+          description: The line template, with every variable token written `<*>`.
+        count:
+          type: integer
+          description: The lines the pattern covers, over the range from Loki's index or within the sample.
+        sample:
+          type: string
+          description: The newest sampled line of the pattern; empty when the index answered.
+        first:
+          type: string
+          description: RFC 3339 time of the first sample bucket or oldest sampled line; empty when the time is unknown.
+        last:
+          type: string
+          description: RFC 3339 time of the last sample bucket or newest sampled line; empty when the time is unknown.
     PanelData:
       type: object
       additionalProperties: false
