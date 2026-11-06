@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest"
+import { act, renderHook } from "@testing-library/react"
+import { afterEach, describe, expect, it } from "vitest"
 
 import {
   freshCursor,
@@ -6,6 +7,7 @@ import {
   promptHistoryLimit,
   pushPrompt,
   stepHistory,
+  usePromptHistory,
 } from "./prompt-history"
 
 describe("parseStoredHistory", () => {
@@ -83,5 +85,22 @@ describe("stepHistory", () => {
 
   it("does nothing going older with no history", () => {
     expect(stepHistory([], freshCursor, "older", "")).toBeNull()
+  })
+})
+
+describe("usePromptHistory", () => {
+  afterEach(() => localStorage.clear())
+
+  it("keeps each storage key's history apart", () => {
+    const asks = renderHook(() => usePromptHistory("ask-history-logs"))
+    act(() => asks.result.current.record("errors from checkout"))
+    expect(asks.result.current.entries).toEqual(["errors from checkout"])
+    expect(renderHook(() => usePromptHistory()).result.current.entries).toEqual(
+      []
+    )
+    expect(
+      renderHook(() => usePromptHistory("ask-history-traces")).result.current
+        .entries
+    ).toEqual([])
   })
 })

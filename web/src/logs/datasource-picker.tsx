@@ -17,9 +17,12 @@ export function eligibleDatasources(
   return (list ?? []).filter((datasource) => types.includes(datasource.type))
 }
 
-function optionText(datasource: DatasourceStatus): string {
+export function optionText(datasource: DatasourceStatus): string {
   const type = typeNames[datasource.type] ?? datasource.type
-  const text = `${datasource.name} (${type})`
+  const text =
+    datasource.name.toLowerCase() === type.toLowerCase()
+      ? type
+      : `${datasource.name} (${type})`
   return datasource.healthy ? text : `${text} - unavailable`
 }
 

@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest"
 
-import { logsTimeRange, validateLogsSearch } from "./search"
+import { logsTimeRange, validAsk, validateLogsSearch } from "./search"
 
 describe("validateLogsSearch", () => {
   it("keeps a valid search", () => {
     const search = {
       ds: "loki",
       q: '{service_name="checkout"}',
+      ask: "errors from checkout",
       from: "now-6h",
       to: "1760000000000",
     }
@@ -17,6 +18,7 @@ describe("validateLogsSearch", () => {
     expect(validateLogsSearch({})).toEqual({
       ds: undefined,
       q: undefined,
+      ask: undefined,
       from: undefined,
       to: undefined,
     })
@@ -36,6 +38,20 @@ describe("validateLogsSearch", () => {
     ["holds a NUL", '{a="b"}\0'],
   ])("drops a query that %s", (_, q) => {
     expect(validateLogsSearch({ q }).q).toBeUndefined()
+  })
+
+  it.each([
+    ["is empty", ""],
+    ["is over 2000 characters", "x".repeat(2001)],
+    ["holds a newline", "errors\nfrom checkout"],
+    ["holds a NUL", "errors\0"],
+  ])("drops a question that %s", (_, ask) => {
+    expect(validateLogsSearch({ ask }).ask).toBeUndefined()
+  })
+
+  it("keeps a question of 2000 characters", () => {
+    const ask = "x".repeat(2000)
+    expect(validAsk(ask)).toBe(ask)
   })
 
   it("keeps the first of repeated values", () => {

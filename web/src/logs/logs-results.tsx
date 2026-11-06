@@ -1,6 +1,7 @@
-import { useCallback, useMemo } from "react"
+import { useCallback, useMemo, useSyncExternalStore } from "react"
 import { Link } from "@tanstack/react-router"
 
+import { CopyButton } from "@/components/copy-button"
 import { Button, buttonVariants } from "@/components/ui/button"
 import type { WireFrame } from "@/dashboards/queries"
 import type { DatasourceStatus } from "@/datasources/queries"
@@ -67,11 +68,27 @@ export function ExploreLogs({
   )
 }
 
+const phoneQuery = "(max-width: 760px)"
+
+function subscribePhone(onChange: () => void) {
+  const media = window.matchMedia(phoneQuery)
+  media.addEventListener("change", onChange)
+  return () => media.removeEventListener("change", onChange)
+}
+
+function useDetailsMode(): "inline" | "sidebar" {
+  const phone = useSyncExternalStore(
+    subscribePhone,
+    () => window.matchMedia(phoneQuery).matches,
+    () => false
+  )
+  return phone ? "inline" : "sidebar"
+}
+
 const resultsDisplay = {
   showTime: true,
   showLabels: true,
   details: true,
-  detailsMode: "sidebar",
   controls: true,
 }
 
@@ -91,6 +108,11 @@ export function LogsResults({
   height: number
 }) {
   const clickhouse = datasource.type === "clickhouse"
+  const detailsMode = useDetailsMode()
+  const display = useMemo(
+    () => ({ ...resultsDisplay, detailsMode }),
+    [detailsMode]
+  )
   const detailActions = useCallback(
     (entry: LogEntry, streamLabels: Labels) => {
       const traceId = traceIdOf(entry)
@@ -127,6 +149,15 @@ export function LogsResults({
               Open trace
             </Link>
           ) : null}
+          <CopyButton
+            text={entry.message}
+            label="Copy line"
+            variant="outline"
+            size="xs"
+            icon={false}
+          >
+            Copy line
+          </CopyButton>
         </>
       )
     },
@@ -138,7 +169,7 @@ export function LogsResults({
       datasourceUid={datasource.uid}
       title="Query results"
       height={height}
-      display={resultsDisplay}
+      display={display}
       detailActions={detailActions}
     />
   )

@@ -52,31 +52,31 @@ export function stepHistory(
   }
 }
 
-function readHistory(): string[] {
+function readHistory(storageKey: string): string[] {
   try {
-    return parseStoredHistory(localStorage.getItem(promptHistoryKey))
+    return parseStoredHistory(localStorage.getItem(storageKey))
   } catch {
     return []
   }
 }
 
-function writeHistory(entries: readonly string[]) {
+function writeHistory(storageKey: string, entries: readonly string[]) {
   try {
-    localStorage.setItem(promptHistoryKey, JSON.stringify(entries))
+    localStorage.setItem(storageKey, JSON.stringify(entries))
   } catch {
     return
   }
 }
 
-export function usePromptHistory(): {
+export function usePromptHistory(storageKey = promptHistoryKey): {
   entries: string[]
   record: (prompt: string) => void
 } {
-  const [entries, setEntries] = useState(readHistory)
+  const [entries, setEntries] = useState(() => readHistory(storageKey))
 
   function record(prompt: string) {
-    const next = pushPrompt(readHistory(), prompt)
-    writeHistory(next)
+    const next = pushPrompt(readHistory(storageKey), prompt)
+    writeHistory(storageKey, next)
     setEntries(next)
   }
 
