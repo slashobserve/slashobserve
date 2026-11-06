@@ -1020,6 +1020,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasources/{uid}/log-context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read the log lines just before and just after one line.
+         * @description `anchor` is the `TimeNs` string of the line, as the explore query and the tail return it, so the context is exact to the nanosecond and needs one request. `before.frames` hold the newest `before` lines older than the anchor, newest first, read from `window_ms` before the anchor up to it; `after.frames` hold the oldest `after` lines newer than the anchor, oldest first, read from one nanosecond after the anchor to `window_ms` after it. The anchored line is on neither side. Each side's `truncated` is true when more lines exist in its window; a side with a count of 0 is not read and answers no frames. The two reads run at the same time with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. For Loki the query must be a log query that starts with a stream selector; for ClickHouse one SELECT that selects `Timestamp`, whose top-level `ORDER BY` and `LIMIT` the server replaces. Viewers and above may call it, service-account keys included.
+         */
+        post: operations["logContext"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/tail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Stream new log lines of a logs query as Server-Sent Events.
+         * @description The server polls the datasource every second for lines newer than the last line it sent and streams them as they arrive, so the browser holds no credential and runs no query of its own. The stream starts with `retry: 3000` and an `event: ready` whose data is `{"datasource_uid","from"}`. Each poll that found lines sends an `event: lines` whose data is `{"frames","newest","truncated"}`: `frames` holds the lines in the `Frame` shape of a panel data response, every frame with `ref` `A`, oldest first, with a `TimeNs` string field beside `Time`; `newest` is the RFC 3339 time of the newest line; `truncated` is true when the poll hit `limit`, and the next poll then runs at once instead of a second later. The next poll starts one nanosecond after `newest`, so a line is sent once. A datasource failure sends an `event: error` whose data is `{"error","code"}` with the code the explore query would answer, and the stream ends; a datasource that is unavailable or slow is retried and reported only after five failed polls in a row. The first poll runs before any stream byte, so a query that cannot run answers JSON with the explore query's status instead of a stream. For Loki the query must be a log query that starts with a stream selector; for ClickHouse one SELECT that selects `Timestamp`, whose top-level `ORDER BY` and `LIMIT` the server replaces. A `: ping` comment arrives every 15 seconds and re-checks the caller's credential, and the server ends the stream after 30 minutes. Polls run with the agent tools' limits and share the server's upstream call slots, but a tail holds no in-flight query slot. A caller may hold 5 tails and the process 200. Viewers and above may call it, service-account keys included.
+         */
+        get: operations["tailLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasources/{uid}/draft-query": {
         parameters: {
             query?: never;
@@ -2818,6 +2862,18 @@ export interface components {
             /** @description The upper edge of the bucket in milliseconds; the bucket holds the spans whose duration is at most this value and above the previous edge. */
             le_ms: number;
             count: number;
+        };
+        LogContext: {
+            /** @description The `TimeNs` of the request. */
+            anchor: string;
+            before: components["schemas"]["LogContextSide"];
+            after: components["schemas"]["LogContextSide"];
+        };
+        LogContextSide: {
+            /** @description The lines of this side in the panel data frame shape, every frame with `ref` `A` and a `TimeNs` string field beside `Time`. */
+            frames: components["schemas"]["Frame"][];
+            /** @description More lines exist in the window on this side than were asked for. */
+            truncated: boolean;
         };
         PanelData: {
             frames: components["schemas"]["Frame"][];
@@ -6781,6 +6837,213 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    logContext: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The query the logs page runs; the server does not rewrite it beyond the time bounds and order. */
+                    query: string;
+                    /** @description The line's `TimeNs`, a nanosecond epoch time as a decimal string. */
+                    anchor: string;
+                    /**
+                     * @description The most lines wanted before the anchor.
+                     * @default 50
+                     */
+                    before?: number;
+                    /**
+                     * @description The most lines wanted after the anchor.
+                     * @default 50
+                     */
+                    after?: number;
+                    /**
+                     * @description How far before and after the anchor to look, in milliseconds.
+                     * @default 3600000
+                     */
+                    window_ms?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The lines on each side of the anchor. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogContext"];
+                };
+            };
+            /** @description The request is malformed or fails validation, `anchor` is not a nanosecond epoch time, a count or `window_ms` is out of range, or the datasource is not Loki or ClickHouse (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The query cannot run: `query_invalid` for a Loki metric query, a ClickHouse query without `Timestamp` or with a top-level set operator, or an upstream rejection such as an unknown column; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query; the body carries no `ref`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    tailLogs: {
+        parameters: {
+            query: {
+                /** @description The query the logs page runs. */
+                query: string;
+                /** @description Where the first poll starts: a relative expression such as `now-30s`, epoch milliseconds or an RFC 3339 time, in the past. Defaults to 10 seconds ago. */
+                from?: string;
+                /** @description The most lines one poll returns. */
+                limit?: number;
+                /** @description The IANA zone a relative `from` resolves in; defaults to UTC. */
+                timezone?: string;
+            };
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description An open `text/event-stream`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description A parameter is missing, repeated, unknown or out of range, `from` is not a time or lies in the future, or the datasource is not Loki or ClickHouse (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The first poll cannot run: `query_invalid` for a Loki metric query, a ClickHouse query without `Timestamp` or with a top-level set operator, or an upstream rejection; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The caller already holds 5 tails (`too_many_streams`), or the server's shared upstream call slots stayed busy for the first poll (`too_many_requests`). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The server failed to handle the request, including a first poll that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The datasource is unavailable for the first poll. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The process holds 200 tails (`too_many_streams`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The datasource did not answer the first poll within the 15 second query timeout. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };

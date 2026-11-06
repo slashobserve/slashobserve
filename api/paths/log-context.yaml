@@ -1,0 +1,105 @@
+datasources-uid-log-context:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+  post:
+    operationId: logContext
+    summary: Read the log lines just before and just after one line.
+    description: >-
+      `anchor` is the `TimeNs` string of the line, as the explore query and the tail return it, so the context is exact to the nanosecond and needs one request.
+      `before.frames` hold the newest `before` lines older than the anchor, newest first, read from `window_ms` before the anchor up to it; `after.frames` hold the oldest `after` lines newer than the anchor, oldest first, read from one nanosecond after the anchor to `window_ms` after it.
+      The anchored line is on neither side.
+      Each side's `truncated` is true when more lines exist in its window; a side with a count of 0 is not read and answers no frames.
+      The two reads run at the same time with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests.
+      For Loki the query must be a log query that starts with a stream selector; for ClickHouse one SELECT that selects `Timestamp`, whose top-level `ORDER BY` and `LIMIT` the server replaces.
+      Viewers and above may call it, service-account keys included.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [query, anchor]
+            properties:
+              query:
+                type: string
+                minLength: 1
+                maxLength: 65536
+                description: The query the logs page runs; the server does not rewrite it beyond the time bounds and order.
+              anchor:
+                type: string
+                minLength: 1
+                description: The line's `TimeNs`, a nanosecond epoch time as a decimal string.
+              before:
+                type: integer
+                minimum: 0
+                maximum: 500
+                default: 50
+                description: The most lines wanted before the anchor.
+              after:
+                type: integer
+                minimum: 0
+                maximum: 500
+                default: 50
+                description: The most lines wanted after the anchor.
+              window_ms:
+                type: integer
+                minimum: 1000
+                maximum: 86400000
+                default: 3600000
+                description: How far before and after the anchor to look, in milliseconds.
+    responses:
+      "200":
+        description: The lines on each side of the anchor.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/LogContext"
+      "400":
+        description: >-
+          The request is malformed or fails validation, `anchor` is not a nanosecond epoch time, a count or `window_ms` is out of range, or the datasource is not Loki or ClickHouse (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        description: The datasource does not exist (`not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: >-
+          The query cannot run: `query_invalid` for a Loki metric query, a ClickHouse query without `Timestamp` or with a top-level set operator, or an upstream rejection such as an unknown column; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query; the body carries no `ref`.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        description: The server failed to handle the request, including a datasource call that failed without a classified cause.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "502":
+        description: The datasource is unavailable.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "504":
+        description: The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
