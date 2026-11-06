@@ -8,6 +8,8 @@ import {
   LayoutGridIcon,
   LogOutIcon,
   PencilIcon,
+  TvIcon,
+  TvMinimalPlayIcon,
   Trash2Icon,
 } from "lucide-react"
 
@@ -47,6 +49,8 @@ type Props = {
   onDuplicate: (() => void) | null
   onDelete: () => void
   onExport: () => void
+  onTvMode: () => void
+  onTvModeFolder: (() => void) | null
   cursorSync: CursorSync
   onCursorSyncChange: (mode: CursorSync) => void
 }
@@ -64,6 +68,8 @@ export function MoreMenu({
   onDuplicate,
   onDelete,
   onExport,
+  onTvMode,
+  onTvModeFolder,
   cursorSync,
   onCursorSyncChange,
 }: Props) {
@@ -78,7 +84,7 @@ export function MoreMenu({
         render={
           <button
             type="button"
-            aria-label="More: edit layout, edit details, export, duplicate, chart hover, delete, API keys, sign out"
+            aria-label="More: edit layout, edit details, export, duplicate, TV mode, TV mode for this folder, chart hover, delete, API keys, sign out"
             className="grid size-[30px] place-items-center rounded-control outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted"
           />
         }
@@ -137,6 +143,18 @@ export function MoreMenu({
             {duplicateBlockedBy === null
               ? "Duplicate..."
               : `Duplicate (${duplicateBlockedBy})`}
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onTvMode}>
+          <TvIcon aria-hidden="true" />
+          TV mode
+          <DropdownMenuShortcut aria-hidden="true">d k</DropdownMenuShortcut>
+        </DropdownMenuItem>
+        {onTvModeFolder !== null ? (
+          <DropdownMenuItem onClick={onTvModeFolder}>
+            <TvMinimalPlayIcon aria-hidden="true" />
+            TV mode for this folder
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuSeparator />

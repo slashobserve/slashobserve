@@ -18,6 +18,8 @@ declare module "@tanstack/react-router" {
 }
 
 type EditView = "query" | "json"
+type KioskCycle = "rows" | "folder"
+export type InspectTab = "data" | "query" | "stats"
 
 export type DashboardSearch = {
   from?: string
@@ -29,6 +31,12 @@ export type DashboardSearch = {
   edit?: EditView
   share?: boolean
   ann?: string[]
+  kiosk?: boolean
+  cycle?: KioskCycle
+  interval?: number
+  viewPanel?: string
+  inspect?: string
+  inspectTab?: InspectTab
   vars: Record<string, string[]>
 }
 
@@ -44,6 +52,17 @@ const variableNamePattern = /^[A-Za-z][A-Za-z0-9_]{0,39}$/
 const versionPattern = /^[1-9][0-9]{0,8}$/
 const annotationTagPattern = /^[a-z0-9][a-z0-9_.-]{0,39}$/
 const maxAnnotationTags = 10
+const intervalPattern = /^[0-9]{1,9}$/
+export const cycleInterval = { min: 10, max: 3600, initial: 60 }
+
+function isKioskCycle(value: string): value is KioskCycle {
+  return value === "rows" || value === "folder"
+}
+
+function isInspectTab(value: string): value is InspectTab {
+  return value === "data" || value === "query" || value === "stats"
+}
+
 export const variablePrefix = "var-"
 
 function firstString(value: unknown): string | undefined {
@@ -123,6 +142,37 @@ export function validateDashboardSearch(
   const ann = parseAnnotationTags(raw.ann)
   if (ann !== undefined) state.ann = ann
 
+  const kiosk = firstString(raw.kiosk)
+  if (kiosk === "" || kiosk === "1" || kiosk === "true") {
+    state.kiosk = true
+    const cycle = firstString(raw.cycle)
+    if (cycle !== undefined && isKioskCycle(cycle)) {
+      state.cycle = cycle
+      const interval = firstString(raw.interval)
+      if (interval !== undefined && intervalPattern.test(interval)) {
+        state.interval = Math.min(
+          Math.max(Number(interval), cycleInterval.min),
+          cycleInterval.max
+        )
+      }
+    }
+  }
+
+  if (state.edit === undefined) {
+    const viewPanel = firstString(raw.viewPanel)
+    if (viewPanel !== undefined && panelIdPattern.test(viewPanel)) {
+      state.viewPanel = viewPanel
+    }
+    const inspect = firstString(raw.inspect)
+    if (inspect !== undefined && panelIdPattern.test(inspect)) {
+      state.inspect = inspect
+      const tab = firstString(raw.inspectTab)
+      if (tab !== undefined && isInspectTab(tab) && tab !== "data") {
+        state.inspectTab = tab
+      }
+    }
+  }
+
   for (const key of Object.keys(raw)) {
     if (!key.startsWith(variablePrefix)) continue
     const name = key.slice(variablePrefix.length)
@@ -147,6 +197,27 @@ export function searchFromState(
   if (state.share && state.edit === undefined) out.share = "1"
   if (state.ann !== undefined && state.ann.length > 0) {
     out.ann = state.ann.join(",")
+  }
+  if (state.kiosk) {
+    out.kiosk = "1"
+    if (state.cycle !== undefined) {
+      out.cycle = state.cycle
+      if (
+        state.interval !== undefined &&
+        state.interval !== cycleInterval.initial
+      ) {
+        out.interval = state.interval
+      }
+    }
+  }
+  if (state.edit === undefined) {
+    if (state.viewPanel !== undefined) out.viewPanel = state.viewPanel
+    if (state.inspect !== undefined) {
+      out.inspect = state.inspect
+      if (state.inspectTab !== undefined && state.inspectTab !== "data") {
+        out.inspectTab = state.inspectTab
+      }
+    }
   }
   for (const [name, values] of Object.entries(state.vars)) {
     if (values.length > 0) out[`${variablePrefix}${name}`] = values

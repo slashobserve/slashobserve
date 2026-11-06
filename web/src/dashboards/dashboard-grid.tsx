@@ -31,7 +31,7 @@ const fadeIn =
   "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300"
 
 type Size = { width: number; height: number }
-type PanelItem = Extract<LayoutItem, { kind: "panel" }>
+export type PanelItem = Extract<LayoutItem, { kind: "panel" }>
 
 type Props = {
   dashboardId: string

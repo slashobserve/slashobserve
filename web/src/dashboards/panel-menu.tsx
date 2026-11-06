@@ -1,7 +1,12 @@
 import type { ReactNode, RefObject } from "react"
 import {
+  ArrowLeftIcon,
   ChartLineIcon,
+  DownloadIcon,
   EllipsisIcon,
+  ExpandIcon,
+  ImageIcon,
+  InfoIcon,
   Maximize2Icon,
   MessageSquarePlusIcon,
   PencilIcon,
@@ -16,12 +21,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { focusMovedOutOfMenu } from "@/lib/focus"
 import { isEditablePanel } from "@/panel-editor/draft"
 import { useAgentInfo } from "@/observe/queries"
 import { isRenderable } from "@/panels"
+import { shortcutText } from "@/shortcuts/chords"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
 import { useSetDashboardSearch } from "./search"
@@ -30,7 +37,10 @@ type Props = {
   panel: LayoutPanel
   tableView: boolean
   onToggleTableView: () => void
-  inspectable: boolean
+  idle: boolean
+  viewing: boolean
+  onDownloadCsv?: () => void
+  onSavePng?: () => void
   canComment: boolean
   canEdit: boolean
   onToggleResponsive?: () => void
@@ -46,13 +56,17 @@ type MenuItem = {
   icon: ReactNode
   onSelect: () => void
   disabled?: boolean
+  shortcut?: string
 }
 
 export function PanelMenu({
   panel,
   tableView,
   onToggleTableView,
-  inspectable,
+  idle,
+  viewing,
+  onDownloadCsv,
+  onSavePng,
   canComment,
   canEdit,
   onToggleResponsive,
@@ -64,9 +78,9 @@ export function PanelMenu({
   if (canComment) {
     items.push({
       id: "comment",
-      label: inspectable ? "Comment" : "Comment (finish the layout first)",
+      label: idle ? "Comment" : "Comment (finish the layout first)",
       icon: <MessageSquarePlusIcon aria-hidden="true" />,
-      disabled: !inspectable,
+      disabled: !idle,
       onSelect: () => {
         focusAfterClose = "composer"
         useActivityStore.getState().setOpen(true)
@@ -78,11 +92,9 @@ export function PanelMenu({
   if (canEdit && data && agentAvailable) {
     items.push({
       id: "investigate",
-      label: inspectable
-        ? "Investigate"
-        : "Investigate (finish the layout first)",
+      label: idle ? "Investigate" : "Investigate (finish the layout first)",
       icon: <SearchIcon aria-hidden="true" />,
-      disabled: !inspectable,
+      disabled: !idle,
       onSelect: () => {
         focusAfterClose = "composer"
         const activity = useActivityStore.getState()
@@ -95,14 +107,15 @@ export function PanelMenu({
   if (canEdit && isEditablePanel(panel)) {
     items.push({
       id: "edit",
-      label: inspectable ? "Edit" : "Edit (finish the layout first)",
+      label: idle ? "Edit" : "Edit (finish the layout first)",
       icon: <PencilIcon aria-hidden="true" />,
-      disabled: !inspectable,
+      disabled: !idle,
       onSelect: () => {
         focusAfterClose = "none"
         useActivityStore.getState().setOpen(true)
         setSearch((state) => ({ ...state, panel: panel.id, edit: "query" }))
       },
+      shortcut: shortcutText("edit"),
     })
   }
   if (data && panel.type !== "table" && isRenderable(panel.type)) {
@@ -115,6 +128,61 @@ export function PanelMenu({
         <TableIcon aria-hidden="true" />
       ),
       onSelect: onToggleTableView,
+    })
+  }
+  items.push(
+    viewing
+      ? {
+          id: "view",
+          label: "Back to dashboard",
+          icon: <ArrowLeftIcon aria-hidden="true" />,
+          onSelect: () =>
+            setSearch((state) => ({ ...state, viewPanel: undefined })),
+          shortcut: shortcutText("view"),
+        }
+      : {
+          id: "view",
+          label: idle ? "View" : "View (finish the layout first)",
+          icon: <ExpandIcon aria-hidden="true" />,
+          disabled: !idle,
+          onSelect: () =>
+            setSearch((state) => ({ ...state, viewPanel: panel.id })),
+          shortcut: shortcutText("view"),
+        }
+  )
+  if (data && isRenderable(panel.type)) {
+    items.push({
+      id: "inspect",
+      label: idle ? "Inspect" : "Inspect (finish the layout first)",
+      icon: <InfoIcon aria-hidden="true" />,
+      disabled: !idle,
+      onSelect: () => {
+        focusAfterClose = "none"
+        setSearch((state) => ({
+          ...state,
+          edit: undefined,
+          share: false,
+          inspect: panel.id,
+          inspectTab: undefined,
+        }))
+      },
+      shortcut: shortcutText("inspect"),
+    })
+  }
+  if (onDownloadCsv) {
+    items.push({
+      id: "csv",
+      label: "Download CSV",
+      icon: <DownloadIcon aria-hidden="true" />,
+      onSelect: onDownloadCsv,
+    })
+  }
+  if (onSavePng) {
+    items.push({
+      id: "png",
+      label: "Save as PNG",
+      icon: <ImageIcon aria-hidden="true" />,
+      onSelect: onSavePng,
     })
   }
   if (onToggleResponsive) {
@@ -163,6 +231,11 @@ export function PanelMenu({
           >
             {item.icon}
             {item.label}
+            {item.shortcut ? (
+              <DropdownMenuShortcut aria-hidden="true">
+                {item.shortcut}
+              </DropdownMenuShortcut>
+            ) : null}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

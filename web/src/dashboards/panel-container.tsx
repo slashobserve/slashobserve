@@ -7,20 +7,31 @@ import {
   useState,
   type RefObject,
 } from "react"
+import { toast } from "sonner"
 
 import { annotationsFor } from "@/annotations/markers"
 import { useDashboardAnnotations, type Annotation } from "@/annotations/queries"
 import type { Selections } from "@/api/keys"
 import { PanelCommentBadge } from "@/comments/panel-comment-badge"
+import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
+import { downloadCsv } from "@/inspect/csv"
+import type { InspectTarget } from "@/inspect/inspect-pane"
+import { savePanelPng } from "@/inspect/png"
 import { isRenderable, isStaticPanel, preloadRenderer } from "@/panels"
 import { createFieldResolver, panelLinks } from "@/panels/field-config"
 import { linkScopeFor, PanelBody, StaticPanelBody } from "@/panels/panel-body"
 import { panelHasData } from "@/panels/panel-has-data"
 import type { SharedCursor } from "@/panels/shared-cursor"
+import { prepareFrames, type DatasourceTypeOf } from "@/panels/transforms"
+import type { ReusedFilter } from "@/panels/transforms/ad-hoc-filter"
 import { reusedFilterOf, reusePanel } from "@/panels/transforms/reuse-panel"
+import { useGazetteers } from "@/panels/transforms/use-gazetteers"
+import type { WireFrame } from "@/dashboards/queries"
+import { useHoveredPanel } from "@/shortcuts/hovered-panel"
 import {
   isDataPanel,
   panelTitle,
+  resolveDatasourceRef,
   type DataPanel,
   type LayoutPanel,
   type Variable,
@@ -29,12 +40,46 @@ import {
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { panelDatasourceUids } from "./panel-datasources"
 import { PanelMenu } from "./panel-menu"
-import { stateScope, type PanelSource } from "./panel-source"
+import {
+  panelDataKey,
+  panelFingerprint,
+  stateScope,
+  type PanelSource,
+} from "./panel-source"
 import { useAnnotationTagFilter, useSetDashboardSearch } from "./search"
 import { maxDataPointsFor, usePanelData } from "./use-panel-data"
 import { useSeen } from "./use-seen"
 import { UnverifiedLabel } from "./unverified-label"
-import { VariableLoadError } from "./variables"
+import { sortSelections, VariableLoadError } from "./variables"
+
+function useFramePreparer(
+  panel: DataPanel | undefined,
+  vars: Selections,
+  reusedFilter: ReusedFilter | undefined
+) {
+  const datasources = useDatasources()
+  const gazetteers = useGazetteers(panel?.transform)
+  return useCallback(
+    (frames: WireFrame[]) => {
+      if (!panel) return []
+      const typeOf: DatasourceTypeOf = (ref) => {
+        const uid = resolveDatasourceRef(ref, vars)
+        return uid === undefined
+          ? undefined
+          : datasourceTypeOf(datasources.data, uid)
+      }
+      return prepareFrames(
+        panel,
+        frames,
+        typeOf,
+        reusedFilter,
+        vars,
+        gazetteers
+      )
+    },
+    [panel, vars, reusedFilter, datasources.data, gazetteers]
+  )
+}
 
 function focusPanel(root: HTMLElement | null) {
   const article = root?.querySelector<HTMLElement>("article")
@@ -78,6 +123,9 @@ type PanelContainerProps = {
   onFocused: () => void
   composerRef: RefObject<HTMLTextAreaElement | null>
   annotations?: readonly Annotation[]
+  viewing?: boolean
+  inspected?: boolean
+  onInspectTarget?: (target: InspectTarget | null) => void
 }
 
 export const PanelContainer = memo(function PanelContainer({
@@ -114,6 +162,9 @@ export const PanelContainer = memo(function PanelContainer({
   onFocused,
   composerRef,
   annotations: givenAnnotations,
+  viewing = false,
+  inspected = false,
+  onInspectTarget,
 }: PanelContainerProps) {
   const panel = useMemo(
     () =>
@@ -123,6 +174,7 @@ export const PanelContainer = memo(function PanelContainer({
     [sourcePanel, title]
   )
   const ref = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
   const seen = useSeen(ref)
   const [tableView, setTableView] = useState(false)
   const setSearch = useSetDashboardSearch()
@@ -150,17 +202,31 @@ export const PanelContainer = memo(function PanelContainer({
     onFocused()
   }, [focusOnRender, onFocused])
 
+  const requested = dataPanel ?? panel
+  const maxDataPoints = maxDataPointsFor(requested, body.width)
   const query = usePanelData({
     source,
-    panel: dataPanel ?? panel,
+    panel: requested,
     from,
     to,
     timezone,
     vars: selections,
-    maxDataPoints: maxDataPointsFor(dataPanel ?? panel, body.width),
+    maxDataPoints,
     refreshMs,
     enabled: dataPanel !== undefined && supported && seen && selectionsReady,
   })
+  const inspectKey = useMemo(
+    () =>
+      inspected
+        ? panelDataKey(
+            source,
+            requested.id,
+            source.kind === "build" ? panelFingerprint(requested) : "",
+            { from, to, selections: sortSelections(selections), maxDataPoints }
+          )
+        : undefined,
+    [inspected, source, requested, from, to, selections, maxDataPoints]
+  )
 
   const fetchedAnnotations = useDashboardAnnotations({
     source,
@@ -180,6 +246,40 @@ export const PanelContainer = memo(function PanelContainer({
     () => (dataPanel ? createFieldResolver(dataPanel, selections) : undefined),
     [dataPanel, selections]
   )
+
+  const prepare = useFramePreparer(dataPanel, selections, reusedFilter)
+  const inspectFrames = useMemo(
+    () => (inspected && query.data ? prepare(query.data.frames) : undefined),
+    [inspected, query.data, prepare]
+  )
+  const panelName = panelTitle(panel)
+  const refetch = query.refetch
+  useEffect(() => {
+    if (!dataPanel || !onInspectTarget || inspectKey === undefined) return
+    onInspectTarget({
+      panel: dataPanel,
+      title: panelName,
+      data: query.data,
+      frames: inspectFrames,
+      queryKey: inspectKey,
+      selections,
+      body: bodyRef,
+      refetch: () => void refetch(),
+    })
+  }, [
+    dataPanel,
+    onInspectTarget,
+    panelName,
+    query.data,
+    inspectKey,
+    inspectFrames,
+    selections,
+    refetch,
+  ])
+  useEffect(() => {
+    if (!inspected || !onInspectTarget) return
+    return () => onInspectTarget(null)
+  }, [inspected, onInspectTarget])
 
   const populated = useMemo(
     () =>
@@ -238,8 +338,46 @@ export const PanelContainer = memo(function PanelContainer({
     [blockedBy]
   )
 
+  const panelId = panel.id
+  const onPointerEnter = useCallback(
+    () => useHoveredPanel.getState().enter(panelId),
+    [panelId]
+  )
+  const onPointerLeave = useCallback(
+    () => useHoveredPanel.getState().leave(panelId),
+    [panelId]
+  )
+  useEffect(() => () => useHoveredPanel.getState().leave(panelId), [panelId])
+
+  const data = query.data
+  const onDownloadCsv = useMemo(
+    () =>
+      data && state === "ready"
+        ? () => downloadCsv(prepare(data.frames), panelName)
+        : undefined,
+    [data, state, prepare, panelName]
+  )
+  const onSavePng = useMemo(
+    () =>
+      state === "ready"
+        ? () => {
+            const element = bodyRef.current
+            if (!element) return
+            savePanelPng(element, panelName).catch(() =>
+              toast.error("Could not save the panel as PNG")
+            )
+          }
+        : undefined,
+    [state, panelName]
+  )
+
   return (
-    <div ref={ref} className="size-full">
+    <div
+      ref={ref}
+      className="size-full"
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
+    >
       <PanelChrome
         panel={panel}
         state={state}
@@ -278,7 +416,10 @@ export const PanelContainer = memo(function PanelContainer({
             panel={panel}
             tableView={tableView}
             onToggleTableView={() => setTableView((current) => !current)}
-            inspectable={!layoutSession}
+            idle={!layoutSession}
+            viewing={viewing}
+            onDownloadCsv={onDownloadCsv}
+            onSavePng={onSavePng}
             canComment={canComment}
             canEdit={canEdit}
             onToggleResponsive={
@@ -290,34 +431,36 @@ export const PanelContainer = memo(function PanelContainer({
           />
         }
       >
-        {dataPanel && query.data ? (
-          <PanelBody
-            panel={dataPanel}
-            data={query.data}
-            width={body.width}
-            height={body.height}
-            stateScope={stateScope(source)}
-            cursor={cursor}
-            onTimeRangeSelect={onTimeRangeSelect}
-            vars={selections}
-            timezone={timezone}
-            from={rangeFrom}
-            to={rangeTo}
-            asTable={tableView}
-            reusedFilter={reusedFilter}
-            annotations={annotations}
-          />
-        ) : null}
-        {isStaticPanel(panel) && supported ? (
-          <StaticPanelBody
-            panel={panel}
-            width={body.width}
-            height={body.height}
-            vars={selections}
-            from={rangeFrom}
-            to={rangeTo}
-          />
-        ) : null}
+        <div ref={bodyRef} className="size-full">
+          {dataPanel && query.data ? (
+            <PanelBody
+              panel={dataPanel}
+              data={query.data}
+              width={body.width}
+              height={body.height}
+              stateScope={stateScope(source)}
+              cursor={cursor}
+              onTimeRangeSelect={onTimeRangeSelect}
+              vars={selections}
+              timezone={timezone}
+              from={rangeFrom}
+              to={rangeTo}
+              asTable={tableView}
+              reusedFilter={reusedFilter}
+              annotations={annotations}
+            />
+          ) : null}
+          {isStaticPanel(panel) && supported ? (
+            <StaticPanelBody
+              panel={panel}
+              width={body.width}
+              height={body.height}
+              vars={selections}
+              from={rangeFrom}
+              to={rangeTo}
+            />
+          ) : null}
+        </div>
       </PanelChrome>
     </div>
   )
