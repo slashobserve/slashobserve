@@ -19,7 +19,7 @@ Each has a lowest role, which the server checks when a client calls it, using th
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Viewer    | `list_dashboards`, `get_dashboard`, `get_panels`, `get_spec_guide`, `list_comments`, `list_folders`, `list_findings`, `list_dashboard_health`, `list_annotations`, `draft_query` |
 | Commenter | `reply_to_comment`, `resolve_comment`                                                                                                                         |
-| Editor    | `create_dashboard`, `update_dashboard`, `update_panels`, `import_grafana_dashboard`, `list_datasources`, `list_metrics`, `list_labels`, `list_label_values`, `get_schema`, `sample_rows`, `lint_query`, `query_range`, `query_instant`, `create_finding`, `create_annotation` |
+| Editor    | `create_dashboard`, `update_dashboard`, `update_panels`, `import_grafana_dashboard`, `list_datasources`, `list_metrics`, `list_labels`, `list_label_values`, `get_schema`, `sample_rows`, `lint_query`, `query_range`, `query_instant`, `log_facets`, `create_finding`, `create_annotation` |
 
 A call below the key's role returns the tool error `forbidden_role`.
 Folder access applies on top: a tool that names a dashboard or folder the key cannot see returns `not_found`, and changing a dashboard needs Edit on its folder.
