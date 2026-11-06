@@ -12,6 +12,10 @@ export function typeLabel(type: string): string {
       return "Loki"
     case "tempo":
       return "Tempo"
+    case "elasticsearch":
+      return "Elasticsearch"
+    case "opensearch":
+      return "OpenSearch"
     default:
       return type
   }
@@ -24,6 +28,8 @@ export function exploreTargets(type: string): ExploreTarget[] {
     case "clickhouse":
       return ["logs", "traces"]
     case "loki":
+    case "elasticsearch":
+    case "opensearch":
       return ["logs"]
     case "tempo":
       return ["traces"]

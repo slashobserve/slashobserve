@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest"
 
-import { logsTimeRange, validAsk, validateLogsSearch } from "./search"
+import {
+  isSearchFamily,
+  logsTimeRange,
+  queryModeLabel,
+  validAsk,
+  validateLogsSearch,
+} from "./search"
 
 describe("validateLogsSearch", () => {
   it("keeps a valid search", () => {
@@ -21,7 +27,75 @@ describe("validateLogsSearch", () => {
       ask: undefined,
       from: undefined,
       to: undefined,
+      f: undefined,
+      cols: undefined,
+      line: undefined,
+      view: undefined,
+      tail: undefined,
     })
+  })
+
+  it("keeps the pills, columns, open line, view and tail keys", () => {
+    const search = {
+      f: "W3sia2V5IjoiYSJ9XQ",
+      cols: "service,level",
+      line: "1760000000000000000:a1B2_c-3",
+      view: "patterns" as const,
+      tail: "1" as const,
+    }
+    expect(validateLogsSearch(search)).toMatchObject(search)
+  })
+
+  it.each([
+    ["is empty", ""],
+    ["holds a plus sign", "ab+c"],
+    ["holds padding", "abc="],
+    ["is over 4000 characters", "a".repeat(4001)],
+  ])("drops pills that %s", (_, f) => {
+    expect(validateLogsSearch({ f }).f).toBeUndefined()
+  })
+
+  it("keeps pills of 4000 characters", () => {
+    const f = "a".repeat(4000)
+    expect(validateLogsSearch({ f }).f).toBe(f)
+  })
+
+  it.each([
+    ["is empty", ""],
+    ["has an empty name", "a,,b"],
+    ["ends in a comma", "a,"],
+    ["has 21 names", Array.from({ length: 21 }, (_, i) => `c${i}`).join(",")],
+    ["has a name over 256 characters", "x".repeat(257)],
+  ])("drops columns that %s", (_, cols) => {
+    expect(validateLogsSearch({ cols }).cols).toBeUndefined()
+  })
+
+  it("keeps 20 columns and a name of 256 characters", () => {
+    const twenty = Array.from({ length: 20 }, (_, i) => `c${i}`).join(",")
+    expect(validateLogsSearch({ cols: twenty }).cols).toBe(twenty)
+    const long = "x".repeat(256)
+    expect(validateLogsSearch({ cols: long }).cols).toBe(long)
+  })
+
+  it.each([
+    ["has no hash", "1760000000000000000"],
+    ["has a letter in the time", "17600a:abc"],
+    ["has an empty hash", "1760000000000000000:"],
+    ["has a hash over 64 characters", `1:${"a".repeat(65)}`],
+    ["has a time over 20 digits", `${"1".repeat(21)}:abc`],
+    ["has a space in the hash", "1:a b"],
+  ])("drops an open line that %s", (_, line) => {
+    expect(validateLogsSearch({ line }).line).toBeUndefined()
+  })
+
+  it.each([
+    ["view", { view: "table" }],
+    ["tail", { tail: "0" }],
+    ["tail", { tail: "true" }],
+  ])("drops a bad %s value", (_, raw) => {
+    const search = validateLogsSearch(raw)
+    expect(search.view).toBeUndefined()
+    expect(search.tail).toBeUndefined()
   })
 
   it.each([
@@ -79,5 +153,25 @@ describe("logsTimeRange", () => {
       from: "now-2d",
       to: "now-1d",
     })
+  })
+})
+
+describe("queryModeLabel", () => {
+  it.each([
+    ["elasticsearch", "KQL"],
+    ["opensearch", "KQL"],
+    ["loki", "LogQL"],
+    ["clickhouse", "SQL"],
+  ])("names the code mode of %s", (type, label) => {
+    expect(queryModeLabel(type)).toBe(label)
+  })
+})
+
+describe("isSearchFamily", () => {
+  it("is true for Elasticsearch and OpenSearch only", () => {
+    expect(isSearchFamily("elasticsearch")).toBe(true)
+    expect(isSearchFamily("opensearch")).toBe(true)
+    expect(isSearchFamily("loki")).toBe(false)
+    expect(isSearchFamily("clickhouse")).toBe(false)
   })
 })

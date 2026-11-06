@@ -23,6 +23,8 @@ describe("typeLabel", () => {
     expect(typeLabel("clickhouse")).toBe("ClickHouse, read only")
     expect(typeLabel("loki")).toBe("Loki")
     expect(typeLabel("tempo")).toBe("Tempo")
+    expect(typeLabel("elasticsearch")).toBe("Elasticsearch")
+    expect(typeLabel("opensearch")).toBe("OpenSearch")
   })
 
   test("keeps an unknown type as written", () => {
@@ -38,6 +40,11 @@ describe("exploreTargets", () => {
   test("offers logs for Loki and traces for Tempo", () => {
     expect(exploreTargets("loki")).toEqual(["logs"])
     expect(exploreTargets("tempo")).toEqual(["traces"])
+  })
+
+  test("offers logs for Elasticsearch and OpenSearch", () => {
+    expect(exploreTargets("elasticsearch")).toEqual(["logs"])
+    expect(exploreTargets("opensearch")).toEqual(["logs"])
   })
 
   test("offers nothing for Prometheus or an unknown type", () => {

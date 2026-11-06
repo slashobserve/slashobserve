@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type KeyboardEvent,
-} from "react"
+import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import {
   Link,
@@ -14,66 +7,56 @@ import {
   useSearch,
 } from "@tanstack/react-router"
 
-import { AskField } from "@/ask/ask-field"
-import { draftFailure, draftQueryRequest } from "@/ask/draft-query"
-import { nextMode, useInputMode, type InputMode } from "@/ask/input-mode"
-import { InputModeToggle } from "@/ask/input-mode-toggle"
-import { useInputModeShortcut } from "@/ask/use-input-mode-shortcut"
+import { useInputMode } from "@/ask/input-mode"
+import { CopyButton } from "@/components/copy-button"
 import { PageHeader } from "@/components/page-header"
-import { StatusLabel } from "@/components/status-label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
 import { TimeRangeControl } from "@/dashboards/time-range-picker"
+import {
+  rememberDatasource,
+  rememberedDatasource,
+} from "@/datasources/datasource-memory"
 import { useDatasources, type DatasourceStatus } from "@/datasources/queries"
 import { liveRegionText } from "@/lib/live-region"
 import { roleAtLeast } from "@/lib/roles"
-import { lowerFirst } from "@/lib/text"
-import { describeRange } from "@/lib/time"
-import { cn } from "@/lib/utils"
 import { useAgentInfo } from "@/observe/queries"
-import { labelNamesQuery } from "@/panel-editor/queries"
-import { CodeEditor, type CodeEditorHandle } from "@/query-editor/code-editor"
 
 import { AddToDashboardPanel } from "./add-to-dashboard-panel"
 import { clickhouseLogsTemplate } from "./context-query"
-import { ContextPanel } from "./context-panel"
-import {
-  eligibleDatasources,
-  ExploreDatasourcePicker,
-} from "./datasource-picker"
-import { exploreErrorText, exploreQuery, offlineText } from "./explore"
+import { DatasourceControl } from "./datasource-control"
+import { eligibleDatasources } from "./datasource-picker"
+import { DetailDrawer } from "./detail-drawer"
+import { exploreQuery } from "./explore"
+import { FieldsAside } from "./fields-aside"
+import { FilterPills } from "./filter-pills"
 import { rowCount } from "./frames"
-import { LogLabelBrowser } from "./label-browser"
-import { LogsResults, type ContextRequest } from "./logs-results"
+import type { ContextRequest } from "./logs-results"
+import { QueryBar } from "./query-bar"
+import { ResultSkeleton, ResultsSection } from "./results-section"
 import { logsDatasourceTypes, logsTimeRange, type LogsSearch } from "./search"
-import { streamLimit, streamLimitText } from "./stream-limit"
-import { traceDatasourceFor } from "./trace-link"
-import { useElementSize } from "./use-element-size"
 import { useLiveTail } from "./use-live-tail"
 import { VolumeStrip } from "./volume-strip"
+import {
+  LogsWorkspaceContext,
+  resultRows,
+  type LogsWorkspace,
+} from "./workspace"
 
 const routeId = "/_authed/_shell/logs"
-const resultRows = 1000
-const skeletonRows = [0, 1, 2, 3, 4]
-const askPlaceholder =
-  "Ask in plain language, like: errors from checkout in the last hour with a trace id"
+const description =
+  "Search one datasource in its own query language, narrow by field, then jump to the trace."
 
-type AskProblem =
-  { kind: "cannot_translate"; reason: string } | { kind: "error"; text: string }
-
-type Answer = { query: string; explanation: string; warnings: string[] }
-
-type FocusRequest = { target: InputMode | "labels"; count: number }
-
-function ignoreLint() {}
+type Update = LogsWorkspace["update"]
 
 function useLogsSearch() {
   const search = useSearch({ from: routeId })
   const navigate = useNavigate({ from: "/logs" })
-  const update = useCallback(
-    (next: Partial<LogsSearch>, replace = false) =>
-      void navigate({ search: (state) => ({ ...state, ...next }), replace }),
+  const update = useCallback<Update>(
+    (next, options) =>
+      void navigate({
+        search: (state) => ({ ...state, ...next }),
+        replace: options?.replace,
+      }),
     [navigate]
   )
   return { search, update }
@@ -84,7 +67,9 @@ function useDefaultDatasource(
   eligible: readonly DatasourceStatus[]
 ) {
   const navigate = useNavigate()
-  const fallback = current === undefined ? eligible[0]?.uid : undefined
+  const fallback =
+    current === undefined ? rememberedDatasource("logs", eligible) : undefined
+  const uid = current?.uid
   useEffect(() => {
     if (fallback === undefined) return
     void navigate({
@@ -93,6 +78,9 @@ function useDefaultDatasource(
       replace: true,
     })
   }, [fallback, navigate])
+  useEffect(() => {
+    if (uid !== undefined) rememberDatasource("logs", uid)
+  }, [uid])
 }
 
 export function LogsPage() {
@@ -116,8 +104,8 @@ export function LogsPage() {
       <>
         <PageHeader title="Logs" />
         <p className="text-[13px] text-muted-foreground">
-          No logs datasource is configured. An Admin adds a Loki or ClickHouse
-          datasource in the datasources file.
+          No logs datasource is configured. An Admin adds an Elasticsearch,
+          OpenSearch, Loki or ClickHouse datasource in the datasources file.
         </p>
         {roleAtLeast(principal.role, "admin") ? (
           <Link
@@ -132,38 +120,28 @@ export function LogsPage() {
   }
   if (datasource === undefined) return <PageHeader title="Logs" />
   return (
-    <LogsWorkspace
+    <LogsWorkspaceView
       key={datasource.uid}
       datasource={datasource}
-      all={datasources.data ?? []}
+      datasources={eligible}
       search={search}
       update={update}
     />
   )
 }
 
-function ResultSkeleton() {
-  return (
-    <div aria-busy="true" className="flex flex-col gap-2">
-      {skeletonRows.map((row) => (
-        <Skeleton key={row} className="h-5" />
-      ))}
-    </div>
-  )
-}
-
-function LogsWorkspace({
+function LogsWorkspaceView({
   datasource,
-  all,
+  datasources,
   search,
   update,
 }: {
   datasource: DatasourceStatus
-  all: DatasourceStatus[]
+  datasources: DatasourceStatus[]
   search: LogsSearch
-  update: (next: Partial<LogsSearch>, replace?: boolean) => void
+  update: Update
 }) {
-  const ids = useId()
+  const notRunId = useId()
   const uid = datasource.uid
   const type = datasource.type
   const range = logsTimeRange(search)
@@ -171,38 +149,25 @@ function LogsWorkspace({
   const [draft, setDraft] = useState(
     () => q ?? (type === "clickhouse" ? clickhouseLogsTemplate : "")
   )
-  const [draftProblem, setDraftProblem] = useState<string | null>(null)
-  const [browserOpen, setBrowserOpen] = useState(
-    type === "loki" && q === undefined
-  )
   const [tailSession, setTailSession] = useState(0)
   const [tailing, setTailing] = useState(false)
   const [tailShown, setTailShown] = useState(false)
-  const [context, setContext] = useState<ContextRequest | null>(null)
+  const [selection, setSelection] = useState<ContextRequest | null>(null)
   const [adding, setAdding] = useState(false)
+  const [labelsOpen, setLabelsOpen] = useState(
+    type === "loki" && q === undefined
+  )
   const [announcement, setAnnouncement] = useState({ text: "", count: 0 })
-  const editorRef = useRef<CodeEditorHandle>(null)
-  const askFieldRef = useRef<HTMLTextAreaElement>(null)
-  const labelsRef = useRef<HTMLDivElement>(null)
-  const askAbort = useRef<AbortController | null>(null)
-  const agent = useAgentInfo()
-  const agentAvailable = agent.data?.available === true
+  const [focusTick, setFocusTick] = useState(0)
+  const queryFocus = useRef<() => void>(() => {})
+  const selectionTrigger = useRef<HTMLElement | null>(null)
+  const addTrigger = useRef<HTMLButtonElement>(null)
+  const agentAvailable = useAgentInfo().data?.available === true
   const [mode, setMode] = useInputMode({
     agentAvailable,
     hasQuery: q !== undefined,
     hasAsk: search.ask !== undefined,
   })
-  const [question, setQuestion] = useState(search.ask ?? "")
-  const [fromQuestion, setFromQuestion] = useState<string | null>(() =>
-    q !== undefined && search.ask !== undefined ? search.ask : null
-  )
-  const [answer, setAnswer] = useState<Answer | null>(null)
-  const [asking, setAsking] = useState(false)
-  const [askProblem, setAskProblem] = useState<AskProblem | null>(null)
-  const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null)
-  const contextTrigger = useRef<HTMLElement | null>(null)
-  const addTrigger = useRef<HTMLButtonElement>(null)
-  const { ref: resultsRef, height } = useElementSize<HTMLElement>()
 
   const results = useQuery({
     ...exploreQuery(uid, {
@@ -214,11 +179,7 @@ function LogsWorkspace({
     }),
     enabled: q !== undefined,
   })
-  const indexLabels = useQuery({
-    ...labelNamesQuery(uid, {}),
-    enabled: type === "loki",
-  })
-  const tail = useLiveTail({
+  const liveTail = useLiveTail({
     uid,
     query: q ?? "",
     seed: results.data?.frames ?? [],
@@ -228,38 +189,27 @@ function LogsWorkspace({
 
   useEffect(() => {
     if (type === "clickhouse" && q === undefined) {
-      update({ q: clickhouseLogsTemplate }, true)
+      update({ q: clickhouseLogsTemplate }, { replace: true })
     }
   }, [type, q, update])
 
-  useEffect(() => () => askAbort.current?.abort(), [])
-
   useEffect(() => {
-    if (focusRequest === null) return
-    if (focusRequest.target === "ask") askFieldRef.current?.focus()
-    else if (focusRequest.target === "labels") labelsRef.current?.focus()
-    else editorRef.current?.focusAt(Number.MAX_SAFE_INTEGER)
-  }, [focusRequest])
+    if (focusTick > 0) queryFocus.current()
+  }, [focusTick])
 
-  function focusNext(target: FocusRequest["target"]) {
-    setFocusRequest((current) => ({
-      target,
-      count: (current?.count ?? 0) + 1,
-    }))
-  }
+  const registerQueryFocus = useCallback((focus: () => void) => {
+    queryFocus.current = focus
+  }, [])
 
-  function switchMode(next: InputMode) {
-    if (next === mode) return
-    setMode(next)
-    focusNext(next)
-  }
-
-  useInputModeShortcut(() => switchMode(nextMode(mode, agentAvailable)))
-
-  const traceDatasource = traceDatasourceFor(datasource, all)
-  const frames = tailShown ? tail.buffer.frames : results.data?.frames
-  const lines = frames ? rowCount(frames) : 0
-  const tailActive = tailing && tail.error === null
+  const tailFrames = liveTail.buffer?.frames
+  const shownLines = tailShown
+    ? tailFrames
+      ? rowCount(tailFrames)
+      : 0
+    : results.data
+      ? rowCount(results.data.frames)
+      : 0
+  const tailOn = tailing && liveTail.error === null
 
   function announce(text: string) {
     setAnnouncement((current) => ({ text, count: current.count + 1 }))
@@ -268,7 +218,7 @@ function LogsWorkspace({
   function stopTail() {
     if (!tailing) return
     setTailing(false)
-    announce(`Live tail stopped, ${lines.toLocaleString("en")} lines`)
+    announce(`Live tail stopped, ${shownLines.toLocaleString("en")} lines`)
   }
 
   function startTail() {
@@ -278,14 +228,9 @@ function LogsWorkspace({
     announce("Live tail on")
   }
 
-  function runText(raw: string, asked?: string) {
-    const text = raw.trim()
-    if (text === "") {
-      setDraftProblem("Write a query first.")
-      return
-    }
-    setDraftProblem(null)
-    setAskProblem(null)
+  function run(raw?: string, asked?: string) {
+    const text = (raw ?? draft).trim()
+    if (text === "") return
     setTailing(false)
     setTailShown(false)
     if (text === q) void results.refetch()
@@ -294,170 +239,49 @@ function LogsWorkspace({
     }
   }
 
-  function run() {
-    runText(draft)
-  }
-
-  async function ask(text: string) {
-    askAbort.current?.abort()
-    const controller = new AbortController()
-    askAbort.current = controller
-    setAsking(true)
-    setAskProblem(null)
-    try {
-      const drafted = await draftQueryRequest(
-        uid,
-        { question: text, from: range.from, to: range.to, signal: "logs" },
-        controller.signal
-      )
-      if (controller.signal.aborted) return
-      setDraft(drafted.query)
-      setAnswer({
-        query: drafted.query,
-        explanation: drafted.explanation,
-        warnings: drafted.warnings,
-      })
-      setFromQuestion(text)
-      runText(drafted.query, text)
-    } catch (error) {
-      const failure = draftFailure(error)
-      if (failure.kind === "aborted") return
-      setAskProblem(failure)
-      if (failure.kind === "cannot_translate") {
-        setMode("query", false)
-        focusNext("query")
-      }
-    } finally {
-      if (askAbort.current === controller) {
-        askAbort.current = null
-        setAsking(false)
-      }
-    }
-  }
-
-  function onDraftChange(next: string) {
-    setDraft(next)
-    if (mode === "ask" && answer !== null && next !== answer.query) {
-      setMode("query", false)
-    }
-  }
-
-  function askAgain() {
-    if (fromQuestion !== null) setQuestion(fromQuestion)
-    switchMode("ask")
-  }
-
-  function openLabelBrowser() {
-    setBrowserOpen(true)
-    focusNext("labels")
-  }
-
-  function onEditorKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-      event.preventDefault()
-      event.stopPropagation()
-      run()
-    }
-  }
-
-  function insert(text: string) {
-    if (mode === "ask") setMode("query", false)
-    if (type === "loki" && draft.trim() === "") {
-      setDraft(`{${text}}`)
-      return
-    }
-    if (editorRef.current === null) setDraft(draft + text)
-    else editorRef.current.insertAtCursor(text)
-  }
-
   function openContext(request: ContextRequest) {
-    contextTrigger.current =
+    selectionTrigger.current =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null
     setAdding(false)
-    setContext(request)
+    setSelection(request)
   }
 
-  function resultBody() {
-    if (q === undefined) {
-      return type === "loki" ? (
-        <p className="text-[13px] text-muted-foreground">
-          Pick a label to start, or write a stream selector such as
-          {' {service_name="checkout"}.'}
-        </p>
-      ) : (
-        <ResultSkeleton />
-      )
-    }
-    if (!tailShown && results.fetchStatus === "paused" && !results.data) {
-      return <p className="text-[13px] text-muted-foreground">{offlineText}</p>
-    }
-    if (!tailShown && results.isError) {
-      const limit = streamLimit(results.error)
-      if (limit !== null) {
-        return (
-          <Alert variant="destructive">
-            <AlertDescription className="flex flex-col items-start gap-2">
-              {streamLimitText(limit)}
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                onClick={openLabelBrowser}
-              >
-                Open label browser
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )
-      }
-      return (
-        <Alert variant="destructive">
-          <AlertDescription className="flex flex-col items-start gap-2">
-            {exploreErrorText(results.error)}
-            <Button
-              type="button"
-              variant="outline"
-              size="xs"
-              onClick={() => void results.refetch()}
-            >
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )
-    }
-    if (frames === undefined) return <ResultSkeleton />
-    if (lines === 0) {
-      return (
-        <p className="text-[13px] text-muted-foreground">
-          No lines in {lowerFirst(describeRange(range.from, range.to))}. Widen
-          the time range or loosen the query.
-        </p>
-      )
-    }
-    return height > 0 ? (
-      <LogsResults
-        frames={frames}
-        datasource={datasource}
-        onContext={openContext}
-        traceDatasource={traceDatasource}
-        height={height}
-      />
-    ) : null
+  const workspace: LogsWorkspace = {
+    datasource,
+    datasources,
+    search,
+    update,
+    draft,
+    setDraft,
+    run,
+    range,
+    results,
+    tail: {
+      ...liveTail,
+      on: tailOn,
+      shown: tailShown,
+      start: startTail,
+      stop: stopTail,
+    },
+    mode,
+    setMode,
+    announce,
+    focusQuery: () => setFocusTick((tick) => tick + 1),
+    registerQueryFocus,
+    labels: { open: labelsOpen, setOpen: setLabelsOpen },
+    openContext,
   }
-
-  const notRunId = `${ids}-not-run`
-  const editorShown =
-    mode === "query" || answer !== null || fromQuestion !== null
 
   return (
-    <>
-      <PageHeader
-        title="Logs"
-        actions={
-          <>
+    <LogsWorkspaceContext value={workspace}>
+      <div className="flex h-full min-h-0 flex-col gap-3">
+        <PageHeader title="Logs" description={description} />
+        <div className="flex flex-wrap items-center gap-2">
+          <QueryBar.ModeSwitch />
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <DatasourceControl />
             <TimeRangeControl
               value={range}
               onChange={(next) => {
@@ -469,14 +293,22 @@ function LogsWorkspace({
             <Button
               type="button"
               variant="outline"
-              aria-pressed={tailActive}
+              aria-pressed={tailOn}
               disabled={q === undefined}
               title={q === undefined ? "Run a query first." : undefined}
               aria-describedby={q === undefined ? notRunId : undefined}
-              onClick={() => (tailActive ? stopTail() : startTail())}
+              onClick={() => (tailOn ? stopTail() : startTail())}
             >
-              {tailActive ? "Stop live tail" : "Live tail"}
+              {tailOn ? "Stop live tail" : "Live tail"}
             </Button>
+            <CopyButton
+              text={window.location.href}
+              label="Copy link"
+              variant="outline"
+              icon={false}
+            >
+              Copy link
+            </CopyButton>
             <Button
               ref={addTrigger}
               type="button"
@@ -485,7 +317,7 @@ function LogsWorkspace({
               title={q === undefined ? "Run a query first." : undefined}
               aria-describedby={q === undefined ? notRunId : undefined}
               onClick={() => {
-                setContext(null)
+                setSelection(null)
                 setAdding(true)
               }}
             >
@@ -496,188 +328,26 @@ function LogsWorkspace({
                 Run a query first.
               </span>
             ) : null}
-          </>
-        }
-      />
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <InputModeToggle
-            mode={mode}
-            agentAvailable={agentAvailable}
-            onChange={switchMode}
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            <ExploreDatasourcePicker
-              id={`${ids}-datasource`}
-              types={logsDatasourceTypes}
-              value={uid}
-              onChange={(next) =>
-                update({ ds: next, q: undefined, ask: undefined })
-              }
-              label="Datasource"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              aria-expanded={browserOpen}
-              aria-controls={`${ids}-labels`}
-              onClick={() => setBrowserOpen((open) => !open)}
-            >
-              Label browser
-            </Button>
           </div>
         </div>
-        {browserOpen ? (
-          <div
-            id={`${ids}-labels`}
-            ref={labelsRef}
-            tabIndex={-1}
-            aria-label="Label browser"
-            role="region"
-            className="outline-none"
-          >
-            <LogLabelBrowser
-              datasourceUid={uid}
-              datasourceType={type}
-              onInsert={insert}
-            />
-          </div>
-        ) : null}
-        {mode === "ask" ? (
-          <div className="[&_textarea]:pr-2.5">
-            <AskField
-              ref={askFieldRef}
-              signal="logs"
-              value={question}
-              onChange={setQuestion}
-              onAsk={(text) => void ask(text)}
-              pending={asking}
-              onCancel={() => askAbort.current?.abort()}
-              placeholder={askPlaceholder}
-            />
-          </div>
-        ) : fromQuestion !== null ? (
-          <p className="text-xs text-muted-foreground">
-            From: {fromQuestion}{" "}
-            <button
-              type="button"
-              onClick={askAgain}
-              className="text-foreground underline underline-offset-3"
-            >
-              Ask again
-            </button>
-          </p>
-        ) : null}
-        {mode === "ask" && answer !== null ? (
-          <div className="flex flex-col gap-1">
-            {answer.explanation !== "" ? (
-              <p className="text-xs text-muted-foreground">
-                {answer.explanation}
-              </p>
-            ) : null}
-            {answer.warnings.map((warning) => (
-              <p key={warning} className="text-xs">
-                <StatusLabel tone="warning">{warning}</StatusLabel>
-              </p>
-            ))}
-          </div>
-        ) : null}
-        {askProblem !== null ? (
-          <Alert variant="destructive">
-            <AlertDescription className="flex flex-col items-start gap-1">
-              {askProblem.kind === "cannot_translate" ? (
-                <>
-                  <p>I could not turn that into a query.</p>
-                  <p className="text-muted-foreground">{askProblem.reason}</p>
-                </>
-              ) : (
-                <p>{askProblem.text}</p>
-              )}
-            </AlertDescription>
-          </Alert>
-        ) : null}
-        {editorShown ? (
-          <div
-            onKeyDownCapture={onEditorKeyDown}
-            className={cn(mode === "ask" && "[&_.cm-editor]:max-h-44!")}
-          >
-            <CodeEditor
-              value={draft}
-              onChange={onDraftChange}
-              datasource={{ type, uid }}
-              readOnly={false}
-              ariaLabel="Log query"
-              onLint={ignoreLint}
-              editorRef={editorRef}
-            />
-          </div>
-        ) : null}
-        {draftProblem ? (
-          <p role="alert" className="text-xs text-destructive">
-            {draftProblem}
-          </p>
-        ) : null}
-        {editorShown ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant={mode === "ask" ? "outline" : "default"}
-              title="Run query (Ctrl+Enter or Cmd+Enter)"
-              aria-keyshortcuts="Control+Enter Meta+Enter"
-              onClick={run}
-            >
-              Run query
-            </Button>
-            <span className="text-xs text-muted-foreground">
-              or press Ctrl+Enter or Cmd+Enter
-            </span>
-          </div>
-        ) : null}
-        {tail.error ? (
-          <Alert variant="destructive">
-            <AlertDescription className="flex flex-col items-start gap-2">
-              Live tail stopped: {lowerFirst(exploreErrorText(tail.error))}
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                onClick={startTail}
-              >
-                Start again
-              </Button>
-            </AlertDescription>
-          </Alert>
-        ) : null}
-        {lines === resultRows ? (
-          <p className="text-[13px] text-muted-foreground">
-            Showing the newest 1,000 lines. Narrow the query or the time range.
-          </p>
-        ) : null}
+        <QueryBar />
+        <FilterPills />
         {q !== undefined && !tailShown ? (
           <VolumeStrip uid={uid} query={q} from={range.from} to={range.to} />
         ) : null}
-        <section
-          ref={resultsRef}
-          aria-label="Results"
-          aria-busy={results.isFetching || tail.isFetching}
-          className="relative h-[calc(100dvh-23rem)] min-h-96"
-        >
-          <div className="absolute inset-0 flex flex-col gap-2">
-            {resultBody()}
-          </div>
-        </section>
+        <div className="flex min-h-96 min-w-0 flex-1 gap-3">
+          <FieldsAside />
+          <ResultsSection />
+        </div>
         <span role="status" className="sr-only">
           {liveRegionText(announcement.text, announcement.count)}
         </span>
       </div>
-      {context ? (
-        <ContextPanel
-          datasource={datasource}
-          anchor={context}
-          indexedLabels={indexLabels.data?.labels}
-          onClose={() => setContext(null)}
-          trigger={contextTrigger}
+      {selection ? (
+        <DetailDrawer
+          selection={selection}
+          onClose={() => setSelection(null)}
+          trigger={selectionTrigger}
         />
       ) : null}
       {adding && q !== undefined ? (
@@ -688,6 +358,6 @@ function LogsWorkspace({
           trigger={addTrigger}
         />
       ) : null}
-    </>
+    </LogsWorkspaceContext>
   )
 }
