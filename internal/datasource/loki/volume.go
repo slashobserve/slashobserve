@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const volumeNeedsLogQuery = `the volume needs a log query that starts with a stream selector, such as {service_name="checkout"}`
 
 func VolumeQuery(query string, step time.Duration) (string, error) {
-	if !isLogQuery(query) {
+	if !spec.LogQLReturnsLines(query) {
 		return "", datasource.Errorf(datasource.ErrInvalidQuery, "%s", volumeNeedsLogQuery)
 	}
 	return "sum by (" + strings.Join(levelLabels, ", ") + ") (count_over_time(\n" + query + "\n[" + strconv.FormatInt(step.Milliseconds(), 10) + "ms]))", nil
