@@ -41,6 +41,7 @@ export function DurationScatter({
   onHighlight,
   p95Ms,
   p95Label,
+  ariaLabel = "Duration of matching traces",
   overlay,
 }: {
   rows: readonly TraceRow[]
@@ -51,6 +52,7 @@ export function DurationScatter({
   onHighlight: (traceId: string | null) => void
   p95Ms: number | null
   p95Label: string
+  ariaLabel?: string
   overlay?: ReactNode
 }) {
   const navigate = useNavigate()
@@ -118,7 +120,7 @@ export function DurationScatter({
         <div className="relative" style={{ height: plotHeight }}>
           <svg
             role="img"
-            aria-label="Duration of matching traces"
+            aria-label={ariaLabel}
             className="block size-full overflow-visible"
             onPointerLeave={() => onHighlight(null)}
           >

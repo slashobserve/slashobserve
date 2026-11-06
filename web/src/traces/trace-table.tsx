@@ -328,6 +328,11 @@ function SortedTraceTable({
           onHighlight={setHighlighted}
           p95Ms={p95}
           p95Label={p95Label}
+          ariaLabel={
+            p95Ms !== undefined && p95 !== null
+              ? `Duration of matching traces; the ${p95Label} is ${durationText(p95)}`
+              : undefined
+          }
         />
       ) : null}
       <div className="flex h-8 flex-wrap items-center gap-3 text-[13px]">
