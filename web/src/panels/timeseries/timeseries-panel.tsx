@@ -656,10 +656,13 @@ export function TimeseriesChart({
 
   const options = useMemo(() => timeseriesDisplay(display), [display])
   const reducers = options.legendValues
-  const displayKey = stableJson(display)
-  const configsKey = stableJson(configs)
-  const thresholdsKey = stableJson(panel.thresholds ?? null)
-  const panelAxisKey = stableJson(settingsOf(panel))
+  const displayKey = useMemo(() => stableJson(display), [display])
+  const configsKey = useMemo(() => stableJson(configs), [configs])
+  const thresholdsKey = useMemo(
+    () => stableJson(panel.thresholds ?? null),
+    [panel.thresholds]
+  )
+  const panelAxisKey = useMemo(() => stableJson(settingsOf(panel)), [panel])
 
   const stateKey = `${stateScope}:${panel.id}`
   const stored = useSeriesStore((store) => store.panels[stateKey])
