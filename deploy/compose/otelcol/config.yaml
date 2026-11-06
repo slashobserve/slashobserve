@@ -35,6 +35,18 @@ exporters:
     endpoint: http://loki:3100/otlp
   otlp_http/tempo:
     endpoint: http://tempo:4318
+  otlp_http/search:
+    endpoint: http://otel-collector-search:4318
+    timeout: 5s
+    retry_on_failure:
+      enabled: true
+      initial_interval: 2s
+      max_interval: 10s
+      max_elapsed_time: 60s
+    sending_queue:
+      enabled: true
+      num_consumers: 1
+      queue_size: 200
 
 extensions:
   health_check:
@@ -55,7 +67,7 @@ service:
     logs:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [clickhouse, otlp_http/loki]
+      exporters: [clickhouse, otlp_http/loki, otlp_http/search]
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch]
