@@ -43,7 +43,7 @@ sub check_link {
   $target =~ s/^<(.*)>$/$1/;
   return if $target =~ m{^(?:[a-z][a-z0-9+.-]*:|#|/)}i;
   $target =~ s/[#?].*//;
-  return unless $target =~ /\.md$/;
+  return unless $target =~ /\.(?:md|png|jpg|svg)$/i;
   my $path = dirname($ARGV) . "/" . $target;
   report("broken link $target") unless -f $path;
 }
@@ -97,6 +97,7 @@ while (my $line = <>) {
 
   my $links = $line;
   $links =~ s/(`+).*?\1//g;
+  report("image without alt text") while $links =~ /!\[\s*\]\(/g;
   check_link($1) while $links =~ /\]\(([^)]+)\)/g;
   check_link($1) if $links =~ /^\s*\[[^\]]+\]:\s*(\S+)/;
 
