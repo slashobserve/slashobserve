@@ -1,12 +1,15 @@
-import { useId, useState } from "react"
+import { useState } from "react"
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
-import { Link, useRouteContext } from "@tanstack/react-router"
+import { useRouteContext } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { EmptyState } from "@/components/empty-state"
+import { FilterToolbar } from "@/components/filter-toolbar"
 import { LoadProblem } from "@/components/load-problem"
 import { PageHeader } from "@/components/page-header"
 import { RelativeTime } from "@/components/relative-time"
+import { RoleGate } from "@/components/role-gate"
 import { StatusLabel } from "@/components/status-label"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button } from "@/components/ui/button"
@@ -19,58 +22,75 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { foldersQuery } from "@/folders/queries"
-import { dashboardLink } from "@/lib/links"
+import { RepairQueue } from "@/import/repair/repair-page"
 import { roleAtLeast } from "@/lib/roles"
 import { useAgentInfo } from "@/observe/queries"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import {
+  dashboardCount,
   healthKinds,
-  jobLine,
+  importedFilter,
+  importedLabel,
   kindLabels,
-  kindTones,
+  lastRunProblem,
   pollHealth,
-  problemSubject,
   repairOutcomeText,
-  repairReason,
-  sortProblems,
+  summaryLabels,
+  type HealthFilter,
   type HealthItem,
   type HealthJob,
-  type HealthKind,
+  type HealthSummary,
   type RunRequest,
 } from "./health-labels"
+import { HealthRow } from "./health-row"
 import { healthQuery, useRequestHealthRepair, useRunHealth } from "./queries"
 
-type Props = {
-  kind: HealthKind | null
-  folderId: string | null
-  onFilters: (filters: {
-    kind: HealthKind | null
-    folderId: string | null
-  }) => void
+type Filters = { kind: HealthFilter | null; folderId: string | null }
+
+type Props = Filters & {
+  onFilters: (filters: Filters) => void
 }
 
 const pollMs = 5000
 const allValue = "all"
+const skeletonRows = 3
 
 export function HealthPage({ kind, folderId, onFilters }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const isAdmin = roleAtLeast(principal.role, "admin")
+  const isEditor = roleAtLeast(principal.role, "editor")
+  const imported = kind === importedFilter
+  const healthKind = kind === importedFilter ? null : kind
   const agent = useAgentInfo()
   const agentAvailable = agent.data?.available ?? false
   const [run, setRun] = useState<RunRequest | null>(null)
   const list = useInfiniteQuery({
-    ...healthQuery(kind, folderId),
-    refetchInterval: (query) =>
-      pollHealth(query.state.data?.pages[0]?.job, run, Date.now())
+    ...healthQuery(healthKind, folderId),
+    refetchInterval: (query) => {
+      const pages = query.state.data?.pages ?? []
+      return pollHealth(
+        pages[0]?.job,
+        pages.flatMap((page) => page.dashboards),
+        run,
+        Date.now()
+      )
         ? pollMs
-        : false,
+        : false
+    },
   })
   const repair = useRequestHealthRepair()
   const runHealth = useRunHealth()
   const items = list.data?.pages.flatMap((page) => page.dashboards) ?? []
   const job = list.data?.pages[0]?.job
+  const summary = list.data?.pages[0]?.summary ?? null
   const pendingId = repair.isPending ? repair.variables : null
+  const filtered = kind !== null || folderId !== null
+  const allClear = list.data !== undefined && !filtered && items.length === 0
+
+  function clearFilters() {
+    onFilters({ kind: null, folderId: null })
+  }
 
   function requestRepair(dashboardId: string) {
     repair.mutate(dashboardId, {
@@ -94,41 +114,57 @@ export function HealthPage({ kind, folderId, onFilters }: Props) {
     <>
       <PageHeader
         title="Dashboard health"
-        description="Dashboards with panels that fail or return no data, variables that resolve to nothing, duplicate titles in a folder, or nobody opening them for 90 days. Every dashboard is checked about once a day."
+        description="Dashboards whose panels fail, return no data, or nobody opens. Checked about once a day."
         actions={
-          <>
-            <KindSelect
-              kind={kind}
-              onKind={(next) => onFilters({ kind: next, folderId })}
-            />
-            <FolderSelect
-              folderId={folderId}
-              onFolder={(next) => onFilters({ kind, folderId: next })}
-            />
-            {isAdmin ? (
-              <Button
-                variant="outline"
-                disabled={
-                  job === undefined || job.running || runHealth.isPending
-                }
-                focusableWhenDisabled
-                aria-busy={runHealth.isPending}
-                onClick={startRun}
-              >
-                {runHealth.isPending ? (
-                  <LoaderCircleIcon
-                    aria-hidden="true"
-                    className="motion-safe:animate-spin"
-                  />
-                ) : null}
-                Run now
-              </Button>
-            ) : null}
-          </>
+          isAdmin ? (
+            <Button
+              variant="outline"
+              disabled={job === undefined || job.running || runHealth.isPending}
+              focusableWhenDisabled
+              aria-busy={runHealth.isPending}
+              onClick={startRun}
+            >
+              {runHealth.isPending ? (
+                <LoaderCircleIcon
+                  aria-hidden="true"
+                  className="motion-safe:animate-spin"
+                />
+              ) : null}
+              Run now
+            </Button>
+          ) : null
         }
       />
-      {job === undefined ? null : <JobStatus job={job} />}
-      {list.isError && list.data === undefined ? (
+      {job === undefined || allClear ? null : (
+        <SummaryLine summary={summary} job={job} />
+      )}
+      <FilterToolbar
+        label="Health filters"
+        onClear={filtered ? clearFilters : undefined}
+        summary={
+          imported || summary === null
+            ? undefined
+            : dashboardCount(summary, healthKind)
+        }
+      >
+        <KindSelect
+          kind={kind}
+          offerImported={isEditor || imported}
+          onKind={(next) => onFilters({ kind: next, folderId })}
+        />
+        <FolderSelect
+          folderId={folderId}
+          onFolder={(next) => onFilters({ kind, folderId: next })}
+        />
+      </FilterToolbar>
+      {imported ? (
+        <RoleGate
+          min="editor"
+          note="Only Editors can see the imported dashboards that are not verified."
+        >
+          <RepairQueue folderId={folderId} />
+        </RoleGate>
+      ) : list.isError && list.data === undefined ? (
         <LoadProblem
           title="Could not load dashboard health"
           detail={loadProblemText(list.error)}
@@ -136,13 +172,28 @@ export function HealthPage({ kind, folderId, onFilters }: Props) {
           onRetry={() => void list.refetch()}
         />
       ) : list.data === undefined ? (
-        <Skeleton className="h-32 w-full" />
+        <HealthSkeleton />
+      ) : allClear ? (
+        <EmptyState tone="ok" title="Every dashboard passed its last check.">
+          {job?.last_finished_at ? (
+            <>
+              Checked <RelativeTime iso={job.last_finished_at} />.
+            </>
+          ) : (
+            "No check has finished yet."
+          )}
+        </EmptyState>
       ) : items.length === 0 ? (
-        <p className="rounded-card border bg-background px-4 py-6 text-[13px] text-muted-foreground">
-          {kind === null && folderId === null
-            ? "No dashboard has a problem."
-            : "No dashboard matches these filters."}
-        </p>
+        <div className="rounded-card border bg-background">
+          <EmptyState
+            title="No dashboard matches these filters."
+            action={
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            }
+          />
+        </div>
       ) : (
         <>
           <HealthTable
@@ -169,42 +220,70 @@ export function HealthPage({ kind, folderId, onFilters }: Props) {
   )
 }
 
-function JobStatus({ job }: { job: HealthJob }) {
-  const line = jobLine(job)
+function SummaryLine({
+  summary,
+  job,
+}: {
+  summary: HealthSummary | null
+  job: HealthJob
+}) {
+  const runProblem = lastRunProblem(job)
   return (
-    <p
-      className="mb-4 flex items-center gap-1.5 text-[13px] text-muted-foreground"
-      aria-live="polite"
+    <div
+      role="status"
+      className="mb-3.5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px]"
     >
-      <StatusLabel tone={line.tone}>{line.label}</StatusLabel>
-      {line.at === null ? null : <RelativeTime iso={line.at} />}
-    </p>
+      {(summary === null ? [] : summaryLabels(summary)).map((label) => (
+        <span key={label.label} className="font-medium">
+          <StatusLabel tone={label.tone}>{label.label}</StatusLabel>
+        </span>
+      ))}
+      <span className="ml-auto flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+        {runProblem === null ? null : (
+          <StatusLabel tone={runProblem.tone}>{runProblem.label}</StatusLabel>
+        )}
+        {job.running ? (
+          <StatusLabel tone="running">Checking now</StatusLabel>
+        ) : job.last_finished_at === null ? (
+          <span>No check has finished yet</span>
+        ) : (
+          <span>
+            Last checked <RelativeTime iso={job.last_finished_at} />
+          </span>
+        )}
+      </span>
+    </div>
   )
 }
 
 function KindSelect({
   kind,
+  offerImported,
   onKind,
 }: {
-  kind: HealthKind | null
-  onKind: (kind: HealthKind | null) => void
+  kind: HealthFilter | null
+  offerImported: boolean
+  onKind: (kind: HealthFilter | null) => void
 }) {
   const items = [
     { value: allValue, label: "All problems" },
     ...healthKinds.map((k) => ({ value: k, label: kindLabels[k] })),
+    ...(offerImported ? [{ value: importedFilter, label: importedLabel }] : []),
   ]
   return (
     <Select
       items={items}
       value={kind ?? allValue}
       onValueChange={(next) =>
-        onKind(next === null || next === allValue ? null : (next as HealthKind))
+        onKind(
+          next === null || next === allValue ? null : (next as HealthFilter)
+        )
       }
     >
       <SelectTrigger aria-label="Problem" className="w-56">
         <SelectValue />
       </SelectTrigger>
-      <SelectContent alignItemWithTrigger={false} align="end">
+      <SelectContent alignItemWithTrigger={false} align="start">
         {items.map((item) => (
           <SelectItem key={item.value} value={item.value}>
             {item.label}
@@ -241,7 +320,7 @@ function FolderSelect({
       <SelectTrigger aria-label="Folder" className="w-56">
         <SelectValue />
       </SelectTrigger>
-      <SelectContent alignItemWithTrigger={false} align="end">
+      <SelectContent alignItemWithTrigger={false} align="start">
         {items.map((item) => (
           <SelectItem key={item.value} value={item.value}>
             {item.label}
@@ -251,6 +330,24 @@ function FolderSelect({
     </Select>
   )
 }
+
+function HealthColumns() {
+  return (
+    <thead>
+      <tr>
+        <HeaderCell>Dashboard</HeaderCell>
+        <HeaderCell>Problems</HeaderCell>
+        <HeaderCell>Checked</HeaderCell>
+        <HeaderCell>Last opened</HeaderCell>
+        <HeaderCell className="text-right">
+          <span className="sr-only">Actions</span>
+        </HeaderCell>
+      </tr>
+    </thead>
+  )
+}
+
+const tableWidth = 880
 
 function HealthTable({
   items,
@@ -264,19 +361,12 @@ function HealthTable({
   onRepair: (dashboardId: string) => void
 }) {
   return (
-    <TableCard label="Dashboards with problems" minWidth={960}>
-      <thead>
-        <tr>
-          <HeaderCell>Dashboard</HeaderCell>
-          <HeaderCell>Folder</HeaderCell>
-          <HeaderCell>Problems</HeaderCell>
-          <HeaderCell>Checked</HeaderCell>
-          <HeaderCell>Last opened</HeaderCell>
-          <HeaderCell>
-            <span className="sr-only">Actions</span>
-          </HeaderCell>
-        </tr>
-      </thead>
+    <TableCard
+      label="Dashboards with problems"
+      stackOnNarrow
+      minWidth={tableWidth}
+    >
+      <HealthColumns />
       <tbody>
         {items.map((item) => (
           <HealthRow
@@ -292,97 +382,39 @@ function HealthTable({
   )
 }
 
-function HealthRow({
-  item,
-  agentAvailable,
-  pending,
-  onRepair,
-}: {
-  item: HealthItem
-  agentAvailable: boolean
-  pending: boolean
-  onRepair: () => void
-}) {
-  const reasonId = useId()
-  const reason = repairReason(item, agentAvailable)
+const skeletonClass = "motion-safe:animate-none"
+
+function HealthSkeleton() {
   return (
-    <tr className="align-top">
-      <Cell className="wrap-anywhere">
-        <Link
-          {...dashboardLink(item.id, item.title)}
-          className="font-medium underline-offset-2 hover:underline"
-        >
-          {item.title}
-        </Link>
-      </Cell>
-      <Cell className="wrap-anywhere">{item.folder.title}</Cell>
-      <Cell>
-        <ul className="flex flex-col gap-1.5">
-          {sortProblems(item.problems).map((problem, index) => (
-            <li key={index} className="flex flex-col gap-0.5">
-              <span className="flex flex-wrap items-center gap-x-1.5">
-                <StatusLabel tone={kindTones[problem.kind]}>
-                  {kindLabels[problem.kind]}
-                </StatusLabel>
-                {problemSubject(problem) === "" ? null : (
-                  <span className="wrap-anywhere">
-                    {problemSubject(problem)}
-                  </span>
-                )}
-              </span>
-              {problem.message === null ? null : (
-                <span className="text-xs wrap-anywhere text-muted-foreground">
-                  {problem.message}
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      </Cell>
-      <Cell className="whitespace-nowrap">
-        <RelativeTime iso={item.checked_at} fallback="Not checked yet" />
-        {item.skipped === "depends_on_viewer" ? (
-          <span className="block text-xs text-muted-foreground">
-            Skipped: reads the viewer
-          </span>
-        ) : item.checked_version === null ? null : (
-          <span className="block text-xs text-muted-foreground">
-            Version {item.checked_version}
-          </span>
-        )}
-      </Cell>
-      <Cell className="whitespace-nowrap">
-        <RelativeTime iso={item.last_viewed_at} />
-      </Cell>
-      <Cell className="text-right">
-        {item.can_edit ? (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={reason !== null || pending}
-              focusableWhenDisabled
-              aria-busy={pending}
-              aria-describedby={reason === null ? undefined : reasonId}
-              title={reason ?? undefined}
-              onClick={onRepair}
-            >
-              {pending ? (
-                <LoaderCircleIcon
-                  aria-hidden="true"
-                  className="motion-safe:animate-spin"
-                />
-              ) : null}
-              Repair
-            </Button>
-            {reason === null ? null : (
-              <span id={reasonId} className="sr-only">
-                {reason}
-              </span>
-            )}
-          </>
-        ) : null}
-      </Cell>
-    </tr>
+    <TableCard
+      label="Dashboards with problems"
+      stackOnNarrow
+      minWidth={tableWidth}
+    >
+      <HealthColumns />
+      <tbody aria-busy="true">
+        {Array.from({ length: skeletonRows }, (_, index) => (
+          <tr key={index}>
+            <Cell className="align-top">
+              <Skeleton className={`h-4 w-44 ${skeletonClass}`} />
+              <Skeleton className={`mt-1.5 h-3 w-24 ${skeletonClass}`} />
+            </Cell>
+            <Cell className="align-top">
+              <Skeleton className={`h-4 w-56 ${skeletonClass}`} />
+              <Skeleton className={`mt-1.5 h-3 w-40 ${skeletonClass}`} />
+            </Cell>
+            <Cell className="align-top">
+              <Skeleton className={`h-4 w-16 ${skeletonClass}`} />
+            </Cell>
+            <Cell className="align-top">
+              <Skeleton className={`h-4 w-16 ${skeletonClass}`} />
+            </Cell>
+            <Cell data-cell="action" className="align-top">
+              <Skeleton className={`ml-auto h-7 w-16 ${skeletonClass}`} />
+            </Cell>
+          </tr>
+        ))}
+      </tbody>
+    </TableCard>
   )
 }

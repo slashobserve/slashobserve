@@ -1,11 +1,10 @@
 import { useId, useState } from "react"
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
+import { useInfiniteQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { LoadProblem } from "@/components/load-problem"
-import { PageHeader } from "@/components/page-header"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
@@ -20,15 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { foldersQuery } from "@/folders/queries"
 import { dashboardLink } from "@/lib/links"
 import { useAgentInfo } from "@/observe/queries"
 import { loadProblemText } from "@/service-accounts/queries"
@@ -42,13 +33,6 @@ import {
   type RepairItem,
 } from "./repair-state"
 
-type Props = {
-  folderId: string | null
-  onFolder: (folderId: string | null) => void
-}
-
-const allFolders = "all"
-
 function announce(outcome: RepairsQueued) {
   const [first, ...rest] = outcomeLines(outcome)
   toast.success(
@@ -57,7 +41,7 @@ function announce(outcome: RepairsQueued) {
   )
 }
 
-export function RepairPage({ folderId, onFolder }: Props) {
+export function RepairQueue({ folderId }: { folderId: string | null }) {
   const agent = useAgentInfo()
   const agentAvailable = agent.data?.available ?? false
   const list = useInfiniteQuery(repairsQuery(folderId))
@@ -79,27 +63,24 @@ export function RepairPage({ folderId, onFolder }: Props) {
 
   return (
     <>
-      <PageHeader
-        title="Repair queue"
-        description="Dashboards whose panels or variables failed their queries, or hold placeholders. The agent repairs failing queries as a revision; a dashboard leaves this list once nothing in it fails."
-        actions={
-          <>
-            <FolderSelect folderId={folderId} onFolder={onFolder} />
-            <RepairAll
-              disabled={!agentAvailable || items.length === 0}
-              pending={bulkPending}
-              onConfirm={() => requestRepairs({ all: true, folderId })}
-            />
-          </>
-        }
-      />
-      {agent.data !== undefined && !agentAvailable ? (
-        <p className="mb-4 text-[13px] text-muted-foreground">
-          <StatusLabel tone="warning">
-            No agent is configured. Set SLASHOBSERVE_LLM_PROVIDER and restart.
-          </StatusLabel>
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <p className="text-[13px] text-muted-foreground">
+          {agent.data !== undefined && !agentAvailable ? (
+            <StatusLabel tone="warning">
+              No agent is configured. Set SLASHOBSERVE_LLM_PROVIDER and restart.
+            </StatusLabel>
+          ) : (
+            "Imported dashboards whose panels or variables failed their queries, or hold placeholders. A dashboard leaves this list once nothing in it fails."
+          )}
         </p>
-      ) : null}
+        <div className="ml-auto">
+          <RepairAll
+            disabled={!agentAvailable || items.length === 0}
+            pending={bulkPending}
+            onConfirm={() => requestRepairs({ all: true, folderId })}
+          />
+        </div>
+      </div>
       {list.isError && list.data === undefined ? (
         <LoadProblem
           title="Could not load the repair queue"
@@ -136,37 +117,6 @@ export function RepairPage({ folderId, onFolder }: Props) {
         </>
       )}
     </>
-  )
-}
-
-function FolderSelect({ folderId, onFolder }: Props) {
-  const folders = useQuery(foldersQuery())
-  const items = [
-    { value: allFolders, label: "All folders" },
-    ...(folders.data ?? []).map((folder) => ({
-      value: folder.id,
-      label: folder.title,
-    })),
-  ]
-  return (
-    <Select
-      items={items}
-      value={folderId ?? allFolders}
-      onValueChange={(next) =>
-        onFolder(next === null || next === allFolders ? null : next)
-      }
-    >
-      <SelectTrigger aria-label="Folder" className="w-56">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent alignItemWithTrigger={false} align="end">
-        {items.map((item) => (
-          <SelectItem key={item.value} value={item.value}>
-            {item.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   )
 }
 

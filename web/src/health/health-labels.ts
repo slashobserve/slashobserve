@@ -1,10 +1,12 @@
 import type { components } from "@/api/schema.gen"
 import type { StatusTone } from "@/components/status-label"
+import { sentence } from "@/observe/queries"
 
 export type HealthKind = components["schemas"]["HealthProblemKind"]
 export type HealthProblem = components["schemas"]["HealthProblem"]
 export type HealthItem = components["schemas"]["HealthItem"]
 export type HealthJob = components["schemas"]["HealthJob"]
+export type HealthSummary = components["schemas"]["HealthSummary"]
 type RepairsQueued = components["schemas"]["RepairsQueued"]
 
 export const healthKinds: readonly HealthKind[] = [
@@ -39,8 +41,14 @@ const repairableKinds: ReadonlySet<HealthKind> = new Set([
 
 export const runStartWaitMs = 60_000
 
-export function isHealthKind(value: unknown): value is HealthKind {
-  return healthKinds.includes(value as HealthKind)
+export const importedFilter = "imported"
+
+export const importedLabel = "Imported, not verified"
+
+export type HealthFilter = HealthKind | typeof importedFilter
+
+export function isHealthFilter(value: unknown): value is HealthFilter {
+  return value === importedFilter || healthKinds.includes(value as HealthKind)
 }
 
 export function sortProblems(problems: readonly HealthProblem[]) {
@@ -62,14 +70,112 @@ export function canRepair(item: HealthItem): boolean {
   return item.can_edit && item.problems.some((p) => repairableKinds.has(p.kind))
 }
 
-export function repairReason(
+export type ProblemGroup = {
+  kind: HealthKind
+  message: string | null
+  subjects: string[]
+}
+
+export function groupProblems(
+  problems: readonly HealthProblem[]
+): ProblemGroup[] {
+  const groups = new Map<string, ProblemGroup>()
+  for (const problem of sortProblems(problems)) {
+    const key = JSON.stringify([problem.kind, problem.message])
+    const group = groups.get(key) ?? {
+      kind: problem.kind,
+      message: problem.message,
+      subjects: [],
+    }
+    groups.set(key, group)
+    const subject = problemSubject(problem)
+    if (subject !== "") group.subjects.push(subject)
+  }
+  return [...groups.values()]
+}
+
+export function subjectNoun(group: ProblemGroup): string {
+  return group.kind === "variable_failed" ? "variables" : "panels"
+}
+
+export function subjectSummary(group: ProblemGroup): string | null {
+  const [only, ...rest] = group.subjects
+  if (only === undefined) return null
+  if (rest.length === 0) return only
+  return `${group.subjects.length} ${subjectNoun(group)}`
+}
+
+export function problemText(
+  problem: Pick<HealthProblem, "kind" | "message">
+): string | null {
+  if (problem.kind === "no_data") return "No data in the last 7 days."
+  return problem.message === null ? null : sentence(problem.message)
+}
+
+const noAgentReason = "No agent is configured"
+
+export type RepairAction =
+  | { kind: "queued" }
+  | { kind: "running" }
+  | { kind: "repaired"; version: number }
+  | {
+      kind: "failed"
+      error: string | null
+      canRetry: boolean
+      disabledReason: string | null
+    }
+  | { kind: "repair"; disabledReason: string | null }
+  | { kind: "open" }
+
+export function repairAction(
   item: HealthItem,
   agentAvailable: boolean
-): string | null {
-  if (!item.can_edit) return "You cannot edit this dashboard"
-  if (!canRepair(item)) return "Nothing here the agent can repair"
-  if (!agentAvailable) return "No agent is configured"
-  return null
+): RepairAction {
+  const disabledReason = agentAvailable ? null : noAgentReason
+  const repair = item.repair
+  switch (repair?.state) {
+    case "queued":
+      return { kind: "queued" }
+    case "running":
+      return { kind: "running" }
+    case "failed":
+      return {
+        kind: "failed",
+        error: repair.error === null ? null : sentence(repair.error),
+        canRetry: canRepair(item),
+        disabledReason,
+      }
+    case "succeeded":
+      if (
+        repair.version !== null &&
+        (item.checked_version === null || item.checked_version < repair.version)
+      ) {
+        return { kind: "repaired", version: repair.version }
+      }
+  }
+  return canRepair(item) ? { kind: "repair", disabledReason } : { kind: "open" }
+}
+
+function repairActive(item: HealthItem): boolean {
+  return item.repair?.state === "queued" || item.repair?.state === "running"
+}
+
+export type SummaryLabel = { tone: StatusTone; label: string }
+
+export function summaryLabels(summary: HealthSummary): SummaryLabel[] {
+  const labels: [number, StatusTone, string][] = [
+    [summary.failing, "critical", `${summary.failing} failing`],
+    [summary.no_data, "warning", `${summary.no_data} without data`],
+    [summary.unopened, "none", `${summary.unopened} not opened in 90 days`],
+    [
+      summary.duplicate_titles,
+      "none",
+      `${summary.duplicate_titles} duplicate ${summary.duplicate_titles === 1 ? "title" : "titles"}`,
+    ],
+  ]
+  return labels
+    .filter(([count]) => count > 0)
+    .map(([, tone, label]) => ({ tone, label }))
 }
 
 const skipTexts: Record<RepairsQueued["skipped"][number]["reason"], string> = {
@@ -91,37 +197,31 @@ export function repairOutcomeText(outcome: RepairsQueued): string {
     : `No repair queued. ${skipTexts[skipped.reason]}`
 }
 
-export type JobLine = {
-  tone: StatusTone
-  label: string
-  at: string | null
+const kindCounts: Record<HealthKind, keyof HealthSummary> = {
+  query_failed: "query_failed",
+  variable_failed: "variable_failed",
+  no_data: "no_data",
+  duplicate_title: "duplicate_titles",
+  unopened: "unopened",
 }
 
-export function jobLine(job: HealthJob): JobLine {
-  if (job.running) {
-    return { tone: "running", label: "Checking dashboards now", at: null }
-  }
+export function dashboardCount(
+  summary: HealthSummary,
+  kind: HealthKind | null
+): string {
+  const count = summary[kind === null ? "dashboards" : kindCounts[kind]]
+  return `${count} ${count === 1 ? "dashboard" : "dashboards"}`
+}
+
+export function lastRunProblem(job: HealthJob): SummaryLabel | null {
+  if (job.running) return null
   switch (job.last_outcome) {
-    case "succeeded":
-      return {
-        tone: "ok",
-        label: "Last run finished",
-        at: job.last_finished_at,
-      }
     case "failed":
-      return {
-        tone: "critical",
-        label: "Last run failed",
-        at: job.last_finished_at,
-      }
+      return { tone: "critical", label: "Last run failed" }
     case "interrupted":
-      return {
-        tone: "warning",
-        label: "Last run was interrupted",
-        at: job.last_finished_at ?? job.last_started_at,
-      }
+      return { tone: "warning", label: "Last run was interrupted" }
     default:
-      return { tone: "none", label: "No run has finished yet", at: null }
+      return null
   }
 }
 
@@ -129,9 +229,11 @@ export type RunRequest = { previousStart: string | null; at: number }
 
 export function pollHealth(
   job: HealthJob | undefined,
+  items: readonly HealthItem[],
   run: RunRequest | null,
   now: number
 ): boolean {
+  if (items.some(repairActive)) return true
   if (job === undefined) return false
   if (job.running) return true
   if (run === null || job.last_started_at !== run.previousStart) return false

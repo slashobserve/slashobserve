@@ -9,12 +9,23 @@ It is the list to work through after [switching from Grafana](switch-from-grafan
 ## The Health page
 
 Choose **Health** in the sidebar, or open `<public url>/health`.
-The page lists each dashboard with a problem, one row per dashboard, with its folder, every problem found, when it was last checked and on which version, and when anyone last opened it.
-Failures come first in each row, then panels with no data, then the dashboard-wide problems.
-The menus at the top narrow the list to one kind of problem or one folder, and the address keeps the choice, as `?kind=no_data&folder=<folder id>`, so a filtered list can be shared.
+A summary line under the header counts the dashboards that are failing, have no data, have not been opened in 90 days or share a title, over every dashboard in the chosen folder whatever the problem filter, and says when the last check finished or that one is going now.
+When no dashboard has a problem, the page says that every dashboard passed its last check, and when.
 
-The line under the header shows the state of the job: whether a run is going, and when the last one finished, failed or was interrupted.
-An Editor sees **Repair** on each dashboard they can edit, and the button is turned off with the reason when the row has nothing the agent can repair or no agent is configured.
+The list shows one row per dashboard, ranked with failures first, then dashboards with no data, then duplicate titles and dashboards nobody opens; inside each rank, the most recently opened dashboard comes first.
+Each row shows the dashboard's folder, its problems, when it was last checked and on which version, and when anyone last opened it.
+Problems of one kind with the same message share one line with the number of panels, such as "No data · 13 panels", the message once, and **Show panels** to list them.
+On a phone each row is a short list entry with the problems, the times and the action.
+
+The **Problem** and **Folder** menus narrow the list to one kind of problem or one folder, and the address keeps the choice, as `?kind=no_data&folder=<folder id>`, so a filtered list can be shared.
+For Editors, the **Problem** menu also has **Imported, not verified**, at `?kind=imported`, which holds the repair queue of imported dashboards with **Repair all**; see [Repair](switch-from-grafana.md#repair).
+
+Each row ends with the next thing to do.
+**Repair** shows on a dashboard you can edit that has a problem the agent can repair, and it is turned off with the reason when no agent is configured.
+While the repair waits or runs, the row says **Repair queued** or **Repairing**.
+After a repair that saved a version, the row says **Repaired** with **See changes**, which opens the versions compare of that version, until the next check reads it.
+After a repair that failed, the row says **Repair failed** with the reason, and **Repair** again.
+Any other row offers **Open**.
 An Admin also sees **Run now**, which is turned off while a run is going; the page follows the run until it finishes.
 
 ## What counts as a problem
@@ -90,8 +101,6 @@ Its `state` is `queued`, `running`, `succeeded` or `failed`.
 `version` is the version a succeeded repair saved, `error` is the sentence a failed repair ended with, and both are null in the other states.
 `updated_at` is when the repair finished, else when it started, else when it was queued.
 `request_id` is the revision request, which `GET /api/v1/dashboards/{id}/revisions/{revision_id}` reads.
-
-```json
 
 ```json
 {
