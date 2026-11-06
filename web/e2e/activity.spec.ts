@@ -639,20 +639,13 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(
         page.getByRole("separator", { name: "Resize panel" })
       ).toHaveCount(0)
+      await expect(card(page)).toHaveCSS("position", "fixed")
       const box = await card(page).boundingBox()
-      expect(box?.x ?? 0).toBeGreaterThanOrEqual(0)
+      expect(box?.x ?? -1).toBeGreaterThanOrEqual(0)
       expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390)
       expect(box?.width ?? 0).toBeGreaterThan(340)
-      const below = await page.evaluate(() => {
-        const aside = document.querySelector("aside")
-        const main = document.querySelector("main")
-        if (!aside || !main) return false
-        return (
-          aside.getBoundingClientRect().top >=
-          main.getBoundingClientRect().bottom - 1
-        )
-      })
-      expect(below).toBe(true)
+      expect(box?.y ?? -1).toBeGreaterThanOrEqual(0)
+      expect((box?.y ?? 0) + (box?.height ?? 0)).toBeCloseTo(844, 0)
       const overflow = await page.evaluate(
         () =>
           document.documentElement.scrollWidth -
