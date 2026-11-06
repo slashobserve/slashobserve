@@ -312,7 +312,7 @@ func TestOutlineTargetsAreCapped(t *testing.T) {
 
 const (
 	systemTextBudget     = 23335
-	fullSystemTextBudget = 27690
+	fullSystemTextBudget = 28077
 )
 
 var demoTypes = []spec.DatasourceType{spec.Prometheus, spec.ClickHouse}

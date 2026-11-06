@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -126,11 +127,23 @@ type fixture struct {
 
 func newFixture(t *testing.T, responses ...response) *fixture {
 	t.Helper()
+	return newFixtureWith(t, func(logs *fakeLines) datasource.Datasource { return logs }, responses...)
+}
+
+type laggedLines struct {
+	*fakeLines
+	lag time.Duration
+}
+
+func (l laggedLines) TailLag() time.Duration { return l.lag }
+
+func newFixtureWith(t *testing.T, wrap func(*fakeLines) datasource.Datasource, responses ...response) *fixture {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 	logger := slog.New(slog.DiscardHandler)
 	logs := &fakeLines{typ: "loki", responses: responses}
 	registry, err := datasource.NewRegistry(logger,
-		datasource.Instance{UID: "logs", Datasource: logs},
+		datasource.Instance{UID: "logs", Datasource: wrap(logs)},
 		datasource.Instance{UID: "prom", Datasource: withoutLines{&fakeLines{typ: "prometheus"}}},
 	)
 	if err != nil {
@@ -475,5 +488,139 @@ func TestNewestOfPrefersTimeNsAndFallsBackToTheTimeField(t *testing.T) {
 	}
 	if !errors.Is(context.Canceled, context.Canceled) {
 		t.Fatal("unreachable")
+	}
+}
+
+const tailLag = 5 * time.Second
+
+func laggedFixture(t *testing.T, responses ...response) *fixture {
+	t.Helper()
+	return newFixtureWith(t, func(logs *fakeLines) datasource.Datasource { return laggedLines{fakeLines: logs, lag: tailLag} }, responses...)
+}
+
+func atSeconds(seconds ...int64) []int64 {
+	offsets := make([]int64, len(seconds))
+	for i, s := range seconds {
+		offsets[i] = s * int64(time.Second)
+	}
+	return offsets
+}
+
+func withIDs(f datasource.Frame) datasource.Frame {
+	ids := datasource.Field{Name: "ID", Type: datasource.FieldString}
+	for _, v := range f.Fields[2].Values {
+		ids.Values = append(ids.Values, "doc-"+v.(string))
+	}
+	f.Fields = append(f.Fields, ids, datasource.Field{Name: "Index", Type: datasource.FieldString, Values: make([]any, len(ids.Values))})
+	return f
+}
+
+func bodiesOf(t *testing.T, ev event) []string {
+	t.Helper()
+	var frames []struct {
+		Fields []struct {
+			Name   string `json:"name"`
+			Values []any  `json:"values"`
+		} `json:"fields"`
+	}
+	if err := json.Unmarshal(decode[linesData](t, ev, "lines").Frames, &frames); err != nil {
+		t.Fatal(err)
+	}
+	var bodies []string
+	for _, f := range frames {
+		for _, field := range f.Fields {
+			if field.Name != "Body" {
+				continue
+			}
+			for _, v := range field.Values {
+				bodies = append(bodies, v.(string))
+			}
+		}
+	}
+	return bodies
+}
+
+func TestTailOnADatasourceWithLagSendsEachLineOnce(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		frame func(truncated bool, offsets ...int64) datasource.Frame
+	}{
+		{"keyed by the document id", func(truncated bool, offsets ...int64) datasource.Frame {
+			return withIDs(linesFrame(truncated, offsets...))
+		}},
+		{"keyed by the time and the line", linesFrame},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			poll := func(seconds ...int64) response {
+				return response{frames: []datasource.Frame{tc.frame(false, atSeconds(seconds...)...)}}
+			}
+			f := laggedFixture(t, poll(10, 11), poll(11, 12), poll(12), poll(13))
+			s := f.open("u1", "query=%7Bapp%3D%22shop%22%7D&from="+fromParam)
+			decode[readyData](t, s.next(t), "ready")
+			for _, want := range [][]string{{"line 10000000000", "line 11000000000"}, {"line 12000000000"}, {"line 13000000000"}} {
+				if got := bodiesOf(t, s.next(t)); !slices.Equal(got, want) {
+					t.Fatalf("lines = %v, want %v", got, want)
+				}
+			}
+			seen := waitForRequests(t, f.logs, 4)
+			if got := seen[0].Range.From; !got.Equal(fromTime) {
+				t.Fatalf("first poll from = %v, want the requested start %v", got, fromTime)
+			}
+			if got, want := seen[1].Range.From, time.Unix(0, baseNs+11*int64(time.Second)+1).Add(-tailLag); !got.Equal(want) {
+				t.Fatalf("second poll from = %v, want the newest line plus one nanosecond minus the lag %v", got, want)
+			}
+		})
+	}
+}
+
+func TestTailOnADatasourceWithLagCatchesUpWithoutTheOverlap(t *testing.T) {
+	f := laggedFixture(t,
+		response{frames: []datasource.Frame{withIDs(linesFrame(true, atSeconds(20, 21)...))}},
+		response{frames: []datasource.Frame{withIDs(linesFrame(false, atSeconds(22)...))}},
+		response{frames: []datasource.Frame{withIDs(linesFrame(false, atSeconds(23)...))}},
+	)
+	s := f.open("u1", "query=%7Bapp%3D%22shop%22%7D&from="+fromParam)
+	decode[readyData](t, s.next(t), "ready")
+	for range 3 {
+		s.next(t)
+	}
+	seen := waitForRequests(t, f.logs, 3)
+	if got, want := seen[1].Range.From, time.Unix(0, baseNs+21*int64(time.Second)+1); !got.Equal(want) {
+		t.Fatalf("poll after a full page from = %v, want the newest line plus one nanosecond %v", got, want)
+	}
+	if got, want := seen[2].Range.From, time.Unix(0, baseNs+22*int64(time.Second)+1).Add(-tailLag); !got.Equal(want) {
+		t.Fatalf("poll after a short page from = %v, want the overlap %v", got, want)
+	}
+}
+
+func TestSeenRowsForgetByCountAndByTime(t *testing.T) {
+	rows := func(seconds ...int64) []datasource.Frame {
+		return []datasource.Frame{linesFrame(false, atSeconds(seconds...)...)}
+	}
+	count := func(frames []datasource.Frame) int {
+		n := 0
+		for _, f := range frames {
+			n += f.Rows()
+		}
+		return n
+	}
+
+	capped := newSeenRows(time.Hour, 2)
+	capped.fresh(rows(1, 2, 3))
+	if got := count(capped.fresh(rows(3, 2))); got != 0 {
+		t.Fatalf("%d rows came back as fresh among the two newest", got)
+	}
+	if got := count(capped.fresh(rows(1))); got != 1 {
+		t.Fatalf("the oldest key should have been dropped by the cap: fresh rows = %d", got)
+	}
+
+	timed := newSeenRows(10*time.Second, 100)
+	timed.fresh(rows(1))
+	timed.fresh(rows(30))
+	if got := count(timed.fresh(rows(1))); got != 1 {
+		t.Fatalf("a key older than the window should be forgotten: fresh rows = %d", got)
+	}
+	if got := count(timed.fresh(rows(30))); got != 0 {
+		t.Fatalf("a key inside the window should be remembered: fresh rows = %d", got)
 	}
 }

@@ -127,7 +127,7 @@ func TestLogsForTraceRefusesBadInput(t *testing.T) {
 		"limit over the cap": {`{"datasource":"logs","trace_id":"` + traceID + `","limit":201}`, codeInvalidRequest, "limit must be between 1 and 200"},
 		"from after to":      {`{"datasource":"logs","trace_id":"` + traceID + `","from":"now","to":"now-1h"}`, codeInvalidRequest, "from must be before to"},
 		"unknown field":      {`{"datasource":"logs","trace_id":"` + traceID + `","query":"x"}`, codeInvalidRequest, `unknown field "query"; logs_for_trace takes datasource, from, limit, service, span_id, to and trace_id`},
-		"metrics datasource": {`{"datasource":"fake","trace_id":"` + traceID + `"}`, codeInvalidRequest, "fake is a prometheus datasource; logs_for_trace reads Loki and ClickHouse datasources"},
+		"metrics datasource": {`{"datasource":"fake","trace_id":"` + traceID + `"}`, codeInvalidRequest, "fake is a prometheus datasource; logs_for_trace reads Loki, ClickHouse, Elasticsearch and OpenSearch datasources"},
 		"unknown datasource": {`{"datasource":"nope","trace_id":"` + traceID + `"}`, string(queryproxy.CodeUnknownDatasource), `unknown datasource "nope"; call list_datasources`},
 	}
 	for name, tc := range cases {

@@ -18,9 +18,9 @@ const (
 	maxFacetFieldBytes  = 200
 	maxFacetLimit       = 50
 	defaultFacetSample  = 1000
-	facetsWorkOn        = "log_facets works on Loki and ClickHouse datasources; %s is a %s datasource"
-	descLogFacets       = "Count the top values of each label, field or column a logs query matches over a time range, on Loki or ClickHouse: exact counts where the datasource can, counts from the newest sampled lines where it cannot, each field saying which. Use it to find which service, level, route or pod carries an error before narrowing the query."
-	propFacetFields     = `"fields":{"type":"array","minItems":1,"maxItems":50,"items":{"type":"string","minLength":1,"maxLength":200},"description":"Count only these fields. Default: every index label and detected field on Loki, every result column plus the top LogAttributes keys on ClickHouse."}`
+	facetsWorkOn        = "log_facets works on Loki, ClickHouse, Elasticsearch and OpenSearch datasources; %s is a %s datasource"
+	descLogFacets       = "Count the top values of each label, field or column a logs query matches over a time range, on Loki, ClickHouse, Elastic or OpenSearch: exact counts where the datasource can, counts from the newest sampled lines where it cannot, each field saying which. Use it to find which service, level, route or pod carries an error before narrowing the query."
+	propFacetFields     = `"fields":{"type":"array","minItems":1,"maxItems":50,"items":{"type":"string","minLength":1,"maxLength":200},"description":"Count only these fields. Default: every index label and detected field on Loki, every result column plus the top LogAttributes keys on ClickHouse, the level and service fields then the first keyword fields on Elasticsearch and OpenSearch."}`
 	propFacetLimit      = `"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Values per field. Default 10."}`
 	schemaLogFacetsBody = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propFacetFields + `,` + propFacetLimit + `},"required":["datasource","query"],"additionalProperties":false}`
 )

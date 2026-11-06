@@ -53,3 +53,7 @@ func TimeNsOf(f Frame, row int) (int64, bool) {
 	}
 	return 0, false
 }
+
+type LagSource interface {
+	TailLag() time.Duration
+}

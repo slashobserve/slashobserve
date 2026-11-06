@@ -103,7 +103,7 @@ func TestLogFacetsRefusesDatasourcesWithoutFacets(t *testing.T) {
 	if errorCode(t, res) != codeInvalidRequest {
 		t.Fatalf("res = %#v", res.Content)
 	}
-	if want := "log_facets works on Loki and ClickHouse datasources; fake is a prometheus datasource"; res.Content.(errorBody).Message != want {
+	if want := "log_facets works on Loki, ClickHouse, Elasticsearch and OpenSearch datasources; fake is a prometheus datasource"; res.Content.(errorBody).Message != want {
 		t.Fatalf("message = %q, want %q", res.Content.(errorBody).Message, want)
 	}
 }

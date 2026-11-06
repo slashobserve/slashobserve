@@ -18,14 +18,14 @@ import (
 
 const (
 	nameLogContext = "log_context"
-	descLogContext = "Read the log lines just before and after one line, by its time_ns anchor from a query_instant or log facets result, on Loki or ClickHouse. Use it to see what happened around an error line."
+	descLogContext = "Read the log lines just before and after one line, by its time_ns anchor from a query_instant or log facets result, on Loki, ClickHouse, Elastic or OpenSearch. Use it to see what happened around an error line."
 
 	schemaLogContext = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,"anchor":{"type":"string","minLength":1,"maxLength":20,"description":"The line's time_ns: its time as a nanosecond epoch decimal string."},"before":{"type":"integer","minimum":0,"maximum":100,"description":"Lines to read before the line. Default 20."},"after":{"type":"integer","minimum":0,"maximum":100,"description":"Lines to read after the line. Default 20."}},"required":["datasource","query","anchor"],"additionalProperties":false}`
 
 	defaultContextLines = 20
 	maxContextLines     = 100
 	contextWindow       = time.Hour
-	notLineSource       = "log_context reads Loki and ClickHouse datasources"
+	notLineSource       = "log_context reads Loki, ClickHouse, Elasticsearch and OpenSearch datasources"
 )
 
 type logContextInput struct {

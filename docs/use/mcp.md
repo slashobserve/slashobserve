@@ -87,7 +87,7 @@ An overlap is reported at the panel the patch upserted or moved, with both panel
 It returns at least one panel, and a panel too large to return is listed in `too_large`.
 `list_metrics`, `list_labels`, `list_label_values` and `get_schema` take an `offset` and answer `truncated`, `truncated_by` (`limit` or `bytes`) and `next_offset`, so a client pages through a long list by passing `next_offset` back as `offset`.
 `list_labels` and `list_label_values` also take `from` and `to`, both or neither, so Loki and Tempo answer only the names seen in that window instead of their own default one.
-`logs_for_trace` reads the log lines that carry a trace id, or one span id, from a Loki or ClickHouse datasource over a window, the same lines the trace view opens from a span, and answers the table summary of `query_instant`.
+`logs_for_trace` reads the log lines that carry a trace id, or one span id, from a Loki, ClickHouse, Elasticsearch or OpenSearch datasource over a window, the same lines the trace view opens from a span, and answers the table summary of `query_instant`.
 
 `list_metrics` also takes `scope`: a series selector such as `{job="checkout"}` on Prometheus, or a table name on ClickHouse.
 With `scope` it answers every metric family in that scope in one result: the name, type, unit, label keys and series count of each family, `families_total`, and `grouped`, the families that share a name prefix such as `http_server`.
@@ -136,14 +136,16 @@ It turns a question into a checked LogQL, ClickHouse SQL, KQL or TraceQL query, 
 It spends at most two of this server's model calls per question, checks the query with the lint and a short sample, and never runs the full query; run the answer with `query_instant`.
 A question it cannot turn into a query returns the tool error `cannot_translate` with the reason, and a server with no model returns `agent_unavailable`.
 
-`log_context` reads the log lines just before and just after one line on a Loki or ClickHouse datasource, as [Show context](logs-and-traces.md#context-around-a-line) does.
+`log_context` reads the log lines just before and just after one line on a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, as [Show context](logs-and-traces.md#context-around-a-line) does.
+On an Elasticsearch or OpenSearch time field of type `date`, context is exact to the millisecond.
 Pass the datasource, the query and the line's `time_ns` from a `query_instant` result as `anchor`; `before` and `after` default to 20 lines each and take at most 100.
 The answer holds each side's lines with `time`, `time_ns`, `body` and `labels`, the before side newest first and the after side oldest first, and says when more lines exist within an hour on either side.
 The built-in agent has the same tool.
 
-`log_patterns` groups the lines a logs query matches into patterns with counts on a Loki or ClickHouse datasource, as [Patterns](logs-and-traces.md#logs-page) does: from Loki's pattern index when it has one, otherwise from the newest 2,000 lines.
+`log_patterns` groups the lines a logs query matches into patterns with counts on a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, as [Patterns](logs-and-traces.md#logs-page) does: from Loki's pattern index or Elasticsearch's `categorize_text` when it has one, otherwise from the newest 2,000 lines.
+OpenSearch has no such aggregation, so the server clusters the newest 2,000 lines there and says `source: server`.
 Pass the datasource, the query and optionally `from`, `to` and `limit`, 10 patterns by default and at most 30.
-The answer says `source` (`loki` or `server`), `lines_sampled`, `lines_matched` and each pattern's `count`, `sample` cut to 200 bytes, `first`, `last`, `level` and `trend`, the counts of 30 equal buckets over the range, whose width in milliseconds is `trend_step_ms`.
+The answer says `source` (`loki`, `elasticsearch` or `server`), `lines_sampled`, `lines_matched` and each pattern's `count`, `sample` cut to 200 bytes, `first`, `last`, `level` and `trend`, the counts of 30 equal buckets over the range, whose width in milliseconds is `trend_step_ms`.
 The built-in agent has the same tool.
 
 `list_annotations` lists [annotations](annotations.md), such as deploy markers, newest first: the global ones, plus one dashboard's own with `dashboard_id`, narrowed by `from` and `to` (RFC 3339) and `tags`, 50 per page by default and at most 100.
