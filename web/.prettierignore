@@ -6,3 +6,4 @@ bun.lock
 src/routeTree.gen.ts
 src/spec/*.gen.ts
 src/api/*.gen.ts
+.claude
