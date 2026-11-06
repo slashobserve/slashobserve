@@ -103,7 +103,7 @@ See [Dashboard health](dashboard-health.md) for the rules and the API.
 
 Grafana's public dashboards and kiosk mode have their counterparts here.
 
-- A public link lets someone without an account, such as a vendor or a status screen, open one dashboard at `/p/<token>`.
+- A [public link](public-links.md) lets someone without an account, such as a vendor or a status screen, open one dashboard at `/p/<token>`.
   A person who manages the dashboard's folder creates it in the dashboard's **Share** pane, chooses whether viewers may change the variables, can set an expiry, and can revoke it at any time.
   A public view runs only that dashboard's saved queries and never shows query text, annotations, comments or the agent, and a dashboard in My Dashboards or one whose queries read the viewer cannot get a link.
 - TV mode shows a dashboard on a wall screen without the top row, the variables bar, the links or the activity card, and Esc leaves it.
@@ -140,7 +140,7 @@ Any signed-in person can call it, and a uid whose dashboard is in a folder they 
 | A folder titled `My Dashboards` | Lands in the importing Admin's own My Dashboards, because that title names the default folder here; rename it in Grafana before the import to keep it shared. | Changes |
 | A dashboard imported from a file earlier | Holds its Grafana uid, since only the first import of a uid holds it, so the run updates that dashboard instead of making a copy. | Changes |
 | Panels whose queries fail | Imported as unverified, then repaired by the agent from the repair queue or the Health page. | Changes |
-| Public dashboards | Public links from the Share pane. | Changes |
+| Public dashboards | [Public links](public-links.md) from the Share pane. | Changes |
 | Kiosk mode and playlists | TV mode, which cycles through a dashboard's rows or a folder's dashboards. Playlists themselves stay in Grafana. | Changes |
 | Provisioning files | The server's provisioning directory, or `observe dashboards apply` from Git. | Changes |
 | Alerting rules, contact points and silences | Not imported, and an alert list panel imports as a placeholder. | Waits |
