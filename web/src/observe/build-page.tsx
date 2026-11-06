@@ -17,6 +17,7 @@ import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { useVariables } from "@/dashboards/use-variables"
 import { useDocumentTitle } from "@/lib/document-title"
 import { createSharedCursor } from "@/panels/shared-cursor"
+import { Sidebar } from "@/shell/sidebar"
 import { ThemeSwitch } from "@/shell/theme-switch"
 import { isDataPanel, sourcePanelOf, type Dashboard } from "@/spec"
 import { dashboardLink } from "@/lib/links"
@@ -226,6 +227,7 @@ export function BuildPage({ requestId }: { requestId: string }) {
 
   return (
     <div className="flex h-svh bg-background text-foreground">
+      <Sidebar rail />
       <ChatPane requestId={requestId} />
       <div className="flex min-w-0 flex-1 flex-col">
         {topRow}

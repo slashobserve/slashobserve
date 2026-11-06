@@ -1,12 +1,9 @@
 import { useRef } from "react"
-import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import {
   CopyIcon,
   DownloadIcon,
   EllipsisIcon,
-  KeyIcon,
   LayoutGridIcon,
-  LogOutIcon,
   PencilIcon,
   TvIcon,
   TvMinimalPlayIcon,
@@ -26,10 +23,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { focusMovedOutOfMenu } from "@/lib/focus"
-import { roleAtLeast } from "@/lib/roles"
 import { modChordLabel } from "@/lib/shortcuts"
 import type { CursorSync } from "@/panels/shared-cursor"
-import { useSignOut } from "@/shell/use-sign-out"
 
 import { cursorSyncOptions, isCursorSync } from "./cursor-sync"
 
@@ -73,9 +68,6 @@ export function MoreMenu({
   cursorSync,
   onCursorSyncChange,
 }: Props) {
-  const navigate = useNavigate()
-  const { principal } = useRouteContext({ from: "/_authed" })
-  const { signOut, pending } = useSignOut()
   const startedLayout = useRef(false)
   return (
     <DropdownMenu>
@@ -84,7 +76,7 @@ export function MoreMenu({
         render={
           <button
             type="button"
-            aria-label="More: edit layout, edit details, export, duplicate, TV mode, TV mode for this folder, chart hover, delete, API keys, sign out"
+            aria-label="More: edit layout, edit details, export, duplicate, TV mode, TV mode for this folder, chart hover, delete"
             className="grid size-[30px] place-items-center rounded-control outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted"
           />
         }
@@ -183,9 +175,9 @@ export function MoreMenu({
             ))}
           </DropdownMenuRadioGroup>
         </DropdownMenuGroup>
-        <DropdownMenuSeparator />
         {mayEdit ? (
           <>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"
               disabled={deleteBlockedBy !== null}
@@ -196,19 +188,8 @@ export function MoreMenu({
                 ? "Delete dashboard..."
                 : `Delete dashboard (${deleteBlockedBy})`}
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
           </>
         ) : null}
-        {roleAtLeast(principal.role, "admin") ? (
-          <DropdownMenuItem onClick={() => void navigate({ to: "/keys" })}>
-            <KeyIcon aria-hidden="true" />
-            API keys
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem disabled={pending} onClick={() => void signOut()}>
-          <LogOutIcon aria-hidden="true" />
-          Sign out
-        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

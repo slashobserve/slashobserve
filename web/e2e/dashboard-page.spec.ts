@@ -57,9 +57,7 @@ for (const theme of themes) {
       await expect(
         breadcrumb.getByRole("heading", { level: 1, name: title })
       ).toBeVisible()
-      await expect(page.getByRole("navigation", { name: "Main" })).toHaveCount(
-        0
-      )
+      await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible()
       await expect(page.getByText(/made by/)).toHaveCount(0)
     })
 
@@ -354,12 +352,12 @@ test("keeps a multi-value variable inside the box on a phone", async ({
 test.describe("signed out", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
-  test("signs out from More", async ({ page }) => {
+  test("signs out from the rail's account menu", async ({ page }) => {
     await signInThroughDex(page)
     const { id } = await createPageDashboard(page.request)
     await openDashboard(page, id)
 
-    await moreButton(page).click()
+    await page.getByRole("button", { name: /^Account: / }).click()
     await page.getByRole("menuitem", { name: "Sign out" }).click()
     await expect(page).toHaveURL("/login")
   })
