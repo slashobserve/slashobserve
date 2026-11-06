@@ -89,6 +89,45 @@ describe("AnnotationLayer", () => {
     expect(screen.getByRole("group")).toHaveTextContent("Unknown")
   })
 
+  it("puts the time and author before the text and the tags last", async () => {
+    const user = userEvent.setup()
+    layer([annotation()])
+    await user.hover(screen.getByRole("button"))
+    const text = screen.getByRole("group").textContent ?? ""
+    const order = [
+      "2026-11-01 10:10:00",
+      "ci-deploy · Every dashboard",
+      "Deploy checkout v1.4.2",
+      "deploycheckout",
+    ].map((part) => text.indexOf(part))
+    expect(order).not.toContain(-1)
+    expect(order).toEqual([...order].sort((a, b) => a - b))
+  })
+
+  it("styles links as plain text links, marking external ones", async () => {
+    const user = userEvent.setup()
+    layer([
+      annotation({
+        text: "See /findings/abc and https://example.com/deploy",
+        dashboard_id: "d",
+      }),
+    ])
+    await user.hover(screen.getByRole("button"))
+    const internal = screen.getByRole("link", { name: "/findings/abc" })
+    const external = screen.getByRole("link", {
+      name: "https://example.com/deploy",
+    })
+    for (const link of [internal, external]) {
+      expect(link).not.toHaveClass("underline")
+      expect(link).toHaveClass("font-medium")
+    }
+    expect(internal).not.toHaveAttribute("target")
+    expect(internal.querySelector("svg")).toBeNull()
+    expect(external).toHaveAttribute("target", "_blank")
+    expect(external.querySelector("svg")).not.toBeNull()
+    expect(screen.getByRole("group")).not.toHaveTextContent("Every dashboard")
+  })
+
   it("opens on focus and closes on Escape with focus back on the flag", async () => {
     const user = userEvent.setup()
     layer([annotation()])

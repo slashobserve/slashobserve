@@ -7,7 +7,6 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -58,9 +57,12 @@ function TagMenu({ dashboardId }: { dashboardId: string }) {
         <ChevronDownIcon className="size-3" aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-max max-w-[calc(100vw-32px)] min-w-(--anchor-width) wrap-anywhere">
-        <DropdownMenuItem onClick={() => apply([])}>
+        <DropdownMenuCheckboxItem
+          checked={selected.length === 0}
+          onCheckedChange={() => apply([])}
+        >
           All annotations
-        </DropdownMenuItem>
+        </DropdownMenuCheckboxItem>
         <DropdownMenuSeparator />
         {choices.map((tag) => (
           <DropdownMenuCheckboxItem
