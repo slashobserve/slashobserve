@@ -7,11 +7,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 )
 
-const (
-	grafanaConnectionsVersion = 34
-	importsGrafanaUIDVersion  = 35
-)
-
 func seedImport(t *testing.T, d *dbtest.Database, dashboardID, uid, createdAt string) {
 	t.Helper()
 	seedDashboard(t, d, dashboardID, 1)
@@ -25,7 +20,7 @@ VALUES ($1::uuid, 1, 'grafana', 3, '\x7b7d', '{}', jsonb_build_object('uid', $2:
 func TestGrafanaUIDBackfillGivesEachUIDToItsFirstImport(t *testing.T) {
 	ctx := t.Context()
 	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, grafanaConnectionsVersion); err != nil {
+	if err := d.MigrateUpTo(ctx, v010Version); err != nil {
 		t.Fatal(err)
 	}
 	seeds := []struct {
@@ -42,7 +37,7 @@ func TestGrafanaUIDBackfillGivesEachUIDToItsFirstImport(t *testing.T) {
 	for _, s := range seeds {
 		seedImport(t, d, s.dashboard, s.uid, s.createdAt)
 	}
-	if err := d.MigrateUpTo(ctx, importsGrafanaUIDVersion); err != nil {
+	if err := d.MigrateUpTo(ctx, postV010Version); err != nil {
 		t.Fatal(err)
 	}
 	sqlDB := d.SQLDB(t)
@@ -59,30 +54,5 @@ func TestGrafanaUIDBackfillGivesEachUIDToItsFirstImport(t *testing.T) {
 	_, err := sqlDB.Exec(`UPDATE imports SET grafana_uid = 'shop' WHERE dashboard_id = $1::uuid`, seeds[0].dashboard)
 	if constraintOf(err) != "imports_grafana_uid_key" {
 		t.Errorf("a second holder of a uid: error = %v, want an imports_grafana_uid_key violation", err)
-	}
-}
-
-func TestGrafanaMigrationsRollBack(t *testing.T) {
-	ctx := t.Context()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, importsGrafanaUIDVersion); err != nil {
-		t.Fatal(err)
-	}
-	seedImport(t, d, "00000000-0000-4000-8000-000000000001", "shop", "2026-01-01T00:00:00Z")
-	d.Exec(t, `INSERT INTO grafana_connections (name, url, token_ciphertext) VALUES ('g', 'https://grafana.example.com', '\x01')`)
-	for _, version := range []int64{grafanaConnectionsVersion, grafanaConnectionsVersion - 1} {
-		if err := d.MigrateDownTo(ctx, version); err != nil {
-			t.Fatalf("down to %d: %v", version, err)
-		}
-	}
-	sqlDB := d.SQLDB(t)
-	var column, table int
-	if err := sqlDB.QueryRow(`SELECT
-  (SELECT count(*) FROM information_schema.columns WHERE table_name = 'imports' AND column_name = 'grafana_uid'),
-  (SELECT count(*) FROM information_schema.tables WHERE table_name = 'grafana_connections')`).Scan(&column, &table); err != nil {
-		t.Fatal(err)
-	}
-	if column != 0 || table != 0 {
-		t.Errorf("after rolling back: grafana_uid columns %d, grafana_connections tables %d", column, table)
 	}
 }

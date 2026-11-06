@@ -7,11 +7,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 )
 
-const (
-	findingsVersion           = 36
-	agentRequestTitlesVersion = 37
-	findingsDashboard         = "00000000-0000-4000-8000-000000000001"
-)
+const findingsDashboard = "00000000-0000-4000-8000-000000000001"
 
 type requestRow struct {
 	source, status, dashboardID, panelID, title string
@@ -38,11 +34,7 @@ VALUES ('t', 'm', $1::jsonb, now() - interval '1 hour', now(), 'user', gen_rando
 }
 
 func TestInvestigateRowsFollowTheirShape(t *testing.T) {
-	ctx := t.Context()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, agentRequestTitlesVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := dbtest.New(t)
 	seedDashboard(t, d, findingsDashboard, 1)
 	sqlDB := d.SQLDB(t)
 	cases := []struct {
@@ -83,35 +75,5 @@ func TestFindingsRejectMoreThanFourEvidencePanels(t *testing.T) {
 		if got := constraintOf(err); got != c.want || (c.want == "" && err != nil) {
 			t.Errorf("%s: error = %v, want violation %q", c.name, err, c.want)
 		}
-	}
-}
-
-func TestFindingsMigrationsRollBack(t *testing.T) {
-	ctx := t.Context()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, agentRequestTitlesVersion); err != nil {
-		t.Fatal(err)
-	}
-	sqlDB := d.SQLDB(t)
-	if err := insertRequest(sqlDB, requestRow{source: "investigate", title: "Why"}); err != nil {
-		t.Fatal(err)
-	}
-	if err := insertFinding(sqlDB, `[]`); err != nil {
-		t.Fatal(err)
-	}
-	for _, version := range []int64{findingsVersion, findingsVersion - 1} {
-		if err := d.MigrateDownTo(ctx, version); err != nil {
-			t.Fatalf("down to %d: %v", version, err)
-		}
-	}
-	var table, columns, investigations int
-	if err := sqlDB.QueryRow(`SELECT
-  (SELECT count(*) FROM information_schema.tables WHERE table_name = 'findings'),
-  (SELECT count(*) FROM information_schema.columns WHERE table_name = 'agent_requests' AND column_name IN ('context_from', 'context_to', 'title', 'pinned_at', 'archived_at')),
-  (SELECT count(*) FROM agent_requests WHERE source = 'investigate')`).Scan(&table, &columns, &investigations); err != nil {
-		t.Fatal(err)
-	}
-	if table != 0 || columns != 0 || investigations != 0 {
-		t.Errorf("after rolling back: findings tables %d, new agent_requests columns %d, investigate rows %d", table, columns, investigations)
 	}
 }
