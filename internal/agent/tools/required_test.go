@@ -54,6 +54,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		Findings:    findings.New(database.DB, access, notes, service, logger),
 		Health:      health.New(health.Deps{DB: database.DB, Runner: runner, Access: access, Logger: logger, Job: "dashboard_health"}),
 		Annotations: notes,
+		Provider:    &scriptedDraft{},
 		Logger:      logger,
 	})
 	ctx := auth.WithPrincipal(context.Background(), placeholderUser)
@@ -73,6 +74,8 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 	}
 	samples := map[string]json.RawMessage{
 		"datasource":     json.RawMessage(`"` + fakeUID + `"`),
+		"datasource_uid": json.RawMessage(`"` + fakeUID + `"`),
+		"question":       json.RawMessage(`"error logs from checkout"`),
 		"query":          json.RawMessage(`"up"`),
 		"table":          json.RawMessage(`"t"`),
 		"label":          json.RawMessage(`"job"`),

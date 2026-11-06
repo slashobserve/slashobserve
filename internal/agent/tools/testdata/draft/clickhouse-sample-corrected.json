@@ -1,0 +1,33 @@
+{
+  "prompt": "checkout logs with a message",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "submit_query",
+          "input": {
+            "query": "SELECT Timestamp, Message FROM otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName = 'checkout' ORDER BY Timestamp DESC LIMIT 1000",
+            "explanation": "Checkout log lines with their message, newest first."
+          }
+        }
+      ]
+    },
+    {
+      "expect": [
+        {
+          "is_error": true,
+          "contains": "sample"
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "submit_query",
+          "input": {
+            "query": "SELECT Timestamp, SeverityText, Body, ServiceName, TraceId, SpanId, LogAttributes FROM otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName = 'checkout' ORDER BY Timestamp DESC LIMIT 1000",
+            "explanation": "Checkout log lines with their message body, newest first."
+          }
+        }
+      ]
+    }
+  ]
+}

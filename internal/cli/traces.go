@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"slices"
@@ -21,6 +22,8 @@ type tracesOptions struct {
 	datasource string
 	from       string
 	to         string
+	ask        string
+	dryRun     bool
 }
 
 type span struct {
@@ -41,27 +44,35 @@ type treeRow struct {
 
 func (a *app) tracesCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "traces <trace id> --datasource <uid>",
+		Use:   "traces [<trace id>] --datasource <uid>",
 		Short: "Print the spans of a trace from a Tempo or ClickHouse datasource",
-		Long:  "traces finds a trace by its 16 or 32 hexadecimal character id and prints its spans as a tree.",
+		Long:  "traces finds a trace by its 16 or 32 hexadecimal character id and prints its spans as a tree.\nWith --ask the server turns a question into a trace search, and traces prints the newest 100 matching traces.",
 		Example: "  observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource tempo\n" +
-			"  observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource clickhouse --from now-7d",
-		Args: exactArgs(1, "one trace id"),
+			"  observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource clickhouse --from now-7d\n" +
+			"  observe traces --ask \"checkout requests slower than 2s with errors\" --datasource tempo",
+		Args: cobra.ArbitraryArgs,
 		RunE: a.runTraces,
 	}
 	flags := cmd.Flags()
 	flags.StringVar(&a.traces.datasource, "datasource", "", "the datasource uid (observe doctor lists them)")
 	flags.StringVar(&a.traces.from, "from", "now-24h", "start of the range to search, such as now-7d or an RFC 3339 time")
 	flags.StringVar(&a.traces.to, "to", "now", "end of the range")
+	flags.StringVar(&a.traces.ask, "ask", "", "a question the server turns into a trace search, instead of the trace id")
+	flags.BoolVar(&a.traces.dryRun, "dry-run", false, "with --ask, print the search without running it")
 	return cmd
 }
 
 func (a *app) runTraces(cmd *cobra.Command, args []string) error {
 	opts := a.traces
-	if !traceIDPattern.MatchString(args[0]) {
+	if err := askUsage(cmd.Name(), "a trace id", args, opts.ask, opts.dryRun); err != nil {
+		return err
+	}
+	if len(args) > 1 {
+		return usagef("%s takes one trace id", cmd.CommandPath())
+	}
+	if len(args) == 1 && !traceIDPattern.MatchString(args[0]) {
 		return usagef("%q is not a trace id; a trace id is 16 or 32 hexadecimal characters", text(args[0]))
 	}
-	id := strings.ToLower(args[0])
 	if opts.datasource == "" {
 		return usagef("%s needs --datasource <uid>; observe doctor lists them", cmd.CommandPath())
 	}
@@ -74,11 +85,18 @@ func (a *app) runTraces(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	query, err := traceQuery(kind, id)
-	if err != nil {
+	if kind != "tempo" && kind != "clickhouse" {
 		return usagef("traces reads Tempo or ClickHouse datasources; %s is %s", text(opts.datasource), text(kind))
 	}
-	data, body, err := explore(ctx, c, opts.datasource, exploreRequest{Query: query, Kind: "range", From: opts.from, To: opts.to, Limit: maxTraceSpans})
+	if opts.ask != "" {
+		return a.searchTraces(ctx, c, kind)
+	}
+	return a.showTrace(ctx, c, kind, strings.ToLower(args[0]))
+}
+
+func (a *app) showTrace(ctx context.Context, c *client, kind, id string) error {
+	opts := a.traces
+	data, body, err := explore(ctx, c, opts.datasource, exploreRequest{Query: traceQuery(kind, id), Kind: "range", From: opts.from, To: opts.to, Limit: maxTraceSpans})
 	if err != nil {
 		return err
 	}
@@ -102,14 +120,49 @@ func (a *app) runTraces(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func traceQuery(kind, id string) (string, error) {
-	switch kind {
-	case "tempo":
-		return id, nil
-	case "clickhouse":
-		return "SELECT TraceId, SpanId, ParentSpanId, SpanName, ServiceName, Timestamp AS StartTime, Duration, StatusCode FROM otel_traces WHERE TraceId = '" + id + "' AND $__timeFilter(Timestamp) ORDER BY Timestamp LIMIT " + strconv.Itoa(maxTraceSpans), nil
+func (a *app) searchTraces(ctx context.Context, c *client, kind string) error {
+	opts := a.traces
+	out := a.output()
+	answer, err := draftQuery(ctx, c, opts.datasource, signalTraces, opts.ask, opts.from, opts.to)
+	if err != nil {
+		return err
 	}
-	return "", fmt.Errorf("unsupported datasource type %s", kind)
+	printDraft(out, answer)
+	if opts.dryRun {
+		return nil
+	}
+	data, body, err := explore(ctx, c, opts.datasource, exploreRequest{Query: traceSearchQuery(kind, answer), Kind: "instant", From: opts.from, To: opts.to, Limit: traceSearchLimit})
+	if err != nil {
+		return err
+	}
+	if a.json {
+		out.body(data)
+		return nil
+	}
+	rows := traceSearchRows(body.Frames)
+	if len(rows) == 0 {
+		out.notice("No traces between %s and %s", text(opts.from), text(opts.to))
+		return nil
+	}
+	out.table(traceSearchHeaders, rows)
+	return nil
+}
+
+func traceSearchQuery(kind string, answer draftAnswer) string {
+	if answer.TraceFilters == nil {
+		return answer.Query
+	}
+	if kind == "tempo" {
+		return tempoTraceQL(*answer.TraceFilters)
+	}
+	return clickhouseTraceSearch(*answer.TraceFilters)
+}
+
+func traceQuery(kind, id string) string {
+	if kind == "tempo" {
+		return id
+	}
+	return "SELECT TraceId, SpanId, ParentSpanId, SpanName, ServiceName, Timestamp AS StartTime, Duration, StatusCode FROM otel_traces WHERE TraceId = '" + id + "' AND $__timeFilter(Timestamp) ORDER BY Timestamp LIMIT " + strconv.Itoa(maxTraceSpans)
 }
 
 func spanRows(frames []frame) ([]span, error) {

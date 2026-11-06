@@ -1,0 +1,19 @@
+{
+  "prompt": "failed checkout traces",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "submit_query",
+          "input": {
+            "explanation": "Matches traces from the checkout service that contain an error span within the time range.",
+            "trace_filters": {
+              "service": "checkout",
+              "errors": true
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

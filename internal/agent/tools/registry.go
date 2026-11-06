@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/annotations"
@@ -25,6 +26,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/imports"
+	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -136,6 +138,7 @@ type Deps struct {
 	Findings    *findings.Service
 	Health      *health.Service
 	Annotations *annotations.Service
+	Provider    llm.Provider
 	PublicURL   *url.URL
 	Logger      *slog.Logger
 }
@@ -198,6 +201,47 @@ type Registry struct {
 	entries map[string]entry
 	fields  map[string]surfaceFields
 	tools   []Tool
+	drafts  draftLimiter
+}
+
+const (
+	maxDraftsPerCaller = 3
+	maxDraftsInFlight  = 10
+)
+
+type draftLimiter struct {
+	mu       sync.Mutex
+	total    int
+	byCaller map[string]int
+}
+
+func (r *Registry) acquireDraft(p auth.Principal) (release func(), err error) {
+	key := string(p.Kind) + ":" + p.ID
+	l := &r.drafts
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	switch {
+	case l.byCaller[key] >= maxDraftsPerCaller:
+		return nil, ErrDraftTooMany
+	case l.total >= maxDraftsInFlight:
+		return nil, ErrDraftBusy
+	}
+	if l.byCaller == nil {
+		l.byCaller = map[string]int{}
+	}
+	l.byCaller[key]++
+	l.total++
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			l.mu.Lock()
+			defer l.mu.Unlock()
+			l.total--
+			if l.byCaller[key]--; l.byCaller[key] == 0 {
+				delete(l.byCaller, key)
+			}
+		})
+	}, nil
 }
 
 func New(d Deps) *Registry {
@@ -233,6 +277,7 @@ func (r *Registry) baseEntries() []entry {
 	all = append(all, r.findingEntries()...)
 	all = append(all, r.healthEntries()...)
 	all = append(all, r.annotationEntries()...)
+	all = append(all, r.draftEntries()...)
 	return all
 }
 

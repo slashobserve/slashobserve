@@ -74,20 +74,9 @@ func (r *Registry) lintQuery(ctx context.Context, input json.RawMessage) (Result
 	if res, ok := checkQueryText(in.Query); !ok {
 		return res, nil
 	}
-	lintCtx, cancel := context.WithTimeout(ctx, lintTimeout)
-	defer cancel()
-	diagnostics, err := inst.Datasource.Lint(lintCtx, in.Query)
-	if err != nil {
-		if err := ctx.Err(); err != nil {
-			return Result{}, err
-		}
-		return datasourceFailure("Could not lint a query on "+inst.UID, err)
-	}
-	if lintCtx.Err() != nil && len(diagnostics) == 0 {
-		if err := ctx.Err(); err != nil {
-			return Result{}, err
-		}
-		return toolError(string(queryproxy.CodeQueryTimeout), "the lint check timed out"), nil
+	diagnostics, res, ok, err := r.lint(ctx, inst, in.Query)
+	if err != nil || !ok {
+		return res, err
 	}
 	errs, warnings := 0, 0
 	for _, d := range diagnostics {
@@ -103,6 +92,26 @@ func (r *Registry) lintQuery(ctx context.Context, input json.RawMessage) (Result
 		step += ", " + plural(warnings, "warning", "warnings")
 	}
 	return success(step, lintOut{OK: errs == 0, Diagnostics: items, Truncated: truncated}), nil
+}
+
+func (r *Registry) lint(ctx context.Context, inst datasource.Instance, query string) ([]datasource.Diagnostic, Result, bool, error) {
+	lintCtx, cancel := context.WithTimeout(ctx, lintTimeout)
+	defer cancel()
+	diagnostics, err := inst.Datasource.Lint(lintCtx, query)
+	if err != nil {
+		if err := ctx.Err(); err != nil {
+			return nil, Result{}, false, err
+		}
+		res, err := datasourceFailure("Could not lint a query on "+inst.UID, err)
+		return nil, res, false, err
+	}
+	if lintCtx.Err() != nil && len(diagnostics) == 0 {
+		if err := ctx.Err(); err != nil {
+			return nil, Result{}, false, err
+		}
+		return nil, toolError(string(queryproxy.CodeQueryTimeout), "the lint check timed out"), false, nil
+	}
+	return diagnostics, Result{}, true, nil
 }
 
 func checkQueryText(text string) (Result, bool) {

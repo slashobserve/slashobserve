@@ -30,6 +30,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/drafthttp"
 	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/egress/allowlist"
 	"github.com/slashobserve/slashobserve/internal/events"
@@ -299,6 +300,7 @@ func run() error {
 		Findings:    findingsService,
 		Health:      healthService,
 		Annotations: annotationsService,
+		Provider:    llmProvider,
 		PublicURL:   cfg.PublicURL,
 		Logger:      logger,
 	})
@@ -397,6 +399,7 @@ func run() error {
 			publicLinksHandler,
 			dashprovision.NewApplyHandler(dashprovision.NewApplier(database, dashboardsService, folderAccess), logger),
 			healthHandler,
+			drafthttp.NewHandler(toolRegistry, logger),
 		},
 		Public: []server.PublicRegistrar{publicLinksHandler, proxyhttp.NewPublicData(proxyHandler, publicLinks)},
 		Mounts: append([]server.Mount{{

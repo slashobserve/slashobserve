@@ -12,12 +12,12 @@ The endpoint is stateless, refuses an `Origin` that is not `SLASHOBSERVE_PUBLIC_
 On `initialize` the server returns an `Mcp-Session-Id` that only carries the client's self-reported name and holds no state.
 Each version and agent request records its origin (`web`, `cli`, `mcp` or `api`) and, for `mcp`, that client name.
 
-The server offers 26 tools.
+The server offers 27 tools.
 Each has a lowest role, which the server checks when a client calls it, using the role of the key's service account:
 
 | Role      | Tools                                                                                                                                                         |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Viewer    | `list_dashboards`, `get_dashboard`, `get_panels`, `get_spec_guide`, `list_comments`, `list_folders`, `list_findings`, `list_dashboard_health`, `list_annotations` |
+| Viewer    | `list_dashboards`, `get_dashboard`, `get_panels`, `get_spec_guide`, `list_comments`, `list_folders`, `list_findings`, `list_dashboard_health`, `list_annotations`, `draft_query` |
 | Commenter | `reply_to_comment`, `resolve_comment`                                                                                                                         |
 | Editor    | `create_dashboard`, `update_dashboard`, `update_panels`, `import_grafana_dashboard`, `list_datasources`, `list_metrics`, `list_labels`, `list_label_values`, `get_schema`, `sample_rows`, `lint_query`, `query_range`, `query_instant`, `create_finding`, `create_annotation` |
 
@@ -96,6 +96,11 @@ No tool queues an investigation on the server: an MCP client investigates with i
 It lists the dashboards with [health problems](dashboard-health.md) in the folders the key can see, most recently updated first, 20 per page by default and at most 50: each with its `problems` (`kind`, and `panel_id`, `panel_title`, `variable`, `code` and `message` where they apply), `checked_at` and `checked_version`, plus the state of the daily check in `job`.
 `folder_id` and `kind` narrow the list, and `next_cursor` pages on.
 A client repairs a failing panel itself: it reads the panel with `get_panels` and saves the fix with `update_panels`.
+
+`draft_query` is available over MCP only.
+It turns a question into a checked LogQL, ClickHouse SQL or TraceQL query, or trace search filters, for one Loki, ClickHouse or Tempo datasource, as [Ask](logs-and-traces.md#ask-in-plain-language) does.
+It spends at most two of this server's model calls per question, checks the query with the lint and a short sample, and never runs the full query; run the answer with `query_instant`.
+A question it cannot turn into a query returns the tool error `cannot_translate` with the reason, and a server with no model returns `agent_unavailable`.
 
 `list_annotations` lists [annotations](annotations.md), such as deploy markers, newest first: the global ones, plus one dashboard's own with `dashboard_id`, narrowed by `from` and `to` (RFC 3339) and `tags`, 50 per page by default and at most 100.
 It is the one annotation tool the built-in agent also has, and only in investigate runs, so an investigation can see a deploy beside a spike.

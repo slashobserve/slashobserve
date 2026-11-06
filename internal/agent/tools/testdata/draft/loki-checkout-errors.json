@@ -1,0 +1,16 @@
+{
+  "prompt": "error logs from checkout",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "submit_query",
+          "input": {
+            "query": "{service_name=\"checkout\", detected_level=\"error\"}",
+            "explanation": "Returns log lines from the checkout service whose detected level is error, within the time range."
+          }
+        }
+      ]
+    }
+  ]
+}

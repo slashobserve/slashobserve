@@ -1,0 +1,15 @@
+{
+  "prompt": "cpu of the payments pod",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "cannot_translate",
+          "input": {
+            "reason": "CPU usage of a pod is a resource metric, and this Loki datasource only holds log lines labeled by service_name and detected_level, with no pod or CPU data."
+          }
+        }
+      ]
+    }
+  ]
+}

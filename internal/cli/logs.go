@@ -32,6 +32,8 @@ type logsOptions struct {
 	to         string
 	limit      int
 	tail       bool
+	ask        string
+	dryRun     bool
 }
 
 type logLine struct {
@@ -50,12 +52,13 @@ type logLineJSON struct {
 
 func (a *app) logsCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "logs <query> --datasource <uid>",
+		Use:   "logs [<query>] --datasource <uid>",
 		Short: "Print log lines from a Loki or ClickHouse datasource",
-		Long:  "logs runs a log query on a datasource and prints the lines oldest first.\nWith --tail it keeps printing new lines every 2 seconds until Ctrl-C.",
+		Long:  "logs runs a log query on a datasource and prints the lines oldest first.\nWith --ask the server writes the query from a question and prints it first.\nWith --tail it keeps printing new lines every 2 seconds until Ctrl-C.",
 		Example: "  observe logs '{app=\"shop\"} |= \"error\"' --datasource loki --from now-15m\n" +
-			"  observe logs '{app=\"shop\"}' --datasource loki --tail",
-		Args: minimumArgs(1, "a log query"),
+			"  observe logs '{app=\"shop\"}' --datasource loki --tail\n" +
+			"  observe logs --ask \"checkout errors\" --datasource loki --dry-run",
+		Args: cobra.ArbitraryArgs,
 		RunE: a.runLogs,
 	}
 	flags := cmd.Flags()
@@ -64,11 +67,16 @@ func (a *app) logsCommand() *cobra.Command {
 	flags.StringVar(&a.logs.to, "to", "now", "end of the range")
 	flags.IntVar(&a.logs.limit, "limit", defaultLogLimit, "the newest lines to print, 1 to 1000")
 	flags.BoolVar(&a.logs.tail, "tail", false, "keep printing new lines until Ctrl-C")
+	flags.StringVar(&a.logs.ask, "ask", "", "a question the server turns into the log query, instead of the query argument")
+	flags.BoolVar(&a.logs.dryRun, "dry-run", false, "with --ask, print the query without running it")
 	return cmd
 }
 
 func (a *app) runLogs(cmd *cobra.Command, args []string) error {
 	opts := a.logs
+	if err := askUsage(cmd.Name(), "a log query", args, opts.ask, opts.dryRun); err != nil {
+		return err
+	}
 	if opts.datasource == "" {
 		return usagef("%s needs --datasource <uid>; observe doctor lists them", cmd.CommandPath())
 	}
@@ -80,12 +88,24 @@ func (a *app) runLogs(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	ctx := cmd.Context()
-	req := exploreRequest{Query: strings.Join(args, " "), Kind: "range", From: opts.from, To: opts.to, Limit: opts.limit}
+	out := a.output()
+	query := strings.Join(args, " ")
+	if opts.ask != "" {
+		answer, err := draftQuery(ctx, c, opts.datasource, signalLogs, opts.ask, opts.from, opts.to)
+		if err != nil {
+			return err
+		}
+		printDraft(out, answer)
+		if opts.dryRun {
+			return nil
+		}
+		query = answer.Query
+	}
+	req := exploreRequest{Query: query, Kind: "range", From: opts.from, To: opts.to, Limit: opts.limit}
 	data, body, err := explore(ctx, c, opts.datasource, req)
 	if err != nil {
 		return err
 	}
-	out := a.output()
 	lines := newestLines(logLines(body.Frames), opts.limit)
 	if opts.tail {
 		tail := &logTail{out: out, json: a.json}

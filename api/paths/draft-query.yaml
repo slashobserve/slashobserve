@@ -1,0 +1,84 @@
+datasources-uid-draft-query:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+  post:
+    operationId: draftQuery
+    summary: Turn a question into a checked log query, TraceQL query or trace filters for one datasource.
+    description: >-
+      The server reads the datasource's labels, attributes or columns first, then asks the model once with the question and those facts, capped at 12 KiB.
+      The answer is checked with the lint and one sample run over the last 15 minutes of the range under the agent tools' limits; the full query is never run.
+      Only when that check fails does the server make a second model call in the same session to correct it, so a draft spends at most two model calls, and a second failure answers `cannot_translate`.
+      The whole draft has a 60 second deadline.
+      Each caller may have 3 drafts in flight and each server process 10.
+      Loki answers LogQL, ClickHouse logs answer ClickHouse SQL, ClickHouse traces answer trace filters, and Tempo answers trace filters or, when the question needs more, TraceQL.
+      `signal` defaults to `logs` on Loki and `traces` on Tempo, and ClickHouse requires it.
+      `from` and `to` default to `now-1h` and `now` and take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+      Viewers and above may call it, service-account keys included.
+      Without a configured model it answers 503 `agent_unavailable`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/DraftQueryRequest"
+    responses:
+      "200":
+        description: The checked draft; `trace_filters` is null unless `language` is `filters`, and `query` is empty when it is.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DraftQuery"
+      "400":
+        description: The body is malformed or fails validation, the signal does not fit the datasource type, or the datasource type has no drafts (`invalid_request`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        description: The datasource does not exist (`not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The question could not be turned into a query (`cannot_translate`); `reason` says why in one sentence.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/CannotTranslate"
+      "429":
+        description: Too many drafts are in flight (`too_many_requests` for the caller, `agent_busy` for the server process).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "502":
+        description: The model provider failed (`provider_error`), or every read of the datasource failed, with the datasource's own code such as `datasource_unavailable`.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "503":
+        description: No model is configured on this server (`agent_unavailable`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "504":
+        description: The draft did not finish within its 60 second deadline (`draft_timeout`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
