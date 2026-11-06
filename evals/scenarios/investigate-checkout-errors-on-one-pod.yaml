@@ -1,0 +1,12 @@
+id: investigate-checkout-errors-on-one-pod
+prompt: Some checkouts are failing with server errors. Find out why.
+kind: investigate
+suites: [live, smoke]
+fault:
+  pod: checkout-0
+  type: errors
+  pct: 30
+  soak_seconds: 120
+expect:
+  finding_mentions: ["checkout-0", "error"]
+  evidence_min: 1

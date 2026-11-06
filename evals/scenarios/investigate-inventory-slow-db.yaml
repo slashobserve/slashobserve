@@ -1,0 +1,12 @@
+id: investigate-inventory-slow-db
+prompt: Product pages and checkout feel sluggish. Find out why.
+kind: investigate
+suites: [live]
+fault:
+  pod: checkout-0
+  type: slow_db
+  pct: 50
+  soak_seconds: 120
+expect:
+  finding_mentions: ["checkout-0", "database"]
+  evidence_min: 1
