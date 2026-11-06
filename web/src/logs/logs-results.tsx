@@ -236,6 +236,10 @@ export function LogsResults({
   onColumnsChange,
   linkedId,
   onLinkedChange,
+  listTitle = "Query results",
+  orderLocked = false,
+  onRendered,
+  isMarked,
 }: {
   frames: WireFrame[]
   datasource: DatasourceStatus
@@ -251,6 +255,10 @@ export function LogsResults({
   onColumnsChange: (names: string[]) => void
   linkedId: string | undefined
   onLinkedChange: (id: string | undefined) => void
+  listTitle?: string
+  orderLocked?: boolean
+  onRendered?: () => void
+  isMarked?: (entry: LogEntry) => boolean
 }) {
   const phone = usePhone()
   const sortId = useId()
@@ -258,8 +266,11 @@ export function LogsResults({
   const [emitted, setEmitted] = useState<ResultsModel | null>(null)
   const model = emitted?.frames === frames ? emitted : null
   const handleModel = useCallback(
-    (next: LogsViewModel) => setEmitted({ frames, ...next }),
-    [frames]
+    (next: LogsViewModel) => {
+      setEmitted({ frames, ...next })
+      onRendered?.()
+    },
+    [frames, onRendered]
   )
   const names = useMemo(
     () => (model === null ? [] : fieldNames(model.entries)),
@@ -387,6 +398,7 @@ export function LogsResults({
             Sort
           </Label>
           <Select
+            disabled={orderLocked}
             items={options}
             value={view.columnSort === null ? view.order : columnSortValue}
             onValueChange={(next) => {
@@ -454,13 +466,16 @@ export function LogsResults({
           levelColumn={levelColumn}
           order={view.order}
           sort={view.columnSort}
-          onFlipOrder={() =>
+          onFlipOrder={() => {
+            if (orderLocked) return
             onViewChange({
               order: view.order === "newest" ? "oldest" : "newest",
               columnSort: null,
             })
-          }
-          onSort={(columnSort) => onViewChange({ columnSort })}
+          }}
+          onSort={(columnSort) => {
+            if (!orderLocked) onViewChange({ columnSort })
+          }}
           onColumnsChange={onColumnsChange}
         />
       )}
@@ -469,9 +484,10 @@ export function LogsResults({
           <ExploreLogs
             frames={frames}
             datasourceUid={datasource.uid}
-            title="Query results"
+            title={listTitle}
             height={rowsHeight}
             display={display}
+            isMarked={isMarked}
             detailActions={phone ? detailActions : undefined}
             selectedKey={selectedKey}
             onSelectedChange={phone ? undefined : onSelect}
