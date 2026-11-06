@@ -6,6 +6,7 @@ import type { Selections } from "@/api/keys"
 import { instantPanelTypes, isDataPanel, type Panel } from "@/spec"
 
 import { requestZone } from "@/lib/time"
+import { readBuild } from "@/observe/build"
 
 import { panelRequestLimiter } from "./limiter"
 import {
@@ -68,7 +69,7 @@ export function usePanelData({
       selections,
       maxDataPoints,
     }),
-    queryFn: ({ signal }) => {
+    queryFn: ({ signal, client }) => {
       const query: {
         from?: string
         to?: string
@@ -81,33 +82,37 @@ export function usePanelData({
       if (tz !== undefined) query.tz = tz
       if (maxDataPoints !== undefined) query.max_data_points = maxDataPoints
       const params = withVariables(query, selections)
-      return panelRequestLimiter.run(
-        () =>
-          (source.kind === "version"
-            ? api.GET(
-                "/dashboards/{id}/versions/{version}/panels/{panel_id}/data",
-                {
-                  params: {
-                    path: {
-                      id: source.dashboardId,
-                      version: source.version,
-                      panel_id: panel.id,
+      const read = () =>
+        panelRequestLimiter.run(
+          () =>
+            (source.kind === "version"
+              ? api.GET(
+                  "/dashboards/{id}/versions/{version}/panels/{panel_id}/data",
+                  {
+                    params: {
+                      path: {
+                        id: source.dashboardId,
+                        version: source.version,
+                        panel_id: panel.id,
+                      },
+                      query: params,
                     },
+                    signal,
+                  }
+                )
+              : api.GET("/observe/{id}/build/panels/{panel_id}/data", {
+                  params: {
+                    path: { id: source.requestId, panel_id: panel.id },
                     query: params,
                   },
                   signal,
-                }
-              )
-            : api.GET("/observe/{id}/build/panels/{panel_id}/data", {
-                params: {
-                  path: { id: source.requestId, panel_id: panel.id },
-                  query: params,
-                },
-                signal,
-              })
-          ).then(unwrap),
-        signal
-      )
+                })
+            ).then(unwrap),
+          signal
+        )
+      return source.kind === "build"
+        ? readBuild(client, source.requestId, signal, read)
+        : read()
     },
     enabled,
     placeholderData: (previous, previousQuery) =>

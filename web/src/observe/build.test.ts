@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest"
+import { QueryClient, QueryObserver } from "@tanstack/react-query"
+import { describe, expect, it, vi } from "vitest"
+
+import { ApiError, NetworkError } from "@/api/errors"
+import { observeKeys } from "@/api/keys"
 
 import {
+  buildGone,
   buildStatusText,
   cancelErrorText,
   canContinueBuild,
@@ -8,9 +13,12 @@ import {
   continueErrorText,
   continueNoteError,
   newPanelIds,
+  readBuild,
   saveBuildErrorText,
+  savedDashboardId,
   type BuildProgress,
 } from "./build"
+import type { ObserveRequest } from "./queries"
 
 function progress(overrides: Partial<BuildProgress> = {}): BuildProgress {
   return {
@@ -290,5 +298,196 @@ describe("continueErrorText", () => {
     expect(continueErrorText("internal")).toBe(
       "The build could not be continued."
     )
+  })
+})
+
+type RequestState = Pick<
+  ObserveRequest,
+  "status" | "build_saved_at" | "dashboard_id"
+>
+
+const running: RequestState = {
+  status: "running",
+  build_saved_at: null,
+  dashboard_id: "d1",
+}
+const succeeded: RequestState = {
+  status: "succeeded",
+  build_saved_at: null,
+  dashboard_id: "d1",
+}
+
+const buildNotFound = new ApiError(404, "not_found", "build not found")
+
+describe("savedDashboardId", () => {
+  it.each<[string, RequestState, string | null]>([
+    ["a running build", running, null],
+    ["a finished run", succeeded, "d1"],
+    [
+      "a stopped build saved by the requester",
+      {
+        status: "failed",
+        build_saved_at: "2026-11-06T10:00:00Z",
+        dashboard_id: "d2",
+      },
+      "d2",
+    ],
+    [
+      "a stopped build not saved",
+      { status: "failed", build_saved_at: null, dashboard_id: "d1" },
+      null,
+    ],
+    [
+      "a finished run without a dashboard",
+      { ...succeeded, dashboard_id: null },
+      null,
+    ],
+  ])("%s", (_name, request, expected) => {
+    expect(savedDashboardId(request)).toBe(expected)
+  })
+})
+
+describe("buildGone", () => {
+  it.each<[string, unknown, boolean]>([
+    ["a build or request 404", buildNotFound, true],
+    [
+      "a panel the build does not have",
+      new ApiError(404, "panel_not_found", "panel not found"),
+      false,
+    ],
+    ["a server error", new ApiError(500, "internal", "boom"), false],
+    ["a network failure", new NetworkError("offline"), false],
+  ])("%s", (_name, error, expected) => {
+    expect(buildGone(error)).toBe(expected)
+  })
+})
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {}
+  const promise = new Promise<T>((done) => {
+    resolve = done
+  })
+  return { promise, resolve }
+}
+
+async function clientWithRequest(answers: (() => Promise<RequestState>)[]) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  let calls = 0
+  const queryFn = () => answers[Math.min(calls++, answers.length - 1)]()
+  await client.fetchQuery({ queryKey: observeKeys.request("r1"), queryFn })
+  return { client, requestCalls: () => calls }
+}
+
+function rejectWith(error: unknown) {
+  return () => Promise.reject(error)
+}
+
+describe("readBuild", () => {
+  it.each<[string, unknown]>([
+    [
+      "a panel the build does not have",
+      new ApiError(404, "panel_not_found", "panel not found"),
+    ],
+    ["a server error", new ApiError(500, "internal", "boom")],
+    ["a network failure", new NetworkError("offline")],
+  ])(
+    "passes %s through without asking for the request",
+    async (_name, error) => {
+      const { client, requestCalls } = await clientWithRequest([
+        () => Promise.resolve(running),
+      ])
+      await expect(
+        readBuild(client, "r1", new AbortController().signal, rejectWith(error))
+      ).rejects.toBe(error)
+      expect(requestCalls()).toBe(1)
+    }
+  )
+
+  it("refetches the request at once and keeps the 404 while the run goes on", async () => {
+    const { client, requestCalls } = await clientWithRequest([
+      () => Promise.resolve(running),
+    ])
+    await expect(
+      readBuild(
+        client,
+        "r1",
+        new AbortController().signal,
+        rejectWith(buildNotFound)
+      )
+    ).rejects.toBe(buildNotFound)
+    expect(requestCalls()).toBe(2)
+  })
+
+  it("keeps the last build while the request refetch is pending and after the build became a version", async () => {
+    const refetch = deferred<RequestState>()
+    const { client, requestCalls } = await clientWithRequest([
+      () => Promise.resolve(running),
+      () => refetch.promise,
+    ])
+    let reads = 0
+    const observer = new QueryObserver(client, {
+      queryKey: observeKeys.build("r1", 1),
+      queryFn: ({ client, signal }) =>
+        readBuild(client, "r1", signal, () =>
+          reads++ === 0
+            ? Promise.resolve("first")
+            : Promise.reject(buildNotFound)
+        ),
+    })
+    const unsubscribe = observer.subscribe(() => {})
+    await vi.waitFor(() =>
+      expect(observer.getCurrentResult().data).toBe("first")
+    )
+
+    void observer.refetch()
+    await vi.waitFor(() => expect(requestCalls()).toBe(2))
+    expect(observer.getCurrentResult()).toMatchObject({
+      data: "first",
+      error: null,
+      fetchStatus: "fetching",
+    })
+
+    refetch.resolve(succeeded)
+    await vi.waitFor(() =>
+      expect(client.getQueryData(observeKeys.request("r1"))).toEqual(succeeded)
+    )
+    await new Promise((settle) => setTimeout(settle, 10))
+    expect(observer.getCurrentResult()).toMatchObject({
+      data: "first",
+      error: null,
+      fetchStatus: "fetching",
+    })
+
+    unsubscribe()
+    await vi.waitFor(() =>
+      expect(client.getQueryState(observeKeys.build("r1", 1))).toMatchObject({
+        status: "success",
+        data: "first",
+        error: null,
+        fetchStatus: "idle",
+      })
+    )
+  })
+
+  it("shares one request refetch between the 404s of a burst", async () => {
+    const refetch = deferred<RequestState>()
+    const { client, requestCalls } = await clientWithRequest([
+      () => Promise.resolve(running),
+      () => refetch.promise,
+    ])
+    const reads = [1, 2, 3].map(() =>
+      readBuild(
+        client,
+        "r1",
+        new AbortController().signal,
+        rejectWith(buildNotFound)
+      )
+    )
+    await vi.waitFor(() => expect(requestCalls()).toBe(2))
+    refetch.resolve(running)
+    for (const read of reads) await expect(read).rejects.toBe(buildNotFound)
+    expect(requestCalls()).toBe(2)
   })
 })

@@ -35,6 +35,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   Dashboard URL keys are parsed only by `web/src/dashboards/search.ts`.
 - Panel data and variable values go through a `PanelSource` (`web/src/dashboards/panel-source.ts`): a saved version or an agent build, so one panel component renders both.
   Build keys use the `observe-build` prefix, and the build's Spec is fetched only when its `saves` count changes.
+  Every build read (the build, its panel data and its variable values) goes through `readBuild` in `web/src/observe/build.ts`: a 404 `not_found` means the run finished, so it refetches the request once and holds the read while the page replaces itself with the dashboard, and a `panel_not_found` passes through.
 - A panel new in a build save or in a new dashboard version fades in once through `DashboardGrid`'s `newPanelIds`, only through `motion-safe:` classes on the panel frame's opacity, never on a chart.
 - `web/src/observe/request-actions.tsx` is the only place Cancel, Stop and Continue render.
   `can_cancel` comes from the server and is never recomputed in the browser.

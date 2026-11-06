@@ -1,9 +1,10 @@
 import { useState } from "react"
-import { useQueries } from "@tanstack/react-query"
+import { type QueryClient, useQueries } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { requestZone } from "@/lib/time"
+import { readBuild } from "@/observe/build"
 import type { Variable } from "@/spec"
 
 import { panelRequestLimiter } from "./limiter"
@@ -84,40 +85,50 @@ export function useVariables({
           source.kind === "build" ? panelFingerprint(variable) : "",
           { from: asked.from, to: asked.to, selections: earlier }
         ),
-        queryFn: ({ signal }: { signal: AbortSignal }) => {
+        queryFn: ({
+          signal,
+          client,
+        }: {
+          signal: AbortSignal
+          client: QueryClient
+        }) => {
           const range: { from?: string; to?: string; tz?: string } = {}
           if (asked.from !== undefined) range.from = asked.from
           if (asked.to !== undefined) range.to = asked.to
           const tz = requestZone(timezone)
           if (tz !== undefined) range.tz = tz
           const params = withVariables(range, earlier)
-          return panelRequestLimiter.run(
-            () =>
-              (source.kind === "version"
-                ? api.GET(
-                    "/dashboards/{id}/versions/{version}/variables/{name}/values",
-                    {
-                      params: {
-                        path: {
-                          id: source.dashboardId,
-                          version: source.version,
-                          name: variable.name,
+          const read = () =>
+            panelRequestLimiter.run(
+              () =>
+                (source.kind === "version"
+                  ? api.GET(
+                      "/dashboards/{id}/versions/{version}/variables/{name}/values",
+                      {
+                        params: {
+                          path: {
+                            id: source.dashboardId,
+                            version: source.version,
+                            name: variable.name,
+                          },
+                          query: params,
                         },
+                        signal,
+                      }
+                    )
+                  : api.GET("/observe/{id}/build/variables/{name}/values", {
+                      params: {
+                        path: { id: source.requestId, name: variable.name },
                         query: params,
                       },
                       signal,
-                    }
-                  )
-                : api.GET("/observe/{id}/build/variables/{name}/values", {
-                    params: {
-                      path: { id: source.requestId, name: variable.name },
-                      query: params,
-                    },
-                    signal,
-                  })
-              ).then(unwrap),
-            signal
-          )
+                    })
+                ).then(unwrap),
+              signal
+            )
+          return source.kind === "build"
+            ? readBuild(client, source.requestId, signal, read)
+            : read()
         },
         enabled:
           parentsReady &&

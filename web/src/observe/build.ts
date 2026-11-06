@@ -1,11 +1,12 @@
 import {
+  type QueryClient,
   queryOptions,
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { isRetryable, unwrap } from "@/api/errors"
+import { ApiError, isRetryable, unwrap } from "@/api/errors"
 import { dashboardKeys, observeKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import { maxPromptLength } from "@/prompts/rules"
@@ -17,17 +18,78 @@ export type PanelTree = {
   panels: readonly { id: string; panels?: readonly { id: string }[] }[]
 }
 
+type SavedRequest = Pick<
+  ObserveRequest,
+  "status" | "build_saved_at" | "dashboard_id"
+>
+
+export function savedDashboardId(request: SavedRequest): string | null {
+  return request.status === "succeeded" || request.build_saved_at !== null
+    ? request.dashboard_id
+    : null
+}
+
+export function buildGone(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    error.status === 404 &&
+    error.code === "not_found"
+  )
+}
+
+function refetchRequest(client: QueryClient, requestId: string) {
+  const queryKey = observeKeys.request(requestId)
+  const state = client.getQueryState(queryKey)
+  const invalidatedFetchInFlight =
+    state?.isInvalidated === true && state.fetchStatus === "fetching"
+  return client.invalidateQueries(
+    { queryKey, exact: true, refetchType: "all" },
+    { cancelRefetch: !invalidatedFetchInFlight }
+  )
+}
+
+function untilAborted(signal: AbortSignal): Promise<never> {
+  return new Promise((_, reject) => {
+    const stop = () => reject(signal.reason)
+    if (signal.aborted) stop()
+    else signal.addEventListener("abort", stop, { once: true })
+  })
+}
+
+export async function readBuild<T>(
+  client: QueryClient,
+  requestId: string,
+  signal: AbortSignal,
+  read: () => Promise<T>
+): Promise<T> {
+  try {
+    return await read()
+  } catch (error) {
+    if (!buildGone(error)) throw error
+    await refetchRequest(client, requestId)
+    const request = client.getQueryData<SavedRequest>(
+      observeKeys.request(requestId)
+    )
+    if (request === undefined || savedDashboardId(request) === null) {
+      throw error
+    }
+    return untilAborted(signal)
+  }
+}
+
 export function buildQuery(requestId: string, saves: number) {
   return queryOptions({
     queryKey: observeKeys.build(requestId, saves),
-    queryFn: ({ signal }) =>
-      api
-        .GET("/observe/{id}/build", {
-          params: { path: { id: requestId } },
-          signal,
-        })
-        .then(unwrap)
-        .then((body) => body.build),
+    queryFn: ({ signal, client }) =>
+      readBuild(client, requestId, signal, () =>
+        api
+          .GET("/observe/{id}/build", {
+            params: { path: { id: requestId } },
+            signal,
+          })
+          .then(unwrap)
+          .then((body) => body.build)
+      ),
     staleTime: Infinity,
     retry: (count, error) => count < 3 && isRetryable(error),
   })

@@ -21,7 +21,7 @@ import { ThemeSwitch } from "@/shell/theme-switch"
 import { isDataPanel, sourcePanelOf, type Dashboard } from "@/spec"
 import { dashboardLink } from "@/lib/links"
 
-import { buildQuery, newPanelIds } from "./build"
+import { buildQuery, newPanelIds, savedDashboardId } from "./build"
 import { buildPageNotice, buildPageTitle } from "./build-page-model"
 import { observeRequestQuery } from "./queries"
 
@@ -163,11 +163,7 @@ export function BuildPage({ requestId }: { requestId: string }) {
     })
   }
 
-  const savedId =
-    request !== undefined &&
-    (request.status === "succeeded" || request.build_saved_at !== null)
-      ? request.dashboard_id
-      : null
+  const savedId = request === undefined ? null : savedDashboardId(request)
   useEffect(() => {
     if (savedId === null) return
     void navigate({ ...dashboardLink(savedId), replace: true })
