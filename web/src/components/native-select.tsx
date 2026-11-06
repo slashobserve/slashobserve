@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 
 type NativeSelectProps = Omit<ComponentProps<"select">, "size"> & {
   size?: "default" | "sm"
+  wrapperClassName?: string
 }
 
 const sizeClass = {
@@ -15,13 +16,14 @@ const sizeClass = {
 export function NativeSelect({
   size = "default",
   className,
+  wrapperClassName,
   ...props
 }: NativeSelectProps) {
   return (
-    <span className="relative inline-flex min-w-0">
+    <span className={cn("relative inline-flex min-w-0", wrapperClassName)}>
       <select
         className={cn(
-          "min-w-0 appearance-none rounded-control border border-input bg-background text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+          "min-w-0 appearance-none rounded-control border border-input bg-background text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 narrow:text-base",
           sizeClass[size],
           className
         )}
