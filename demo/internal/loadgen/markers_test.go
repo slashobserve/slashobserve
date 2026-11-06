@@ -223,6 +223,10 @@ func TestSyncFailures(t *testing.T) {
 	}
 }
 
+func markerEnv(observeURL string) map[string]string {
+	return map[string]string{"LOADGEN_OBSERVE_URL": observeURL, "LOADGEN_OBSERVE_TOKEN_FILE": "/demo-keys/loadgen.key"} //nolint:gosec // a file path, not a credential
+}
+
 func TestConfigReadsTheMarkerSettings(t *testing.T) {
 	base := map[string]string{"LOADGEN_TARGET": "http://frontend-0:8080"}
 	with := func(extra map[string]string) func(string) (string, bool) {
@@ -238,11 +242,11 @@ func TestConfigReadsTheMarkerSettings(t *testing.T) {
 	if err != nil || cfg.ObserveURL != "" {
 		t.Fatalf("without the URL got %+v, %v, want markers off", cfg, err)
 	}
-	cfg, err = ConfigFromEnv(with(map[string]string{"LOADGEN_OBSERVE_URL": "", "LOADGEN_OBSERVE_TOKEN_FILE": "/demo-keys/loadgen.key"}))
+	cfg, err = ConfigFromEnv(with(markerEnv("")))
 	if err != nil || cfg.ObserveURL != "" {
 		t.Fatalf("with an empty URL got %+v, %v, want markers off", cfg, err)
 	}
-	cfg, err = ConfigFromEnv(with(map[string]string{"LOADGEN_OBSERVE_URL": "http://server:8080/", "LOADGEN_OBSERVE_TOKEN_FILE": "/demo-keys/loadgen.key"}))
+	cfg, err = ConfigFromEnv(with(markerEnv("http://server:8080/")))
 	if err != nil || cfg.ObserveURL != "http://server:8080" || cfg.ObserveTokenFile != "/demo-keys/loadgen.key" {
 		t.Fatalf("got %+v, %v, want the URL and token file", cfg, err)
 	}

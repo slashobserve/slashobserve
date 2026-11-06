@@ -82,15 +82,23 @@ func ConfigFromEnv(lookup func(string) (string, bool)) (Config, error) {
 	default:
 		return Config{}, fmt.Errorf("LOADGEN_CURVE must be daily or flat, got %q", raw)
 	}
-	if cfg.ObserveURL != "" {
-		if u, err := url.Parse(cfg.ObserveURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.RawQuery != "" || u.Fragment != "" {
-			return Config{}, fmt.Errorf("LOADGEN_OBSERVE_URL must be an absolute http or https URL, got %q", cfg.ObserveURL)
-		}
-		if cfg.ObserveTokenFile == "" {
-			return Config{}, errors.New("LOADGEN_OBSERVE_TOKEN_FILE is required when LOADGEN_OBSERVE_URL is set")
-		}
+	if err := cfg.checkMarkers(); err != nil {
+		return Config{}, err
 	}
 	return cfg, nil
+}
+
+func (c Config) checkMarkers() error {
+	if c.ObserveURL == "" {
+		return nil
+	}
+	if u, err := url.Parse(c.ObserveURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.RawQuery != "" || u.Fragment != "" {
+		return fmt.Errorf("LOADGEN_OBSERVE_URL must be an absolute http or https URL, got %q", c.ObserveURL)
+	}
+	if c.ObserveTokenFile == "" {
+		return errors.New("LOADGEN_OBSERVE_TOKEN_FILE is required when LOADGEN_OBSERVE_URL is set")
+	}
+	return nil
 }
 
 func (c Config) gap(at time.Time) time.Duration {

@@ -9,6 +9,15 @@ import (
 
 var keyPattern = regexp.MustCompile(`^sok_[A-Za-z0-9_-]{43}\n$`)
 
+func readKey(t *testing.T, path string) string {
+	t.Helper()
+	b, err := os.ReadFile(path) //nolint:gosec // a test file under t.TempDir
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
 func TestRunWritesAKeyOnlyWhenTheFileIsMissing(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "loadgen.key")
@@ -17,11 +26,8 @@ func TestRunWritesAKeyOnlyWhenTheFileIsMissing(t *testing.T) {
 	if err != nil || outcome != Written {
 		t.Fatalf("first run = %q, %v, want written", outcome, err)
 	}
-	first, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !keyPattern.Match(first) {
+	first := readKey(t, path)
+	if !keyPattern.MatchString(first) {
 		t.Fatalf("the file holds %d bytes that are not one sok_ key", len(first))
 	}
 	info, err := os.Stat(path)
@@ -36,11 +42,7 @@ func TestRunWritesAKeyOnlyWhenTheFileIsMissing(t *testing.T) {
 	if err != nil || outcome != Kept {
 		t.Fatalf("second run = %q, %v, want kept", outcome, err)
 	}
-	second, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(second) != string(first) {
+	if readKey(t, path) != first {
 		t.Fatal("the second run changed the key")
 	}
 	entries, err := os.ReadDir(dir)
@@ -57,8 +59,8 @@ func TestRunKeepsAnOperatorsOwnFile(t *testing.T) {
 	if outcome, err := Run(path); err != nil || outcome != Kept {
 		t.Fatalf("got %q, %v, want kept", outcome, err)
 	}
-	if b, _ := os.ReadFile(path); string(b) != "chosen by the operator\n" {
-		t.Fatalf("file now holds %q", b)
+	if got := readKey(t, path); got != "chosen by the operator\n" {
+		t.Fatalf("file now holds %q", got)
 	}
 }
 
@@ -75,9 +77,7 @@ func TestEachRunWritesANewKey(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	first, _ := os.ReadFile(a)
-	second, _ := os.ReadFile(b)
-	if string(first) == string(second) {
+	if readKey(t, a) == readKey(t, b) {
 		t.Fatal("two runs wrote the same key")
 	}
 }

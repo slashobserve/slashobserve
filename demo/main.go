@@ -53,7 +53,7 @@ func keygenAt(path string) int {
 		fmt.Fprintln(os.Stderr, "shop:", err)
 		return 1
 	}
-	fmt.Fprintln(os.Stdout, "shop: demo key", outcome, "at", path)
+	fmt.Println("shop: demo key", outcome, "at", path)
 	return 0
 }
 

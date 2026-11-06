@@ -2,6 +2,7 @@ package stars
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -141,7 +142,7 @@ func TestStarringADeletedDashboardIsNotFound(t *testing.T) {
 	r := newRig(t)
 	gone := r.dashboard(t, "Gone")
 	r.db.Exec(t, `DELETE FROM dashboards WHERE id = $1`, gone.String())
-	if err := r.service.Star(t.Context(), ada, gone); err != ErrNotFound {
+	if err := r.service.Star(t.Context(), ada, gone); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("got %v, want ErrNotFound", err)
 	}
 }
