@@ -239,7 +239,7 @@ func (tb *targetBuild) dateHistogram(path, field string, settings map[string]any
 	if field == "" {
 		return nil, noTimeFieldReason
 	}
-	tb.unknownSettings(path, settings, "interval", "min_doc_count", "offset", "timeZone")
+	tb.unknownSettings(path, settings, "interval", "min_doc_count", "trimEdges", "offset", "timeZone")
 	agg := elasticAgg{
 		"field":           field,
 		"min_doc_count":   intSettingOr(settings["min_doc_count"], 0),
@@ -258,6 +258,9 @@ func (tb *targetBuild) dateHistogram(path, field string, settings map[string]any
 	}
 	if zone := asString(settings["timeZone"]); zone != "" {
 		agg["time_zone"] = zone
+	}
+	if n, ok := intSetting(settings["trimEdges"]); ok && n != 0 {
+		tb.partial(path+".settings.trimEdges", decisionElasticTrimEdges.reason)
 	}
 	return elasticAgg{"date_histogram": agg}, ""
 }
