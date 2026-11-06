@@ -8,6 +8,7 @@ services:
       SLASHOBSERVE_AGENT_SESSION_RENEW_KIB: ${SLASHOBSERVE_AGENT_SESSION_RENEW_KIB:-}
       SLASHOBSERVE_AGENT_LOG_TOOL_INPUTS: "true"
       SLASHOBSERVE_LLM_EFFORT: ${SLASHOBSERVE_LLM_EFFORT:-}
+      SLASHOBSERVE_SERVICE_ACCOUNTS_FILE: ""
     volumes:
       - ${SLASHOBSERVE_EVALS_RUNTIME_DIR}/llm:/etc/slashobserve/llm-fixtures:ro
 
@@ -20,6 +21,7 @@ services:
   loadgen:
     environment:
       LOADGEN_CURVE: flat
+      LOADGEN_OBSERVE_URL: ""
 
   checkout-1:
     ports:
