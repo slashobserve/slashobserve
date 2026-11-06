@@ -62,6 +62,10 @@ func Finding(base *url.URL, id string) string {
 	return join(base, "findings", id)
 }
 
+func Public(base *url.URL, token string) string {
+	return join(base, "p", token)
+}
+
 func join(base *url.URL, segments ...string) string {
 	if base == nil {
 		escaped := make([]string, len(segments))
