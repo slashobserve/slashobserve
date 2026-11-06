@@ -28,7 +28,7 @@ type Props = {
 }
 
 const frameClass =
-  "relative flex min-h-0 min-w-0 flex-col bg-background duration-(--duration-panel) ease-panel motion-safe:animate-in motion-safe:fade-in-0"
+  "relative flex min-h-0 min-w-0 flex-col bg-background ease-panel motion-safe:animate-in motion-safe:animation-duration-(--duration-panel) motion-safe:fade-in-0"
 
 const modeClass = {
   sheet:
