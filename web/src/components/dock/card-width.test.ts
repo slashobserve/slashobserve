@@ -3,11 +3,14 @@ import { describe, expect, it } from "vitest"
 import {
   activityWidth,
   chatPaneStacked,
+  chatPaneWidth,
   clampWidth,
   draggedWidth,
   editWidth,
+  isNarrow,
   isStacked,
   maxWidthFor,
+  panelWidth,
 } from "./card-width"
 
 describe("clampWidth", () => {
@@ -63,6 +66,22 @@ describe("chatPaneStacked", () => {
   it("stacks the chat pane at and below 1200px", () => {
     expect(chatPaneStacked(1200)).toBe(true)
     expect(chatPaneStacked(1201)).toBe(false)
+  })
+})
+
+describe("panel widths", () => {
+  it("lets the chat pane and the side panels grow to 640px like the activity card", () => {
+    expect(clampWidth(900, chatPaneWidth, 1440)).toBe(640)
+    expect(clampWidth(900, panelWidth, 1440)).toBe(640)
+    expect(clampWidth(100, panelWidth, 1440)).toBe(320)
+    expect(clampWidth(Number.NaN, panelWidth, 1440)).toBe(400)
+  })
+})
+
+describe("isNarrow", () => {
+  it("turns the panel into a bottom sheet at and below 760px, like the narrow variant", () => {
+    expect(isNarrow(760)).toBe(true)
+    expect(isNarrow(761)).toBe(false)
   })
 })
 
