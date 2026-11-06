@@ -276,6 +276,7 @@ type TraceSelection = {
   selection: Selection | null
   onSelectionChange: (next: Selection | null) => void
   selectionActions?: ReactNode
+  selectionPanel?: ReactNode
 }
 
 function SortedTraceTable({
@@ -290,6 +291,7 @@ function SortedTraceTable({
   selection,
   onSelectionChange,
   selectionActions,
+  selectionPanel,
 }: {
   rows: TraceRow[]
   datasourceUid: string
@@ -353,6 +355,7 @@ function SortedTraceTable({
           selectionActions={selectionActions}
         />
       ) : null}
+      {selectionPanel}
       <div className="flex h-8 flex-wrap items-center gap-3 text-[13px]">
         <h2 className="font-medium">
           {selection === null

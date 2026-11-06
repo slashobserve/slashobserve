@@ -35,6 +35,7 @@ import { exploreErrorText, exploreQuery, offlineText } from "@/logs/explore"
 import { useAgentInfo } from "@/observe/queries"
 
 import { traceSearchFromAnswer } from "./ask-answer"
+import { ComparePanel } from "./compare-panel"
 import type { Selection } from "./scatter"
 import {
   traceDatasourceTypes,
@@ -42,6 +43,7 @@ import {
   type TraceSearch,
 } from "./search"
 import {
+  attributeFilter,
   keepSelectionSearch,
   traceSearchParams,
   traceStatsFilter,
@@ -548,6 +550,25 @@ function SelectableTraceTable({
           <KeepSelectionButton
             next={keepSelectionSearch(search, selection)}
             onKeep={keep}
+          />
+        )
+      }
+      selectionPanel={
+        selection === null ? undefined : (
+          <ComparePanel
+            datasource={datasource}
+            rows={rows}
+            selection={selection}
+            range={range}
+            filterFor={(difference) =>
+              attributeFilter(
+                datasource.type,
+                search,
+                difference.attribute,
+                difference.value
+              )
+            }
+            onFilter={keep}
           />
         )
       }
