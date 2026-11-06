@@ -1,5 +1,5 @@
 import { screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { beforeAll, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
 
@@ -46,6 +46,8 @@ async function frameOf() {
 }
 
 describe("FindingCard", () => {
+  beforeAll(() => import("./finding-markdown"))
+
   it("draws the bordered card by default", async () => {
     renderCard()
     const { frame, range } = await frameOf()
@@ -64,7 +66,7 @@ describe("FindingCard", () => {
       '[class~="text-[15px]"]'
     )
     expect(body).toHaveClass("max-w-[680px]")
-    expect(body?.querySelector('[class*="text-sm"]')).toBeNull()
+    expect(body?.querySelector('[class*="text-"]')).toBeNull()
     expect(screen.getByRole("article", { name: "Error rate" })).toBeVisible()
   })
 

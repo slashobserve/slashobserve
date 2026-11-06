@@ -86,7 +86,7 @@ function MakeDashboardAction({ finding }: { finding: Finding }) {
 const variants = {
   card: {
     frame: "gap-3 rounded-card border px-3.5 py-3",
-    text: "text-sm leading-[1.55]",
+    text: "text-sm leading-normal",
     grid: "@[640px]:grid-cols-2",
   },
   page: {
