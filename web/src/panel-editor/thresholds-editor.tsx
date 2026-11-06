@@ -1,9 +1,15 @@
 import { useId, useState, type Dispatch } from "react"
 import { PlusIcon, XIcon } from "lucide-react"
 
-import { NativeSelect } from "@/components/native-select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { sameJson } from "@/lib/json"
 import { thresholdColor, thresholdIcons } from "@/panels/thresholds"
 import type { Threshold } from "@/spec"
@@ -17,9 +23,13 @@ import {
   thresholdColors,
   thresholdsFromRows,
   thresholdWords,
-  type ThresholdColor,
   type ThresholdRow,
 } from "./threshold-rows"
+
+const colorItems = thresholdColors.map((color) => ({
+  value: color,
+  label: thresholdWords[color],
+}))
 
 function rowColor(row: ThresholdRow): string {
   return row.color === "custom" ? row.hex : thresholdColor(row.color)
@@ -74,24 +84,30 @@ export function ThresholdsEditor({
               className="size-3.5 shrink-0"
               style={{ color: rowColor(row) }}
             />
-            <NativeSelect
-              aria-label={`Color of threshold ${index + 1}`}
+            <Select
+              items={colorItems}
               value={row.color}
               disabled={readOnly}
-              wrapperClassName="flex-1"
-              className="w-full"
-              onChange={(event) =>
-                edit(row.key, (current) =>
-                  setRowColor(current, event.target.value as ThresholdColor)
-                )
-              }
+              onValueChange={(next) => {
+                if (next !== null) {
+                  edit(row.key, (current) => setRowColor(current, next))
+                }
+              }}
             >
-              {thresholdColors.map((color) => (
-                <option key={color} value={color}>
-                  {thresholdWords[color]}
-                </option>
-              ))}
-            </NativeSelect>
+              <SelectTrigger
+                aria-label={`Color of threshold ${index + 1}`}
+                className="min-w-0 flex-1"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent alignItemWithTrigger={false} align="start">
+                {colorItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Input
               aria-label={`${word} from`}
               inputMode="decimal"

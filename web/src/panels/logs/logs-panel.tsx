@@ -11,6 +11,13 @@ import {
 
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
 import type { FieldResolver } from "../field-config"
@@ -62,6 +69,11 @@ const dedupOptions: { value: DedupStrategy; label: string }[] = [
 ]
 
 type ViewState = Pick<LogsDisplay, "order" | "wrap" | "showTime" | "dedup">
+
+const orderOptions: { value: ViewState["order"]; label: string }[] = [
+  { value: "newest", label: "Newest first" },
+  { value: "oldest", label: "Oldest first" },
+]
 
 type DetailActions = (entry: LogEntry, streamLabels: Labels) => ReactNode
 
@@ -301,8 +313,6 @@ function ControlsBar({
 }) {
   const orderId = useId()
   const dedupId = useId()
-  const selectClasses =
-    "min-h-8 rounded-control border border-input bg-background px-2 text-[13px] text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
   return (
     <div
       role="toolbar"
@@ -313,17 +323,24 @@ function ControlsBar({
         <Label htmlFor={orderId} className="text-[13px] font-normal">
           Order
         </Label>
-        <select
-          id={orderId}
+        <Select
+          items={orderOptions}
           value={view.order}
-          onChange={(event) =>
-            onChange({ order: event.target.value as ViewState["order"] })
-          }
-          className={selectClasses}
+          onValueChange={(order) => {
+            if (order !== null) onChange({ order })
+          }}
         >
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-        </select>
+          <SelectTrigger id={orderId}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false} align="start">
+            {orderOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <Label className="gap-2 text-[13px] font-normal">
         <Checkbox
@@ -343,20 +360,24 @@ function ControlsBar({
         <Label htmlFor={dedupId} className="text-[13px] font-normal">
           Deduplication
         </Label>
-        <select
-          id={dedupId}
+        <Select
+          items={dedupOptions}
           value={view.dedup}
-          onChange={(event) =>
-            onChange({ dedup: event.target.value as DedupStrategy })
-          }
-          className={selectClasses}
+          onValueChange={(dedup) => {
+            if (dedup !== null) onChange({ dedup })
+          }}
         >
-          {dedupOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id={dedupId}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false} align="start">
+            {dedupOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   )

@@ -1,4 +1,11 @@
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useDatasources, type DatasourceStatus } from "@/datasources/queries"
 
 const typeNames: Record<string, string> = {
@@ -6,9 +13,6 @@ const typeNames: Record<string, string> = {
   clickhouse: "ClickHouse",
   tempo: "Tempo",
 }
-
-const selectClasses =
-  "min-h-8 rounded-control border border-input bg-background px-2 text-[13px] text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
 
 export function eligibleDatasources(
   list: readonly DatasourceStatus[] | undefined,
@@ -40,36 +44,37 @@ export function ExploreDatasourcePicker({
   label: string
 }) {
   const datasources = useDatasources()
+  const loading = datasources.isPending
   const eligible = eligibleDatasources(datasources.data, types)
-  if (datasources.isPending) {
-    return (
-      <div className="flex items-center gap-2">
-        <Label htmlFor={id}>{label}</Label>
-        <select id={id} disabled className={selectClasses}>
-          <option>Loading datasources</option>
-        </select>
-      </div>
-    )
-  }
-  if (eligible.length === 0) return null
+  if (!loading && eligible.length === 0) return null
+  const items = eligible.map((datasource) => ({
+    value: datasource.uid,
+    label: optionText(datasource),
+  }))
   return (
     <div className="flex items-center gap-2">
       <Label htmlFor={id}>{label}</Label>
-      <select
-        id={id}
-        value={value ?? ""}
-        onChange={(event) => onChange(event.target.value)}
-        className={selectClasses}
+      <Select
+        items={items}
+        value={value ?? null}
+        disabled={loading}
+        onValueChange={(next) => {
+          if (next !== null) onChange(next)
+        }}
       >
-        {value === undefined ? (
-          <option value="">Pick a datasource</option>
-        ) : null}
-        {eligible.map((datasource) => (
-          <option key={datasource.uid} value={datasource.uid}>
-            {optionText(datasource)}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger id={id}>
+          <SelectValue
+            placeholder={loading ? "Loading datasources" : "Pick a datasource"}
+          />
+        </SelectTrigger>
+        <SelectContent alignItemWithTrigger={false} align="start">
+          {items.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }

@@ -126,7 +126,8 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   Geist Mono (`font-mono`) is only for queries, JSON, ids, key prefixes and commands.
 - The theme preference lives in `localStorage` key `slashobserve-theme` and is applied before first paint by `web/public/theme-init.js`.
 - Visual defaults to avoid: cream or off-white page backgrounds, italic accent words in headings, numbered `01/02` section labels, monospace for UI labels, pill-shaped buttons, gradients, shadows or elevation of any kind (popups, dialogs and toasts separate by a 1px border), backdrop blur, colored left-border callouts, uppercase eyebrow labels, emoji, chart animations, grey fills inside a dashboard, and any colour accent in app chrome (blue appears only as the data series and status colours).
-- Use `NativeSelect` (`web/src/components/native-select.tsx`) for every select a browser spec drives with `selectOption`, Base UI `Select` elsewhere, and never a bare `<select>`.
+- Every dropdown is the Base UI `Select` (`web/src/components/ui/select.tsx`), or the `Combobox` when the list is long enough to search (units); ESLint rejects a `<select>` element.
+  A browser spec drives one by clicking the `combobox` trigger and then the `option`, never with `selectOption`.
 - Use `EmptyState` for first-time and all-clear states and `LoadProblem` for errors.
   A filtered empty is one "No <things> match these filters." line with a "Clear filters" button.
 - Use `FilterToolbar` for the filter row under a page header.

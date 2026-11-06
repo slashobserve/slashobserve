@@ -1,6 +1,16 @@
 import { useId, useState, type Dispatch } from "react"
 
-import { NativeSelect } from "@/components/native-select"
+import {
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxLabel,
+  ComboboxList,
+} from "@/components/ui/combobox"
 import { Input } from "@/components/ui/input"
 import { unitGroups, unitLabel } from "@/lib/unit-catalog"
 import { customUnitKinds, parseUnit, type CustomUnitKind } from "@/lib/units"
@@ -67,6 +77,31 @@ function customText(unit: string | undefined): string {
   return parsed.kind === "id" ? "" : parsed.text
 }
 
+const noneValue = "none"
+
+type UnitChoiceGroup = { label: string; items: string[] }
+
+const catalogChoices: UnitChoiceGroup[] = [
+  ...unitGroups.map((group) => ({
+    label: group.label,
+    items: group.units.map((item) => item.id),
+  })),
+  {
+    label: "Custom",
+    items: customUnitKinds.map((kind) => `${customPrefix}${kind}`),
+  },
+]
+
+function choiceLabel(choice: string): string {
+  if (choice.startsWith(customPrefix)) {
+    const kind = customUnitKinds.find(
+      (candidate) => candidate === choice.slice(customPrefix.length)
+    )
+    return kind ? customForms[kind].label : choice
+  }
+  return unitLabel(choice)
+}
+
 export function UnitSelect({
   unit,
   dispatch,
@@ -92,10 +127,14 @@ export function UnitSelect({
   const plain = id === null || id === "none"
   const kind: CustomUnitKind | null =
     parsed.kind !== "id" ? parsed.kind : plain ? pending : null
-  const selected = kind ? `${customPrefix}${kind}` : plain ? "" : id
+  const selected = kind ? `${customPrefix}${kind}` : plain ? noneValue : id
   const listed = unitGroups.some((group) =>
     group.units.some((item) => item.id === selected)
   )
+  const choices =
+    kind || listed
+      ? catalogChoices
+      : [{ label: "Current", items: [selected] }, ...catalogChoices]
 
   const apply = (next: Unit | null) => {
     setSynced(next ?? undefined)
@@ -114,42 +153,45 @@ export function UnitSelect({
     }
     setPending(null)
     setText("")
-    apply(value === "" ? null : value)
+    apply(value === noneValue ? null : value)
   }
 
   return (
     <div className="flex flex-col gap-1.5">
       <Field label="Unit" htmlFor={selectId}>
-        <NativeSelect
-          id={selectId}
-          className="w-full"
+        <Combobox
+          items={choices}
           value={selected}
           disabled={readOnly}
-          onChange={(event) => choose(event.target.value)}
+          itemToStringLabel={choiceLabel}
+          onValueChange={(next) => {
+            if (next !== null) choose(next)
+          }}
         >
-          <option value="">None</option>
-          {selected === "" || kind || listed ? null : (
-            <option value={selected}>{unitLabel(unit)}</option>
-          )}
-          {unitGroups.map((group) => (
-            <optgroup key={group.label} label={group.label}>
-              {group.units
-                .filter((item) => item.id !== "none")
-                .map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.label}
-                  </option>
-                ))}
-            </optgroup>
-          ))}
-          <optgroup label="Custom">
-            {customUnitKinds.map((custom) => (
-              <option key={custom} value={`${customPrefix}${custom}`}>
-                {customForms[custom].label}
-              </option>
-            ))}
-          </optgroup>
-        </NativeSelect>
+          <ComboboxInput
+            id={selectId}
+            disabled={readOnly}
+            className="w-full"
+            placeholder="Search units"
+          />
+          <ComboboxContent>
+            <ComboboxEmpty>No units found</ComboboxEmpty>
+            <ComboboxList>
+              {(group: UnitChoiceGroup) => (
+                <ComboboxGroup key={group.label} items={group.items}>
+                  <ComboboxLabel>{group.label}</ComboboxLabel>
+                  <ComboboxCollection>
+                    {(item: string) => (
+                      <ComboboxItem key={item} value={item}>
+                        {choiceLabel(item)}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxCollection>
+                </ComboboxGroup>
+              )}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
       </Field>
       {kind ? (
         <>

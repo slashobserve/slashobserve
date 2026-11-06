@@ -1205,8 +1205,10 @@ test("keeps focus on the datasource select when its query editor is rebuilt", as
   const select = sheet(page).getByRole("combobox", {
     name: "Datasource for query A",
   })
-  await select.focus()
-  await select.selectOption({ label: "ch (ClickHouse)" })
+  await select.click()
+  await page
+    .getByRole("option", { name: "ch (ClickHouse)", exact: true })
+    .click()
 
   await expect(queryEditor(page, "A").locator(".tok-keyword")).toHaveText(
     "SELECT"
@@ -1436,7 +1438,10 @@ for (const colorScheme of ["light", "dark"] as const) {
 
       await sheet(page)
         .getByRole("combobox", { name: "Datasource for query B" })
-        .selectOption({ label: "ch (ClickHouse)" })
+        .click()
+      await page
+        .getByRole("option", { name: "ch (ClickHouse)", exact: true })
+        .click()
       await expect(queryEditor(page, "B").locator(".tok-keyword")).toHaveText(
         "SELECT"
       )

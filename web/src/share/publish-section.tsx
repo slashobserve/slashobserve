@@ -4,6 +4,13 @@ import { toast } from "sonner"
 
 import { LoadProblem } from "@/components/load-problem"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useMoveDashboard } from "@/dashboards/queries"
 import { foldersQuery } from "@/folders/queries"
@@ -24,6 +31,10 @@ export function PublishSection({
 
   const targets = folders.data === undefined ? [] : publishTargets(folders.data)
   const target = targets.find((folder) => folder.id === chosen) ?? targets.at(0)
+  const folderItems = targets.map((folder) => ({
+    value: folder.id,
+    label: folder.title,
+  }))
 
   function publish() {
     if (target === undefined) return
@@ -66,18 +77,27 @@ export function PublishSection({
             can open it.
           </p>
           <div className="flex gap-1.5">
-            <select
-              aria-label="Folder to publish to"
+            <Select
+              items={folderItems}
               value={target.id}
-              onChange={(event) => setChosen(event.target.value)}
-              className="h-8 min-w-0 flex-1 rounded-control border border-input bg-background px-2 text-[13px] outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring narrow:text-base"
+              onValueChange={(next) => {
+                if (next !== null) setChosen(next)
+              }}
             >
-              {targets.map((folder) => (
-                <option key={folder.id} value={folder.id}>
-                  {folder.title}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                aria-label="Folder to publish to"
+                className="min-w-0 flex-1"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent alignItemWithTrigger={false} align="start">
+                {folderItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               disabled={move.isPending}
               aria-busy={move.isPending}
