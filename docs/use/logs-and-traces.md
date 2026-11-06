@@ -31,6 +31,11 @@ On Loki a line's level is the first of its `level`, `lvl`, `severity_text`, `sev
 On ClickHouse the level is the `SeverityText` column, counted per `Timestamp`, so the strip hides when the query does not select both.
 Levels such as `err`, `fatal` and `critical` count as errors, `warn` as warnings, `info` and `notice` as info, and anything else, or no level, as other.
 
+Facets count the top values of each label, field or column the query matches over the whole time range, through `POST /api/v1/datasources/{uid}/log-facets` and the `log_facets` tool.
+Each field says whether its counts are exact or come from a sample of the newest lines.
+On Loki the index labels of the matched streams are counted exactly from the index volume API, in bytes rather than lines, so those fields carry `unit: bytes`; parsed and structured-metadata fields are counted from the newest 1,000 lines by default, up to 5,000.
+On ClickHouse every field is counted exactly with one `GROUP BY` per field: each result column except `Timestamp`, `Body`, `TraceId` and `SpanId`, plus the 20 most frequent `LogAttributes` keys as `LogAttributes.<key>`.
+
 Open a line to see its details in the panel on the right, or inline under the line on a screen 760 pixels wide or narrower.
 A field whose value is a JSON object, such as the ClickHouse `LogAttributes` map, shows one row per key, named `<field>.<key>`, one level deep.
 The details offer **Show context**, **Open trace** and **Copy line**, which copies the line's text.
