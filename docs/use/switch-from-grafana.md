@@ -14,7 +14,7 @@ This page walks a team through the move from Grafana in the order that works: ea
 7. [Open old links](#open-old-links) to Grafana dashboards at their new address.
 
 [What maps, what changes and what waits](#what-maps-what-changes-and-what-waits) compares the two in one table, and [The API](#the-api) does every step without the web app.
-The screen of the Connect step comes from the [demo stack](../operate/demo.md), which runs no Grafana, so the connection form is shown empty; screens of the other steps come with a later release.
+The screens come from the [demo stack](../operate/demo.md), which runs no Grafana, so the connection form is shown empty; screens of the import report and the repair queue come with a later release.
 
 ## Before you start
 
@@ -22,6 +22,10 @@ The screen of the Connect step comes from the [demo stack](../operate/demo.md), 
   The server encrypts each token with a key derived from it, and adding a connection without it fails with `409 secret_key_missing`.
 - In Grafana, create a service account with the Viewer role on the folders you want to bring over, and a token for it.
   The server only reads from Grafana: `/api/health`, `/api/folders`, `/api/search`, `/api/datasources` and `/api/dashboards/uid/<uid>`.
+
+The home page lists the dashboards you can see below the chat composer, with **Import from Grafana** beside the composer's datasources.
+
+![The home page with the chat composer, its datasources and Import from Grafana, and the dashboard list with Demo shop overview, Node health and SlashObserve internals](images/switch-from-grafana/01-home.png)
 
 ## Connect
 
@@ -101,9 +105,13 @@ After a large import, an Admin can choose **Run now** instead of waiting for the
 Delete or merge the duplicates and the unopened dashboards before the next step, so nobody shares or commits them.
 See [Dashboard health](dashboard-health.md) for the rules and the API.
 
+![The Dashboard health page with the All problems and All folders filters and Run now, listing a Node Exporter Full dashboard whose panels return no data, with a Repair button on its row](images/switch-from-grafana/05-health.png)
+
 ## Share with public links and TV mode
 
 Grafana's public dashboards and kiosk mode have their counterparts here.
+
+![The Demo shop overview dashboard over the last 6 hours, with the Share button in its top row and the Activity pane beside the panels](images/switch-from-grafana/06-shop-overview.png)
 
 - A [public link](public-links.md) lets someone without an account, such as a vendor or a status screen, open one dashboard at `/p/<token>`.
   A person who manages the dashboard's folder creates it in the dashboard's **Share** pane, chooses whether viewers may change the variables, can set an expiry, and can revoke it at any time.
