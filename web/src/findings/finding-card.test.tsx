@@ -12,7 +12,7 @@ vi.mock("./evidence-panel", () => ({
   ),
 }))
 
-const text = "The error rate doubled at 10:02."
+const text = "The error rate **doubled** at 10:02."
 
 function finding(): Finding {
   return {
@@ -51,7 +51,7 @@ describe("FindingCard", () => {
     const { frame, range } = await frameOf()
     expect(frame).toHaveClass("rounded-card", "border")
     expect(range).toHaveTextContent(/^Found/)
-    expect(await screen.findByText(text)).toBeInTheDocument()
+    expect(await screen.findByText("doubled")).toBeInTheDocument()
     expect(screen.getByRole("article", { name: "Error rate" })).toBeVisible()
   })
 
@@ -60,10 +60,11 @@ describe("FindingCard", () => {
     const { frame } = await frameOf()
     expect(frame).not.toHaveClass("border")
     expect(frame).not.toHaveClass("rounded-card")
-    const body = (await screen.findByText(text)).closest(
+    const body = (await screen.findByText("doubled")).closest(
       '[class~="text-[15px]"]'
     )
     expect(body).toHaveClass("max-w-[680px]")
+    expect(body?.querySelector('[class*="text-sm"]')).toBeNull()
     expect(screen.getByRole("article", { name: "Error rate" })).toBeVisible()
   })
 
