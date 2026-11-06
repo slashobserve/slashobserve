@@ -96,6 +96,7 @@ Tempo finds a trace by its id at any time.
 
 Open **Traces** in the sidebar to find traces by service, span name, minimum and maximum duration, and errors only.
 The search runs as soon as the page opens, with the fields the address carries, or with none.
+The page opens on the last datasource you used in this browser, else Tempo when one is configured; the datasource and the time range sit in the title row, and the **Search traces** button sits under the fields with Ctrl+Enter or Cmd+Enter as its shortcut.
 Durations take a number and a unit, such as `250ms` or `1.5s`.
 On Tempo you can also write TraceQL, which replaces the fields.
 Press **Search traces**, or Enter in Service, Span name or a duration field, to run it; Enter in the TraceQL field adds a line.
