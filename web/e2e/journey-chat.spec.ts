@@ -1,6 +1,7 @@
 import type { Locator, Page } from "@playwright/test"
 
 import { card } from "./activity"
+import { holdRequestPollsUntilFinished } from "./builds"
 import { expectPanelsReady } from "./dashboards"
 import { expect, test } from "./fixtures"
 
@@ -40,6 +41,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       let dashboardId = ""
       const firstTurn = turnWith(page, askPrompt)
       const secondTurn = turnWith(page, followUpPrompt)
+      const release = await holdRequestPollsUntilFinished(page)
 
       await test.step("ask", async () => {
         await page.goto("/")
@@ -63,6 +65,7 @@ for (const colorScheme of ["light", "dark"] as const) {
             .getByRole("complementary", { name: "Chat" })
             .getByText(askPrompt, { exact: true })
         ).toBeVisible()
+        await release(firstId)
         await expect(page).toHaveURL(/\/d\/[0-9a-f-]{36}/, {
           timeout: agentTimeout,
         })

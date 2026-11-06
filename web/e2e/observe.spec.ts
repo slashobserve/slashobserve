@@ -1,4 +1,5 @@
 import { createDashboard, loadSpec, mutationHeaders, uniqueTitle } from "./api"
+import { holdRequestPollsUntilFinished } from "./builds"
 import { expectPanelsReady } from "./dashboards"
 import { expect, test, type Page } from "./fixtures"
 
@@ -10,7 +11,6 @@ const unanswerablePrompt = "e2e: a follow-up the replay provider cannot answer"
 const requestPath = /\/c\/([0-9a-f-]{36})$/
 const buildPath = /\/b\/([0-9a-f-]{36})$/
 const dashboardPath = /\/d\/([0-9a-f-]{36})/
-const requestApi = /\/api\/v1\/observe\/[0-9a-f-]{36}$/
 const revisionsApi = /\/api\/v1\/dashboards\/[0-9a-f-]{36}\/revisions$/
 const openLink = { name: "Open dashboard", exact: true }
 
@@ -26,25 +26,8 @@ type ObserveBody = {
   }
 }
 
-async function finishedOnServer(page: Page, requestId: string) {
-  await expect
-    .poll(
-      async () => {
-        const response = await page.request.get(`/api/v1/observe/${requestId}`)
-        return ((await response.json()) as ObserveBody).request.status
-      },
-      { timeout: 90_000, intervals: [250] }
-    )
-    .toBe("succeeded")
-}
-
 test("creates a dashboard from a prompt", async ({ page }) => {
-  let openGate!: () => void
-  const gate = new Promise<void>((resolve) => (openGate = resolve))
-  await page.route(requestApi, async (route) => {
-    await gate
-    await route.continue()
-  })
+  const release = await holdRequestPollsUntilFinished(page)
 
   await page.goto("/")
   const promptBar = page.getByRole("textbox", { name: "Message the agent" })
@@ -62,8 +45,7 @@ test("creates a dashboard from a prompt", async ({ page }) => {
   await expect(
     chat.getByRole("list", { name: "Progress" }).getByText("Working")
   ).toHaveCount(0)
-  await finishedOnServer(page, requestId)
-  openGate()
+  await release(requestId)
 
   await expect(page).toHaveURL(dashboardPath, { timeout: 90_000 })
   await expectPanelsReady(page)
@@ -235,6 +217,7 @@ test("links a failed comment revision back to its dashboard", async ({
 })
 
 test("follows up in the same chat", async ({ page }) => {
+  const release = await holdRequestPollsUntilFinished(page)
   await page.goto("/")
   const promptBar = page.getByRole("textbox", { name: "Message the agent" })
   await promptBar.fill(redPrompt)
@@ -242,6 +225,7 @@ test("follows up in the same chat", async ({ page }) => {
 
   await expect(page).toHaveURL(buildPath)
   const requestId = buildPath.exec(page.url())?.[1] ?? ""
+  await release(requestId)
   await expect(page).toHaveURL(dashboardPath, { timeout: 90_000 })
 
   let openRevisions!: () => void
@@ -294,12 +278,7 @@ test.describe("touch device", () => {
   test("keeps Enter for new lines and submits with the button", async ({
     page,
   }) => {
-    let openGate!: () => void
-    const gate = new Promise<void>((resolve) => (openGate = resolve))
-    await page.route(requestApi, async (route) => {
-      await gate
-      await route.continue()
-    })
+    const release = await holdRequestPollsUntilFinished(page)
 
     await page.goto("/")
     const promptBar = page.getByRole("textbox", { name: "Message the agent" })
@@ -318,8 +297,7 @@ test.describe("touch device", () => {
     await expect(
       chatPane(page).getByText(redPrompt, { exact: true })
     ).toBeVisible()
-    await finishedOnServer(page, requestId)
-    openGate()
+    await release(requestId)
 
     await expect(page).toHaveURL(dashboardPath, { timeout: 90_000 })
     await expectPanelsReady(page)
