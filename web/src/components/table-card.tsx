@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode, Ref } from "react"
+import type { ComponentProps, CSSProperties, ReactNode, Ref } from "react"
 import { cn } from "@/lib/utils"
 
 type TableCardName =
@@ -9,6 +9,21 @@ type TableCardProps = TableCardName & {
   children: ReactNode
   className?: string
   ref?: Ref<HTMLDivElement>
+  stackOnNarrow?: boolean
+}
+
+const stackedOnNarrow = [
+  "min-w-(--table-min) narrow:block narrow:min-w-0",
+  "narrow:[&_thead]:sr-only narrow:[&_tbody]:block",
+  "narrow:[&_tbody_tr]:flex narrow:[&_tbody_tr]:flex-wrap narrow:[&_tbody_tr]:items-start narrow:[&_tbody_tr]:gap-x-3 narrow:[&_tbody_tr]:gap-y-1 narrow:[&_tbody_tr]:border-b narrow:[&_tbody_tr]:px-3.5 narrow:[&_tbody_tr]:py-3 narrow:[&_tbody_tr:last-child]:border-b-0",
+  "narrow:[&_tbody_td]:border-0 narrow:[&_tbody_td]:p-0",
+  "narrow:[&_tbody_td:first-child]:basis-full narrow:[&_tbody_td:first-child]:font-medium",
+  "narrow:[&_tbody_td:not(:first-child):not([data-cell=action])]:text-xs narrow:[&_tbody_td:not(:first-child):not([data-cell=action])]:text-muted-foreground",
+  "narrow:[&_tbody_td[data-cell=action]]:ml-auto",
+].join(" ")
+
+function cssLength(value: number | string) {
+  return typeof value === "number" ? `${value}px` : value
 }
 
 export function TableCard({
@@ -18,6 +33,7 @@ export function TableCard({
   children,
   className,
   ref,
+  stackOnNarrow = false,
 }: TableCardProps) {
   return (
     <div
@@ -32,8 +48,15 @@ export function TableCard({
       )}
     >
       <table
-        className="w-full border-collapse text-[13px]"
-        style={{ minWidth }}
+        className={cn(
+          "w-full border-collapse text-[13px]",
+          stackOnNarrow && stackedOnNarrow
+        )}
+        style={
+          stackOnNarrow
+            ? ({ "--table-min": cssLength(minWidth) } as CSSProperties)
+            : { minWidth }
+        }
       >
         {children}
       </table>
