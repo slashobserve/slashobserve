@@ -232,3 +232,22 @@ export const annotationKeys = {
     ["annotations", dashboardId, "range", from, to] as const,
   tags: (dashboardId: string) => ["annotations", dashboardId, "tags"] as const,
 }
+
+export const publicKeys = {
+  links: (dashboardId: string) => ["public-links", dashboardId] as const,
+  dashboard: (token: string) => ["public", token] as const,
+  panelData: (
+    token: string,
+    version: number,
+    panelId: string,
+    params: PanelDataParams
+  ) =>
+    ["public", token, "versions", version, "panels", panelId, params] as const,
+  variableValues: (
+    token: string,
+    version: number,
+    name: string,
+    params: VariableValuesParams
+  ) =>
+    ["public", token, "versions", version, "variables", name, params] as const,
+}

@@ -1,6 +1,7 @@
 import {
   dashboardKeys,
   observeKeys,
+  publicKeys,
   type PanelDataParams,
   type VariableValuesParams,
 } from "@/api/keys"
@@ -9,30 +10,41 @@ import { stableJson } from "@/lib/json"
 export type PanelSource =
   | { kind: "version"; dashboardId: string; version: number }
   | { kind: "build"; requestId: string; saves: number }
+  | { kind: "public"; token: string; version: number }
 
 export function panelFingerprint(panel: unknown): string {
   return stableJson(panel)
 }
 
 export function sourceScope(source: PanelSource): string {
-  return source.kind === "version"
-    ? `${source.dashboardId}:${source.version}`
-    : `build:${source.requestId}`
+  switch (source.kind) {
+    case "version":
+      return `${source.dashboardId}:${source.version}`
+    case "build":
+      return `build:${source.requestId}`
+    case "public":
+      return `public:${source.token}:${source.version}`
+  }
 }
 
 export function loadRangeScope(
   source: PanelSource,
   range: { from?: string; to?: string }
 ): string {
-  return source.kind === "version"
-    ? sourceScope(source)
-    : `${sourceScope(source)}:${range.from ?? ""}:${range.to ?? ""}`
+  return source.kind === "build"
+    ? `${sourceScope(source)}:${range.from ?? ""}:${range.to ?? ""}`
+    : sourceScope(source)
 }
 
 export function stateScope(source: PanelSource): string {
-  return source.kind === "version"
-    ? source.dashboardId
-    : `build:${source.requestId}`
+  switch (source.kind) {
+    case "version":
+      return source.dashboardId
+    case "build":
+      return `build:${source.requestId}`
+    case "public":
+      return `public:${source.token}`
+  }
 }
 
 export function panelDataKey(
@@ -41,14 +53,24 @@ export function panelDataKey(
   fingerprint: string,
   params: PanelDataParams
 ) {
-  return source.kind === "version"
-    ? dashboardKeys.panelData(
+  switch (source.kind) {
+    case "version":
+      return dashboardKeys.panelData(
         source.dashboardId,
         source.version,
         panelId,
         params
       )
-    : observeKeys.buildPanelData(source.requestId, panelId, fingerprint, params)
+    case "build":
+      return observeKeys.buildPanelData(
+        source.requestId,
+        panelId,
+        fingerprint,
+        params
+      )
+    case "public":
+      return publicKeys.panelData(source.token, source.version, panelId, params)
+  }
 }
 
 export function variableValuesKey(
@@ -57,19 +79,29 @@ export function variableValuesKey(
   fingerprint: string,
   params: VariableValuesParams
 ) {
-  return source.kind === "version"
-    ? dashboardKeys.variableValues(
+  switch (source.kind) {
+    case "version":
+      return dashboardKeys.variableValues(
         source.dashboardId,
         source.version,
         name,
         params
       )
-    : observeKeys.buildVariableValues(
+    case "build":
+      return observeKeys.buildVariableValues(
         source.requestId,
         name,
         fingerprint,
         params
       )
+    case "public":
+      return publicKeys.variableValues(
+        source.token,
+        source.version,
+        name,
+        params
+      )
+  }
 }
 
 export function keepsPreviousData(
@@ -77,10 +109,19 @@ export function keepsPreviousData(
   fingerprint: string,
   previousKey: readonly unknown[]
 ): boolean {
-  if (source.kind === "version") {
-    return (
-      previousKey[1] === source.dashboardId && previousKey[3] === source.version
-    )
+  switch (source.kind) {
+    case "version":
+      return (
+        previousKey[1] === source.dashboardId &&
+        previousKey[3] === source.version
+      )
+    case "build":
+      return (
+        previousKey[1] === source.requestId && previousKey[4] === fingerprint
+      )
+    case "public":
+      return (
+        previousKey[1] === source.token && previousKey[3] === source.version
+      )
   }
-  return previousKey[1] === source.requestId && previousKey[4] === fingerprint
 }

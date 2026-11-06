@@ -40,6 +40,10 @@ export type VariableState = {
   retry: () => void
 }
 
+type UrlVarsUpdate = (
+  current: Record<string, string[]>
+) => Record<string, string[]>
+
 type Args = {
   source: PanelSource
   variables: Variable[]
@@ -47,6 +51,7 @@ type Args = {
   to?: string
   timezone?: string
   urlVars: Record<string, string[]>
+  setUrlVars?: (update: UrlVarsUpdate) => void
 }
 
 export function useVariables({
@@ -56,8 +61,13 @@ export function useVariables({
   to,
   timezone,
   urlVars,
+  setUrlVars,
 }: Args) {
   const setSearch = useSetDashboardSearch()
+  const writeUrlVars =
+    setUrlVars ??
+    ((update: UrlVarsUpdate) =>
+      setSearch((current) => ({ ...current, vars: update(current.vars) })))
   const owner = stateScope(source)
   const [sessionState, setSessionState] = useState<{
     owner: string
@@ -98,34 +108,43 @@ export function useVariables({
           const tz = requestZone(timezone)
           if (tz !== undefined) range.tz = tz
           const params = withVariables(range, earlier)
-          const read = () =>
-            panelRequestLimiter.run(
-              () =>
-                (source.kind === "version"
-                  ? api.GET(
-                      "/dashboards/{id}/versions/{version}/variables/{name}/values",
-                      {
-                        params: {
-                          path: {
-                            id: source.dashboardId,
-                            version: source.version,
-                            name: variable.name,
-                          },
-                          query: params,
-                        },
-                        signal,
-                      }
-                    )
-                  : api.GET("/observe/{id}/build/variables/{name}/values", {
-                      params: {
-                        path: { id: source.requestId, name: variable.name },
-                        query: params,
+          const request = () => {
+            switch (source.kind) {
+              case "version":
+                return api.GET(
+                  "/dashboards/{id}/versions/{version}/variables/{name}/values",
+                  {
+                    params: {
+                      path: {
+                        id: source.dashboardId,
+                        version: source.version,
+                        name: variable.name,
                       },
-                      signal,
-                    })
-                ).then(unwrap),
-              signal
-            )
+                      query: params,
+                    },
+                    signal,
+                  }
+                )
+              case "build":
+                return api.GET("/observe/{id}/build/variables/{name}/values", {
+                  params: {
+                    path: { id: source.requestId, name: variable.name },
+                    query: params,
+                  },
+                  signal,
+                })
+              case "public":
+                return api.GET("/public/{token}/variables/{name}/values", {
+                  params: {
+                    path: { token: source.token, name: variable.name },
+                    query: params,
+                  },
+                  signal,
+                })
+            }
+          }
+          const read = () =>
+            panelRequestLimiter.run(() => request().then(unwrap), signal)
           return source.kind === "build"
             ? readBuild(client, source.requestId, signal, read)
             : read()
@@ -225,15 +244,15 @@ export function useVariables({
     )
     setSessionState({ owner, vars: next.session })
     if (JSON.stringify(next.url) === JSON.stringify(urlVars)) return
-    setSearch((current) => ({
-      ...current,
-      vars: changeVars(
-        variables,
-        { url: current.vars, session: sessionVars },
-        name,
-        values
-      ).url,
-    }))
+    writeUrlVars(
+      (current) =>
+        changeVars(
+          variables,
+          { url: current, session: sessionVars },
+          name,
+          values
+        ).url
+    )
   }
 
   const blocking = states.find(

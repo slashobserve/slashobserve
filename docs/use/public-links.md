@@ -35,6 +35,16 @@ A link can expire after a chosen time, and it stops working when it does.
 Revoking a link deletes it, so its address stops working at once.
 The token in the address is shown once, when the link is created, and the server keeps only a hash of it, so a lost link cannot be shown again: create a new one and revoke the old one.
 
+## What a public view shows
+
+A public view at `/p/<token>` shows the dashboard's title, its panels, the time range and refresh pickers, and the variables a free link lets the viewer change; the other variables' values read as one line of text.
+It never shows query text, annotations, comments, version history or the agent, and it has no link into the app.
+Its dashboard, panel data and variable requests all go to `/api/v1/public/`, so the viewer needs no account.
+The dashboard list, news and geomap panels need the signed-in app, so they show "Not available on a public link" instead.
+Remote images in text and canvas panels load through the signed-in assets route, so they do not show on a public view.
+Panel data goes through the same query proxy as the app, which runs only the dashboard's saved queries, and each link may have 8 requests in flight.
+An address that is unknown, revoked or expired reads "This link does not work. It may have expired or been revoked."
+
 ## API
 
 Every route except the public ones needs a session or a service-account key with Manage on the dashboard's folder:
