@@ -9,6 +9,7 @@ import { useDocumentTitle } from "@/lib/document-title"
 import { ConnectClients } from "@/service-accounts/connect-clients"
 import { CreateKeyPanel } from "@/service-accounts/create-key-panel"
 import { KeysTable } from "@/service-accounts/keys-table"
+import { useAllKeys } from "@/service-accounts/use-all-keys"
 
 export const Route = createFileRoute("/_authed/_shell/keys")({
   staticData: { crumbs: [{ label: "API keys" }] },
@@ -30,6 +31,8 @@ function KeysContent() {
   const copyButton = useRef<HTMLButtonElement>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const wasOpen = useRef(false)
+  const keys = useAllKeys()
+  const noKeysYet = keys.status === "success" && keys.rows.length === 0
 
   useEffect(() => {
     const closed = wasOpen.current && !panelOpen
@@ -62,10 +65,8 @@ function KeysContent() {
           </Button>
         }
       />
-      <div className="mb-5">
-        <KeysTable onCreate={openPanel} revokeFocus={createButton} />
-      </div>
-      <ConnectClients />
+      <ConnectClients open={noKeysYet} />
+      <KeysTable onCreate={openPanel} revokeFocus={createButton} />
       {panelOpen ? (
         <CreateKeyPanel
           nameInput={nameInput}
