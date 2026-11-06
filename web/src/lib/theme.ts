@@ -3,6 +3,19 @@ import { create } from "zustand"
 export type ThemePreference = "light" | "dark" | "system"
 export type ResolvedTheme = "light" | "dark"
 
+export const themeChoices: readonly {
+  value: ThemePreference
+  label: string
+}[] = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "system", label: "Match the system" },
+]
+
+export function isThemePreference(value: unknown): value is ThemePreference {
+  return themeChoices.some((choice) => choice.value === value)
+}
+
 const storageKey = "slashobserve-theme"
 
 function readPreference(): ThemePreference {

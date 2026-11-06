@@ -6,13 +6,14 @@ const ids = (role: Parameters<typeof settingsSections>[0]) =>
   settingsSections(role).map((section) => section.id)
 
 describe("settingsSections", () => {
-  test("lists Grafana last, for admins only", () => {
+  test("lists Grafana before Appearance, for admins only", () => {
     expect(ids("admin")).toEqual([
       "agent",
       "server",
       "sign-in",
       "outbound-access",
       "grafana",
+      "appearance",
     ])
     for (const role of ["editor", "commenter", "viewer"] as const) {
       expect(ids(role)).toEqual([
@@ -20,7 +21,14 @@ describe("settingsSections", () => {
         "server",
         "sign-in",
         "outbound-access",
+        "appearance",
       ])
+    }
+  })
+
+  test("ends with Appearance for every role", () => {
+    for (const role of ["admin", "editor", "commenter", "viewer"] as const) {
+      expect(ids(role).at(-1)).toBe("appearance")
     }
   })
 })
@@ -33,6 +41,7 @@ describe("selectedSectionId", () => {
     expect(selectedSectionId(admin, "server")).toBe("server")
     expect(selectedSectionId(viewer, "outbound-access")).toBe("outbound-access")
     expect(selectedSectionId(admin, "grafana")).toBe("grafana")
+    expect(selectedSectionId(viewer, "appearance")).toBe("appearance")
   })
 
   test("selects the agent without a hash", () => {
