@@ -169,7 +169,7 @@ function subscribeToResize(callback: () => void) {
   return () => window.removeEventListener("resize", callback)
 }
 
-function useViewportWidth(): number {
+export function useViewportWidth(): number {
   return useSyncExternalStore(
     subscribeToResize,
     () => window.innerWidth,
