@@ -94,6 +94,8 @@ paths:
     $ref: "./paths/explore.yaml#/datasources-uid-query"
   /datasources/{uid}/log-volume:
     $ref: "./paths/explore.yaml#/datasources-uid-log-volume"
+  /datasources/{uid}/log-facets:
+    $ref: "./paths/log-facets.yaml#/datasources-uid-log-facets"
   /datasources/{uid}/draft-query:
     $ref: "./paths/draft-query.yaml#/datasources-uid-draft-query"
   /datasources/{uid}/metrics:
@@ -1423,6 +1425,58 @@ components:
           type: integer
         other:
           type: integer
+    LogFacets:
+      type: object
+      additionalProperties: false
+      required: [sampled, lines_sampled, fields, truncated]
+      properties:
+        sampled:
+          type: boolean
+          description: Whether a sample of the newest lines was read for the fields the datasource cannot count exactly.
+        lines_sampled:
+          type: integer
+          description: The lines the sample held, 0 when none was read.
+        fields:
+          type: array
+          description: Exact fields first, then by cardinality ascending, then by name.
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, kind, exact, values, truncated]
+            properties:
+              name:
+                type: string
+              kind:
+                type: string
+                enum: [label, field, column]
+                description: A Loki index label, a Loki parsed or structured-metadata field, or a ClickHouse column or `LogAttributes.<key>`.
+              exact:
+                type: boolean
+                description: False when the counts come from the newest `lines_sampled` lines.
+              unit:
+                type: string
+                description: Set to `bytes` on a Loki index label, because the index volume API counts bytes, not lines.
+              cardinality:
+                type: integer
+                description: Distinct values seen, as `detected_fields` reports it on Loki or as the sample or the group showed; a truncated field reports at least `limit` plus one.
+              values:
+                type: array
+                description: By count descending, then by value.
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [value, count]
+                  properties:
+                    value:
+                      type: string
+                    count:
+                      type: integer
+              truncated:
+                type: boolean
+                description: More values exist than `limit`.
+        truncated:
+          type: boolean
+          description: More fields exist than the 50 returned.
     PanelData:
       type: object
       additionalProperties: false

@@ -930,6 +930,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasources/{uid}/log-facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Count the top values of each label, field or column a logs query matches over a range.
+         * @description Each field answers with its most frequent values and their counts, exact where the datasource can count and from a sample of the newest lines where it cannot; every field says which with `exact`. On Loki the index labels of the matched streams (`kind` `label`) are counted exactly from the index volume API, whose counts are bytes, so those fields carry `unit` `bytes`; parsed and structured-metadata fields (`kind` `field`) are counted from the newest `sample` lines of the full query, and the response says so with `sampled` and `lines_sampled`. The Loki query must be a log query that starts with a stream selector; the selector before the first `|` picks the streams. On ClickHouse every field (`kind` `column`) is counted exactly with one `GROUP BY` per field over the query with its top-level `ORDER BY` and `LIMIT` dropped; the query must be one SELECT without UNION, INTERSECT, EXCEPT or LIMIT BY. Without `fields`, Loki counts every index label of the matched streams plus every detected field, and ClickHouse every result column except `Timestamp`, `Body`, `TraceId` and `SpanId`, plus the top 20 keys of `LogAttributes` as `LogAttributes.<key>` when it is a result column. Fields come exact first, then by cardinality ascending, then by name; values by count descending, then by value. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+         */
+        post: operations["logFacets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasources/{uid}/draft-query": {
         parameters: {
             query?: never;
@@ -2666,6 +2688,36 @@ export interface components {
             warning: number;
             info: number;
             other: number;
+        };
+        LogFacets: {
+            /** @description Whether a sample of the newest lines was read for the fields the datasource cannot count exactly. */
+            sampled: boolean;
+            /** @description The lines the sample held, 0 when none was read. */
+            lines_sampled: number;
+            /** @description Exact fields first, then by cardinality ascending, then by name. */
+            fields: {
+                name: string;
+                /**
+                 * @description A Loki index label, a Loki parsed or structured-metadata field, or a ClickHouse column or `LogAttributes.<key>`.
+                 * @enum {string}
+                 */
+                kind: "label" | "field" | "column";
+                /** @description False when the counts come from the newest `lines_sampled` lines. */
+                exact: boolean;
+                /** @description Set to `bytes` on a Loki index label, because the index volume API counts bytes, not lines. */
+                unit?: string;
+                /** @description Distinct values seen, as `detected_fields` reports it on Loki or as the sample or the group showed; a truncated field reports at least `limit` plus one. */
+                cardinality?: number;
+                /** @description By count descending, then by value. */
+                values: {
+                    value: string;
+                    count: number;
+                }[];
+                /** @description More values exist than `limit`. */
+                truncated: boolean;
+            }[];
+            /** @description More fields exist than the 50 returned. */
+            truncated: boolean;
         };
         PanelData: {
             frames: components["schemas"]["Frame"][];
@@ -6217,6 +6269,108 @@ export interface operations {
             };
             413: components["responses"]["TooLarge"];
             /** @description The query cannot run: `query_invalid` for a Loki metric query, a ClickHouse query with a top-level UNION, INTERSECT, EXCEPT or LIMIT BY, or an upstream rejection such as an unknown column; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query; the body carries no `ref`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    logFacets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The logs query the page runs. */
+                    query: string;
+                    from: string;
+                    to: string;
+                    /** @description The browser's IANA time zone, used to resolve relative times such as `now/d`. */
+                    timezone?: string;
+                    /** @description Count only these fields; on ClickHouse a name that is neither a result column nor `LogAttributes.<key>` answers `query_invalid`. */
+                    fields?: string[];
+                    /**
+                     * @description Values per field.
+                     * @default 10
+                     */
+                    limit?: number;
+                    /**
+                     * @description The newest lines to sample for fields the datasource cannot count exactly.
+                     * @default 1000
+                     */
+                    sample?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The top values of each field. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogFacets"];
+                };
+            };
+            /** @description The request is malformed or fails validation, `fields`, `limit` or `sample` is out of range, or the datasource is not Loki or ClickHouse (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The query cannot run: `query_invalid` for a Loki metric query, a ClickHouse query with a top-level UNION, INTERSECT, EXCEPT or LIMIT BY, a requested field that is not a column of the query, or an upstream rejection; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query; the body carries no `ref`. */
             422: {
                 headers: {
                     [name: string]: unknown;

@@ -184,6 +184,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - The fifth exception is `GET /api/v1/public/{token}/panels/{panel_id}/data` and `.../variables/{name}/values` (`proxyhttp/public.go`): no session, the link's dashboard at its latest version only, the shared caches, and in-flight slots keyed `public:<link id>`.
   A frozen link uses its stored selections and a free one accepts a value only when `public.EffectiveSelections` finds it among the options the values path computes (through `variableOptions` and the values cache); a version that reads `${__user.*}` answers 404.
   `GET /api/v1/public/{token}` serves the Spec with every panel and variable `query` emptied.
+- `POST /api/v1/datasources/{uid}/log-facets` (`proxyhttp/facets.go`) and the `log_facets` tool count the top values of a logs query's fields through `datasource.LogFacetSource` (Loki and ClickHouse), a direct datasource call under `DraftLimits` and one upstream slot, in which the adapter fans out at most 4 calls at a time; Loki index labels count bytes from the index volume API and say `unit: bytes`, every other field says whether it is exact or sampled.
 - `spec/examples/time/resolve-cases.json` keeps the Go and TS relative time resolution in step.
 - Variable values reach queries only through `internal/datasource/macros`.
 - A Spec names a datasource by uid or as `${name}` naming a datasource variable.
