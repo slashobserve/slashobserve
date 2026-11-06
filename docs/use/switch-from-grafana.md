@@ -14,7 +14,7 @@ This page walks a team through the move from Grafana in the order that works: ea
 7. [Open old links](#open-old-links) to Grafana dashboards at their new address.
 
 [What maps, what changes and what waits](#what-maps-what-changes-and-what-waits) compares the two in one table, and [The API](#the-api) does every step without the web app.
-Screenshots of each step come with a later release.
+The screen of the Connect step comes from the [demo stack](../operate/demo.md), which runs no Grafana, so the connection form is shown empty; screens of the other steps come with a later release.
 
 ## Before you start
 
@@ -28,9 +28,11 @@ Screenshots of each step come with a later release.
 An Admin stores a Grafana URL and a service-account token once and lets the server import every dashboard from that Grafana, instead of importing one file at a time.
 Each dashboard goes through the same importer as [Import Grafana dashboards](import-grafana.md), with the same datasource matching, the same report and one import record per dashboard.
 
-
 Open Settings and choose the Grafana tab; only Admins see it.
 Give the connection a name, the Grafana URL and the service account token, and choose Add connection.
+
+![The Grafana tab of Settings with the empty Add a connection form: Name, Grafana URL, Service account token and the Add connection button](images/switch-from-grafana/02-connect.png)
+
 The token is stored encrypted and is never shown again, not in the web app and not in the API.
 Choose Test on the connection to check it: the outcome names how many top-level folders and dashboards the server found, for example `Connected: 12 top-level folders, 340 dashboards.`
 A Grafana that cannot be reached or refuses the token shows a fixed message such as `Grafana refused the token (status 401).`
@@ -108,7 +110,7 @@ Grafana's public dashboards and kiosk mode have their counterparts here.
   A public view runs only that dashboard's saved queries and never shows query text, annotations, comments or the agent, and a dashboard in My Dashboards or one whose queries read the viewer cannot get a link.
 - TV mode shows a dashboard on a wall screen without the top row, the variables bar, the links or the activity card, and Esc leaves it.
   Add `kiosk=true` to the dashboard's address, `cycle=rows` to scroll through its rows or `cycle=folder` to move through its folder's dashboards, and `interval=<seconds>` to set the pace (60 by default).
-  Cycling through a folder takes the place of a Grafana playlist; see [the web app](web.md).
+  Cycling through a folder takes the place of a Grafana playlist; see [Show it on a wall](public-links.md#show-it-on-a-wall).
 
 ## Keep dashboards in Git
 
