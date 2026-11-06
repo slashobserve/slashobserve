@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { dayLabel, withDayBreaks } from "./day-label"
+import { dayLabel, nextDayStart, withDayBreaks } from "./day-label"
 
 const now = new Date(2026, 10, 6, 15, 30).getTime()
 
@@ -45,5 +45,11 @@ describe("withDayBreaks", () => {
       { kind: "day", key: "day:2026-11-06", label: "Today" },
       { kind: "entry", entry: entries[2] },
     ])
+  })
+})
+
+describe("nextDayStart", () => {
+  it("is the next local midnight", () => {
+    expect(nextDayStart(now)).toBe(new Date(2026, 10, 7).getTime())
   })
 })

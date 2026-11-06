@@ -15,6 +15,15 @@ function parsed(iso: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
+export function nextDayStart(now: number): number {
+  const date = new Date(now)
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate() + 1
+  ).getTime()
+}
+
 export function dayLabel(iso: string, now: number): string {
   const date = parsed(iso)
   if (date === null) return ""
