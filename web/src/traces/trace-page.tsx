@@ -10,13 +10,17 @@ import {
 import { useQuery } from "@tanstack/react-query"
 import { Link, useNavigate, useSearch } from "@tanstack/react-router"
 
+import { ApiError } from "@/api/errors"
 import { CopyButton } from "@/components/copy-button"
 import { PageHeader } from "@/components/page-header"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { WireFrame } from "@/dashboards/queries"
-import { TimeRangeControl } from "@/dashboards/time-range-picker"
+import type { PanelDataResponse, WireFrame } from "@/dashboards/queries"
+import {
+  TimeRangeControl,
+  type TimeRangeValue,
+} from "@/dashboards/time-range-picker"
 import { useDatasources, type DatasourceStatus } from "@/datasources/queries"
 import { traceUrl } from "@/lib/links"
 import { lowerFirst } from "@/lib/text"
@@ -26,7 +30,7 @@ import {
   eligibleDatasources,
   ExploreDatasourcePicker,
 } from "@/logs/datasource-picker"
-import { exploreErrorText, exploreQuery, offlineText } from "@/logs/explore"
+import { exploreErrorText, offlineText } from "@/logs/explore"
 import { usePrepared } from "@/logs/prepared"
 import { useElementSize } from "@/logs/use-element-size"
 import {
@@ -41,7 +45,11 @@ import {
   visibleSpans,
   type Span,
 } from "@/panels/traces/trace-model"
-import { TraceView, type TraceViewProps } from "@/panels/traces/traces-panel"
+import {
+  TraceView,
+  type SearchLink,
+  type TraceViewProps,
+} from "@/panels/traces/traces-panel"
 import type { DataPanel } from "@/spec"
 
 import { wholeTrace, type Zoom } from "./minimap"
@@ -52,7 +60,8 @@ import {
   traceViewRange,
   type TraceViewSearch,
 } from "./search"
-import { traceByIdParams } from "./search-query"
+import { traceQLAttribute } from "./search-query"
+import { traceNotes, traceQuery } from "./trace-query"
 import { TraceToolbar, type TraceService } from "./trace-toolbar"
 
 type TraceModelData = TraceViewProps["model"]
@@ -62,7 +71,7 @@ const noIds: ReadonlySet<string> = new Set()
 const skeletonRows = [0, 1, 2, 3, 4, 5]
 const phoneQuery = "(max-width: 760px)"
 const toolbarHint = "Click a row for details. Drag on the ruler to zoom."
-const legendHint = "Click a service to hide its spans."
+const legendHint = "Click a service to dim its spans."
 const keysHint =
   "Use j and k to move, Enter to open a span, Escape to close the details."
 
@@ -363,8 +372,9 @@ function TraceResult({
   actions: ReactNode
 }) {
   const range = traceViewRange(search)
-  const result = useQuery(
-    exploreQuery(datasource.uid, traceByIdParams(datasource.type, id, range))
+  const result = useQuery(traceQuery(datasource.uid, id, range))
+  const missing = (
+    <TraceMissing id={id} range={range} update={update} actions={actions} />
   )
   if (result.fetchStatus === "paused" && !result.data) {
     return (
@@ -375,6 +385,9 @@ function TraceResult({
     )
   }
   if (result.isError) {
+    if (result.error instanceof ApiError && result.error.status === 404) {
+      return missing
+    }
     return (
       <>
         <TraceHeader id={id} actions={actions} />
@@ -402,21 +415,64 @@ function TraceResult({
       </>
     )
   }
-  const missing =
-    datasource.type === "tempo"
-      ? "Tempo has no trace with this id."
-      : `No spans for this trace in ${lowerFirst(describeRange(range.from, range.to))}. Widen the time range.`
   return (
     <TraceWaterfall
       id={id}
-      datasourceUid={datasource.uid}
-      frames={result.data.frames}
+      datasource={datasource}
+      data={result.data}
       missing={missing}
       openId={search.span ?? null}
       onOpenIdChange={(span) => update({ span: span ?? undefined }, true)}
       actions={actions}
     />
   )
+}
+
+function TraceMissing({
+  id,
+  range,
+  update,
+  actions,
+}: {
+  id: string
+  range: TimeRangeValue
+  update: SearchUpdate
+  actions: ReactNode
+}) {
+  return (
+    <>
+      <TraceHeader id={id} actions={actions} />
+      <div className="min-h-64 min-w-0 flex-1 rounded-card border border-border">
+        <div className="flex flex-col items-start gap-2 p-4 text-[13px] text-muted-foreground">
+          <p>
+            No spans for this trace in{" "}
+            {lowerFirst(describeRange(range.from, range.to))}. Widen the time
+            range.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            onClick={() => update({ from: "now-7d", to: "now" })}
+          >
+            Last 7 days
+          </Button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function tempoSearchLink(uid: string): SearchLink {
+  return (attribute, negate) => ({
+    ds: uid,
+    q: traceQLAttribute(
+      attribute.source,
+      attribute.key,
+      attribute.text,
+      negate
+    ),
+  })
 }
 
 function isFormField(target: EventTarget | null): boolean {
@@ -428,17 +484,17 @@ function isFormField(target: EventTarget | null): boolean {
 
 function TraceWaterfall({
   id,
-  datasourceUid,
-  frames,
+  datasource,
+  data,
   missing,
   openId,
   onOpenIdChange,
   actions,
 }: {
   id: string
-  datasourceUid: string
-  frames: WireFrame[]
-  missing: string
+  datasource: DatasourceStatus
+  data: PanelDataResponse
+  missing: ReactNode
   openId: string | null
   onOpenIdChange: (id: string | null) => void
   actions: ReactNode
@@ -448,31 +504,30 @@ function TraceWaterfall({
       id: "trace",
       type: "traces",
       title: "Trace",
-      datasource: datasourceUid,
+      datasource: datasource.uid,
       gridPos: { x: 0, y: 0, w: 24, h: 20 },
       queries: [{ query: "" }],
     }),
-    [datasourceUid]
+    [datasource.uid]
   )
+  const frames: WireFrame[] = data.frames
   const prepared = usePrepared(panel, frames)
-  const model = useMemo(
-    () => traceModel(prepared.frames, prepared.fields),
-    [prepared.frames, prepared.fields]
+  const model = useMemo(() => {
+    const built = traceModel(prepared.frames, prepared.fields)
+    if (built.reason !== null) return built
+    return { ...built, notes: [...traceNotes(data.meta), ...built.notes] }
+  }, [prepared.frames, prepared.fields, data.meta])
+  const searchLink = useMemo(
+    () =>
+      datasource.type === "tempo" ? tempoSearchLink(datasource.uid) : undefined,
+    [datasource.type, datasource.uid]
   )
-  if (model.reason !== null || model.spans.length === 0) {
-    return (
-      <>
-        <TraceHeader id={id} actions={actions} />
-        <div className="min-h-64 min-w-0 flex-1 rounded-card border border-border">
-          <p className="p-4 text-[13px] text-muted-foreground">{missing}</p>
-        </div>
-      </>
-    )
-  }
+  if (model.reason !== null || model.spans.length === 0) return missing
   return (
     <TraceExplorer
       id={id}
       model={model}
+      searchLink={searchLink}
       openId={openId}
       onOpenIdChange={onOpenIdChange}
       actions={actions}
@@ -483,12 +538,14 @@ function TraceWaterfall({
 function TraceExplorer({
   id,
   model,
+  searchLink,
   openId,
   onOpenIdChange,
   actions,
 }: {
   id: string
   model: TraceModelData
+  searchLink: SearchLink | undefined
   openId: string | null
   onOpenIdChange: (id: string | null) => void
   actions: ReactNode
@@ -615,6 +672,8 @@ function TraceExplorer({
             dimmed={dimmed}
             zoom={zoom}
             onZoom={setZoom}
+            header={false}
+            searchLink={searchLink}
           />
         ) : null}
       </div>

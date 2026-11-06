@@ -219,6 +219,8 @@ export const exploreKeys = {
     ["explore", uid, "tail", query, session] as const,
   context: (uid: string, anchor: string) =>
     ["explore", uid, "context", anchor] as const,
+  trace: (uid: string, id: string, range: { from: string; to: string }) =>
+    ["explore", uid, "trace", id, range] as const,
   targets: (search: string) => ["explore", "targets", search] as const,
 }
 

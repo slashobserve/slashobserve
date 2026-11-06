@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   clickhouseTraceSearch,
   parseDuration,
-  traceByIdParams,
+  traceQLAttribute,
   traceQLFor,
   traceSearchParams,
   type TraceForm,
@@ -121,31 +121,22 @@ describe("traceSearchParams", () => {
   })
 })
 
-describe("traceByIdParams", () => {
-  const range = { from: "now-24h", to: "now" }
-  const id = "4bf92f3577b34da6a3ce929d0e0e4736"
-
-  it("asks Tempo for the trace by id", () => {
-    expect(traceByIdParams("tempo", id, range)).toEqual({
-      query: id,
-      kind: "instant",
-      from: "now-24h",
-      to: "now",
-      limit: 1000,
-    })
+describe("traceQLAttribute", () => {
+  it("matches a span attribute with a quoted value", () => {
+    expect(
+      traceQLAttribute("span", "http.response.status_code", "503", false)
+    ).toBe('{ span.http.response.status_code = "503" }')
   })
 
-  it("selects the trace's spans from ClickHouse", () => {
-    expect(traceByIdParams("clickhouse", id, range)).toEqual({
-      query: `SELECT TraceId, SpanId, ParentSpanId, SpanName, ServiceName, Timestamp, Duration, StatusCode, SpanAttributes, ResourceAttributes
-FROM otel_traces
-WHERE $__timeFilter(Timestamp) AND TraceId = '${id}'
-ORDER BY Timestamp
-LIMIT 1000`,
-      kind: "instant",
-      from: "now-24h",
-      to: "now",
-      limit: 1000,
-    })
+  it("excludes a resource attribute", () => {
+    expect(traceQLAttribute("resource", "service.name", "payments", true)).toBe(
+      '{ resource.service.name != "payments" }'
+    )
+  })
+
+  it("quotes keys and values that need it", () => {
+    expect(traceQLAttribute("span", "my key", 'a"b\\c', false)).toBe(
+      '{ span."my key" = "a\\"b\\\\c" }'
+    )
   })
 })

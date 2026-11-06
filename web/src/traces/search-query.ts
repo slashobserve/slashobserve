@@ -1,5 +1,4 @@
 import type { ExploreParams } from "@/api/keys"
-import type { TimeRangeValue } from "@/dashboards/time-range-picker"
 import { matcherInsert } from "@/panel-editor/insert-text"
 
 import { tracesTimeRange, type TraceSearch } from "./search"
@@ -42,6 +41,18 @@ function traceFormOf(search: TraceSearch): TraceForm {
 
 function quoted(text: string): string {
   return `"${text.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`
+}
+
+const bareAttributeName = /^[\w.]+$/
+
+export function traceQLAttribute(
+  scope: "span" | "resource",
+  key: string,
+  value: string,
+  negate: boolean
+): string {
+  const name = bareAttributeName.test(key) ? key : quoted(key)
+  return `{ ${scope}.${name} ${negate ? "!=" : "="} ${quoted(value)} }`
 }
 
 function traceQLDuration(text: string): string {
@@ -102,20 +113,4 @@ export function traceSearchParams(
     ...tracesTimeRange(search),
     limit: traceSearchRows,
   }
-}
-
-export function traceByIdParams(
-  type: string,
-  traceId: string,
-  range: TimeRangeValue
-): ExploreParams {
-  const query =
-    type === "tempo"
-      ? traceId
-      : `SELECT TraceId, SpanId, ParentSpanId, SpanName, ServiceName, Timestamp, Duration, StatusCode, SpanAttributes, ResourceAttributes
-FROM otel_traces
-WHERE $__timeFilter(Timestamp) AND TraceId = '${traceId}'
-ORDER BY Timestamp
-LIMIT 1000`
-  return { query, kind: "instant", ...range, limit: 1000 }
 }
