@@ -1,12 +1,14 @@
 import { autocompletion, completionKeymap } from "@codemirror/autocomplete"
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands"
+import { json } from "@codemirror/lang-json"
 import { sql, StandardSQL } from "@codemirror/lang-sql"
 import { syntaxHighlighting } from "@codemirror/language"
 import { lintGutter, lintKeymap } from "@codemirror/lint"
-import type { Extension } from "@codemirror/state"
+import { Compartment, type Extension, type Text } from "@codemirror/state"
 import {
   EditorView,
   highlightActiveLine,
+  ViewPlugin,
   keymap,
   lineNumbers,
 } from "@codemirror/view"
@@ -73,6 +75,40 @@ export const theme = EditorView.theme({
     },
 })
 
+const bodyLanguage = new Compartment()
+
+function startsWithBrace(doc: Text): boolean {
+  return /^\s*\{/.test(doc.sliceString(0, 256))
+}
+
+function jsonWhenQueryDsl(): Extension {
+  const plugin = ViewPlugin.define((view) => {
+    let isJson = false
+    let destroyed = false
+    function sync() {
+      const next = startsWithBrace(view.state.doc)
+      if (next === isJson) return
+      isJson = next
+      queueMicrotask(() => {
+        if (destroyed) return
+        view.dispatch({
+          effects: bodyLanguage.reconfigure(next ? json() : []),
+        })
+      })
+    }
+    sync()
+    return {
+      update(update) {
+        if (update.docChanged) sync()
+      },
+      destroy() {
+        destroyed = true
+      },
+    }
+  })
+  return [bodyLanguage.of([]), plugin]
+}
+
 function languageExtension(type: string | undefined): Extension {
   if (type === "prometheus") {
     return new PromQLExtension()
@@ -83,7 +119,9 @@ function languageExtension(type: string | undefined): Extension {
   if (type === "clickhouse") {
     return sql({ dialect: StandardSQL, upperCaseKeywords: true })
   }
-  if (type === "elasticsearch" || type === "opensearch") return []
+  if (type === "elasticsearch" || type === "opensearch") {
+    return jsonWhenQueryDsl()
+  }
   return []
 }
 
