@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 
-import type { APIRequestContext, Page } from "@playwright/test"
+import type { APIRequestContext, Locator, Page } from "@playwright/test"
 
 import { createComment, createDashboard, loadSpec, uniqueTitle } from "./api"
 import { expectPanelsReady, openDashboard, panel } from "./dashboards"
@@ -27,8 +27,8 @@ async function createPageDashboard(request: APIRequestContext) {
   return { id, title }
 }
 
-function moreButton(page: Page) {
-  return page.getByRole("button", { name: /^More/ })
+function moreButton(scope: Page | Locator) {
+  return scope.getByRole("button", { name: /^More/ })
 }
 
 async function noDocumentOverflow(page: Page) {
@@ -291,8 +291,26 @@ test("fits a phone", async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await openDashboard(page, id)
 
-  await expect(moreButton(page)).toBeVisible()
-  await expect(page.getByRole("button", { name: "Switch theme" })).toBeVisible()
+  const controls = page.getByRole("button", { name: "Controls" })
+  await expect(controls).toBeVisible()
+  expect(await noDocumentOverflow(page)).toBe(true)
+  const trigger = await controls.boundingBox()
+  expect(trigger).not.toBeNull()
+  expect(trigger!.x).toBeGreaterThanOrEqual(0)
+  expect(trigger!.x + trigger!.width).toBeLessThanOrEqual(390)
+
+  await expect(moreButton(page)).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Switch theme" })).toHaveCount(
+    0
+  )
+
+  await controls.click()
+  const sheet = page.getByRole("dialog", { name: "Controls" })
+  await expect(sheet).toBeVisible()
+  await expect(moreButton(sheet)).toBeVisible()
+  await expect(
+    sheet.getByRole("button", { name: "Switch theme" })
+  ).toBeVisible()
   expect(await noDocumentOverflow(page)).toBe(true)
 })
 

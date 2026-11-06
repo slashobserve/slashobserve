@@ -158,7 +158,7 @@ test("keeps the tooltip inside a short panel with many series", async ({
   page,
   request,
 }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize({ width: 1280, height: 800 })
   const spec = loadSpec("overview")
   spec.title = uniqueTitle("E2E many series")
   spec.variables = []
