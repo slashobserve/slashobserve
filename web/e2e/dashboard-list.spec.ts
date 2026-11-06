@@ -535,7 +535,28 @@ test("keeps the new tab arrow with the last word of a wrapped title", async ({
   expect(placement.onLastLine).toBe(true)
 })
 
+type ListedFolder = {
+  general: boolean
+  personal: boolean
+  dashboard_count: number
+}
+
+async function showOnlyBuiltInFolders(page: Page) {
+  await page.route(
+    (url) => url.pathname === "/api/v1/folders",
+    async (route) => {
+      const response = await route.fetch()
+      const body = (await response.json()) as { folders: ListedFolder[] }
+      const folders = body.folders
+        .filter((folder) => folder.general || folder.personal)
+        .map((folder) => ({ ...folder, dashboard_count: 0 }))
+      await route.fulfill({ response, json: { ...body, folders } })
+    }
+  )
+}
+
 test("shows the empty state", async ({ page }) => {
+  await showOnlyBuiltInFolders(page)
   await page.route(isListRequest, (route) =>
     route.fulfill({ json: listBody([]) })
   )
@@ -589,6 +610,7 @@ test("keeps the empty state and a busy Retry when a refetch fails", async ({
   consoleErrors,
 }) => {
   await page.clock.install()
+  await showOnlyBuiltInFolders(page)
   let mode: "empty" | "fail" | "slow" = "empty"
   let release!: () => void
   const gate = new Promise<void>((resolve) => (release = resolve))

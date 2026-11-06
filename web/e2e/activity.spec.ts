@@ -413,9 +413,9 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(running).toHaveCount(1)
 
         finish()
-        await expect(entry.getByText("Resolved by version 2")).toBeVisible({
-          timeout: agentTimeout,
-        })
+        const saved = entry.getByRole("link", { name: "Saved as version 2" })
+        await expect(saved).toBeVisible({ timeout: agentTimeout })
+        await expect(saved).toHaveAttribute("href", /versions\?from=1&to=2/)
         await expect(running).toHaveCount(0)
         const version = entries(page).filter({
           has: page.getByText("Version 2", { exact: true }),

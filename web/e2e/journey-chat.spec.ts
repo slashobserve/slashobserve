@@ -8,6 +8,7 @@ const agentTimeout = 90_000
 const askPrompt = "demo shop RED metrics by endpoint"
 const followUpPrompt = "Show this per route"
 const requestPath = /\/c\/([0-9a-f-]{36})$/
+const buildPath = /\/b\/([0-9a-f-]{36})$/
 const dashboardTitle = "Demo shop RED metrics"
 const refinedDashboardTitle = "E2E dashboard"
 
@@ -24,8 +25,7 @@ function composer(page: Page) {
 function historyRows(page: Page): Locator {
   return page
     .getByRole("complementary", { name: "History" })
-    .getByRole("list")
-    .getByRole("button")
+    .locator("[data-chat-row]")
 }
 
 for (const colorScheme of ["light", "dark"] as const) {
@@ -52,16 +52,30 @@ for (const colorScheme of ["light", "dark"] as const) {
         await composer(page).fill(askPrompt)
         await composer(page).press("Enter")
 
-        await expect(page).toHaveURL(requestPath)
-        firstId = requestPath.exec(page.url())?.[1] ?? ""
+        await expect(page).toHaveURL(buildPath)
+        firstId = buildPath.exec(page.url())?.[1] ?? ""
         expect(firstId).not.toBe("")
       })
 
-      await test.step("watch the steps", async () => {
-        await expect(firstTurn).toBeVisible()
-        await expect(firstTurn.getByText(/Saved as version 1/)).toBeVisible({
+      await test.step("watch the build open the dashboard", async () => {
+        await expect(
+          page
+            .getByRole("complementary", { name: "Chat" })
+            .getByText(askPrompt, { exact: true })
+        ).toBeVisible()
+        await expect(page).toHaveURL(/\/d\/[0-9a-f-]{36}/, {
           timeout: agentTimeout,
         })
+        await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+          dashboardTitle
+        )
+        await expectPanelsReady(page)
+      })
+
+      await test.step("watch the steps", async () => {
+        await page.goto(`/c/${firstId}`)
+        await expect(firstTurn).toBeVisible()
+        await expect(firstTurn.getByText(/Saved as version 1/)).toBeVisible()
         await expect(
           firstTurn.getByRole("link", { name: /^Open dashboard/ })
         ).toBeVisible()
