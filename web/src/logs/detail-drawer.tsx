@@ -18,6 +18,7 @@ import { LogDetails, type LogSelection } from "@/panels/logs/logs-panel"
 import { SidePanel } from "@/shell/side-panel"
 
 import { ContextTab } from "./context-panel"
+import { linePermalink } from "./line-fields"
 import { contextBlocker, OpenTraceLink } from "./logs-results"
 import { isSearchFamily } from "./search"
 import { traceDatasourceFor, traceIdOf } from "./trace-link"
@@ -184,7 +185,7 @@ export function DetailDrawer({
             Copy line
           </CopyButton>
           <CopyButton
-            text={window.location.href}
+            text={linePermalink(window.location.href, entry)}
             label="Copy link"
             variant="outline"
             size="xs"

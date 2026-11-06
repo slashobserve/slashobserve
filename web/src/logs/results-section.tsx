@@ -1,3 +1,5 @@
+import { useCallback, useMemo, useState } from "react"
+
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/empty-state"
@@ -11,7 +13,8 @@ import { describeRange } from "@/lib/time"
 import { typeName } from "./datasource-picker"
 import { exploreErrorText, offlineText } from "./explore"
 import { rowCount } from "./frames"
-import { LogsResults } from "./logs-results"
+import { columnList, columnsText } from "./line-fields"
+import { LogsResults, type ResultsView } from "./logs-results"
 import { PatternsView } from "./patterns-view"
 import { isSearchFamily } from "./search"
 import { streamLimit, streamLimitText } from "./stream-limit"
@@ -61,6 +64,33 @@ export function ResultsSection() {
     labels,
   } = useLogsWorkspace()
   const allDatasources = useDatasources()
+  const [view, setView] = useState<ResultsView>({
+    order: "newest",
+    wrap: false,
+    prettify: false,
+    columnSort: null,
+  })
+  const onViewChange = useCallback(
+    (change: Partial<ResultsView>) =>
+      setView((current) => ({ ...current, ...change })),
+    []
+  )
+  const columns = useMemo(() => columnList(search.cols), [search.cols])
+  const onColumnsChange = useCallback(
+    (names: string[]) => {
+      setView((current) =>
+        current.columnSort !== null && !names.includes(current.columnSort.name)
+          ? { ...current, columnSort: null }
+          : current
+      )
+      update({ cols: columnsText(names) }, { replace: true })
+    },
+    [update]
+  )
+  const onLinkedChange = useCallback(
+    (line: string | undefined) => update({ line }, { replace: true }),
+    [update]
+  )
   const { ref, height } = useElementSize<HTMLDivElement>()
   const q = search.q
   const patterns = search.view === "patterns"
@@ -141,6 +171,12 @@ export function ResultsSection() {
         onSelect={detail.select}
         onContext={(selection) => detail.select(selection, "context")}
         detailsId={detail.drawerId}
+        view={view}
+        onViewChange={onViewChange}
+        columns={columns}
+        onColumnsChange={onColumnsChange}
+        linkedId={search.line}
+        onLinkedChange={onLinkedChange}
       />
     ) : null
   }
