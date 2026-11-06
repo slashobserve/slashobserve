@@ -29,7 +29,7 @@ An Admin stores a Grafana URL and a service-account token once and lets the serv
 Each dashboard goes through the same importer as [Import Grafana dashboards](import-grafana.md), with the same datasource matching, the same report and one import record per dashboard.
 
 
-Open Settings and choose the Grafana tab; only Admins see it.
+Open Settings and scroll to the Grafana connection section; only Admins see it.
 Give the connection a name, the Grafana URL and the service account token, and choose Add connection.
 The token is stored encrypted and is never shown again, not in the web app and not in the API.
 Choose Test on the connection to check it: the outcome names how many top-level folders and dashboards the server found, for example `Connected: 12 top-level folders, 340 dashboards.`
@@ -151,7 +151,7 @@ Any signed-in person can call it, and a uid whose dashboard is in a folder they 
 
 ## The API
 
-Everything in the Grafana tab is also in the HTTP API for Admins and Admin keys, and the repair queue for Editors and Admins.
+Everything in the Grafana connection section is also in the HTTP API for Admins and Admin keys, and the repair queue for Editors and Admins.
 The health list and apply have their own APIs, described in [Dashboard health](dashboard-health.md#api) and [Dashboards as code](dashboards-as-code.md#api).
 
 ### Connections
