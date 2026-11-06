@@ -232,6 +232,13 @@ export type LogFacetsParams = {
   fields?: string[]
 }
 
+export type LogPatternsParams = {
+  query: string
+  from: string
+  to: string
+  limit: number
+}
+
 export type TraceStatsParams = { query: string; from: string; to: string }
 export type TraceCompareParams = {
   selected: string[]
@@ -260,6 +267,8 @@ export const exploreKeys = {
     ["explore", uid, "trace", id, range] as const,
   facets: (uid: string, params: LogFacetsParams) =>
     ["explore", uid, "facets", params] as const,
+  patterns: (uid: string, params: LogPatternsParams) =>
+    ["explore", uid, "patterns", params] as const,
   traceStats: (uid: string, params: TraceStatsParams) =>
     ["explore", uid, "trace-stats", params] as const,
   traceCompare: (uid: string, params: TraceCompareParams) =>

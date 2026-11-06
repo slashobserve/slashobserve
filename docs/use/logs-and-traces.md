@@ -145,6 +145,29 @@ On ClickHouse the page adds a condition to the `WHERE` clause, and a query witho
 **Hide fields** folds the column to a strip with **Show fields**, and the page remembers the choice.
 Below 1,000 pixels wide the column is hidden.
 
+## Patterns
+
+The **Patterns** tab beside **Documents** groups the lines the query matches into templates and counts them.
+The tab shows how many patterns there are once they have loaded, and it stays disabled until a query has run.
+A template keeps the fixed words of a line and writes each number or id as `<*>`.
+Each row shows the template, its count, its share of the matching lines, a small chart of how often it occurred across the time range with its change over the range ("new" for a pattern that appeared late), and a dot for its level.
+The heading says how many patterns there are and what share of the documents they cover, and **Sort patterns** orders the rows by most lines or by newest.
+
+Where the patterns come from depends on the datasource.
+Loki answers from its pattern index over the whole range when the pattern ingester is on and the query is a bare stream selector; otherwise, and on ClickHouse, the page groups the newest 2,000 lines itself and the counts are for that sample only.
+Elasticsearch groups the matching documents with its `categorize_text` aggregation when the cluster has it; OpenSearch and a cluster without it are grouped by the page like ClickHouse.
+The note under the table says which applies.
+
+**Filter** keeps only the lines of a pattern and **Filter out** drops them, and both return to **Documents** with the rewritten query, so **Back** returns to the previous one.
+On Loki the page adds a regular expression line filter (`|~` or `!~`) after the existing stages, and on ClickHouse a `match(Body, ...)` condition in the `WHERE` clause.
+On Elasticsearch and OpenSearch it adds KQL clauses on `message` for the fixed words of the pattern.
+A query the page cannot rewrite, such as a Lucene or Query DSL query or a ClickHouse query without a `WHERE`, keeps both buttons disabled.
+**Samples** shows the newest line of a pattern when the server read the lines itself.
+
+The table shows the nine largest patterns and every pattern with at least 1% of the lines.
+The rest fold under "9 of 14 patterns shown, 5 cover under 1% each" until you press **Show all**.
+The page asks for the 20 largest patterns; **Show 100** asks for more when there are more.
+
 ## Ask on the logs page
 
 The mode switch in the top right corner of the query box switches between a question, the builder and the query.

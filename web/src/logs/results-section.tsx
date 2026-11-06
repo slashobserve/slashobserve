@@ -15,7 +15,7 @@ import { exploreErrorText, offlineText } from "./explore"
 import { rowCount } from "./frames"
 import { columnList, columnsText } from "./line-fields"
 import { LogsResults, type ResultsView } from "./logs-results"
-import { PatternsView } from "./patterns-view"
+import { PatternsTabLabel, PatternsView } from "./patterns-view"
 import { isSearchFamily } from "./search"
 import { streamLimit, streamLimitText } from "./stream-limit"
 import { traceDatasourceFor } from "./trace-link"
@@ -190,12 +190,18 @@ export function ResultsSection() {
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border px-3 py-2">
         <Tabs
           value={patterns ? "patterns" : "documents"}
-          onValueChange={(next) =>
+          onValueChange={(next) => {
+            if (next === "patterns") tail.stop()
             update({ view: next === "patterns" ? "patterns" : undefined })
-          }
+          }}
         >
           <TabsList variant="line">
             <TabsTrigger value="documents">Documents</TabsTrigger>
+            <span title={q === undefined ? "Run a query first." : undefined}>
+              <TabsTrigger value="patterns" disabled={q === undefined}>
+                <PatternsTabLabel />
+              </TabsTrigger>
+            </span>
           </TabsList>
         </Tabs>
         {hits === null ? null : (
