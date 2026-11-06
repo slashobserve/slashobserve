@@ -16,6 +16,25 @@ Its metrics are in the `prom` datasource, and its logs and traces are in `ch`.
 Setting `SLASHOBSERVE_LOADGEN_CURVE=flat` in the compose `.env` file does the same.
 A stack that already wrote its history keeps that history until `make demo-reset`, so reset it after switching the curve.
 
+## Deploy markers
+
+The load generator also posts [annotations](../use/annotations.md) that look like deploys, so the markers on the provisioned dashboards are not empty on the first run.
+At start, and again after 00:00, 06:00, 12:00 and 18:00 UTC, it lists the global annotations tagged `deploy` of the last 26 hours and posts each missing one at those times, such as `Deploy checkout v1.12.3: tune the connection pool`, tagged `deploy` and the service name.
+The texts and services come from the load generator's seed, so every stack shows the same ones.
+
+It posts as the `demo-loadgen` service account, an Editor because global annotations need that role.
+The account and its key come from `deploy/compose/service-accounts.yaml`, the [service-accounts file](service-account-keys.md#declare-service-accounts-in-a-file) the server reads at boot.
+The one-shot `demo-keys` service writes a new random key to the `demo-keys` volume on the first start, and leaves it alone afterwards, so no key is ever stored in the repository; `make demo-reset` drops the volume, and the next start writes a new key.
+
+To turn the markers off, set both variables to empty, in the shell or in the compose `.env` file:
+
+```sh
+SLASHOBSERVE_DEMO_MARKERS_URL= SLASHOBSERVE_SERVICE_ACCOUNTS_FILE= make demo
+```
+
+`SLASHOBSERVE_DEMO_MARKERS_URL` empty stops the posting, and `SLASHOBSERVE_SERVICE_ACCOUNTS_FILE` empty stops the server from creating the account.
+The markers already posted stay until you delete them or reset the stack.
+
 ## Metrics
 
 | Metric | Type | Labels | What it shows |

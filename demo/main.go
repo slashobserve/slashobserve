@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/slashobserve/slashobserve/demo/internal/keygen"
 	"github.com/slashobserve/slashobserve/demo/internal/loadgen"
 	"github.com/slashobserve/slashobserve/demo/internal/shopapp"
 	"github.com/slashobserve/slashobserve/demo/internal/synth"
@@ -18,6 +19,9 @@ func main() {
 }
 
 func run(args []string) int {
+	if len(args) == 2 && args[0] == "keygen" {
+		return keygenAt(args[1])
+	}
 	if len(args) != 1 {
 		return usage()
 	}
@@ -43,7 +47,17 @@ func run(args []string) int {
 	return 0
 }
 
+func keygenAt(path string) int {
+	outcome, err := keygen.Run(path)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "shop:", err)
+		return 1
+	}
+	fmt.Println("shop: demo key", outcome, "at", path)
+	return 0
+}
+
 func usage() int {
-	fmt.Fprintln(os.Stderr, "usage: shop serve|loadgen|synth|healthcheck")
+	fmt.Fprintln(os.Stderr, "usage: shop serve|loadgen|synth|healthcheck|keygen <path>")
 	return 2
 }

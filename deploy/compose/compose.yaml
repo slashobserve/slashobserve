@@ -90,13 +90,18 @@ services:
       SLASHOBSERVE_LLM_REPLAY_DIR: /etc/slashobserve/llm-fixtures
       SLASHOBSERVE_PROVISION_DIR: /provision
       SLASHOBSERVE_SECRET_KEY: ${SLASHOBSERVE_SECRET_KEY:-6d1f0c3b9a8e4d7c2b5a6f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c}
+      SLASHOBSERVE_SERVICE_ACCOUNTS_FILE: ${SLASHOBSERVE_SERVICE_ACCOUNTS_FILE-/etc/slashobserve/service-accounts.yaml}
     volumes:
       - ${SLASHOBSERVE_DATASOURCES_HOST_FILE:-./datasources.yaml}:/etc/slashobserve/datasources.yaml:ro
       - ../../e2e/fixtures/llm:/etc/slashobserve/llm-fixtures:ro
       - ./dashboards:/provision:ro
+      - ./service-accounts.yaml:/etc/slashobserve/service-accounts.yaml:ro
+      - demo-keys:/demo-keys:ro
     ports:
       - "127.0.0.1:${SLASHOBSERVE_HOST_PORT:-8080}:8080"
     depends_on:
+      demo-keys:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       dex:
@@ -288,6 +293,15 @@ services:
       SHOP_POD: payments-0
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
 
+  demo-keys:
+    <<: *shop
+    # The distroless image owns /home/nonroot, so a new volume mounted there is writable by its nonroot user.
+    command: [keygen, /home/nonroot/loadgen.key]
+    restart: "no"
+    depends_on: {}
+    volumes:
+      - demo-keys:/home/nonroot
+
   loadgen:
     <<: *shop
     command: [loadgen]
@@ -297,6 +311,8 @@ services:
       LOADGEN_SEED: "42"
       LOADGEN_CURVE: ${SLASHOBSERVE_LOADGEN_CURVE:-daily}
       LOADGEN_START_FILE: /prometheus/backfill-end
+      LOADGEN_OBSERVE_URL: ${SLASHOBSERVE_DEMO_MARKERS_URL-http://server:8080}
+      LOADGEN_OBSERVE_TOKEN_FILE: /demo-keys/loadgen.key
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     depends_on:
       frontend-0:
@@ -305,6 +321,7 @@ services:
         condition: service_started
     volumes:
       - prometheus-data:/prometheus:ro
+      - demo-keys:/demo-keys:ro
     deploy:
       resources:
         limits:
@@ -312,6 +329,7 @@ services:
           cpus: "0.5"
 
 volumes:
+  demo-keys:
   postgres-data:
   prometheus-data:
   clickhouse-data:

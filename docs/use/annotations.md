@@ -72,6 +72,26 @@ Add `dashboard_id`, and optionally `panel_id`, to pin the note to one dashboard 
 
 The text is 1 to 2000 characters.
 
+In GitHub Actions, store the key as a repository secret named `OBSERVE_TOKEN` and add a step after the deploy:
+
+```yaml
+- name: Post a deploy marker
+  env:
+    OBSERVE_SERVER: https://observe.example.com
+    OBSERVE_TOKEN: ${{ secrets.OBSERVE_TOKEN }}
+  run: |
+    curl -fsS -X POST "$OBSERVE_SERVER/api/v1/annotations" \
+      -H "Authorization: Bearer $OBSERVE_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d "{\"text\": \"Deploy ${GITHUB_REPOSITORY} ${GITHUB_SHA::7}\", \"tags\": [\"deploy\"]}"
+```
+
+A pipeline that needs a key before anyone signs in can get one from the [service-accounts file](../operate/service-account-keys.md#declare-service-accounts-in-a-file).
+
+## Deploy markers in the demo
+
+The [demo stack](../operate/demo.md#deploy-markers) posts a global deploy marker at 00:00, 06:00, 12:00 and 18:00 UTC, tagged `deploy` and the service it names, so the charts of the provisioned dashboards show markers on the first run.
+
 ## Tags
 
 Tags group annotations so a dashboard can show only the kinds it cares about.

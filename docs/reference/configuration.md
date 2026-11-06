@@ -38,6 +38,12 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 | ------------------------------- | ------- | ------------------------------------------------------------------------------ |
 | `SLASHOBSERVE_DATASOURCES_FILE` | unset   | Path to the [datasources file](datasources-file.md). Unset means no datasources. |
 
+## Service accounts
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `SLASHOBSERVE_SERVICE_ACCOUNTS_FILE` | unset | Path to a YAML file of service accounts that the server creates or updates at every start, each with the key read from its `keyFile`. Unset or empty means none. An account from the file answers 409 `provisioned` to role changes and key revocation in the web app and the API; rotate its key by writing a new one to the file and restarting. See [Service-account keys](../operate/service-account-keys.md#declare-service-accounts-in-a-file). |
+
 ## Dashboard provisioning
 
 | Variable | Default | Notes |

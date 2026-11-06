@@ -54,6 +54,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/scheduler"
 	"github.com/slashobserve/slashobserve/internal/server"
 	"github.com/slashobserve/slashobserve/internal/server/mcp"
+	"github.com/slashobserve/slashobserve/internal/stars"
 	"github.com/slashobserve/slashobserve/internal/users"
 )
 
@@ -126,6 +127,15 @@ func datasourcesExit(err error) error {
 	if errors.As(err, &buildErr) {
 		exit.attrs = []any{slog.String("datasource_uid", buildErr.UID)}
 		exit.detail = buildErr.Message
+	}
+	return exit
+}
+
+func serviceAccountsExit(err error) error {
+	exit := &exitError{code: "service_accounts_failed", cause: err}
+	var refused *auth.ProvisionRefusedError
+	if errors.As(err, &refused) {
+		exit.detail = refused.Error()
 	}
 	return exit
 }
@@ -256,6 +266,9 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	if err := authService.EnsureProvisioned(ctx, cfg.ServiceAccounts); err != nil {
+		return serviceAccountsExit(err)
+	}
 
 	folderAccess := folders.NewAccess(database)
 
@@ -364,6 +377,7 @@ func run() error {
 			assets.NewHandler(assetsClient, logger),
 			annotationsHandler,
 			dashprovision.NewHandler(provisioner, logger),
+			stars.NewHandler(stars.New(database, folderAccess), folderAccess.RequireDashboard(folders.NeedView), logger),
 		},
 		Mounts: append([]server.Mount{{
 			Path:    "/mcp",

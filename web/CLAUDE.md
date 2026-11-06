@@ -50,6 +50,8 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   It groups the server's `pkg/spec.Diff` changes with `groupChanges`.
 - A new API key lives only in the Create key panel's component state: the mutation uses `gcTime: 0`, and the response never reaches the query cache or storage.
   Key snippets reference `OBSERVE_TOKEN` instead of the key.
+- `web/src/home/` is the home page's dashboards section.
+  Stars come from `GET /api/v1/stars` under `starKeys` and change only through `useStarMutation`; recently viewed dashboards live only in `localStorage` under `slashobserve-recent-dashboards` (at most 20, written by `useRecordRecent` in the dashboard route) and never reach the server.
 - Import JSON stays out of query keys (they use a source id) and is never stored outside page state.
 - Comment bodies render as plain text only.
 

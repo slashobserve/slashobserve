@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -34,11 +35,13 @@ const (
 )
 
 type Config struct {
-	Target    string
-	RPS       int
-	Seed      uint64
-	StartFile string
-	Curve     Curve
+	Target           string
+	RPS              int
+	Seed             uint64
+	StartFile        string
+	Curve            Curve
+	ObserveURL       string
+	ObserveTokenFile string
 }
 
 func ConfigFromEnv(lookup func(string) (string, bool)) (Config, error) {
@@ -47,11 +50,13 @@ func ConfigFromEnv(lookup func(string) (string, bool)) (Config, error) {
 		return strings.TrimSpace(value)
 	}
 	cfg := Config{
-		Target:    strings.TrimRight(get("LOADGEN_TARGET"), "/"),
-		RPS:       defaultRPS,
-		Seed:      defaultSeed,
-		StartFile: get("LOADGEN_START_FILE"),
-		Curve:     CurveDaily,
+		Target:           strings.TrimRight(get("LOADGEN_TARGET"), "/"),
+		RPS:              defaultRPS,
+		Seed:             defaultSeed,
+		StartFile:        get("LOADGEN_START_FILE"),
+		Curve:            CurveDaily,
+		ObserveURL:       strings.TrimRight(get("LOADGEN_OBSERVE_URL"), "/"),
+		ObserveTokenFile: get("LOADGEN_OBSERVE_TOKEN_FILE"),
 	}
 	if cfg.Target == "" {
 		return Config{}, errors.New("LOADGEN_TARGET is required")
@@ -77,7 +82,23 @@ func ConfigFromEnv(lookup func(string) (string, bool)) (Config, error) {
 	default:
 		return Config{}, fmt.Errorf("LOADGEN_CURVE must be daily or flat, got %q", raw)
 	}
+	if err := cfg.checkMarkers(); err != nil {
+		return Config{}, err
+	}
 	return cfg, nil
+}
+
+func (c Config) checkMarkers() error {
+	if c.ObserveURL == "" {
+		return nil
+	}
+	if u, err := url.Parse(c.ObserveURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.RawQuery != "" || u.Fragment != "" {
+		return fmt.Errorf("LOADGEN_OBSERVE_URL must be an absolute http or https URL, got %q", c.ObserveURL)
+	}
+	if c.ObserveTokenFile == "" {
+		return errors.New("LOADGEN_OBSERVE_TOKEN_FILE is required when LOADGEN_OBSERVE_URL is set")
+	}
+	return nil
 }
 
 func (c Config) gap(at time.Time) time.Duration {
@@ -99,7 +120,12 @@ func Run(ctx context.Context, lookup func(string) (string, bool), logger *slog.L
 	if err != nil {
 		return err
 	}
-	logger.Info("loadgen started", "target", cfg.Target, "rps", cfg.RPS, "seed", cfg.Seed, "curve", cfg.Curve)
+	logger.Info("loadgen started", "target", cfg.Target, "rps", cfg.RPS, "seed", cfg.Seed, "curve", cfg.Curve, "deploy_markers", cfg.ObserveURL != "")
+	if cfg.ObserveURL != "" {
+		var markers sync.WaitGroup
+		markers.Go(func() { runMarkers(ctx, cfg, logger) })
+		defer markers.Wait()
+	}
 	if cfg.StartFile != "" {
 		if err := waitForStart(ctx, cfg.StartFile, logger); err != nil {
 			return err

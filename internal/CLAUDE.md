@@ -19,6 +19,7 @@ This lists only the packages whose purpose the name does not make obvious.
   `queryproxy/proxyhttp` holds its HTTP handlers, a subpackage because it reads versions through `dashboards`, which imports `queryproxy`.
 - `agent`: the agent loop; `agent/tools` is the only place agent tools are defined; `agent/prompts` holds the embedded prompts.
 - `findings`: stores investigate results; `revisions` reads them only through sqlc and the `ObserveOptions.Finding` func, and never imports `findings`.
+- `stars`: each person's starred dashboards, stored on the server so they follow the person across browsers; keys get 403 `user_session_required`, and recently viewed dashboards stay in the browser.
 
 ## Secrets and configuration
 
@@ -26,6 +27,8 @@ This lists only the packages whose purpose the name does not make obvious.
   The LLM API key is never logged or echoed in an error.
 - The datasources file never holds a secret.
   Passwords and tokens are referenced by `*Env` names that start with `SLASHOBSERVE_` or by `*File` paths.
+- `SLASHOBSERVE_SERVICE_ACCOUNTS_FILE` is the only way to create a credential with no person in the loop: each account's key is read from its `keyFile`, never inline, and stored only as SHA-256.
+  `auth.EnsureProvisioned` runs at boot before the server listens, marks the accounts `provisioned`, never adopts an account it did not create, and replaces the `From file` key when the file's key changes; `planProvision` is the one decision, and the API answers 409 `provisioned` to role changes and key revocation on those accounts.
 - `SLASHOBSERVE_OIDC_ISSUER_URL` is used exactly as given because issuer comparison is exact.
   The issuer is the browser-facing URL, and `SLASHOBSERVE_OIDC_INTERNAL_URL` only rewrites the host of the server's back-channel.
 - The CLI sends its saved key only to the server it was saved for.

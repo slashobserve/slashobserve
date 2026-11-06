@@ -137,7 +137,7 @@ export interface paths {
         head?: never;
         /**
          * Change the role a service account's keys act with.
-         * @description Service accounts cannot call this endpoint.
+         * @description Service accounts cannot call this endpoint. An account from the service-accounts file answers 409 `provisioned`, because its role comes from the file.
          */
         patch: operations["updateServiceAccountRole"];
         trace?: never;
@@ -175,7 +175,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Revoke a key of a service account. */
+        /**
+         * Revoke a key of a service account.
+         * @description A key of an account from the service-accounts file answers 409 `provisioned`; rotate the file key by writing a new key to its file and restarting the server.
+         */
         delete: operations["revokeServiceAccountKey"];
         options?: never;
         head?: never;
@@ -1710,6 +1713,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboards/{id}/star": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Star a dashboard for the signed-in person.
+         * @description Stars belong to one person and follow them across browsers. Starring a dashboard that is already starred changes nothing. Only signed-in people may star: a service-account key gets 403 `user_session_required`.
+         */
+        put: operations["starDashboard"];
+        post?: never;
+        /**
+         * Remove the signed-in person's star from a dashboard.
+         * @description Removing a star that does not exist changes nothing. A service-account key gets 403 `user_session_required`.
+         */
+        delete: operations["unstarDashboard"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the signed-in person's starred dashboards, newest star first.
+         * @description Lists at most 200 stars, and only dashboards in folders the caller can see. A service-account key gets 403 `user_session_required`.
+         */
+        get: operations["listStars"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1775,6 +1824,8 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             role: components["schemas"]["Role"];
+            /** @description The account comes from the server's service-accounts file (`SLASHOBSERVE_SERVICE_ACCOUNTS_FILE`); its role, description and file key change only there. */
+            provisioned: boolean;
         };
         ServiceAccountList: {
             items: components["schemas"]["ServiceAccount"][];
@@ -3486,6 +3537,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The account comes from the service-accounts file (`provisioned`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };
@@ -3570,6 +3630,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The account comes from the service-accounts file (`provisioned`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };
@@ -7555,6 +7624,114 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    starDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The dashboard is starred. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`), or cannot see the dashboard (`forbidden_role`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    unstarDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The dashboard is not starred. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`), or cannot see the dashboard (`forbidden_role`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listStars: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The starred dashboards. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            title: string;
+                            /** Format: uuid */
+                            folder_id: string;
+                            folder_title: string;
+                            /** Format: date-time */
+                            starred_at: string;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
         };
     };
 }

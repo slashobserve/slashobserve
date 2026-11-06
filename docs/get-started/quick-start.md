@@ -35,10 +35,28 @@ The first run downloads about 0.7 GB of images, which take about 2.7 GB on disk,
 It passes `SLASHOBSERVE_LLM_PROVIDER`, `SLASHOBSERVE_LLM_MODEL`, `SLASHOBSERVE_LLM_API_KEY` and `SLASHOBSERVE_LLM_BASE_URL` from your shell to the server container; the other LLM settings are not forwarded.
 Run `make demo` again after changing them.
 Without a provider the demo still starts, but prompts get `503 agent_unavailable`.
+The home page then shows the three dashboards and the **Import from Grafana** link in place of the composer, so you can look around before you add a key.
 To build the server and shop images from your working tree instead of pulling them, which is for people changing the code, run `make demo-build`.
 Prometheus is on http://localhost:9090 and the shop's fault API on http://localhost:8081/fault.
 Stop the stack with `make demo-down`, or drop its data as well with `make demo-reset`.
 On first boot, and again after `make demo-reset`, Prometheus backfills 26 hours of synthetic request and latency history, so prompts that compare today with yesterday have data.
+
+## Run with a local model
+
+The agent also runs on a model served on your own machine through any OpenAI-compatible server, such as Ollama.
+Start the model server first, then point the demo at it from the host's side of Docker:
+
+```sh
+export SLASHOBSERVE_LLM_PROVIDER=openai
+export SLASHOBSERVE_LLM_BASE_URL=http://host.docker.internal:11434/v1
+export SLASHOBSERVE_LLM_MODEL=<model name>
+make demo
+```
+
+`SLASHOBSERVE_LLM_API_KEY` stays unset for a server that needs no key, as Ollama does.
+`host.docker.internal` reaches the host on Docker Desktop; on a Linux Docker engine, use the host's address on the Docker bridge, such as `http://172.17.0.1:11434/v1`, and make the model server listen on it.
+The model must support tool calling, and dashboard quality depends heavily on the model.
+[LLM providers](../connect/llm-providers.md) lists every provider setting.
 
 To see the dashboards react to a failure, break the checkout service with `make demo-fault TYPE=errors PCT=50` (or `TYPE=latency`) and undo it with `make demo-fault-reset`.
 

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import { Button } from "@/components/ui/button"
 import { useDatasources } from "@/datasources/queries"
+import { DashboardsSection } from "@/home/dashboards-section"
 import { useAgentInfo } from "@/observe/queries"
 import { SavedPrompts } from "@/prompts/saved-prompts"
 import { dashboardTitlesQuery } from "@/shell/palette-queries"
@@ -24,12 +25,14 @@ export function ChatHome() {
     dashboards: dashboards.data ?? noDashboards,
   })
   const agentReady = !agent.isPending && agent.data?.available !== false
+  const agentOff = agent.data?.available === false
 
   return (
     <div className="flex min-h-full flex-col items-center justify-center gap-3.5 pt-10 pb-20">
       <h1 className="mb-1.5 text-center text-[26px] font-semibold tracking-[-0.01em]">
         What do you want to see?
       </h1>
+      {agentOff ? <DashboardsSection /> : null}
       <div className="w-full max-w-[720px]">
         <ChatComposer
           rows={3}
@@ -59,6 +62,7 @@ export function ChatHome() {
           ))}
         </div>
       )}
+      {agentReady ? <DashboardsSection /> : null}
       <SavedPrompts />
       <RecentChats />
     </div>

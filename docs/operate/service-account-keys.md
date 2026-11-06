@@ -22,3 +22,33 @@ Choosing another role for an existing account in the Create key panel changes th
 Folder access applies to a key as it does to a person, except that a key matches no folder entry: a restricted folder is invisible to it unless its service account is an Admin or created the folder (see [Folders and access](../teams/folders.md)).
 A key has no My Dashboards folder.
 Beyond that, see [the security model](security-model.md) for what any key can do.
+
+## Declare service accounts in a file
+
+A tool that must start with a key and no person in the loop, such as a deploy pipeline or the demo's load generator, gets its key from a file the server reads at boot.
+Point `SLASHOBSERVE_SERVICE_ACCOUNTS_FILE` at a YAML file that lists the accounts:
+
+```yaml
+serviceAccounts:
+  - name: deploy-bot
+    role: editor
+    description: Posts deploy markers from CI
+    keyFile: /run/secrets/deploy-bot.key
+```
+
+- `name` follows the same rule as in the web app, and each name appears once.
+- `role` is `viewer`, `editor` or `admin`.
+- `description` is optional, up to 256 characters.
+- `keyFile` is required and names a file that holds one key: `sok_` followed by 43 base64url characters, with surrounding whitespace ignored.
+  Each account needs its own key.
+  Generate one with `printf 'sok_%s\n' "$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n')"` and keep it out of version control.
+
+At each start the server creates every listed account, marked as provisioned, or updates its role and description to match the file.
+It keeps the key from `keyFile` as the account's one active key named `From file`, stored only as a SHA-256 hash, and never writes the key to a log or an error.
+The server refuses to start when the file is invalid, or when an account with a listed name already exists but was created in the web app or the API, because it never takes over such an account.
+
+A provisioned account is managed through the file only.
+Changing its role in the web app or with `PATCH /api/v1/service-accounts/{id}` answers 409 `provisioned`, and so does revoking one of its keys.
+To rotate the file key, write a new key to its file and restart the server: the old file key is revoked and the new one replaces it.
+A key that was revoked before cannot come back; write a fresh one.
+Removing an account from the file leaves it and its key in place.
