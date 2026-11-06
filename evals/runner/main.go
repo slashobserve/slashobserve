@@ -486,7 +486,7 @@ func prepare(args []string, stderr io.Writer) int {
 	}
 	for _, step := range steps {
 		target := filepath.Join(*out, step.dir)
-		if err := os.MkdirAll(target, 0o750); err != nil {
+		if err := os.MkdirAll(target, exposedDirPerm); err != nil {
 			return fail(stderr, err)
 		}
 		if err := step.generate(target); err != nil {
