@@ -3,7 +3,7 @@
 SlashObserve is an open-source, agentic Grafana replacement.
 Type `/observe checkout health by pod, last 6h`, get a live dashboard on your Prometheus and ClickHouse data, and refine it in plain language.
 
-Website and docs: https://slashobserve.github.io.
+Website and docs: https://slashobserve.com.
 
 ## Quick start
 

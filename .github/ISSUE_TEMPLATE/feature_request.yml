@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Check the known limitations in the docs first: https://slashobserve.github.io/docs/get-started/known-limitations/
+        Check the known limitations in the docs first: https://slashobserve.com/docs/get-started//known-limitations/
   - type: textarea
     id: problem
     attributes:

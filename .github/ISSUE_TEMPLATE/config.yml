@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/slashobserve/slashobserve/security/advisories/new
     about: Report vulnerabilities privately. Do not open a public issue.
   - name: Documentation
-    url: https://slashobserve.github.io/docs/
+    url: https://slashobserve.com/docs/
     about: Guides for installing, connecting datasources and operating SlashObserve.
