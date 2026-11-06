@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { styleForSlot } from "../colors"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
+import { niceTicks } from "./ruler"
 import { filterSpans, spanFilters, type SpanFilters } from "./span-filters"
 import { traceModel, visibleSpans, windowRows, type Span } from "./trace-model"
 
@@ -14,7 +15,6 @@ const rowHeight = 28
 const windowAfter = 200
 const overscan = 10
 const indentStep = 12
-const rulerTicks = [0, 0.25, 0.5, 0.75, 1]
 const ErrorIcon = thresholdIcons.critical
 
 export type TraceViewProps = {
@@ -26,9 +26,9 @@ export type TraceViewProps = {
   attributes: "inline" | "pane"
 }
 
-function tickClass(tick: number): string {
+function tickClass(tick: number, duration: number): string {
   if (tick === 0) return "left-0"
-  if (tick === 1) return "right-0"
+  if (tick >= duration) return "right-0"
   return "-translate-x-1/2"
 }
 
@@ -250,6 +250,7 @@ export function TraceView({
     () => visibleSpans(filtered.spans, collapsed),
     [filtered.spans, collapsed]
   )
+  const ticks = niceTicks(model.duration)
   const openIndex = rows.findIndex((span) => span.id === openId)
   const inline = attributes === "inline"
   const windowed = rows.length > windowAfter
@@ -318,20 +319,20 @@ export function TraceView({
             <span className="px-2 py-1">Service and operation</span>
             <div className="relative h-6 px-2" aria-hidden="true">
               <div className="relative h-full">
-                {rulerTicks.map((tick) => (
+                {ticks.map((tick) => (
                   <span
                     key={tick}
                     className={cn(
                       "absolute top-1 whitespace-nowrap tabular-nums",
-                      tickClass(tick)
+                      tickClass(tick, model.duration)
                     )}
                     style={
-                      tick === 0 || tick === 1
+                      tick === 0 || tick >= model.duration
                         ? undefined
-                        : { left: `${tick * 100}%` }
+                        : { left: `${(tick / model.duration) * 100}%` }
                     }
                   >
-                    {model.formatDuration(model.duration * tick)}
+                    {model.formatDuration(tick)}
                   </span>
                 ))}
               </div>
