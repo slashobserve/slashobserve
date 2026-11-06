@@ -38,7 +38,7 @@ Pinning needs Edit on the dashboard, and pinning a finding twice returns the sam
 
 ## Tools
 
-The built-in agent investigates with the same read tools it uses to build dashboards, plus `save_finding`, which is offered only in an investigation.
+The built-in agent investigates with the same read tools it uses to build dashboards, plus `list_annotations`, so it sees deploy markers beside a spike, and `save_finding`; both are offered only in an investigation.
 It does not get the dashboard save tools in an investigation.
 MCP clients investigate with their own model: they read data with the read tools, save the answer with `create_finding` and read earlier findings with `list_findings` (see [MCP](../use/mcp.md)).
 

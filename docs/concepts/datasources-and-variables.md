@@ -10,7 +10,7 @@ Both are fields of the [ObserveSpec](observespec.md) document.
 
 The `uid` of an entry in the [datasources file](../reference/datasources-file.md) is the name a dashboard uses.
 A uid is up to 40 letters, digits, `_` or `-`, starting with a letter or digit.
-The entry's `type`, `prometheus` or `clickhouse`, decides the query language and which macros a query may use.
+The entry's `type`, `prometheus`, `clickhouse`, `loki` or `tempo`, decides the query language and which macros a query may use.
 
 A data panel sets `datasource`, and any of its queries can set its own `datasource` to use a different one.
 A `query` variable and an `adhoc` variable set `datasource` too.
@@ -100,7 +100,7 @@ Otherwise a query that uses it fails, and the fix is to use the `regex` format, 
 ## Datasource variables
 
 A `datasource` variable lets a viewer switch a whole dashboard between datasources of one type, such as a production and a staging Prometheus.
-`datasourceType` is `prometheus` or `clickhouse`, the optional `regex` keeps only the uids it matches, and the optional `default` is a uid, never a `${name}`.
+`datasourceType` is `prometheus`, `clickhouse`, `loki` or `tempo`, the optional `regex` keeps only the uids it matches, and the optional `default` is a uid, never a `${name}`.
 A viewer picks exactly one datasource, so it has no `multi` or `includeAll`.
 
 To use it, write `${name}` as the `datasource` of a panel, of a query, of a `query` variable or of an `adhoc` variable.
