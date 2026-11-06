@@ -50,6 +50,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - The browser never computes version diffs.
   It groups the server's `pkg/spec.Diff` changes with `groupChanges`.
 - A new API key lives only in the Create key panel's component state: the mutation uses `gcTime: 0`, and the response never reaches the query cache or storage.
+  A new public link's address lives the same way in the Create public link form's state (`web/src/public/public-links-section.tsx`).
   Key snippets reference `OBSERVE_TOKEN` instead of the key.
 - Import JSON stays out of query keys (they use a source id) and is never stored outside page state.
 - Comment bodies render as plain text only.

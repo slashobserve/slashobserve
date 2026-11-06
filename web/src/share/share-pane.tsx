@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { searchFromState, type DashboardSearch } from "@/dashboards/search"
 import { describeRange } from "@/lib/time"
+import { PublicLinksSection } from "@/public/public-links-section"
 import type { Dashboard } from "@/spec"
 
 import {
@@ -126,6 +127,13 @@ export function SharePane({
       ) : (
         <WhoHasAccess folder={folder} canManage={canManage} headingId={whoId} />
       )}
+      {canManage && !folder.personal ? (
+        <PublicLinksSection
+          dashboardId={dashboardId}
+          variables={spec.variables}
+          vars={search.vars}
+        />
+      ) : null}
     </div>
   )
 }

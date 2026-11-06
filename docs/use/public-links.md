@@ -35,6 +35,15 @@ A link can expire after a chosen time, and it stops working when it does.
 Revoking a link deletes it, so its address stops working at once.
 The token in the address is shown once, when the link is created, and the server keeps only a hash of it, so a lost link cannot be shown again: create a new one and revoke the old one.
 
+## Create one in the Share pane
+
+People with Manage see **Public links** in the dashboard's Share pane, below "Who has access", for every dashboard outside My Dashboards.
+Choose how the variables behave: **Frozen** stores the values in the address you are looking at, and a variable the address does not set uses the dashboard's default; **Free** lets viewers choose.
+Then choose an expiry: none, 1 day, 7 days, 30 days, or a date, after which the link stops working at local midnight.
+**Create public link** shows the link's address once, with **Copy** and "Copy it now. It is not shown again."
+The list shows each link's prefix, its variables mode, its expiry, "Expired" or "Not usable: uses the viewer's identity" when it no longer opens, who created it and when, and when it was last viewed.
+**Revoke** asks for confirmation, then deletes the link.
+
 ## What a public view shows
 
 A public view at `/p/<token>` shows the dashboard's title, its panels, the time range and refresh pickers, and the variables a free link lets the viewer change; the other variables' values read as one line of text.
