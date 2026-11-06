@@ -101,9 +101,11 @@ Each datasource type answers these discovery tools:
 - ClickHouse: the same on the OpenTelemetry tables, plus `get_schema` and `sample_rows`.
 - Loki: `list_labels` and `list_label_values` for stream labels, narrowed by a stream selector in `metric`; `sample_rows` for up to 20 lines of the last 15 minutes, from every stream or from a stream selector in `table`; and `list_metrics` with a stream selector as `scope`.
 - Tempo: `list_labels` and `list_label_values` for TraceQL attributes, and `get_schema` for every service with its span names as `columns` and `rows`, plus `attributes`.
+- Elasticsearch and OpenSearch: `list_labels` for the fields you can group or filter by, `list_label_values` for a field's top values over the range, `get_schema` for the concrete indices of the index pattern, or with `table` set to an index name every mapped field with its kind, and `sample_rows` for up to 20 of the newest documents of the index pattern with no `table`.
+  `list_metrics` answers an empty list there, with or without `scope`.
 
 On Loki each family of a scoped `list_metrics` is a stream label key, and its `series` counts the streams that carry it.
-That inventory never replaces the one `uncovered` reads.
+That inventory, and the empty one of Elasticsearch and OpenSearch, never replaces the one `uncovered` reads.
 
 The server keeps the last scoped inventory of each service account.
 After one, the results of `create_dashboard`, `update_dashboard` and `update_panels` carry `uncovered`, up to 50 families of that inventory that no panel query names, and `uncovered_total`, how many there are in all; `uncovered` is `[]` once every family is covered.
@@ -130,7 +132,7 @@ It lists the dashboards with [health problems](dashboard-health.md) in the folde
 A client repairs a failing panel itself: it reads the panel with `get_panels` and saves the fix with `update_panels`.
 
 `draft_query` is available over MCP only.
-It turns a question into a checked LogQL, ClickHouse SQL or TraceQL query, or trace search filters, for one Loki, ClickHouse or Tempo datasource, as [Ask](logs-and-traces.md#ask-in-plain-language) does.
+It turns a question into a checked LogQL, ClickHouse SQL, KQL or TraceQL query, or trace search filters, for one Loki, ClickHouse, Elasticsearch, OpenSearch or Tempo datasource, as [Ask](logs-and-traces.md#ask-in-plain-language) does.
 It spends at most two of this server's model calls per question, checks the query with the lint and a short sample, and never runs the full query; run the answer with `query_instant`.
 A question it cannot turn into a query returns the tool error `cannot_translate` with the reason, and a server with no model returns `agent_unavailable`.
 

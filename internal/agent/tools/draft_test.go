@@ -15,9 +15,11 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/elasticsearch"
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/llm/replay"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const draftFixtures = "testdata/draft"
@@ -410,6 +412,81 @@ func TestDraftReturnsAnEmptySampleWithAWarning(t *testing.T) {
 	}
 	if want := []string{warnNoSampleMatches, warnEveryStream}; !slices.Equal(draft.Warnings, want) || len(provider.results) != 1 {
 		t.Fatalf("warnings %q after %d calls", draft.Warnings, len(provider.results))
+	}
+}
+
+func searchDraftDS(typ string) *roleFake {
+	return &roleFake{
+		fakeDS: &fakeDS{typ: typ, instantFn: oneRow,
+			discoverFn: searchCatalog([]string{"log.level", "service.name"}, map[string]string{"log.level": "keyword", "service.name": "keyword"},
+				map[string][]string{"service.name": {"checkout"}, "log.level": {"error"}}),
+			lintFn: func(_ context.Context, query string) ([]datasource.Diagnostic, error) {
+				switch {
+				case strings.Contains(query, "serivce"):
+					return []datasource.Diagnostic{{Severity: datasource.SeverityWarning, Message: "field serivce.name is not in the mapping"}}, nil
+				case strings.Contains(query, "(("):
+					return []datasource.Diagnostic{{Severity: datasource.SeverityError, Message: "unbalanced parenthesis"}}, nil
+				}
+				return nil, nil
+			}},
+		roles: elasticsearch.FieldRoles{Time: "@timestamp", Service: "service.name", Level: "log.level"},
+	}
+}
+
+func TestDraftWritesKQLOnElasticsearchAndOpenSearch(t *testing.T) {
+	cases := []struct {
+		name, answer string
+		warnings     []string
+	}{
+		{"clean kql", `service.name:checkout and log.level:error`, []string{}},
+		{"unknown field", `serivce.name:checkout`, []string{"field serivce.name is not in the mapping"}},
+		{"lucene prefix", `lucene:service.name:checkout`, []string{warnLucene}},
+		{"every document", `*`, []string{warnEveryDocument}},
+	}
+	for _, typ := range []string{"elasticsearch", "opensearch"} {
+		for _, c := range cases {
+			t.Run(typ+" "+c.name, func(t *testing.T) {
+				answer, _ := json.Marshal(map[string]string{"query": c.answer, "explanation": "Checkout errors."})
+				provider := &scriptedDraft{turns: []llm.Turn{submitTurn(string(answer))}}
+				r := searchRegistry(t, provider, searchDraftDS(typ))
+				draft, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: "es", Question: "checkout errors"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if draft.Language != languageKQL || draft.Query != c.answer || draft.TraceFilters != nil || !slices.Equal(draft.Warnings, c.warnings) {
+					t.Fatalf("draft %+v, want warnings %q", draft, c.warnings)
+				}
+				if !strings.Contains(provider.requests[0].Context, `values of service.name: "checkout"`) {
+					t.Fatalf("facts:\n%s", provider.requests[0].Context)
+				}
+			})
+		}
+	}
+}
+
+func TestDraftFixesAKQLQueryThatFailsItsLint(t *testing.T) {
+	provider := &scriptedDraft{turns: []llm.Turn{
+		submitTurn(`{"query":"((service.name:checkout","explanation":"Checkout lines."}`),
+		submitTurn(`{"query":"service.name:checkout","explanation":"Checkout lines."}`),
+	}}
+	r := searchRegistry(t, provider, searchDraftDS("elasticsearch"))
+	draft, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: "es", Question: "checkout lines"})
+	if err != nil || draft.Query != "service.name:checkout" {
+		t.Fatalf("draft %+v, err %v", draft, err)
+	}
+	if got := provider.results[1][0].Content; got != "the query fails the lint check: unbalanced parenthesis"+lastTurnNote {
+		t.Fatalf("corrective result %q", got)
+	}
+}
+
+func TestDraftOnASearchDatasourceTakesLogsOnly(t *testing.T) {
+	for _, typ := range []string{"elasticsearch", "opensearch"} {
+		r := searchRegistry(t, &scriptedDraft{}, searchDraftDS(typ))
+		_, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: "es", Question: "slow traces", Signal: signalTraces})
+		want := "es is an " + searchName(spec.DatasourceType(typ)) + " datasource, which holds logs; signal must be logs"
+		if !errors.Is(err, ErrDraftInvalid) || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: err = %v, want %q", typ, err, want)
+		}
 	}
 }
 
