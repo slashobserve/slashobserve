@@ -10,6 +10,9 @@ To bring over every dashboard of a running Grafana in one run, with its folders,
 
 Each datasource the dashboard uses is matched to one of yours, in the order described under `grafanaUids` in the [datasources file](../reference/datasources-file.md).
 An import cannot be saved while a datasource has no match, and SlashObserve never guesses between two datasources of the same type; give the match with the mapping that comes with the request, or add the Grafana uid to `grafanaUids`.
+SlashObserve imports Prometheus, ClickHouse, Loki and Tempo datasources.
+A Grafana datasource whose type has no configured datasource here does not block the import: its panels import as placeholders that say so, such as "No Loki datasource is configured.".
+A datasource of another type, such as Elasticsearch, imports its panels as placeholders that say "Elasticsearch is not supported yet.".
 
 The dashboard goes into a folder, chosen in this order:
 
@@ -73,6 +76,16 @@ A Prometheus query that Grafana runs as both an instant and a range query (`inst
 Both queries are hidden together, and a style override or a `filterByRefId` transformation that names the original ref covers the copy too.
 A query with `instant` on and `range` unset or off stays one instant query.
 A panel that already holds 26 queries keeps only the range query and reports the instant one.
+A Loki query imports its LogQL as written, on the matched Loki datasource.
+A Loki metric query keeps its legend, runs as an instant query when its `queryType` is `instant` (or, with no `queryType`, when `instant` is on), and keeps a resolution from 2 to 10 as `intervalFactor`.
+A Loki `step` of `$__interval` or `$__auto` imports as no minimum, and another step becomes the smallest step and is reported, because Grafana uses that step as is.
+`$__auto` in a Loki query becomes `$__range` in an instant query and `$__interval` otherwise, and the import report lists the rewrite.
+A Loki log query, one that starts with a stream selector, always reads the whole time range, so its legend, resolution and step have no effect, and an instant log query is reported.
+A Loki query whose `queryType` is `stream` imports as a range query and is reported.
+A Tempo query imports its TraceQL or trace id as written, on the matched Tempo datasource, and a trace id held in a variable, such as `${trace_id}`, is looked up after the variable is expanded.
+The Tempo search form state saved beside a TraceQL query (filters, group-by, service names, durations and the metrics options) is editor state and imports without a note.
+A Tempo query of the search builder or the legacy search, the service graph, an uploaded trace file, or a TraceQL metrics pipeline such as `| rate()` is dropped, and a panel left with no query becomes a placeholder.
+A Loki query variable imports as written, and one saved in the label values form becomes `label_values(<stream>, <label>)`; a Loki label names variable and any Tempo query variable keep their saved values as a fixed list, and an ad hoc variable on Loki or Tempo is dropped and reported.
 A server-side expression (math, reduce, resample or threshold) imports as an expression query that reads the queries it names (see [Expressions](../concepts/observespec.md#expressions)).
 A threshold keeps its main condition without its recovery threshold, because Grafana applies the recovery threshold only when it evaluates alert rules.
 A classic condition is dropped because it belongs to alert rules, which SlashObserve does not import, and a SQL expression is dropped because SlashObserve does not support it.
@@ -80,6 +93,7 @@ So are a math function SlashObserve does not support, math that reads a dashboar
 The import report gives the reason for each, and a panel keeps at least one data query or becomes a placeholder.
 Some Grafana options are reported and not imported by decision, because SlashObserve does not have the feature: Grafana Live streaming on Altinity queries, the log context toggle on logs panels, the log context window of Altinity queries, Grafana scopes on Prometheus queries, images served by a Grafana server, the Infinity datasource (canvas actions and field actions), Explore links, editing data from a panel, CSS taken from a field, recently viewed dashboards and Grafana folder ids in dashboard lists, the heatmap selection modes `xy` and `y`, alert rules in alert lists (inactive alerts, instances, the normal state filter, alert grouping), and the modes and counters of the debug panel.
 The same goes for vertical value axes placed at the top or bottom and ordinal value scales on time series, trend, candlestick, histogram, bar chart and XY chart panels, the time comparison and horizontal orientation of time series, bar gauge legends (turning one off imports without a note), the gauge layout options (orientation, manual sizing and the minimum sizes), infinite log scrolling and the log field selector, map cells in tables, the `anyMatch`, `allMatch` and `invertMatch` override matchers and the `byType` matcher for other fields, server element animation (blink rate and bulb color), data-driven canvas connections, canvas zoom to content, the one-click canvas tooltip and the canvas background image mapping mode, hidden log labels in Altinity logs settings, a group-by variable on ClickHouse, and the Altinity ad hoc values query.
+The same goes for Grafana Live streaming and the line limit of Loki queries (a logs panel shows up to the datasource's row limit), reading Loki lines oldest first, the Tempo search builder, the Tempo service graph, uploaded trace files, TraceQL metrics queries, and the trace limit, span-set limit and span tables of Tempo queries (a search lists one row per trace).
 Options that Grafana itself does not draw or read where they are written (the legend options of a stat panel, a log base on a query, the unit scale of a field, a Prometheus exemplar flag on an instant query or on a panel that draws no exemplars), editor state such as a query's help toggle or saved ad hoc filters, and inputs Grafana rejects are imported without a note.
 A query with no text is dropped without a note, because Grafana sends no request for it and the panel shows the same data without it; a panel left with no query becomes a placeholder.
 Among transformation options, the annotation and time region frame conversions, the exemplar frame conversion, the percent unary operator, the max window reducer, enum and time zone conversions of field types, ordering by label or in descending name order and by mode `auto`, the semicolon and pipe separators and names of partition by values, the ignore and threshold modes of rows to fields with its name and value fields, and the inline statistic of time series table are reported and not imported.

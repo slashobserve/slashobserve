@@ -3114,7 +3114,7 @@ export interface components {
             name: string | null;
             /** @description The Grafana datasource type. */
             type: string | null;
-            /** @description Our datasource type it needs (`prometheus` or `clickhouse`); null for a built-in datasource. */
+            /** @description Our datasource type it needs (`prometheus`, `clickhouse`, `loki` or `tempo`); null for a built-in datasource. A kind with no configured datasource has no candidates, does not block the import, and its panels import as placeholders. */
             kind: string | null;
             panels: number;
             /** @description The uid of our datasource it will use; null while unmatched. */
@@ -3411,7 +3411,7 @@ export interface components {
             name: string;
             /** @description The Grafana plugin id, such as `prometheus`. */
             type: string;
-            /** @description Our datasource type the importer maps it to (`prometheus` or `clickhouse`); null when SlashObserve does not query this type, and its panels import as placeholders. */
+            /** @description Our datasource type the importer maps it to (`prometheus`, `clickhouse`, `loki` or `tempo`); null when SlashObserve does not query this type, and its panels import as placeholders. A kind with no configured datasource has no candidates, and its panels also import as placeholders. */
             kind: string | null;
             /** @description The uids of our datasources of that kind, the only valid mapping targets. */
             candidates: string[];

@@ -53,8 +53,9 @@ Every request to Grafana keeps the outbound timeout and an 8 MiB size cap, and a
 Choose Import on a connection.
 Pick All folders, or Choose folders and tick the ones you want; a folder brings its subfolders with it, and General stands for the dashboards outside any folder.
 Then check the datasource matches.
-Each Grafana datasource of a type SlashObserve queries is listed with a choice of your datasources of the same type, prefilled by the importer's automatic rules, so a datasource of the wrong type is never offered.
+Each Grafana datasource of a type SlashObserve queries (Prometheus, ClickHouse, Loki or Tempo) is listed with a choice of your datasources of the same type, prefilled by the importer's automatic rules, so a datasource of the wrong type is never offered.
 A datasource with no match is flagged: dashboards that use it fail until you pick one.
+A datasource whose type has no configured datasource here is listed without a choice, and its panels import as placeholders that say which type is missing.
 Datasources of other types are counted in one line, and their panels import as placeholders.
 
 Choose Start import to begin.
@@ -168,8 +169,9 @@ A Grafana that cannot be reached or refuses the token still answers `200`, with 
 ### Datasources and folders
 
 `GET /api/v1/grafana/{id}/datasources` lists Grafana's datasources, and `matched_uid` names the datasource of yours each one matches by the importer's automatic rules.
-Each one also names its `kind`, the type of yours it maps to (`prometheus` or `clickhouse`), and its `candidates`, the uids of your datasources of that kind, which are the only mapping targets an import keeps.
+Each one also names its `kind`, the type of yours it maps to (`prometheus`, `clickhouse`, `loki` or `tempo`), and its `candidates`, the uids of your datasources of that kind, which are the only mapping targets an import keeps.
 A null `matched_uid` means the datasource needs a mapping, or has a type SlashObserve does not query, in which case its `kind` is null and its panels import as placeholders.
+A `kind` with empty `candidates` means no datasource of that type is configured here: it needs no mapping, and its panels import as placeholders.
 Give the open matches in the `mapping` of the import, keyed by the Grafana datasource uid or name, or add the Grafana uid to `grafanaUids` in the [datasources file](../reference/datasources-file.md) so every later import matches it too.
 A mapping entry that a dashboard does not use is ignored for that dashboard.
 
@@ -182,7 +184,7 @@ Start the import with every folder, or with the folders you choose (each with it
 ```sh
 curl -X POST "$SERVER/api/v1/grafana/$ID/imports" -H "Authorization: Bearer $OBSERVE_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"folders":"all","mapping":{"Loki logs":"clickhouse"}}'
+  -d '{"folders":"all","mapping":{"Prometheus EU":"prom-eu"}}'
 ```
 
 The answer is `202` with a `Location` header; `GET` it to follow `total`, `done`, `failed` and `skipped`, and the `results` with each dashboard's uid, title, outcome, dashboard id, unverified and placeholder panel counts and error.
