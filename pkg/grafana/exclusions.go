@@ -69,6 +69,12 @@ var (
 	decisionTraceUpload              = decision{"trace-upload", "Uploaded trace files are not part of SlashObserve."}
 	decisionTraceQLMetrics           = decision{"traceql-metrics", "TraceQL metrics queries are not part of SlashObserve."}
 	decisionTempoSearchLimits        = decision{"tempo-search-limits", "Trace limits, span-set limits and span tables on a Tempo query are not part of SlashObserve; a search lists one row per trace."}
+	decisionElasticPPL               = decision{"elastic-ppl", "PPL is not supported; rewrite the query in KQL or Query DSL."}
+	decisionElasticGeoNested         = decision{"elastic-geo-nested", "geohash_grid and nested bucket aggregations are not converted."}
+	decisionElasticTopMetrics        = decision{"elastic-top-metrics", "The top_metrics metric is not converted."}
+	decisionElasticScripts           = decision{"elastic-scripts", "Inline scripts are not converted."}
+	decisionElasticFieldVariables    = decision{"elastic-field-variables", "Field-name variables have no equivalent; use a custom variable."}
+	decisionElasticHiddenMetrics     = decision{"elastic-hidden-metrics", "Hiding one metric of a query is not part of SlashObserve; every metric of a query is drawn."}
 )
 
 var decisions = []decision{
@@ -84,6 +90,8 @@ var decisions = []decision{
 	decisionPhotoFrames, decisionTransformationOptions, decisionDebugPanel,
 	decisionLokiLineLimit, decisionLokiDirection, decisionTempoSearchBuilder, decisionTempoServiceGraph,
 	decisionTraceUpload, decisionTraceQLMetrics, decisionTempoSearchLimits,
+	decisionElasticPPL, decisionElasticGeoNested, decisionElasticTopMetrics,
+	decisionElasticScripts, decisionElasticFieldVariables, decisionElasticHiddenMetrics,
 }
 
 var valueAxisPanels = []spec.PanelType{spec.Timeseries, spec.Trend, spec.Candlestick, spec.Histogram, spec.BarChart, spec.XYChart}
@@ -198,6 +206,11 @@ var excludedOptions = slices.Concat(
 		onQuery(queryTempo, excludedOption{path: "limit", decision: decisionTempoSearchLimits}),
 		onQuery(queryTempo, excludedOption{path: "spss", decision: decisionTempoSearchLimits}),
 		onQuery(queryTempo, excludedOption{path: "tableType", values: []any{"spans", "raw"}, decision: decisionTempoSearchLimits}),
+		onQuery(queryElastic, excludedOption{path: "queryType", values: []any{"PPL"}, decision: decisionElasticPPL}),
+		onQuery(queryElastic, excludedOption{path: "bucketAggs[]", key: "type", values: []any{"geohash_grid", "nested"}, decision: decisionElasticGeoNested}),
+		onQuery(queryElastic, excludedOption{path: "metrics[]", key: "type", values: []any{"top_metrics"}, decision: decisionElasticTopMetrics}),
+		onQuery(queryElastic, excludedOption{path: "metrics[].settings.script", decision: decisionElasticScripts}),
+		onQuery(queryElastic, excludedOption{path: "metrics[].hide", values: []any{true}, decision: decisionElasticHiddenMetrics}),
 
 		anyTransform(excludedOption{path: "topic", values: []any{"annotations"}, decision: decisionAnnotations}),
 		onTransform("convertFrameType", excludedOption{key: "options.targetType", values: []any{"annotation", "timeRegion", "exemplar"}, decision: decisionTransformationOptions}),
@@ -221,6 +234,7 @@ var excludedOptions = slices.Concat(
 		onVariable("datasource", excludedOption{key: "includeAll", values: []any{true}, decision: decisionMultiDatasourceVariables}),
 		onVariable("datasource", excludedOption{path: "allowCustomValue", values: []any{false}, decision: decisionMultiDatasourceVariables}),
 		onVariable("groupby", excludedOption{path: "datasource", key: "type", values: []any{"grafana-clickhouse-datasource", "vertamedia-clickhouse-datasource"}, decision: decisionGroupByClickHouse}),
+		onVariable("query", excludedOption{path: "query", when: findsFields, decision: decisionElasticFieldVariables}),
 		anyVariable(excludedOption{path: "hide", values: []any{3}, decision: decisionControlsMenu}),
 
 		onDashboard(excludedOption{path: "annotations.list[]", decision: decisionAnnotations}),
@@ -277,6 +291,11 @@ func hasExcludedMatcher(value any) bool {
 		return asString(matcher["options"]) == "other"
 	}
 	return false
+}
+
+func findsFields(value any) bool {
+	query, ok := elasticVariableQuery(value)
+	return ok && asString(query["find"]) == "fields"
 }
 
 func isIgnoreOrThresholdHandler(value any) bool {

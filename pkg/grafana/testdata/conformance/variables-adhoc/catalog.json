@@ -8,6 +8,9 @@
   "root": "templating.list[0]",
   "entries": [
     { "id": "datasource=clickhouse", "path": "datasource", "value": {"type": "grafana-clickhouse-datasource", "uid": "ch"} },
+    { "id": "datasource=elasticsearch", "path": "datasource", "value": {"type": "elasticsearch", "uid": "es"} },
+    { "id": "datasource=opensearch", "path": "datasource", "value": {"type": "grafana-opensearch-datasource", "uid": "os"} },
+    { "id": "filters=greater-on-elasticsearch", "path": "filters", "value": [{"key": "bytes", "operator": ">", "value": "100"}], "with": {"datasource": {"type": "elasticsearch", "uid": "es"}} },
     { "id": "filters=equals", "path": "filters", "value": [{"key": "job", "operator": "=", "value": "api"}] },
     { "id": "filters=not-equals", "path": "filters", "value": [{"key": "job", "operator": "!=", "value": "api"}] },
     { "id": "filters=regex", "path": "filters", "value": [{"key": "job", "operator": "=~", "value": "api"}] },
