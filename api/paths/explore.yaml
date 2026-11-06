@@ -20,6 +20,11 @@ datasources-uid-query:
       To load older rows, repeat the request with `to` set to `meta.oldest`; to load newer rows, with `from` set to `meta.newest`.
       On Loki `end` is exclusive and `start` inclusive, so the oldest line is not repeated and the newest one is; on ClickHouse `$__timeFilter` includes both ends.
       Clients de-duplicate by time plus body.
+      `page_size` turns paging on for an instant query on a logs or trace datasource, and the response then carries `meta.page`:
+      ClickHouse pages by offset with an exact `total`, so any `page` can be asked for directly;
+      Loki and Tempo page by a time cursor, so a page past the first needs the `next` cursor of the page before it, and `total` is the rows walked so far (`gte`) until the last page makes it exact.
+      `prev` is the cursor that produced the page.
+      With a cursor the time range is pinned from it and `from` and `to` are ignored; without one, send absolute times for a stable total.
     requestBody:
       required: true
       content:
@@ -59,7 +64,21 @@ datasources-uid-query:
                 type: integer
                 minimum: 1
                 maximum: 1000
-                description: The most rows the query may return; lowers the 1,000 row limit.
+                description: The most rows the query may return; lowers the 1,000 row limit. Cannot be sent with `page_size`.
+              page_size:
+                type: integer
+                minimum: 50
+                maximum: 500
+                description: Rows per page; turns paging on. Instant queries on logs and trace datasources only, and not with `limit`.
+              page:
+                type: integer
+                minimum: 1
+                default: 1
+                description: The page to read. Needs `page_size`. On ClickHouse any page can be asked for; on Loki and Tempo a page above 1 needs `cursor`, and the page is then the cursor's.
+              cursor:
+                type: string
+                maxLength: 2048
+                description: The `next` or `prev` value of an earlier page of the same query. Needs `page_size`. A cursor from another datasource, query or range is refused.
     responses:
       "200":
         description: The frames the query returned.

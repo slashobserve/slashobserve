@@ -126,9 +126,23 @@ type dataMeta struct {
 	InspectedBytes int64           `json:"inspected_bytes,omitempty"`
 	ElapsedMS      int64           `json:"elapsed_ms,omitempty"`
 	Bytes          int64           `json:"bytes,omitempty"`
+	Page           *pageMeta       `json:"page,omitempty"`
+}
+
+type pageMeta struct {
+	Page          int    `json:"page"`
+	PageSize      int    `json:"page_size"`
+	Total         *int64 `json:"total,omitempty"`
+	TotalRelation string `json:"total_relation"`
+	HasNext       bool   `json:"has_next"`
+	HasPrev       bool   `json:"has_prev"`
+	Next          string `json:"next,omitempty"`
+	Prev          string `json:"prev,omitempty"`
+	Window        int    `json:"window,omitempty"`
 }
 
 type resultMeta struct {
+	page           *pageMeta
 	truncated      bool
 	partial        bool
 	rows           int
@@ -454,6 +468,7 @@ func writeData(c *gin.Context, e dataEntry, cached bool, executedAt time.Time, s
 			InspectedBytes: e.meta.inspectedBytes,
 			ElapsedMS:      e.meta.elapsed.Milliseconds(),
 			Bytes:          e.meta.bytes,
+			Page:           e.meta.page,
 		},
 	})
 }

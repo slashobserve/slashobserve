@@ -22,6 +22,7 @@ import (
 const (
 	maxExploreBodyBytes = maxLintQueryBytes + 4<<10
 	explorePanelID      = "explore"
+	exploreQueryRef     = "A"
 )
 
 type exploreRequest struct {
@@ -32,6 +33,9 @@ type exploreRequest struct {
 	Timezone      *string `json:"timezone"`
 	MaxDataPoints *int    `json:"max_data_points"`
 	Limit         *int    `json:"limit"`
+	PageSize      *int    `json:"page_size"`
+	Page          *int    `json:"page"`
+	Cursor        *string `json:"cursor"`
 }
 
 func init() {
@@ -55,7 +59,8 @@ func (h *Handler) explore(c *gin.Context) {
 		return
 	}
 	uid := c.Param("uid")
-	if _, found := h.registry.Get(uid); !found {
+	inst, found := h.registry.Get(uid)
+	if !found {
 		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "datasource not found")
 		return
 	}
@@ -69,6 +74,10 @@ func (h *Handler) explore(c *gin.Context) {
 	rng, _, err := p.timeRange(d, time.Now())
 	if err != nil {
 		h.exploreFail(c, uid, err)
+		return
+	}
+	if req.PageSize != nil {
+		h.explorePage(c, inst, rng, req)
 		return
 	}
 	al := alignment{rng: rng}
@@ -110,7 +119,7 @@ func exploreDashboard(uid, text string, kind queryproxy.Kind) *spec.Dashboard {
 			Type:       panelType,
 			Datasource: uid,
 			GridPos:    spec.GridPos{W: 24, H: 8},
-			Queries:    []spec.Query{{Ref: "A", Query: text, Instant: kind == queryproxy.KindInstant}},
+			Queries:    []spec.Query{{Ref: exploreQueryRef, Query: text, Instant: kind == queryproxy.KindInstant}},
 		}},
 	}
 }
@@ -132,8 +141,82 @@ func (r exploreRequest) validate() (status int, code, message string) {
 		return invalid("limit must be from 1 to " + strconv.Itoa(queryproxy.DraftLimits.MaxRows))
 	case r.MaxDataPoints != nil && r.Kind == string(queryproxy.KindInstant):
 		return invalid("max_data_points applies to range queries only")
+	case r.PageSize != nil && r.Kind == string(queryproxy.KindRange):
+		return invalid(queryproxy.PagingIsInstant)
+	case r.PageSize != nil && r.Limit != nil:
+		return invalid(queryproxy.LimitWithPage)
+	case r.PageSize == nil && (r.Page != nil || r.Cursor != nil):
+		return invalid(queryproxy.PageNeedsSize)
+	case r.PageSize != nil && (*r.PageSize < datasource.MinPageSize || *r.PageSize > datasource.MaxPageSize):
+		return invalid(queryproxy.PageSizeOutside)
+	case r.Page != nil && *r.Page < 1:
+		return invalid(queryproxy.PageBelowOne)
+	case r.Cursor != nil && len(*r.Cursor) > datasource.MaxCursorBytes:
+		return invalid(queryproxy.CursorTooLong)
 	}
 	return 0, "", ""
+}
+
+func (r exploreRequest) pageParams(uid string, rng datasource.TimeRange, user datasource.QueryUser) queryproxy.PageParams {
+	p := queryproxy.PageParams{
+		UID:      uid,
+		Query:    datasource.Query{Text: *r.Query, Limits: queryproxy.DraftLimits, User: user},
+		Range:    rng,
+		Page:     1,
+		PageSize: *r.PageSize,
+	}
+	if r.Page != nil {
+		p.Page = *r.Page
+	}
+	if r.Cursor != nil {
+		p.Cursor = *r.Cursor
+	}
+	return p
+}
+
+func (h *Handler) explorePage(c *gin.Context, inst datasource.Instance, rng datasource.TimeRange, req exploreRequest) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), queryproxy.DraftLimits.Timeout+queryproxy.DraftGrace)
+	defer cancel()
+	principal, _ := auth.FromContext(ctx)
+	started := time.Now()
+	res, err := h.runner.RunPage(ctx, inst, req.pageParams(inst.UID, rng, queryproxy.UserFor(principal)))
+	if err != nil {
+		h.exploreFail(c, inst.UID, err)
+		return
+	}
+	frames, err := marshalFrames([]queryproxy.QueryResult{{Ref: exploreQueryRef, Kind: queryproxy.KindInstant, Frames: res.Frames}})
+	if err != nil {
+		h.logger.ErrorContext(ctx, "convert page frames", append([]any{slog.String("datasource_uid", inst.UID)}, failureAttrs(err)...)...)
+		h.fail(c, errInternal)
+		return
+	}
+	if len(frames) > maxResponseBytes {
+		h.fail(c, errTooLarge)
+		return
+	}
+	meta := resultMetaOf(res.Frames).took(time.Since(started))
+	meta.truncated, meta.rowsTotal = false, 0
+	meta.page = pageMetaOf(res)
+	entry := dataEntry{frames: frames, queries: []queryMeta{{Ref: exploreQueryRef, Kind: queryproxy.KindInstant}}, kind: queryproxy.KindInstant, from: res.Range.From, to: res.Range.To, meta: meta, executedAt: time.Now()}
+	writeData(c, entry, false, entry.executedAt, "")
+}
+
+func pageMetaOf(res queryproxy.PageResult) *pageMeta {
+	m := &pageMeta{
+		Page:          res.Info.Page,
+		PageSize:      res.Info.PageSize,
+		TotalRelation: string(res.Info.TotalRelation),
+		HasNext:       res.Info.HasNext,
+		HasPrev:       res.HasPrev,
+		Next:          res.Next,
+		Prev:          res.Prev,
+		Window:        res.Info.Window,
+	}
+	if res.Info.TotalRelation != datasource.TotalUnknown {
+		total := res.Info.Total
+		m.Total = &total
+	}
+	return m
 }
 
 func (r exploreRequest) values() url.Values {

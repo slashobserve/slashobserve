@@ -899,7 +899,7 @@ export interface paths {
         put?: never;
         /**
          * Run one query against a datasource and return its frames.
-         * @description The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables. `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step. The query runs with the agent tools' limits (15 seconds, 200 series for metric queries, 100,000 points, 1,000 rows; log lines count against the row limit only), and `limit` lowers the row limit. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times, fractional seconds included. The response has the shape of panel data, with `meta.cached` always false. `meta.truncated` says the query stopped at the row limit, `meta.partial` that the datasource did not cover the whole range, and `meta.oldest` and `meta.newest` are the time edges of the rows returned. To load older rows, repeat the request with `to` set to `meta.oldest`; to load newer rows, with `from` set to `meta.newest`. On Loki `end` is exclusive and `start` inclusive, so the oldest line is not repeated and the newest one is; on ClickHouse `$__timeFilter` includes both ends. Clients de-duplicate by time plus body.
+         * @description The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables. `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step. The query runs with the agent tools' limits (15 seconds, 200 series for metric queries, 100,000 points, 1,000 rows; log lines count against the row limit only), and `limit` lowers the row limit. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times, fractional seconds included. The response has the shape of panel data, with `meta.cached` always false. `meta.truncated` says the query stopped at the row limit, `meta.partial` that the datasource did not cover the whole range, and `meta.oldest` and `meta.newest` are the time edges of the rows returned. To load older rows, repeat the request with `to` set to `meta.oldest`; to load newer rows, with `from` set to `meta.newest`. On Loki `end` is exclusive and `start` inclusive, so the oldest line is not repeated and the newest one is; on ClickHouse `$__timeFilter` includes both ends. Clients de-duplicate by time plus body. `page_size` turns paging on for an instant query on a logs or trace datasource, and the response then carries `meta.page`: ClickHouse pages by offset with an exact `total`, so any `page` can be asked for directly; Loki and Tempo page by a time cursor, so a page past the first needs the `next` cursor of the page before it, and `total` is the rows walked so far (`gte`) until the last page makes it exact. `prev` is the cursor that produced the page. With a cursor the time range is pinned from it and `from` and `to` are ignored; without one, send absolute times for a stable total.
          */
         post: operations["exploreQuery"];
         delete?: never;
@@ -2833,6 +2833,29 @@ export interface components {
             elapsed_ms?: number;
             /** @description Size in bytes of the upstream trace payload on a Tempo trace read; absent on ClickHouse and on explore. */
             bytes?: number;
+            page?: components["schemas"]["PageMeta"];
+        };
+        /** @description Present when the request paged; `meta.truncated` is then false and `page.total` replaces `rows_total`. */
+        PageMeta: {
+            /** @description The page read; with a cursor, the page the cursor named. */
+            page: number;
+            page_size: number;
+            /** @description The rows that match, as `total_relation` qualifies it; absent when the relation is `unknown`. */
+            total?: number;
+            /**
+             * @description `eq` is exact (ClickHouse counts; Loki and Tempo on the last page), `gte` means at least this many (Loki and Tempo while more pages exist), and `unknown` means the store could not count, such as a partial Tempo search.
+             * @enum {string}
+             */
+            total_relation: "eq" | "gte" | "unknown";
+            has_next: boolean;
+            /** @description True on every page past the first. */
+            has_prev: boolean;
+            /** @description The opaque cursor of the next page, present whenever `has_next` on Loki and Tempo; ClickHouse sends one too, and Elasticsearch and OpenSearch page by `page` and never send it. */
+            next?: string;
+            /** @description The cursor that produced this page, present when `page` is above 1; a client that walks back further keeps the chain of cursors it received. */
+            prev?: string;
+            /** @description The largest row offset this store pages to, present only on stores with such a cap, such as an Elasticsearch index's `max_result_window`; a numbered page past it is refused. */
+            window?: number;
         };
         PanelDataError: {
             error: string;
@@ -6411,8 +6434,17 @@ export interface operations {
                      * @default 1000
                      */
                     max_data_points?: number;
-                    /** @description The most rows the query may return; lowers the 1,000 row limit. */
+                    /** @description The most rows the query may return; lowers the 1,000 row limit. Cannot be sent with `page_size`. */
                     limit?: number;
+                    /** @description Rows per page; turns paging on. Instant queries on logs and trace datasources only, and not with `limit`. */
+                    page_size?: number;
+                    /**
+                     * @description The page to read. Needs `page_size`. On ClickHouse any page can be asked for; on Loki and Tempo a page above 1 needs `cursor`, and the page is then the cursor's.
+                     * @default 1
+                     */
+                    page?: number;
+                    /** @description The `next` or `prev` value of an earlier page of the same query. Needs `page_size`. A cursor from another datasource, query or range is refused. */
+                    cursor?: string;
                 };
             };
         };

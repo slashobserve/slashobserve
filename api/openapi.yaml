@@ -1420,6 +1420,49 @@ components:
           type: integer
           minimum: 0
           description: Size in bytes of the upstream trace payload on a Tempo trace read; absent on ClickHouse and on explore.
+        page:
+          $ref: "#/components/schemas/PageMeta"
+    PageMeta:
+      type: object
+      description: Present when the request paged; `meta.truncated` is then false and `page.total` replaces `rows_total`.
+      additionalProperties: false
+      required: [page, page_size, total_relation, has_next, has_prev]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          description: The page read; with a cursor, the page the cursor named.
+        page_size:
+          type: integer
+          minimum: 50
+          maximum: 500
+        total:
+          type: integer
+          minimum: 0
+          description: The rows that match, as `total_relation` qualifies it; absent when the relation is `unknown`.
+        total_relation:
+          type: string
+          enum: [eq, gte, unknown]
+          description: >-
+            `eq` is exact (ClickHouse counts; Loki and Tempo on the last page), `gte` means at least this many (Loki and Tempo while more pages exist),
+            and `unknown` means the store could not count, such as a partial Tempo search.
+        has_next:
+          type: boolean
+        has_prev:
+          type: boolean
+          description: True on every page past the first.
+        next:
+          type: string
+          maxLength: 2048
+          description: The opaque cursor of the next page, present whenever `has_next` on Loki and Tempo; ClickHouse sends one too, and Elasticsearch and OpenSearch page by `page` and never send it.
+        prev:
+          type: string
+          maxLength: 2048
+          description: The cursor that produced this page, present when `page` is above 1; a client that walks back further keeps the chain of cursors it received.
+        window:
+          type: integer
+          minimum: 1
+          description: The largest row offset this store pages to, present only on stores with such a cap, such as an Elasticsearch index's `max_result_window`; a numbered page past it is refused.
     PanelDataError:
       type: object
       additionalProperties: false
