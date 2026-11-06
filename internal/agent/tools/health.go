@@ -19,7 +19,7 @@ const (
 	maxListHealth       = 50
 	maxProblemTextBytes = 500
 
-	descListDashboardHealth = "List dashboards with health problems in folders you can see, most recently updated first: panels whose queries failed or returned no data over the last 7 days at the last daily check, variables that failed, duplicate titles in a folder, and dashboards nobody opened in 90 days. Fix failing panels with get_panels and update_panels. Page with next_cursor."
+	descListDashboardHealth = "List dashboards with health problems in folders you can see: panels whose queries failed or returned no data over the last 7 days at the last daily check, variables that failed, duplicate titles in a folder, and dashboards nobody opened in 90 days. Failing queries or variables come first, then no data, duplicate titles and unopened dashboards; within each, the most recently opened first. The first page carries summary, the count of dashboards per problem in the folders asked for whatever the kind, and each dashboard carries its latest repair. Fix failing panels with get_panels and update_panels. Page with next_cursor."
 )
 
 var schemaListDashboardHealth = `{"type":"object","properties":{` +
@@ -71,6 +71,23 @@ type healthItemOut struct {
 	Skipped           string             `json:"skipped,omitempty"`
 	Problems          []healthProblemOut `json:"problems"`
 	ProblemsTruncated bool               `json:"problems_truncated,omitempty"`
+	Repair            *healthRepairOut   `json:"repair,omitempty"`
+}
+
+type healthRepairOut struct {
+	State   string `json:"state"`
+	Version *int   `json:"version,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+type healthSummaryOut struct {
+	Dashboards      int `json:"dashboards"`
+	Failing         int `json:"failing"`
+	QueryFailed     int `json:"query_failed"`
+	VariableFailed  int `json:"variable_failed"`
+	NoData          int `json:"no_data"`
+	DuplicateTitles int `json:"duplicate_titles"`
+	Unopened        int `json:"unopened"`
 }
 
 type healthJobOut struct {
@@ -81,9 +98,10 @@ type healthJobOut struct {
 }
 
 type healthListOut struct {
-	Dashboards []healthItemOut `json:"dashboards"`
-	NextCursor *string         `json:"next_cursor"`
-	Job        healthJobOut    `json:"job"`
+	Dashboards []healthItemOut   `json:"dashboards"`
+	NextCursor *string           `json:"next_cursor"`
+	Summary    *healthSummaryOut `json:"summary,omitempty"`
+	Job        healthJobOut      `json:"job"`
 }
 
 func (r *Registry) listDashboardHealth(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -156,6 +174,9 @@ func healthPage(page health.Page) (healthListOut, int, bool) {
 	if page.NextCursor != "" {
 		out.NextCursor = &page.NextCursor
 	}
+	if page.Summary != nil {
+		out.Summary = (*healthSummaryOut)(page.Summary)
+	}
 	budget := listBudget - jsonSize(out)
 	for _, it := range page.Items {
 		out.Dashboards = append(out.Dashboards, healthItemOf(it))
@@ -198,6 +219,12 @@ func healthItemOf(it health.Item) healthItemOut {
 			Code:       p.Code,
 			Message:    clip(p.Message, maxProblemTextBytes),
 		})
+	}
+	if r := it.Repair; r != nil {
+		out.Repair = &healthRepairOut{State: r.State, Version: r.Version}
+		if r.Error != nil {
+			out.Repair.Error = clip(*r.Error, maxProblemTextBytes)
+		}
 	}
 	return out
 }
