@@ -33,6 +33,9 @@ After the send, the box goes back to a normal follow-up.
 The panel menu item shows only on data panels, when you can edit the dashboard and a model is connected.
 While you are editing the layout it reads "Investigate (finish the layout first)" and cannot be chosen.
 
+From a terminal, `observe investigate <question...>` asks the same question and prints the finding; `--dashboard`, `--panel`, `--from` and `--to` set what it is about.
+See [CLI](cli.md).
+
 ## Read the finding
 
 In the chat, an investigation's turn shows its steps like a build, with the status "Investigating" while it runs.

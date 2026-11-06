@@ -62,7 +62,7 @@ Colour is used only in a terminal, and setting `NO_COLOR` to any value turns it 
 It opens only `http` and `https` addresses.
 `status --wait`, `continue`, `run` and `import` accept `--open` too.
 
-A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `status`, `cancel`, `continue`, `annotate`, `health`, `open`, `doctor`, `logs`, `traces`, `grafana`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
+A prompt whose first word is a command name (`dashboards`, `comments`, `import`, `run`, `investigate`, `status`, `cancel`, `continue`, `annotate`, `health`, `open`, `doctor`, `logs`, `traces`, `grafana`, `login`, `logout`, `version`, `completion` or `help`) must be quoted as one argument.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
 `--timeout` (2 hours by default, so a large build can finish while you wait) stops the waiting and not the request, which keeps running on the server; `bin/observe status <request-id> --wait` waits again.
@@ -104,6 +104,20 @@ for f in dashboards/*.json; do bin/observe import "$f" --folder Platform || echo
 
 `bin/observe run <name>` runs a saved prompt that someone shared with everyone on the server, waits like a prompt does and prints the dashboard address; the name ignores case and its words need no quotes, and `bin/observe run` alone lists the shared prompts.
 A key never sees private prompts, so share a prompt from the chat home before running it from the CLI.
+
+`bin/observe investigate <question...>` asks the agent a question about your data, as in [Investigate](investigate.md), and needs an Editor key:
+
+```sh
+bin/observe investigate why did checkout errors rise after 10:00
+bin/observe investigate --dashboard <dashboard-id> --panel <panel-id> --from now-6h --to now what changed
+```
+
+`--dashboard` makes it about one dashboard, `--panel` about one of its panels, and `--from` and `--to` set the window, together, as relative times such as `now-6h` or epoch milliseconds.
+`--panel` without `--dashboard`, or one of `--from` and `--to` alone, exits 2.
+It shows the steps like a prompt, then prints the finding's title, its answer as plain text and its address.
+`--open` opens the finding in the browser, `--no-wait` prints the request id and returns at once, and `--timeout` stops the waiting as it does for a prompt.
+It exits 1 when the investigation fails or ends without a finding.
+`bin/observe status <request-id>` on an investigation shows the finding's title and address, and with `--wait` prints the finding.
 
 Comments on a dashboard can be worked from the terminal:
 
