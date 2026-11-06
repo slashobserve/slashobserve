@@ -156,7 +156,7 @@ export function TraceSearchForm({
           label="Max duration"
           value={max}
           onChange={setMax}
-          placeholder="250ms"
+          placeholder="2s"
           problem={maxProblem}
         />
       </div>

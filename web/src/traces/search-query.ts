@@ -63,6 +63,9 @@ function clickhouseMatch(column: string, value: string): string {
   return ` AND ${matcherInsert("clickhouse", column, value)}`
 }
 
+const clickhouseErrorStatus =
+  "lower(StatusCode) IN ('error', 'status_code_error')"
+
 export function clickhouseTraceSearch(form: TraceForm): string {
   const min = form.min ? parseDuration(form.min) : null
   const max = form.max ? parseDuration(form.max) : null
@@ -73,11 +76,9 @@ export function clickhouseTraceSearch(form: TraceForm): string {
     form.span ? clickhouseMatch("otel_traces.SpanName", form.span) : "",
     min !== null ? ` AND otel_traces.Duration >= ${min}` : "",
     max !== null ? ` AND otel_traces.Duration <= ${max}` : "",
-    form.errors
-      ? " AND lower(StatusCode) IN ('error', 'status_code_error')"
-      : "",
+    form.errors ? ` AND ${clickhouseErrorStatus}` : "",
   ].join("")
-  return `SELECT TraceId, min(Timestamp) AS StartTime, argMax(otel_traces.ServiceName, otel_traces.Duration) AS ServiceName, argMax(otel_traces.SpanName, otel_traces.Duration) AS SpanName, max(otel_traces.Duration) AS Duration, count() AS Spans
+  return `SELECT TraceId, min(Timestamp) AS StartTime, argMax(otel_traces.ServiceName, otel_traces.Duration) AS ServiceName, argMax(otel_traces.SpanName, otel_traces.Duration) AS SpanName, max(otel_traces.Duration) AS Duration, count() AS Spans, countIf(${clickhouseErrorStatus}) AS Errors
 FROM otel_traces
 WHERE $__timeFilter(Timestamp)${conditions}
 GROUP BY TraceId

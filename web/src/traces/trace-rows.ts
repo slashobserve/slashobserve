@@ -7,6 +7,7 @@ export type TraceRow = {
   span: string
   durationMs: number | null
   spans: number | null
+  errors: number | null
 }
 
 function column(frame: WireFrame, name: string) {
@@ -39,6 +40,7 @@ export function traceRows(frames: readonly WireFrame[]): TraceRow[] {
     const span = column(frame, "SpanName")?.values
     const duration = column(frame, "Duration")?.values
     const spans = column(frame, "Spans")?.values
+    const errors = column(frame, "Errors")?.values
     for (let row = 0; row < ids.values.length; row++) {
       const traceId = textAt(ids.values, row)
       if (traceId === "") continue
@@ -50,8 +52,21 @@ export function traceRows(frames: readonly WireFrame[]): TraceRow[] {
         span: textAt(span, row),
         durationMs: ns === null ? null : ns / 1e6,
         spans: numberAt(spans, row),
+        errors: numberAt(errors, row),
       })
     }
   }
   return rows
+}
+
+export function hasErrorCounts(rows: readonly TraceRow[]): boolean {
+  return rows.length > 0 && rows.every((row) => row.errors !== null)
+}
+
+export function hasSpanCounts(rows: readonly TraceRow[]): boolean {
+  return rows.length > 0 && rows.every((row) => row.spans !== null)
+}
+
+export function countText(count: number, noun: string): string {
+  return `${count.toLocaleString("en")} ${noun}${count === 1 ? "" : "s"}`
 }
