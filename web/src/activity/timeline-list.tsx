@@ -196,6 +196,7 @@ export function TimelineList({
           row.kind === "day" ? (
             <li
               key={row.key}
+              data-day
               className="flex items-center gap-2 pt-3 pb-1 text-xs text-muted-foreground"
             >
               {row.label}
