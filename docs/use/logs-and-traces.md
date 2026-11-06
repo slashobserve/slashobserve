@@ -201,7 +201,12 @@ Scripts call the same endpoint, `POST /api/v1/datasources/{uid}/log-context`, wi
 **Live tail** opens one stream from the server, which polls the datasource every second for lines newer than the last one it sent and pushes them to the page.
 The browser runs no query of its own and holds no datasource credential.
 Each poll returns at most 500 lines, so a tail shows at most 500 lines per second, and a poll that hit that limit is followed by another at once.
-The page keeps the newest 1,000 lines.
+The page keeps the newest 1,000 lines of the last 5 minutes and drops older ones off the top.
+The tail lists them oldest first with the newest at the bottom, so the sort is fixed while it runs and the search order comes back when you leave it.
+Lines that just arrived are marked for a moment, and a status line above the list tells when the stream started and how many lines it received.
+Scrolling up pauses the list so it stops moving under the pointer, and a pill counts what arrived meanwhile.
+**Jump to newest**, **Resume** or scrolling back to the bottom resumes it.
+**Clear** empties the lines shown until you start the tail again.
 A tail stops when you press **Stop live tail**, when the query, the datasource or the time range changes, when the datasource fails five polls in a row, or after 30 minutes.
 Each person may hold 5 tails at a time, and the server 200.
 Documents reach an Elasticsearch or OpenSearch index a few seconds after their timestamp, so each poll there starts 5 seconds before the newest line sent and skips the lines it already sent, and a tail that stops cancels its search because the cluster cancels a search when its connection closes.
