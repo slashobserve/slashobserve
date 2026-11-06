@@ -44,6 +44,8 @@ const (
 
 	faultErrors  = "errors"
 	faultLatency = "latency"
+	faultQueue   = "queue"
+	faultSlowDB  = "slow_db"
 
 	placeholderPanelID    = "{panel_id}"
 	placeholderPanelTitle = "{panel_title}"
@@ -57,7 +59,8 @@ const (
 )
 
 var (
-	kinds = []string{kindCreate, kindRevise, kindFixUnverified, kindSuggest, kindChatImport, kindSizeGuard, kindInvestigate}
+	kinds      = []string{kindCreate, kindRevise, kindFixUnverified, kindSuggest, kindChatImport, kindSizeGuard, kindInvestigate}
+	faultTypes = []string{faultErrors, faultLatency, faultQueue, faultSlowDB}
 
 	idPattern    = regexp.MustCompile(`^[a-z0-9-]{3,64}$`)
 	suitePattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
@@ -356,8 +359,8 @@ func validateFault(f Fault) error {
 	switch {
 	case blank(f.Pod):
 		return errors.New("fault.pod is required")
-	case f.Type != faultErrors && f.Type != faultLatency:
-		return fmt.Errorf("fault.type %q must be %s or %s", f.Type, faultErrors, faultLatency)
+	case !slices.Contains(faultTypes, f.Type):
+		return fmt.Errorf("fault.type %q must be one of %s", f.Type, strings.Join(faultTypes, ", "))
 	case f.Pct < 1 || f.Pct > 100:
 		return fmt.Errorf("fault.pct %d must be between 1 and 100", f.Pct)
 	case f.SoakSeconds < 0:
