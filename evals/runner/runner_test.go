@@ -1466,7 +1466,7 @@ func TestEveryShippedScenarioFileDeclaresItsKindAndSuites(t *testing.T) {
 	}
 }
 
-func TestSmokeSuiteIsTwelveLiveTasksOfTheChosenKinds(t *testing.T) {
+func TestSmokeSuiteIsThirteenLiveTasksOfTheChosenKinds(t *testing.T) {
 	files, err := loadScenarios(filepath.Join("..", "scenarios"))
 	if err != nil {
 		t.Fatal(err)
@@ -1493,10 +1493,10 @@ func TestSmokeSuiteIsTwelveLiveTasksOfTheChosenKinds(t *testing.T) {
 			categories[sc.Category]++
 		}
 	}
-	wantKinds := map[string]int{kindCreate: 6, kindRevise: 3, kindFixUnverified: 1, kindSuggest: 1, kindChatImport: 1}
+	wantKinds := map[string]int{kindCreate: 6, kindRevise: 3, kindFixUnverified: 1, kindSuggest: 1, kindChatImport: 1, kindInvestigate: 1}
 	wantCategories := map[string]int{categoryPrometheus: 3, categoryClickHouse: 2, categoryMixed: 1}
-	if len(smoke) != 12 || !maps.Equal(kinds, wantKinds) || !maps.Equal(categories, wantCategories) {
-		t.Fatalf("smoke has %d tasks, kinds %v, create categories %v; want 12, %v, %v", len(smoke), kinds, categories, wantKinds, wantCategories)
+	if len(smoke) != 13 || !maps.Equal(kinds, wantKinds) || !maps.Equal(categories, wantCategories) {
+		t.Fatalf("smoke has %d tasks, kinds %v, create categories %v; want 13, %v, %v", len(smoke), kinds, categories, wantKinds, wantCategories)
 	}
 }
 
