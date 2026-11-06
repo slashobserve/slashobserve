@@ -3,8 +3,10 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -96,6 +98,8 @@ func TestFindingToolsOnlyRunWhereTheyBelong(t *testing.T) {
 	editor := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: editorCaller.ID, Role: auth.RoleEditor})
 	investigate := WithRun(editor, investigateRun(time.Time{}, time.Time{}))
 	create := WithRun(editor, Run{Mode: ModeCreate})
+	revise := WithRun(editor, Run{Mode: ModeRevise})
+	suggest := WithRun(editor, Run{Mode: ModeSuggest})
 	cases := []struct {
 		name    string
 		ctx     context.Context
@@ -108,10 +112,15 @@ func TestFindingToolsOnlyRunWhereTheyBelong(t *testing.T) {
 		{"create_dashboard in an investigation", investigate, nameCreateDashboard, `{}`, true, "an investigate run only reads data and ends with save_finding; it cannot use create_dashboard"},
 		{"update_panels in an investigation", investigate, nameUpdatePanels, `{}`, true, "an investigate run only reads data and ends with save_finding; it cannot use update_panels"},
 		{"query_range in an investigation", investigate, nameQueryRange, `{"datasource":"fake","query":"up"}`, false, ""},
-		{"save_finding in a create run", create, nameSaveFinding, `{}`, true, "save_finding is only for investigate runs"},
+		{"save_finding in a create run", create, nameSaveFinding, `{}`, false, ""},
+		{"save_finding in a revise run", revise, nameSaveFinding, `{}`, false, ""},
+		{"save_finding in a suggest run", suggest, nameSaveFinding, `{}`, true, "save_finding cannot end a suggest run; propose the panel instead"},
 	}
 	for _, c := range cases {
 		res, err := r.Call(c.ctx, c.tool, []byte(c.input))
+		if !c.refused && errors.Is(err, errFindingsNotConfigured) {
+			continue
+		}
 		if err != nil {
 			t.Fatalf("%s: %v", c.name, err)
 		}
@@ -128,28 +137,29 @@ func TestOfferedInSplitsTheToolsByMode(t *testing.T) {
 	for _, tool := range newTestRegistry(t, &fakeDS{}, nil).List() {
 		byName[tool.Name] = tool
 	}
+	modes := []Mode{ModeCreate, ModeRevise, ModeSuggest, ModeInvestigate}
 	cases := []struct {
-		tool        string
-		build, look bool
+		tool    string
+		offered []Mode
 	}{
-		{nameQueryRange, true, true},
-		{nameGetDashboard, true, true},
-		{nameCreateDashboard, true, false},
-		{nameUpdatePanels, true, false},
-		{nameImportGrafana, true, false},
-		{nameSaveFinding, false, true},
-		{nameCreateFinding, false, false},
-		{nameListComments, false, false},
+		{nameQueryRange, modes},
+		{nameGetDashboard, modes},
+		{nameCreateDashboard, []Mode{ModeCreate, ModeRevise, ModeSuggest}},
+		{nameUpdatePanels, []Mode{ModeCreate, ModeRevise, ModeSuggest}},
+		{nameImportGrafana, []Mode{ModeCreate, ModeRevise, ModeSuggest}},
+		{nameSaveFinding, []Mode{ModeCreate, ModeRevise, ModeInvestigate}},
+		{nameListAnnotations, []Mode{ModeInvestigate}},
+		{nameListFindings, modes},
+		{nameCreateFinding, nil},
+		{nameListComments, nil},
 	}
 	for _, c := range cases {
 		tool := byName[c.tool]
-		for _, mode := range []Mode{ModeCreate, ModeRevise, ModeSuggest} {
-			if tool.OfferedIn(mode) != c.build {
-				t.Errorf("%s offered in %s = %t", c.tool, mode, !c.build)
+		for _, mode := range modes {
+			want := slices.Contains(c.offered, mode)
+			if tool.OfferedIn(mode) != want {
+				t.Errorf("%s offered in %s = %t", c.tool, mode, !want)
 			}
-		}
-		if tool.OfferedIn(ModeInvestigate) != c.look {
-			t.Errorf("%s offered in investigate = %t", c.tool, !c.look)
 		}
 	}
 }

@@ -35,6 +35,7 @@ const (
 	kindChatImport    = "chat_import"
 	kindSizeGuard     = "size_guard"
 	kindInvestigate   = "investigate"
+	kindQuestion      = "question"
 
 	suiteReplay = "replay"
 	suiteLive   = "live"
@@ -59,7 +60,7 @@ const (
 )
 
 var (
-	kinds      = []string{kindCreate, kindRevise, kindFixUnverified, kindSuggest, kindChatImport, kindSizeGuard, kindInvestigate}
+	kinds      = []string{kindCreate, kindRevise, kindFixUnverified, kindSuggest, kindChatImport, kindSizeGuard, kindInvestigate, kindQuestion}
 	faultTypes = []string{faultErrors, faultLatency, faultQueue, faultSlowDB}
 
 	idPattern    = regexp.MustCompile(`^[a-z0-9-]{3,64}$`)
@@ -289,19 +290,18 @@ func validateKind(sc Scenario) error {
 func validateFindingUse(sc Scenario) error {
 	ex := sc.Expect
 	expectsFinding := len(ex.FindingMentions) > 0 || ex.EvidenceMin > 0
-	if sc.Kind != kindInvestigate {
+	switch {
+	case sc.Kind != kindInvestigate && sc.Kind != kindQuestion:
 		if expectsFinding {
-			return fmt.Errorf("expect.finding_mentions and evidence_min are for kind %s only", kindInvestigate)
+			return fmt.Errorf("expect.finding_mentions and evidence_min are for kinds %s and %s only", kindInvestigate, kindQuestion)
 		}
 		return nil
-	}
-	switch {
-	case !expectsFinding:
+	case sc.Kind == kindInvestigate && !expectsFinding:
 		return fmt.Errorf("a %s scenario must expect finding_mentions or evidence_min", kindInvestigate)
 	case sc.Seed != nil:
-		return fmt.Errorf("a %s scenario does not take a seed", kindInvestigate)
+		return fmt.Errorf("a %s scenario does not take a seed", sc.Kind)
 	case ex.MinPanels != defaultMinPanels || ex.MaxPanels != 0 || len(ex.Metrics) > 0 || len(ex.Units) > 0 || ex.Thresholds:
-		return fmt.Errorf("a %s scenario does not take min_panels, max_panels, metrics, units or thresholds", kindInvestigate)
+		return fmt.Errorf("a %s scenario does not take min_panels, max_panels, metrics, units or thresholds", sc.Kind)
 	}
 	return nil
 }

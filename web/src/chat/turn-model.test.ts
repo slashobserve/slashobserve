@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   formatRunDuration,
+  mayHaveFinding,
   resultFinishedAt,
   showsWorkingRow,
   tookText,
@@ -79,5 +80,27 @@ describe("tookText", () => {
     )
     expect(tookText("2026-11-04T10:00:00Z", null)).toBeUndefined()
     expect(tookText(null, "2026-11-04T10:01:12Z")).toBeUndefined()
+  })
+})
+
+describe("mayHaveFinding", () => {
+  it.each([
+    ["an investigation", "investigate", "running", null, true],
+    ["a new dashboard that answered", "observe", "succeeded", null, true],
+    ["a new dashboard that saved a version", "observe", "succeeded", 1, false],
+    ["a new dashboard still running", "observe", "running", null, false],
+    ["a failed new dashboard", "observe", "failed", null, false],
+    [
+      "a dashboard chat prompt that answered",
+      "prompt",
+      "succeeded",
+      null,
+      true,
+    ],
+    ["a comment that answered", "comment", "succeeded", null, true],
+    ["a revision that saved a version", "prompt", "succeeded", 4, false],
+    ["a revision still running", "prompt", "running", null, false],
+  ] as const)("%s", (_name, source, status, result_version, expected) => {
+    expect(mayHaveFinding({ source, status, result_version })).toBe(expected)
   })
 })

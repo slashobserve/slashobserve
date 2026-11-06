@@ -7,7 +7,9 @@ The chat on the **Observe** page turns a sentence into a saved dashboard.
 The server runs the agent against your configured datasources, checks every query it writes, and saves the result as a version of a new dashboard.
 It needs a model; see [LLM providers](../connect/llm-providers.md).
 For a first run, follow [Your first dashboard](../get-started/first-dashboard.md).
-To ask a question instead of building a dashboard, see [Investigate](investigate.md).
+A question about your data such as "what logs are available?", a request to explain a dashboard or a panel, a why question, or something outside the server's data gets a finding instead of a dashboard: the agent reads the data and replies with a short written answer.
+A request for a dashboard builds one, and a message in a dashboard's chat that asks for a change revises that dashboard; one that only asks a question gets a finding and leaves the dashboard as it is.
+For why a dashboard or a window looks wrong, use [Investigate](investigate.md).
 
 ## Start a chat
 

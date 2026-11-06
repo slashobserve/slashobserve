@@ -543,12 +543,16 @@ func (h *ObserveHandler) render(c *gin.Context, row dbsqlc.AgentRequest) (agentR
 		return agentRequestJSON{}, err
 	}
 	out := h.view(c, row, states[row.ID], position)
-	if row.Source == string(SourceInvestigate) && h.opts.Finding != nil {
+	if mayHaveFinding(row) && h.opts.Finding != nil {
 		if err := h.attachFinding(ctx, row, &out); err != nil {
 			return agentRequestJSON{}, err
 		}
 	}
 	return out, nil
+}
+
+func mayHaveFinding(row dbsqlc.AgentRequest) bool {
+	return row.Source != string(SourceSuggest) && !row.ResultVersion.Valid
 }
 
 func (h *ObserveHandler) attachFinding(ctx context.Context, row dbsqlc.AgentRequest, out *agentRequestJSON) error {

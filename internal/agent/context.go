@@ -37,6 +37,7 @@ func systemFor(statuses []datasource.Status) string {
 func buildSystem(types []spec.DatasourceType) string {
 	var b strings.Builder
 	b.WriteString(strings.TrimRight(prompts.System(), "\n"))
+	b.WriteString("\n\n" + strings.TrimRight(prompts.Scope(), "\n"))
 	b.WriteString("\n\n# Authoring guide\n")
 	b.WriteString(strings.TrimRight(prompts.GuideFor(types), "\n"))
 	b.WriteString("\n\n# Example Spec (format only)\n")
@@ -63,7 +64,7 @@ func buildContext(statuses []datasource.Status, mode tools.Mode, source revision
 	var b strings.Builder
 	writeDatasources(&b, statuses)
 	if mode == tools.ModeCreate && sd.build == nil {
-		b.WriteString("\nCreate a new dashboard for the request.")
+		b.WriteString("\nCreate a new dashboard for the request, or answer it with save_finding if it only asks a question.")
 		writeSeedNote(&b, sd)
 		return b.String(), nil
 	}
@@ -119,7 +120,7 @@ func writeIntro(b *strings.Builder, mode tools.Mode, current *revision, hasBuild
 	case hasBuild:
 		fmt.Fprintf(b, "\nYou are revising dashboard %s, currently version %d. This is your build of the revision, not saved as a version yet.", current.dashboardID, current.number)
 	default:
-		fmt.Fprintf(b, "\nYou are revising dashboard %s, currently version %d.", current.dashboardID, current.number)
+		fmt.Fprintf(b, "\nYou are revising dashboard %s, currently version %d. Change it for the request, or answer it with save_finding if it only asks a question.", current.dashboardID, current.number)
 	}
 }
 

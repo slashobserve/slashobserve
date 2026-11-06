@@ -52,8 +52,8 @@ func TestShippedScenariosLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(today) != 17 || countDoneWhen(today) != 10 {
-		t.Fatalf("a run with no suite selects %d scenarios with %d done_when, want 17 and 10", len(today), countDoneWhen(today))
+	if len(today) != 21 || countDoneWhen(today) != 10 {
+		t.Fatalf("a run with no suite selects %d scenarios with %d done_when, want 21 and 10", len(today), countDoneWhen(today))
 	}
 }
 
@@ -1438,8 +1438,8 @@ func TestShippedScenariosKeepTheDefaultSelection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(selected) != 17 {
-		t.Fatalf("the default selection has %d scenarios, want the 17 create scenarios of the live suite", len(selected))
+	if len(selected) != 21 {
+		t.Fatalf("the default selection has %d scenarios, want the 17 create and 4 question scenarios of the live suite", len(selected))
 	}
 	smoke, err := selectScenarios(scenarios, options{tags: listFlag{tagReplaySmoke}})
 	if err != nil || len(smoke) != 2 {

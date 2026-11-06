@@ -14,7 +14,7 @@ import (
 var investigatePrompt string
 
 func buildInvestigateSystem() string {
-	return strings.TrimRight(investigatePrompt, "\n") + "\n\n# Authoring guide\n" + strings.TrimRight(prompts.SpecGuide(), "\n") + "\n"
+	return strings.TrimRight(investigatePrompt, "\n") + "\n\n" + strings.TrimRight(prompts.Scope(), "\n") + "\n\n# Authoring guide\n" + strings.TrimRight(prompts.SpecGuide(), "\n") + "\n"
 }
 
 func investigateContext(statuses []datasource.Status, task Task, current *revision, sd seed) string {

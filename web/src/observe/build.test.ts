@@ -16,6 +16,7 @@ import {
   readBuild,
   saveBuildErrorText,
   savedDashboardId,
+  answeredRequestId,
   type BuildProgress,
 } from "./build"
 import type { ObserveRequest } from "./queries"
@@ -344,6 +345,24 @@ describe("savedDashboardId", () => {
     ],
   ])("%s", (_name, request, expected) => {
     expect(savedDashboardId(request)).toBe(expected)
+  })
+})
+
+describe("answeredRequestId", () => {
+  const finding = { id: "f1" } as ObserveRequest["finding"]
+  it.each<
+    [string, Pick<ObserveRequest, "id" | "status" | "finding">, string | null]
+  >([
+    ["an answered request", { id: "r1", status: "succeeded", finding }, "r1"],
+    [
+      "a request that built a dashboard",
+      { id: "r1", status: "succeeded", finding: null },
+      null,
+    ],
+    ["a running request", { id: "r1", status: "running", finding: null }, null],
+    ["a failed request", { id: "r1", status: "failed", finding: null }, null],
+  ])("%s", (_name, request, expected) => {
+    expect(answeredRequestId(request)).toBe(expected)
   })
 })
 

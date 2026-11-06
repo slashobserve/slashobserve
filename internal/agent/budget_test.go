@@ -159,7 +159,8 @@ func TestNudgeFor(t *testing.T) {
 }
 
 func TestTheSaveNowMessageNamesTheSixthCall(t *testing.T) {
-	if !strings.HasPrefix(guardSaveNow.message, "6 model calls without a save; only a save can run now.") {
+	want := "6 model calls without a save; only a save can run now. Save the panel you have checked, or call save_finding if the request only asks a question; reads in the same call as a save still run."
+	if guardSaveNow.message != want {
 		t.Fatalf("message = %q", guardSaveNow.message)
 	}
 }

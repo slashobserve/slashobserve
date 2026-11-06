@@ -165,6 +165,8 @@ ALTER TABLE agent_requests DROP CONSTRAINT agent_requests_succeeded_check;
 ALTER TABLE agent_requests ADD CONSTRAINT agent_requests_succeeded_check
   CHECK (status <> 'succeeded' OR source = 'investigate'
     OR (source = 'suggest' AND suggestion IS NOT NULL)
+    OR (source = 'observe' AND dashboard_id IS NULL AND result_version IS NULL)
+    OR (source IN ('prompt', 'comment') AND dashboard_id IS NOT NULL AND result_version IS NULL)
     OR (source NOT IN ('suggest', 'investigate') AND dashboard_id IS NOT NULL AND result_version IS NOT NULL));
 DROP INDEX agent_requests_running_dashboard_idx;
 CREATE UNIQUE INDEX agent_requests_running_dashboard_idx ON agent_requests (dashboard_id)

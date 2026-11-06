@@ -101,6 +101,8 @@ type runState struct {
 	modelCalls    int
 	pendingNudged bool
 	findingNudged bool
+	answerNudged  bool
+	building      bool
 
 	nudges           int
 	saveNowRefusals  int
@@ -319,6 +321,11 @@ func reusedSlot(first callSlot) callSlot {
 }
 
 func (s *runState) runSave(ctx context.Context, c llm.ToolCall, slot *callSlot, repairing bool) (turnOutcome, error) {
+	if c.Name == toolSaveFinding && s.building {
+		*slot = s.rejectCall(c, repairing, "this run already saved panels; finish the dashboard instead of saving a finding")
+		s.report(*slot)
+		return turnOutcome{}, nil
+	}
 	if s.guards.noteSave(callKey(c.Name, c.Input)) {
 		*slot = s.refuseCall(c, repairing, guardRepeatedSave)
 		s.report(*slot)
@@ -499,7 +506,7 @@ func (s *runState) classifySave(ctx context.Context, slot callSlot) (turnOutcome
 
 func (s *runState) classifyAccepted(ctx context.Context, slot callSlot, body saveBody) (turnOutcome, error) {
 	switch {
-	case s.mode == tools.ModeInvestigate:
+	case s.mode == tools.ModeInvestigate || slot.name == toolSaveFinding:
 		if body.FindingID == "" {
 			return turnOutcome{}, s.malformed(ctx, slot)
 		}
@@ -511,6 +518,7 @@ func (s *runState) classifyAccepted(ctx context.Context, slot callSlot, body sav
 		}
 		return turnOutcome{suggestion: body.Panel}, nil
 	case body.Build != nil && body.Version < 1:
+		s.building = true
 		s.rejections, s.cutOffs = 0, 0
 		s.window = saveWindow{}
 		s.buildSaves++

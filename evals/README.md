@@ -31,7 +31,7 @@ A suite is a name that scenarios and corpus tasks declare, and `--suite <name>` 
 | `smoke` | A quick check of a model, prompt or agent change before a full live run. | Thirteen live tasks: six `create` (three Prometheus, two ClickHouse, one mixed), two scenario revisions, the demo shop `change`, `fix` and `suggest` corpus tasks, `chat-import-small` and `investigate-checkout-errors-on-one-pod`. | `go run ./evals/runner --suite smoke ...` |
 
 `--suite` accepts any suite a scenario or corpus task declares, so a new suite needs no runner change.
-Without `--suite`, only the `create` scenarios of the live suite and those tagged `replay-smoke` run.
+Without `--suite`, only the `create` and `question` scenarios of the live suite and those tagged `replay-smoke` run.
 List a selection without running it:
 
 ```sh
@@ -90,6 +90,7 @@ A live prompt reads like a person's request and does not name the answer, such a
 | `chat_import` | Imports pasted Grafana JSON through the chat. | The JSON in the prompt. | `failure_code`, `imported`, `latency` |
 | `size_guard` | Sends a prompt over the size limit, which must fail. | `expect.failure_code: prompt_too_long`. | `failure_code` |
 | `investigate` | Asks why something is wrong and reads the saved finding. | `expect.finding_mentions` or `expect.evidence_min`, and no seed or panel expectations. | `failure_code`, `finding_mentions`, `evidence`, `latency` |
+| `question` | Asks a question, asks for an explanation, or asks something outside the server's data, with no command; the run must answer with a finding and build nothing. | No seed or panel expectations. | `failure_code`, `answered`, `latency` |
 
 ### Faults
 
@@ -147,6 +148,7 @@ Each check is a pure function of what the run saved; a scenario passes when ever
 | `usage` | `usage` | Each named counter (`build_saves`, `renewals`, `compactions`, `nudges`, `retries`, `save_now_refusals`, `stalled_turns`, `one_panel_refusals`) has exactly this value. |
 | `finding_mentions` | `finding_mentions` | The finding's text contains each entry, ignoring case. |
 | `evidence` | `evidence_min` (0 to 4) | The finding cites at least this many evidence panels. |
+| `answered` | | The run succeeded with a finding and saved no dashboard or version. |
 | `keeps_panels`, `new_panel_data`, `panel_values`, `changed_paths`, `changed_panels`, `only_target_changed`, `target_data`, `target_type`, `unverified_cleared` | `keeps_panels`, `panel_values`, `changed_paths`, `changed_panels`, `only_target_changed`, `target_returns_data`, `target_type`, `unverified_cleared` | The revision kept, changed or fixed what the field names. |
 
 A failure on `latency` or `budgets` alone is reported as `FAIL (latency only)` and still counts as a failure.

@@ -97,6 +97,7 @@ type Tool struct {
 	MinRole     auth.Role
 
 	InvestigateOnly bool
+	Answers         bool
 
 	AgentDescription string
 	AgentInputSchema json.RawMessage
@@ -156,6 +157,8 @@ func (t Tool) OfferedIn(mode Mode) bool {
 	switch {
 	case t.MCPOnly:
 		return false
+	case t.Answers:
+		return mode != ModeSuggest
 	case mode == ModeInvestigate:
 		return t.ReadOnly || t.InvestigateOnly
 	default:
@@ -465,6 +468,8 @@ func offered(t Tool, run Run, inRun bool) (Result, bool) {
 		return Result{}, true
 	case inRun && run.Mode == ModeInvestigate && !t.OfferedIn(run.Mode):
 		message = "an investigate run only reads data and ends with " + nameSaveFinding + "; it cannot use " + t.Name
+	case inRun && t.Answers && !t.OfferedIn(run.Mode):
+		message = t.Name + " cannot end a suggest run; propose the panel instead"
 	case inRun && !t.OfferedIn(run.Mode):
 		message = t.Name + " is only for investigate runs"
 	case !inRun && t.AgentOnly:

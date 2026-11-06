@@ -257,14 +257,16 @@ WHERE source = 'investigate' AND status IN ('queued', 'running') AND requested_b
 -- name: CountActiveInvestigateRequests :one
 SELECT count(*) FROM agent_requests WHERE source = 'investigate' AND status IN ('queued', 'running');
 
--- name: SucceedInvestigateRequest :one
+-- name: SucceedFindingRequest :one
 UPDATE agent_requests
 SET status = 'succeeded',
   run_usage = sqlc.narg('run_usage')::jsonb,
   lease_until = NULL,
   finished_at = clock_timestamp()
 WHERE agent_requests.id = @id AND agent_requests.status = 'running' AND agent_requests.attempts = @attempts
-  AND agent_requests.source = 'investigate'
+  AND (agent_requests.source = 'investigate'
+    OR (agent_requests.source = 'observe' AND agent_requests.dashboard_id IS NULL)
+    OR (agent_requests.source IN ('prompt', 'comment') AND agent_requests.dashboard_id IS NOT NULL))
   AND EXISTS (SELECT 1 FROM findings f WHERE f.agent_request_id = agent_requests.id)
 RETURNING *;
 

@@ -91,6 +91,7 @@ Reads in the same call as a save always run, and so do the reads of the call rig
 Two turns in a row in which every call was refused end the run with `no_progress`.
 
 If the model answers without a tool call while fewer panels than planned are built, its answer is dropped and its conversation is shortened the same way as after a cut-off, with a note that it is told once; its next answer without a tool call saves what is built.
+If the model answers without a tool call in a new-dashboard or revision request that has saved nothing, it is told once that its text is not shown and to call `save_finding` or save a panel; its next answer without a tool call ends the run with `no_tool_call`.
 If a model call is cut off at the output limit or runs past the per-call time limit, the agent shortens its conversation to the last few calls, the build and the names it already discovered, and goes on; a second cut-off with no accepted save in between ends the run with `output_limit` or `call_timeout`.
 After an accepted save, once the conversation passes `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` (256 KiB by default), it is shortened the same way, so a long build stays inside the model's context window.
 Shortening keeps the last 4 turns of the conversation, up to 32 KiB, and cuts their older tool results to 2 KiB.
@@ -186,9 +187,10 @@ A new dashboard goes to the requester's My Dashboards, where every person has Ed
 The saved version records the requester as its author and the request that asked for it, and the version menu on the dashboard shows "Agent" as the one who saved it.
 The tool-level roles do not apply inside a run, because the requester was already checked.
 
-The server has 24 tools: MCP clients get 23, and the built-in agent gets 18, the 17 it shares with MCP clients plus `save_finding`, which only an investigate run offers.
+The server has 24 tools: MCP clients get 23, and the built-in agent gets 18, the 17 it shares with MCP clients plus `save_finding`, which every run except a suggestion offers.
 The 17 shared tools are the 11 above, plus `update_panels`, `get_panels`, `get_spec_guide`, `list_datasources`, `list_dashboards` and `get_dashboard`.
-The comment tools, `list_folders`, `create_finding` and `list_findings` are for MCP clients only, so the agent never writes or resolves a comment reply.
+The comment tools, `list_folders` and `create_finding` are for MCP clients only, so the agent never writes or resolves a comment reply.
+The agent reads earlier findings with `list_findings`, as MCP clients do.
 Its tool descriptions and input schemas are the ones MCP clients read, except where a run behaves differently.
 The run names the dashboard and its version, so the agent's `update_dashboard` and `update_panels` take no `dashboard_id` or `parent_version`, and `get_panels` without `dashboard_id` reads the dashboard being worked on, its build included.
 Its saves take `finish`, `planned_panels` and `row`, its `update_panels` takes one panel, and its `create_dashboard` has no `folder_id`.

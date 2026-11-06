@@ -171,7 +171,7 @@ func TestBuildContextOfASmallDashboardKeepsTheFullJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := head + "\nYou are revising dashboard d, currently version 3.\n```json\n" + string(body) + "\n```\nThe request is about panel p2 titled \"Missing\"."
+	want := head + "\nYou are revising dashboard d, currently version 3. Change it for the request, or answer it with save_finding if it only asks a question.\n```json\n" + string(body) + "\n```\nThe request is about panel p2 titled \"Missing\"."
 	if got != want {
 		t.Fatalf("revise context:\n%s\nwant:\n%s", got, want)
 	}
@@ -311,8 +311,8 @@ func TestOutlineTargetsAreCapped(t *testing.T) {
 }
 
 const (
-	systemTextBudget     = 21496
-	fullSystemTextBudget = 24 << 10
+	systemTextBudget     = 23335
+	fullSystemTextBudget = 25770
 )
 
 var demoTypes = []spec.DatasourceType{spec.Prometheus, spec.ClickHouse}
@@ -365,6 +365,15 @@ func TestSystemForPassesTheDistinctTypesOfTheStatuses(t *testing.T) {
 	}
 }
 
+func TestBothSystemTextsCarryTheScopeOnceBeforeTheGuide(t *testing.T) {
+	scope := "\n\n# Scope\n\nEvery answer uses only the datasources in the context, the dashboards and findings on this server, and names you discovered in this run.\nWhen the data does not cover the question, say so in the finding instead of answering from general knowledge.\n\n# Authoring guide\n"
+	for name, system := range map[string]string{"build": buildSystem(demoTypes), "investigate": buildInvestigateSystem()} {
+		if strings.Count(system, scope) != 1 || strings.Count(system, "Every answer uses only") != 1 {
+			t.Errorf("%s system text does not carry the scope once before the guide", name)
+		}
+	}
+}
+
 func TestBuildSystemStatesTheRulesTheLoopEnforces(t *testing.T) {
 	system := buildSystem(demoTypes)
 	for _, want := range []string{
@@ -381,6 +390,10 @@ func TestBuildSystemStatesTheRulesTheLoopEnforces(t *testing.T) {
 		"## Panel type by data shape",
 		"as wide as its line's recipe whatever its series count",
 		"with `row` naming its row",
+		"First decide what the request asks for, then do only that.",
+		"Every answer keeps to the scope below.",
+		"and earlier findings with `list_findings`",
+		"never call `save_finding` after you saved a panel",
 	} {
 		if !strings.Contains(system, want) {
 			t.Errorf("system text lacks %q", want)
@@ -393,6 +406,7 @@ func TestBuildSystemStatesTheRulesTheLoopEnforces(t *testing.T) {
 		"Pick widths in a row that add up to 24",
 		"Use `stat` or `table` for",
 		"10 to 20 series: a full-width",
+		"The only result that matters is a saved dashboard",
 	} {
 		if strings.Contains(system, gone) {
 			t.Errorf("system text still holds %q", gone)

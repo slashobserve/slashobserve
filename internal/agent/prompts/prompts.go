@@ -26,6 +26,9 @@ var tempoGuide string
 //go:embed system.md
 var system string
 
+//go:embed scope.md
+var scope string
+
 var sections = []struct {
 	datasource spec.DatasourceType
 	text       string
@@ -49,3 +52,5 @@ func SpecGuide() string {
 }
 
 func System() string { return system }
+
+func Scope() string { return scope }

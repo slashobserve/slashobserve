@@ -8,6 +8,8 @@ The agent reads your datasources the way it does for a build, then ends by savin
 It also reads the [annotations](annotations.md) of the dashboard and the global ones, so it can see a deploy or a change beside a spike.
 It needs a model; see [LLM providers](../connect/llm-providers.md).
 
+A plain question sent without the command, such as "how many pods are up?", is answered with a finding too, without building a dashboard.
+
 ## What a finding is
 
 A finding is the agent's answer, written as Markdown of at most 400 words.

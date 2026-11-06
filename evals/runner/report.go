@@ -360,7 +360,7 @@ func ratio(total int64, count int) *float64 {
 
 func withMetrics(res Result, kind string, req AgentRequest) Result {
 	switch kind {
-	case kindSuggest, kindChatImport, kindSizeGuard, kindInvestigate:
+	case kindSuggest, kindChatImport, kindSizeGuard, kindInvestigate, kindQuestion:
 	default:
 		res.FirstPanelSeconds = firstPanelSeconds(req.CreatedAt, req.FirstSaveAt)
 	}
@@ -587,7 +587,7 @@ func optionalFloat(v *float64) string {
 }
 
 func panelsCell(r Result) string {
-	if r.Kind == kindInvestigate {
+	if r.Kind == kindInvestigate || r.Kind == kindQuestion {
 		return fmt.Sprintf("%dw %dev", r.FindingWords, r.Evidence)
 	}
 	return optionalFloat(r.PanelsPerMinute)

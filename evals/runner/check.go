@@ -168,6 +168,8 @@ func scenarioChecks(sc Scenario, obs observation) []CheckResult {
 		checks = []CheckResult{checkFailureCode(ex, obs), checkImported(obs), checkLatency(ex, obs)}
 	case kindInvestigate:
 		checks = []CheckResult{checkFailureCode(ex, obs), checkFindingMentions(ex, obs), checkEvidence(ex, obs), checkLatency(ex, obs)}
+	case kindQuestion:
+		checks = questionChecks(ex, obs)
 	default:
 		checks = createChecks(ex, obs)
 	}
@@ -175,6 +177,31 @@ func scenarioChecks(sc Scenario, obs observation) []CheckResult {
 		checks = append(checks, checkBudgets(ex, obs))
 	}
 	return checks
+}
+
+func questionChecks(ex Expect, obs observation) []CheckResult {
+	checks := []CheckResult{checkFailureCode(ex, obs), checkAnswered(obs)}
+	if len(ex.FindingMentions) > 0 {
+		checks = append(checks, checkFindingMentions(ex, obs))
+	}
+	if ex.EvidenceMin > 0 {
+		checks = append(checks, checkEvidence(ex, obs))
+	}
+	return append(checks, checkLatency(ex, obs))
+}
+
+func checkAnswered(obs observation) CheckResult {
+	const name = "answered"
+	req := obs.request
+	switch {
+	case req.Status != "succeeded":
+		return result(name, false, "request "+req.Status)
+	case req.ResultVersion != nil || req.DashboardID != nil:
+		return result(name, false, "the run built a dashboard instead of answering")
+	case req.Finding == nil:
+		return result(name, false, "the request has no finding")
+	}
+	return result(name, true, "")
 }
 
 func reviseChecks(ex Expect, obs observation) []CheckResult {

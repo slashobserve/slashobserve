@@ -1,0 +1,15 @@
+{
+  "prompt": "write me a python script that sorts a list",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "save_finding",
+          "input": {
+            "markdown": "This agent works only with this server's datasources and dashboards, so it cannot write a general Python script.\n\nThe datasources in this server are prom (Prometheus), ch (ClickHouse), loki (Loki) and tempo (Tempo).\n\nIt can build a dashboard from them, change a dashboard, explain a dashboard or a panel, answer a question about what the data holds, and investigate why a signal changed."
+          }
+        }
+      ]
+    }
+  ]
+}

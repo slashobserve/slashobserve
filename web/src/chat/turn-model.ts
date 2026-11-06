@@ -8,6 +8,15 @@ export function resultFinishedAt(
     : request.finished_at
 }
 
+export function mayHaveFinding(
+  request: Pick<ObserveRequest, "source" | "status" | "result_version">
+): boolean {
+  return (
+    request.source === "investigate" ||
+    (request.status === "succeeded" && request.result_version === null)
+  )
+}
+
 export function showsWorkingRow(
   request: Pick<ObserveRequest, "status">,
   stalled: boolean

@@ -59,7 +59,7 @@ func TestInvestigateExpectationsAreValidated(t *testing.T) {
 		{"five evidence panels", investigation(func(sc *Scenario) { sc.Expect.EvidenceMin = 5 }), "evidence_min must be between 0 and 4"},
 		{"mentions on a create scenario", investigation(func(sc *Scenario) {
 			sc.Kind, sc.Category, sc.Expect.Datasources = kindCreate, categoryPrometheus, []string{"prometheus"}
-		}), "for kind investigate only"},
+		}), "for kinds investigate and question only"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

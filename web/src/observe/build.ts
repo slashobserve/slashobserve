@@ -29,6 +29,14 @@ export function savedDashboardId(request: SavedRequest): string | null {
     : null
 }
 
+export function answeredRequestId(
+  request: Pick<ObserveRequest, "id" | "status" | "finding">
+): string | null {
+  return request.status === "succeeded" && request.finding !== null
+    ? request.id
+    : null
+}
+
 export function buildGone(error: unknown): boolean {
   return (
     error instanceof ApiError &&

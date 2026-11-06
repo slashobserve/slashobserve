@@ -1529,7 +1529,7 @@ components:
           type: integer
           minimum: 1
           nullable: true
-          description: The version the revision saved, set when the status is `succeeded`.
+          description: The version the revision saved, set when the status is `succeeded` unless the agent answered with a finding.
         error:
           type: string
           nullable: true
@@ -1965,7 +1965,7 @@ components:
         kind:
           type: string
           enum: [build, investigate]
-          description: "`investigate` for an investigation that ends with a finding, `build` for every request that saves a dashboard version."
+          description: "`investigate` for an investigation that ends with a finding, `build` for every other request, including one that answered a question with a finding."
         title:
           type: string
           description: The title the requester gave the request, or the start of its prompt when they gave none.
@@ -2002,11 +2002,11 @@ components:
           type: integer
           minimum: 1
           nullable: true
-          description: The version the request saved, set when the status is `succeeded` and, once the requester saved a stopped build, when it is `failed`.
+          description: The version the request saved, set when the status is `succeeded` unless the agent answered with a finding and, once the requester saved a stopped build, when it is `failed`.
         url:
           type: string
           nullable: true
-          description: The address of the dashboard, or of the finding for an investigation, set when the status is `succeeded`.
+          description: The address of the dashboard, or of the finding for an investigation or a request that answered a question, set when the status is `succeeded`.
         error:
           type: string
           nullable: true
@@ -2115,7 +2115,7 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/Finding"
-          description: The finding an investigation saved; null for other kinds and until the investigation has saved one.
+          description: "The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved."
     RequestSummary:
       type: object
       additionalProperties: false

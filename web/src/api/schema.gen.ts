@@ -1033,7 +1033,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the agent to revise a dashboard with a follow-up prompt.
-         * @description The request is queued and answers 202 at once; the agent saves the result as a new version of the dashboard. Watch the dashboard's event stream for `revision.updated` and `version.created` (the version arrives first, then `revision.updated` with status `succeeded`; do not depend on their order), or poll the revision. The agent revises the latest version of the dashboard; `base_version` is the version the caller was looking at and only gives the agent context. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. At most 5 revisions may be queued or running per dashboard. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`. With `panel_id` the agent focuses on that panel. With `comment_id` the request is about a comment thread; on success the thread is resolved with the saved version.
+         * @description The request is queued and answers 202 at once; the agent saves the result as a new version of the dashboard. A prompt that only asks a question may instead end with a finding, and then the revision succeeds with `result_version` null. Watch the dashboard's event stream for `revision.updated` and `version.created` (the version arrives first, then `revision.updated` with status `succeeded`; do not depend on their order), or poll the revision. The agent revises the latest version of the dashboard; `base_version` is the version the caller was looking at and only gives the agent context. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. At most 5 revisions may be queued or running per dashboard. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`. With `panel_id` the agent focuses on that panel. With `comment_id` the request is about a comment thread; on success the thread is resolved with the saved version.
          */
         post: operations["createDashboardRevision"];
         delete?: never;
@@ -1142,7 +1142,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the agent to build a new dashboard, revise an existing one with a follow-up prompt, or investigate a question.
-         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). `panel_id`, `from` and `to` need `kind` `investigate`, `kind` must be `build` or `investigate`, `base_version` is not allowed for an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` and `url` set and `dashboard_id` and `result_version` null, and `kind` stays `build`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` and `url` set, keeps its `dashboard_id`, and `result_version` stays null. With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). `panel_id`, `from` and `to` need `kind` `investigate`, `kind` must be `build` or `investigate`, `base_version` is not allowed for an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["createObserveRequest"];
         delete?: never;
@@ -2700,7 +2700,7 @@ export interface components {
             /** @enum {string} */
             status: "queued" | "running" | "succeeded" | "failed";
             attempts: number;
-            /** @description The version the revision saved, set when the status is `succeeded`. */
+            /** @description The version the revision saved, set when the status is `succeeded` unless the agent answered with a finding. */
             result_version: number | null;
             /** @description Why the revision failed, set when the status is `failed`. */
             error: string | null;
@@ -2893,7 +2893,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /**
-             * @description `investigate` for an investigation that ends with a finding, `build` for every request that saves a dashboard version.
+             * @description `investigate` for an investigation that ends with a finding, `build` for every other request, including one that answered a question with a finding.
              * @enum {string}
              */
             kind: "build" | "investigate";
@@ -2915,9 +2915,9 @@ export interface components {
             /** @enum {string} */
             status: "queued" | "running" | "succeeded" | "failed";
             attempts: number;
-            /** @description The version the request saved, set when the status is `succeeded` and, once the requester saved a stopped build, when it is `failed`. */
+            /** @description The version the request saved, set when the status is `succeeded` unless the agent answered with a finding and, once the requester saved a stopped build, when it is `failed`. */
             result_version: number | null;
-            /** @description The address of the dashboard, or of the finding for an investigation, set when the status is `succeeded`. */
+            /** @description The address of the dashboard, or of the finding for an investigation or a request that answered a question, set when the status is `succeeded`. */
             url: string | null;
             /** @description Why the request failed, set when the status is `failed`. */
             error: string | null;
@@ -2990,7 +2990,7 @@ export interface components {
              * @description The end of the window an investigation was asked to look at; null when none was given.
              */
             to: string | null;
-            /** @description The finding an investigation saved; null for other kinds and until the investigation has saved one. */
+            /** @description The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved. */
             finding: components["schemas"]["Finding"] | null;
         };
         RequestSummary: {

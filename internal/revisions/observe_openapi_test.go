@@ -21,6 +21,8 @@ import (
 
 	"github.com/slashobserve/slashobserve/api"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -116,9 +118,8 @@ func TestObserveListFieldsMatchTheDocument(t *testing.T) {
 	h.call(t, http.MethodGet, "/api/v1/observe/"+investigation, "", http.StatusOK)
 }
 
-func TestASucceededInvestigationShowsItsFindingAsTheDocumentSays(t *testing.T) {
-	svc, d := newService(t, succeedWith(2))
-	row := investigate(t, svc, revisions.InvestigateParams{})
+func storedFinding(t *testing.T, d *dbtest.Database, row dbsqlc.AgentRequest) (string, func(context.Context, pgtype.UUID) (json.RawMessage, bool, error)) {
+	t.Helper()
 	insertFindingFor(t, d, row.ID)
 	d.Exec(t, "UPDATE agent_requests SET status = 'succeeded', attempts = 1, started_at = now(), finished_at = now() WHERE id = $1", row.ID)
 	var findingID string
@@ -141,6 +142,25 @@ func TestASucceededInvestigationShowsItsFindingAsTheDocumentSays(t *testing.T) {
 			CreatedBy:      findings.Author{Kind: "user", ID: userID, Name: "Ada"},
 		}, "/findings/"+findingID)), true, nil
 	}
+	return findingID, finding
+}
+
+type requestWithFinding struct {
+	Request struct {
+		Kind          string  `json:"kind"`
+		URL           string  `json:"url"`
+		DashboardID   *string `json:"dashboard_id"`
+		ResultVersion *int    `json:"result_version"`
+		Finding       *struct {
+			ID string `json:"id"`
+		} `json:"finding"`
+	} `json:"request"`
+}
+
+func TestASucceededInvestigationShowsItsFindingAsTheDocumentSays(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	row := investigate(t, svc, revisions.InvestigateParams{})
+	findingID, finding := storedFinding(t, d, row)
 	h := newDocumentedObserve(t, svc, user, finding)
 
 	rec := h.call(t, http.MethodGet, "/api/v1/observe/"+row.ID.String(), "", http.StatusOK)
@@ -163,6 +183,47 @@ func TestASucceededInvestigationShowsItsFindingAsTheDocumentSays(t *testing.T) {
 	list := h.call(t, http.MethodGet, "/api/v1/observe?source=investigate&q="+url.QueryEscape("errors"), "", http.StatusOK)
 	if !strings.Contains(list.Body.String(), `"url":"/findings/`+findingID+`"`) {
 		t.Fatalf("the list does not link the finding: %s", list.Body)
+	}
+}
+
+func TestAnAnsweredObserveRequestShowsItsFindingAsTheDocumentSays(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	row, err := svc.SubmitObserve(context.Background(), user, "what all logs are available?")
+	if err != nil {
+		t.Fatal(err)
+	}
+	findingID, finding := storedFinding(t, d, row)
+	h := newDocumentedObserve(t, svc, user, finding)
+
+	rec := h.call(t, http.MethodGet, "/api/v1/observe/"+row.ID.String(), "", http.StatusOK)
+	var got requestWithFinding
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	r := got.Request
+	if r.Kind != "build" || r.Finding == nil || r.Finding.ID != findingID || r.URL != "/findings/"+findingID || r.DashboardID != nil || r.ResultVersion != nil {
+		t.Fatalf("GET of an answered observe request: %s", rec.Body)
+	}
+}
+
+func TestAnAnsweredDashboardPromptShowsItsFindingAsTheDocumentSays(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	row, err := svc.SubmitFollowUp(context.Background(), dash, nil, "", "what does this dashboard show?", user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	findingID, finding := storedFinding(t, d, row)
+	h := newDocumentedObserve(t, svc, user, finding)
+
+	rec := h.call(t, http.MethodGet, "/api/v1/observe/"+row.ID.String(), "", http.StatusOK)
+	var got requestWithFinding
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	r := got.Request
+	if r.Finding == nil || r.Finding.ID != findingID || r.URL != "/findings/"+findingID || r.DashboardID == nil || *r.DashboardID != dash.String() || r.ResultVersion != nil {
+		t.Fatalf("GET of an answered dashboard prompt: %s", rec.Body)
 	}
 }
 

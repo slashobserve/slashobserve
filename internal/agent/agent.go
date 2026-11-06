@@ -569,6 +569,7 @@ func (r *runner) prepareSession(ctx context.Context, current *revision, build *d
 	r.state.parentVersion = run.ParentVersion
 	r.state.guards.resetReads()
 	r.state.window = saveWindow{}
+	r.state.building = build != nil
 	r.state.sessionBytes = 0
 
 	request := llm.Request{
@@ -772,6 +773,9 @@ func (r *runner) finishWithoutCall(ctx context.Context, chat llm.Session, noResu
 		return sessionEnd{}, ctx.Err()
 	case err != nil:
 		return sessionEnd{}, r.agent.buildStoreError(ctx, "could not load the build", err, r.task.RequestID)
+	case !found && !r.state.answerNudged:
+		r.state.answerNudged = true
+		return compaction(seedNoAnswer, chat, nil), nil
 	case !found:
 		return sessionEnd{}, noResult
 	}
@@ -810,10 +814,8 @@ func buildView(current *revision, build *dashboards.Build) *revision {
 func runScope(t Task, prompt string, mode tools.Mode, current *revision) tools.Run {
 	run := tools.Run{Mode: mode, RequestID: t.RequestID}
 	switch mode {
-	case tools.ModeCreate:
+	case tools.ModeCreate, tools.ModeRevise:
 		run.Build, run.Attempt, run.Prompt = true, t.Attempt, prompt
-	case tools.ModeRevise:
-		run.Build, run.Attempt = true, t.Attempt
 	case tools.ModeInvestigate:
 		run.Attempt, run.Prompt, run.PanelID = t.Attempt, prompt, t.PanelID
 		if t.From != nil && t.To != nil {

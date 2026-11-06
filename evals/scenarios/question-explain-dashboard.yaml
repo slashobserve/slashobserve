@@ -1,0 +1,7 @@
+id: question-explain-dashboard
+prompt: "explain what the Demo shop overview dashboard shows"
+kind: question
+suites: [live, replay]
+done_when: false
+expect:
+  finding_mentions: [requests per second, orders]

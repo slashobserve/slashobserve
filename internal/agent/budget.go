@@ -43,7 +43,7 @@ type guard struct {
 
 var (
 	guardSaveNow = guard{
-		message: fmt.Sprintf("%d model calls without a save; only a save can run now. Save the panel you have checked; reads in the same call as a save still run.", maxCallsBeforeSave),
+		message: fmt.Sprintf("%d model calls without a save; only a save can run now. Save the panel you have checked, or call save_finding if the request only asks a question; reads in the same call as a save still run.", maxCallsBeforeSave),
 		refused: fmt.Sprintf("%d model calls passed without a save", maxCallsBeforeSave),
 		stopped: fmt.Sprintf("Stopped: the model kept reading after %d calls without a save", maxCallsBeforeSave),
 	}
@@ -76,7 +76,7 @@ const (
 	messageReplacement = "This save deleted a panel and added another, which is not progress. Keep the panels you have, save the next panel, or set finish: true when every planned panel is built."
 	messageReplayed    = "This is the result of the same earlier call. A third identical call is refused."
 
-	messageSaveNext    = "Save the next panel in your next call. From then on, reads run only in the same call as a save."
+	messageSaveNext    = "Save the next panel, or call save_finding if the request only asks a question, in your next call. From then on, reads run only in the same call as a save."
 	messageProposeNext = "Propose the panel in your next call. From then on, reads run only in the same call as a proposal."
 	messageFindingNext = "One more read at most, then call save_finding."
 )

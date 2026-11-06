@@ -618,7 +618,7 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 				ID: claimed.ID, Attempts: claimed.Attempts, Suggestion: o.suggestion, RunUsage: usage,
 			})
 		case o.finding:
-			row, err = q.SucceedInvestigateRequest(ctx, dbsqlc.SucceedInvestigateRequestParams{
+			row, err = q.SucceedFindingRequest(ctx, dbsqlc.SucceedFindingRequestParams{
 				ID: claimed.ID, Attempts: claimed.Attempts, RunUsage: usage,
 			})
 		case o.version != nil:

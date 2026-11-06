@@ -45,7 +45,7 @@ func TestReviserRunsTheAgentInReviseModeForTheRequest(t *testing.T) {
 	if len(calls) != 1 {
 		t.Fatalf("calls = %v", r.tools.names())
 	}
-	want := tools.Run{Mode: tools.ModeRevise, DashboardID: dashID, ParentVersion: 3, RequestID: revisionRequestID, Build: true, Attempt: 2}
+	want := tools.Run{Mode: tools.ModeRevise, DashboardID: dashID, ParentVersion: 3, RequestID: revisionRequestID, Prompt: "show this per route", Build: true, Attempt: 2}
 	if !calls[0].scoped || calls[0].run != want || !reflect.DeepEqual(calls[0].principal, principal) {
 		t.Fatalf("call = %+v, want run %+v for %+v", calls[0], want, principal)
 	}
@@ -81,7 +81,9 @@ func TestReviserStoresOnlyTheAgentsOwnMessages(t *testing.T) {
 			want: agent.ErrRefused.Error(),
 		},
 		"no save": {
-			rig:  func(t *testing.T) *rig { return newRig(t, session(stopTurn(llm.StopEndTurn))) },
+			rig: func(t *testing.T) *rig {
+				return newRig(t, session(stopTurn(llm.StopEndTurn), stopTurn(llm.StopEndTurn)))
+			},
 			want: agent.ErrNoSave.Error(),
 		},
 		"provider failure": {
@@ -195,7 +197,9 @@ func TestReviserNamesTheFailureOfEveryRun(t *testing.T) {
 			wantUsage:   true,
 		},
 		"no tool call": {
-			rig:         func(t *testing.T) *rig { return newRig(t, session(stopTurn(llm.StopEndTurn))) },
+			rig: func(t *testing.T) *rig {
+				return newRig(t, session(stopTurn(llm.StopEndTurn), stopTurn(llm.StopEndTurn)))
+			},
 			wantMessage: agent.ErrNoSave.Error(),
 			wantCode:    revisions.FailureNoToolCall,
 			wantUsage:   true,

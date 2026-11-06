@@ -223,7 +223,7 @@ func (a *app) waitAndReport(ctx context.Context, c *client, id string, timeout t
 		}
 		return fmt.Errorf("observe failed: %s", reason)
 	}
-	if req.Source == sourceInvestigate {
+	if req.Source == sourceInvestigate || req.Finding != nil {
 		return a.reportFinding(out, req)
 	}
 	address, err := dashboardAddress(c, req)

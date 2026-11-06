@@ -1415,26 +1415,28 @@ func (q *Queries) SucceedAgentRequest(ctx context.Context, arg SucceedAgentReque
 	return i, err
 }
 
-const succeedInvestigateRequest = `-- name: SucceedInvestigateRequest :one
+const succeedFindingRequest = `-- name: SucceedFindingRequest :one
 UPDATE agent_requests
 SET status = 'succeeded',
   run_usage = $1::jsonb,
   lease_until = NULL,
   finished_at = clock_timestamp()
 WHERE agent_requests.id = $2 AND agent_requests.status = 'running' AND agent_requests.attempts = $3
-  AND agent_requests.source = 'investigate'
+  AND (agent_requests.source = 'investigate'
+    OR (agent_requests.source = 'observe' AND agent_requests.dashboard_id IS NULL)
+    OR (agent_requests.source IN ('prompt', 'comment') AND agent_requests.dashboard_id IS NOT NULL))
   AND EXISTS (SELECT 1 FROM findings f WHERE f.agent_request_id = agent_requests.id)
 RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at
 `
 
-type SucceedInvestigateRequestParams struct {
+type SucceedFindingRequestParams struct {
 	RunUsage []byte
 	ID       pgtype.UUID
 	Attempts int32
 }
 
-func (q *Queries) SucceedInvestigateRequest(ctx context.Context, arg SucceedInvestigateRequestParams) (AgentRequest, error) {
-	row := q.db.QueryRow(ctx, succeedInvestigateRequest, arg.RunUsage, arg.ID, arg.Attempts)
+func (q *Queries) SucceedFindingRequest(ctx context.Context, arg SucceedFindingRequestParams) (AgentRequest, error) {
+	row := q.db.QueryRow(ctx, succeedFindingRequest, arg.RunUsage, arg.ID, arg.Attempts)
 	var i AgentRequest
 	err := row.Scan(
 		&i.ID,

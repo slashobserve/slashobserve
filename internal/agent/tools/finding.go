@@ -33,7 +33,7 @@ const (
 	maxFindingOutBytes  = 4000
 	defaultWindow       = time.Hour
 
-	descSaveFinding   = "Save your answer as a finding and end the investigation: markdown of at most 400 words that states the cause and the numbers that show it, plus up to 4 evidence panels whose queries return data in the window. Call it exactly once, after you have checked each evidence query with query_range or query_instant."
+	descSaveFinding   = "Save your answer as a finding and end the run: markdown of at most 400 words that answers with the names and numbers that show it, plus up to 4 evidence panels whose queries return data in the window. Call it exactly once, after you have checked each evidence query with query_range or query_instant."
 	descCreateFinding = "Save an investigation result as a finding: markdown of at most 400 words and up to 4 evidence panels, each checked by running its query. Returns the finding with its url."
 	descListFindings  = "List findings, newest first: those on one dashboard with dashboard_id, else your own. Page with next_cursor."
 
@@ -51,9 +51,9 @@ var errFindingsNotConfigured = errors.New("findings are not configured")
 
 func (r *Registry) findingEntries() []entry {
 	return []entry{
-		{Tool{Name: nameSaveFinding, Description: descSaveFinding, InputSchema: json.RawMessage(schemaSaveFinding), AgentOnly: true, InvestigateOnly: true, MinRole: auth.RoleEditor}, r.saveFinding},
+		{Tool{Name: nameSaveFinding, Description: descSaveFinding, InputSchema: json.RawMessage(schemaSaveFinding), AgentOnly: true, Answers: true, MinRole: auth.RoleEditor}, r.saveFinding},
 		{Tool{Name: nameCreateFinding, Description: descCreateFinding, InputSchema: json.RawMessage(schemaCreateFinding), MCPOnly: true, MinRole: auth.RoleEditor}, r.createFinding},
-		{Tool{Name: nameListFindings, Description: descListFindings, InputSchema: json.RawMessage(schemaListFindings), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listFindings},
+		{Tool{Name: nameListFindings, Description: descListFindings, InputSchema: json.RawMessage(schemaListFindings), ReadOnly: true, MinRole: auth.RoleViewer}, r.listFindings},
 	}
 }
 

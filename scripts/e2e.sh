@@ -2207,7 +2207,7 @@ observe_suite() {
   id2="$(observe_id_of "$TMP/api.body")"
   observe_wait "$id2" 90
   observe_expect "the failed request" '"status":"failed"' '"error":"the model finished without saving a dashboard"' '"dashboard_id":null' '"url":null' \
-    '"result_version":null' '"phase":"query"' '"model_calls":6'
+    '"result_version":null' '"phase":"query"' '"model_calls":7'
   pass "a run that never saves fails with a fixed error, no dashboard and its usage"
 
   out="$(api POST /observe -d '{"prompt":"No fixture covers this observe prompt"}')"

@@ -53,4 +53,13 @@ func TestAnInvestigationSucceedsOnlyWithAFinding(t *testing.T) {
 	if o := successOutcome(SourcePrompt, Result{Version: 3}); o.finding || o.version == nil || *o.version != 3 {
 		t.Errorf("a build = %+v", o)
 	}
+	if o := successOutcome(SourceObserve, Result{FindingID: "f1"}); !o.finding || o.version != nil || o.failure != "" {
+		t.Errorf("an answered new-dashboard request = %+v", o)
+	}
+	if o := successOutcome(SourcePrompt, Result{FindingID: "f1"}); !o.finding || o.version != nil || o.failure != "" {
+		t.Errorf("an answered dashboard prompt = %+v", o)
+	}
+	if o := successOutcome(SourceObserve, Result{Version: 1}); o.finding || o.version == nil || *o.version != 1 {
+		t.Errorf("a new dashboard = %+v", o)
+	}
 }

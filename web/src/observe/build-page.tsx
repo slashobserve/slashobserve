@@ -23,7 +23,12 @@ import { isDataPanel, sourcePanelOf, type Dashboard } from "@/spec"
 import { dashboardLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
 
-import { buildQuery, newPanelIds, savedDashboardId } from "./build"
+import {
+  answeredRequestId,
+  buildQuery,
+  newPanelIds,
+  savedDashboardId,
+} from "./build"
 import {
   buildBodyState,
   buildPageNotice,
@@ -180,6 +185,16 @@ export function BuildPage({ requestId }: { requestId: string }) {
       viewTransition: true,
     })
   }, [savedId, navigate, requestId])
+
+  const answeredId = request === undefined ? null : answeredRequestId(request)
+  useEffect(() => {
+    if (answeredId === null) return
+    void navigate({
+      to: "/c/$requestId",
+      params: { requestId: answeredId },
+      replace: true,
+    })
+  }, [answeredId, navigate])
 
   const active = request?.status === "queued" || request?.status === "running"
   const knownTitle = buildPageTitle({

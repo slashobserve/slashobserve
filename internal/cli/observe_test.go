@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -326,5 +327,30 @@ func TestPrintRequestExplainsQueueAndStoppedBuilds(t *testing.T) {
 				t.Fatalf("output has %q:\n%s", tc.none, got)
 			}
 		})
+	}
+}
+
+func TestAPromptThatOnlyAsksAQuestionPrintsTheFinding(t *testing.T) {
+	var posted string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodPost {
+			data, _ := io.ReadAll(r.Body)
+			posted = string(data)
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"build","source":"observe","status":"queued","steps":[]}}`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"build","source":"observe","status":"succeeded","dashboard_id":null,"result_version":null,"url":"https://observe.example.com/findings/f1","steps":[],"finding":`+findingJSON+`}}`)
+	}))
+	t.Cleanup(server.Close)
+
+	stdout, stderr, code := runCLI("--server", server.URL, "--token", "k", "-q", "what", "logs", "are", "available?")
+	if code != 0 {
+		t.Fatalf("code %d stderr %q", code, stderr)
+	}
+	want := "Checkout errors rose after the deploy\n\nErrors rose at 10:02.\nThe deploy at 10:00 added a retry.\n\nhttps://observe.example.com/findings/f1\n"
+	if stdout != want || posted != `{"prompt":"what logs are available?"}` {
+		t.Errorf("stdout %q posted %q", stdout, posted)
 	}
 }

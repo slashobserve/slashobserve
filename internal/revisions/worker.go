@@ -322,13 +322,12 @@ func (w *Worker) holdLease(ctx context.Context, claimed dbsqlc.AgentRequest, can
 }
 
 func successOutcome(source Source, result Result) outcome {
-	switch source {
-	case SourceSuggest:
+	switch {
+	case source == SourceSuggest:
 		return suggestionOutcome(result)
-	case SourceInvestigate:
-		if result.FindingID == "" {
-			return outcome{message: noFindingMessage, code: "agent_no_finding", failure: FailureNoFinding, usage: result.Usage}
-		}
+	case source == SourceInvestigate && result.FindingID == "":
+		return outcome{message: noFindingMessage, code: "agent_no_finding", failure: FailureNoFinding, usage: result.Usage}
+	case result.FindingID != "":
 		return outcome{finding: true, usage: result.Usage}
 	}
 	return outcome{version: &result.Version, usage: result.Usage}
@@ -350,6 +349,10 @@ func (w *Worker) settleSaved(ctx context.Context, claimed dbsqlc.AgentRequest, u
 		return w.settleChecked(ctx, claimed, err, found, outcome{finding: true, usage: usage})
 	}
 	version, saved, err := w.service.existingVersion(checkCtx, claimed)
+	if err == nil && !saved {
+		found, err := w.service.hasFinding(checkCtx, claimed)
+		return w.settleChecked(ctx, claimed, err, found, outcome{finding: true, usage: usage})
+	}
 	return w.settleChecked(ctx, claimed, err, saved, outcome{version: &version, usage: usage})
 }
 

@@ -154,7 +154,7 @@ var fakeToolList = []tools.Tool{
 	{Name: "update_dashboard", Description: "update", InputSchema: json.RawMessage(`{"type":"object"}`)},
 	{Name: "update_panels", Description: "patch", InputSchema: json.RawMessage(`{"type":"object"}`)},
 	{Name: "get_panels", Description: "panels", InputSchema: json.RawMessage(`{"type":"object"}`), ReadOnly: true},
-	{Name: "save_finding", Description: "finding", InputSchema: json.RawMessage(`{"type":"object"}`), AgentOnly: true, InvestigateOnly: true},
+	{Name: "save_finding", Description: "finding", InputSchema: json.RawMessage(`{"type":"object"}`), AgentOnly: true, Answers: true},
 }
 
 func offeredIn(mode tools.Mode) []tools.Tool {
@@ -506,7 +506,7 @@ func TestRequestCarriesStableSystemToolsPromptAndContext(t *testing.T) {
 	if reqs[0].Prompt != "checkout health by pod" {
 		t.Fatalf("prompt = %q", reqs[0].Prompt)
 	}
-	wantContext := "Configured datasources:\n- logs (clickhouse): unhealthy\n- prom (prometheus): healthy\n\nCreate a new dashboard for the request."
+	wantContext := "Configured datasources:\n- logs (clickhouse): unhealthy\n- prom (prometheus): healthy\n\nCreate a new dashboard for the request, or answer it with save_finding if it only asks a question."
 	if reqs[0].Context != wantContext {
 		t.Fatalf("context = %q", reqs[0].Context)
 	}
@@ -694,7 +694,7 @@ func TestReviseHappyPath(t *testing.T) {
 		t.Fatalf("outcome = %+v", out)
 	}
 	for _, c := range r.tools.recorded() {
-		want := tools.Run{Mode: tools.ModeRevise, DashboardID: dashID, ParentVersion: 3, RequestID: requestID, Build: true, Attempt: 1}
+		want := tools.Run{Mode: tools.ModeRevise, DashboardID: dashID, ParentVersion: 3, RequestID: requestID, Prompt: task.Prompt, Build: true, Attempt: 1}
 		if !c.scoped || c.run != want {
 			t.Fatalf("call %s run = %+v scoped=%v, want %+v", c.name, c.run, c.scoped, want)
 		}
@@ -702,7 +702,7 @@ func TestReviseHappyPath(t *testing.T) {
 	reqs := r.provider.started()
 	for _, want := range []string{
 		"- prom (prometheus): healthy",
-		"You are revising dashboard " + dashID + ", currently version 3.\n```json\n{",
+		"You are revising dashboard " + dashID + ", currently version 3. Change it for the request, or answer it with save_finding if it only asks a question.\n```json\n{",
 		"Checkout service health",
 		fmt.Sprintf("The request is a comment on panel %s titled %q.", panelID, panelName),
 	} {
@@ -918,10 +918,7 @@ func TestFinishingWithoutSavingFails(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			turns := []scriptedTurn{toolTurn(call("c1", "get_spec_guide", `{}`)), stopTurn(tc.stop)}
-			if tc.stop == llm.StopMaxTokens {
-				turns = append(turns, stopTurn(tc.stop))
-			}
+			turns := []scriptedTurn{toolTurn(call("c1", "get_spec_guide", `{}`)), stopTurn(tc.stop), stopTurn(tc.stop)}
 			r := newRig(t, session(turns...))
 			out, err := r.agent.Run(context.Background(), r.task())
 			if !errors.Is(err, agent.ErrNoSave) {
@@ -1521,7 +1518,10 @@ func TestRunFinishedLogNeverCarriesToolOrModelText(t *testing.T) {
 			name: "model ends without saving",
 			code: "no_tool_call",
 			typ:  "",
-			rig:  oneTurn(scriptedTurn{turn: llm.Turn{Text: "UNIQUE-MODEL words", Stop: llm.StopEndTurn, Usage: usage()}}),
+			rig: func(t *testing.T) *rig {
+				words := scriptedTurn{turn: llm.Turn{Text: "UNIQUE-MODEL words", Stop: llm.StopEndTurn, Usage: usage()}}
+				return newRig(t, session(words, words))
+			},
 		},
 		{
 			name: "model refuses",
@@ -1894,8 +1894,8 @@ func TestReplayFixtureThatNeverSavesFails(t *testing.T) {
 	if !errors.Is(err, agent.ErrNoSave) {
 		t.Fatalf("err = %v", err)
 	}
-	if out.Usage.Calls != 2 {
-		t.Fatalf("usage = %+v", out.Usage)
+	if out.Usage.Calls != 3 || out.Compactions != 1 {
+		t.Fatalf("outcome = %+v", out)
 	}
 }
 
@@ -1946,12 +1946,12 @@ func TestAgentDoesNotOfferMCPOnlyTools(t *testing.T) {
 			t.Errorf("%s: offered in create = %v, offered to the model = %v", tool.Name, tool.OfferedIn(tools.ModeCreate), offered[tool.Name])
 		}
 	}
-	for _, name := range []string{"list_comments", "list_folders", "reply_to_comment", "resolve_comment", "create_finding", "list_findings", "save_finding", "list_dashboard_health", "list_annotations", "create_annotation", "draft_query"} {
+	for _, name := range []string{"list_comments", "list_folders", "reply_to_comment", "resolve_comment", "create_finding", "list_dashboard_health", "list_annotations", "create_annotation", "draft_query"} {
 		if offered[name] {
 			t.Errorf("%s is offered to the model", name)
 		}
 	}
-	if !offered["get_spec_guide"] || mcpOnly != 9 || len(offered) != len(registry.List())-11 {
+	if !offered["get_spec_guide"] || !offered["save_finding"] || !offered["list_findings"] || mcpOnly != 8 || len(offered) != len(registry.List())-9 {
 		t.Fatalf("mcp-only tools = %d, offered = %d of %d", mcpOnly, len(offered), len(registry.List()))
 	}
 }
@@ -3066,7 +3066,7 @@ func TestTheFifthCallWithoutASaveCarriesTheNudge(t *testing.T) {
 		}
 	}
 	fifth := s.results(5)
-	want := "\n\n<note>Save the next panel in your next call. From then on, reads run only in the same call as a save.</note>"
+	want := "\n\n<note>Save the next panel, or call save_finding if the request only asks a question, in your next call. From then on, reads run only in the same call as a save.</note>"
 	if len(fifth) != 1 || !strings.HasSuffix(fifth[0].Content, want) || fifth[0].IsError {
 		t.Fatalf("result of the fifth call = %+v", fifth)
 	}

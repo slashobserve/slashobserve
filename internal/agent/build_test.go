@@ -81,7 +81,7 @@ func TestBuildContextOmitsTheBuildSectionWithoutABuildOrReason(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "Configured datasources:\n\nCreate a new dashboard for the request." {
+	if got != "Configured datasources:\n\nCreate a new dashboard for the request, or answer it with save_finding if it only asks a question." {
 		t.Fatalf("context = %q", got)
 	}
 }

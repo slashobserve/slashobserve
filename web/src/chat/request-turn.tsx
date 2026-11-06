@@ -29,7 +29,12 @@ import {
   useOpenNewRun,
   type RunOpens,
 } from "./turn-failure"
-import { resultFinishedAt, showsWorkingRow, tookText } from "./turn-model"
+import {
+  mayHaveFinding,
+  resultFinishedAt,
+  showsWorkingRow,
+  tookText,
+} from "./turn-model"
 
 const reconnectingAfterFailures = 2
 
@@ -114,7 +119,10 @@ export function RequestTurn({
   const query = useQuery({
     ...observeRequestQuery(summary.id),
     enabled:
-      isActive(summary.status) || loadSteps || detailsOpen || investigates,
+      isActive(summary.status) ||
+      loadSteps ||
+      detailsOpen ||
+      mayHaveFinding(summary),
   })
   const live = query.data
   const settled = !isActive(summary.status)
@@ -122,6 +130,7 @@ export function RequestTurn({
   const request: TurnSummary = showLive ? live : summary
   const detail = showLive ? live : undefined
   const build = request.build
+  const answers = mayHaveFinding(request)
   const openNewRun = useOpenNewRun(request, onRetried, opensRunsIn)
   const isRequester = request.requested_by.id === principal.id
   const active = isActive(request.status)
@@ -256,16 +265,18 @@ export function RequestTurn({
               You saved what was built as version {request.result_version}.
             </p>
           ) : null}
-          {investigates && request.status === "succeeded" ? (
+          {answers && request.status === "succeeded" ? (
             live?.finding != null ? (
               <FindingCard finding={live.finding} showOpenLink />
             ) : live !== undefined ? (
               <p className="text-[13px] text-muted-foreground">
-                The run finished without a finding.
+                {investigates
+                  ? "The run finished without a finding."
+                  : "The request finished without a dashboard."}
               </p>
             ) : null
           ) : null}
-          {!investigates &&
+          {!answers &&
           (request.status === "succeeded" || savedBuild) &&
           request.result_version !== null &&
           request.dashboard_id !== null ? (
@@ -275,13 +286,6 @@ export function RequestTurn({
               finishedAt={resultFinishedAt(request)}
               eager={loadSteps}
             />
-          ) : null}
-          {!investigates &&
-          request.status === "succeeded" &&
-          (request.result_version === null || request.dashboard_id === null) ? (
-            <p className="text-[13px] text-muted-foreground">
-              The request finished without a dashboard.
-            </p>
           ) : null}
           {request.status === "failed" && !savedBuild ? (
             <TurnFailure

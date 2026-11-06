@@ -326,7 +326,8 @@ func inSelection(sc Scenario, suite string) bool {
 	if suite != "" {
 		return slices.Contains(sc.Suites, suite)
 	}
-	return (kindOf(sc) == kindCreate && slices.Contains(sc.Suites, suiteLive)) || slices.Contains(sc.Tags, tagReplaySmoke)
+	live := slices.Contains(sc.Suites, suiteLive)
+	return ((kindOf(sc) == kindCreate || kindOf(sc) == kindQuestion) && live) || slices.Contains(sc.Tags, tagReplaySmoke)
 }
 
 func selectScenarios(pool []Scenario, o options) ([]Scenario, error) {
@@ -622,7 +623,9 @@ func (e *execution) dispatch(ctx context.Context) (Result, *AgentRequest) {
 	case kindChatImport, kindSizeGuard:
 		return e.runChatImport(ctx)
 	case kindInvestigate:
-		return e.runInvestigation(ctx)
+		return e.runAnswer(ctx, kindInvestigate)
+	case kindQuestion:
+		return e.runAnswer(ctx, "")
 	}
 	return e.runCreate(ctx)
 }
@@ -661,11 +664,11 @@ func (e *execution) runCreate(ctx context.Context) (Result, *AgentRequest) {
 	return e.done(unfinished(req))
 }
 
-func (e *execution) runInvestigation(ctx context.Context) (Result, *AgentRequest) {
+func (e *execution) runAnswer(ctx context.Context, kind string) (Result, *AgentRequest) {
 	waitCtx, cancel := context.WithTimeout(ctx, e.o.timeout)
 	defer cancel()
 	createStart := time.Now()
-	req, err := e.c.createObserveWhenFree(waitCtx, e.sc.Prompt, kindInvestigate)
+	req, err := e.c.createObserveWhenFree(waitCtx, e.sc.Prompt, kind)
 	slotWait := time.Since(createStart)
 	if err != nil {
 		e.createFailed(waitCtx, err)

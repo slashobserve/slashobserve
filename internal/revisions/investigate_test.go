@@ -169,3 +169,46 @@ func TestTheWorkerFinishesAnInvestigationByItsFinding(t *testing.T) {
 		})
 	}
 }
+
+func TestTheWorkerFinishesAnAnsweredRequestByItsFinding(t *testing.T) {
+	cases := []struct {
+		name   string
+		source revisions.Source
+		submit func(*revisions.Service, pgtype.UUID) (dbsqlc.AgentRequest, error)
+	}{
+		{"a new-dashboard request", revisions.SourceObserve, func(svc *revisions.Service, _ pgtype.UUID) (dbsqlc.AgentRequest, error) {
+			return svc.SubmitObserve(context.Background(), user, "what all logs are available?")
+		}},
+		{"a dashboard chat prompt", revisions.SourcePrompt, func(svc *revisions.Service, dash pgtype.UUID) (dbsqlc.AgentRequest, error) {
+			return svc.SubmitFollowUp(context.Background(), dash, nil, "", "what does this dashboard show?", user)
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var d *dbtest.Database
+			var svc *revisions.Service
+			svc, d = newService(t, reviserFunc(func(_ context.Context, req revisions.Request) (revisions.Result, error) {
+				insertFindingFor(t, d, mustUUID(t, req.ID))
+				return revisions.Result{FindingID: "answered"}, nil
+			}))
+			dash := seedDashboard(t, d, 1)
+			row, err := c.submit(svc, dash)
+			if err != nil {
+				t.Fatal(err)
+			}
+			startWorker(t, svc, d, revisions.WorkerOptions{})
+			var final dbsqlc.AgentRequest
+			waitFor(t, "the request to finish", func() bool {
+				var err error
+				final, err = svc.GetByID(context.Background(), row.ID)
+				return err == nil && final.FinishedAt.Valid
+			})
+			if final.Status != string(revisions.StatusSucceeded) || final.FailureCode.Valid || final.ResultVersion.Valid || final.DashboardID != row.DashboardID {
+				t.Fatalf("finished %s with %q, version %v, dashboard %v", final.Status, final.FailureCode.String, final.ResultVersion, final.DashboardID)
+			}
+			if final.Source != string(c.source) {
+				t.Fatalf("source %q", final.Source)
+			}
+		})
+	}
+}

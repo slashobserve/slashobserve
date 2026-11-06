@@ -1,0 +1,5 @@
+id: question-shop-request-rate
+prompt: "how many requests per second is each shop service handling right now?"
+kind: question
+suites: [live, replay]
+done_when: false
