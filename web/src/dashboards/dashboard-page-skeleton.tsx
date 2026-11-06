@@ -9,7 +9,7 @@ import { gridRowHeight } from "./stack-heights"
 
 export function pageClass(stacked: boolean) {
   return cn(
-    "flex bg-background text-foreground",
+    "flex overflow-x-clip bg-background text-foreground narrow:overflow-x-visible",
     stacked
       ? "min-h-svh flex-wrap"
       : "h-svh flex-nowrap narrow:h-auto narrow:min-h-svh"
