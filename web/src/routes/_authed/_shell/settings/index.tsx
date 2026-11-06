@@ -14,6 +14,7 @@ import { useDocumentTitle } from "@/lib/document-title"
 import { useAgentInfo } from "@/observe/queries"
 import { domainList } from "@/people/sign-in-policy"
 import { loadProblemText } from "@/service-accounts/queries"
+import { AppearanceCard } from "@/settings/appearance-card"
 import {
   domainsText,
   effortName,
@@ -86,6 +87,8 @@ function SelectedSection({ id }: { id: SettingsSectionId }) {
       return <OutboundAccessCard />
     case "grafana":
       return <GrafanaSection />
+    case "appearance":
+      return <AppearanceCard />
   }
 }
 

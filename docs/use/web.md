@@ -1,6 +1,6 @@
 ---
 title: Addresses and viewing tools in the web app
-description: The short addresses of dashboards, folders, chats, builds, logs and traces, their title slugs and old forms, and the tools for viewing a dashboard at full size, in Inspect and on a phone, with a pointer to TV mode.
+description: The short addresses of dashboards, folders, chats, builds, logs and traces, their title slugs and old forms, the tools for viewing a dashboard at full size, in Inspect and on a phone, with a pointer to TV mode, and the light and dark theme.
 ---
 
 Every page that belongs to one dashboard, folder or agent request has a short address you can paste into an incident, a runbook or a chat:
@@ -110,3 +110,10 @@ Below 768 pixels wide a dashboard shows its panels in one column.
 Each panel type keeps a minimum height there, so a chart or a table stays readable even when the dashboard made it short.
 Up to 760 pixels wide, the time range, refresh, annotation filter and the dashboard's actions move behind one **Controls** button, which opens them in a sheet at the bottom of the screen.
 The activity card and the Inspect pane show below the panels, and opening Inspect scrolls to it.
+
+## Theme
+
+The app follows your system's light or dark setting until you choose one.
+Open Settings, choose **Appearance** in its section list, and pick **Light**, **Dark** or **Match the system** under **Theme**; the choice applies at once.
+The account menu offers the same three choices under **Theme**, and the toolbar's **Switch theme** button and the command palette's **Switch theme** command flip between light and dark.
+The choice stays in this browser's local storage and never reaches the server, so it does not follow you to another browser.
