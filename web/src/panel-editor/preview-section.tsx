@@ -323,7 +323,7 @@ export function PreviewSection({
     <section
       ref={ref}
       aria-label="Preview"
-      className="rounded-[8px] border border-border py-2.5 pr-3 pl-1"
+      className="rounded-card border border-border py-2.5 pr-3 pl-1"
     >
       {content}
     </section>

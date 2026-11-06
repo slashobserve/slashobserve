@@ -1,5 +1,7 @@
 import { downloadFile } from "@/dashboards/export-spec"
 import { slugOf } from "@/lib/links"
+import { zonedDateTime } from "@/lib/time"
+import { displayValue, type FieldResolver } from "@/panels/field-config"
 import {
   cell,
   firstTimeField,
@@ -10,6 +12,12 @@ import {
 } from "@/panels/transforms/names"
 
 export type DataTable = { columns: string[]; rows: string[][] }
+
+export type CellFormat = (
+  frame: PreparedFrame,
+  field: PreparedField,
+  value: unknown
+) => string
 
 const lineEnd = "\r\n"
 const needsQuotes = /[",\r\n]/
@@ -29,6 +37,20 @@ function valueText(field: PreparedField, value: unknown): string {
   return JSON.stringify(value)
 }
 
+const rawCell: CellFormat = (_frame, field, value) => valueText(field, value)
+
+export function formattedCell(
+  fields: FieldResolver,
+  zone: string | undefined
+): CellFormat {
+  return (frame, field, value) => {
+    const shown = displayValue(value, fields.configFor(frame, field))
+    return field.type === "time" && typeof value === "number" && !shown.mapped
+      ? zonedDateTime(value, zone)
+      : shown.text
+  }
+}
+
 function frameLabel(frame: PreparedFrame): string {
   const number = frame.fields.find((field) => field.type === "number")
   if (number) return seriesName(frame, number)
@@ -43,10 +65,12 @@ function joinsOnTime(frames: readonly PreparedFrame[]): boolean {
   })
 }
 
-function singleFrame(frame: PreparedFrame): DataTable {
+function singleFrame(frame: PreparedFrame, format: CellFormat): DataTable {
   const rows: string[][] = []
   for (let row = 0; row < rowCount(frame); row++) {
-    rows.push(frame.fields.map((field) => valueText(field, cell(field, row))))
+    rows.push(
+      frame.fields.map((field) => format(frame, field, cell(field, row)))
+    )
   }
   return {
     columns: frame.fields.map((field) => seriesName(frame, field)),
@@ -59,13 +83,17 @@ function rowsByTime(frame: PreparedFrame): Map<unknown, number> {
   return new Map(time?.values.map((value, row) => [value, row]) ?? [])
 }
 
-function joined(frames: readonly PreparedFrame[]): DataTable {
+function joined(
+  frames: readonly PreparedFrame[],
+  format: CellFormat
+): DataTable {
   const columns = frames.flatMap((frame) => {
     const rows = rowsByTime(frame)
     return frame.fields
       .filter((field) => field.type !== "time")
-      .map((field) => ({ name: seriesName(frame, field), field, rows }))
+      .map((field) => ({ name: seriesName(frame, field), frame, field, rows }))
   })
+  const timeField = firstTimeField(frames[0])
   const times = [
     ...new Set(frames.flatMap((frame) => firstTimeField(frame)?.values ?? [])),
   ]
@@ -73,20 +101,23 @@ function joined(frames: readonly PreparedFrame[]): DataTable {
     .sort((a, b) => a - b)
   return {
     columns: [
-      firstTimeField(frames[0])?.name ?? "Time",
+      timeField?.name ?? "Time",
       ...columns.map((column) => column.name),
     ],
     rows: times.map((time) => [
-      timeText(time),
-      ...columns.map(({ field, rows }) => {
+      timeField ? format(frames[0], timeField, time) : timeText(time),
+      ...columns.map(({ frame, field, rows }) => {
         const row = rows.get(time)
-        return row === undefined ? "" : valueText(field, cell(field, row))
+        return row === undefined ? "" : format(frame, field, cell(field, row))
       }),
     ]),
   }
 }
 
-function concatenated(frames: readonly PreparedFrame[]): DataTable {
+function concatenated(
+  frames: readonly PreparedFrame[],
+  format: CellFormat
+): DataTable {
   const names = [
     ...new Set(frames.flatMap((frame) => frame.fields.map((f) => f.name))),
   ]
@@ -99,7 +130,7 @@ function concatenated(frames: readonly PreparedFrame[]): DataTable {
         label,
         ...names.map((name) => {
           const field = byName.get(name)
-          return field ? valueText(field, cell(field, row)) : ""
+          return field ? format(frame, field, cell(field, row)) : ""
         }),
       ])
     }
@@ -107,10 +138,15 @@ function concatenated(frames: readonly PreparedFrame[]): DataTable {
   return { columns: ["series", ...names], rows }
 }
 
-export function framesToTable(frames: readonly PreparedFrame[]): DataTable {
+export function framesToTable(
+  frames: readonly PreparedFrame[],
+  format: CellFormat = rawCell
+): DataTable {
   if (frames.length === 0) return { columns: [], rows: [] }
-  if (frames.length === 1) return singleFrame(frames[0])
-  return joinsOnTime(frames) ? joined(frames) : concatenated(frames)
+  if (frames.length === 1) return singleFrame(frames[0], format)
+  return joinsOnTime(frames)
+    ? joined(frames, format)
+    : concatenated(frames, format)
 }
 
 function quoted(text: string): string {

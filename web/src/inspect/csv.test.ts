@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest"
 
+import { createFieldResolver } from "@/panels/field-config"
 import type { PreparedFrame } from "@/panels/transforms/names"
+import type { DataPanel } from "@/spec"
 
-import { framesToCsv, panelFileName } from "./csv"
+import { formattedCell, framesToCsv, framesToTable, panelFileName } from "./csv"
 
 const t1 = Date.parse("2026-11-06T10:00:00Z")
 const t2 = Date.parse("2026-11-06T10:01:00Z")
@@ -127,6 +129,65 @@ describe("framesToCsv", () => {
       "cpu,2026-11-06T10:00:00.000Z,1,",
       "B,,,n",
       "",
+    ])
+  })
+})
+
+describe("framesToTable", () => {
+  const frames = [
+    series("A", "cpu", [t1, t2], [0.30000000000000004, 1]),
+    series("B", "mem", [t1, t2], [2, 3]),
+  ]
+
+  it("keeps raw values without a format", () => {
+    expect(
+      framesToTable([series("A", "cpu", [t1], [0.30000000000000004])])
+    ).toEqual({
+      columns: ["Time", "cpu"],
+      rows: [["2026-11-06T10:00:00.000Z", "0.30000000000000004"]],
+    })
+  })
+
+  it("passes every cell through the format and keeps the column names", () => {
+    const table = framesToTable(frames, () => "x")
+    expect(table.columns).toEqual(["Time", "cpu", "mem"])
+    expect(table.rows).toEqual([
+      ["x", "x", "x"],
+      ["x", "x", "x"],
+    ])
+  })
+
+  it("hands the format the frame and field each cell came from", () => {
+    const table = framesToTable(
+      frames,
+      (frame, field, value) => `${frame.ref}.${field.name}=${String(value)}`
+    )
+    expect(table.rows[1]).toEqual([`A.Time=${t2}`, "A.Value=1", "B.Value=3"])
+  })
+})
+
+describe("formattedCell", () => {
+  const panel = {
+    id: "p",
+    title: "p",
+    type: "timeseries",
+    gridPos: { x: 0, y: 0, w: 6, h: 4 },
+    datasource: "prom",
+    queries: [{ query: "a" }],
+    unit: "percent",
+    decimals: 1,
+    mappings: [{ value: "100", text: "Full" }],
+  } as DataPanel
+  const format = formattedCell(createFieldResolver(panel), "Asia/Kolkata")
+
+  it("shows times in the dashboard zone and values in the panel's unit", () => {
+    const table = framesToTable(
+      [series("A", "cpu", [t1, t2], [0.30000000000000004, 100])],
+      format
+    )
+    expect(table.rows).toEqual([
+      ["2026-11-06 15:30:00", "0.3%"],
+      ["2026-11-06 15:31:00", "Full"],
     ])
   })
 })

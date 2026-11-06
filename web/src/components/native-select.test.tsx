@@ -37,6 +37,23 @@ describe("NativeSelect", () => {
     expect(select).not.toHaveClass("h-8")
   })
 
+  it("keeps the base text size on narrow screens so iOS does not zoom", () => {
+    render(<Kind size="sm" />)
+    expect(screen.getByRole("combobox", { name: "Kind" })).toHaveClass(
+      "text-xs",
+      "narrow:text-base"
+    )
+  })
+
+  it("puts wrapperClassName on the wrapper and className on the select", () => {
+    render(<Kind wrapperClassName="flex-1" className="w-full" />)
+    const select = screen.getByRole("combobox", { name: "Kind" })
+    expect(select).toHaveClass("w-full")
+    expect(select).not.toHaveClass("flex-1")
+    expect(select.parentElement).toHaveClass("relative", "flex-1")
+    expect(select.parentElement).not.toHaveClass("w-full")
+  })
+
   it("passes disabled through to the select", () => {
     render(<Kind disabled />)
     expect(screen.getByRole("combobox", { name: "Kind" })).toBeDisabled()
