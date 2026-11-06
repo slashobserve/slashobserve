@@ -2,6 +2,7 @@ package datasource_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -123,3 +124,68 @@ func TestRefinedKindsKeepTheirParentKind(t *testing.T) {
 		t.Error("refined kinds should stay distinct from each other")
 	}
 }
+
+type indexedHealth struct {
+	failingHealth
+}
+
+func (indexedHealth) Type() string                       { return "elasticsearch" }
+func (indexedHealth) Index() (pattern, timeField string) { return "logs-*", "@timestamp" }
+
+func TestStatusCarriesTheIndexOfASearchDatasource(t *testing.T) {
+	registry, err := datasource.NewRegistry(nil,
+		datasource.Instance{UID: "es", Datasource: indexedHealth{}},
+		datasource.Instance{UID: "es-down", Datasource: indexedHealth{failingHealth{err: datasource.Errorf(datasource.ErrNoIndex, "none")}}},
+		datasource.Instance{UID: "prom", Datasource: failingHealth{}},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys := func(s datasource.Status) map[string]any {
+		raw, err := json.Marshal(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var m map[string]any
+		if err := json.Unmarshal(raw, &m); err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	for _, s := range registry.Health(t.Context()) {
+		m := keys(s)
+		switch s.UID {
+		case "es", "es-down":
+			if m["index"] != "logs-*" || m["time_field"] != "@timestamp" || s.Healthy != (s.UID == "es") {
+				t.Errorf("%s status = %+v", s.UID, s)
+			}
+		default:
+			if _, ok := m["index"]; ok {
+				t.Errorf("%s status carries an index: %v", s.UID, m)
+			}
+			if _, ok := m["time_field"]; ok {
+				t.Errorf("%s status carries a time field: %v", s.UID, m)
+			}
+		}
+	}
+
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	blocked, err := datasource.NewRegistry(nil, datasource.Instance{UID: "es", Datasource: indexedBlocked{blockedHealth{release: release}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	statuses := blocked.Health(ctx)
+	if len(statuses) != 1 || statuses[0].Healthy || statuses[0].Index != "logs-*" || statuses[0].TimeField != "@timestamp" {
+		t.Fatalf("cancelled statuses = %+v", statuses)
+	}
+}
+
+type indexedBlocked struct {
+	blockedHealth
+}
+
+func (indexedBlocked) Type() string                       { return "elasticsearch" }
+func (indexedBlocked) Index() (pattern, timeField string) { return "logs-*", "@timestamp" }

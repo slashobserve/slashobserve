@@ -39,9 +39,19 @@ type Status struct {
 	UID       string    `json:"uid"`
 	Type      string    `json:"type"`
 	Name      string    `json:"name"`
+	Index     string    `json:"index,omitempty"`
+	TimeField string    `json:"time_field,omitempty"`
 	Healthy   bool      `json:"healthy"`
 	Message   string    `json:"message,omitempty"`
 	CheckedAt time.Time `json:"checked_at"`
+}
+
+func statusFor(in Instance) Status {
+	s := Status{UID: in.UID, Type: in.Datasource.Type(), Name: in.Name}
+	if indexed, ok := in.Datasource.(IndexSource); ok {
+		s.Index, s.TimeField = indexed.Index()
+	}
+	return s
 }
 
 type Registry struct {
@@ -141,13 +151,10 @@ func (r *Registry) status(ctx context.Context, in Instance) Status {
 	case res := <-ch:
 		return res.Val.(Status)
 	case <-ctx.Done():
-		return Status{
-			UID:       in.UID,
-			Type:      in.Datasource.Type(),
-			Name:      in.Name,
-			Message:   healthMessage(ctx.Err()),
-			CheckedAt: time.Now().UTC(),
-		}
+		s := statusFor(in)
+		s.Message = healthMessage(ctx.Err())
+		s.CheckedAt = time.Now().UTC()
+		return s
 	}
 }
 
@@ -166,13 +173,9 @@ func (r *Registry) check(ctx context.Context, in Instance) Status {
 	defer cancel()
 	err := r.safeCheckHealth(checkCtx, in)
 
-	s := Status{
-		UID:       in.UID,
-		Type:      in.Datasource.Type(),
-		Name:      in.Name,
-		Healthy:   err == nil,
-		CheckedAt: time.Now().UTC(),
-	}
+	s := statusFor(in)
+	s.Healthy = err == nil
+	s.CheckedAt = time.Now().UTC()
 	if err != nil {
 		s.Message = healthMessage(err)
 	}

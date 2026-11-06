@@ -68,6 +68,7 @@ type Datasource struct {
 }
 
 var _ datasource.Datasource = (*Datasource)(nil)
+var _ datasource.IndexSource = (*Datasource)(nil)
 
 func New(opts Options) (*Datasource, error) {
 	if opts.Flavor != Elasticsearch && opts.Flavor != OpenSearch {
@@ -171,6 +172,8 @@ func parseBaseURL(name, raw string) (string, error) {
 	}
 	return strings.TrimRight(u.String(), "/"), nil
 }
+
+func (d *Datasource) Index() (pattern, timeField string) { return d.opts.Index, d.opts.TimeField }
 
 func (d *Datasource) Type() string { return string(d.opts.Flavor) }
 
