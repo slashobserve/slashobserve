@@ -92,16 +92,18 @@ The view fills the window, and the waterfall scrolls inside it.
 **Critical path** outlines the spans on the longest chain, the ones that add up to the trace's duration, and dims the rest; the line under the waterfall says how many spans are on it.
 **Errors only** dims every span that neither failed nor contains a failed span.
 **Collapse all** folds every span with children, and **Expand all** opens them again.
-The services legend lists each service with its colour and span count; click a service to hide its spans, and click it again to show them.
+The services legend lists each service with its colour and span count; click a service to dim its spans, and click it again to show them.
 The overview strip above the ruler draws the whole trace in one line per span; drag on it, or on the ruler, to zoom the time axis to that window, and **Reset zoom** shows the whole trace again.
-A click on a span shows its span attributes and then its resource attributes in the pane beside it, or inline under the span on a screen 760 pixels wide or narrower.
+A click on a span shows its details in the pane beside it, or inline under the span on a screen 760 pixels wide or narrower: the service and the span's kind (server, client, producer, consumer or internal), its name, its status, duration, share of the trace and start offset, then its span attributes, its resource attributes and its events.
+Each attribute row offers **Copy value** and, on Tempo, **Search traces where** the attribute is, or is not, that value, which opens the trace search with that TraceQL filter.
+An event, such as an `exception`, shows its name, its offset from the span's start and its attributes, and the span's bar carries a dot at each event.
 Each span offers **Logs**, which opens the logs page on the lines carrying the trace id (and the span id when the datasource stores it) during the trace.
 While a span is open the address carries `span=<span id>`, so a copied link opens on that span with its row scrolled into view.
 The keys the waterfall answers are listed in [Keyboard shortcuts](keyboard-shortcuts.md).
-On ClickHouse the view looks for the spans in the last 24 hours, or within an hour of the line when you came from the logs page; widen the time range for an older trace.
-Tempo finds a trace by its id at any time.
+The view looks for the spans in the last 24 hours, or within an hour of the line when you came from the logs page; a trace outside the range says so and offers **Last 7 days** to widen it.
 The view loads the whole trace up to 20,000 spans.
-A trace over 20,000 spans opens with its earliest 20,000 spans and a banner that says how many the trace holds.
+A trace over 20,000 spans opens with its earliest 20,000 spans by start time and a banner that says how many the trace holds and that the rest are not loaded.
+When Tempo did not search every block, a banner says that some spans may be missing.
 **Copy link** copies the address of the trace with its datasource, time range and open span, and **Search traces** opens the trace search on the same datasource.
 
 ## Trace search

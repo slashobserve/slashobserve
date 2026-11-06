@@ -10,7 +10,17 @@ export const missingColumnsReason =
 
 type AttributeSource = "span" | "resource"
 
-type SpanAttribute = { key: string; text: string; source: AttributeSource }
+export type SpanAttribute = {
+  key: string
+  text: string
+  source: AttributeSource
+}
+
+export type SpanEvent = {
+  time: number
+  name: string
+  attributes: Record<string, string>
+}
 
 export type Span = {
   id: string
@@ -26,6 +36,8 @@ export type Span = {
   error: boolean
   hasChildren: boolean
   attributes: SpanAttribute[]
+  kind: string | null
+  events: SpanEvent[]
 }
 
 export type TraceModel =
@@ -58,6 +70,8 @@ type Columns = {
   start: PreparedField
   duration?: PreparedField
   status?: PreparedField
+  kind?: PreparedField
+  events?: PreparedField
   attributes: { field: PreparedField; source: AttributeSource }[]
 }
 
@@ -70,6 +84,8 @@ type SpanRow = {
   duration: number
   error: boolean
   attributes: SpanAttribute[]
+  kind: string | null
+  events: SpanEvent[]
 }
 
 const traceIdNames = new Set(["traceid"])
@@ -80,6 +96,8 @@ const serviceNames = new Set(["servicename"])
 const startNames = new Set(["starttime", "timestamp"])
 const durationNames = new Set(["duration"])
 const statusNames = new Set(["statuscode"])
+const kindNames = new Set(["spankind"])
+const eventNames = new Set(["spanevents"])
 const attributeSources = new Map<string, AttributeSource>([
   ["tags", "span"],
   ["spanattributes", "span"],
@@ -110,6 +128,8 @@ function columnsOf(frame: PreparedFrame): Columns | null {
     start,
     duration: named(frame, durationNames),
     status: named(frame, statusNames),
+    kind: named(frame, kindNames),
+    events: named(frame, eventNames),
     attributes: frame.fields.flatMap((field) => {
       const source = attributeSources.get(field.name.toLowerCase())
       return source ? [{ field, source }] : []
@@ -127,6 +147,10 @@ function idOf(value: unknown): string | null {
   if (value === null || value === undefined) return null
   const text = String(value)
   return text === "" ? null : text
+}
+
+function finite(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -162,6 +186,26 @@ function pairsOf(value: unknown, source: AttributeSource): SpanAttribute[] {
   return []
 }
 
+function eventsOf(value: unknown): SpanEvent[] {
+  const parsed = typeof value === "string" ? parseJson(value) : value
+  if (!Array.isArray(parsed)) return []
+  return parsed.flatMap((event) => {
+    if (!isRecord(event)) return []
+    const time = finite(event.time_ms)
+    if (time === null) return []
+    const attributes = isRecord(event.attributes) ? event.attributes : {}
+    return [
+      {
+        time,
+        name: textOf(event.name ?? ""),
+        attributes: Object.fromEntries(
+          Object.entries(attributes).map(([key, item]) => [key, textOf(item)])
+        ),
+      },
+    ]
+  })
+}
+
 function compareKeys(a: SpanAttribute, b: SpanAttribute): number {
   return a.key < b.key ? -1 : a.key > b.key ? 1 : 0
 }
@@ -173,10 +217,6 @@ function convertsNanoseconds(field: PreparedField | undefined): boolean {
       (value) => value === null || Number.isInteger(value as number)
     )
   )
-}
-
-function finite(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
 function rowsOf(frame: PreparedFrame, columns: Columns) {
@@ -205,6 +245,8 @@ function rowsOf(frame: PreparedFrame, columns: Columns) {
         attributes: columns.attributes
           .flatMap(({ field, source }) => pairsOf(field.values[index], source))
           .sort(compareKeys),
+        kind: idOf(columns.kind?.values[index]),
+        events: eventsOf(columns.events?.values[index]),
       },
     })
   }
@@ -304,6 +346,8 @@ export function traceModel(
     error: row.error,
     hasChildren: children.has(row.id),
     attributes: row.attributes,
+    kind: row.kind,
+    events: row.events,
   }))
 
   const durationConfig = {
@@ -321,6 +365,25 @@ export function traceModel(
     notes,
     formatDuration: (ms) => displayValue(ms, durationConfig).text,
   }
+}
+
+export const maxEventTicks = 20
+
+export function eventTicks(
+  events: readonly SpanEvent[],
+  trace: { start: number; duration: number },
+  zoom: { start: number; end: number }
+): number[] {
+  const window = zoom.end - zoom.start
+  if (trace.duration <= 0 || window <= 0) return []
+  const ticks: number[] = []
+  for (const event of events) {
+    if (ticks.length === maxEventTicks) break
+    const at =
+      ((event.time - trace.start) / trace.duration - zoom.start) / window
+    if (at >= 0 && at <= 1) ticks.push(at)
+  }
+  return ticks
 }
 
 export function visibleSpans(

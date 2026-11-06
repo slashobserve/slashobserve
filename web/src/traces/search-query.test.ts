@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   clickhouseTraceSearch,
   parseDuration,
-  traceByIdParams,
+  traceQLAttribute,
   traceQLFor,
   traceSearchParams,
   type TraceForm,
@@ -121,31 +121,36 @@ describe("traceSearchParams", () => {
   })
 })
 
-describe("traceByIdParams", () => {
-  const range = { from: "now-24h", to: "now" }
-  const id = "4bf92f3577b34da6a3ce929d0e0e4736"
-
-  it("asks Tempo for the trace by id", () => {
-    expect(traceByIdParams("tempo", id, range)).toEqual({
-      query: id,
-      kind: "instant",
-      from: "now-24h",
-      to: "now",
-      limit: 1000,
-    })
+describe("traceQLAttribute", () => {
+  it("matches a span attribute with a quoted value", () => {
+    expect(traceQLAttribute("span", "http.request.method", "POST", false)).toBe(
+      '{ span.http.request.method = "POST" }'
+    )
   })
 
-  it("selects the trace's spans from ClickHouse", () => {
-    expect(traceByIdParams("clickhouse", id, range)).toEqual({
-      query: `SELECT TraceId, SpanId, ParentSpanId, SpanName, ServiceName, Timestamp, Duration, StatusCode, SpanAttributes, ResourceAttributes
-FROM otel_traces
-WHERE $__timeFilter(Timestamp) AND TraceId = '${id}'
-ORDER BY Timestamp
-LIMIT 1000`,
-      kind: "instant",
-      from: "now-24h",
-      to: "now",
-      limit: 1000,
-    })
+  it.each([
+    ["503", "503"],
+    ["-1.5", "-1.5"],
+    ["true", "true"],
+    ["false", "false"],
+    ["1e3", '"1e3"'],
+    ["12abc", '"12abc"'],
+    ["", '""'],
+  ])("writes %j as the typed value %s", (value, written) => {
+    expect(
+      traceQLAttribute("span", "http.response.status_code", value, false)
+    ).toBe(`{ span.http.response.status_code = ${written} }`)
+  })
+
+  it("excludes a resource attribute", () => {
+    expect(traceQLAttribute("resource", "service.name", "payments", true)).toBe(
+      '{ resource.service.name != "payments" }'
+    )
+  })
+
+  it("quotes keys and values that need it", () => {
+    expect(traceQLAttribute("span", "my key", 'a"b\\c', false)).toBe(
+      '{ span."my key" = "a\\"b\\\\c" }'
+    )
   })
 })

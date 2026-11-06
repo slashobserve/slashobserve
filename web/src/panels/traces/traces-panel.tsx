@@ -9,9 +9,17 @@ import {
   type ReactNode,
   type Ref,
 } from "react"
-import { ChevronDownIcon, ChevronRightIcon, XIcon } from "lucide-react"
+import { Link } from "@tanstack/react-router"
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  MinusIcon,
+  PlusIcon,
+  XIcon,
+} from "lucide-react"
 
-import { Button } from "@/components/ui/button"
+import { CopyButton } from "@/components/copy-button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { zonedDateTimeMs } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import {
@@ -32,7 +40,14 @@ import {
   spanFilters,
   type SpanFilters,
 } from "./span-filters"
-import { traceModel, visibleSpans, windowRows, type Span } from "./trace-model"
+import {
+  eventTicks,
+  traceModel,
+  visibleSpans,
+  windowRows,
+  type Span,
+  type SpanAttribute,
+} from "./trace-model"
 
 const rowHeight = 30
 const windowAfter = 200
@@ -40,6 +55,13 @@ const overscan = 10
 const indentStep = 12
 const wideNameColumn = 600
 const ErrorIcon = thresholdIcons.critical
+
+export type TraceSearchLink = { ds: string; q: string }
+
+export type SearchLink = (
+  attribute: SpanAttribute,
+  negate: boolean
+) => TraceSearchLink | null
 
 export type TraceViewProps = {
   model: Extract<ReturnType<typeof traceModel>, { reason: null }>
@@ -58,6 +80,8 @@ export type TraceViewProps = {
   dimmed?: ReadonlySet<string>
   zoom?: Zoom
   onZoom?: (zoom: Zoom) => void
+  header?: boolean
+  searchLink?: SearchLink
 }
 
 type Drag = { anchor: number; x: number; left: number; width: number }
@@ -163,6 +187,7 @@ function SpanRow({
   onPath,
   dim,
   zoom,
+  trace,
   detailsId,
   formatDuration,
   onToggle,
@@ -177,6 +202,7 @@ function SpanRow({
   onPath: boolean | null
   dim: boolean
   zoom: Zoom
+  trace: { start: number; duration: number }
   detailsId: string
   formatDuration: (ms: number) => string
   onToggle: () => void
@@ -185,6 +211,7 @@ function SpanRow({
   const CollapseIcon = collapsed ? ChevronRightIcon : ChevronDownIcon
   const label = span.operation || span.id
   const bar = zoomedOffset(span, zoom)
+  const ticks = eventTicks(span.events, trace, zoom)
   const highlight = matched && needle !== ""
   return (
     <div
@@ -277,9 +304,183 @@ function SpanRow({
               }}
             />
           ) : null}
+          {ticks.map((at, index) => (
+            <span
+              key={index}
+              aria-hidden="true"
+              className="absolute top-3 size-1.5 -translate-x-1/2 rounded-full bg-foreground"
+              style={{ left: `${at * 100}%` }}
+            />
+          ))}
         </div>
       </div>
     </div>
+  )
+}
+
+function kindLine(span: Span): string {
+  return [
+    span.service,
+    span.kind === null ? "" : `${span.kind.toLowerCase()} span`,
+  ]
+    .filter(Boolean)
+    .join(" / ")
+}
+
+const kv3Columns = "grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_auto]"
+
+function SectionHeading({ title, count }: { title: string; count: number }) {
+  return (
+    <h3 className="m-0 text-xs font-semibold text-foreground">
+      {title}{" "}
+      <span className="font-normal text-muted-foreground">
+        {count.toLocaleString("en")}
+      </span>
+    </h3>
+  )
+}
+
+function EventList({
+  span,
+  formatDuration,
+}: {
+  span: Span
+  formatDuration: (ms: number) => string
+}) {
+  if (span.events.length === 0) return null
+  return (
+    <section className="flex flex-col gap-1">
+      <SectionHeading title="Events" count={span.events.length} />
+      <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
+        {span.events.map((event, index) => (
+          <li
+            key={index}
+            className="flex flex-col gap-0.5 rounded-control border border-border px-2 py-1.5"
+          >
+            <div className="flex justify-between gap-2">
+              <span className="font-medium [overflow-wrap:anywhere]">
+                {event.name}
+              </span>
+              <span className="shrink-0 text-muted-foreground tabular-nums">
+                +{formatDuration(event.time - span.start)}
+              </span>
+            </div>
+            {Object.entries(event.attributes).map(([key, value]) => (
+              <div
+                key={key}
+                className={cn("grid min-h-6 items-center gap-x-2", kv3Columns)}
+              >
+                <span className="font-mono [overflow-wrap:anywhere] text-muted-foreground">
+                  {key}
+                </span>
+                <span
+                  className={cn(
+                    "col-span-2 font-mono [overflow-wrap:anywhere]",
+                    key === "exception.message" && "whitespace-pre-wrap"
+                  )}
+                >
+                  {value}
+                </span>
+              </div>
+            ))}
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+function SearchAction({
+  link,
+  label,
+  children,
+}: {
+  link: TraceSearchLink
+  label: string
+  children: ReactNode
+}) {
+  return (
+    <Link
+      to="/traces"
+      search={link}
+      aria-label={label}
+      className={cn(
+        buttonVariants({ variant: "ghost", size: "icon-xs" }),
+        "size-5"
+      )}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function AttributeRow({
+  attribute,
+  searchLink,
+}: {
+  attribute: SpanAttribute
+  searchLink: SearchLink | undefined
+}) {
+  const include = searchLink?.(attribute, false) ?? null
+  const exclude = searchLink?.(attribute, true) ?? null
+  return (
+    <div className={cn("group grid min-h-7 items-center gap-x-2", kv3Columns)}>
+      <span className="font-mono [overflow-wrap:anywhere] text-muted-foreground">
+        {attribute.key}
+      </span>
+      <span className="font-mono [overflow-wrap:anywhere] whitespace-pre-wrap">
+        {attribute.text}
+      </span>
+      <span className="flex items-center gap-0.5 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
+        {include ? (
+          <SearchAction
+            link={include}
+            label={`Search traces where ${attribute.key} is ${attribute.text}`}
+          >
+            <PlusIcon aria-hidden="true" />
+          </SearchAction>
+        ) : null}
+        {exclude ? (
+          <SearchAction
+            link={exclude}
+            label={`Search traces where ${attribute.key} is not ${attribute.text}`}
+          >
+            <MinusIcon aria-hidden="true" />
+          </SearchAction>
+        ) : null}
+        <CopyButton
+          variant="ghost"
+          size="icon-xs"
+          className="size-5"
+          text={attribute.text}
+          label={`Copy value ${attribute.text}`}
+        />
+      </span>
+    </div>
+  )
+}
+
+function AttributeSection({
+  title,
+  items,
+  searchLink,
+}: {
+  title: string
+  items: SpanAttribute[]
+  searchLink: SearchLink | undefined
+}) {
+  if (items.length === 0) return null
+  return (
+    <section className="flex flex-col gap-0.5">
+      <SectionHeading title={title} count={items.length} />
+      {items.map((attribute, index) => (
+        <AttributeRow
+          key={`${index}:${attribute.key}`}
+          attribute={attribute}
+          searchLink={searchLink}
+        />
+      ))}
+    </section>
   )
 }
 
@@ -292,11 +493,13 @@ function SpanAttributes({
   ref,
   id,
   span,
+  formatDuration,
   className,
 }: {
   ref?: Ref<HTMLDivElement>
   id?: string
   span: Span
+  formatDuration: (ms: number) => string
   className: string
 }) {
   const headingId = useId()
@@ -312,6 +515,9 @@ function SpanAttributes({
       id={id}
       className={cn("flex flex-col gap-2 text-xs", className)}
     >
+      {span.kind !== null ? (
+        <p className="text-muted-foreground">{kindLine(span)}</p>
+      ) : null}
       {groups.length === 0 ? (
         <p className="text-muted-foreground">No attributes.</p>
       ) : (
@@ -339,6 +545,7 @@ function SpanAttributes({
           </div>
         ))
       )}
+      <EventList span={span} formatDuration={formatDuration} />
     </div>
   )
 }
@@ -346,28 +553,59 @@ function SpanAttributes({
 function SpanPane({
   id,
   span,
-  zone,
-  formatDuration,
+  model,
+  searchLink,
   onClose,
 }: {
   id: string
   span: Span | undefined
-  zone: string | undefined
-  formatDuration: (ms: number) => string
+  model: TraceViewProps["model"]
+  searchLink: SearchLink | undefined
   onClose: () => void
 }) {
+  const share =
+    span && model.duration > 0
+      ? Math.round((span.duration / model.duration) * 100)
+      : 0
+  const spanAttributes =
+    span?.attributes.filter((attribute) => attribute.source === "span") ?? []
+  const resourceAttributes =
+    span?.attributes.filter((attribute) => attribute.source === "resource") ??
+    []
   return (
     <aside
       aria-label="Span details"
       id={id}
-      className="w-[400px] max-w-1/2 shrink-0 overflow-auto border-l border-border p-2 text-xs"
+      className="w-[400px] max-w-1/2 shrink-0 overflow-auto border-l border-border p-3 text-xs"
     >
       {span ? (
-        <>
+        <div className="flex flex-col gap-3">
           <div className="flex items-start justify-between gap-2">
-            <p className="min-w-0 truncate text-sm font-medium text-foreground">
-              {[span.service, span.operation].filter(Boolean).join(" ")}
-            </p>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <p className="text-muted-foreground">{kindLine(span)}</p>
+              <h2 className="m-0 text-[13px] font-semibold [overflow-wrap:anywhere] text-foreground">
+                {span.operation || span.id}
+              </h2>
+              <p className="flex flex-wrap gap-x-2">
+                <span
+                  className={cn(
+                    "font-medium",
+                    span.error ? "text-status-critical" : "text-foreground"
+                  )}
+                >
+                  {span.error ? "Error" : "OK"}
+                </span>
+                <span className="tabular-nums">
+                  {model.formatDuration(span.duration)}
+                </span>
+                <span className="text-muted-foreground tabular-nums">
+                  {share}% of the trace
+                </span>
+                <span className="text-muted-foreground tabular-nums">
+                  starts at +{model.formatDuration(span.start - model.start)}
+                </span>
+              </p>
+            </div>
             <Button
               type="button"
               variant="ghost"
@@ -378,28 +616,21 @@ function SpanPane({
               <XIcon aria-hidden="true" />
             </Button>
           </div>
-          <p className="flex flex-wrap gap-x-3 text-muted-foreground">
-            <span>
-              Span <span className="font-mono">{span.id}</span>
-            </span>
-            <time dateTime={new Date(span.start).toISOString()}>
-              {zonedDateTimeMs(span.start, zone)}
-            </time>
-            <span className="tabular-nums">
-              {formatDuration(span.duration)}
-            </span>
-            {span.error ? (
-              <span className="flex items-center gap-1 text-foreground">
-                <ErrorIcon
-                  className="size-3 text-status-critical"
-                  aria-hidden="true"
-                />
-                Error
-              </span>
-            ) : null}
-          </p>
-          <SpanAttributes span={span} className="mt-2" />
-        </>
+          {span.attributes.length === 0 ? (
+            <p className="text-muted-foreground">No attributes.</p>
+          ) : null}
+          <AttributeSection
+            title="Attributes"
+            items={spanAttributes}
+            searchLink={searchLink}
+          />
+          <AttributeSection
+            title="Resource"
+            items={resourceAttributes}
+            searchLink={searchLink}
+          />
+          <EventList span={span} formatDuration={model.formatDuration} />
+        </div>
       ) : (
         <p className="text-muted-foreground">
           Select a span to see its attributes.
@@ -607,22 +838,24 @@ export function TraceView(props: TraceViewProps) {
 
   return (
     <div className="flex flex-col" style={{ width, height }}>
-      <div className="shrink-0 border-b border-border px-2 py-1.5">
-        <p className="truncate text-sm font-medium text-foreground">
-          {[model.rootService, model.rootOperation].filter(Boolean).join(" ")}
-        </p>
-        <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-          <span>
-            Trace <span className="font-mono">{model.traceId || "-"}</span>
-          </span>
-          <time dateTime={new Date(model.start).toISOString()}>
-            {zonedDateTimeMs(model.start, zone)}
-          </time>
-          <span className="tabular-nums">
-            {model.formatDuration(model.duration)}
-          </span>
-        </p>
-      </div>
+      {props.header === false ? null : (
+        <div className="shrink-0 border-b border-border px-2 py-1.5">
+          <p className="truncate text-sm font-medium text-foreground">
+            {[model.rootService, model.rootOperation].filter(Boolean).join(" ")}
+          </p>
+          <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+            <span>
+              Trace <span className="font-mono">{model.traceId || "-"}</span>
+            </span>
+            <time dateTime={new Date(model.start).toISOString()}>
+              {zonedDateTimeMs(model.start, zone)}
+            </time>
+            <span className="tabular-nums">
+              {model.formatDuration(model.duration)}
+            </span>
+          </p>
+        </div>
+      )}
       {toolbar}
       {[...model.notes, ...filtered.notes].map((note) => (
         <p
@@ -713,6 +946,7 @@ export function TraceView(props: TraceViewProps) {
                     }
                     dim={props.dimmed?.has(span.id) ?? false}
                     zoom={zoom}
+                    trace={model}
                     detailsId={detailsId}
                     formatDuration={model.formatDuration}
                     onToggle={() => toggle(span.id)}
@@ -723,6 +957,7 @@ export function TraceView(props: TraceViewProps) {
                       ref={detailRef}
                       id={detailsId}
                       span={span}
+                      formatDuration={model.formatDuration}
                       className="border-t border-border px-2 py-2"
                     />
                   ) : null}
@@ -735,8 +970,8 @@ export function TraceView(props: TraceViewProps) {
           <SpanPane
             id={detailsId}
             span={openIndex === -1 ? undefined : rows[openIndex]}
-            zone={zone}
-            formatDuration={model.formatDuration}
+            model={model}
+            searchLink={props.searchLink}
             onClose={() => setOpenId(null)}
           />
         )}

@@ -5,6 +5,8 @@ import type { PreparedField, PreparedFrame } from "@/panels/transforms"
 import type { DataPanel } from "@/spec"
 
 import {
+  eventTicks,
+  maxEventTicks,
   maxSpans,
   missingColumnsReason,
   traceModel,
@@ -300,6 +302,87 @@ describe("traceModel attributes", () => {
       ])
     )
     expect(spans[0].attributes[0].text).toBe("<img src=x onerror=1>")
+  })
+})
+
+describe("traceModel kind and events", () => {
+  const events = JSON.stringify([
+    {
+      time_ms: 1862,
+      name: "exception",
+      attributes: { "exception.type": "UpstreamUnavailable", retry: 2 },
+    },
+    { time_ms: 1866, name: "retry.scheduled", attributes: {} },
+  ])
+
+  it("reads the span kind and its events from the trace endpoint columns", () => {
+    const spans = spansOf(
+      model([
+        field("SpanId", "string", ["a"]),
+        field("StartTime", "time", [1000]),
+        field("SpanKind", "string", ["Client"]),
+        field("SpanEvents", "string", [events]),
+      ])
+    )
+    expect(spans[0].kind).toBe("Client")
+    expect(spans[0].events).toEqual([
+      {
+        time: 1862,
+        name: "exception",
+        attributes: { "exception.type": "UpstreamUnavailable", retry: "2" },
+      },
+      { time: 1866, name: "retry.scheduled", attributes: {} },
+    ])
+  })
+
+  it("gives a frame without the columns no kind and no events", () => {
+    const spans = spansOf(model(grafana()))
+    expect(spans.map((span) => [span.kind, span.events])).toEqual([
+      [null, []],
+      [null, []],
+      [null, []],
+    ])
+  })
+
+  it("gives malformed events JSON and events without a time no events", () => {
+    const spans = spansOf(
+      model([
+        field("SpanId", "string", ["a", "b", "c"]),
+        field("StartTime", "time", [1, 2, 3]),
+        field("SpanEvents", "string", ["[{", '[{"name": "no time"}]', "[]"]),
+      ])
+    )
+    expect(spans.map((span) => span.events)).toEqual([[], [], []])
+  })
+})
+
+describe("eventTicks", () => {
+  const trace = { start: 1000, duration: 200 }
+  const event = (time: number) => ({ time, name: "e", attributes: {} })
+
+  it("places each event as a fraction of the zoomed window", () => {
+    expect(
+      eventTicks([event(1000), event(1100), event(1200)], trace, {
+        start: 0,
+        end: 1,
+      })
+    ).toEqual([0, 0.5, 1])
+    expect(
+      eventTicks([event(1050), event(1100), event(1150)], trace, {
+        start: 0.5,
+        end: 1,
+      })
+    ).toEqual([0, 0.5])
+  })
+
+  it("draws at most the cap and nothing for an empty trace", () => {
+    const many = Array.from({ length: 50 }, (_, index) => event(1000 + index))
+    expect(eventTicks(many, trace, { start: 0, end: 1 })).toHaveLength(
+      maxEventTicks
+    )
+    expect(
+      eventTicks(many, { start: 0, duration: 0 }, { start: 0, end: 1 })
+    ).toEqual([])
   })
 })
 
