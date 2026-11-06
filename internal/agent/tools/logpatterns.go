@@ -8,6 +8,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/logpatterns"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
 
@@ -31,6 +32,44 @@ type logPatternsInput struct {
 	From       string `json:"from"`
 	To         string `json:"to"`
 	Limit      *int   `json:"limit"`
+}
+
+type toolPattern struct {
+	Pattern string  `json:"pattern"`
+	Count   int64   `json:"count"`
+	Sample  string  `json:"sample"`
+	First   string  `json:"first"`
+	Last    string  `json:"last"`
+	Level   string  `json:"level"`
+	Trend   []int64 `json:"trend"`
+}
+
+type toolPatterns struct {
+	Source       string        `json:"source"`
+	LinesSampled int           `json:"lines_sampled"`
+	LinesMatched int64         `json:"lines_matched"`
+	TrendStepMs  int64         `json:"trend_step_ms"`
+	Patterns     []toolPattern `json:"patterns"`
+	Truncated    bool          `json:"truncated"`
+}
+
+func compactPatterns(found queryproxy.LogPatterns, rng datasource.TimeRange) toolPatterns {
+	out := toolPatterns{
+		Source:       found.Source,
+		LinesSampled: found.LinesSampled,
+		LinesMatched: found.LinesMatched,
+		TrendStepMs:  (rng.To.Sub(rng.From) / logpatterns.TrendBuckets).Milliseconds(),
+		Patterns:     make([]toolPattern, len(found.Patterns)),
+		Truncated:    found.Truncated,
+	}
+	for i, p := range found.Patterns {
+		trend := make([]int64, len(p.Trend))
+		for j, b := range p.Trend {
+			trend[j] = b.Count
+		}
+		out.Patterns[i] = toolPattern{Pattern: p.Pattern, Count: p.Count, Sample: clip(p.Sample, maxSummaryCell), First: p.First, Last: p.Last, Level: p.Level, Trend: trend}
+	}
+	return out
 }
 
 func init() { registerEntries((*Registry).patternEntries) }
@@ -67,7 +106,7 @@ func (r *Registry) logPatterns(ctx context.Context, input json.RawMessage) (Resu
 	ctx, cancel := context.WithTimeout(ctx, queryproxy.DraftLimits.Timeout+queryproxy.DraftGrace)
 	defer cancel()
 	principal, _ := auth.FromContext(ctx)
-	out, err := r.deps.Runner.LogPatterns(ctx, inst, queryproxy.PatternsRequest{
+	found, err := r.deps.Runner.LogPatterns(ctx, inst, queryproxy.PatternsRequest{
 		Query:  datasource.Query{Text: in.Query, Limits: queryproxy.DraftLimits, Dashboard: defaultDashTitle, User: queryproxy.UserFor(principal)},
 		Range:  rng,
 		Limit:  limit,
@@ -76,9 +115,7 @@ func (r *Registry) logPatterns(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil {
 		return datasourceFailure("Finding patterns on "+inst.UID, err)
 	}
-	for i := range out.Patterns {
-		out.Patterns[i].Sample = clip(out.Patterns[i].Sample, maxSummaryCell)
-	}
+	out := compactPatterns(found, rng)
 	var cut bool
 	out.Patterns, cut = fit(out.Patterns, patternsBudget)
 	out.Truncated = out.Truncated || cut

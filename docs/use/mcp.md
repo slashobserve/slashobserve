@@ -141,7 +141,7 @@ The built-in agent has the same tool.
 
 `log_patterns` groups the lines a logs query matches into patterns with counts on a Loki or ClickHouse datasource, as [Patterns](logs-and-traces.md#logs-page) does: from Loki's pattern index when it has one, otherwise from the newest 2,000 lines.
 Pass the datasource, the query and optionally `from`, `to` and `limit`, 10 patterns by default and at most 30.
-The answer says `source` (`loki` or `server`), `lines_sampled`, `lines_matched` and each pattern's `count`, `sample` cut to 200 bytes, `first` and `last`.
+The answer says `source` (`loki` or `server`), `lines_sampled`, `lines_matched` and each pattern's `count`, `sample` cut to 200 bytes, `first`, `last`, `level` and `trend`, the counts of 30 equal buckets over the range, whose width in milliseconds is `trend_step_ms`.
 The built-in agent has the same tool.
 
 `list_annotations` lists [annotations](annotations.md), such as deploy markers, newest first: the global ones, plus one dashboard's own with `dashboard_id`, narrowed by `from` and `to` (RFC 3339) and `tags`, 50 per page by default and at most 100.

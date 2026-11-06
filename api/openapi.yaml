@@ -1531,8 +1531,8 @@ components:
                 type: string
               kind:
                 type: string
-                enum: [label, field, column]
-                description: A Loki index label, a Loki parsed or structured-metadata field, or a ClickHouse column or `LogAttributes.<key>`.
+                enum: [label, field, metadata, column]
+                description: A Loki index label, a Loki parsed field, a Loki structured-metadata field, or a ClickHouse column or `LogAttributes.<key>`.
               exact:
                 type: boolean
                 description: False when the counts come from the newest `lines_sampled` lines.
@@ -1730,7 +1730,7 @@ components:
     LogPattern:
       type: object
       additionalProperties: false
-      required: [pattern, count, sample, first, last]
+      required: [pattern, count, sample, first, last, trend, level]
       properties:
         pattern:
           type: string
@@ -1747,6 +1747,28 @@ components:
         last:
           type: string
           description: RFC 3339 time of the last sample bucket or newest sampled line; empty when the time is unknown.
+        trend:
+          type: array
+          description: Exactly 30 buckets of equal width covering the range from `from` to `to`, the first starting at `from`; empty buckets are present with a `count` of 0.
+          minItems: 30
+          maxItems: 30
+          items:
+            $ref: "#/components/schemas/LogPatternTrendBucket"
+        level:
+          type: string
+          enum: ["error", "warning", "info", "other", ""]
+          description: On `loki` the first level word in the pattern, on `server` the level most of the pattern's sampled lines carry; empty when there is none.
+    LogPatternTrendBucket:
+      type: object
+      additionalProperties: false
+      required: [start, count]
+      properties:
+        start:
+          type: string
+          description: RFC 3339 start of the bucket.
+        count:
+          type: integer
+          description: The lines of the pattern in the bucket.
     PanelData:
       type: object
       additionalProperties: false

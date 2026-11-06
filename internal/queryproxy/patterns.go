@@ -23,6 +23,8 @@ const (
 	patternsReadTypes = "patterns read Loki and ClickHouse datasources"
 )
 
+var patternLevelFields = []string{"level", "SeverityText"}
+
 type PatternsRequest struct {
 	Query  datasource.Query
 	Range  datasource.TimeRange
@@ -30,12 +32,19 @@ type PatternsRequest struct {
 	Sample int
 }
 
+type TrendBucket struct {
+	Start string `json:"start"`
+	Count int64  `json:"count"`
+}
+
 type LogPattern struct {
-	Pattern string `json:"pattern"`
-	Count   int64  `json:"count"`
-	Sample  string `json:"sample"`
-	First   string `json:"first"`
-	Last    string `json:"last"`
+	Pattern string        `json:"pattern"`
+	Count   int64         `json:"count"`
+	Sample  string        `json:"sample"`
+	First   string        `json:"first"`
+	Last    string        `json:"last"`
+	Trend   []TrendBucket `json:"trend"`
+	Level   string        `json:"level"`
 }
 
 type LogPatterns struct {
@@ -58,7 +67,7 @@ func (r *Runner) LogPatterns(ctx context.Context, inst datasource.Instance, req 
 		found, err := r.nativePatterns(ctx, native, req)
 		switch {
 		case err == nil:
-			return foldNative(found, req.Limit), nil
+			return foldNative(found, req.Limit, req.Range), nil
 		case !errors.Is(err, datasource.ErrNotFound):
 			return LogPatterns{}, err
 		}
@@ -71,10 +80,10 @@ func (r *Runner) LogPatterns(ctx context.Context, inst datasource.Instance, req 
 	if err != nil {
 		return LogPatterns{}, err
 	}
-	patterns, truncated := logpatterns.Cluster(sampled, req.Limit)
+	patterns, truncated := logpatterns.Cluster(sampled, req.Limit, req.Range.From, req.Range.To)
 	out := LogPatterns{Source: PatternSourceServer, LinesSampled: len(sampled), LinesMatched: int64(len(sampled)), Patterns: make([]LogPattern, len(patterns)), Truncated: truncated}
 	for i, p := range patterns {
-		out.Patterns[i] = LogPattern{Pattern: p.Pattern, Count: p.Count, Sample: p.Sample, First: patternTime(p.First), Last: patternTime(p.Last)}
+		out.Patterns[i] = LogPattern{Pattern: p.Pattern, Count: p.Count, Sample: p.Sample, First: patternTime(p.First), Last: patternTime(p.Last), Trend: trendOf(p.Trend), Level: p.Level}
 	}
 	return out, nil
 }
@@ -99,13 +108,15 @@ func (r *Runner) sampleLines(ctx context.Context, source datasource.LineSource, 
 	return source.Lines(ctx, datasource.LinesRequest{Query: query, Range: req.Range, Direction: datasource.Backward, Limit: req.Sample})
 }
 
-func foldNative(found []datasource.NativePattern, limit int) LogPatterns {
+func foldNative(found []datasource.NativePattern, limit int, rng datasource.TimeRange) LogPatterns {
 	out := LogPatterns{Source: PatternSourceLoki, Patterns: []LogPattern{}}
 	for _, p := range found {
 		var count int64
 		var first, last time.Time
+		trend := logpatterns.NewTrend(rng.From, rng.To)
 		for _, s := range p.Samples {
 			count += s.Count
+			trend.Add(s.At, s.Count)
 			if first.IsZero() || s.At.Before(first) {
 				first = s.At
 			}
@@ -117,13 +128,21 @@ func foldNative(found []datasource.NativePattern, limit int) LogPatterns {
 			continue
 		}
 		out.LinesMatched += count
-		out.Patterns = append(out.Patterns, LogPattern{Pattern: p.Pattern, Count: count, First: patternTime(first), Last: patternTime(last)})
+		out.Patterns = append(out.Patterns, LogPattern{Pattern: p.Pattern, Count: count, First: patternTime(first), Last: patternTime(last), Trend: trendOf(trend.Buckets()), Level: logpatterns.PatternLevel(p.Pattern)})
 	}
 	slices.SortStableFunc(out.Patterns, func(a, b LogPattern) int {
 		return cmp.Or(cmp.Compare(b.Count, a.Count), strings.Compare(a.Pattern, b.Pattern))
 	})
 	if len(out.Patterns) > limit {
 		out.Patterns, out.Truncated = out.Patterns[:limit], true
+	}
+	return out
+}
+
+func trendOf(buckets []logpatterns.TrendBucket) []TrendBucket {
+	out := make([]TrendBucket, len(buckets))
+	for i, b := range buckets {
+		out[i] = TrendBucket{Start: patternTime(b.Start), Count: b.Count}
 	}
 	return out
 }
@@ -135,13 +154,15 @@ func sampledLines(frames []datasource.Frame) ([]logpatterns.Line, error) {
 		if rows == 0 {
 			continue
 		}
-		timeField, bodyField := -1, -1
+		timeField, bodyField, levelField := -1, -1, -1
 		for i, field := range f.Fields {
 			switch {
 			case timeField < 0 && field.Type == datasource.FieldTime:
 				timeField = i
 			case bodyField < 0 && strings.EqualFold(field.Name, patternBodyField):
 				bodyField = i
+			case levelField < 0 && slices.ContainsFunc(patternLevelFields, func(name string) bool { return strings.EqualFold(field.Name, name) }):
+				levelField = i
 			}
 		}
 		if bodyField < 0 {
@@ -152,10 +173,18 @@ func sampledLines(frames []datasource.Frame) ([]logpatterns.Line, error) {
 			if !ok {
 				continue
 			}
-			lines = append(lines, logpatterns.Line{Time: lineTime(f, timeField, row), Text: text})
+			lines = append(lines, logpatterns.Line{Time: lineTime(f, timeField, row), Text: text, Level: lineLevel(f, levelField, row)})
 		}
 	}
 	return lines, nil
+}
+
+func lineLevel(f datasource.Frame, levelField, row int) string {
+	if levelField < 0 || row >= len(f.Fields[levelField].Values) {
+		return ""
+	}
+	level, _ := f.Fields[levelField].Values[row].(string)
+	return level
 }
 
 func lineTime(f datasource.Frame, timeField, row int) time.Time {

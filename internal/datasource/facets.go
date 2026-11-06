@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	FacetKindLabel  = "label"
-	FacetKindField  = "field"
-	FacetKindColumn = "column"
+	FacetKindLabel    = "label"
+	FacetKindField    = "field"
+	FacetKindMetadata = "metadata"
+	FacetKindColumn   = "column"
 )
 
 type FacetRequest struct {
