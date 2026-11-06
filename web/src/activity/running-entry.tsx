@@ -92,14 +92,12 @@ export function RunningEntry({ entry }: Props) {
         </Link>
         {watchable ? (
           <Link
-            to="/b/$requestId"
-            params={{ requestId: request.id }}
-            target="_blank"
-            rel="noopener"
+            from="/d/$dashboardId/{-$slug}"
+            to="."
+            search={(prev) => ({ ...prev, chat: request.id })}
             className="flex-none rounded-control text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Watch live
-            <span className="sr-only"> build, opens in a new tab</span>
+            Open chat
           </Link>
         ) : null}
       </div>
