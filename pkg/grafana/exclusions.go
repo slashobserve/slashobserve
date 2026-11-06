@@ -71,6 +71,7 @@ var (
 	decisionTempoSearchLimits        = decision{"tempo-search-limits", "Trace limits, span-set limits and span tables on a Tempo query are not part of SlashObserve; a search lists one row per trace."}
 	decisionElasticPPL               = decision{"elastic-ppl", "PPL is not supported; rewrite the query in KQL or Query DSL."}
 	decisionElasticGeoNested         = decision{"elastic-geo-nested", "geohash_grid and nested bucket aggregations are not converted."}
+	decisionElasticTrimEdges         = decision{"elastic-trim-edges", "trimEdges is not applied."}
 	decisionElasticTopMetrics        = decision{"elastic-top-metrics", "The top_metrics metric is not converted."}
 	decisionElasticScripts           = decision{"elastic-scripts", "Inline scripts are not converted."}
 	decisionElasticFieldVariables    = decision{"elastic-field-variables", "Field-name variables have no equivalent; use a custom variable."}
@@ -90,7 +91,7 @@ var decisions = []decision{
 	decisionPhotoFrames, decisionTransformationOptions, decisionDebugPanel,
 	decisionLokiLineLimit, decisionLokiDirection, decisionTempoSearchBuilder, decisionTempoServiceGraph,
 	decisionTraceUpload, decisionTraceQLMetrics, decisionTempoSearchLimits,
-	decisionElasticPPL, decisionElasticGeoNested, decisionElasticTopMetrics,
+	decisionElasticPPL, decisionElasticGeoNested, decisionElasticTrimEdges, decisionElasticTopMetrics,
 	decisionElasticScripts, decisionElasticFieldVariables, decisionElasticHiddenMetrics,
 }
 
@@ -208,6 +209,7 @@ var excludedOptions = slices.Concat(
 		onQuery(queryTempo, excludedOption{path: "tableType", values: []any{"spans", "raw"}, decision: decisionTempoSearchLimits}),
 		onQuery(queryElastic, excludedOption{path: "queryType", values: []any{"PPL"}, decision: decisionElasticPPL}),
 		onQuery(queryElastic, excludedOption{path: "bucketAggs[]", key: "type", values: []any{"geohash_grid", "nested"}, decision: decisionElasticGeoNested}),
+		onQuery(queryElastic, excludedOption{path: "bucketAggs[].settings.trimEdges", when: nonZeroSetting, decision: decisionElasticTrimEdges}),
 		onQuery(queryElastic, excludedOption{path: "metrics[]", key: "type", values: []any{"top_metrics"}, decision: decisionElasticTopMetrics}),
 		onQuery(queryElastic, excludedOption{path: "metrics[].settings.script", decision: decisionElasticScripts}),
 		onQuery(queryElastic, excludedOption{path: "metrics[].hide", values: []any{true}, decision: decisionElasticHiddenMetrics}),
@@ -291,6 +293,11 @@ func hasExcludedMatcher(value any) bool {
 		return asString(matcher["options"]) == "other"
 	}
 	return false
+}
+
+func nonZeroSetting(value any) bool {
+	n, ok := intSetting(value)
+	return ok && n != 0
 }
 
 func findsFields(value any) bool {
