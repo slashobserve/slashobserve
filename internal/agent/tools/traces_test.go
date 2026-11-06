@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -60,14 +61,16 @@ func newTraceRig(t *testing.T) (*Registry, *traceFakeDS) {
 	return New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger, queryproxy.WithUpstreamWait(30*time.Millisecond)), Logger: logger}), ds
 }
 
+const linkedTraceID = "1b2c3d4e5f60718293a4b5c6d7e8f901"
+
 func thirtySpans() datasource.Frame {
-	names := []string{"TraceId", "SpanId", "ParentSpanId", "SpanName", "ServiceName", "StartTime", "Duration", "StatusCode", "SpanAttributes", "ResourceAttributes", "SpanKind", "SpanEvents"}
+	names := []string{"TraceId", "SpanId", "ParentSpanId", "SpanName", "ServiceName", "StartTime", "Duration", "StatusCode", "SpanAttributes", "ResourceAttributes", "SpanKind", "SpanEvents", "SpanLinks"}
 	f := datasource.Frame{Fields: make([]datasource.Field, len(names))}
 	for i, name := range names {
 		f.Fields[i] = datasource.Field{Name: name, Type: datasource.FieldString}
 	}
 	add := func(id, parent, name, service string, offset, duration time.Duration, status string) {
-		row := []any{fixtureTraceID, id, parent, name, service, fixtureStart.Add(offset), int64(duration), status, "{}", "{}", "Server", "[]"}
+		row := []any{fixtureTraceID, id, parent, name, service, fixtureStart.Add(offset), int64(duration), status, "{}", "{}", "Server", "[]", "[]"}
 		for c := range row {
 			f.Fields[c].Values = append(f.Fields[c].Values, row[c])
 		}
@@ -76,6 +79,7 @@ func thirtySpans() datasource.Frame {
 	add("chk0000000000000", "root000000000000", "checkout", "checkout", 10*time.Millisecond, 800*time.Millisecond, "Unset")
 	add("pay0000000000000", "chk0000000000000", "charge", "payments", 20*time.Millisecond, 700*time.Millisecond, "STATUS_CODE_ERROR")
 	add("db00000000000000", "pay0000000000000", "SELECT cards", "payments", 30*time.Millisecond, 650*time.Millisecond, "Error")
+	f.Fields[12].Values[3] = `[{"trace_id":"` + linkedTraceID + `","span_id":"b7ad6b7169203331","attributes":{}},{"trace_id":"` + linkedTraceID + `","span_id":"00f067aa0ba902b7","attributes":{}}]`
 	for i := range 26 {
 		add(fmt.Sprintf("inv%013d", i), "chk0000000000000", "reserve", "inventory", time.Duration(40+i)*time.Millisecond, time.Duration(i+1)*time.Millisecond, "Ok")
 	}
@@ -121,6 +125,9 @@ func TestGetTraceSummarizesServicesErrorsAndTheSlowestSpans(t *testing.T) {
 	if len(out.Slowest) != traceListLimit {
 		t.Fatalf("slowest has %d spans, want %d", len(out.Slowest), traceListLimit)
 	}
+	if out.Links != 1 || !slices.Equal(out.LinkedTraces, []string{linkedTraceID}) {
+		t.Fatalf("links = %d to %v, want one linked span to %s", out.Links, out.LinkedTraces, linkedTraceID)
+	}
 	wantSlowest := []slowSpanOut{
 		{"root000000000000", "POST /checkout", "gateway", 900, 0},
 		{"chk0000000000000", "checkout", "checkout", 800, 1},
@@ -135,7 +142,7 @@ func TestGetTraceSummarizesServicesErrorsAndTheSlowestSpans(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{`"trace_id"`, `"spans"`, `"spans_returned"`, `"truncated"`, `"services"`, `"duration_ms"`, `"root"`, `"errors"`, `"slowest"`, `"depth"`} {
+	for _, key := range []string{`"trace_id"`, `"spans"`, `"spans_returned"`, `"truncated"`, `"services"`, `"duration_ms"`, `"root"`, `"errors"`, `"slowest"`, `"depth"`, `"links"`, `"linked_traces"`} {
 		if !strings.Contains(string(body), key) {
 			t.Errorf("JSON lacks %s: %s", key, body)
 		}

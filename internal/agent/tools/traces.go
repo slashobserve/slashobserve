@@ -24,7 +24,7 @@ const (
 	upstreamWait          = 5 * time.Second
 	nanosPerMilli         = 1e6
 
-	descGetTrace   = "Read one trace by id from a Tempo or ClickHouse datasource: its services, root span, error spans and slowest spans. Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so."
+	descGetTrace   = "Read one trace by id from a Tempo or ClickHouse datasource: its services, root span, error spans and slowest spans. Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed."
 	descTraceStats = "Count spans and errors per time bucket and get p50, p95 and p99 durations and a duration histogram over a TraceQL filter on Tempo, or a SQL condition over otel_traces on ClickHouse. Use it to see whether latency or errors moved before reading single traces."
 
 	propTraceFrom    = `"from":{"type":"string","description":"Start time such as now-1h or an RFC 3339 time. Default now-24h."}`
@@ -52,6 +52,8 @@ type traceOut struct {
 	Root          *spanRefOut   `json:"root"`
 	Errors        []spanRefOut  `json:"errors"`
 	Slowest       []slowSpanOut `json:"slowest"`
+	Links         int           `json:"links"`
+	LinkedTraces  []string      `json:"linked_traces,omitempty"`
 }
 
 type serviceOut struct {
@@ -79,6 +81,7 @@ type traceSpan struct {
 	id, parent, name, service, status string
 	start                             time.Time
 	duration                          float64
+	links                             []datasource.SpanLink
 }
 
 func (r *Registry) getTrace(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -145,6 +148,7 @@ func summarizeTrace(id string, f datasource.Frame) traceOut {
 	if len(spans) == 0 {
 		return out
 	}
+	out.Links, out.LinkedTraces = linkSummary(spans)
 	byID := make(map[string]*traceSpan, len(spans))
 	services := map[string]*serviceOut{}
 	var root *traceSpan
@@ -199,19 +203,42 @@ func spansOf(f datasource.Frame) []traceSpan {
 		return nil
 	}
 	ids, parents, names, services := column("SpanId"), column("ParentSpanId"), column("SpanName"), column("ServiceName")
-	starts, durations, statuses := column("StartTime"), column("Duration"), column("StatusCode")
+	starts, durations, statuses, links := column("StartTime"), column("Duration"), column("StatusCode"), column("SpanLinks")
 	spans := make([]traceSpan, 0, len(ids))
 	for i := range ids {
 		s := traceSpan{id: stringAt(ids, i), parent: stringAt(parents, i), name: stringAt(names, i), service: stringAt(services, i), status: stringAt(statuses, i), duration: numberAt(durations, i)}
 		if at, ok := valueAt(starts, i).(time.Time); ok {
 			s.start = at
 		}
+		s.links = linksAt(links, i)
 		spans = append(spans, s)
 	}
 	slices.SortStableFunc(spans, func(a, b traceSpan) int {
 		return cmp.Or(a.start.Compare(b.start), cmp.Compare(a.id, b.id))
 	})
 	return spans
+}
+
+func linkSummary(spans []traceSpan) (linked int, traces []string) {
+	for _, s := range spans {
+		if len(s.links) > 0 {
+			linked++
+		}
+		for _, l := range s.links {
+			if len(traces) < traceListLimit && !slices.Contains(traces, l.TraceID) {
+				traces = append(traces, l.TraceID)
+			}
+		}
+	}
+	return linked, traces
+}
+
+func linksAt(values []any, i int) []datasource.SpanLink {
+	var links []datasource.SpanLink
+	if json.Unmarshal([]byte(stringAt(values, i)), &links) != nil {
+		return nil
+	}
+	return links
 }
 
 func depthOf(s traceSpan, byID map[string]*traceSpan) int {
