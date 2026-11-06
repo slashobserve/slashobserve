@@ -16,8 +16,12 @@ export const quickRanges: QuickRange[] = [
   { label: "Yesterday", from: "now-1d/d", to: "now-1d/d" },
 ]
 
-const timeExpression =
-  /^(now([+-][1-9][0-9]*[smhdwMy])?(\/(fy|fQ|[smhdwMy]))?|[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,9})?(Z|[+-][0-9]{2}:[0-9]{2}))$/
+const rfc3339Source =
+  "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?(Z|[+-][0-9]{2}:[0-9]{2})"
+const rfc3339 = new RegExp(`^${rfc3339Source}$`)
+const timeExpression = new RegExp(
+  `^(now([+-][1-9][0-9]*[smhdwMy])?(\\/(fy|fQ|[smhdwMy]))?|${rfc3339Source})$`
+)
 const epochMillis = /^[0-9]{10,15}$/
 const relativeExpression =
   /^now(?:([+-])([0-9]+)([smhdwMy]))?(?:\/(fy|fQ|[smhdwMy]))?$/
@@ -155,8 +159,40 @@ export function describeRange(
   return (
     quick?.label ??
     describeRelativeRange(from, to) ??
+    describeInstantRange(from, to) ??
     `${formatTimeValue(from)} to ${formatTimeValue(to)}`
   )
+}
+
+const monthNames = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+]
+
+function describeInstantRange(from: string, to: string): string | null {
+  if (!rfc3339.test(from) || !rfc3339.test(to)) return null
+  const start = new Date(from)
+  const end = new Date(to)
+  const thisYear = new Date().getFullYear()
+  const withYear =
+    start.getFullYear() !== thisYear || end.getFullYear() !== thisYear
+  const day = (date: Date) =>
+    `${monthNames[date.getMonth()]} ${date.getDate()}${withYear ? `, ${date.getFullYear()}` : ""}`
+  const clock = (date: Date) =>
+    `${pad(date.getHours())}:${pad(date.getMinutes())}`
+  const endText =
+    day(start) === day(end) ? clock(end) : `${day(end)}, ${clock(end)}`
+  return `${day(start)}, ${clock(start)} to ${endText}`
 }
 
 const absoluteUnitMs = { s: 1000, m: 60_000, h: 3_600_000 }
