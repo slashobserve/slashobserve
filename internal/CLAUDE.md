@@ -9,6 +9,7 @@ This lists only the packages whose purpose the name does not make obvious.
 
 - `config`: the only reader of `SLASHOBSERVE_*` environment variables (`config.Load`).
 - `logattrs`: turns an error into log attributes that are safe to write.
+- `logvolume`: level words to kinds and the volume histogram the logs volume endpoint returns.
 - `db`: pgx pool, goose `migrations/`, sqlc `queries/`, generated `dbsqlc/`.
   `dbtest` gives each test its own migrated database from one Postgres testcontainer per test binary (`dbtest.Main` in `TestMain`, `dbtest.New(t)`; skipped under `-short`).
 - `tctest`: retry for testcontainers starts that fail on testcontainers-go v0.44.0 reaper (ryuk) start errors; every container start in tests goes through it.

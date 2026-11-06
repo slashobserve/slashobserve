@@ -94,9 +94,16 @@ const (
 	}]}`
 	searchBody = `{"traces":[
 		{"traceID":"f7651916cd43dd8448eb211c80319c","rootServiceName":"checkout","rootTraceName":"POST /checkout","startTimeUnixNano":"1793966399000000000","durationMs":50,
-		 "spanSet":{"spans":[{"spanID":"b7ad6b7169203331"}],"matched":1}},
-		{"traceID":"1b2c3d4e5f60718293a4b5c6d7e8f901","rootServiceName":"frontend","rootTraceName":"GET /","startTimeUnixNano":"1793966400000000000"}
+		 "spanSet":{"spans":[{"spanID":"b7ad6b7169203331"}],"matched":3},
+		 "serviceStats":{"checkout":{"spanCount":4,"errorCount":1},"frontend":{"spanCount":2,"errorCount":1},"payments":{"spanCount":2,"errorCount":1}}},
+		{"traceID":"1b2c3d4e5f60718293a4b5c6d7e8f901","rootServiceName":"frontend","rootTraceName":"GET /","startTimeUnixNano":"1793966400000000000",
+		 "serviceStats":{"frontend":{"spanCount":1}}}
 	],"metrics":{"inspectedTraces":2}}`
+	olderTempoSearchBody = `{"traces":[
+		{"traceID":"f7651916cd43dd8448eb211c80319c","rootServiceName":"checkout","rootTraceName":"POST /checkout","startTimeUnixNano":"1793966399000000000","durationMs":50,
+		 "serviceStats":{"checkout":{"spanCount":4,"errorCount":1}}},
+		{"traceID":"1b2c3d4e5f60718293a4b5c6d7e8f901","rootServiceName":"frontend","rootTraceName":"GET /","startTimeUnixNano":"1793966400000000000"}
+	]}`
 )
 
 var (
@@ -194,7 +201,7 @@ func TestSearchReturnsOneRowPerTrace(t *testing.T) {
 		t.Fatalf("frames = %+v", frames)
 	}
 	f := frames[0]
-	want := []string{"string:TraceId", "string:SpanId", "string:SpanName", "string:ServiceName", "time:StartTime", "number:Duration"}
+	want := []string{"string:TraceId", "string:SpanId", "string:SpanName", "string:ServiceName", "time:StartTime", "number:Duration", "number:Spans", "number:Errors"}
 	if got := fieldNames(f); !slices.Equal(got, want) {
 		t.Fatalf("fields = %v, want %v", got, want)
 	}
@@ -213,6 +220,24 @@ func TestSearchReturnsOneRowPerTrace(t *testing.T) {
 	}
 	if got := fieldValues(t, f, "Duration"); !slices.Equal(got, []any{int64(0), int64(50 * time.Millisecond)}) {
 		t.Fatalf("durations = %v", got)
+	}
+	if got := fieldValues(t, f, "Spans"); !slices.Equal(got, []any{float64(1), float64(8)}) {
+		t.Fatalf("spans = %v, want the sum of spanCount over services", got)
+	}
+	if got := fieldValues(t, f, "Errors"); !slices.Equal(got, []any{float64(0), float64(3)}) {
+		t.Fatalf("errors = %v, want the sum of errorCount, 0 when absent", got)
+	}
+}
+
+func TestSearchLeavesOutCountsWhenATraceLacksServiceStats(t *testing.T) {
+	ds, _ := serve(t, map[string]reply{"/api/search": {0, olderTempoSearchBody}})
+	frames, err := ds.QueryInstant(context.Background(), datasource.Query{Text: `{}`}, lastHour)
+	if err != nil || len(frames) != 1 {
+		t.Fatalf("frames = %+v, %v", frames, err)
+	}
+	want := []string{"string:TraceId", "string:SpanId", "string:SpanName", "string:ServiceName", "time:StartTime", "number:Duration"}
+	if got := fieldNames(frames[0]); !slices.Equal(got, want) {
+		t.Fatalf("fields = %v, want %v", got, want)
 	}
 }
 
