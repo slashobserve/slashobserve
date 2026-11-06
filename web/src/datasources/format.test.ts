@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest"
 
-import { statusOf, typeLabel, usageLabel } from "./format"
+import { exploreTargets, statusOf, typeLabel, usageLabel } from "./format"
 import type { DatasourceStatus } from "./queries"
 
 function makeDatasource(
@@ -21,10 +21,28 @@ describe("typeLabel", () => {
   test("names the supported types", () => {
     expect(typeLabel("prometheus")).toBe("Prometheus")
     expect(typeLabel("clickhouse")).toBe("ClickHouse, read only")
+    expect(typeLabel("loki")).toBe("Loki")
+    expect(typeLabel("tempo")).toBe("Tempo")
   })
 
   test("keeps an unknown type as written", () => {
-    expect(typeLabel("loki")).toBe("loki")
+    expect(typeLabel("graphite")).toBe("graphite")
+  })
+})
+
+describe("exploreTargets", () => {
+  test("offers logs and traces for ClickHouse", () => {
+    expect(exploreTargets("clickhouse")).toEqual(["logs", "traces"])
+  })
+
+  test("offers logs for Loki and traces for Tempo", () => {
+    expect(exploreTargets("loki")).toEqual(["logs"])
+    expect(exploreTargets("tempo")).toEqual(["traces"])
+  })
+
+  test("offers nothing for Prometheus or an unknown type", () => {
+    expect(exploreTargets("prometheus")).toEqual([])
+    expect(exploreTargets("graphite")).toEqual([])
   })
 })
 

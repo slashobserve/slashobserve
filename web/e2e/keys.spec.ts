@@ -347,6 +347,7 @@ test("warns before a key expires", async ({ page, request }) => {
 
 test("shows client snippets with this server's URLs", async ({ page }) => {
   await openKeysPage(page)
+  await page.getByText("Connect a client", { exact: true }).click()
   const mcpUrl = `${serverURL()}/mcp`
   const tabs = page.getByRole("tablist", { name: "Client" })
   await expect(tabs.getByRole("tab", { name: "Claude Code" })).toHaveAttribute(

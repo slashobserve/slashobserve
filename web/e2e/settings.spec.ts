@@ -1,6 +1,12 @@
 import type { Route } from "@playwright/test"
 
-import { expect, failedResourceLogged, test, type Page } from "./fixtures"
+import {
+  expect,
+  failedResourceLogged,
+  switchTheme,
+  test,
+  type Page,
+} from "./fixtures"
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] })
 
@@ -106,27 +112,32 @@ test("keeps the row height when the server settings load", async ({ page }) => {
   ).toBeLessThanOrEqual(0.5)
 })
 
-test("left-aligns the cards in the scroll area and caps them at 860px", async ({
+test("puts the section index at the inset and the cards beside it", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1800, height: 900 })
   await openSettings(page)
 
   const main = await page.locator("main").boundingBox()
+  const index = await page
+    .getByRole("navigation", { name: "On this page" })
+    .boundingBox()
   const heading = await page
     .getByRole("heading", { level: 1, name: "Settings" })
     .boundingBox()
   expect(main).not.toBeNull()
+  expect(index).not.toBeNull()
   expect(heading).not.toBeNull()
-  const inset = (heading?.x ?? 0) - (main?.x ?? 0)
-  expect(Math.abs(inset - 25)).toBeLessThanOrEqual(1)
+  expect(Math.abs((index?.x ?? 0) - (main?.x ?? 0) - 25)).toBeLessThanOrEqual(1)
+  const indexRight = (index?.x ?? 0) + (index?.width ?? 0)
+  expect(heading?.x ?? 0).toBeGreaterThan(indexRight)
 
   const mainRight = (main?.x ?? 0) + (main?.width ?? 0)
-  for (const name of ["Agent", "This server", "Sign-in", "Appearance"]) {
+  for (const name of ["Agent", "This server", "Sign-in", "Outbound access"]) {
     const box = await card(page, name).boundingBox()
     expect(box).not.toBeNull()
-    expect(Math.abs((box?.x ?? 0) - (main?.x ?? 0) - 25)).toBeLessThanOrEqual(1)
-    expect(box?.width).toBeLessThanOrEqual(860)
+    expect(Math.abs((box?.x ?? 0) - (heading?.x ?? 0))).toBeLessThanOrEqual(1)
+    expect(box?.width).toBeLessThanOrEqual(720)
     expect(mainRight - ((box?.x ?? 0) + (box?.width ?? 0))).toBeGreaterThan(200)
   }
 })
@@ -191,9 +202,7 @@ test("keeps working when the server settings fail", async ({
   await expect(server.getByRole("button", { name: "Retry" })).toBeVisible()
   failedResourceLogged(consoleErrors, "500")
 
-  const theme = page.getByRole("combobox", { name: "Theme" })
-  await theme.click()
-  await page.getByRole("option", { name: "Dark", exact: true }).click()
+  await switchTheme(page)
   await expect(page.locator("html")).toHaveClass(/\bdark\b/)
 
   await page.unroute(instance, fail)

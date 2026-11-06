@@ -8,8 +8,27 @@ export function typeLabel(type: string): string {
       return "Prometheus"
     case "clickhouse":
       return "ClickHouse, read only"
+    case "loki":
+      return "Loki"
+    case "tempo":
+      return "Tempo"
     default:
       return type
+  }
+}
+
+export type ExploreTarget = "logs" | "traces"
+
+export function exploreTargets(type: string): ExploreTarget[] {
+  switch (type) {
+    case "clickhouse":
+      return ["logs", "traces"]
+    case "loki":
+      return ["logs"]
+    case "tempo":
+      return ["traces"]
+    default:
+      return []
   }
 }
 
