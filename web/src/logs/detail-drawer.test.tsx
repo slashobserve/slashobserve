@@ -83,19 +83,29 @@ type SetupOptions = {
   others?: DatasourceStatus[]
   tab?: "table" | "json" | "context"
   onClose?: () => void
+  query?: string
+  run?: (text: string) => void
 }
 
 function Harness({
   ds,
   selection: selected,
   tab: initialTab = "table",
+  query,
+  run = () => {},
 }: SetupOptions) {
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState(initialTab)
   const trigger = useRef<HTMLElement | null>(null)
   return (
     <LogsWorkspaceContext
-      value={{ datasource: ds } as unknown as LogsWorkspace}
+      value={
+        {
+          datasource: ds,
+          search: { q: query },
+          run,
+        } as unknown as LogsWorkspace
+      }
     >
       <button
         type="button"
@@ -215,6 +225,142 @@ describe("DetailDrawer", () => {
     const drawer = await screen.findByRole("complementary", { name: "Line" })
     expect(within(drawer).getAllByRole("term")).toHaveLength(lokiDetails.length)
     expect(within(drawer).getByText("acquirer-b returned 503")).toBeTruthy()
+  })
+
+  describe("filtering from a line", () => {
+    const lokiLine = () =>
+      selection(
+        texts([
+          ["service_name", "checkout"],
+          ["trace_id", "abc"],
+          ["status", "500"],
+        ]),
+        { service_name: "checkout", trace_id: "abc" }
+      )
+
+    it("groups a Loki line into labels, parsed fields and structured metadata with two filter buttons per field", async () => {
+      await open({
+        ds: datasource("loki", "loki-1"),
+        selection: lokiLine(),
+        query: '{service_name="checkout"}',
+      })
+      const drawer = await screen.findByRole("complementary", { name: "Line" })
+      for (const name of ["Labels", "Parsed fields", "Structured metadata"]) {
+        expect(within(drawer).getByRole("region", { name })).toBeTruthy()
+      }
+      expect(
+        within(drawer).getAllByRole("button", { name: /^(Include|Exclude) / })
+      ).toHaveLength(6)
+    })
+
+    it.each([
+      {
+        label: "a parsed field into a pipeline stage",
+        button: "Include status 500",
+        expected: '{service_name="checkout"} | status="500"',
+      },
+      {
+        label: "an excluded parsed field into a negative stage",
+        button: "Exclude status 500",
+        expected: '{service_name="checkout"} | status!="500"',
+      },
+      {
+        label: "a per-line label into a pipeline stage, never the selector",
+        button: "Include trace_id abc",
+        expected: '{service_name="checkout"} | trace_id="abc"',
+      },
+    ])("writes $label through run", async ({ button, expected }) => {
+      const run = vi.fn()
+      const { user } = await open({
+        ds: datasource("loki", "loki-1"),
+        selection: lokiLine(),
+        query: '{service_name="checkout"}',
+        run,
+      })
+      await user.click(await screen.findByRole("button", { name: button }))
+      expect(run).toHaveBeenCalledExactlyOnceWith(expected)
+    })
+
+    it("disables a button whose filter is already in the query", async () => {
+      const run = vi.fn()
+      const { user } = await open({
+        ds: datasource("loki", "loki-1"),
+        selection: lokiLine(),
+        query: '{service_name="checkout"} | status="500"',
+        run,
+      })
+      const button = await screen.findByRole("button", {
+        name: "Include status 500",
+      })
+      expect(button.getAttribute("aria-disabled")).toBe("true")
+      await user.click(button)
+      expect(run).not.toHaveBeenCalled()
+    })
+
+    it("lists ClickHouse columns apart from attributes and writes into the WHERE clause", async () => {
+      const run = vi.fn()
+      const { user } = await open({
+        ds: datasource("clickhouse", "ch-1"),
+        selection: selection(
+          texts([
+            ["ServiceName", "checkout"],
+            ["http.status", "500"],
+          ])
+        ),
+        query: "SELECT * FROM otel_logs WHERE 1 LIMIT 5",
+        run,
+      })
+      const drawer = await screen.findByRole("complementary", { name: "Line" })
+      expect(
+        within(drawer).getByRole("region", { name: "Columns" })
+      ).toBeTruthy()
+      expect(
+        within(drawer).getByRole("region", { name: "Attributes" })
+      ).toBeTruthy()
+      await user.click(
+        within(drawer).getByRole("button", { name: "Include http.status 500" })
+      )
+      expect(run).toHaveBeenCalledExactlyOnceWith(
+        "SELECT * FROM otel_logs WHERE 1 AND LogAttributes['http.status'] = '500' LIMIT 5"
+      )
+    })
+
+    it("appends KQL on a search document, offers exists and leaves core fields alone", async () => {
+      const run = vi.fn()
+      const { user } = await open({
+        ds: datasource("elasticsearch", "es-1", { index: "logs-*" }),
+        selection: selection(searchDetails),
+        query: "level:error",
+        run,
+      })
+      const drawer = await screen.findByRole("complementary", {
+        name: "Document",
+      })
+      const core = within(drawer).getByRole("region", { name: "Core fields" })
+      expect(within(core).queryAllByRole("button")).toHaveLength(0)
+      await user.click(
+        within(drawer).getByRole("button", { name: "Include http.status 503" })
+      )
+      await user.click(
+        within(drawer).getByRole("button", { name: "Require http.status" })
+      )
+      expect(run.mock.calls).toEqual([
+        ['level:error and http.status:"503"'],
+        ["level:error and http.status:*"],
+      ])
+    })
+
+    it("disables the buttons on a Lucene query", async () => {
+      await open({
+        ds: datasource("elasticsearch", "es-1", { index: "logs-*" }),
+        selection: selection(searchDetails),
+        query: "lucene: level:error",
+      })
+      const button = await screen.findByRole("button", {
+        name: "Include http.status 503",
+      })
+      expect(button.getAttribute("aria-disabled")).toBe("true")
+    })
   })
 
   it("shows the selector on the Context tab", async () => {
