@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -567,5 +569,134 @@ func TestListDatasourcesCanceled(t *testing.T) {
 	res, err = call(t, r, nameListDatasources, `{}`)
 	if err != nil || res.IsError || res.Step != "Listed 1 datasource" {
 		t.Fatalf("res = %#v err = %v", res, err)
+	}
+}
+
+type fakePageDS struct {
+	*fakeDS
+	byOffset bool
+	onPage   func(req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error)
+	pages    []datasource.PageRequest
+}
+
+func (f *fakePageDS) PagesByOffset() bool { return f.byOffset }
+
+func (f *fakePageDS) QueryPage(_ context.Context, req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {
+	f.pages = append(f.pages, req)
+	return f.onPage(req)
+}
+
+func newPageRegistry(t *testing.T, ds *fakePageDS) *Registry {
+	t.Helper()
+	logger := slog.New(slog.DiscardHandler)
+	reg, err := datasource.NewRegistry(logger, datasource.Instance{UID: fakeUID, Name: "Fake", Datasource: ds})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Logger: logger})
+}
+
+func logRows(n int) datasource.Frame {
+	start := time.Date(2026, 10, 17, 10, 0, 0, 0, time.UTC)
+	times, bodies := make([]any, n), make([]any, n)
+	for i := range n {
+		times[i], bodies[i] = start.Add(-time.Duration(i)*time.Second), fmt.Sprintf("line %d", i)
+	}
+	return datasource.Frame{Fields: []datasource.Field{
+		{Name: "Timestamp", Type: datasource.FieldTime, Values: times},
+		{Name: "Body", Type: datasource.FieldString, Values: bodies},
+	}}
+}
+
+func TestQueryInstantPagesAndKeepsTheSummaryCompact(t *testing.T) {
+	ds := &fakePageDS{fakeDS: &fakeDS{typ: "loki"}, onPage: func(req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {
+		return []datasource.Frame{logRows(300)}, datasource.PageInfo{Page: req.Page, PageSize: req.PageSize, Total: 1234, TotalRelation: datasource.TotalAtLeast, HasNext: true, Next: &datasource.PageCursor{Page: req.Page + 1, EndNs: 1}}, nil
+	}}
+	r := newPageRegistry(t, ds)
+	res, err := call(t, r, nameQueryInstant, `{"datasource":"fake","query":"{a=\"b\"}","page_size":300}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res, err)
+	}
+	summary, ok := res.Content.(querySummary)
+	if !ok {
+		t.Fatalf("content is %T", res.Content)
+	}
+	if summary.Table == nil || len(summary.Table.Rows) != maxTableRows || summary.Table.TotalRows != 300 || !summary.Truncated {
+		t.Fatalf("table = %+v, want %d rows shown of 300", summary.Table, maxTableRows)
+	}
+	if summary.Page == nil || summary.Page.Page != 1 || summary.Page.PageSize != 300 || summary.Page.Total == nil || *summary.Page.Total != 1234 || summary.Page.TotalRelation != "gte" || !summary.Page.HasNext || summary.Page.Next == "" {
+		t.Fatalf("page = %+v", summary.Page)
+	}
+	if want := "Ran a query on fake: 300 rows (page 1 of at least 1,234 rows; pass next as cursor for more)"; res.Step != want {
+		t.Fatalf("step = %q, want %q", res.Step, want)
+	}
+	if len(ds.pages) != 1 || ds.pages[0].PageSize != 300 || ds.pages[0].Page != 1 || ds.pages[0].Query.Limits != queryproxy.DraftLimits {
+		t.Fatalf("pages = %+v", ds.pages)
+	}
+	ds.onPage = func(req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {
+		return []datasource.Frame{logRows(2)}, datasource.PageInfo{Page: req.Page, PageSize: req.PageSize, Total: 302, TotalRelation: datasource.TotalExact}, nil
+	}
+	res, err = call(t, r, nameQueryInstant, `{"datasource":"fake","query":"{a=\"b\"}","page_size":300,"cursor":`+strconv.Quote(summary.Page.Next)+`}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res, err)
+	}
+	if want := "Ran a query on fake: 2 rows (page 2 of 302 rows)"; res.Step != want {
+		t.Fatalf("step = %q, want %q", res.Step, want)
+	}
+	if last := ds.pages[1]; last.Page != 2 || last.Cursor == nil || last.Cursor.EndNs != 1 {
+		t.Fatalf("page 2 request = %+v, want the cursor's page and end", last)
+	}
+}
+
+func TestQueryInstantRejectsBadPaging(t *testing.T) {
+	ds := &fakePageDS{fakeDS: &fakeDS{typ: "loki"}, onPage: func(req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {
+		return nil, datasource.PageInfo{Page: 1, PageSize: req.PageSize, TotalRelation: datasource.TotalExact}, nil
+	}}
+	r := newPageRegistry(t, ds)
+	for name, input := range map[string]string{
+		"page_size below 50":           `{"datasource":"fake","query":"up","page_size":10}`,
+		"page_size above 500":          `{"datasource":"fake","query":"up","page_size":501}`,
+		"page zero":                    `{"datasource":"fake","query":"up","page_size":50,"page":0}`,
+		"page without page_size":       `{"datasource":"fake","query":"up","page":2}`,
+		"cursor without page_size":     `{"datasource":"fake","query":"up","cursor":"x"}`,
+		"cursor over 2 KiB":            `{"datasource":"fake","query":"up","page_size":50,"cursor":"` + strings.Repeat("x", 2049) + `"}`,
+		"page 2 without a cursor":      `{"datasource":"fake","query":"up","page_size":50,"page":2}`,
+		"a cursor of another query":    `{"datasource":"fake","query":"up","page_size":50,"cursor":"` + datasource.EncodeCursor(datasource.PageCursor{Scope: datasource.CursorScope("fake", "other"), Page: 2}) + `"}`,
+		"page_size on a plain instant": `{"datasource":"fake","query":"up","page_size":"many"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			res, err := call(t, r, nameQueryInstant, input)
+			if err != nil || errorCode(t, res) != codeInvalidRequest {
+				t.Fatalf("res = %#v err = %v", res, err)
+			}
+		})
+	}
+	if len(ds.pages) != 0 {
+		t.Fatalf("%d pages ran for invalid inputs", len(ds.pages))
+	}
+	plain := newTestRegistry(t, &fakeDS{}, nil)
+	res, err := call(t, plain, nameQueryInstant, `{"datasource":"fake","query":"up","page_size":50}`)
+	if err != nil || errorCode(t, res) != codeInvalidRequest {
+		t.Fatalf("res = %#v err = %v, want a refusal for a datasource that does not page", res, err)
+	}
+}
+
+func TestPageDescribeNamesTheTotalAndTheWalk(t *testing.T) {
+	exact, big := int64(42), int64(1234567)
+	cases := []struct {
+		name string
+		page pageOut
+		want string
+	}{
+		{"last page", pageOut{Page: 3, Total: &exact, TotalRelation: "eq"}, " (page 3 of 42 rows)"},
+		{"more pages", pageOut{Page: 1, Total: &big, TotalRelation: "gte", HasNext: true}, " (page 1 of at least 1,234,567 rows; pass next as cursor for more)"},
+		{"unknown", pageOut{Page: 2, TotalRelation: "unknown", HasNext: true}, " (page 2, total unknown; pass next as cursor for more)"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.page.describe(); got != tc.want {
+				t.Fatalf("describe = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
