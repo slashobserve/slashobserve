@@ -212,6 +212,12 @@ export type ExploreParams = {
 }
 
 export type TraceStatsParams = { query: string; from: string; to: string }
+export type TraceCompareParams = {
+  selected: string[]
+  baseline: string[]
+  from: string
+  to: string
+}
 export type TraceLogsParams = {
   traceId: string
   spanId?: string
@@ -233,6 +239,8 @@ export const exploreKeys = {
     ["explore", uid, "trace", id, range] as const,
   traceStats: (uid: string, params: TraceStatsParams) =>
     ["explore", uid, "trace-stats", params] as const,
+  traceCompare: (uid: string, params: TraceCompareParams) =>
+    ["explore", uid, "trace-compare", params] as const,
   traceLogs: (uid: string, params: TraceLogsParams) =>
     ["explore", uid, "trace-logs", params] as const,
   targets: (search: string) => ["explore", "targets", search] as const,

@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  attributeFilter,
   clickhouseTraceSearch,
+  durationField,
+  keepSelectionSearch,
   parseDuration,
   traceQLAttribute,
   traceQLFor,
   traceSearchParams,
   traceStatsFilter,
+  withDurationBounds,
   type TraceForm,
 } from "./search-query"
 
@@ -191,5 +195,171 @@ describe("traceQLAttribute", () => {
     expect(traceQLAttribute("span", "my key", 'a"b\\c', false)).toBe(
       '{ span."my key" = "a\\"b\\\\c" }'
     )
+  })
+})
+
+describe("durationField", () => {
+  it.each([
+    [250, "down", "250ms"],
+    [812.34, "down", "812.3ms"],
+    [812.34, "up", "812.4ms"],
+    [1500, "up", "1.5s"],
+    [1512.34, "down", "1.512s"],
+    [1512.34, "up", "1.513s"],
+    [999.96, "up", "1s"],
+  ] as const)("writes %s ms rounded %s as %s", (ms, round, text) => {
+    expect(durationField(ms, round)).toBe(text)
+    expect(parseDuration(text)).not.toBeNull()
+  })
+})
+
+describe("withDurationBounds", () => {
+  it("appends both bounds before the closing brace of the first spanset", () => {
+    expect(withDurationBounds("{ status = error }", "250ms", "1.5s")).toBe(
+      "{ status = error && duration >= 250ms && duration <= 1.5s }"
+    )
+  })
+
+  it("appends only the floor without a ceiling and leaves later spansets alone", () => {
+    expect(
+      withDurationBounds('{status = error} >> {name = "db"}', "3µs", undefined)
+    ).toBe('{status = error && duration >= 3us} >> {name = "db"}')
+  })
+
+  it("fills an empty spanset", () => {
+    expect(withDurationBounds("{}", "250ms", "2s")).toBe(
+      "{duration >= 250ms && duration <= 2s}"
+    )
+    expect(withDurationBounds("{ }", "250ms", undefined)).toBe(
+      "{duration >= 250ms}"
+    )
+  })
+
+  it("is null when the query has no spanset", () => {
+    expect(withDurationBounds("status = error", "250ms", undefined)).toBeNull()
+    expect(
+      withDurationBounds("{ status = error", "250ms", undefined)
+    ).toBeNull()
+  })
+})
+
+describe("keepSelectionSearch", () => {
+  const from = Date.UTC(2026, 10, 6, 14, 13)
+  const to = Date.UTC(2026, 10, 6, 14, 17)
+
+  it("writes the selection's range and duration bounds into the fields", () => {
+    expect(
+      keepSelectionSearch(
+        { service: "checkout" },
+        { from, to, minMs: 812.34, maxMs: 1500 }
+      )
+    ).toEqual({
+      from: "2026-11-06T14:13:00.000Z",
+      to: "2026-11-06T14:17:00.000Z",
+      min: "812.3ms",
+      max: "1.5s",
+      q: undefined,
+    })
+  })
+
+  it("keeps the search's own bound when it is tighter and keeps a ceiling the selection lacks", () => {
+    expect(
+      keepSelectionSearch(
+        { min: "1s", max: "5s" },
+        { from, to, minMs: 800, maxMs: null }
+      )
+    ).toEqual({
+      from: "2026-11-06T14:13:00.000Z",
+      to: "2026-11-06T14:17:00.000Z",
+      min: "1s",
+      max: "5s",
+      q: undefined,
+    })
+    expect(
+      keepSelectionSearch(
+        { min: "100ms", max: "5s" },
+        { from, to, minMs: 800, maxMs: 2000 }
+      )
+    ).toMatchObject({ min: "800ms", max: "2s" })
+  })
+
+  it("appends the bounds to a written TraceQL query", () => {
+    expect(
+      keepSelectionSearch(
+        { q: "{ status = error }" },
+        { from, to, minMs: 800, maxMs: null }
+      )
+    ).toMatchObject({ q: "{ status = error && duration >= 800ms }" })
+  })
+
+  it("is null when the written query cannot take duration bounds", () => {
+    expect(
+      keepSelectionSearch(
+        { q: "status = error" },
+        { from, to, minMs: 800, maxMs: null }
+      )
+    ).toBeNull()
+  })
+})
+
+describe("attributeFilter", () => {
+  it.each([
+    [
+      "span.payments.provider",
+      "acquirer-b",
+      'span.payments.provider = "acquirer-b"',
+    ],
+    [
+      "resource.k8s.pod.name",
+      "payments-0",
+      'resource.k8s.pod.name = "payments-0"',
+    ],
+    [
+      "span.http.response.status_code",
+      "503",
+      "span.http.response.status_code = 503",
+    ],
+    ["name", "POST /checkout", 'name = "POST /checkout"'],
+    ["kind", "Server", "kind = server"],
+    ["status", "Error", "status = error"],
+  ])(
+    "appends %s to the written TraceQL on Tempo",
+    (attribute, value, condition) => {
+      expect(
+        attributeFilter("tempo", { q: "{ status = error }" }, attribute, value)
+      ).toEqual({ q: `{ status = error && ${condition} }` })
+    }
+  )
+
+  it("builds the TraceQL from the fields when none is written", () => {
+    expect(
+      attributeFilter(
+        "tempo",
+        { service: "checkout", min: "250ms" },
+        "span.payments.provider",
+        "acquirer-b"
+      )
+    ).toEqual({
+      q: '{resource.service.name = "checkout" && duration >= 250ms && span.payments.provider = "acquirer-b"}',
+    })
+  })
+
+  it("is null on Tempo when the query has no spanset or the attribute no scope", () => {
+    expect(
+      attributeFilter("tempo", { q: "status = error" }, "span.x", "1")
+    ).toBeNull()
+    expect(attributeFilter("tempo", {}, "event.name", "x")).toBeNull()
+  })
+
+  it("maps only the span name and the service name to the ClickHouse fields", () => {
+    expect(attributeFilter("clickhouse", {}, "name", "GET /pay")).toEqual({
+      span: "GET /pay",
+    })
+    expect(
+      attributeFilter("clickhouse", {}, "resource.service.name", "checkout")
+    ).toEqual({ service: "checkout" })
+    expect(
+      attributeFilter("clickhouse", {}, "span.payments.provider", "acquirer-b")
+    ).toBeNull()
   })
 })
