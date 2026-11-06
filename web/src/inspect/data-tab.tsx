@@ -3,6 +3,8 @@ import { DownloadIcon, ImageIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 import {
   Table,
   TableBody,
@@ -11,8 +13,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { createFieldResolver } from "@/panels/field-config"
 
-import { downloadCsv, framesToTable } from "./csv"
+import { downloadCsv, formattedCell, framesToTable } from "./csv"
 import type { InspectTarget } from "./inspect-pane"
 import { savePanelPng } from "./png"
 
@@ -30,14 +33,26 @@ export function WaitingForData() {
 export function DataTab({
   target,
   title,
+  zone,
 }: {
   target: InspectTarget | null
   title: string
+  zone: string | undefined
 }) {
+  const [formatted, setFormatted] = useState(true)
   const frames = target?.frames
+  const panel = target?.panel
+  const selections = target?.selections
+  const format = useMemo(
+    () =>
+      formatted && panel
+        ? formattedCell(createFieldResolver(panel, selections), zone)
+        : undefined,
+    [formatted, panel, selections, zone]
+  )
   const table = useMemo(
-    () => (frames ? framesToTable(frames) : undefined),
-    [frames]
+    () => (frames ? framesToTable(frames, format) : undefined),
+    [frames, format]
   )
   const [saving, setSaving] = useState(false)
   if (!target || !frames || !table) return <WaitingForData />
@@ -52,19 +67,30 @@ export function DataTab({
   }
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => downloadCsv(frames, title)}
-        >
-          <DownloadIcon aria-hidden="true" />
-          Download CSV
-        </Button>
-        <Button variant="outline" size="sm" disabled={saving} onClick={savePng}>
-          <ImageIcon aria-hidden="true" />
-          {saving ? "Saving PNG..." : "Save as PNG"}
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Label className="gap-2 text-[13px] font-medium">
+          <Checkbox checked={formatted} onCheckedChange={setFormatted} />
+          Formatted data
+        </Label>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => downloadCsv(frames, title)}
+          >
+            <DownloadIcon aria-hidden="true" />
+            Download CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={saving}
+            onClick={savePng}
+          >
+            <ImageIcon aria-hidden="true" />
+            {saving ? "Saving PNG..." : "Save as PNG"}
+          </Button>
+        </div>
       </div>
       <p className="text-xs text-muted-foreground">
         {table.rows.length > shownRows
@@ -72,12 +98,15 @@ export function DataTab({
           : `${table.rows.length === 1 ? "1 row" : `${table.rows.length} rows`}, after the panel's transforms.`}
       </p>
       {table.columns.length > 0 ? (
-        <div className="rounded-card border">
+        <div className="max-h-[60vh] overflow-auto rounded-card border [&>[data-slot=table-container]]:overflow-visible">
           <Table className="text-xs tabular-nums">
             <TableHeader>
               <TableRow>
                 {table.columns.map((column, index) => (
-                  <TableHead key={index} className="h-8 px-2">
+                  <TableHead
+                    key={index}
+                    className="sticky top-0 h-8 bg-background px-2 shadow-[0_1px_0_var(--border)]"
+                  >
                     {column}
                   </TableHead>
                 ))}

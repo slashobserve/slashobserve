@@ -98,7 +98,7 @@ export function InspectPane({
           </TabsTrigger>
         </TabsList>
         <TabsContent value="data" className="min-h-0 overflow-auto p-4">
-          <DataTab target={target} title={title} />
+          <DataTab target={target} title={title} zone={zone} />
         </TabsContent>
         <TabsContent value="query" className="min-h-0 overflow-auto p-4">
           <QueryTab target={target} variables={variables} zone={zone} />
