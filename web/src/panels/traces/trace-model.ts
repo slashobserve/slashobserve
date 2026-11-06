@@ -22,6 +22,12 @@ export type SpanEvent = {
   attributes: Record<string, string>
 }
 
+export type SpanLink = {
+  traceId: string
+  spanId: string
+  attributes: Record<string, string>
+}
+
 export type Span = {
   id: string
   parentId: string | null
@@ -38,6 +44,7 @@ export type Span = {
   attributes: SpanAttribute[]
   kind: string | null
   events: SpanEvent[]
+  links: SpanLink[]
 }
 
 export type TraceModel =
@@ -72,6 +79,7 @@ type Columns = {
   status?: PreparedField
   kind?: PreparedField
   events?: PreparedField
+  links?: PreparedField
   attributes: { field: PreparedField; source: AttributeSource }[]
 }
 
@@ -86,6 +94,7 @@ type SpanRow = {
   attributes: SpanAttribute[]
   kind: string | null
   events: SpanEvent[]
+  links: SpanLink[]
 }
 
 const traceIdNames = new Set(["traceid"])
@@ -98,6 +107,7 @@ const durationNames = new Set(["duration"])
 const statusNames = new Set(["statuscode"])
 const kindNames = new Set(["spankind"])
 const eventNames = new Set(["spanevents"])
+const linkNames = new Set(["spanlinks"])
 const attributeSources = new Map<string, AttributeSource>([
   ["tags", "span"],
   ["spanattributes", "span"],
@@ -130,6 +140,7 @@ function columnsOf(frame: PreparedFrame): Columns | null {
     status: named(frame, statusNames),
     kind: named(frame, kindNames),
     events: named(frame, eventNames),
+    links: named(frame, linkNames),
     attributes: frame.fields.flatMap((field) => {
       const source = attributeSources.get(field.name.toLowerCase())
       return source ? [{ field, source }] : []
@@ -193,16 +204,32 @@ function eventsOf(value: unknown): SpanEvent[] {
     if (!isRecord(event)) return []
     const time = finite(event.time_ms)
     if (time === null) return []
-    const attributes = isRecord(event.attributes) ? event.attributes : {}
     return [
       {
         time,
         name: textOf(event.name ?? ""),
-        attributes: Object.fromEntries(
-          Object.entries(attributes).map(([key, item]) => [key, textOf(item)])
-        ),
+        attributes: textPairs(event.attributes),
       },
     ]
+  })
+}
+
+function textPairs(value: unknown): Record<string, string> {
+  if (!isRecord(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key, textOf(item)])
+  )
+}
+
+function linksOf(value: unknown): SpanLink[] {
+  const parsed = typeof value === "string" ? parseJson(value) : value
+  if (!Array.isArray(parsed)) return []
+  return parsed.flatMap((link) => {
+    if (!isRecord(link)) return []
+    const traceId = idOf(link.trace_id)
+    const spanId = idOf(link.span_id)
+    if (traceId === null || spanId === null) return []
+    return [{ traceId, spanId, attributes: textPairs(link.attributes) }]
   })
 }
 
@@ -247,6 +274,7 @@ function rowsOf(frame: PreparedFrame, columns: Columns) {
           .sort(compareKeys),
         kind: idOf(columns.kind?.values[index]),
         events: eventsOf(columns.events?.values[index]),
+        links: linksOf(columns.links?.values[index]),
       },
     })
   }
@@ -295,8 +323,10 @@ function treeOrder(rows: SpanRow[]) {
 
 export function traceModel(
   frames: PreparedFrame[],
-  fields: FieldResolver
+  fields: FieldResolver,
+  options: { maxSpans?: number } = {}
 ): TraceModel {
+  const cap = options.maxSpans ?? maxSpans
   const located = frames.flatMap((frame) => {
     const columns = columnsOf(frame)
     return columns ? [{ frame, columns }] : []
@@ -317,10 +347,10 @@ export function traceModel(
   const notes: string[] = []
   if (traces.size > 1) notes.push(`Showing trace 1 of ${traces.size}.`)
   const byStart = [...all].sort((a, b) => a.start - b.start)
-  const rows = byStart.slice(0, maxSpans)
-  if (byStart.length > maxSpans) {
+  const rows = byStart.slice(0, cap)
+  if (byStart.length > cap) {
     notes.push(
-      `Showing the first ${maxSpans.toLocaleString("en")} of ${byStart.length.toLocaleString("en")} spans.`
+      `Showing the first ${cap.toLocaleString("en")} of ${byStart.length.toLocaleString("en")} spans.`
     )
   }
 
@@ -348,6 +378,7 @@ export function traceModel(
     attributes: row.attributes,
     kind: row.kind,
     events: row.events,
+    links: row.links,
   }))
 
   const durationConfig = {
