@@ -71,7 +71,7 @@ describe("traceQLFor", () => {
 describe("clickhouseTraceSearch", () => {
   it("lists the newest traces without conditions", () => {
     expect(clickhouseTraceSearch(empty))
-      .toBe(`SELECT TraceId, min(Timestamp) AS StartTime, argMax(ServiceName, Duration) AS ServiceName, argMax(SpanName, Duration) AS SpanName, max(Duration) AS Duration, count() AS Spans
+      .toBe(`SELECT TraceId, min(Timestamp) AS StartTime, argMax(otel_traces.ServiceName, otel_traces.Duration) AS ServiceName, argMax(otel_traces.SpanName, otel_traces.Duration) AS SpanName, max(otel_traces.Duration) AS Duration, count() AS Spans
 FROM otel_traces
 WHERE $__timeFilter(Timestamp)
 GROUP BY TraceId
@@ -89,9 +89,9 @@ LIMIT 100`)
         errors: true,
       })
     )
-      .toBe(`SELECT TraceId, min(Timestamp) AS StartTime, argMax(ServiceName, Duration) AS ServiceName, argMax(SpanName, Duration) AS SpanName, max(Duration) AS Duration, count() AS Spans
+      .toBe(`SELECT TraceId, min(Timestamp) AS StartTime, argMax(otel_traces.ServiceName, otel_traces.Duration) AS ServiceName, argMax(otel_traces.SpanName, otel_traces.Duration) AS SpanName, max(otel_traces.Duration) AS Duration, count() AS Spans
 FROM otel_traces
-WHERE $__timeFilter(Timestamp) AND ServiceName = 'o\\'neil' AND SpanName = 'pay' AND Duration >= 250000000 AND Duration <= 1500000000 AND lower(StatusCode) IN ('error', 'status_code_error')
+WHERE $__timeFilter(Timestamp) AND otel_traces.ServiceName = 'o\\'neil' AND otel_traces.SpanName = 'pay' AND otel_traces.Duration >= 250000000 AND otel_traces.Duration <= 1500000000 AND lower(StatusCode) IN ('error', 'status_code_error')
 GROUP BY TraceId
 ORDER BY StartTime DESC
 LIMIT 100`)
