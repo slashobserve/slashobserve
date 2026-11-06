@@ -30,13 +30,17 @@ type request struct {
 type fakeTempo struct {
 	mu       sync.Mutex
 	replies  map[string]reply
+	byQuery  map[string]reply
 	requests []request
 }
 
 func (f *fakeTempo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	f.requests = append(f.requests, request{path: r.URL.Path, params: r.URL.Query(), header: r.Header.Clone()})
-	rep, ok := f.replies[r.URL.Path]
+	rep, ok := f.byQuery[r.URL.Query().Get("q")]
+	if !ok {
+		rep, ok = f.replies[r.URL.Path]
+	}
 	f.mu.Unlock()
 	if !ok {
 		rep = reply{http.StatusNotFound, ""}
@@ -56,6 +60,17 @@ func (f *fakeTempo) last(t *testing.T) request {
 		t.Fatal("no request reached the fake Tempo")
 	}
 	return f.requests[len(f.requests)-1]
+}
+
+func (f *fakeTempo) queries() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]string, 0, len(f.requests))
+	for _, r := range f.requests {
+		out = append(out, r.params.Get("q"))
+	}
+	slices.Sort(out)
+	return out
 }
 
 func serve(t *testing.T, replies map[string]reply, mutate ...func(*tempo.Options)) (*tempo.Datasource, *fakeTempo) {
