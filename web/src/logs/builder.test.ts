@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  canBuild,
   rowLabel,
   rowsOf,
   textOf,
@@ -99,5 +100,18 @@ describe("withoutField", () => {
 
   it("gives nothing back when the builder cannot show the query", () => {
     expect(withoutField("a:1 or b:2", "a")).toBeNull()
+  })
+})
+
+describe("canBuild", () => {
+  it.each([
+    ["", true],
+    ["a:1 and b:2", true],
+    ["a:1 or b:2", false],
+    ["lucene:a:1", false],
+    ["kql:a:1", false],
+    ['{"query":{}}', false],
+  ])("answers for %j", (text, want) => {
+    expect(canBuild(text)).toBe(want)
   })
 })

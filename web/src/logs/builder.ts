@@ -7,6 +7,7 @@ import {
   type KqlNode,
   type RangeOp,
 } from "./kql"
+import { formOf } from "./query-form"
 
 export type BuilderOp =
   | "is"
@@ -27,7 +28,7 @@ export type BuilderRow = {
   values: string[]
 }
 
-export const rangeOps: Record<"gt" | "gte" | "lt" | "lte", RangeOp> = {
+const rangeOps: Record<"gt" | "gte" | "lt" | "lte", RangeOp> = {
   gt: ">",
   gte: ">=",
   lt: "<",
@@ -159,6 +160,10 @@ export function rowsOf(text: string): BuilderRow[] | null {
     rows.push(row)
   }
   return sameQuery(node, parseKql(textOf(rows)).node) ? rows : null
+}
+
+export function canBuild(text: string): boolean {
+  return formOf(text) === "kql" && rowsOf(text) !== null
 }
 
 export function withoutField(text: string, field: string): string | null {
