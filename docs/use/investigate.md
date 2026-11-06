@@ -5,6 +5,7 @@ description: Ask the agent a question about your data and get a finding, a short
 
 An investigation asks the agent a question instead of asking it for a dashboard, such as "why did checkout errors rise after 10:00?".
 The agent reads your datasources the way it does for a build, then ends by saving a finding.
+It also reads the [annotations](annotations.md) of the dashboard and the global ones, so it can see a deploy or a change beside a spike.
 It needs a model; see [LLM providers](../connect/llm-providers.md).
 
 ## What a finding is
@@ -69,4 +70,4 @@ Viewers can read the findings on dashboards they can view.
 ## From an MCP client
 
 An agent in your own editor can do the same over [MCP](mcp.md).
-It saves a finding with the `create_finding` tool and reads the saved ones with `list_findings`.
+It investigates with its own model and the discovery and query tools, reads deploy markers with `list_annotations`, saves a finding with the `create_finding` tool and reads the saved ones with `list_findings`.

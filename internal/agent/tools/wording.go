@@ -97,7 +97,8 @@ const ServerInstructions = "SlashObserve stores each dashboard as an ObserveSpec
 	"Saves take the version you read as parent_version and answer version_conflict when someone saved since: read the latest version and apply your change again. " +
 	"A save rejects panels whose queries fail or return no data and names them; fix only those and save again. " +
 	"List tools page with next_offset or next_cursor. " +
-	"For feedback, read list_comments, fix the dashboard, then reply_to_comment and resolve_comment with the version you saved."
+	"For feedback, read list_comments, fix the dashboard, then reply_to_comment and resolve_comment with the version you saved. " +
+	"list_dashboard_health names the panels that fail; fix them with update_panels."
 
 const missingSpec = "spec is required: the complete ObserveSpec document, written by the authoring guide"
 

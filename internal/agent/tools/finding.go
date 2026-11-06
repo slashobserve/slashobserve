@@ -51,7 +51,7 @@ var errFindingsNotConfigured = errors.New("findings are not configured")
 
 func (r *Registry) findingEntries() []entry {
 	return []entry{
-		{Tool{Name: nameSaveFinding, Description: descSaveFinding, InputSchema: json.RawMessage(schemaSaveFinding), AgentOnly: true, MinRole: auth.RoleEditor}, r.saveFinding},
+		{Tool{Name: nameSaveFinding, Description: descSaveFinding, InputSchema: json.RawMessage(schemaSaveFinding), AgentOnly: true, InvestigateOnly: true, MinRole: auth.RoleEditor}, r.saveFinding},
 		{Tool{Name: nameCreateFinding, Description: descCreateFinding, InputSchema: json.RawMessage(schemaCreateFinding), MCPOnly: true, MinRole: auth.RoleEditor}, r.createFinding},
 		{Tool{Name: nameListFindings, Description: descListFindings, InputSchema: json.RawMessage(schemaListFindings), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listFindings},
 	}

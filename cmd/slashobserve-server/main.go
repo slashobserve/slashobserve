@@ -297,6 +297,8 @@ func run() error {
 		Imports:     importsService,
 		Folders:     folderAccess,
 		Findings:    findingsService,
+		Health:      healthService,
+		Annotations: annotationsService,
 		PublicURL:   cfg.PublicURL,
 		Logger:      logger,
 	})

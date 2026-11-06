@@ -100,4 +100,8 @@ It answers 503 `agent_unavailable` when no LLM provider is configured.
 
 `POST /api/v1/health/run` needs the Admin role and answers 202 while the run starts in the background.
 
-An `observe health` CLI command and a health tool for MCP clients are planned on top of this API.
+## From MCP clients
+
+MCP clients call `list_dashboard_health` with a Viewer key or higher: it takes `folder_id`, `kind`, `limit` (up to 50) and `cursor`, and answers the same dashboards and problems with the state of the job.
+A client fixes a failing panel with its own model, reading the panel with `get_panels` and saving the fix with `update_panels`, so the repair needs no LLM provider on the server.
+See [MCP](mcp.md).

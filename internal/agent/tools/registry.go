@@ -17,11 +17,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -92,6 +94,8 @@ type Tool struct {
 	AgentOnly   bool
 	MinRole     auth.Role
 
+	InvestigateOnly bool
+
 	AgentDescription string
 	AgentInputSchema json.RawMessage
 }
@@ -130,6 +134,8 @@ type Deps struct {
 	Imports     *imports.Service
 	Folders     *folders.Access
 	Findings    *findings.Service
+	Health      *health.Service
+	Annotations *annotations.Service
 	PublicURL   *url.URL
 	Logger      *slog.Logger
 }
@@ -148,9 +154,9 @@ func (t Tool) OfferedIn(mode Mode) bool {
 	case t.MCPOnly:
 		return false
 	case mode == ModeInvestigate:
-		return t.ReadOnly || t.Name == nameSaveFinding
+		return t.ReadOnly || t.InvestigateOnly
 	default:
-		return !t.AgentOnly
+		return !t.InvestigateOnly
 	}
 }
 
@@ -225,6 +231,8 @@ func (r *Registry) baseEntries() []entry {
 	all = append(all, r.importEntries()...)
 	all = append(all, r.guideEntries()...)
 	all = append(all, r.findingEntries()...)
+	all = append(all, r.healthEntries()...)
+	all = append(all, r.annotationEntries()...)
 	return all
 }
 
@@ -358,6 +366,8 @@ var runEnding = []error{
 	errFoldersNotConfigured,
 	errImportsNotConfigured,
 	errFindingsNotConfigured,
+	errHealthNotConfigured,
+	errAnnotationsNotConfigured,
 }
 
 func endsRun(ctx context.Context, err error) bool {
@@ -411,7 +421,7 @@ func offered(t Tool, run Run, inRun bool) (Result, bool) {
 	case inRun && run.Mode == ModeInvestigate && !t.OfferedIn(run.Mode):
 		message = "an investigate run only reads data and ends with " + nameSaveFinding + "; it cannot use " + t.Name
 	case inRun && !t.OfferedIn(run.Mode):
-		message = nameSaveFinding + " is only for investigate runs"
+		message = t.Name + " is only for investigate runs"
 	case !inRun && t.AgentOnly:
 		message = nameSaveFinding + " runs inside the agent; MCP clients use " + nameCreateFinding
 	default:
