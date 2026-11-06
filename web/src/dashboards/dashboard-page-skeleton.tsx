@@ -55,10 +55,10 @@ export function DashboardPageSkeleton() {
           aria-hidden="true"
           style={{ "--activity-w": `${layout.width}px` } as CSSProperties}
           className={cn(
-            "rounded-card border",
+            "bg-background narrow:fixed narrow:inset-x-0 narrow:bottom-0 narrow:z-40 narrow:h-[85svh] narrow:w-auto narrow:rounded-t-card narrow:border-t narrow:border-l-0",
             layout.stacked
-              ? "mr-2.5 mb-2.5 ml-4 h-[70svh] flex-[1_1_100%]"
-              : "m-2 ml-0.5 flex-[0_0_var(--activity-w)]"
+              ? "h-[70svh] w-full flex-none border-t"
+              : "max-h-full max-w-full flex-[0_0_var(--activity-w)] border-l"
           )}
         />
       ) : null}
