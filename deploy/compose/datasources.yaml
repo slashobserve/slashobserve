@@ -26,3 +26,17 @@ datasources:
     grafanaUids: [tempo]
     tempo:
       url: http://tempo:3200
+  - uid: es
+    type: elasticsearch
+    name: Elasticsearch
+    grafanaUids: [elasticsearch]
+    elasticsearch:
+      url: http://elasticsearch:9200
+      index: "logs-demo*"
+  - uid: os
+    type: opensearch
+    name: OpenSearch
+    grafanaUids: [opensearch]
+    opensearch:
+      url: http://opensearch:9200
+      index: "ss4o_logs-demo-shop*"

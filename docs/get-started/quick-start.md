@@ -41,6 +41,14 @@ Prometheus is on http://localhost:9090 and the shop's fault API on http://localh
 Stop the stack with `make demo-down`, or drop its data as well with `make demo-reset`.
 On first boot, and again after `make demo-reset`, Prometheus backfills 26 hours of synthetic request and latency history, so prompts that compare today with yesterday have data.
 
+To see the shop's logs in Elasticsearch and OpenSearch as well, run `make demo-search` instead of `make demo-build`.
+It adds Elasticsearch 8 on http://localhost:9200, OpenSearch 2 on http://localhost:9201 and a second OpenTelemetry Collector that writes the shop's logs to both, and the Elasticsearch and OpenSearch datasources of the demo then answer.
+Without it those two datasources report that they are not answering, and nothing else depends on them.
+Each store is capped at 1 GiB of memory and the two images take about 3.5 GB on disk, so leave this for when you want to look at them.
+Elasticsearch gets ECS field names (`message`, `log.level`, `service.name`, `trace.id`, `span.id`) in the `logs-demo-shop` data stream, and OpenSearch gets the Simple Schema for Observability fields (`body`, `severity.text`, `resource.service.name`, `traceId`, `spanId`) in `ss4o_logs-demo-shop`.
+Both run with their security features off, which is for this local demo only; a real cluster needs the API key or credentials described on its [datasource page](../connect/elasticsearch.md).
+`make demo-search-down` stops only the two stores and their collector, and `make demo-down` and `make demo-reset` remove them too.
+
 ## Run with a local model
 
 The agent also runs on a model served on your own machine through any OpenAI-compatible server, such as Ollama, with `SLASHOBSERVE_LLM_PROVIDER=openai`, `SLASHOBSERVE_LLM_BASE_URL` and `SLASHOBSERVE_LLM_MODEL` set before `make demo`.
