@@ -1,7 +1,7 @@
 import { Breadcrumb } from "./breadcrumb"
 import { PaletteButton } from "./palette-button"
+import { PhoneMenu } from "./phone-menu"
 import { useSidebarStore } from "./sidebar-store"
-import { ThemeSwitch } from "./theme-switch"
 
 export function TopRow({
   setActionsHost,
@@ -13,6 +13,7 @@ export function TopRow({
   return (
     <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-[9px] pr-3 pl-2.5">
       <div className="flex min-w-0 items-center gap-2">
+        <PhoneMenu />
         <button
           type="button"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -40,7 +41,6 @@ export function TopRow({
       <div className="flex items-center gap-1.5">
         <div ref={setActionsHost} className="flex items-center gap-1.5" />
         <PaletteButton />
-        <ThemeSwitch />
       </div>
     </header>
   )

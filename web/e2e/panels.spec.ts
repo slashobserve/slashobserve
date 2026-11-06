@@ -7,7 +7,7 @@ import {
   panel,
   panelDataResponse,
 } from "./dashboards"
-import { chunkFailureLogged, expect, test } from "./fixtures"
+import { chunkFailureLogged, expect, switchTheme, test } from "./fixtures"
 
 const rpsTitle = "Checkout requests per second"
 
@@ -278,7 +278,7 @@ test("renders in dark mode without leaking canvases", async ({
 
   const rps = panel(page, rpsTitle)
   for (const choice of ["Dark", "Light", "Dark", "Light", "Dark"]) {
-    await page.getByRole("button", { name: "Switch theme" }).click()
+    await switchTheme(page)
     if (choice === "Dark") {
       await expect(page.locator("html")).toHaveClass(/\bdark\b/)
     } else {
