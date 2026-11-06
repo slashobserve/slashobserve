@@ -307,3 +307,106 @@ describe("parseAnnotationTags", () => {
     expect(validateDashboardSearch(flat)).toEqual(state)
   })
 })
+
+describe("viewing keys", () => {
+  it("round-trips every viewing key through the URL", () => {
+    const state = validateDashboardSearch(
+      parseSearch(
+        "?kiosk=1&cycle=folder&interval=120&viewPanel=p_rps&inspect=p_err&inspectTab=stats"
+      )
+    )
+    expect(state).toEqual({
+      kiosk: true,
+      cycle: "folder",
+      interval: 120,
+      viewPanel: "p_rps",
+      inspect: "p_err",
+      inspectTab: "stats",
+      vars: {},
+    })
+    expect(validateDashboardSearch(searchFromState(state))).toEqual(state)
+  })
+
+  it.each([
+    ["5", 10],
+    ["10", 10],
+    ["600", 600],
+    ["3600", 3600],
+    ["86400", 3600],
+  ])("clamps interval %s to %d seconds", (raw, expected) => {
+    expect(
+      validateDashboardSearch({ kiosk: "1", cycle: "rows", interval: raw })
+        .interval
+    ).toBe(expected)
+  })
+
+  it.each([
+    ["an unknown cycle", { kiosk: "1", cycle: "panels" }, { kiosk: true }],
+    ["a cycle without kiosk", { cycle: "rows" }, {}],
+    [
+      "an interval without a cycle",
+      { kiosk: "1", interval: "30" },
+      { kiosk: true },
+    ],
+    [
+      "a non-numeric interval",
+      { kiosk: "1", cycle: "rows", interval: "fast" },
+      { kiosk: true, cycle: "rows" },
+    ],
+    ["a kiosk value other than on", { kiosk: "0" }, {}],
+    ["a malformed panel id", { viewPanel: "1bad", inspect: "x y" }, {}],
+    [
+      "an unknown inspect tab",
+      { inspect: "p", inspectTab: "raw" },
+      { inspect: "p" },
+    ],
+    ["an inspect tab without inspect", { inspectTab: "query" }, {}],
+  ])("drops %s", (_name, raw, expected) => {
+    expect(validateDashboardSearch(raw)).toEqual({ ...expected, vars: {} })
+  })
+
+  it("accepts a bare kiosk key the way Grafana links write it", () => {
+    expect(validateDashboardSearch(parseSearch("?kiosk")).kiosk).toBe(true)
+    expect(validateDashboardSearch({ kiosk: "true" }).kiosk).toBe(true)
+  })
+
+  it("drops view and inspect while a panel editor is open", () => {
+    expect(
+      validateDashboardSearch({
+        panel: "p",
+        edit: "query",
+        viewPanel: "p",
+        inspect: "p",
+      })
+    ).toEqual({ panel: "p", edit: "query", vars: {} })
+    expect(
+      searchFromState({
+        panel: "p",
+        edit: "json",
+        viewPanel: "p",
+        inspect: "p",
+        vars: {},
+      })
+    ).toEqual({ panel: "p", edit: "json" })
+  })
+
+  it("omits the default interval and inspect tab", () => {
+    expect(
+      searchFromState({
+        kiosk: true,
+        cycle: "rows",
+        interval: 60,
+        inspect: "p",
+        inspectTab: "data",
+        vars: {},
+      })
+    ).toEqual({ kiosk: "1", cycle: "rows", inspect: "p" })
+  })
+
+  it("writes kiosk as 1 and nothing when it is off", () => {
+    expect(searchFromState({ kiosk: true, vars: {} })).toEqual({ kiosk: "1" })
+    expect(searchFromState({ kiosk: false, cycle: "rows", vars: {} })).toEqual(
+      {}
+    )
+  })
+})

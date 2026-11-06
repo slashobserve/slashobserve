@@ -33,6 +33,8 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   Never copy server data into a store: events from `useDashboardEvents` only invalidate query keys.
 - The router uses plain `URLSearchParams` serialization (`web/src/lib/search.ts`).
   Dashboard URL keys are parsed only by `web/src/dashboards/search.ts`.
+  The viewing keys live there too: `kiosk`, `cycle` and `interval` for TV mode (a cycle only with `kiosk`, an interval only with a cycle), and `viewPanel`, `inspect` and `inspectTab`, which are dropped while `edit` is set.
+- The panel a shortcut acts on comes only from the hovered panel store (`web/src/shortcuts/hovered-panel.ts`), then the focused panel; `web/src/shortcuts/chords.ts` is the one list of bindings, read by the shortcuts dialog, the menu hints and the key handler, and `docs/use/keyboard-shortcuts.md` mirrors it.
 - Panel data and variable values go through a `PanelSource` (`web/src/dashboards/panel-source.ts`): a saved version, an agent build or a public link (`public`, keyed by token and version under `publicKeys`), so the same data hooks serve all three.
   Build keys use the `observe-build` prefix, and the build's Spec is fetched only when its `saves` count changes.
   Every build read (the build, its panel data and its variable values) goes through `readBuild` in `web/src/observe/build.ts`: a 404 `not_found` means the run finished, so it refetches the request once and holds the read while the page replaces itself with the dashboard, and a `panel_not_found` passes through.
@@ -67,6 +69,8 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   Its search keeps only `from`, `to`, `refresh` and `var-` keys, and it writes them through its own route: `useSetDashboardSearch` navigates from the dashboard route, so a shared hook that writes the address takes a writer (`useVariables`' `setUrlVars`).
 - A shell route declares its breadcrumb with `staticData.crumbs`, sets its title with `useDocumentTitle` and never renders `<main>`, which the shell owns.
 - Side panels (Create key, History) are `SidePanel` columns, never dialogs or sheets.
+  The one sheet is the dashboard top row's "Controls" on narrow screens, which mounts the controls only once, so ids such as the More menu's stay unique.
+- Inspect (`web/src/inspect/`) takes the activity card's slot and never sends its own request: `PanelContainer` publishes the inspected panel's query key, response and prepared frames, and the request time comes from the query cache events of that key.
 - A renderer or editor module that fails to load offers "Reload page", not "Retry", because the browser caches a failed module fetch for the life of the document.
 
 ## Panels
@@ -96,6 +100,8 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - `shapeNulls` (`web/src/panels/timeseries/gaps.ts`) runs in each panel before the chart, so tooltip rows stay indexed like the plotted x values.
 - Threshold states always pair the threshold color with an icon and a word.
   A stat's `colorMode: value` never colors the digits or the word, unlike Grafana, because warning on white is 1.83:1, below WCAG 1.4.3.
+- A manifest's `minHeight` applies only when the grid stacks into one column (`stackedHeight` in `web/src/dashboards/stack-heights.ts`); the saved layout and the wide view never read it.
+- Panel PNGs come from `html-to-image`, loaded only through a dynamic import in `web/src/inspect/png.ts`, because it draws the panel's DOM, canvas charts included, into an image in the browser with no server renderer; the CSP allows the `data:` and `blob:` images it makes.
 - Canvas panels render Spec elements only.
   `canvasModel` is the one place that reads `display` and the only way a color reaches CSS: it keeps hex and the semantic tokens and drops anything else.
 - Remote images, map tiles and GeoJSON load only through `/api/v1/assets/*` (images through `RemoteImage`), because the CSP allows no remote images.

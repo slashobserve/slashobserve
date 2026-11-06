@@ -30,6 +30,8 @@ export const dashboardKeys = {
   titles: () => ["dashboards", "titles"] as const,
   tags: () => ["dashboards", "tags"] as const,
   tagged: (tags: string[]) => ["dashboards", "list", "tagged", tags] as const,
+  inFolder: (folderId: string) =>
+    ["dashboards", "list", "folder", folderId] as const,
   latest: (id: string) => ["dashboards", id, "latest"] as const,
   version: (id: string, version: number) =>
     ["dashboards", id, "versions", version] as const,
