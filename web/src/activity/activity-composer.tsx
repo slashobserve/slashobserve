@@ -29,6 +29,7 @@ import {
   takeCommand,
   withCommand,
 } from "@/chat/slash-commands"
+import { NativeSelect } from "@/components/native-select"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useAddComment } from "@/comments/queries"
@@ -138,6 +139,7 @@ export function ActivityComposer({
   const counterId = useId()
   const textareaId = useId()
   const errorId = useId()
+  const targetId = useId()
   const addComment = useAddComment(dashboardId)
   const requestRevision = useRequestRevision(dashboardId)
   const createRequest = useCreateObserveRequest()
@@ -363,55 +365,70 @@ export function ActivityComposer({
     <form
       aria-label="Add to the activity"
       onSubmit={onSubmit}
-      className="flex flex-col gap-2 border-t px-4 pt-3 pb-3.5"
+      className="flex flex-col gap-2 border-t p-3"
     >
       {notice}
-      <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        On
-        <select
-          value={panelId ?? ""}
-          onChange={(event) =>
-            onTargetChange(
-              event.target.value === ""
-                ? { kind: "dashboard" }
-                : { kind: "panel", panelId: event.target.value }
-            )
+      <div className="rounded-card border border-input bg-background focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/50 has-aria-invalid:border-destructive">
+        {chips.length > 0 ? (
+          <div className="px-3 pt-2">
+            <ContextChips chips={chips} />
+          </div>
+        ) : null}
+        <Textarea
+          ref={field}
+          id={textareaId}
+          aria-label="Comment or request"
+          aria-invalid={over || undefined}
+          aria-describedby={describedBy}
+          placeholder={
+            !investigating
+              ? placeholder
+              : panelId === null
+                ? "Ask a question about this dashboard"
+                : "Ask a question about this panel"
           }
-          className="h-[26px] max-w-[240px] rounded-[5px] border bg-background px-1.5 text-xs text-foreground"
-        >
-          <option value="">The whole dashboard</option>
-          {panels.map((panel) => (
-            <option key={panel.id} value={panel.id}>
-              {panel.title === "" ? "Untitled panel" : panel.title}
-            </option>
-          ))}
-        </select>
-      </label>
-      <ContextChips chips={chips} />
-      <Textarea
-        ref={field}
-        id={textareaId}
-        aria-label="Comment or request"
-        aria-invalid={over || undefined}
-        aria-describedby={describedBy}
-        placeholder={
-          !investigating
-            ? placeholder
-            : panelId === null
-              ? "Ask a question about this dashboard"
-              : "Ask a question about this panel"
-        }
-        rows={3}
-        value={draft}
-        readOnly={pending}
-        className="field-sizing-fixed max-h-64 min-h-16 resize-y px-3 py-2.5 text-sm"
-        onChange={(event) => {
-          onDraftChange(applyText(event.target.value))
-          setCursor(freshCursor)
-          if (failure) setFailure(null)
-        }}
-        onKeyDown={onKeyDown}
-      />
+          value={draft}
+          readOnly={pending}
+          className="field-sizing-content max-h-64 min-h-16 resize-none border-0 px-3 py-2.5 text-[13px] shadow-none focus-visible:ring-0 aria-invalid:ring-0 aria-invalid:focus-visible:ring-0"
+          onChange={(event) => {
+            onDraftChange(applyText(event.target.value))
+            setCursor(freshCursor)
+            if (failure) setFailure(null)
+          }}
+          onKeyDown={onKeyDown}
+        />
+        <div className="flex items-center gap-2 px-2 pb-2">
+          <label htmlFor={targetId} className="text-xs text-muted-foreground">
+            On
+          </label>
+          <NativeSelect
+            id={targetId}
+            size="sm"
+            aria-label="On"
+            className="max-w-[240px] truncate"
+            value={panelId ?? ""}
+            onChange={(event) =>
+              onTargetChange(
+                event.target.value === ""
+                  ? { kind: "dashboard" }
+                  : { kind: "panel", panelId: event.target.value }
+              )
+            }
+          >
+            <option value="">The whole dashboard</option>
+            {panels.map((panel) => (
+              <option key={panel.id} value={panel.id}>
+                {panel.title === "" ? "Untitled panel" : panel.title}
+              </option>
+            ))}
+          </NativeSelect>
+          {model !== null ? (
+            <span className="ml-auto truncate text-xs text-muted-foreground">
+              {model}
+            </span>
+          ) : null}
+        </div>
+      </div>
       {showCounter ? (
         <span
           id={counterId}
@@ -425,10 +442,15 @@ export function ActivityComposer({
             : `${maxPromptLength - length} ${plural(maxPromptLength - length)} left`}
         </span>
       ) : null}
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        {model !== null ? (
-          <span className="mr-auto text-xs text-muted-foreground">{model}</span>
-        ) : null}
+      {gate.kind === "blocked" ? (
+        <p className="text-xs text-muted-foreground">{gate.reason}</p>
+      ) : null}
+      {failure ? (
+        <p id={errorId} role="alert" className="text-xs text-status-critical">
+          {failure}
+        </p>
+      ) : null}
+      <div className="flex items-center justify-end gap-2">
         <Button
           type="submit"
           variant="outline"
@@ -453,14 +475,6 @@ export function ActivityComposer({
           </Button>
         ) : null}
       </div>
-      {gate.kind === "blocked" ? (
-        <p className="text-xs text-muted-foreground">{gate.reason}</p>
-      ) : null}
-      {failure ? (
-        <p id={errorId} role="alert" className="text-xs text-status-critical">
-          {failure}
-        </p>
-      ) : null}
       <span role="status" className="sr-only">
         {liveRegionText(note.text, note.count)}
       </span>
