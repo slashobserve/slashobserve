@@ -1,14 +1,13 @@
-import { useId, useRef, type CSSProperties, type RefObject } from "react"
+import { useId, useRef, type RefObject } from "react"
 import type { QueryKey } from "@tanstack/react-query"
 
 import { useActivityLayout, useActivityStore } from "@/activity/activity-store"
-import { CardHeader } from "@/activity/card-header"
-import { ResizeHandle } from "@/components/dock/resize-handle"
 import type { Selections } from "@/api/keys"
+import { DockHeader } from "@/components/dock/dock-header"
+import { DockPanel } from "@/components/dock/dock-panel"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { PanelDataResponse } from "@/dashboards/queries"
 import { useSetDashboardSearch, type InspectTab } from "@/dashboards/search"
-import { cn } from "@/lib/utils"
 import type { PreparedFrame } from "@/panels/transforms/names"
 import type { DataPanel, Variable } from "@/spec"
 
@@ -57,30 +56,21 @@ export function InspectPane({
   const setSearch = useSetDashboardSearch()
   const timing = useRequestTiming(target?.queryKey)
   return (
-    <aside
+    <DockPanel
       id={inspectPaneId}
-      aria-labelledby={headingId}
-      style={{ "--activity-w": `${layout.width}px` } as CSSProperties}
-      className={cn(
-        "relative flex min-h-0 min-w-0 flex-col rounded-card border bg-background",
-        layout.stacked
-          ? "mr-2.5 mb-2.5 ml-4 h-[70svh] flex-[1_1_100%]"
-          : "m-2 ml-0.5 flex-[0_0_var(--activity-w)]"
-      )}
+      labelledBy={headingId}
+      width={layout.width}
+      bounds={layout.bounds}
+      onWidthChange={setWidth}
+      stacked={layout.stacked}
     >
-      {layout.stacked ? null : (
-        <ResizeHandle
-          width={layout.width}
-          bounds={layout.bounds}
-          onChange={setWidth}
-        />
-      )}
-      <CardHeader
+      <DockHeader
         headingId={headingId}
         headingRef={heading}
         title="Inspect"
         description={title}
-        close={onClose}
+        onClose={onClose}
+        closeLabel="Close panel"
       />
       <Tabs
         value={tab}
@@ -117,6 +107,6 @@ export function InspectPane({
           <StatsTab target={target} timing={timing} zone={zone} />
         </TabsContent>
       </Tabs>
-    </aside>
+    </DockPanel>
   )
 }
