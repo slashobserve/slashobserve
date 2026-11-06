@@ -175,7 +175,7 @@ export const PanelContainer = memo(function PanelContainer({
   )
   const ref = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
-  const { seen } = useInView(ref)
+  const { seen, inView } = useInView(ref)
   const [tableView, setTableView] = useState(false)
   const setSearch = useSetDashboardSearch()
   const body = panelBodySize(Math.floor(width), Math.floor(height))
@@ -214,6 +214,7 @@ export const PanelContainer = memo(function PanelContainer({
     maxDataPoints,
     refreshMs,
     enabled: dataPanel !== undefined && supported && seen && selectionsReady,
+    inView,
   })
   const inspectKey = useMemo(
     () =>
