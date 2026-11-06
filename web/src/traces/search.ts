@@ -1,6 +1,7 @@
 import type { TimeRangeValue } from "@/dashboards/time-range-picker"
 import {
   firstString,
+  validAsk,
   validDatasource,
   validQuery,
   validRange,
@@ -16,9 +17,15 @@ export type TraceSearch = {
   max?: string
   errors?: "1"
   q?: string
+  ask?: string
   from?: string
   to?: string
 }
+
+export type TraceFormSearch = Pick<
+  TraceSearch,
+  "service" | "span" | "min" | "max" | "errors" | "q"
+>
 
 export type TraceViewSearch = { ds?: string; from?: string; to?: string }
 
@@ -53,6 +60,7 @@ export function validateTraceSearch(raw: Record<string, unknown>): TraceSearch {
     max: validDuration(raw.max),
     errors: firstString(raw.errors) === "1" ? "1" : undefined,
     q: validQuery(raw.q),
+    ask: validAsk(raw.ask),
     ...validRange(raw),
   }
 }
