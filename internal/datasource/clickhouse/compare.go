@@ -54,7 +54,7 @@ func (d *Datasource) TraceAttributes(ctx context.Context, req datasource.TraceAt
 func arrayLiteral(values []string) string {
 	quoted := make([]string, len(values))
 	for i, v := range values {
-		quoted[i] = "'" + v + "'"
+		quoted[i] = quoteString(v)
 	}
 	return "[" + strings.Join(quoted, ",") + "]"
 }

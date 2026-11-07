@@ -35,6 +35,27 @@ func TestArrayLiteral(t *testing.T) {
 	}
 }
 
+func TestArrayLiteralEscapesQuotesAndBackslashes(t *testing.T) {
+	cases := []struct {
+		name   string
+		values []string
+		want   string
+	}{
+		{"single quote", []string{"a'b"}, `['a\'b']`},
+		{"backslash", []string{`a\b`}, `['a\\b']`},
+		{"quote closing the literal", []string{`x'] OR 1=1 --`}, `['x\'] OR 1=1 --']`},
+		{"trailing backslash", []string{`a\`}, `['a\\']`},
+		{"several values", []string{"a'", `\b`}, `['a\'','\\b']`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := arrayLiteral(c.values); got != c.want {
+				t.Fatalf("literal = %s, want %s", got, c.want)
+			}
+		})
+	}
+}
+
 func TestTraceAttributeSetsFromResultSet(t *testing.T) {
 	rs := &resultSet{
 		columns: []column{{name: "TraceId", typ: datasource.FieldString}, {name: "Pairs", typ: datasource.FieldOther}},

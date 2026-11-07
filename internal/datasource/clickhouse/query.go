@@ -167,3 +167,15 @@ func quoteIdent(name string) string {
 	}
 	return string(append(out, '`'))
 }
+
+func quoteString(value string) string {
+	out := make([]byte, 0, len(value))
+	out = append(out, '\'')
+	for i := 0; i < len(value); i++ {
+		if value[i] == '\'' || value[i] == '\\' {
+			out = append(out, '\\')
+		}
+		out = append(out, value[i])
+	}
+	return string(append(out, '\''))
+}

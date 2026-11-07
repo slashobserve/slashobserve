@@ -53,17 +53,17 @@ func (d *Datasource) traceSelector(ctx context.Context, req datasource.TraceLogs
 }
 
 func metadataTraceQuery(selector string, req datasource.TraceLogsRequest) string {
-	text := selector + ` | trace_id="` + req.TraceID + `"`
+	text := selector + " | trace_id=" + strconv.Quote(req.TraceID)
 	if req.SpanID != "" {
-		text += ` | span_id="` + req.SpanID + `"`
+		text += " | span_id=" + strconv.Quote(req.SpanID)
 	}
 	return text
 }
 
 func lineFilterTraceQuery(selector string, req datasource.TraceLogsRequest) string {
-	text := selector + ` |= "` + req.TraceID + `"`
+	text := selector + " |= " + strconv.Quote(req.TraceID)
 	if req.SpanID != "" {
-		text += ` |= "` + req.SpanID + `"`
+		text += " |= " + strconv.Quote(req.SpanID)
 	}
 	return text
 }
