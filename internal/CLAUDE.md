@@ -10,6 +10,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `config`: the only reader of `SLASHOBSERVE_*` environment variables (`config.Load`).
 - `logattrs`: turns an error into log attributes that are safe to write.
 - `logvolume`: level words to kinds and the volume histogram the logs volume endpoint returns.
+- `logpatterns`: the pure token masking and line clustering the log patterns endpoint runs when a datasource has no pattern index.
 - `db`: pgx pool, goose `migrations/`, sqlc `queries/`, generated `dbsqlc/`.
   `dbtest` gives each test its own migrated database from one Postgres testcontainer per test binary (`dbtest.Main` in `TestMain`, `dbtest.New(t)`; skipped under `-short`).
 - `tctest`: retry for testcontainers starts that fail on testcontainers-go v0.44.0 reaper (ryuk) start errors; every container start in tests goes through it.
@@ -19,7 +20,11 @@ This lists only the packages whose purpose the name does not make obvious.
 - `queryproxy`: panel query runner shared by save validation and the proxy.
   `queryproxy/proxyhttp` holds its HTTP handlers, a subpackage because it reads versions through `dashboards`, which imports `queryproxy`.
 - `agent`: the agent loop; `agent/tools` is the only place agent tools are defined; `agent/prompts` holds the embedded prompts.
+  A tool file registers its entries with `registerEntries` in its own `init` and keeps its `name`, `desc`, `prop` and `schema` constants, its role assertion and its text under the 2000-byte agent cap (`wording_test.go`) in that file; `schemas.go` holds only the shared `prop*` constants; no test pins the tool count or the tool list.
+  `docs/use/mcp.md` has one row per MCP tool with its lowest role, and `docs_test.go` fails when a tool has no row or the wrong role.
 - `drafthttp`: `POST /datasources/{uid}/draft-query`, the HTTP face of `tools.Registry.DraftQuery`, which the `draft_query` MCP tool also calls; drafts are synchronous, stored nowhere and limited in process (3 per caller, 10 per process).
+- `tailhttp`: `GET /datasources/{uid}/tail`, the SSE live tail; one poller per stream, 5 per person, no query slot.
+- `tracecompare`: the pure ranking of attribute values that set selected traces apart from a baseline, shared by `POST /datasources/{uid}/trace-compare` and the `compare_traces` tool; the adapters read the pairs through `datasource.TraceAttributeSource` (Tempo at 4 traces at a time, ClickHouse in one query).
 - `findings`: stores findings: investigate results and the answers of new-dashboard and revision requests that only ask a question; `revisions` reads them only through sqlc and the `ObserveOptions.Finding` func, and never imports `findings`.
 - `stars`: each person's starred dashboards, stored on the server so they follow the person across browsers; keys get 403 `user_session_required`, and recently viewed dashboards stay in the browser.
 - `public`: public dashboard links, their tokens, the public Spec without query text and the frozen and free variable rule (`EffectiveSelections`); `proxyhttp` imports it, never the reverse.
@@ -54,7 +59,8 @@ This lists only the packages whose purpose the name does not make obvious.
 - A tool's `MinRole` is checked when the tool is called, not when tools are listed, and only for keys outside agent runs.
   Inside a run the requester's folder level decides.
 - Every `/api/v1` route except `/api/v1/auth/*` and `/api/v1/public/*` is registered through `auth.Routes` with its lowest role (`auth.RequireRole`).
-  Feature packages register through `Register(api auth.Routes)` and never see a raw gin group, except a `server.PublicRegistrar`, whose `RegisterPublic` gets the `/api/v1/public` group: no session, `Cache-Control: no-store`, and the token in the path as the only credential.
+  Feature packages register through `Register(api auth.Routes)`; in `queryproxy/proxyhttp` each handler file registers its routes with `registerRoutes` in its own `init`, and `Register` only replays them.
+  They never see a raw gin group, except a `server.PublicRegistrar`, whose `RegisterPublic` gets the `/api/v1/public` group: no session, `Cache-Control: no-store`, and the token in the path as the only credential.
   Only `public.Handler` and `proxyhttp.PublicData` register there.
   Handlers never check roles.
   `auth.RequireUser` is a separate principal-kind check after the role, so a key cannot manage keys whatever its role.
@@ -180,10 +186,16 @@ This lists only the packages whose purpose the name does not make obvious.
   The runner that validates saves stays uncached.
 - The second exception is `GET /api/v1/observe/{id}/build/panels/{panel_id}/data` and `.../build/variables/{name}/values`: they load the requester's stored build on the server (`proxyhttp/build.go`), run under `DraftLimits`, never cache or coalesce, and refuse a bearer key (403 `user_session_required`).
 - The third exception is `POST /api/v1/datasources/{uid}/query` (`proxyhttp/explore.go`), the logs page's, trace view's and CLI's explore query: it runs the given text against one datasource as a one-query panel with no variables under `DraftLimits` (`limit` only lowers `MaxRows`), never caches, coalesces or aligns an instant range, counts against the in-flight cap and accepts service-account keys from Viewer up.
+- `GET /api/v1/datasources/{uid}/traces/{trace_id}` and `POST /api/v1/datasources/{uid}/trace-stats` (`proxyhttp/trace.go`, `proxyhttp/tracestats.go`) are the explore query's siblings: a whole trace under `datasource.TraceSpanBudget` (20,000 spans, the earliest kept, `meta.rows_total` and `meta.truncated` say the cut) and span counts, quantiles and a duration histogram over a TraceQL filter or a SQL condition, both through `datasource.TraceSource` and `datasource.TraceStatsSource`, under `DraftLimits`, never cached, one upstream slot per request, from Viewer up.
 - The fourth exception is `GET /api/v1/findings/{id}/panels/{panel_id}/data` (`proxyhttp/finding.go`): it runs only a query stored with a finding and checked when the finding was saved, under `DraftLimits`, never caches, and refuses a bearer key (403 `user_session_required`).
 - The fifth exception is `GET /api/v1/public/{token}/panels/{panel_id}/data` and `.../variables/{name}/values` (`proxyhttp/public.go`): no session, the link's dashboard at its latest version only, the shared caches, and in-flight slots keyed `public:<link id>`.
   A frozen link uses its stored selections and a free one accepts a value only when `public.EffectiveSelections` finds it among the options the values path computes (through `variableOptions` and the values cache); a version that reads `${__user.*}` answers 404.
   `GET /api/v1/public/{token}` serves the Spec with every panel and variable `query` emptied.
+- The sixth exception is `POST /api/v1/datasources/{uid}/trace-logs` (`proxyhttp/tracelogs.go`), the trace view's and the `logs_for_trace` tool's path to the lines of a trace or span: `datasource.TraceLogSource` (Loki and ClickHouse) builds the query itself from the hex-checked ids, so no query text crosses the API, and it runs under `DraftLimits` with the explore slots and error codes.
+- `POST /api/v1/datasources/{uid}/log-facets` (`proxyhttp/facets.go`) and the `log_facets` tool count the top values of a logs query's fields through `datasource.LogFacetSource` (Loki and ClickHouse), a direct datasource call under `DraftLimits` and one upstream slot, in which the adapter fans out at most 4 calls at a time; Loki index labels count bytes from the index volume API and say `unit: bytes`, every other field says whether it is exact or sampled.
+- `POST /api/v1/datasources/{uid}/log-context` (`proxyhttp/context.go`) and the `log_context` tool read the lines just before and just after one line through `datasource.LineSource` (Loki and ClickHouse), anchored on the line's `TimeNs`, as two `Lines` calls at once under `DraftLimits`, each with one upstream slot; the endpoint counts against the explore slots.
+  `GET /api/v1/datasources/{uid}/tail` (`tailhttp`) polls the same `Lines` forward from the newest `TimeNs` plus one nanosecond, so a line is sent once.
+- `POST /api/v1/datasources/{uid}/log-patterns` (`proxyhttp/patterns.go`) and the `log_patterns` tool share `Runner.LogPatterns`: a `datasource.LogPatternSource` (Loki, its pattern API, a bare stream selector only) answers `source: loki`, and `ErrNotFound` from it, or no such source (ClickHouse), reads the newest `sample` lines through `LineSource` and clusters them with `logpatterns` as `source: server`; one upstream slot per call, under `DraftLimits`.
 - `spec/examples/time/resolve-cases.json` keeps the Go and TS relative time resolution in step.
 - Variable values reach queries only through `internal/datasource/macros`.
 - A Spec names a datasource by uid or as `${name}` naming a datasource variable.

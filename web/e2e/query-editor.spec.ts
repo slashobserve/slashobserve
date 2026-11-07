@@ -275,7 +275,7 @@ test("scopes the activity card from an old comments link", async ({
   await expect(activity).toBeVisible()
   await expect(
     activity.getByRole("combobox", { name: "Panel", exact: true })
-  ).toHaveValue("rps")
+  ).toContainText(rpsTitle)
   await expect(page).toHaveURL(/panel=rps/)
   await expect(page).not.toHaveURL(/tab=|edit=/)
 })
@@ -1205,8 +1205,10 @@ test("keeps focus on the datasource select when its query editor is rebuilt", as
   const select = sheet(page).getByRole("combobox", {
     name: "Datasource for query A",
   })
-  await select.focus()
-  await select.selectOption({ label: "ch (ClickHouse)" })
+  await select.click()
+  await page
+    .getByRole("option", { name: "ch (ClickHouse)", exact: true })
+    .click()
 
   await expect(queryEditor(page, "A").locator(".tok-keyword")).toHaveText(
     "SELECT"
@@ -1304,23 +1306,6 @@ test("keeps focus on Save after a failed save", async ({
   expectLoggedOnce(consoleErrors, 422)
   await expect(save).toBeEnabled()
   await expect(save).toBeFocused()
-})
-
-test("uses 16px text in a query's datasource select on a narrow screen", async ({
-  page,
-  request,
-}) => {
-  const { id } = await createOverview(request)
-  await page.setViewportSize({ width: 700, height: 900 })
-  await page.goto(`/d/${id}?panel=rps&edit=query`)
-
-  const select = sheet(page).getByRole("combobox", {
-    name: "Datasource for query A",
-  })
-  await expect(select).toHaveCSS("font-size", "16px")
-
-  await page.setViewportSize({ width: 1200, height: 900 })
-  await expect(select).toHaveCSS("font-size", "12px")
 })
 
 for (const colorScheme of ["light", "dark"] as const) {
@@ -1436,7 +1421,10 @@ for (const colorScheme of ["light", "dark"] as const) {
 
       await sheet(page)
         .getByRole("combobox", { name: "Datasource for query B" })
-        .selectOption({ label: "ch (ClickHouse)" })
+        .click()
+      await page
+        .getByRole("option", { name: "ch (ClickHouse)", exact: true })
+        .click()
       await expect(queryEditor(page, "B").locator(".tok-keyword")).toHaveText(
         "SELECT"
       )

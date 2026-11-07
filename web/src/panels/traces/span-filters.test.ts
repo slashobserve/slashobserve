@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest"
 
-import { criticalPath, filterSpans, spanFilters } from "./span-filters"
+import {
+  ancestorIds,
+  criticalPath,
+  errorAncestors,
+  filterSpans,
+  spanFilters,
+} from "./span-filters"
 import type { Span } from "./trace-model"
 
 function span(
@@ -24,6 +30,9 @@ function span(
     error: false,
     hasChildren: false,
     attributes: [],
+    kind: null,
+    events: [],
+    links: [],
     ...extra,
   }
 }
@@ -83,6 +92,35 @@ describe("spanFilters", () => {
         matchesOnly: "yes",
       })
     ).toEqual(none)
+  })
+})
+
+describe("ancestorIds", () => {
+  it.each([
+    ["a nested span", "query", ["db", "root"]],
+    ["a child of the root", "auth", ["root"]],
+    ["the root", "root", []],
+    ["an unknown id", "nope", []],
+  ])("walks up from %s", (_, id, ancestors) => {
+    expect(ancestorIds(trace(), id)).toEqual(ancestors)
+  })
+
+  it("stops on a parent loop", () => {
+    const spans = [span("a", "b", 0, 1), span("b", "a", 0, 1)]
+    expect(ancestorIds(spans, "a")).toEqual(["b", "a"])
+  })
+})
+
+describe("errorAncestors", () => {
+  it("marks every error span and its ancestors, not its siblings", () => {
+    const spans = trace().map((item) =>
+      item.id === "query" ? { ...item, error: true } : item
+    )
+    expect([...errorAncestors(spans)].sort()).toEqual(["db", "query", "root"])
+  })
+
+  it("is empty without errors", () => {
+    expect(errorAncestors(trace()).size).toBe(0)
   })
 })
 

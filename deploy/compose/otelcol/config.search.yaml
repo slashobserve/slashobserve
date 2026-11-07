@@ -1,0 +1,45 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 150
+    spike_limit_mib: 40
+  transform/ecs:
+    log_statements:
+      - statements:
+          - set(scope.attributes["elastic.mapping.mode"], "ecs")
+  batch:
+    timeout: 2s
+    send_batch_size: 5000
+
+exporters:
+  elasticsearch/logs:
+    endpoints: [http://elasticsearch:9200]
+    logs_index: logs-demo-shop
+    retry:
+      enabled: true
+      max_retries: 5
+  opensearch/logs:
+    http:
+      endpoint: http://opensearch:9200
+    dataset: demo
+    namespace: shop
+
+service:
+  telemetry:
+    metrics:
+      level: none
+  pipelines:
+    logs/elasticsearch:
+      receivers: [otlp]
+      processors: [memory_limiter, transform/ecs, batch]
+      exporters: [elasticsearch/logs]
+    logs/opensearch:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [opensearch/logs]

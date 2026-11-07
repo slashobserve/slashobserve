@@ -127,7 +127,7 @@ func TestLogQueryReturnsOneFramePerStream(t *testing.T) {
 	if checkout.Labels["service_name"] != "checkout" || frontend.Labels["service_name"] != "frontend" || payments.Labels["service_name"] != "payments" {
 		t.Fatalf("frames are not ordered by labels: %v, %v, %v", checkout.Labels, frontend.Labels, payments.Labels)
 	}
-	if got, want := fieldNames(checkout), []string{"time:Time", "string:Body", "string:level"}; !slices.Equal(got, want) {
+	if got, want := fieldNames(checkout), []string{"time:Time", "string:Body", "string:TimeNs", "string:level"}; !slices.Equal(got, want) {
 		t.Fatalf("fields = %v, want %v", got, want)
 	}
 	if got := fieldValues(t, checkout, "Body"); !slices.Equal(got, []any{"retrying", "payment failed"}) {
@@ -136,14 +136,70 @@ func TestLogQueryReturnsOneFramePerStream(t *testing.T) {
 	if got := fieldValues(t, checkout, "Time"); got[0] != time.Unix(0, 1793966400000000001).UTC() || got[1] != time.Unix(0, 1793966400000000000).UTC() {
 		t.Fatalf("times = %v", got)
 	}
+	if got := fieldValues(t, checkout, "TimeNs"); !slices.Equal(got, []any{"1793966400000000001", "1793966400000000000"}) {
+		t.Fatalf("nanosecond times = %v", got)
+	}
 	if got := fieldValues(t, checkout, "level"); !slices.Equal(got, []any{"error", "error"}) {
 		t.Fatalf("levels = %v", got)
 	}
 	if got := fieldValues(t, frontend, "level"); !slices.Equal(got, []any{"warn"}) {
 		t.Fatalf("detected level = %v", got)
 	}
-	if got, want := fieldNames(payments), []string{"time:Time", "string:Body"}; !slices.Equal(got, want) {
+	if got, want := fieldNames(payments), []string{"time:Time", "string:Body", "string:TimeNs"}; !slices.Equal(got, want) {
 		t.Fatalf("a stream without a level has fields %v, want %v", got, want)
+	}
+	if slices.ContainsFunc(frames, func(f datasource.Frame) bool { return f.Meta != nil }) {
+		t.Fatalf("frames carry meta below the line limit: %+v", frames)
+	}
+
+	ds, _ = serve(t, 0, oneLineStreams(300))
+	q := datasource.Query{Text: `{service_name=~".+"}`, Limits: datasource.Limits{MaxSeries: 200}}
+	frames, err = ds.QueryInstant(context.Background(), q, lastHour)
+	if err != nil {
+		t.Fatalf("300 streams under MaxSeries 200: %v", err)
+	}
+	if len(frames) != 300 {
+		t.Fatalf("got %d frames, want 300: a log query counts lines, not streams", len(frames))
+	}
+}
+
+func oneLineStreams(n int) string {
+	streams := make([]string, n)
+	for i := range streams {
+		streams[i] = fmt.Sprintf(`{"stream":{"service_name":"svc-%03d","trace_id":"%d"},"values":[["%d","line"]]}`, i, i, 1793966400000000000+i)
+	}
+	return success("streams", "["+strings.Join(streams, ",")+"]")
+}
+
+func TestLogQueryMarksTruncationAtTheLimit(t *testing.T) {
+	cases := []struct {
+		name      string
+		body      string
+		truncated bool
+	}{
+		{"as many lines as the limit", oneLineStreams(2), true},
+		{"fewer lines than the limit", oneLineStreams(1), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds, fake := serve(t, 0, tc.body)
+			q := datasource.Query{Text: `{a="b"}`, Limits: datasource.Limits{MaxRows: 2}}
+			frames, err := ds.QueryInstant(context.Background(), q, lastHour)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := fake.last(t).params.Get("limit"); got != "2" {
+				t.Fatalf("limit = %q, want 2", got)
+			}
+			if got := frames[0].Meta != nil && frames[0].Meta.Truncated; got != tc.truncated {
+				t.Fatalf("frame 0 truncated = %v, want %v (meta %+v)", got, tc.truncated, frames[0].Meta)
+			}
+			for _, f := range frames[1:] {
+				if f.Meta != nil {
+					t.Fatalf("a later frame carries meta: %+v", f.Meta)
+				}
+			}
+		})
 	}
 }
 
@@ -234,8 +290,6 @@ func TestLimitsAreEnforced(t *testing.T) {
 		step   time.Duration
 		want   string
 	}{
-		{"too many streams", twoStreams, `{a="b"}`, datasource.Limits{MaxSeries: 2}, time.Minute, "more than 2 series"},
-		{"too many log lines", twoStreams, `{a="b"}`, datasource.Limits{MaxPoints: 3}, time.Minute, "more than 3 log lines"},
 		{"too many series", success("matrix", `[{"metric":{"a":"1"},"values":[]},{"metric":{"a":"2"},"values":[]}]`), `rate({a="b"}[1m])`, datasource.Limits{MaxSeries: 1}, time.Minute, "more than 1 series"},
 		{"too many points", success("matrix", "["+matrixSeries(1, 40)+","+matrixSeries(2, 40)+"]"), `rate({a="b"}[1m])`, datasource.Limits{MaxPoints: 70}, time.Minute, "more than 70 points"},
 		{"step finer than the resolution limit", success("matrix", "[]"), `rate({a="b"}[1m])`, datasource.Limits{}, 100 * time.Millisecond, "max 11000"},

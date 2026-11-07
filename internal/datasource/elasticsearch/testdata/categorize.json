@@ -1,0 +1,44 @@
+{
+  "took": 113,
+  "timed_out": false,
+  "_shards": {"total": 1, "successful": 1, "skipped": 0, "failed": 0},
+  "hits": {"total": {"value": 30, "relation": "eq"}, "max_score": null, "hits": []},
+  "aggregations": {
+    "patterns": {
+      "buckets": [
+        {
+          "doc_count": 10,
+          "key": "connection to refused after retry",
+          "regex": ".*?connection.+?to.+?refused.+?after.+?retry.*?",
+          "max_matching_length": 42,
+          "over_time": {
+            "buckets": [
+              {"key_as_string": "2026-11-06T10:00:00.000Z", "key": 1793959200000, "doc_count": 3},
+              {"key_as_string": "2026-11-06T10:10:00.000Z", "key": 1793959800000, "doc_count": 0},
+              {"key_as_string": "2026-11-06T10:20:00.000Z", "key": 1793960400000, "doc_count": 7}
+            ]
+          }
+        },
+        {
+          "doc_count": 10,
+          "key": "request handled in ms",
+          "regex": ".*?request.+?handled.+?in.+?ms.*?",
+          "max_matching_length": 29,
+          "over_time": {
+            "buckets": [
+              {"key_as_string": "2026-11-06T10:00:00.000Z", "key": 1793959200000, "doc_count": 4},
+              {"key_as_string": "2026-11-06T10:10:00.000Z", "key": 1793959800000, "doc_count": 6}
+            ]
+          }
+        },
+        {
+          "doc_count": 1,
+          "key": "",
+          "regex": "",
+          "max_matching_length": 0,
+          "over_time": {"buckets": [{"key_as_string": "2026-11-06T10:00:00.000Z", "key": 1793959200000, "doc_count": 1}]}
+        }
+      ]
+    }
+  }
+}

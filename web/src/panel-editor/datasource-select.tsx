@@ -1,4 +1,10 @@
-import { NativeSelect } from "@/components/native-select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useDatasources } from "@/datasources/queries"
 import type { DatasourceVariable } from "@/spec"
 
@@ -14,6 +20,8 @@ function typeLabel(type: string): string {
 function variableRef(variable: DatasourceVariable): string {
   return "${" + variable.name + "}"
 }
+
+const panelDefaultValue = "*"
 
 type Props = {
   id?: string
@@ -41,30 +49,55 @@ export function DatasourceSelect({
   const known =
     list.some((datasource) => datasource.uid === value) ||
     variables.some((variable) => variableRef(variable) === value)
+  const items = [
+    ...(includePanelDefault === undefined
+      ? []
+      : [
+          {
+            value: panelDefaultValue,
+            label: `Panel datasource (${includePanelDefault})`,
+          },
+        ]),
+    ...variables.map((variable) => ({
+      value: variableRef(variable),
+      label: `$${variable.name} (variable, ${typeLabel(variable.datasourceType)})`,
+    })),
+    ...(value !== "" && !known ? [{ value, label: value }] : []),
+    ...list.map((datasource) => ({
+      value: datasource.uid,
+      label: `${datasource.uid} (${typeLabel(datasource.type)})`,
+    })),
+  ]
+  const selected =
+    value !== ""
+      ? value
+      : includePanelDefault === undefined
+        ? null
+        : panelDefaultValue
   return (
-    <NativeSelect
-      id={id}
-      aria-label={ariaLabel}
-      value={value}
+    <Select
+      items={items}
+      value={selected}
       disabled={disabled}
-      onChange={(event) => onChange(event.target.value)}
-      size={compact ? "sm" : "default"}
-      className={compact ? "h-6 max-w-[220px]" : undefined}
+      onValueChange={(next) => {
+        if (next !== null) onChange(next === panelDefaultValue ? "" : next)
+      }}
     >
-      {includePanelDefault === undefined ? null : (
-        <option value="">{`Panel datasource (${includePanelDefault})`}</option>
-      )}
-      {variables.map((variable) => (
-        <option key={variable.name} value={variableRef(variable)}>
-          {`$${variable.name} (variable, ${typeLabel(variable.datasourceType)})`}
-        </option>
-      ))}
-      {value !== "" && !known ? <option value={value}>{value}</option> : null}
-      {list.map((datasource) => (
-        <option key={datasource.uid} value={datasource.uid}>
-          {`${datasource.uid} (${typeLabel(datasource.type)})`}
-        </option>
-      ))}
-    </NativeSelect>
+      <SelectTrigger
+        id={id}
+        aria-label={ariaLabel}
+        size={compact ? "sm" : "default"}
+        className={compact ? "max-w-[220px] data-[size=sm]:h-6" : undefined}
+      >
+        <SelectValue placeholder="Choose a datasource" />
+      </SelectTrigger>
+      <SelectContent alignItemWithTrigger={false} align="start">
+        {items.map((item) => (
+          <SelectItem key={item.value} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }

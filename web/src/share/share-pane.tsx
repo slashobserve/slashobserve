@@ -5,6 +5,13 @@ import { CopyButton } from "@/components/copy-button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { searchFromState, type DashboardSearch } from "@/dashboards/search"
 import { describeRange } from "@/lib/time"
 import { PublicLinksSection } from "@/public/public-links-section"
@@ -59,6 +66,10 @@ export function SharePane({
   const selected = choices.some((choice) => choice.id === chosen)
     ? chosen
     : choices[0]?.id
+  const panelItems = choices.map((choice) => ({
+    value: choice.id,
+    label: choice.title,
+  }))
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-auto p-4">
@@ -93,18 +104,24 @@ export function SharePane({
             Link to one panel
           </h3>
           <div className="flex gap-1.5">
-            <select
-              aria-label="Panel"
+            <Select
+              items={panelItems}
               value={selected}
-              onChange={(event) => setChosen(event.target.value)}
-              className="h-8 min-w-0 flex-1 rounded-control border border-input bg-background px-2 text-[13px] outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring narrow:text-base"
+              onValueChange={(next) => {
+                if (next !== null) setChosen(next)
+              }}
             >
-              {choices.map((choice) => (
-                <option key={choice.id} value={choice.id}>
-                  {choice.title}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger aria-label="Panel" className="min-w-0 flex-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent alignItemWithTrigger={false} align="start">
+                {panelItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <CopyButton
               text={panelShareUrl(
                 origin,

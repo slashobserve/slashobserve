@@ -86,29 +86,121 @@ func NewHandler(runner *queryproxy.Runner, specs SpecSource, builds BuildSpecs, 
 	}
 }
 
+func init() {
+	registerRoutes(func(h *Handler, api auth.Routes) {
+		api.GET("/dashboards/:id/versions/:version/panels/:panel_id/data", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.data)
+		api.GET("/dashboards/:id/versions/:version/variables/:name/values", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.values)
+		api.POST("/datasources/:uid/lint", auth.RoleViewer, h.lint)
+	})
+}
+
+var routeRegistrars []func(h *Handler, api auth.Routes)
+
+func registerRoutes(f func(h *Handler, api auth.Routes)) {
+	routeRegistrars = append(routeRegistrars, f)
+}
+
 func (h *Handler) Register(api auth.Routes) {
-	api.GET("/dashboards/:id/versions/:version/panels/:panel_id/data", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.data)
-	api.GET("/dashboards/:id/versions/:version/variables/:name/values", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.values)
-	api.GET("/observe/:id/build/panels/:panel_id/data", auth.RoleViewer, h.buildData)
-	api.GET("/observe/:id/build/variables/:name/values", auth.RoleViewer, h.buildValues)
-	api.POST("/datasources/:uid/lint", auth.RoleViewer, h.lint)
-	api.POST("/datasources/:uid/preview", auth.RoleViewer, h.preview)
-	api.POST("/datasources/:uid/query", auth.RoleViewer, h.explore)
-	api.POST("/datasources/:uid/log-volume", auth.RoleViewer, h.volume)
-	api.GET("/datasources/:uid/metrics", auth.RoleViewer, h.metrics)
-	api.GET("/datasources/:uid/labels", auth.RoleViewer, h.labels)
-	api.GET("/datasources/:uid/labels/:name/values", auth.RoleViewer, h.labelValues)
+	for _, f := range routeRegistrars {
+		f(h, api)
+	}
 }
 
 type dataMeta struct {
-	Kind        queryproxy.Kind `json:"kind"`
-	From        string          `json:"from"`
-	To          string          `json:"to"`
-	StepMS      int64           `json:"step_ms"`
-	Queries     []queryMeta     `json:"queries"`
-	Cached      bool            `json:"cached"`
-	ExecutedAt  string          `json:"executed_at"`
-	SourcePanel string          `json:"source_panel,omitempty"`
+	Kind           queryproxy.Kind `json:"kind"`
+	From           string          `json:"from"`
+	To             string          `json:"to"`
+	StepMS         int64           `json:"step_ms"`
+	Queries        []queryMeta     `json:"queries"`
+	Cached         bool            `json:"cached"`
+	ExecutedAt     string          `json:"executed_at"`
+	SourcePanel    string          `json:"source_panel,omitempty"`
+	Truncated      bool            `json:"truncated"`
+	Partial        bool            `json:"partial"`
+	Rows           int             `json:"rows"`
+	RowsTotal      int             `json:"rows_total,omitempty"`
+	Oldest         string          `json:"oldest,omitempty"`
+	Newest         string          `json:"newest,omitempty"`
+	JobsDone       int64           `json:"jobs_done,omitempty"`
+	JobsTotal      int64           `json:"jobs_total,omitempty"`
+	InspectedBytes int64           `json:"inspected_bytes,omitempty"`
+	ElapsedMS      int64           `json:"elapsed_ms,omitempty"`
+	Bytes          int64           `json:"bytes,omitempty"`
+	Page           *pageMeta       `json:"page,omitempty"`
+}
+
+type pageMeta struct {
+	Page          int    `json:"page"`
+	PageSize      int    `json:"page_size"`
+	Total         *int64 `json:"total,omitempty"`
+	TotalRelation string `json:"total_relation"`
+	HasNext       bool   `json:"has_next"`
+	HasPrev       bool   `json:"has_prev"`
+	Next          string `json:"next,omitempty"`
+	Prev          string `json:"prev,omitempty"`
+	Window        int    `json:"window,omitempty"`
+}
+
+type resultMeta struct {
+	page           *pageMeta
+	truncated      bool
+	partial        bool
+	rows           int
+	rowsTotal      int
+	oldest         time.Time
+	newest         time.Time
+	jobsDone       int64
+	jobsTotal      int64
+	inspectedBytes int64
+	bytes          int64
+	elapsed        time.Duration
+}
+
+func resultMetaOf(frames []datasource.Frame) resultMeta {
+	merged := datasource.MergeMeta(frames)
+	m := resultMeta{
+		truncated:      merged.Truncated,
+		partial:        merged.Partial,
+		rowsTotal:      merged.RowsTotal,
+		jobsDone:       merged.JobsDone,
+		jobsTotal:      merged.JobsTotal,
+		inspectedBytes: merged.InspectedBytes,
+		bytes:          merged.Bytes,
+	}
+	for _, f := range frames {
+		if !f.IsSeries() {
+			m.rows += f.Rows()
+		}
+		i := slices.IndexFunc(f.Fields, func(field datasource.Field) bool { return field.Type == datasource.FieldTime })
+		if i < 0 {
+			continue
+		}
+		for _, v := range f.Fields[i].Values {
+			at, ok := v.(time.Time)
+			if !ok {
+				continue
+			}
+			if m.oldest.IsZero() || at.Before(m.oldest) {
+				m.oldest = at
+			}
+			if m.newest.IsZero() || at.After(m.newest) {
+				m.newest = at
+			}
+		}
+	}
+	return m
+}
+
+func (m resultMeta) took(elapsed time.Duration) resultMeta {
+	m.elapsed = elapsed
+	return m
+}
+
+func formatEdge(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return formatTime(t)
 }
 
 type dataResponse struct {
@@ -317,10 +409,12 @@ func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dat
 		}
 		return nil
 	}
+	started := time.Now()
 	res, err := h.runner.RunPanel(ctx, req)
 	if err != nil {
 		return dataEntry{}, err
 	}
+	elapsed := time.Since(started)
 	queries := make([]queryMeta, len(res.Queries))
 	asked := false
 	for i, q := range res.Queries {
@@ -331,7 +425,7 @@ func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dat
 	if asked {
 		exemplars = joinFrames(exemplarParts)
 	}
-	return dataEntry{frames: joinFrames(parts), exemplars: exemplars, queries: queries, kind: res.Kind, from: res.Range.From, to: res.Range.To, step: res.Step, executedAt: time.Now()}, nil
+	return dataEntry{frames: joinFrames(parts), exemplars: exemplars, queries: queries, kind: res.Kind, from: res.Range.From, to: res.Range.To, step: res.Step, meta: resultMetaOf(res.Frames()).took(elapsed), executedAt: time.Now()}, nil
 }
 
 func (h *Handler) logPanic(ctx context.Context, panelID string, p any) {
@@ -355,14 +449,26 @@ func writeData(c *gin.Context, e dataEntry, cached bool, executedAt time.Time, s
 		Frames:    e.frames,
 		Exemplars: e.exemplars,
 		Meta: dataMeta{
-			Kind:        e.kind,
-			From:        formatTime(e.from),
-			To:          formatTime(e.to),
-			StepMS:      e.step.Milliseconds(),
-			Queries:     e.queries,
-			Cached:      cached,
-			ExecutedAt:  formatTime(executedAt),
-			SourcePanel: sourcePanel,
+			Kind:           e.kind,
+			From:           formatTime(e.from),
+			To:             formatTime(e.to),
+			StepMS:         e.step.Milliseconds(),
+			Queries:        e.queries,
+			Cached:         cached,
+			ExecutedAt:     formatTime(executedAt),
+			SourcePanel:    sourcePanel,
+			Truncated:      e.meta.truncated,
+			Partial:        e.meta.partial,
+			Rows:           e.meta.rows,
+			RowsTotal:      e.meta.rowsTotal,
+			Oldest:         formatEdge(e.meta.oldest),
+			Newest:         formatEdge(e.meta.newest),
+			JobsDone:       e.meta.jobsDone,
+			JobsTotal:      e.meta.jobsTotal,
+			InspectedBytes: e.meta.inspectedBytes,
+			ElapsedMS:      e.meta.elapsed.Milliseconds(),
+			Bytes:          e.meta.bytes,
+			Page:           e.meta.page,
 		},
 	})
 }

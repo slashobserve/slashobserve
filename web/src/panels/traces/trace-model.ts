@@ -10,7 +10,23 @@ export const missingColumnsReason =
 
 type AttributeSource = "span" | "resource"
 
-type SpanAttribute = { key: string; text: string; source: AttributeSource }
+export type SpanAttribute = {
+  key: string
+  text: string
+  source: AttributeSource
+}
+
+export type SpanEvent = {
+  time: number
+  name: string
+  attributes: Record<string, string>
+}
+
+type SpanLink = {
+  traceId: string
+  spanId: string
+  attributes: Record<string, string>
+}
 
 export type Span = {
   id: string
@@ -26,6 +42,9 @@ export type Span = {
   error: boolean
   hasChildren: boolean
   attributes: SpanAttribute[]
+  kind: string | null
+  events: SpanEvent[]
+  links: SpanLink[]
 }
 
 export type TraceModel =
@@ -58,6 +77,9 @@ type Columns = {
   start: PreparedField
   duration?: PreparedField
   status?: PreparedField
+  kind?: PreparedField
+  events?: PreparedField
+  links?: PreparedField
   attributes: { field: PreparedField; source: AttributeSource }[]
 }
 
@@ -70,6 +92,9 @@ type SpanRow = {
   duration: number
   error: boolean
   attributes: SpanAttribute[]
+  kind: string | null
+  events: SpanEvent[]
+  links: SpanLink[]
 }
 
 const traceIdNames = new Set(["traceid"])
@@ -80,6 +105,9 @@ const serviceNames = new Set(["servicename"])
 const startNames = new Set(["starttime", "timestamp"])
 const durationNames = new Set(["duration"])
 const statusNames = new Set(["statuscode"])
+const kindNames = new Set(["spankind"])
+const eventNames = new Set(["spanevents"])
+const linkNames = new Set(["spanlinks"])
 const attributeSources = new Map<string, AttributeSource>([
   ["tags", "span"],
   ["spanattributes", "span"],
@@ -110,6 +138,9 @@ function columnsOf(frame: PreparedFrame): Columns | null {
     start,
     duration: named(frame, durationNames),
     status: named(frame, statusNames),
+    kind: named(frame, kindNames),
+    events: named(frame, eventNames),
+    links: named(frame, linkNames),
     attributes: frame.fields.flatMap((field) => {
       const source = attributeSources.get(field.name.toLowerCase())
       return source ? [{ field, source }] : []
@@ -127,6 +158,10 @@ function idOf(value: unknown): string | null {
   if (value === null || value === undefined) return null
   const text = String(value)
   return text === "" ? null : text
+}
+
+function finite(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -162,6 +197,42 @@ function pairsOf(value: unknown, source: AttributeSource): SpanAttribute[] {
   return []
 }
 
+function eventsOf(value: unknown): SpanEvent[] {
+  const parsed = typeof value === "string" ? parseJson(value) : value
+  if (!Array.isArray(parsed)) return []
+  return parsed.flatMap((event) => {
+    if (!isRecord(event)) return []
+    const time = finite(event.time_ms)
+    if (time === null) return []
+    return [
+      {
+        time,
+        name: textOf(event.name ?? ""),
+        attributes: textPairs(event.attributes),
+      },
+    ]
+  })
+}
+
+function textPairs(value: unknown): Record<string, string> {
+  if (!isRecord(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key, textOf(item)])
+  )
+}
+
+function linksOf(value: unknown): SpanLink[] {
+  const parsed = typeof value === "string" ? parseJson(value) : value
+  if (!Array.isArray(parsed)) return []
+  return parsed.flatMap((link) => {
+    if (!isRecord(link)) return []
+    const traceId = idOf(link.trace_id)
+    const spanId = idOf(link.span_id)
+    if (traceId === null || spanId === null) return []
+    return [{ traceId, spanId, attributes: textPairs(link.attributes) }]
+  })
+}
+
 function compareKeys(a: SpanAttribute, b: SpanAttribute): number {
   return a.key < b.key ? -1 : a.key > b.key ? 1 : 0
 }
@@ -173,10 +244,6 @@ function convertsNanoseconds(field: PreparedField | undefined): boolean {
       (value) => value === null || Number.isInteger(value as number)
     )
   )
-}
-
-function finite(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
 function rowsOf(frame: PreparedFrame, columns: Columns) {
@@ -205,6 +272,9 @@ function rowsOf(frame: PreparedFrame, columns: Columns) {
         attributes: columns.attributes
           .flatMap(({ field, source }) => pairsOf(field.values[index], source))
           .sort(compareKeys),
+        kind: idOf(columns.kind?.values[index]),
+        events: eventsOf(columns.events?.values[index]),
+        links: linksOf(columns.links?.values[index]),
       },
     })
   }
@@ -253,8 +323,10 @@ function treeOrder(rows: SpanRow[]) {
 
 export function traceModel(
   frames: PreparedFrame[],
-  fields: FieldResolver
+  fields: FieldResolver,
+  options: { maxSpans?: number } = {}
 ): TraceModel {
+  const cap = options.maxSpans ?? maxSpans
   const located = frames.flatMap((frame) => {
     const columns = columnsOf(frame)
     return columns ? [{ frame, columns }] : []
@@ -275,10 +347,10 @@ export function traceModel(
   const notes: string[] = []
   if (traces.size > 1) notes.push(`Showing trace 1 of ${traces.size}.`)
   const byStart = [...all].sort((a, b) => a.start - b.start)
-  const rows = byStart.slice(0, maxSpans)
-  if (byStart.length > maxSpans) {
+  const rows = byStart.slice(0, cap)
+  if (byStart.length > cap) {
     notes.push(
-      `Showing the first ${maxSpans.toLocaleString("en")} of ${byStart.length.toLocaleString("en")} spans.`
+      `Showing the first ${cap.toLocaleString("en")} of ${byStart.length.toLocaleString("en")} spans.`
     )
   }
 
@@ -304,6 +376,9 @@ export function traceModel(
     error: row.error,
     hasChildren: children.has(row.id),
     attributes: row.attributes,
+    kind: row.kind,
+    events: row.events,
+    links: row.links,
   }))
 
   const durationConfig = {
@@ -321,6 +396,25 @@ export function traceModel(
     notes,
     formatDuration: (ms) => displayValue(ms, durationConfig).text,
   }
+}
+
+export const maxEventTicks = 20
+
+export function eventTicks(
+  events: readonly SpanEvent[],
+  trace: { start: number; duration: number },
+  zoom: { start: number; end: number }
+): number[] {
+  const window = zoom.end - zoom.start
+  if (trace.duration <= 0 || window <= 0) return []
+  const ticks: number[] = []
+  for (const event of events) {
+    if (ticks.length === maxEventTicks) break
+    const at =
+      ((event.time - trace.start) / trace.duration - zoom.start) / window
+    if (at >= 0 && at <= 1) ticks.push(at)
+  }
+  return ticks
 }
 
 export function visibleSpans(

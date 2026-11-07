@@ -71,6 +71,45 @@ func TestListToolsPassTheirDeclaredFieldsToDiscovery(t *testing.T) {
 	}
 }
 
+func TestLabelToolsPassFromAndToTogether(t *testing.T) {
+	for tool, base := range map[string]string{nameListLabels: `"datasource":"fake"`, nameListLabelValues: `"datasource":"fake","label":"l"`} {
+		t.Run(tool, func(t *testing.T) {
+			ds := &fakeDS{}
+			r := newTestRegistry(t, ds, nil)
+			res, err := call(t, r, tool, `{`+base+`,"from":"now-6h","to":"now"}`)
+			if err != nil || res.IsError {
+				t.Fatalf("res = %#v, err = %v", res, err)
+			}
+			rng := ds.lastRequest().Range
+			if span := rng.To.Sub(rng.From); rng.From.IsZero() || span < 6*time.Hour-time.Minute || span > 6*time.Hour+time.Minute {
+				t.Fatalf("range = %v to %v, want about six hours", rng.From, rng.To)
+			}
+			res, err = call(t, r, tool, `{`+base+`}`)
+			if err != nil || res.IsError {
+				t.Fatalf("res = %#v, err = %v", res, err)
+			}
+			if rng := ds.lastRequest().Range; !rng.From.IsZero() || !rng.To.IsZero() {
+				t.Fatalf("range without from and to = %v to %v, want zero", rng.From, rng.To)
+			}
+			for _, input := range []string{`{` + base + `,"from":"now-6h"}`, `{` + base + `,"to":"now"}`} {
+				res, err := call(t, r, tool, input)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got := errorCode(t, res); got != codeInvalidRequest {
+					t.Fatalf("code = %q, want %q", got, codeInvalidRequest)
+				}
+				if got, want := res.Content.(errorBody).Message, "from and to must be given together"; got != want {
+					t.Fatalf("message = %q, want %q", got, want)
+				}
+			}
+			if len(ds.requests) != 2 {
+				t.Fatalf("discovery ran %d times, want 2", len(ds.requests))
+			}
+		})
+	}
+}
+
 func TestListToolsReportABusyUpstreamAsTooManyRequests(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 	reg, err := datasource.NewRegistry(logger, datasource.Instance{UID: fakeUID, Name: "Fake", Datasource: &fakeDS{}})
@@ -500,6 +539,54 @@ func TestSampleRowsWithoutATableSamplesEveryLokiStream(t *testing.T) {
 	}
 	if errorCode(t, res) != codeInvalidRequest || res.Content.(errorBody).Message != "table is required" || len(prom.requests) != 0 {
 		t.Fatalf("prometheus without a table: res = %#v after %d discoveries", res.Content, len(prom.requests))
+	}
+}
+
+func TestSampleRowsWithoutATableSamplesTheIndexPatternOfASearchDatasource(t *testing.T) {
+	for _, typ := range []string{"elasticsearch", "opensearch"} {
+		ds := &fakeDS{typ: typ}
+		res, err := call(t, newTestRegistry(t, ds, nil), nameSampleRows, `{"datasource":"fake"}`)
+		if err != nil || res.IsError {
+			t.Fatalf("%s: res = %#v err = %v", typ, res.Content, err)
+		}
+		if req := ds.lastRequest(); req.Kind != datasource.DiscoverSampleRows || req.Table != "" {
+			t.Fatalf("%s: discovery request = %+v", typ, req)
+		}
+		if !strings.Contains(res.Step, "from the index pattern on fake") {
+			t.Fatalf("%s: step = %q", typ, res.Step)
+		}
+	}
+}
+
+func TestListMetricsScopeOnASearchDatasourceAnswersEmptyAndKeepsTheStoredInventory(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	promFamilies := []datasource.Family{{Name: "http_requests_total", Type: "counter", Series: 4}}
+	reg, err := datasource.NewRegistry(logger,
+		datasource.Instance{UID: "prom", Name: "Prometheus", Datasource: inventoryFake(promFamilies, false)},
+		datasource.Instance{UID: "es", Name: "Elasticsearch", Datasource: &fakeDS{typ: "elasticsearch"}},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Logger: logger})
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: "search-inventory-user", Role: auth.RoleEditor})
+	for _, tc := range []struct {
+		input    string
+		families int
+	}{
+		{`{"datasource":"prom","scope":"{job=\"shop\"}"}`, 1},
+		{`{"datasource":"es","scope":"service.name:checkout"}`, 0},
+	} {
+		res, err := r.Call(ctx, nameListMetrics, []byte(tc.input))
+		if err != nil || res.IsError {
+			t.Fatalf("%s: res = %#v err = %v", tc.input, res.Content, err)
+		}
+		if got := res.Content.(inventoryOut).Families; len(got) != tc.families {
+			t.Fatalf("%s: families = %+v", tc.input, got)
+		}
+	}
+	if got, ok := inventories.get(ctx); !ok || !reflect.DeepEqual(got, promFamilies) {
+		t.Fatalf("stored inventory = %v, %v; want the Prometheus families", got, ok)
 	}
 }
 

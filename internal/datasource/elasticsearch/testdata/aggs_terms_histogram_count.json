@@ -1,0 +1,85 @@
+{
+ "request": {
+  "aggs": {
+   "by_service": {
+    "terms": {
+     "field": "service.name"
+    },
+    "aggs": {
+     "over_time": {
+      "date_histogram": {
+       "field": "@timestamp",
+       "fixed_interval": "1m"
+      }
+     }
+    }
+   }
+  }
+ },
+ "response": {
+  "by_service": {
+   "buckets": [
+    {
+     "key": "checkout",
+     "doc_count": 3,
+     "over_time": {
+      "buckets": [
+       {
+        "key": 0,
+        "doc_count": 2
+       },
+       {
+        "key": 60000,
+        "doc_count": 1
+       }
+      ]
+     }
+    },
+    {
+     "key": "cart",
+     "doc_count": 1,
+     "over_time": {
+      "buckets": [
+       {
+        "key": 60000,
+        "doc_count": 1
+       }
+      ]
+     }
+    }
+   ]
+  }
+ },
+ "want": {
+  "series": [
+   {
+    "name": "count",
+    "labels": {
+     "service.name": "cart"
+    },
+    "points": [
+     [
+      60000,
+      1
+     ]
+    ]
+   },
+   {
+    "name": "count",
+    "labels": {
+     "service.name": "checkout"
+    },
+    "points": [
+     [
+      0,
+      2
+     ],
+     [
+      60000,
+      1
+     ]
+    ]
+   }
+  ]
+ }
+}

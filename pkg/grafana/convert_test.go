@@ -1612,7 +1612,7 @@ func TestAlertListsThatPrometheusCannotListArePlaceholders(t *testing.T) {
 		{"no datasource", `"maxItems":10`, decisionAlertRules.reason},
 		{"the grafana rule source", `"datasource":"grafana"`, decisionAlertRules.reason},
 		{"a source that is not Prometheus", `"datasource":{"type":"grafana-clickhouse-datasource","uid":"ch"}`, alertSourceReason},
-		{"a source that is not supported", `"datasource":{"type":"elasticsearch","uid":"es1"}`, "Elasticsearch is not supported yet."},
+		{"a source that is not supported", `"datasource":{"type":"influxdb","uid":"flux1"}`, "Influxdb is not supported yet."},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

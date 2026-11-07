@@ -459,13 +459,12 @@ func (c *converter) queryVariable(raw map[string]any, path, name string) (spec.V
 	if clause := variableQueryGap(ref); clause != "" {
 		return c.fixedVariable(raw, path, name, clause)
 	}
-	text := variableQueryText(raw["query"])
-	if ref.src.kind == kindLoki && strings.TrimSpace(text) == "" {
-		if object, ok := asObject(raw["query"]); ok {
-			if text = lokiLabelValuesQuery(object); text == "" {
-				return c.fixedVariable(raw, path, name, "This Loki variable query is not supported yet")
-			}
-		}
+	text, unsupported, dropped := c.variableQueryFor(ref, raw, path, subject)
+	switch {
+	case dropped:
+		return spec.Variable{}, false
+	case unsupported != "":
+		return c.fixedVariable(raw, path, name, unsupported)
 	}
 	if strings.TrimSpace(text) == "" {
 		c.dropVariable(subject, path+".query", "It has no query.")
@@ -493,6 +492,33 @@ func (c *converter) queryVariable(raw map[string]any, path, name string) (spec.V
 	c.listFlags(&v, raw, path, subject)
 	v.Default = c.variableDefault(raw, path, subject, &v, nil)
 	return v, true
+}
+
+func (c *converter) variableQueryFor(ref dsRef, raw map[string]any, path, subject string) (text, unsupported string, dropped bool) {
+	text = variableQueryText(raw["query"])
+	switch ref.src.kind {
+	case kindLoki:
+		object, ok := asObject(raw["query"])
+		if strings.TrimSpace(text) != "" || !ok {
+			return text, "", false
+		}
+		if text = lokiLabelValuesQuery(object); text == "" {
+			return "", "This Loki variable query is not supported yet", false
+		}
+	case kindElastic, kindOpenSearch:
+		query, ok := elasticVariableQuery(raw["query"])
+		if ok && asString(query["find"]) == "fields" {
+			c.dropVariable(subject, path+".query", decisionElasticFieldVariables.reason)
+			return "", "", true
+		}
+		if text = elasticLabelValues(query); text == "" {
+			return "", fmt.Sprintf("This %s variable query is not supported yet", kinds[ref.src.kind].label), false
+		}
+		if present(query["size"]) {
+			c.note(subject, "The size of a terms variable is not kept; the datasource's value limit applies.", path+".query")
+		}
+	}
+	return text, "", false
 }
 
 func variableQueryGap(ref dsRef) string {
@@ -889,7 +915,7 @@ func (c *converter) adhocVariable(raw map[string]any, path, name string) (spec.V
 		return spec.Variable{}, false
 	}
 	c.adhocSources[name] = ref.src
-	v := spec.Variable{Type: spec.AdhocVariable, Datasource: ref.src.ref(), ApplyToAll: ref.src.kind == kindClickHouse}
+	v := spec.Variable{Type: spec.AdhocVariable, Datasource: ref.src.ref(), ApplyToAll: filtersAppliedByRunner(ref.src.kind)}
 	if filters := c.adhocFilterList(raw, "filters", path, subject, ref.src.kind); len(filters) > 0 {
 		v.Default = &spec.Selection{Filters: filters}
 	}

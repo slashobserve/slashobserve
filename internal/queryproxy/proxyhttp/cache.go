@@ -60,6 +60,7 @@ type dataEntry struct {
 	from      time.Time
 	to        time.Time
 	step      time.Duration
+	meta      resultMeta
 
 	executedAt time.Time
 }

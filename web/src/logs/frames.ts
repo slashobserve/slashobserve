@@ -19,7 +19,7 @@ function frameRows(frame: RowSource): number {
   )
 }
 
-export function rowKey(frame: RowSource, row: number): string {
+function rowKey(frame: RowSource, row: number): string {
   return JSON.stringify([
     sortedLabelPairs(frame.labels),
     ...frame.fields.map((field) => field.values[row]),
@@ -73,15 +73,21 @@ export type TailBuffer = {
   frames: WireFrame[]
   keys: ReadonlySet<string>
   newest: number | null
+  added: string[]
+  received: number
+  startedAt: number | null
 }
 
 export const emptyTail: TailBuffer = {
   frames: [],
   keys: new Set(),
   newest: null,
+  added: [],
+  received: 0,
+  startedAt: null,
 }
 
-function oldestFirstTimes(frames: readonly WireFrame[]): number[] {
+export function oldestFirstTimes(frames: readonly WireFrame[]): number[] {
   const times: number[] = []
   for (const frame of frames) {
     for (let row = 0; row < frameRows(frame); row++) {
@@ -108,29 +114,90 @@ function dropOldest(frames: WireFrame[], cap: number): WireFrame[] {
   })
 }
 
+function olderThan(
+  frame: WireFrame,
+  row: number,
+  oldestMs: number | undefined
+): boolean {
+  if (oldestMs === undefined) return false
+  const time = rowTime(frame, row)
+  return time !== null && time < oldestMs
+}
+
 export function mergeTail(
   buffer: TailBuffer,
   incoming: readonly WireFrame[],
-  cap = 1000
+  cap = 1000,
+  oldestMs?: number
 ): TailBuffer {
   const keys = new Set(buffer.keys)
+  const freshKeys: string[] = []
   const fresh = keepRows(incoming, (frame, row) => {
+    if (olderThan(frame, row, oldestMs)) return false
     const key = rowKey(frame, row)
     if (keys.has(key)) return false
     keys.add(key)
+    freshKeys.push(key)
     return true
   })
-  const frames = dropOldest([...buffer.frames, ...fresh], cap)
-  const kept = new Set<string>()
-  for (const frame of frames) {
-    for (let row = 0; row < frameRows(frame); row++)
-      kept.add(rowKey(frame, row))
-  }
+  const current = keepRows(
+    buffer.frames,
+    (frame, row) => !olderThan(frame, row, oldestMs)
+  )
+  const frames = dropOldest([...current, ...fresh], cap)
+  const kept = keysOf(frames)
   return {
     frames,
     keys: kept,
     newest: newestTime(frames) ?? buffer.newest,
+    added: freshKeys.filter((key) => kept.has(key)),
+    received: buffer.received + freshKeys.length,
+    startedAt: buffer.startedAt,
   }
+}
+
+export function startTail(
+  seed: readonly WireFrame[],
+  now: number,
+  oldestMs: number
+): TailBuffer {
+  return {
+    ...mergeTail(emptyTail, seed, 1000, oldestMs),
+    added: [],
+    received: 0,
+    startedAt: now,
+  }
+}
+
+export function timesWhere(
+  frames: readonly WireFrame[],
+  matches: (key: string) => boolean
+): Set<number> {
+  const times = new Set<number>()
+  for (const frame of frames) {
+    for (let row = 0; row < frameRows(frame); row++) {
+      const time = rowTime(frame, row)
+      if (time !== null && matches(rowKey(frame, row))) times.add(time)
+    }
+  }
+  return times
+}
+
+export function withoutKeys(
+  frames: WireFrame[],
+  hidden: ReadonlySet<string>
+): WireFrame[] {
+  if (hidden.size === 0) return frames
+  return keepRows(frames, (frame, row) => !hidden.has(rowKey(frame, row)))
+}
+
+export function keysOf(frames: readonly WireFrame[]): Set<string> {
+  const keys = new Set<string>()
+  for (const frame of frames) {
+    for (let row = 0; row < frameRows(frame); row++)
+      keys.add(rowKey(frame, row))
+  }
+  return keys
 }
 
 export function tailWindow(

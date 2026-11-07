@@ -47,11 +47,15 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 		return d.discoverStreams(ctx, req)
 	}
 	limit := req.EffectiveLimit()
+	params := url.Values{}
+	if req.Metric != "" {
+		params.Set("query", req.Metric)
+	}
+	if !req.Range.From.IsZero() {
+		params.Set("start", lokiTime(req.Range.From))
+		params.Set("end", lokiTime(req.Range.To))
+	}
 	if req.Kind == datasource.DiscoverLabels {
-		params := url.Values{}
-		if req.Metric != "" {
-			params.Set("query", req.Metric)
-		}
 		names, err := d.getStrings(ctx, "/loki/api/v1/labels", params)
 		if err != nil {
 			return nil, err
@@ -60,10 +64,6 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 	}
 	if err := validateLabel(req.Label); err != nil {
 		return nil, err
-	}
-	params := url.Values{}
-	if req.Metric != "" {
-		params.Set("query", req.Metric)
 	}
 	values, err := d.getStrings(ctx, labelValuesPath(req.Label), params)
 	if err != nil {
@@ -102,7 +102,7 @@ func (d *Datasource) discoverSample(ctx context.Context, req datasource.Discover
 		"limit":     {strconv.Itoa(n)},
 		"direction": {"backward"},
 	}
-	frames, err := d.run(ctx, "/loki/api/v1/query_range", params, d.opts.Limits)
+	frames, err := d.run(ctx, "/loki/api/v1/query_range", params, d.opts.Limits, n)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func linesFrame(frames []datasource.Frame, n int) datasource.Frame {
 		for k := range f.Labels {
 			keys[k] = struct{}{}
 		}
-		if len(f.Fields) > 2 {
+		if _, ok := levelField(f); ok {
 			withLevel = true
 		}
 		for row, v := range f.Fields[0].Values {
@@ -165,8 +165,8 @@ func linesFrame(frames []datasource.Frame, n int) datasource.Frame {
 		fields[1].Values = append(fields[1].Values, f.Fields[1].Values[ref.row])
 		if withLevel {
 			var level any
-			if len(f.Fields) > 2 {
-				level = f.Fields[2].Values[ref.row]
+			if lf, ok := levelField(f); ok {
+				level = lf.Values[ref.row]
 			}
 			fields[2].Values = append(fields[2].Values, level)
 		}
@@ -179,6 +179,15 @@ func linesFrame(frames []datasource.Frame, n int) datasource.Frame {
 		}
 	}
 	return datasource.Frame{Fields: fields}
+}
+
+func levelField(f datasource.Frame) (datasource.Field, bool) {
+	for _, field := range f.Fields {
+		if field.Name == "level" {
+			return field, true
+		}
+	}
+	return datasource.Field{}, false
 }
 
 func (d *Datasource) discoverStreams(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {

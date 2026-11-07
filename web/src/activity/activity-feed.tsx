@@ -16,8 +16,14 @@ import { useRouteContext } from "@tanstack/react-router"
 
 import type { components } from "@/api/schema.gen"
 import { commentsQuery, useComments } from "@/comments/queries"
-import { NativeSelect } from "@/components/native-select"
 import { RoleNote } from "@/components/role-note"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   composerMode,
   readerNote,
@@ -33,7 +39,12 @@ import { useAgentInfo, useMyRequests } from "@/observe/queries"
 import { isActive, useRevisions } from "@/revisions/queries"
 import { allPanels, panelTitle, type Dashboard } from "@/spec"
 
-import { ActivityComposer, type Target } from "./activity-composer"
+import {
+  ActivityComposer,
+  noPanelValue,
+  panelItems,
+  type Target,
+} from "./activity-composer"
 import { sendToAgentState } from "./agent-gate"
 import { useActivityStore, useDraft, useStoredTarget } from "./activity-store"
 import { clientNameFrom } from "./client-name"
@@ -336,6 +347,7 @@ export function ActivityFeed({
 
   const noModel = gate.kind === "no-model"
   const filtered = show !== "everything" || scopePanelId !== null
+  const scopeItems = panelItems("All panels", panelList)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -343,44 +355,51 @@ export function ActivityFeed({
         <label htmlFor={showId} className="text-xs text-muted-foreground">
           Show
         </label>
-        <NativeSelect
-          id={showId}
-          size="sm"
-          aria-label="Show"
+        <Select
+          items={showOptions}
           value={show}
-          onChange={(event) =>
-            setShow(
-              showOptions.find((option) => option.value === event.target.value)
-                ?.value ?? "everything"
-            )
-          }
+          onValueChange={(next) => {
+            if (next !== null) setShow(next)
+          }}
         >
-          {showOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </NativeSelect>
+          <SelectTrigger id={showId} size="sm" aria-label="Show">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false} align="start">
+            {showOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <label htmlFor={scopeId} className="text-xs text-muted-foreground">
           Panel
         </label>
-        <NativeSelect
-          id={scopeId}
-          size="sm"
-          aria-label="Panel"
-          className="max-w-[200px] truncate"
-          value={scopePanelId ?? ""}
-          onChange={(event) =>
-            onScopeChange(event.target.value === "" ? null : event.target.value)
-          }
+        <Select
+          items={scopeItems}
+          value={scopePanelId ?? noPanelValue}
+          onValueChange={(next) => {
+            if (next !== null)
+              onScopeChange(next === noPanelValue ? null : next)
+          }}
         >
-          <option value="">All panels</option>
-          {panelList.map((panel) => (
-            <option key={panel.id} value={panel.id}>
-              {panel.title === "" ? "Untitled panel" : panel.title}
-            </option>
-          ))}
-        </NativeSelect>
+          <SelectTrigger
+            id={scopeId}
+            size="sm"
+            aria-label="Panel"
+            className="max-w-[200px]"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false} align="start">
+            {scopeItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div ref={stickRef} className="min-h-0 flex-1 overflow-y-auto">
         <TimelineList

@@ -899,7 +899,7 @@ export interface paths {
         put?: never;
         /**
          * Run one query against a datasource and return its frames.
-         * @description The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables. `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step. The query runs with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows), and `limit` lowers the row limit. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The response has the shape of panel data, with `meta.cached` always false.
+         * @description The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables. `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step. The query runs with the agent tools' limits (15 seconds, 200 series for metric queries, 100,000 points, 1,000 rows; log lines count against the row limit only), and `limit` lowers the row limit. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times, fractional seconds included. The response has the shape of panel data, with `meta.cached` always false. `meta.truncated` says the query stopped at the row limit, `meta.partial` that the datasource did not cover the whole range, and `meta.oldest` and `meta.newest` are the time edges of the rows returned. To load older rows, repeat the request with `to` set to `meta.oldest`; to load newer rows, with `from` set to `meta.newest`. On Loki `end` is exclusive and `start` inclusive, so the oldest line is not repeated and the newest one is; on ClickHouse `$__timeFilter` includes both ends. Clients de-duplicate by time plus body. `page_size` turns paging on for an instant query on a logs or trace datasource, and the response then carries `meta.page`: ClickHouse pages by offset with an exact `total`, so any `page` can be asked for directly; Loki and Tempo page by a time cursor, so a page past the first needs the `next` cursor of the page before it, and `total` is the rows walked so far (`gte`) until the last page makes it exact. `prev` is the cursor that produced the page. With a cursor the time range is pinned from it and `from` and `to` are ignored; without one, send absolute times for a stable total.
          */
         post: operations["exploreQuery"];
         delete?: never;
@@ -924,6 +924,184 @@ export interface paths {
          * @description The counts cover every line the query matches over the whole range, not only the lines the logs page shows. The server picks a whole-second step of at least one second so the range fits in at most `buckets` buckets, aligns the range to it, and returns every bucket, oldest first. Each line is filed as `error`, `warning`, `info` or `other` by its level word: err, eror, error, emerg, fatal, alert, crit, critical and panic are errors; warn and warning are warnings; info, information, informational and notice are info; anything else, or no level, is other. For Loki the query must be a log query that starts with a stream selector; the server counts it with `count_over_time` by the first of the `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, so a pipeline that extracts `level` with `| json` or `| logfmt` is honored. For ClickHouse the query must be one SELECT; the server drops its top-level `ORDER BY` and `LIMIT` and groups the rows it matches by the result columns `Timestamp` and `SeverityText`, the columns the logs page selects. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
          */
         post: operations["logVolume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/log-facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Count the top values of each label, field or column a logs query matches over a range.
+         * @description Each field answers with its most frequent values and their counts, exact where the datasource can count and from a sample of the newest lines where it cannot; every field says which with `exact`. On Loki the index labels of the matched streams (`kind` `label`) are counted exactly from the index volume API, whose counts are bytes, so those fields carry `unit` `bytes`; parsed fields (`kind` `field`) and structured-metadata fields (`kind` `metadata`, a Loki field with no parser) are counted from the newest `sample` lines of the full query, and the response says so with `sampled` and `lines_sampled`. The Loki query must be a log query that starts with a stream selector; the selector before the first `|` picks the streams. On ClickHouse every field (`kind` `column`) is counted exactly with one `GROUP BY` per field over the query with its top-level `ORDER BY` and `LIMIT` dropped; the query must be one SELECT without UNION, INTERSECT, EXCEPT or LIMIT BY. Without `fields`, Loki counts every index label of the matched streams plus every detected field, and ClickHouse every result column except `Timestamp`, `Body`, `TraceId` and `SpanId`, plus the top 20 keys of `LogAttributes` as `LogAttributes.<key>` when it is a result column. Fields come exact first, then by cardinality ascending, then by name; values by count descending, then by value. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+         */
+        post: operations["logFacets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/trace-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read the log lines that carry a trace id, or one span id, from a logs datasource.
+         * @description The trace view's path from a span to its logs; the datasource in the path must be Loki or ClickHouse. The server builds the query itself from the ids, so no query text crosses this call. On Loki it narrows the stream selector to `service` through the first of the `service_name`, `service`, `app` and `job` labels present in the window, or reads every stream when `service` is not given; it filters `trace_id` (and `span_id`) as structured metadata or parsed labels first and, when that answers no line, runs the same selector with a line filter on the id, so lines that only carry the id in their body still match. On ClickHouse it reads the logs page's columns from `otel_logs` where `TraceId` (and `SpanId`) match within the window, newest first. `from` and `to` are the trace's window, with the grammar of the explore query; the web passes the trace's start minus a minute to its end plus a minute. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests and takes one of the server's shared upstream slots, waiting at most 5 seconds for one before it answers 429 `too_many_requests` with `Retry-After`. Viewers and above may call it, service-account keys included. The response has the shape of panel data with one query `A` of kind `instant`, `meta.truncated` when the line limit was hit and `meta.oldest` and `meta.newest` as the time edges of the lines returned; an empty result is a 200 with no frames, never a 404.
+         */
+        post: operations["traceLogs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/traces/{trace_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+                /** @description The trace id as 16 or 32 hex characters, in either case. */
+                trace_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read one trace whole from a Tempo or ClickHouse datasource.
+         * @description Answers every span of the trace as one frame with ref `A` and the columns `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `ServiceName`, `StartTime`, `Duration`, `StatusCode`, `SpanAttributes`, `ResourceAttributes`, `SpanKind`, `SpanEvents` and `SpanLinks`, sorted by `StartTime` then `SpanId`. `SpanKind` is one of `Server`, `Client`, `Producer`, `Consumer`, `Internal` or `Unspecified`, `SpanEvents` is a JSON array string of `{"time_ms", "name", "attributes"}` objects, and `SpanLinks` a JSON array string of `{"trace_id", "span_id", "attributes"}` objects with lowercase hex ids; both are `[]` when the span has none. A trace over 20,000 spans is cut to its earliest 20,000: `meta.rows` is the number of spans returned, `meta.rows_total` the number in the trace and `meta.truncated` says the two differ. `meta.bytes` is the size of Tempo's payload in bytes and `meta.elapsed_ms` the time the upstream read took; ClickHouse reports no `bytes`. `meta.kind` is `instant` and `meta.cached` is always false. `from` and `to` bound the search and default to the last 24 hours; they take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The call runs with the agent tools' 15 second timeout, is never cached, and counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included.
+         */
+        get: operations["getTrace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/trace-stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Count spans and errors per bucket and give the duration distribution of the spans a filter matches.
+         * @description On Tempo `query` is a TraceQL spanset filter such as `{ resource.service.name = "checkout" }`, and `{}` matches every span; on ClickHouse it is a SQL boolean expression over `otel_traces` such as `ServiceName = 'checkout'`, and an empty string matches every span. The server picks a whole-second step of at least one second so the range fits in at most `buckets` buckets, aligns the range to it, and returns every bucket, oldest first, zero-filled. Each bucket carries its span and error counts and the p50, p95 and p99 span durations in milliseconds, null when the bucket has no spans. `histogram` is the duration distribution of every matched span over the whole range in powers-of-two buckets, ascending by `le_ms`, empty when nothing matched. `partial` is true when Tempo did not search every block, so the counts are a lower bound. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+         */
+        post: operations["traceStats"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/trace-compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rank the attribute values that set a set of traces apart from a baseline.
+         * @description Reads every span of the `selected` traces and of the `baseline` traces from a Tempo or ClickHouse datasource and counts, once per trace, each attribute value any of its spans carries: `name` (the span name), `kind` (`Server`, `Client`, `Producer`, `Consumer`, `Internal` or `Unspecified`), `status` (`Ok`, `Error` or `Unset`), `resource.<key>` and `span.<key>`. Only scalar values count, as their text; arrays and maps are skipped, and a value is cut to 256 bytes. Each trace contributes its earliest 2,000 spans. `differences` lists the pairs whose share of selected traces and share of baseline traces differ by at least 0.1, ranked by that gap, then attribute, then value, the first `limit` of them; `truncated` says more passed the threshold. A pair carried by every trace of both sets never appears. `selected.read` and `baseline.read` count the traces whose spans were read; a trace not found in the range, or not reached before the deadline, is left out and is not an error, and `partial` is true when any read count is below its requested count. `attributes` is the number of distinct attribute names seen across both sets. Trace ids are 16 or 32 hex characters in either case, lowercased and de-duplicated by the server; an id in both lists is refused. `from` and `to` are the range the traces were found in and take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The call runs with the agent tools' 15 second timeout, is never cached, and counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included.
+         */
+        post: operations["compareTraces"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/log-context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read the log lines just before and just after one line.
+         * @description `anchor` is the `TimeNs` string of the line, as the explore query and the tail return it, so the context is exact to the nanosecond and needs one request. `before.frames` hold the newest `before` lines older than the anchor, newest first, read from `window_ms` before the anchor up to it; `after.frames` hold the oldest `after` lines newer than the anchor, oldest first, read from one nanosecond after the anchor to `window_ms` after it. The anchored line is on neither side. Each side's `truncated` is true when more lines exist in its window; a side with a count of 0 is not read and answers no frames. The two reads run at the same time with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. For Loki the query must be a log query that starts with a stream selector; for ClickHouse one SELECT that selects `Timestamp`, whose top-level `ORDER BY` and `LIMIT` the server replaces. Viewers and above may call it, service-account keys included.
+         */
+        post: operations["logContext"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/log-patterns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Group the lines a logs query matches over a range into patterns with counts.
+         * @description A pattern is a line template with the variable tokens replaced by `<*>`, with the number of lines it covers, ordered by count descending then by pattern. On Loki with the pattern ingester enabled and a query that is a bare stream selector, the patterns come from Loki's pattern index over the whole range (`source` `loki`): `count` sums Loki's samples over the range, `first` and `last` are the first and last sample buckets, `sample` is empty and `lines_sampled` is 0. Otherwise, on a Loki without the pattern ingester, a Loki query with filters or stages, or ClickHouse, the server reads the newest `sample` lines of the query and clusters them itself (`source` `server`): `count` is the lines of the sample in that pattern, `sample` the newest of them, `first` and `last` the times of its oldest and newest sampled lines, and `lines_sampled` the lines read. Either way every pattern carries a `trend` of 30 equal buckets over the range, and a `level`. `lines_matched` is the sum of every pattern's count, before the `limit` cut, and `truncated` says more patterns exist than `limit`. The Loki query must be a log query that starts with a stream selector; the ClickHouse query one SELECT that selects `Timestamp` and `Body`, whose top-level `ORDER BY` and `LIMIT` the server replaces. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+         */
+        post: operations["logPatterns"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/tail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Stream new log lines of a logs query as Server-Sent Events.
+         * @description The server polls the datasource every second for lines newer than the last line it sent and streams them as they arrive, so the browser holds no credential and runs no query of its own. The stream starts with `retry: 3000` and an `event: ready` whose data is `{"datasource_uid","from"}`. Each poll that found lines sends an `event: lines` whose data is `{"frames","newest","truncated"}`: `frames` holds the lines in the `Frame` shape of a panel data response, every frame with `ref` `A`, oldest first, with a `TimeNs` string field beside `Time`; `newest` is the RFC 3339 time of the newest line; `truncated` is true when the poll hit `limit`, and the next poll then runs at once instead of a second later. The next poll starts one nanosecond after `newest`, so a line is sent once. A datasource failure sends an `event: error` whose data is `{"error","code"}` with the code the explore query would answer, and the stream ends; a datasource that is unavailable or slow is retried and reported only after five failed polls in a row. The first poll runs before any stream byte, so a query that cannot run answers JSON with the explore query's status instead of a stream. For Loki the query must be a log query that starts with a stream selector; for ClickHouse one SELECT that selects `Timestamp`, whose top-level `ORDER BY` and `LIMIT` the server replaces. A `: ping` comment arrives every 15 seconds and re-checks the caller's credential, and the server ends the stream after 30 minutes. Polls run with the agent tools' limits and share the server's upstream call slots, but a tail holds no in-flight query slot. A caller may hold 5 tails and the process 200. Viewers and above may call it, service-account keys included.
+         */
+        get: operations["tailLogs"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2356,6 +2534,10 @@ export interface components {
             uid: string;
             type: string;
             name: string;
+            /** @description The index pattern an Elasticsearch or OpenSearch datasource reads; absent on other types. */
+            index?: string;
+            /** @description The time field of an Elasticsearch or OpenSearch datasource; absent on other types. */
+            time_field?: string;
             healthy: boolean;
             message?: string;
             /**
@@ -2623,6 +2805,57 @@ export interface components {
             executed_at: string;
             /** @description The id of the panel whose queries ran, present only when the requested panel reuses another panel's results; the frames, queries and range are that panel's, and its transforms apply first when the reusing query sets withTransforms. */
             source_panel?: string;
+            /** @description True when a query stopped at its row limit, so more rows exist in the range. */
+            truncated: boolean;
+            /** @description True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks. */
+            partial: boolean;
+            /** @description The rows across all frames (log lines, traces, spans, table rows); 0 for series data. */
+            rows: number;
+            /** @description Present only when the datasource reports how many rows matched in the range. */
+            rows_total?: number;
+            /**
+             * Format: date-time
+             * @description The smallest value of the first time field across all frames, RFC 3339 UTC with nanoseconds; absent when no frame has a time field or no rows. To load older rows, repeat the request with `to` set to it.
+             */
+            oldest?: string;
+            /**
+             * Format: date-time
+             * @description The largest value of the first time field across all frames, RFC 3339 UTC with nanoseconds; absent when no frame has a time field or no rows. To load newer rows, repeat the request with `from` set to it.
+             */
+            newest?: string;
+            /** @description Tempo search jobs completed for this response; present only on Tempo search results. */
+            jobs_done?: number;
+            /** @description Tempo search jobs planned for this response; when jobs_done is lower the result is partial and the window the finished jobs covered is unknown. */
+            jobs_total?: number;
+            /** @description Bytes Tempo read for the search; present only on Tempo search results. */
+            inspected_bytes?: number;
+            /** @description Wall time in milliseconds of the upstream run that produced the data; a cached response repeats the value of the run that filled the cache, like executed_at. */
+            elapsed_ms?: number;
+            /** @description Size in bytes of the upstream trace payload on a Tempo trace read; absent on ClickHouse and on explore. */
+            bytes?: number;
+            page?: components["schemas"]["PageMeta"];
+        };
+        /** @description Present when the request paged; `meta.truncated` is then false and `page.total` replaces `rows_total`. */
+        PageMeta: {
+            /** @description The page read; with a cursor, the page the cursor named. */
+            page: number;
+            page_size: number;
+            /** @description The rows that match, as `total_relation` qualifies it; absent when the relation is `unknown`. */
+            total?: number;
+            /**
+             * @description `eq` is exact (ClickHouse counts; Loki and Tempo on the last page), `gte` means at least this many (Loki and Tempo while more pages exist), and `unknown` means the store could not count, such as a partial Tempo search.
+             * @enum {string}
+             */
+            total_relation: "eq" | "gte" | "unknown";
+            has_next: boolean;
+            /** @description True on every page past the first. */
+            has_prev: boolean;
+            /** @description The opaque cursor of the next page, present whenever `has_next` on Loki and Tempo; ClickHouse sends one too, and Elasticsearch and OpenSearch page by `page` and never send it. */
+            next?: string;
+            /** @description The cursor that produced this page, present when `page` is above 1; a client that walks back further keeps the chain of cursors it received. */
+            prev?: string;
+            /** @description The largest row offset this store pages to, present only on stores with such a cap, such as an Elasticsearch index's `max_result_window`; a numbered page past it is refused. */
+            window?: number;
         };
         PanelDataError: {
             error: string;
@@ -2648,6 +2881,150 @@ export interface components {
             warning: number;
             info: number;
             other: number;
+        };
+        LogFacets: {
+            /** @description Whether a sample of the newest lines was read for the fields the datasource cannot count exactly. */
+            sampled: boolean;
+            /** @description The lines the sample held, 0 when none was read. */
+            lines_sampled: number;
+            /** @description Exact fields first, then by cardinality ascending, then by name. */
+            fields: {
+                name: string;
+                /**
+                 * @description A Loki index label, a Loki parsed field, a Loki structured-metadata field, or a ClickHouse column or `LogAttributes.<key>`.
+                 * @enum {string}
+                 */
+                kind: "label" | "field" | "metadata" | "column";
+                /** @description False when the counts come from the newest `lines_sampled` lines. */
+                exact: boolean;
+                /** @description Set to `bytes` on a Loki index label, because the index volume API counts bytes, not lines. */
+                unit?: string;
+                /** @description Distinct values seen, as `detected_fields` reports it on Loki or as the sample or the group showed; a truncated field reports at least `limit` plus one. */
+                cardinality?: number;
+                /** @description By count descending, then by value. */
+                values: {
+                    value: string;
+                    count: number;
+                }[];
+                /** @description More values exist than `limit`. */
+                truncated: boolean;
+            }[];
+            /** @description More fields exist than the 50 returned. */
+            truncated: boolean;
+        };
+        TraceStats: {
+            /** @description The width of every bucket in milliseconds, a whole number of seconds and at least one. */
+            step_ms: number;
+            /** @description True when Tempo did not search every block, so the counts are a lower bound; always false on ClickHouse. */
+            partial: boolean;
+            /** @description The sum of every bucket's spans. */
+            spans: number;
+            /** @description The sum of every bucket's errors. */
+            errors: number;
+            /** @description Every bucket of the aligned range, oldest first, empty buckets included. */
+            buckets: components["schemas"]["TraceStatsBucket"][];
+            /** @description The duration distribution of every matched span, ascending by `le_ms`, empty when nothing matched. */
+            histogram: components["schemas"]["DurationBucket"][];
+        };
+        TraceStatsBucket: {
+            /**
+             * Format: date-time
+             * @description The bucket covers this instant up to, but not including, `start` plus `step_ms`.
+             */
+            start: string;
+            spans: number;
+            errors: number;
+            /** @description The median span duration in milliseconds, null when the bucket has no spans. */
+            p50_ms: number | null;
+            p95_ms: number | null;
+            p99_ms: number | null;
+        };
+        DurationBucket: {
+            /** @description The upper edge of the bucket in milliseconds; the bucket holds the spans whose duration is at most this value and above the previous edge. */
+            le_ms: number;
+            count: number;
+        };
+        TraceCompare: {
+            selected: components["schemas"]["TraceCompareSet"];
+            baseline: components["schemas"]["TraceCompareSet"];
+            /** @description The number of distinct attribute names seen across both sets. */
+            attributes: number;
+            /** @description True when fewer traces were read than requested in either set, because a trace was not found in the range or the deadline cut the read. */
+            partial: boolean;
+            /** @description The attribute values whose shares differ by at least 0.1, ranked by the gap, then attribute, then value. */
+            differences: components["schemas"]["TraceDifference"][];
+            /** @description True when more pairs passed the threshold than `limit` allowed. */
+            truncated: boolean;
+        };
+        TraceCompareSet: {
+            /** @description The distinct trace ids sent. */
+            requested: number;
+            /** @description The traces whose spans were read. */
+            read: number;
+        };
+        TraceDifference: {
+            /** @description `name`, `kind`, `status`, `resource.<key>` or `span.<key>`. */
+            attribute: string;
+            /** @description The value as text, cut to 256 bytes. */
+            value: string;
+            /** @description The share of read selected traces with a span carrying the pair, rounded to 4 decimals. */
+            selected_share: number;
+            /** @description The share of read baseline traces with a span carrying the pair, rounded to 4 decimals. */
+            baseline_share: number;
+            selected_count: number;
+            baseline_count: number;
+        };
+        LogContext: {
+            /** @description The `TimeNs` of the request. */
+            anchor: string;
+            before: components["schemas"]["LogContextSide"];
+            after: components["schemas"]["LogContextSide"];
+        };
+        LogContextSide: {
+            /** @description The lines of this side in the panel data frame shape, every frame with `ref` `A` and a `TimeNs` string field beside `Time`. */
+            frames: components["schemas"]["Frame"][];
+            /** @description More lines exist in the window on this side than were asked for. */
+            truncated: boolean;
+        };
+        LogPatterns: {
+            /**
+             * @description `loki` when Loki's pattern index answered, `elasticsearch` when the cluster's `categorize_text` aggregation answered, `server` when the patterns were computed from a sample of the newest lines.
+             * @enum {string}
+             */
+            source: "loki" | "elasticsearch" | "server";
+            /** @description The lines the server read to compute the patterns; 0 when the datasource's index answered. */
+            lines_sampled: number;
+            /** @description The sum of every pattern's count, before the `limit` cut. */
+            lines_matched: number;
+            /** @description The top patterns by count descending, then by pattern. */
+            patterns: components["schemas"]["LogPattern"][];
+            /** @description More patterns exist than `limit`. */
+            truncated: boolean;
+        };
+        LogPattern: {
+            /** @description The line template, with every variable token written `<*>`. */
+            pattern: string;
+            /** @description The lines the pattern covers, over the range from Loki's index or within the sample. */
+            count: number;
+            /** @description The newest sampled line of the pattern; empty when the index answered. */
+            sample: string;
+            /** @description RFC 3339 time of the first sample bucket or oldest sampled line; empty when the time is unknown. */
+            first: string;
+            /** @description RFC 3339 time of the last sample bucket or newest sampled line; empty when the time is unknown. */
+            last: string;
+            /** @description Exactly 30 buckets of equal width covering the range from `from` to `to`, the first starting at `from`; empty buckets are present with a `count` of 0. */
+            trend: components["schemas"]["LogPatternTrendBucket"][];
+            /**
+             * @description On `loki` the first level word in the pattern, on `server` the level most of the pattern's sampled lines carry; empty when there is none.
+             * @enum {string}
+             */
+            level: "error" | "warning" | "info" | "other" | "";
+        };
+        LogPatternTrendBucket: {
+            /** @description RFC 3339 start of the bucket. */
+            start: string;
+            /** @description The lines of the pattern in the bucket. */
+            count: number;
         };
         PanelData: {
             frames: components["schemas"]["Frame"][];
@@ -3681,10 +4058,10 @@ export interface components {
             signal?: "logs" | "traces";
         };
         DraftQuery: {
-            /** @description LogQL, ClickHouse SQL or TraceQL; empty when `language` is `filters`. */
+            /** @description LogQL, ClickHouse SQL, TraceQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`. */
             query: string;
             /** @enum {string} */
-            language: "logql" | "clickhouse_sql" | "traceql" | "filters";
+            language: "logql" | "clickhouse_sql" | "traceql" | "kql" | "filters";
             /** @description The Traces form's fields; null unless `language` is `filters`. */
             trace_filters: components["schemas"]["TraceFilters"] | null;
             explanation: string;
@@ -6070,8 +6447,17 @@ export interface operations {
                      * @default 1000
                      */
                     max_data_points?: number;
-                    /** @description The most rows the query may return; lowers the 1,000 row limit. */
+                    /** @description The most rows the query may return; lowers the 1,000 row limit. Cannot be sent with `page_size`. */
                     limit?: number;
+                    /** @description Rows per page; turns paging on. Instant queries on logs and trace datasources only, and not with `limit`. */
+                    page_size?: number;
+                    /**
+                     * @description The page to read. Needs `page_size`. On ClickHouse any page can be asked for; on Loki and Tempo a page above 1 needs `cursor`, and the page is then the cursor's.
+                     * @default 1
+                     */
+                    page?: number;
+                    /** @description The `next` or `prev` value of an earlier page of the same query. Needs `page_size`. A cursor from another datasource, query or range is refused. */
+                    cursor?: string;
                 };
             };
         };
@@ -6105,7 +6491,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`, with the query's `ref` `A`. */
+            /** @description The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`; the body carries no `ref`. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -6198,7 +6584,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The query cannot run: `query_invalid` for a Loki metric query, a ClickHouse query with a top-level UNION, INTERSECT, EXCEPT or LIMIT BY, or an upstream rejection such as an unknown column; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query. */
+            /** @description The query cannot run: `query_invalid` for a Loki metric query, a ClickHouse query with a top-level UNION, INTERSECT, EXCEPT or LIMIT BY, or an upstream rejection such as an unknown column; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query; the body carries no `ref`. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -6233,6 +6619,779 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    logFacets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The logs query the page runs. */
+                    query: string;
+                    from: string;
+                    to: string;
+                    /** @description The browser's IANA time zone, used to resolve relative times such as `now/d`. */
+                    timezone?: string;
+                    /** @description Count only these fields; on ClickHouse a name that is neither a result column nor `LogAttributes.<key>` answers `query_invalid`. */
+                    fields?: string[];
+                    /**
+                     * @description Values per field.
+                     * @default 10
+                     */
+                    limit?: number;
+                    /**
+                     * @description The newest lines to sample for fields the datasource cannot count exactly.
+                     * @default 1000
+                     */
+                    sample?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The top values of each field. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogFacets"];
+                };
+            };
+            /** @description The request is malformed or fails validation, `fields`, `limit` or `sample` is out of range, or the datasource is not Loki or ClickHouse (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The query cannot run: `query_invalid` for a Loki metric query, a ClickHouse query with a top-level UNION, INTERSECT, EXCEPT or LIMIT BY, a requested field that is not a column of the query, or an upstream rejection; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query; the body carries no `ref`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    traceLogs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    trace_id: string;
+                    /** @description Narrow the lines to one span. */
+                    span_id?: string;
+                    /** @description The span's `service.name`, used to narrow the Loki stream selector; ClickHouse ignores it. */
+                    service?: string;
+                    from: string;
+                    to: string;
+                    /** @description The browser's IANA time zone, used to resolve relative times such as `now/d`. */
+                    timezone?: string;
+                    /**
+                     * @description The most lines to return.
+                     * @default 500
+                     */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The lines of the trace, or no frames when it logged nothing in the window. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelData"];
+                };
+            };
+            /** @description The request is malformed or fails validation, or the datasource is not Loki or ClickHouse (`invalid_request`); the body carries no `ref`. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The datasource refused the query (`query_invalid`) or the result passed a limit (`limit_exceeded`); the body carries no `ref`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    getTrace: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                /** @description The browser's IANA time zone, used to resolve relative times such as `now/d`. */
+                timezone?: string;
+            };
+            header?: never;
+            path: {
+                uid: string;
+                /** @description The trace id as 16 or 32 hex characters, in either case. */
+                trace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The spans of the trace. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelData"];
+                };
+            };
+            /** @description The trace id is not 16 or 32 hex characters, `from` or `to` is not a valid time, or the datasource is not Tempo or ClickHouse (`invalid_request`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist, or no span of the trace lies in the range (`not_found`); widen `from` and `to`. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The response is over 32 MiB (`limit_exceeded`); the body carries no `ref`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    traceStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description A TraceQL spanset filter on Tempo, or a SQL boolean expression over `otel_traces` on ClickHouse. */
+                    query: string;
+                    from: string;
+                    to: string;
+                    /**
+                     * @description The most buckets wanted.
+                     * @default 60
+                     */
+                    buckets?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The span counts, error counts, quantiles and duration histogram. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraceStats"];
+                };
+            };
+            /** @description The request is malformed or fails validation, `buckets` is out of range, or the datasource is not Tempo or ClickHouse (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The filter cannot run: `query_invalid` for a Tempo query that is not a `{ ... }` spanset filter or that Tempo rejects, or a ClickHouse expression the server rejects; `query_forbidden` or `limit_exceeded` as for the explore query; the body carries no `ref`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    compareTraces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The trace ids to explain. */
+                    selected: string[];
+                    /** @description The trace ids to compare against, such as the other traces the search returned. */
+                    baseline: string[];
+                    from: string;
+                    to: string;
+                    /** @description The browser's IANA time zone, used to resolve relative times such as `now/d`. */
+                    timezone?: string;
+                    /**
+                     * @description The most differences wanted.
+                     * @default 20
+                     */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The ranked differences and how many traces of each set were read. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraceCompare"];
+                };
+            };
+            /** @description The request is malformed or fails validation: a list is empty or over its cap, an id is not 16 or 32 hex characters, an id is in both lists, `limit` is out of range, `from` or `to` is not a valid time, or the datasource is not Tempo or ClickHouse (`invalid_request`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource did not answer within the 15 second query timeout before any trace was read, or the request did not finish within 20 seconds. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    logContext: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The query the logs page runs; the server does not rewrite it beyond the time bounds and order. */
+                    query: string;
+                    /** @description The line's `TimeNs`, a nanosecond epoch time as a decimal string. */
+                    anchor: string;
+                    /**
+                     * @description The most lines wanted before the anchor.
+                     * @default 50
+                     */
+                    before?: number;
+                    /**
+                     * @description The most lines wanted after the anchor.
+                     * @default 50
+                     */
+                    after?: number;
+                    /**
+                     * @description How far before and after the anchor to look, in milliseconds.
+                     * @default 3600000
+                     */
+                    window_ms?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The lines on each side of the anchor. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogContext"];
+                };
+            };
+            /** @description The request is malformed or fails validation, `anchor` is not a nanosecond epoch time, a count or `window_ms` is out of range, or the datasource is not Loki or ClickHouse (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The query cannot run: `query_invalid` for a Loki metric query, a ClickHouse query without `Timestamp` or with a top-level set operator, or an upstream rejection such as an unknown column; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query; the body carries no `ref`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    logPatterns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The logs query the page runs. */
+                    query: string;
+                    from: string;
+                    to: string;
+                    /** @description The browser's IANA time zone, used to resolve relative times such as `now/d`. */
+                    timezone?: string;
+                    /**
+                     * @description The most patterns to return.
+                     * @default 20
+                     */
+                    limit?: number;
+                    /**
+                     * @description The newest lines to read when the server computes the patterns itself.
+                     * @default 2000
+                     */
+                    sample?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The top patterns of the query over the range. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPatterns"];
+                };
+            };
+            /** @description The request is malformed or fails validation, `limit` or `sample` is out of range, or the datasource is not Loki or ClickHouse (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The query cannot run: `query_invalid` for a Loki metric query, a ClickHouse query that does not select `Timestamp` or `Body`, or an upstream rejection; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query; the body carries no `ref`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    tailLogs: {
+        parameters: {
+            query: {
+                /** @description The query the logs page runs. */
+                query: string;
+                /** @description Where the first poll starts: a relative expression such as `now-30s`, epoch milliseconds or an RFC 3339 time, in the past. Defaults to 10 seconds ago. */
+                from?: string;
+                /** @description The most lines one poll returns. */
+                limit?: number;
+                /** @description The IANA zone a relative `from` resolves in; defaults to UTC. */
+                timezone?: string;
+            };
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description An open `text/event-stream`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description A parameter is missing, repeated, unknown or out of range, `from` is not a time or lies in the future, or the datasource is not Loki or ClickHouse (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The datasource does not exist (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The first poll cannot run: `query_invalid` for a Loki metric query, a ClickHouse query without `Timestamp` or with a top-level set operator, or an upstream rejection; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The caller already holds 5 tails (`too_many_streams`), or the server's shared upstream call slots stayed busy for the first poll (`too_many_requests`). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The server failed to handle the request, including a first poll that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The datasource is unavailable for the first poll. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The process holds 200 tails (`too_many_streams`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The datasource did not answer the first poll within the 15 second query timeout. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
@@ -6380,6 +7539,12 @@ export interface operations {
                 search?: string;
                 /** @description Maximum names to return. */
                 limit?: number;
+                /** @description Start of the window the names must have been seen in, as a relative expression such as `now-6h`, epoch milliseconds or an RFC 3339 time. `from` and `to` are given together or not at all; one without the other is a 400. Without them Loki and Tempo answer their own default window, and Prometheus and ClickHouse ignore them. */
+                from?: string;
+                /** @description End of the window, with the same grammar as `from`. */
+                to?: string;
+                /** @description The browser's IANA time zone, used to resolve relative times such as `now/d`. */
+                timezone?: string;
             };
             header?: never;
             path: {
@@ -6423,6 +7588,12 @@ export interface operations {
                 search?: string;
                 /** @description Maximum names to return. */
                 limit?: number;
+                /** @description Start of the window the names must have been seen in, as a relative expression such as `now-6h`, epoch milliseconds or an RFC 3339 time. `from` and `to` are given together or not at all; one without the other is a 400. Without them Loki and Tempo answer their own default window, and Prometheus and ClickHouse ignore them. */
+                from?: string;
+                /** @description End of the window, with the same grammar as `from`. */
+                to?: string;
+                /** @description The browser's IANA time zone, used to resolve relative times such as `now/d`. */
+                timezone?: string;
             };
             header?: never;
             path: {

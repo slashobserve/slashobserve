@@ -68,26 +68,35 @@ export function logsUrl(search: LogsLinkSearch): string {
 
 type TraceRange = { from: string; to: string }
 
-function traceSearch(datasourceUid: string, range: TraceRange | undefined) {
-  return { ds: datasourceUid, from: range?.from, to: range?.to }
+function traceSearch(
+  datasourceUid: string,
+  range: TraceRange | undefined,
+  span: string | undefined
+) {
+  return { ds: datasourceUid, from: range?.from, to: range?.to, span }
 }
 
 export function traceLink(
   traceId: string,
   datasourceUid: string,
-  range?: TraceRange
+  range?: TraceRange,
+  span?: string
 ) {
   return {
     to: "/t/$traceId",
     params: { traceId },
-    search: traceSearch(datasourceUid, range),
+    search: traceSearch(datasourceUid, range, span),
   } as const
 }
 
 export function traceUrl(
   traceId: string,
   datasourceUid: string,
-  range?: TraceRange
+  range?: TraceRange,
+  span?: string
 ): string {
-  return path("t", traceId) + stringifySearch(traceSearch(datasourceUid, range))
+  return (
+    path("t", traceId) +
+    stringifySearch(traceSearch(datasourceUid, range, span))
+  )
 }

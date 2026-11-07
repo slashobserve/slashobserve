@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/elasticsearch"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -17,11 +18,13 @@ const (
 	draftLabelsLimit  = 200
 	draftValuesLimit  = 100
 	draftTablesLimit  = 100
+	draftFieldsShown  = 60
 	draftValueBytes   = 200
 	moreNotShown      = " (more not shown)"
 
 	tempoServiceAttribute   = "resource.service.name"
 	clickhouseServiceColumn = "ServiceName"
+	textFacetNote           = "text (facet via .keyword)"
 	clickhouseLogsTable     = "otel_logs"
 	clickhouseTracesTable   = "otel_traces"
 )
@@ -30,6 +33,10 @@ var (
 	lokiServiceLabels = []string{"service_name", "service", "app", "job"}
 	lokiLevelLabels   = []string{"detected_level", "level", "severity_text", "severity", "lvl"}
 )
+
+type fieldRoleSource interface {
+	Roles(ctx context.Context) (elasticsearch.FieldRoles, error)
+}
 
 type draftFacts struct {
 	Text             string
@@ -62,6 +69,8 @@ func (r *Registry) draftContext(ctx context.Context, inst datasource.Instance, s
 		err = b.tempo()
 	case spec.ClickHouse:
 		err = b.clickhouse(signal)
+	case spec.Elasticsearch, spec.OpenSearch:
+		err = b.search(inst)
 	}
 	b.facts.Text = b.text.String()
 	switch {
@@ -130,6 +139,60 @@ func (b *factsBuilder) clickhouse(signal string) error {
 		b.list("columns of "+table, items, columns.Truncated)
 	}
 	return b.services("values of "+clickhouseServiceColumn+" in "+table, datasource.DiscoverRequest{Kind: datasource.DiscoverLabelValues, Table: table, Label: clickhouseServiceColumn, Limit: draftValuesLimit})
+}
+
+func (b *factsBuilder) search(inst datasource.Instance) error {
+	cat, err := b.read("fields", datasource.DiscoverRequest{Kind: datasource.DiscoverLabels, Limit: draftLabelsLimit})
+	if err != nil || cat == nil {
+		return err
+	}
+	kinds, err := b.read("field kinds", datasource.DiscoverRequest{Kind: datasource.DiscoverColumns, Limit: datasource.MaxDiscoverLimit})
+	if err != nil {
+		return err
+	}
+	shown := cat.Labels[:min(len(cat.Labels), draftFieldsShown)]
+	items := make([]string, len(shown))
+	for i, name := range shown {
+		items[i] = factName(name)
+		if kinds != nil {
+			items[i] = strings.TrimSpace(items[i] + " " + fieldKind(kinds.Columns, name))
+		}
+	}
+	b.list("fields", items, cat.Truncated || len(shown) < len(cat.Labels))
+	source, ok := inst.Datasource.(fieldRoleSource)
+	if !ok {
+		return nil
+	}
+	roles, err := source.Roles(b.ctx)
+	if err != nil {
+		if b.ctx.Err() != nil {
+			return b.ctx.Err()
+		}
+		b.line("field roles: unavailable")
+		return nil
+	}
+	if roles.Service != "" {
+		if err := b.services("values of "+roles.Service, datasource.DiscoverRequest{Kind: datasource.DiscoverLabelValues, Label: roles.Service, Limit: draftValuesLimit}); err != nil {
+			return err
+		}
+	}
+	if roles.Level != "" {
+		return b.values("values of "+roles.Level, datasource.DiscoverRequest{Kind: datasource.DiscoverLabelValues, Label: roles.Level, Limit: draftValuesLimit})
+	}
+	return nil
+}
+
+func fieldKind(columns []datasource.Column, name string) string {
+	for _, c := range columns {
+		if c.Name != name {
+			continue
+		}
+		if c.Type == string(elasticsearch.KindText) {
+			return textFacetNote
+		}
+		return factName(c.Type)
+	}
+	return ""
 }
 
 func (b *factsBuilder) read(what string, req datasource.DiscoverRequest) (*datasource.Catalog, error) {

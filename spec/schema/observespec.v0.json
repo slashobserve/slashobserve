@@ -1094,7 +1094,9 @@
             "prometheus",
             "clickhouse",
             "loki",
-            "tempo"
+            "tempo",
+            "elasticsearch",
+            "opensearch"
           ]
         },
         "regex": {

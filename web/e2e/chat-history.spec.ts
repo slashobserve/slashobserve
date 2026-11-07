@@ -1,6 +1,7 @@
 import type { Locator, Route } from "@playwright/test"
 
 import { mutationHeaders } from "./api"
+import { expectNoAnimations } from "./dashboards"
 import { expect, test, type Page } from "./fixtures"
 
 const neverSavesPrompt = "e2e: a slow run that never saves"
@@ -32,11 +33,16 @@ function rowsOf(aside: Locator) {
   return aside.locator("[data-chat-row]")
 }
 
+function rowOf(aside: Locator, requestId: string) {
+  return aside.locator(`[data-chat-row][id="chat-row-${requestId}"]`)
+}
+
 async function openHistory(page: Page, path = "/") {
   await page.goto(path)
   await historyButton(page).click()
   await expect(historyButton(page)).toHaveAttribute("aria-expanded", "true")
   await expect(panel(page)).toBeVisible()
+  await expectNoAnimations(panel(page))
 }
 
 function listedRequest(label: string, index: number) {
@@ -204,7 +210,7 @@ for (const scheme of ["light", "dark"] as const) {
         const id = await createRequest(page, unanswerablePrompt)
         await openHistory(page)
 
-        await rowsOf(panel(page)).first().click()
+        await rowOf(panel(page), id).click()
         await expect(page).toHaveURL(new RegExp(`/c/${id}$`))
         await expect(panel(page)).toBeVisible()
         await expect(

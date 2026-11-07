@@ -257,6 +257,9 @@ func New(d Deps) *Registry {
 		if e.tool.MinRole == "" {
 			panic("tools: " + e.tool.Name + " has no MinRole")
 		}
+		if _, dup := r.entries[e.tool.Name]; dup {
+			panic("tools: " + e.tool.Name + " registered twice")
+		}
 		e.tool.AgentDescription, e.tool.AgentInputSchema = agentWording.render(e.tool)
 		e.tool.Description, e.tool.InputSchema = mcpWording.render(e.tool)
 		r.fields[e.tool.Name] = surfaceFields{mcp: propertyNames(e.tool.InputSchema), agent: propertyNames(e.tool.AgentInputSchema)}
@@ -267,20 +270,17 @@ func New(d Deps) *Registry {
 	return r
 }
 
+var entryBuilders []func(*Registry) []entry
+
+func registerEntries(build func(*Registry) []entry) {
+	entryBuilders = append(entryBuilders, build)
+}
+
 func (r *Registry) baseEntries() []entry {
 	var all []entry
-	all = append(all, r.discoveryEntries()...)
-	all = append(all, r.queryEntries()...)
-	all = append(all, r.dashboardEntries()...)
-	all = append(all, r.panelEntries()...)
-	all = append(all, r.commentEntries()...)
-	all = append(all, r.folderEntries()...)
-	all = append(all, r.importEntries()...)
-	all = append(all, r.guideEntries()...)
-	all = append(all, r.findingEntries()...)
-	all = append(all, r.healthEntries()...)
-	all = append(all, r.annotationEntries()...)
-	all = append(all, r.draftEntries()...)
+	for _, build := range entryBuilders {
+		all = append(all, build(r)...)
+	}
 	return all
 }
 

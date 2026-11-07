@@ -1,41 +1,47 @@
-import { useMemo, type RefObject } from "react"
+import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
-import { exploreKeys } from "@/api/keys"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { WireFrame } from "@/dashboards/queries"
 import type { DatasourceStatus } from "@/datasources/queries"
-import { zonedDateTimeMs } from "@/lib/time"
-import type { LogEntry } from "@/panels/logs/logs-model"
-import { SidePanel } from "@/shell/side-panel"
+import type { LogSelection } from "@/panels/logs/logs-panel"
 
 import {
-  anchorRowKey,
-  clickhouseContextQueries,
+  anchorFrames,
+  anchorMatcher,
+  anchorNs,
   contextFrames,
-  lokiAfterQuery,
-  lokiBeforeQuery,
-  lokiStreamSelector,
-  nextAfterStep,
-  rowsPerAfterStep,
+  contextQuery,
+  contextQueryFor,
+  contextStep,
+  contextWindows,
+  dateFieldNote,
+  defaultContextLines,
+  defaultContextWindowMs,
+  maxContextLines,
+  moreLines,
+  type LogContext,
   serviceNameOf,
 } from "./context-query"
-import { exploreErrorText, exploreRequest } from "./explore"
-import { rowCount, rowTime } from "./frames"
-import { ExploreLogs, type ContextRequest } from "./logs-results"
+import { exploreErrorText } from "./explore"
+import { rowCount } from "./frames"
+import { ExploreLogs } from "./logs-results"
+import { isSearchFamily } from "./search"
 import { useElementSize } from "./use-element-size"
 
 type Props = {
   datasource: DatasourceStatus
-  anchor: ContextRequest
+  anchor: LogSelection
   indexedLabels: readonly string[] | undefined
-  onClose: () => void
-  trigger: RefObject<HTMLElement | null>
 }
-
-type AfterLines = { frames: WireFrame[]; incomplete: boolean }
 
 const contextDisplay = {
   showTime: true,
@@ -48,157 +54,86 @@ const contextDisplay = {
 
 const skeletonRows = [0, 1, 2, 3, 4]
 
-function linesAfter(frames: readonly WireFrame[], anchorMs: number): number {
-  let count = 0
-  for (const frame of frames) {
-    const rows = Math.max(
-      0,
-      ...frame.fields.map((field) => field.values.length)
-    )
-    for (let row = 0; row < rows; row++) {
-      const time = rowTime(frame, row)
-      if (time !== null && time > anchorMs) count++
-    }
-  }
-  return count
+const windowItems = contextWindows.map(({ ms, label }) => ({
+  value: String(ms),
+  label,
+}))
+
+const dateFieldText = "On a date field, context is exact to the millisecond."
+
+export function ContextTab(props: Props) {
+  const { entry } = props.anchor
+  return (
+    <ContextLines
+      key={`${props.datasource.uid}|${anchorNs(entry)}|${entry.message}`}
+      {...props}
+    />
+  )
 }
 
-async function lokiAfterLines(
-  uid: string,
-  selector: string,
-  anchorMs: number,
-  signal: AbortSignal
-): Promise<AfterLines> {
-  let step: number | null = 0
-  let result: AfterLines = { frames: [], incomplete: false }
-  while (step !== null) {
-    const data = await exploreRequest(
-      uid,
-      lokiAfterQuery(selector, anchorMs, step),
-      signal
-    )
-    const saturated = rowCount(data.frames) === rowsPerAfterStep
-    result = {
-      frames: data.frames,
-      incomplete: result.incomplete || (step === 0 && saturated),
-    }
-    step = nextAfterStep(step, linesAfter(data.frames, anchorMs), saturated)
-  }
-  return result
-}
-
-type Search =
-  | { kind: "loki"; selector: string }
-  | { kind: "clickhouse"; service: string }
-  | { kind: "none"; reason: string }
-
-function searchFor(
-  datasource: DatasourceStatus,
-  anchor: ContextRequest,
-  indexedLabels: readonly string[] | undefined
-): Search {
-  if (datasource.type === "clickhouse") {
-    const service = serviceNameOf(anchor.entry)
-    return service === null
-      ? { kind: "none", reason: "This line has no ServiceName to search by." }
-      : { kind: "clickhouse", service }
-  }
-  const selector = lokiStreamSelector(anchor.streamLabels, indexedLabels)
-  return selector === null
-    ? { kind: "none", reason: "This line has no stream labels to search by." }
-    : { kind: "loki", selector }
-}
-
-export function ContextPanel({
-  datasource,
-  anchor,
-  indexedLabels,
-  onClose,
-  trigger,
-}: Props) {
+function ContextLines({ datasource, anchor, indexedLabels }: Props) {
   const { entry } = anchor
-  const anchorMs = entry.time ?? 0
-  const rowKey = anchorRowKey(entry)
-  const anchorKey = rowKey ?? `${anchorMs}|${entry.message}`
-  const search = searchFor(datasource, anchor, indexedLabels)
   const uid = datasource.uid
+  const searchFamily = isSearchFamily(datasource.type)
+  const [before, setBefore] = useState(defaultContextLines)
+  const [after, setAfter] = useState(defaultContextLines)
+  const [windowMs, setWindowMs] = useState(defaultContextWindowMs)
+  const query = contextQueryFor(
+    datasource.type,
+    entry,
+    anchor.streamLabels,
+    indexedLabels
+  )
+  const ns = anchorNs(entry)
+  const unavailable =
+    query === null
+      ? "This line has no stream labels to search by."
+      : ns === null
+        ? "This line has no time."
+        : null
 
-  const before = useQuery({
-    queryKey: exploreKeys.context(uid, `${anchorKey}:before`),
-    enabled: search.kind !== "none",
-    queryFn: ({ signal }) =>
-      exploreRequest(
-        uid,
-        search.kind === "loki"
-          ? lokiBeforeQuery(search.selector, anchorMs)
-          : clickhouseContextQueries(
-              search.kind === "clickhouse" ? search.service : "",
-              anchorMs
-            ).before,
-        signal
-      ),
-    retry: false,
-    staleTime: 60_000,
-  })
-  const after = useQuery({
-    queryKey: exploreKeys.context(uid, `${anchorKey}:after`),
-    enabled: search.kind !== "none",
-    queryFn: async ({ signal }): Promise<AfterLines> => {
-      if (search.kind === "loki") {
-        return lokiAfterLines(uid, search.selector, anchorMs, signal)
-      }
-      const data = await exploreRequest(
-        uid,
-        clickhouseContextQueries(
-          search.kind === "clickhouse" ? search.service : "",
-          anchorMs
-        ).after,
-        signal
-      )
-      return { frames: data.frames, incomplete: false }
-    },
-    retry: false,
-    staleTime: 60_000,
+  const context = useQuery({
+    ...contextQuery(uid, {
+      query: query ?? "",
+      anchor: ns ?? "",
+      before,
+      after,
+      window_ms: windowMs,
+    }),
+    enabled: unavailable === null,
   })
 
+  const { data } = context
   const frames = useMemo(
-    () =>
-      before.data && after.data
-        ? contextFrames([...before.data.frames, ...after.data.frames], {
-            time: anchorMs,
-            key: rowKey,
-          })
-        : [],
-    [before.data, after.data, anchorMs, rowKey]
+    () => (data ? contextFrames(data, anchorFrames(entry)) : []),
+    [data, entry]
   )
-  const isMarked = useMemo(
-    () => (candidate: LogEntry) =>
-      candidate.time === entry.time && candidate.message === entry.message,
-    [entry.time, entry.message]
-  )
+  const isMarked = useMemo(() => anchorMatcher(entry), [entry])
   const { ref, height } = useElementSize<HTMLDivElement>()
-  const error = before.error ?? after.error
-  const loading = before.isPending || after.isPending
+  const windowLabel =
+    contextWindows.find((choice) => choice.ms === windowMs)?.label ?? ""
+  const service = serviceNameOf(entry)
+  const scope =
+    datasource.type === "loki"
+      ? query
+      : datasource.type === "clickhouse" && service !== null
+        ? `ServiceName = ${service}`
+        : null
 
   function body() {
-    if (search.kind === "none") {
-      return (
-        <p className="text-[13px] text-muted-foreground">{search.reason}</p>
-      )
+    if (unavailable !== null) {
+      return <p className="text-[13px] text-muted-foreground">{unavailable}</p>
     }
-    if (error) {
+    if (context.error) {
       return (
         <Alert variant="destructive">
           <AlertDescription className="flex flex-col items-start gap-2">
-            {exploreErrorText(error)}
+            {exploreErrorText(context.error)}
             <Button
               type="button"
               variant="outline"
               size="xs"
-              onClick={() => {
-                if (before.isError) void before.refetch()
-                if (after.isError) void after.refetch()
-              }}
+              onClick={() => void context.refetch()}
             >
               Retry
             </Button>
@@ -206,20 +141,13 @@ export function ContextPanel({
         </Alert>
       )
     }
-    if (loading) {
+    if (!data) {
       return (
         <div aria-busy="true" className="flex flex-col gap-2">
           {skeletonRows.map((row) => (
             <Skeleton key={row} className="h-5" />
           ))}
         </div>
-      )
-    }
-    if (rowCount(frames) <= 1) {
-      return (
-        <p className="text-[13px] text-muted-foreground">
-          No other lines in this stream within an hour.
-        </p>
       )
     }
     return height > 0 ? (
@@ -234,31 +162,94 @@ export function ContextPanel({
     ) : null
   }
 
+  function loadMore(
+    label: string,
+    count: number,
+    truncated: boolean | undefined,
+    set: (next: number) => void
+  ) {
+    if (!truncated || count >= maxContextLines) return null
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        size="xs"
+        className="self-start"
+        disabled={context.isPlaceholderData}
+        onClick={() => set(moreLines(count))}
+      >
+        {label}
+      </Button>
+    )
+  }
+
+  function emptyNote(side: LogContext["before"], direction: string) {
+    if (side.truncated || rowCount(side.frames) > 0) return null
+    return (
+      <p className="text-[13px] text-muted-foreground">
+        No more lines within {windowLabel} {direction}.
+      </p>
+    )
+  }
+
   return (
-    <SidePanel
-      title="Lines around this line"
-      description={
-        entry.time === null ? undefined : zonedDateTimeMs(entry.time, undefined)
-      }
-      onClose={onClose}
-      trigger={trigger}
+    <section
+      aria-label={searchFamily ? "Surrounding documents" : "Surrounding lines"}
+      className="flex min-h-0 flex-1 flex-col gap-2"
     >
-      {search.kind !== "none" ? (
-        <p className="font-mono text-xs [overflow-wrap:anywhere]">
-          {search.kind === "loki"
-            ? search.selector
-            : `ServiceName = ${search.service}`}
-        </p>
+      <h3 className="text-[13px] font-medium">
+        {searchFamily ? "Surrounding documents" : "Surrounding lines"}
+      </h3>
+      {scope !== null ? (
+        <p className="font-mono text-xs [overflow-wrap:anywhere]">{scope}</p>
       ) : null}
-      {after.data?.incomplete ? (
-        <p className="text-[13px] text-muted-foreground">
-          More than 1,000 lines arrived in the 10 seconds after this line, so
-          the lines after it are not complete.
-        </p>
-      ) : null}
+      {loadMore(
+        `Load ${contextStep} older`,
+        before,
+        data?.before.truncated,
+        setBefore
+      )}
       <div ref={ref} className="relative min-h-80 flex-1">
         <div className="absolute inset-0 flex flex-col gap-2">{body()}</div>
       </div>
-    </SidePanel>
+      {loadMore(
+        `Load ${contextStep} newer`,
+        after,
+        data?.after.truncated,
+        setAfter
+      )}
+      {data ? (
+        <>
+          {emptyNote(data.before, "before")}
+          {emptyNote(data.after, "after")}
+          {dateFieldNote(datasource.type, frames) ? (
+            <p className="text-[13px] text-muted-foreground">{dateFieldText}</p>
+          ) : null}
+        </>
+      ) : null}
+      {unavailable === null ? (
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] text-muted-foreground">Window</span>
+          <Select
+            items={windowItems}
+            value={String(windowMs)}
+            onValueChange={(next) => {
+              if (next !== null) setWindowMs(Number(next))
+            }}
+          >
+            <SelectTrigger size="sm" aria-label="Window">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent alignItemWithTrigger={false}>
+              {windowItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
+    </section>
   )
 }

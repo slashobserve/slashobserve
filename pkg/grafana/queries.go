@@ -232,6 +232,7 @@ const (
 	queryClickHouse  queryKind = "clickhouse"
 	queryLoki        queryKind = "loki"
 	queryTempo       queryKind = "tempo"
+	queryElastic     queryKind = "elastic"
 )
 
 func altinityFlavor(target map[string]any, src *sourceDS) bool {
@@ -260,6 +261,8 @@ func queryKindOf(ref dsRef, target map[string]any) queryKind {
 		return queryLoki
 	case ref.src.kind == kindTempo:
 		return queryTempo
+	case ref.src.kind == kindElastic, ref.src.kind == kindOpenSearch:
+		return queryElastic
 	case altinityFlavor(target, ref.src):
 		return queryAltinity
 	}
@@ -303,6 +306,9 @@ func (tb *targetBuild) convert(ref dsRef, declared map[string]bool) (spec.Query,
 	case queryTempo:
 		tb.src = ref.src
 		q, reason = tb.tempo()
+	case queryElastic:
+		tb.src = ref.src
+		q, reason = tb.elastic()
 	case queryAltinity:
 		tb.src = ref.src
 		q, reason = tb.altinity(declared)

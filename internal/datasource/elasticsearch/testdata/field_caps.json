@@ -1,0 +1,332 @@
+{
+    "indices": [
+        "logs-legacy-2026.11",
+        "logs-shop-2026.11"
+    ],
+    "fields": {
+        "_ignored_source": {
+            "_ignored_source": {
+                "type": "_ignored_source",
+                "metadata_field": true,
+                "searchable": false,
+                "aggregatable": false
+            }
+        },
+        "_index": {
+            "_index": {
+                "type": "_index",
+                "metadata_field": true,
+                "searchable": true,
+                "aggregatable": true
+            }
+        },
+        "_feature": {
+            "_feature": {
+                "type": "_feature",
+                "metadata_field": true,
+                "searchable": false,
+                "aggregatable": false
+            }
+        },
+        "log": {
+            "object": {
+                "type": "object",
+                "metadata_field": false,
+                "searchable": false,
+                "aggregatable": false
+            }
+        },
+        "error": {
+            "object": {
+                "type": "object",
+                "metadata_field": false,
+                "searchable": false,
+                "aggregatable": false
+            }
+        },
+        "_ignored": {
+            "_ignored": {
+                "type": "_ignored",
+                "metadata_field": true,
+                "searchable": true,
+                "aggregatable": true
+            }
+        },
+        "host.ip": {
+            "ip": {
+                "type": "ip",
+                "metadata_field": false,
+                "searchable": true,
+                "aggregatable": true
+            }
+        },
+        "event.sequence": {
+            "keyword": {
+                "type": "keyword",
+                "metadata_field": false,
+                "searchable": true,
+                "aggregatable": true,
+                "indices": [
+                    "logs-legacy-2026.11"
+                ]
+            },
+            "long": {
+                "type": "long",
+                "metadata_field": false,
+                "searchable": true,
+                "aggregatable": true,
+                "indices": [
+                    "logs-shop-2026.11"
+                ]
+            }
+        },
+        "trace": {
+            "object": {
+                "type": "object",
+                "metadata_field": false,
+                "searchable": false,
+                "aggregatable": false
+            }
+        },
+        "trace.id": {
+            "keyword": {
+                "type": "keyword",
+                "metadata_field": false,
+                "searchable": true,
+                "aggregatable": true
+            }
+        },
+        "_data_stream_timestamp": {
+            "_data_stream_timestamp": {
+                "type": "_data_stream_timestamp",
+                "metadata_field": true,
+                "searchable": false,
+                "aggregatable": false
+            }
+        },
+        "host": {
+            "object": {
+                "type": "object",
+                "metadata_field": false,
+                "searchable": false,
+                "aggregatable": false
+            }
+        },
+        "http.response": {
+            "object": {
+                "type": "object",
+                "metadata_field": false,
+                "searchable": false,
+                "aggregatable": false
+            }
+        },
+        "log.level": {
+            "keyword": {
+                "type": "keyword",
+                "metadata_field": false,
+                "searchable": true,
+                "aggregatable": true
+            }
+        },
+        "event": {
+            "object": {
+                "type": "object",
+                "metadata_field": false,
+                "searchable": false,
+                "aggregatable": false
+            }
+        },
+        "http.response.status_code": {
+            "long": {
+                "type": "long",
+                "metadata_field": false,
+                "searchable": true,
+                "aggregatable": true
+            }
+        },
+        "_version": {
+            "_version": {
+                "type": "_version",
+                "metadata_field": true,
+                "searchable": false,
+                "aggregatable": true
+            }
+        },
+        "_routing": {
+            "_routing": {
+                "type": "_routing",
+                "metadata_field": true,
+                "searchable": true,
+                "aggregatable": false
+            }
+        },
+        "_doc_count": {
+            "integer": {
+                "type": "integer",
+                "metadata_field": true,
+                "searchable": false,
+                "aggregatable": false
+            }
+        },
+        "_inference_fields": {
+            "_inference_fields": {
+                "type": "_inference_fields",
+                "metadata_field": true,
+                "searchable": false,
+                "aggregatable": false
+            }
+        },
+        "service.name": {
+            "keyword": {
+                "type": "keyword",
+                "metadata_field": false,
+                "searchable": true,
+                "aggregatable": true
+            }
+        },
+        "span.id": {
+            "keyword": {
+                "type": "keyword",
+                "metadata_field": false,
+                "searchable": true,
+                "aggregatable": true
+            }
+        },
+        "_index_mode": {
+            "_index_mode": {
+                "type": "_index_mode",
+                "metadata_field": true,
+                "searchable": true,
+                "aggregatable": true
+            }
+        },
+        "message": {
+            "text": {
+                "type": "text",
+                "metadata_field": false,
+                "searchable": true,
+                "aggregatable": false
+            }
+        },
+        "tags": {
+            "keyword": {
+                "type": "keyword",
+                "metadata_field": false,
+                "searchable": true,
+                "aggregatable": true
+            }
+        },
+        "labels": {
+            "flattened": {
+                "type": "flattened",
+                "metadata_field": false,
+                "searchable": true,
+                "aggregatable": true
+            }
+        },
+        "_tier": {
+            "keyword": {
+                "type": "keyword",
+                "metadata_field": true,
+                "searchable": true,
+                "aggregatable": true
+            }
+        },
+        "_seq_no": {
+            "_seq_no": {
+                "type": "_seq_no",
+                "metadata_field": true,
+                "searchable": true,
+                "aggregatable": true
+            }
+        },
+        "event.ingested": {
+            "date": {
+                "type": "date",
+                "metadata_field": false,
+                "searchable": true,
+                "aggregatable": true
+            }
+        },
+        "@timestamp": {
+            "date_nanos": {
+                "type": "date_nanos",
+                "metadata_field": false,
+                "searchable": true,
+                "aggregatable": true
+            }
+        },
+        "_nested_path": {
+            "_nested_path": {
+                "type": "_nested_path",
+                "metadata_field": true,
+                "searchable": true,
+                "aggregatable": false
+            }
+        },
+        "_field_names": {
+            "_field_names": {
+                "type": "_field_names",
+                "metadata_field": true,
+                "searchable": true,
+                "aggregatable": false
+            }
+        },
+        "service": {
+            "object": {
+                "type": "object",
+                "metadata_field": false,
+                "searchable": false,
+                "aggregatable": false
+            }
+        },
+        "message.keyword": {
+            "keyword": {
+                "type": "keyword",
+                "metadata_field": false,
+                "searchable": true,
+                "aggregatable": true
+            }
+        },
+        "http": {
+            "object": {
+                "type": "object",
+                "metadata_field": false,
+                "searchable": false,
+                "aggregatable": false
+            }
+        },
+        "error.stack_trace": {
+            "text": {
+                "type": "text",
+                "metadata_field": false,
+                "searchable": true,
+                "aggregatable": false
+            }
+        },
+        "_source": {
+            "_source": {
+                "type": "_source",
+                "metadata_field": true,
+                "searchable": false,
+                "aggregatable": false
+            }
+        },
+        "_id": {
+            "_id": {
+                "type": "_id",
+                "metadata_field": true,
+                "searchable": true,
+                "aggregatable": false
+            }
+        },
+        "span": {
+            "object": {
+                "type": "object",
+                "metadata_field": false,
+                "searchable": false,
+                "aggregatable": false
+            }
+        }
+    }
+}

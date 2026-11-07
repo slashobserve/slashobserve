@@ -69,12 +69,15 @@ function renderComposer({
 }
 
 describe("ActivityComposer", () => {
-  it("holds exactly one combobox, the target, starting with the whole dashboard", () => {
+  it("holds exactly one combobox, the target, starting with the whole dashboard", async () => {
+    const user = userEvent.setup()
     const { form } = renderComposer()
     const comboboxes = within(form).getAllByRole("combobox")
     expect(comboboxes).toHaveLength(1)
     expect(comboboxes[0]).toHaveAccessibleName("On")
-    const options = within(comboboxes[0]).getAllByRole("option")
+    expect(comboboxes[0]).toHaveTextContent("The whole dashboard")
+    await user.click(comboboxes[0])
+    const options = await screen.findAllByRole("option")
     expect(options.map((option) => option.textContent)).toEqual([
       "The whole dashboard",
       "Latency",
@@ -83,11 +86,10 @@ describe("ActivityComposer", () => {
   })
 
   it("targets a panel when one is chosen", async () => {
+    const user = userEvent.setup()
     const { form, onTargetChange } = renderComposer()
-    await userEvent.selectOptions(
-      within(form).getByRole("combobox", { name: "On" }),
-      "Errors"
-    )
+    await user.click(within(form).getByRole("combobox", { name: "On" }))
+    await user.click(await screen.findByRole("option", { name: "Errors" }))
     expect(onTargetChange).toHaveBeenCalledWith({
       kind: "panel",
       panelId: "errors",

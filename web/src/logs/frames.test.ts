@@ -8,7 +8,10 @@ import {
   mergeTail,
   newestTime,
   rowCount,
+  startTail,
   tailWindow,
+  timesWhere,
+  withoutKeys,
 } from "./frames"
 
 function logFrame(
@@ -77,6 +80,58 @@ describe("mergeTail", () => {
     expect(first.newest).toBe(9)
     expect(mergeTail(first, []).newest).toBe(9)
     expect(newestTime(mergeTail(first, [logFrame([12])]).frames)).toBe(12)
+  })
+})
+
+describe("mergeTail arrivals", () => {
+  it("reports the rows kept from the incoming frames, not the duplicate", () => {
+    const seeded = mergeTail(emptyTail, [logFrame([100, 200])])
+    const next = mergeTail(seeded, [logFrame([200, 300])])
+    expect(next.added).toHaveLength(1)
+    expect(timesWhere(next.frames, (key) => next.added.includes(key))).toEqual(
+      new Set([300])
+    )
+    expect(next.received - seeded.received).toBe(1)
+  })
+
+  it("reports nothing when no row is new", () => {
+    const seeded = mergeTail(emptyTail, [logFrame([100])])
+    expect(mergeTail(seeded, [logFrame([100])]).added).toEqual([])
+  })
+
+  it("drops rows older than the oldest time and does not count them", () => {
+    const merged = mergeTail(emptyTail, [logFrame([100, 500, 900])], 1000, 400)
+    expect(rowCount(merged.frames)).toBe(2)
+    expect(merged.received).toBe(2)
+    const aged = mergeTail(merged, [], 1000, 600)
+    expect(rowCount(aged.frames)).toBe(1)
+    expect(aged.newest).toBe(900)
+  })
+
+  it("does not report a row that was cut by the cap", () => {
+    const times = Array.from({ length: 1200 }, (_, i) => 1_000 + i)
+    expect(mergeTail(emptyTail, [logFrame(times)]).added).toHaveLength(1000)
+  })
+})
+
+describe("startTail", () => {
+  it("seeds the lines without counting them as received", () => {
+    const started = startTail([logFrame([100, 500])], 7_000, 400)
+    expect(rowCount(started.frames)).toBe(1)
+    expect(started.added).toEqual([])
+    expect(started.received).toBe(0)
+    expect(started.startedAt).toBe(7_000)
+  })
+})
+
+describe("withoutKeys", () => {
+  it("hides the rows whose keys are given and keeps the same frames for none", () => {
+    const frames = [logFrame([1, 2, 3])]
+    const keys = mergeTail(emptyTail, [logFrame([1, 2])]).keys
+    const hidden = withoutKeys(frames, keys)
+    expect(rowCount(hidden)).toBe(1)
+    expect(hidden[0].fields[0].values).toEqual([3])
+    expect(withoutKeys(frames, new Set())).toBe(frames)
   })
 })
 

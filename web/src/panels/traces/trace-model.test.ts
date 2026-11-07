@@ -5,6 +5,8 @@ import type { PreparedField, PreparedFrame } from "@/panels/transforms"
 import type { DataPanel } from "@/spec"
 
 import {
+  eventTicks,
+  maxEventTicks,
   maxSpans,
   missingColumnsReason,
   traceModel,
@@ -38,6 +40,28 @@ function model(fields: PreparedField[]) {
 function spansOf(result: ReturnType<typeof model>): Span[] {
   if (result.reason !== null) throw new Error(result.reason)
   return result.spans
+}
+
+function flatFields(count: number): PreparedField[] {
+  const ids = Array.from({ length: count }, (_, index) => `s${index}`)
+  return [
+    field("spanID", "string", ids),
+    field(
+      "parentSpanID",
+      "string",
+      ids.map(() => "")
+    ),
+    field(
+      "startTime",
+      "time",
+      ids.map((_, index) => index)
+    ),
+    field(
+      "duration",
+      "number",
+      ids.map(() => 1)
+    ),
+  ]
 }
 
 const grafana = () => [
@@ -175,30 +199,53 @@ describe("traceModel tree", () => {
   })
 
   it("caps the spans of a trace and says so", () => {
-    const count = maxSpans + 3
-    const ids = Array.from({ length: count }, (_, index) => `s${index}`)
-    const result = model([
-      field("spanID", "string", ids),
-      field(
-        "parentSpanID",
-        "string",
-        ids.map(() => "")
-      ),
-      field(
-        "startTime",
-        "time",
-        ids.map((_, index) => index)
-      ),
-      field(
-        "duration",
-        "number",
-        ids.map(() => 1)
-      ),
-    ])
+    const result = model(flatFields(maxSpans + 3))
     expect(spansOf(result)).toHaveLength(maxSpans)
     if (result.reason === null) {
       expect(result.notes).toEqual(["Showing the first 5,000 of 5,003 spans."])
     }
+  })
+
+  it("keeps every span up to the cap the caller passes", () => {
+    const frame: PreparedFrame = { ref: "A", fields: flatFields(6000) }
+    const result = traceModel([frame], createFieldResolver(panel), {
+      maxSpans: 20000,
+    })
+    expect(spansOf(result)).toHaveLength(6000)
+    if (result.reason === null) expect(result.notes).toEqual([])
+  })
+
+  it("builds a 20,000-span tree quickly", () => {
+    const count = 20000
+    const ids = Array.from({ length: count }, (_, index) => `s${index}`)
+    const frame: PreparedFrame = {
+      ref: "A",
+      fields: [
+        field("spanID", "string", ids),
+        field(
+          "parentSpanID",
+          "string",
+          ids.map((_, index) => (index === 0 ? "" : `s${index % 7}`))
+        ),
+        field(
+          "startTime",
+          "time",
+          ids.map((_, index) => index)
+        ),
+        field(
+          "duration",
+          "number",
+          ids.map(() => 1)
+        ),
+      ],
+    }
+    const began = performance.now()
+    const result = traceModel([frame], createFieldResolver(panel), {
+      maxSpans: 20000,
+    })
+    const took = performance.now() - began
+    expect(spansOf(result)).toHaveLength(count)
+    expect(took).toBeLessThan(500)
   })
 
   it("flags error spans from every status encoding", () => {
@@ -300,6 +347,133 @@ describe("traceModel attributes", () => {
       ])
     )
     expect(spans[0].attributes[0].text).toBe("<img src=x onerror=1>")
+  })
+})
+
+describe("traceModel kind and events", () => {
+  const events = JSON.stringify([
+    {
+      time_ms: 1862,
+      name: "exception",
+      attributes: { "exception.type": "UpstreamUnavailable", retry: 2 },
+    },
+    { time_ms: 1866, name: "retry.scheduled", attributes: {} },
+  ])
+
+  it("reads the span kind and its events from the trace endpoint columns", () => {
+    const spans = spansOf(
+      model([
+        field("SpanId", "string", ["a"]),
+        field("StartTime", "time", [1000]),
+        field("SpanKind", "string", ["Client"]),
+        field("SpanEvents", "string", [events]),
+      ])
+    )
+    expect(spans[0].kind).toBe("Client")
+    expect(spans[0].events).toEqual([
+      {
+        time: 1862,
+        name: "exception",
+        attributes: { "exception.type": "UpstreamUnavailable", retry: "2" },
+      },
+      { time: 1866, name: "retry.scheduled", attributes: {} },
+    ])
+  })
+
+  it("gives a frame without the columns no kind and no events", () => {
+    const spans = spansOf(model(grafana()))
+    expect(spans.map((span) => [span.kind, span.events])).toEqual([
+      [null, []],
+      [null, []],
+      [null, []],
+    ])
+  })
+
+  it("gives malformed events JSON and events without a time no events", () => {
+    const spans = spansOf(
+      model([
+        field("SpanId", "string", ["a", "b", "c"]),
+        field("StartTime", "time", [1, 2, 3]),
+        field("SpanEvents", "string", ["[{", '[{"name": "no time"}]', "[]"]),
+      ])
+    )
+    expect(spans.map((span) => span.events)).toEqual([[], [], []])
+  })
+})
+
+describe("traceModel links", () => {
+  const links = JSON.stringify([
+    {
+      trace_id: "0af7651916cd43dd8448eb211c80319c",
+      span_id: "b7ad6b7169203331",
+      attributes: { "messaging.operation": "process", attempt: 3 },
+    },
+    { trace_id: "", span_id: "x" },
+    { span_id: "no trace" },
+    "not a link",
+  ])
+
+  it("reads the span links from the trace endpoint column", () => {
+    const spans = spansOf(
+      model([
+        field("SpanId", "string", ["a"]),
+        field("StartTime", "time", [1000]),
+        field("SpanLinks", "string", [links]),
+      ])
+    )
+    expect(spans[0].links).toEqual([
+      {
+        traceId: "0af7651916cd43dd8448eb211c80319c",
+        spanId: "b7ad6b7169203331",
+        attributes: { "messaging.operation": "process", attempt: "3" },
+      },
+    ])
+  })
+
+  it("gives a missing column, malformed JSON and an empty list no links", () => {
+    expect(spansOf(model(grafana())).map((span) => span.links)).toEqual([
+      [],
+      [],
+      [],
+    ])
+    const spans = spansOf(
+      model([
+        field("SpanId", "string", ["a", "b"]),
+        field("StartTime", "time", [1, 2]),
+        field("SpanLinks", "string", ["[{", "[]"]),
+      ])
+    )
+    expect(spans.map((span) => span.links)).toEqual([[], []])
+  })
+})
+
+describe("eventTicks", () => {
+  const trace = { start: 1000, duration: 200 }
+  const event = (time: number) => ({ time, name: "e", attributes: {} })
+
+  it("places each event as a fraction of the zoomed window", () => {
+    expect(
+      eventTicks([event(1000), event(1100), event(1200)], trace, {
+        start: 0,
+        end: 1,
+      })
+    ).toEqual([0, 0.5, 1])
+    expect(
+      eventTicks([event(1050), event(1100), event(1150)], trace, {
+        start: 0.5,
+        end: 1,
+      })
+    ).toEqual([0, 0.5])
+  })
+
+  it("draws at most the cap and nothing for an empty trace", () => {
+    const many = Array.from({ length: 50 }, (_, index) => event(1000 + index))
+    expect(eventTicks(many, trace, { start: 0, end: 1 })).toHaveLength(
+      maxEventTicks
+    )
+    expect(
+      eventTicks(many, { start: 0, duration: 0 }, { start: 0, end: 1 })
+    ).toEqual([])
   })
 })
 

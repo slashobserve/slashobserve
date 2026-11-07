@@ -16,6 +16,8 @@ const maxListFolders = 500
 
 var errFoldersNotConfigured = errors.New("folders are not configured")
 
+func init() { registerEntries((*Registry).folderEntries) }
+
 func (r *Registry) folderEntries() []entry {
 	return []entry{
 		{Tool{Name: nameListFolders, Description: descListFolders, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listFolders},

@@ -30,7 +30,7 @@ define DEMO_BANNER
 	@echo "Sign in as admin@example.com / password (Dex, development only)"
 endef
 
-.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down helm-kind helm-kind-down e2e e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
+.PHONY: build server cli web web-deps generate test lint ci audit demo demo-build demo-search demo-search-down demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down helm-kind helm-kind-down e2e e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
 
 build: web
 	$(MAKE) server cli
@@ -101,11 +101,20 @@ demo-build:
 	SLASHOBSERVE_IMAGE=slashobserve-server:local SLASHOBSERVE_SHOP_IMAGE=slashobserve-demo-shop:local $(COMPOSE_BUILD) up -d --build --wait --wait-timeout 300
 	$(DEMO_BANNER)
 
+demo-search:
+	SLASHOBSERVE_IMAGE=slashobserve-server:local SLASHOBSERVE_SHOP_IMAGE=slashobserve-demo-shop:local $(COMPOSE_BUILD) --profile search up -d --build --wait --wait-timeout 600
+	$(DEMO_BANNER)
+	@echo "Elasticsearch is running at http://localhost:$${SLASHOBSERVE_ELASTICSEARCH_HOST_PORT:-9200}"
+	@echo "OpenSearch is running at http://localhost:$${SLASHOBSERVE_OPENSEARCH_HOST_PORT:-9201}"
+
+demo-search-down:
+	$(COMPOSE) --profile search stop elasticsearch opensearch otel-collector-search
+
 demo-down:
-	$(COMPOSE) down
+	$(COMPOSE) --profile search down
 
 demo-reset:
-	$(COMPOSE) down -v
+	$(COMPOSE) --profile search down -v
 
 demo-fault:
 	curl -fsS -X POST "http://localhost:$${SLASHOBSERVE_SHOP_HOST_PORT:-8081}/fault?type=$(TYPE)&pct=$(PCT)"

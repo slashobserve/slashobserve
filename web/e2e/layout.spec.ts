@@ -134,6 +134,7 @@ test("drags and resizes a panel and saves a new version", async ({
     { x: logs.x + 12, y: logs.y + 6 }
   )
   await expect(page.getByText("Unsaved changes")).toBeVisible()
+  await expectNoAnimations(page.locator(".react-grid-item"))
 
   const resize = await box(
     gridItem(page, "rps").locator(".react-resizable-handle")

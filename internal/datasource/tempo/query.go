@@ -3,10 +3,8 @@ package tempo
 import (
 	"cmp"
 	"context"
-	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
-	"net/http"
+	"errors"
 	"net/url"
 	"slices"
 	"strconv"
@@ -18,36 +16,9 @@ import (
 )
 
 const (
-	traceIDHexLen    = 32
-	shortTraceHexLen = 16
-	emptyQuery       = `a Tempo query needs a trace id or a TraceQL query such as {resource.service.name="checkout"}`
+	traceIDHexLen = 32
+	emptyQuery    = `a Tempo query needs a trace id or a TraceQL query such as {resource.service.name="checkout"}`
 )
-
-type traceResponse struct {
-	Batches []resourceSpans `json:"batches"`
-}
-
-type resourceSpans struct {
-	Resource struct {
-		Attributes []keyValue `json:"attributes"`
-	} `json:"resource"`
-	ScopeSpans []struct {
-		Spans []span `json:"spans"`
-	} `json:"scopeSpans"`
-}
-
-type span struct {
-	TraceID      string     `json:"traceId"`
-	SpanID       string     `json:"spanId"`
-	ParentSpanID string     `json:"parentSpanId"`
-	Name         string     `json:"name"`
-	Start        unixNanos  `json:"startTimeUnixNano"`
-	End          unixNanos  `json:"endTimeUnixNano"`
-	Attributes   []keyValue `json:"attributes"`
-	Status       struct {
-		Code json.RawMessage `json:"code"`
-	} `json:"status"`
-}
 
 type keyValue struct {
 	Key   string   `json:"key"`
@@ -71,12 +42,34 @@ type anyValue struct {
 type unixNanos int64
 
 func (n *unixNanos) UnmarshalJSON(b []byte) error {
-	v, err := strconv.ParseInt(strings.Trim(string(b), `"`), 10, 64)
+	v, err := quotedInt64(b)
 	if err != nil {
 		return err
 	}
 	*n = unixNanos(v)
 	return nil
+}
+
+func quotedInt64(b []byte) (int64, error) {
+	return strconv.ParseInt(strings.Trim(string(b), `"`), 10, 64)
+}
+
+type searchMetrics struct {
+	CompletedJobs  int64       `json:"completedJobs"`
+	TotalJobs      int64       `json:"totalJobs"`
+	InspectedBytes json.Number `json:"inspectedBytes"`
+}
+
+func (m searchMetrics) partial() bool {
+	return m.TotalJobs > 0 && m.CompletedJobs < m.TotalJobs
+}
+
+func (m searchMetrics) inspectedBytes() int64 {
+	n, err := m.InspectedBytes.Int64()
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 type searchResponse struct {
@@ -91,14 +84,7 @@ type searchResponse struct {
 			ErrorCount int64 `json:"errorCount"`
 		} `json:"serviceStats"`
 	} `json:"traces"`
-}
-
-type spanRow struct {
-	traceID, spanID, parentID, name, service string
-	start                                    time.Time
-	duration                                 int64
-	status, attributes, resource             string
-	spans, errors                            *int64
+	Metrics searchMetrics `json:"metrics"`
 }
 
 func (d *Datasource) QueryRange(ctx context.Context, q datasource.Query, r datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
@@ -112,22 +98,19 @@ func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r dat
 	lim := d.opts.Limits.Tighten(q.Limits)
 	ctx, cancel := bound(ctx, lim.Timeout)
 	defer cancel()
-	exp, err := macros.Expand(macros.TraceQL, q.Text, macros.Env{
-		Range:     r,
-		Interval:  max(time.Second, (r.To.Sub(r.From) / 1000).Truncate(time.Second), q.MinInterval),
-		Variables: q.Variables,
-		Dashboard: q.Dashboard,
-		User:      q.User,
-	})
+	text, err := expandQuery(q, r)
 	if err != nil {
 		return nil, err
 	}
-	text := strings.TrimSpace(exp.Text)
-	if text == "" {
-		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "%s", emptyQuery)
-	}
 	if id, ok := traceIDOf(text); ok {
-		return d.trace(ctx, id, lim)
+		f, err := d.trace(ctx, id, r, lim.MaxRows)
+		if errors.Is(err, datasource.ErrNotFound) {
+			return []datasource.Frame{}, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		return []datasource.Frame{f}, nil
 	}
 	return d.search(ctx, text, r, lim)
 }
@@ -137,198 +120,68 @@ func traceIDOf(text string) (string, bool) {
 	if len(text) >= 2 && (text[0] == '"' || text[0] == '`') && text[len(text)-1] == text[0] {
 		text = text[1 : len(text)-1]
 	}
-	if len(text) != traceIDHexLen && len(text) != shortTraceHexLen {
-		return "", false
-	}
-	if _, err := hex.DecodeString(text); err != nil {
+	if !datasource.ValidTraceID(text) {
 		return "", false
 	}
 	return strings.ToLower(text), true
 }
 
-func (d *Datasource) trace(ctx context.Context, id string, lim datasource.Limits) ([]datasource.Frame, error) {
-	status, raw, err := d.fetch(ctx, "/api/traces/"+id, nil)
+func expandQuery(q datasource.Query, r datasource.TimeRange) (string, error) {
+	exp, err := macros.Expand(macros.TraceQL, q.Text, macros.Env{
+		Range:     r,
+		Interval:  max(time.Second, (r.To.Sub(r.From) / 1000).Truncate(time.Second), q.MinInterval),
+		Variables: q.Variables,
+		Dashboard: q.Dashboard,
+		User:      q.User,
+	})
+	if err != nil {
+		return "", err
+	}
+	text := strings.TrimSpace(exp.Text)
+	if text == "" {
+		return "", datasource.Errorf(datasource.ErrInvalidQuery, "%s", emptyQuery)
+	}
+	return text, nil
+}
+
+func (d *Datasource) search(ctx context.Context, text string, r datasource.TimeRange, lim datasource.Limits) ([]datasource.Frame, error) {
+	rows, metrics, err := d.searchRows(ctx, text, r, lim.MaxRows)
 	if err != nil {
 		return nil, err
 	}
-	if status == http.StatusNotFound {
-		return []datasource.Frame{}, nil
-	}
-	if err := statusError(status, raw); err != nil {
-		return nil, err
-	}
-	var resp traceResponse
-	if json.Unmarshal(raw, &resp) != nil {
-		return nil, unreadable()
-	}
-	rows, err := spanRows(resp, lim.MaxRows)
-	if err != nil {
-		return nil, err
+	if len(rows) > lim.MaxRows {
+		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "row limit exceeded: more than %d traces", lim.MaxRows)
 	}
 	if len(rows) == 0 {
 		return []datasource.Frame{}, nil
 	}
-	return []datasource.Frame{spanFrame(rows)}, nil
+	f := traceFrame(rows)
+	if truncated, partial := len(rows) == lim.MaxRows, metrics.partial(); truncated || partial || metrics.TotalJobs > 0 {
+		f.Meta = searchMeta(metrics, truncated)
+	}
+	return []datasource.Frame{f}, nil
 }
 
-func spanRows(resp traceResponse, maxRows int) ([]spanRow, error) {
-	var rows []spanRow
-	for _, batch := range resp.Batches {
-		resource := attributeMap(batch.Resource.Attributes)
-		service, _ := resource["service.name"].(string)
-		resourceJSON, err := json.Marshal(resource)
-		if err != nil {
-			return nil, unreadable()
-		}
-		for _, scope := range batch.ScopeSpans {
-			for _, s := range scope.Spans {
-				if len(rows) == maxRows {
-					return nil, datasource.Errorf(datasource.ErrLimitExceeded, "row limit exceeded: more than %d spans", maxRows)
-				}
-				row, err := toRow(s, service, string(resourceJSON))
-				if err != nil {
-					return nil, err
-				}
-				rows = append(rows, row)
-			}
-		}
+func searchMeta(metrics searchMetrics, truncated bool) *datasource.FrameMeta {
+	return &datasource.FrameMeta{
+		Truncated:      truncated,
+		Partial:        metrics.partial(),
+		JobsDone:       metrics.CompletedJobs,
+		JobsTotal:      metrics.TotalJobs,
+		InspectedBytes: metrics.inspectedBytes(),
 	}
-	slices.SortStableFunc(rows, func(a, b spanRow) int {
-		return cmp.Or(a.start.Compare(b.start), strings.Compare(a.spanID, b.spanID))
-	})
-	return rows, nil
 }
 
-func toRow(s span, service, resource string) (spanRow, error) {
-	traceID, err1 := hexID(s.TraceID)
-	spanID, err2 := hexID(s.SpanID)
-	parentID, err3 := hexID(s.ParentSpanID)
-	attributes, err4 := json.Marshal(attributeMap(s.Attributes))
-	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || spanID == "" {
-		return spanRow{}, unreadable()
-	}
-	return spanRow{
-		traceID:    traceID,
-		spanID:     spanID,
-		parentID:   parentID,
-		name:       s.Name,
-		service:    service,
-		start:      time.Unix(0, int64(s.Start)).UTC(),
-		duration:   max(0, int64(s.End-s.Start)),
-		status:     statusName(s.Status.Code),
-		attributes: string(attributes),
-		resource:   resource,
-	}, nil
-}
-
-func hexID(id string) (string, error) {
-	if id == "" {
-		return "", nil
-	}
-	if len(id) == traceIDHexLen || len(id) == shortTraceHexLen {
-		if _, err := hex.DecodeString(id); err == nil {
-			return strings.ToLower(id), nil
-		}
-	}
-	b, err := base64.StdEncoding.DecodeString(id)
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
-}
-
-func statusName(code json.RawMessage) string {
-	switch strings.Trim(string(code), `"`) {
-	case "1", "STATUS_CODE_OK":
-		return "Ok"
-	case "2", "STATUS_CODE_ERROR":
-		return "Error"
-	}
-	return "Unset"
-}
-
-func attributeMap(kvs []keyValue) map[string]any {
-	out := make(map[string]any, len(kvs))
-	for _, kv := range kvs {
-		out[kv.Key] = kv.Value.plain()
-	}
-	return out
-}
-
-func (v anyValue) plain() any {
-	switch {
-	case v.StringValue != nil:
-		return *v.StringValue
-	case v.BoolValue != nil:
-		return *v.BoolValue
-	case v.IntValue != nil:
-		return number(v.IntValue)
-	case v.DoubleValue != nil:
-		return number(v.DoubleValue)
-	case v.BytesValue != nil:
-		return *v.BytesValue
-	case v.ArrayValue != nil:
-		values := make([]any, len(v.ArrayValue.Values))
-		for i, item := range v.ArrayValue.Values {
-			values[i] = item.plain()
-		}
-		return values
-	case v.KvlistValue != nil:
-		return attributeMap(v.KvlistValue.Values)
-	}
-	return nil
-}
-
-func number(raw json.RawMessage) any {
-	text := strings.Trim(string(raw), `"`)
-	var n json.Number
-	if json.Unmarshal([]byte(text), &n) == nil {
-		return n
-	}
-	return text
-}
-
-func spanFrame(rows []spanRow) datasource.Frame {
-	columns := []struct {
-		name  string
-		typ   datasource.FieldType
-		value func(spanRow) any
-	}{
-		{"TraceId", datasource.FieldString, func(r spanRow) any { return r.traceID }},
-		{"SpanId", datasource.FieldString, func(r spanRow) any { return r.spanID }},
-		{"ParentSpanId", datasource.FieldString, func(r spanRow) any { return r.parentID }},
-		{"SpanName", datasource.FieldString, func(r spanRow) any { return r.name }},
-		{"ServiceName", datasource.FieldString, func(r spanRow) any { return r.service }},
-		{"StartTime", datasource.FieldTime, func(r spanRow) any { return r.start }},
-		{"Duration", datasource.FieldNumber, func(r spanRow) any { return r.duration }},
-		{"StatusCode", datasource.FieldString, func(r spanRow) any { return r.status }},
-		{"SpanAttributes", datasource.FieldString, func(r spanRow) any { return r.attributes }},
-		{"ResourceAttributes", datasource.FieldString, func(r spanRow) any { return r.resource }},
-	}
-	f := datasource.Frame{Fields: make([]datasource.Field, len(columns))}
-	for i, c := range columns {
-		values := make([]any, len(rows))
-		for j, r := range rows {
-			values[j] = c.value(r)
-		}
-		f.Fields[i] = datasource.Field{Name: c.name, Type: c.typ, Values: values}
-	}
-	return f
-}
-
-func (d *Datasource) search(ctx context.Context, text string, r datasource.TimeRange, lim datasource.Limits) ([]datasource.Frame, error) {
+func (d *Datasource) searchRows(ctx context.Context, text string, r datasource.TimeRange, limit int) ([]spanRow, searchMetrics, error) {
 	params := url.Values{
 		"q":     {text},
 		"start": {strconv.FormatInt(r.From.Unix(), 10)},
 		"end":   {strconv.FormatInt(ceilSeconds(r.To), 10)},
-		"limit": {strconv.Itoa(lim.MaxRows)},
+		"limit": {strconv.Itoa(limit)},
 	}
 	var resp searchResponse
 	if err := d.getJSON(ctx, "/api/search", params, &resp); err != nil {
-		return nil, err
-	}
-	if len(resp.Traces) > lim.MaxRows {
-		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "row limit exceeded: more than %d traces", lim.MaxRows)
+		return nil, searchMetrics{}, err
 	}
 	rows := make([]spanRow, 0, len(resp.Traces))
 	for _, t := range resp.Traces {
@@ -354,13 +207,10 @@ func (d *Datasource) search(ctx context.Context, text string, r datasource.TimeR
 		}
 		rows = append(rows, row)
 	}
-	if len(rows) == 0 {
-		return []datasource.Frame{}, nil
-	}
 	slices.SortStableFunc(rows, func(a, b spanRow) int {
 		return cmp.Or(b.start.Compare(a.start), strings.Compare(a.traceID, b.traceID))
 	})
-	return []datasource.Frame{traceFrame(rows)}, nil
+	return rows, resp.Metrics, nil
 }
 
 func ceilSeconds(t time.Time) int64 {

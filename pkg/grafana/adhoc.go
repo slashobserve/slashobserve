@@ -23,7 +23,7 @@ const (
 
 var (
 	adhocOperators           = []string{"=", "!=", "=~", "!~"}
-	adhocClickHouseOperators = append(slices.Clone(adhocOperators), "<", ">")
+	adhocComparisonOperators = append(slices.Clone(adhocOperators), "<", ">")
 )
 
 type adhocProblem struct{ reason, path string }
@@ -184,7 +184,7 @@ func adhocCondition(f *spec.AdhocFilter, condition, kind string) string {
 	switch {
 	case condition == "" || strings.EqualFold(condition, "AND"):
 		return ""
-	case strings.EqualFold(condition, "OR") && kind == kindClickHouse:
+	case strings.EqualFold(condition, "OR") && filtersAppliedByRunner(kind):
 		f.Condition = datasourceOr
 		return ""
 	}
@@ -245,21 +245,21 @@ func adhocFilterRefusal(f spec.AdhocFilter, hasValue bool, kind string) string {
 }
 
 func adhocOperatorsFor(kind string) []string {
-	if kind == kindClickHouse {
-		return adhocClickHouseOperators
+	if filtersAppliedByRunner(kind) {
+		return adhocComparisonOperators
 	}
 	return adhocOperators
 }
 
 func adhocOperatorRefusal(op, kind string) string {
-	if kind == kindClickHouse {
-		return fmt.Sprintf("SlashObserve supports the filter operators =, !=, =~, !~, < and > on ClickHouse; saved filters that use %s are not kept.", op)
+	if filtersAppliedByRunner(kind) {
+		return fmt.Sprintf("SlashObserve supports the filter operators =, !=, =~, !~, < and > on %s; saved filters that use %s are not kept.", kinds[kind].label, op)
 	}
 	return fmt.Sprintf("SlashObserve supports the filter operators =, !=, =~ and !~; saved filters that use %s are not kept.", op)
 }
 
 func validAdhocKey(key, kind string) bool {
-	if kind == kindClickHouse {
+	if filtersAppliedByRunner(kind) {
 		return spec.IsColumnArg(key)
 	}
 	return spec.IsLabelName(key)

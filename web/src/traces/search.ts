@@ -7,6 +7,13 @@ import {
   validRange,
 } from "@/logs/search"
 
+import {
+  defaultPageSize,
+  validPage,
+  validPageSize,
+  type PageSize,
+} from "@/lib/paging"
+
 import { parseDuration } from "./search-query"
 
 export type TraceSearch = {
@@ -20,6 +27,8 @@ export type TraceSearch = {
   ask?: string
   from?: string
   to?: string
+  page?: number
+  size?: PageSize
 }
 
 export type TraceFormSearch = Pick<
@@ -27,9 +36,15 @@ export type TraceFormSearch = Pick<
   "service" | "span" | "min" | "max" | "errors" | "q"
 >
 
-export type TraceViewSearch = { ds?: string; from?: string; to?: string }
+export type TraceViewSearch = {
+  ds?: string
+  span?: string
+  from?: string
+  to?: string
+}
 
 const traceIdPattern = /^(?:[0-9a-f]{16}|[0-9a-f]{32})$/
+const spanIdPattern = /^[0-9a-f]{16}$/
 
 export const traceDatasourceTypes = ["tempo", "clickhouse"] as const
 
@@ -46,9 +61,18 @@ function validName(value: unknown): string | undefined {
     : undefined
 }
 
+function validSpanId(value: unknown): string | undefined {
+  const id = firstString(value)?.toLowerCase()
+  return id !== undefined && spanIdPattern.test(id) ? id : undefined
+}
+
 function validDuration(value: unknown): string | undefined {
   const text = firstString(value)
   return text !== undefined && parseDuration(text) !== null ? text : undefined
+}
+
+function unlessStandard<T>(value: T | undefined, standard: T): T | undefined {
+  return value === standard ? undefined : value
 }
 
 export function validateTraceSearch(raw: Record<string, unknown>): TraceSearch {
@@ -62,13 +86,19 @@ export function validateTraceSearch(raw: Record<string, unknown>): TraceSearch {
     q: validQuery(raw.q),
     ask: validAsk(raw.ask),
     ...validRange(raw),
+    page: unlessStandard(validPage(raw.page), 1),
+    size: unlessStandard(validPageSize(raw.size), defaultPageSize),
   }
 }
 
 export function validateTraceViewSearch(
   raw: Record<string, unknown>
 ): TraceViewSearch {
-  return { ds: validDatasource(raw.ds), ...validRange(raw) }
+  return {
+    ds: validDatasource(raw.ds),
+    span: validSpanId(raw.span),
+    ...validRange(raw),
+  }
 }
 
 export function tracesTimeRange(search: TraceSearch): TimeRangeValue {

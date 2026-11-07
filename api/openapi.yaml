@@ -94,6 +94,22 @@ paths:
     $ref: "./paths/explore.yaml#/datasources-uid-query"
   /datasources/{uid}/log-volume:
     $ref: "./paths/explore.yaml#/datasources-uid-log-volume"
+  /datasources/{uid}/log-facets:
+    $ref: "./paths/log-facets.yaml#/datasources-uid-log-facets"
+  /datasources/{uid}/trace-logs:
+    $ref: "./paths/trace-logs.yaml#/datasources-uid-trace-logs"
+  /datasources/{uid}/traces/{trace_id}:
+    $ref: "./paths/traces.yaml#/datasources-uid-traces-trace-id"
+  /datasources/{uid}/trace-stats:
+    $ref: "./paths/traces.yaml#/datasources-uid-trace-stats"
+  /datasources/{uid}/trace-compare:
+    $ref: "./paths/trace-compare.yaml#/datasources-uid-trace-compare"
+  /datasources/{uid}/log-context:
+    $ref: "./paths/log-context.yaml#/datasources-uid-log-context"
+  /datasources/{uid}/log-patterns:
+    $ref: "./paths/log-patterns.yaml#/datasources-uid-log-patterns"
+  /datasources/{uid}/tail:
+    $ref: "./paths/tail.yaml#/datasources-uid-tail"
   /datasources/{uid}/draft-query:
     $ref: "./paths/draft-query.yaml#/datasources-uid-draft-query"
   /datasources/{uid}/metrics:
@@ -844,6 +860,12 @@ components:
           type: string
         name:
           type: string
+        index:
+          type: string
+          description: The index pattern an Elasticsearch or OpenSearch datasource reads; absent on other types.
+        time_field:
+          type: string
+          description: The time field of an Elasticsearch or OpenSearch datasource; absent on other types.
         healthy:
           type: boolean
         message:
@@ -1319,7 +1341,7 @@ components:
     DataMeta:
       type: object
       additionalProperties: false
-      required: [kind, from, to, step_ms, queries, cached, executed_at]
+      required: [kind, from, to, step_ms, queries, cached, executed_at, truncated, partial, rows]
       properties:
         kind:
           type: string
@@ -1352,6 +1374,95 @@ components:
         source_panel:
           type: string
           description: The id of the panel whose queries ran, present only when the requested panel reuses another panel's results; the frames, queries and range are that panel's, and its transforms apply first when the reusing query sets withTransforms.
+        truncated:
+          type: boolean
+          description: True when a query stopped at its row limit, so more rows exist in the range.
+        partial:
+          type: boolean
+          description: True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks.
+        rows:
+          type: integer
+          minimum: 0
+          description: The rows across all frames (log lines, traces, spans, table rows); 0 for series data.
+        rows_total:
+          type: integer
+          minimum: 0
+          description: Present only when the datasource reports how many rows matched in the range.
+        oldest:
+          type: string
+          format: date-time
+          description: >-
+            The smallest value of the first time field across all frames, RFC 3339 UTC with nanoseconds; absent when no frame has a time field or no rows.
+            To load older rows, repeat the request with `to` set to it.
+        newest:
+          type: string
+          format: date-time
+          description: >-
+            The largest value of the first time field across all frames, RFC 3339 UTC with nanoseconds; absent when no frame has a time field or no rows.
+            To load newer rows, repeat the request with `from` set to it.
+        jobs_done:
+          type: integer
+          minimum: 0
+          description: Tempo search jobs completed for this response; present only on Tempo search results.
+        jobs_total:
+          type: integer
+          minimum: 0
+          description: Tempo search jobs planned for this response; when jobs_done is lower the result is partial and the window the finished jobs covered is unknown.
+        inspected_bytes:
+          type: integer
+          minimum: 0
+          description: Bytes Tempo read for the search; present only on Tempo search results.
+        elapsed_ms:
+          type: integer
+          minimum: 0
+          description: Wall time in milliseconds of the upstream run that produced the data; a cached response repeats the value of the run that filled the cache, like executed_at.
+        bytes:
+          type: integer
+          minimum: 0
+          description: Size in bytes of the upstream trace payload on a Tempo trace read; absent on ClickHouse and on explore.
+        page:
+          $ref: "#/components/schemas/PageMeta"
+    PageMeta:
+      type: object
+      description: Present when the request paged; `meta.truncated` is then false and `page.total` replaces `rows_total`.
+      additionalProperties: false
+      required: [page, page_size, total_relation, has_next, has_prev]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          description: The page read; with a cursor, the page the cursor named.
+        page_size:
+          type: integer
+          minimum: 50
+          maximum: 500
+        total:
+          type: integer
+          minimum: 0
+          description: The rows that match, as `total_relation` qualifies it; absent when the relation is `unknown`.
+        total_relation:
+          type: string
+          enum: [eq, gte, unknown]
+          description: >-
+            `eq` is exact (ClickHouse counts; Loki and Tempo on the last page), `gte` means at least this many (Loki and Tempo while more pages exist),
+            and `unknown` means the store could not count, such as a partial Tempo search.
+        has_next:
+          type: boolean
+        has_prev:
+          type: boolean
+          description: True on every page past the first.
+        next:
+          type: string
+          maxLength: 2048
+          description: The opaque cursor of the next page, present whenever `has_next` on Loki and Tempo; ClickHouse sends one too, and Elasticsearch and OpenSearch page by `page` and never send it.
+        prev:
+          type: string
+          maxLength: 2048
+          description: The cursor that produced this page, present when `page` is above 1; a client that walks back further keeps the chain of cursors it received.
+        window:
+          type: integer
+          minimum: 1
+          description: The largest row offset this store pages to, present only on stores with such a cap, such as an Elasticsearch index's `max_result_window`; a numbered page past it is refused.
     PanelDataError:
       type: object
       additionalProperties: false
@@ -1397,6 +1508,267 @@ components:
           type: integer
         other:
           type: integer
+    LogFacets:
+      type: object
+      additionalProperties: false
+      required: [sampled, lines_sampled, fields, truncated]
+      properties:
+        sampled:
+          type: boolean
+          description: Whether a sample of the newest lines was read for the fields the datasource cannot count exactly.
+        lines_sampled:
+          type: integer
+          description: The lines the sample held, 0 when none was read.
+        fields:
+          type: array
+          description: Exact fields first, then by cardinality ascending, then by name.
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, kind, exact, values, truncated]
+            properties:
+              name:
+                type: string
+              kind:
+                type: string
+                enum: [label, field, metadata, column]
+                description: A Loki index label, a Loki parsed field, a Loki structured-metadata field, or a ClickHouse column or `LogAttributes.<key>`.
+              exact:
+                type: boolean
+                description: False when the counts come from the newest `lines_sampled` lines.
+              unit:
+                type: string
+                description: Set to `bytes` on a Loki index label, because the index volume API counts bytes, not lines.
+              cardinality:
+                type: integer
+                description: Distinct values seen, as `detected_fields` reports it on Loki or as the sample or the group showed; a truncated field reports at least `limit` plus one.
+              values:
+                type: array
+                description: By count descending, then by value.
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [value, count]
+                  properties:
+                    value:
+                      type: string
+                    count:
+                      type: integer
+              truncated:
+                type: boolean
+                description: More values exist than `limit`.
+        truncated:
+          type: boolean
+          description: More fields exist than the 50 returned.
+    TraceStats:
+      type: object
+      additionalProperties: false
+      required: [step_ms, partial, spans, errors, buckets, histogram]
+      properties:
+        step_ms:
+          type: integer
+          description: The width of every bucket in milliseconds, a whole number of seconds and at least one.
+        partial:
+          type: boolean
+          description: True when Tempo did not search every block, so the counts are a lower bound; always false on ClickHouse.
+        spans:
+          type: integer
+          description: The sum of every bucket's spans.
+        errors:
+          type: integer
+          description: The sum of every bucket's errors.
+        buckets:
+          type: array
+          description: Every bucket of the aligned range, oldest first, empty buckets included.
+          items:
+            $ref: "#/components/schemas/TraceStatsBucket"
+        histogram:
+          type: array
+          description: The duration distribution of every matched span, ascending by `le_ms`, empty when nothing matched.
+          items:
+            $ref: "#/components/schemas/DurationBucket"
+    TraceStatsBucket:
+      type: object
+      additionalProperties: false
+      required: [start, spans, errors, p50_ms, p95_ms, p99_ms]
+      properties:
+        start:
+          type: string
+          format: date-time
+          description: The bucket covers this instant up to, but not including, `start` plus `step_ms`.
+        spans:
+          type: integer
+        errors:
+          type: integer
+        p50_ms:
+          type: number
+          nullable: true
+          description: The median span duration in milliseconds, null when the bucket has no spans.
+        p95_ms:
+          type: number
+          nullable: true
+        p99_ms:
+          type: number
+          nullable: true
+    DurationBucket:
+      type: object
+      additionalProperties: false
+      required: [le_ms, count]
+      properties:
+        le_ms:
+          type: number
+          description: The upper edge of the bucket in milliseconds; the bucket holds the spans whose duration is at most this value and above the previous edge.
+        count:
+          type: integer
+    TraceCompare:
+      type: object
+      additionalProperties: false
+      required: [selected, baseline, attributes, partial, differences, truncated]
+      properties:
+        selected:
+          $ref: "#/components/schemas/TraceCompareSet"
+        baseline:
+          $ref: "#/components/schemas/TraceCompareSet"
+        attributes:
+          type: integer
+          description: The number of distinct attribute names seen across both sets.
+        partial:
+          type: boolean
+          description: True when fewer traces were read than requested in either set, because a trace was not found in the range or the deadline cut the read.
+        differences:
+          type: array
+          description: The attribute values whose shares differ by at least 0.1, ranked by the gap, then attribute, then value.
+          items:
+            $ref: "#/components/schemas/TraceDifference"
+        truncated:
+          type: boolean
+          description: True when more pairs passed the threshold than `limit` allowed.
+    TraceCompareSet:
+      type: object
+      additionalProperties: false
+      required: [requested, read]
+      properties:
+        requested:
+          type: integer
+          description: The distinct trace ids sent.
+        read:
+          type: integer
+          description: The traces whose spans were read.
+    TraceDifference:
+      type: object
+      additionalProperties: false
+      required: [attribute, value, selected_share, baseline_share, selected_count, baseline_count]
+      properties:
+        attribute:
+          type: string
+          description: "`name`, `kind`, `status`, `resource.<key>` or `span.<key>`."
+        value:
+          type: string
+          description: The value as text, cut to 256 bytes.
+        selected_share:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: The share of read selected traces with a span carrying the pair, rounded to 4 decimals.
+        baseline_share:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: The share of read baseline traces with a span carrying the pair, rounded to 4 decimals.
+        selected_count:
+          type: integer
+        baseline_count:
+          type: integer
+    LogContext:
+      type: object
+      additionalProperties: false
+      required: [anchor, before, after]
+      properties:
+        anchor:
+          type: string
+          description: The `TimeNs` of the request.
+        before:
+          $ref: "#/components/schemas/LogContextSide"
+        after:
+          $ref: "#/components/schemas/LogContextSide"
+    LogContextSide:
+      type: object
+      additionalProperties: false
+      required: [frames, truncated]
+      properties:
+        frames:
+          type: array
+          description: The lines of this side in the panel data frame shape, every frame with `ref` `A` and a `TimeNs` string field beside `Time`.
+          items:
+            $ref: "#/components/schemas/Frame"
+        truncated:
+          type: boolean
+          description: More lines exist in the window on this side than were asked for.
+    LogPatterns:
+      type: object
+      additionalProperties: false
+      required: [source, lines_sampled, lines_matched, patterns, truncated]
+      properties:
+        source:
+          type: string
+          enum: [loki, elasticsearch, server]
+          description: "`loki` when Loki's pattern index answered, `elasticsearch` when the cluster's `categorize_text` aggregation answered, `server` when the patterns were computed from a sample of the newest lines."
+        lines_sampled:
+          type: integer
+          description: The lines the server read to compute the patterns; 0 when the datasource's index answered.
+        lines_matched:
+          type: integer
+          description: The sum of every pattern's count, before the `limit` cut.
+        patterns:
+          type: array
+          description: The top patterns by count descending, then by pattern.
+          items:
+            $ref: "#/components/schemas/LogPattern"
+        truncated:
+          type: boolean
+          description: More patterns exist than `limit`.
+    LogPattern:
+      type: object
+      additionalProperties: false
+      required: [pattern, count, sample, first, last, trend, level]
+      properties:
+        pattern:
+          type: string
+          description: The line template, with every variable token written `<*>`.
+        count:
+          type: integer
+          description: The lines the pattern covers, over the range from Loki's index or within the sample.
+        sample:
+          type: string
+          description: The newest sampled line of the pattern; empty when the index answered.
+        first:
+          type: string
+          description: RFC 3339 time of the first sample bucket or oldest sampled line; empty when the time is unknown.
+        last:
+          type: string
+          description: RFC 3339 time of the last sample bucket or newest sampled line; empty when the time is unknown.
+        trend:
+          type: array
+          description: Exactly 30 buckets of equal width covering the range from `from` to `to`, the first starting at `from`; empty buckets are present with a `count` of 0.
+          minItems: 30
+          maxItems: 30
+          items:
+            $ref: "#/components/schemas/LogPatternTrendBucket"
+        level:
+          type: string
+          enum: ["error", "warning", "info", "other", ""]
+          description: On `loki` the first level word in the pattern, on `server` the level most of the pattern's sampled lines carry; empty when there is none.
+    LogPatternTrendBucket:
+      type: object
+      additionalProperties: false
+      required: [start, count]
+      properties:
+        start:
+          type: string
+          description: RFC 3339 start of the bucket.
+        count:
+          type: integer
+          description: The lines of the pattern in the bucket.
     PanelData:
       type: object
       additionalProperties: false
@@ -3510,10 +3882,10 @@ components:
       properties:
         query:
           type: string
-          description: LogQL, ClickHouse SQL or TraceQL; empty when `language` is `filters`.
+          description: LogQL, ClickHouse SQL, TraceQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`.
         language:
           type: string
-          enum: [logql, clickhouse_sql, traceql, filters]
+          enum: [logql, clickhouse_sql, traceql, kql, filters]
         trace_filters:
           nullable: true
           allOf:

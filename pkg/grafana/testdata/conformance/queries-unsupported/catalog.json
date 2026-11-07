@@ -6,6 +6,6 @@
   ],
   "root": "panels[0]",
   "entries": [
-    { "id": "targets[1]=hidden-elasticsearch-query", "path": "targets[1]", "value": {"refId": "B", "query": "service:web", "hide": true, "datasource": {"type": "elasticsearch", "uid": "es"}}, "with": {"datasource": {"type": "datasource", "uid": "-- Mixed --"}}, "expect": "bookkeeping" }
+    { "id": "targets[1]=hidden-influxdb-query", "path": "targets[1]", "value": {"refId": "B", "query": "SELECT mean(value) FROM cpu", "hide": true, "datasource": {"type": "influxdb", "uid": "flux"}}, "with": {"datasource": {"type": "datasource", "uid": "-- Mixed --"}}, "expect": "bookkeeping" }
   ]
 }

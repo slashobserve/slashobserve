@@ -120,6 +120,83 @@ loki:
 	}
 }
 
+func TestLoadElasticsearchAndOpenSearch(t *testing.T) {
+	env := map[string]string{"SLASHOBSERVE_ES_API_KEY": "key", "SLASHOBSERVE_OS_PASSWORD": "pw"}
+	got, err := load(t, entry("es", "elasticsearch", `
+elasticsearch:
+  url: http://elasticsearch:9200
+  index: logs-*
+  timeField: event.ingested
+  queryLanguage: lucene
+  fields:
+    message: msg
+    level: severity
+    service: app
+    traceId: trace_id
+    spanId: span_id
+  apiKeyEnv: SLASHOBSERVE_ES_API_KEY
+`)+strings.TrimPrefix(entry("os", "opensearch", `
+opensearch:
+  url: http://opensearch:9200
+  index: logs-*,events-*
+  basicAuth:
+    username: reader
+    passwordEnv: SLASHOBSERVE_OS_PASSWORD
+`), "datasources:\n"), env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	es := got[0].Elasticsearch
+	if es == nil || got[0].Type != "elasticsearch" || es.URL != "http://elasticsearch:9200" || es.Index != "logs-*" || es.TimeField != "event.ingested" ||
+		es.QueryLanguage != "lucene" || es.APIKey.Reveal() != "key" || es.Fields != (FieldRoles{Message: "msg", Level: "severity", Service: "app", TraceID: "trace_id", SpanID: "span_id"}) {
+		t.Fatalf("elasticsearch = %+v", es)
+	}
+	os := got[1].OpenSearch
+	if os == nil || got[1].Type != "opensearch" || os.URL != "http://opensearch:9200" || os.Index != "logs-*,events-*" || os.TimeField != "" ||
+		os.QueryLanguage != "" || !os.APIKey.IsZero() || os.BasicAuthUser != "reader" || os.BasicAuthPassword.Reveal() != "pw" || os.Fields != (FieldRoles{}) {
+		t.Fatalf("opensearch = %+v", os)
+	}
+	if got[0].OpenSearch != nil || got[1].Elasticsearch != nil || got[0].Loki != nil {
+		t.Fatalf("unexpected blocks: %+v", got)
+	}
+}
+
+func TestSearchBlockValidation(t *testing.T) {
+	env := map[string]string{"SLASHOBSERVE_A": "x"}
+	es := func(fields string) string {
+		return entry("a", "elasticsearch", "elasticsearch:\n  url: http://es:9200\n"+indent(fields, "  "))
+	}
+	tests := []struct {
+		name    string
+		content string
+		want    string
+	}{
+		{"index missing", es(""), "datasources[0].elasticsearch.index: required"},
+		{"index _all", es("index: _all"), "datasources[0].elasticsearch.index: index must name a pattern narrower than _all"},
+		{"index leading dash", es("index: -logs"), "datasources[0].elasticsearch.index: must not start with - or _"},
+		{"index leading underscore", es("index: _logs"), "datasources[0].elasticsearch.index: must not start with - or _"},
+		{"index whitespace", es(`index: "logs *"`), "datasources[0].elasticsearch.index: must not contain whitespace"},
+		{"index too long", es("index: " + strings.Repeat("a", 1025)), "datasources[0].elasticsearch.index: must be at most 1024 bytes"},
+		{"time field whitespace", es(`index: logs-*` + "\n" + `timeField: "a b"`), "datasources[0].elasticsearch.timeField: must not contain whitespace"},
+		{"role too long", es("index: logs-*\nfields:\n  level: " + strings.Repeat("a", 257)), "datasources[0].elasticsearch.fields.level: must be at most 256 bytes"},
+		{"query language", es("index: logs-*\nqueryLanguage: sql"), "datasources[0].elasticsearch.queryLanguage: must be kql or lucene"},
+		{"api key with basic auth", es("index: logs-*\napiKeyEnv: SLASHOBSERVE_A\nbasicAuth:\n  username: u\n  passwordEnv: SLASHOBSERVE_A"), "datasources[0].elasticsearch: apiKey and basicAuth are mutually exclusive"},
+		{"api key with bearer", es("index: logs-*\napiKeyEnv: SLASHOBSERVE_A\nbearerTokenEnv: SLASHOBSERVE_A"), "datasources[0].elasticsearch: apiKey and bearerToken are mutually exclusive"},
+		{"api key env and file", es("index: logs-*\napiKeyEnv: SLASHOBSERVE_A\napiKeyFile: /nope"), "datasources[0].elasticsearch: apiKeyEnv and apiKeyFile are mutually exclusive"},
+		{"api key env prefix", es("index: logs-*\napiKeyEnv: HOME"), "datasources[0].elasticsearch.apiKeyEnv: must start with SLASHOBSERVE_"},
+		{"opensearch block under elasticsearch type", entry("a", "elasticsearch", "elasticsearch:\n  url: http://es:9200\n  index: logs-*\nopensearch:\n  url: http://os:9200\n  index: logs-*"), "datasources[0].opensearch: not allowed for type elasticsearch"},
+		{"elasticsearch without its block", entry("a", "elasticsearch", lokiBlock), "datasources[0].elasticsearch: required for type elasticsearch"},
+		{"opensearch without a url", entry("a", "opensearch", "opensearch:\n  index: logs-*"), "datasources[0].opensearch.url: required"},
+		{"search has no tenant", es("index: logs-*\ntenantId: t"), `unknown field "tenantId"`},
+		{"unknown type lists both", entry("a", "elastic", lokiBlock), "must be prometheus, clickhouse, loki, tempo, elasticsearch or opensearch"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wantError(t, tt.content, env, tt.want)
+		})
+	}
+}
+
 func TestDatasourceBlockMustMatchType(t *testing.T) {
 	env := map[string]string{"SLASHOBSERVE_CH_PASSWORD": "pw"}
 	tests := []struct {
@@ -197,7 +274,7 @@ func TestLoadDatasourcesStructure(t *testing.T) {
     url: http://other:9090
 `, "  "), `datasources[1].uid: duplicate "prom"`},
 		{"invalid uid", strings.Replace(validPrometheus, "uid: prom", "uid: -bad", 1), "datasources[0].uid: must match"},
-		{"unknown type", strings.Replace(validPrometheus, "type: prometheus", "type: graphite", 1), `datasources[0].type: must be prometheus, clickhouse, loki or tempo, got "graphite"`},
+		{"unknown type", strings.Replace(validPrometheus, "type: prometheus", "type: graphite", 1), `datasources[0].type: must be prometheus, clickhouse, loki, tempo, elasticsearch or opensearch, got "graphite"`},
 		{"missing block", "datasources:\n  - uid: a\n    type: prometheus\n", "datasources[0].prometheus: required"},
 		{"wrong block", validPrometheus + "    clickhouse:\n      addr: x\n", "datasources[0].clickhouse: not allowed"},
 		{"negative limit", validPrometheus + "    limits:\n      maxRows: -1\n", "datasources[0].limits.maxRows: must not be negative"},

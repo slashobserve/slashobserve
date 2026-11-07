@@ -1,4 +1,4 @@
-import type { APIRequestContext, Page } from "@playwright/test"
+import type { APIRequestContext, Locator, Page } from "@playwright/test"
 
 import {
   agentSpec,
@@ -79,6 +79,11 @@ function scopeSelect(page: Page) {
   return card(page).getByRole("combobox", { name: /^Panel/ })
 }
 
+async function pickOption(page: Page, select: Locator, label: string) {
+  await select.click()
+  await page.getByRole("option", { name: label, exact: true }).click()
+}
+
 function addCommentButton(page: Page) {
   return composerForm(page).getByRole("button", { name: "Add comment" })
 }
@@ -152,12 +157,8 @@ for (const colorScheme of ["light", "dark"] as const) {
       await openPanelMenuItem(page, rpsTitle, "Comment")
 
       await expect(page).toHaveURL(/panel=rps/)
-      await expect(scopeSelect(page).locator("option:checked")).toHaveText(
-        rpsTitle
-      )
-      await expect(targetSelect(page).locator("option:checked")).toHaveText(
-        rpsTitle
-      )
+      await expect(scopeSelect(page)).toContainText(rpsTitle)
+      await expect(targetSelect(page)).toContainText(rpsTitle)
       await expect(composerBox(page)).toBeFocused()
 
       await composerBox(page).fill("Latency looks high")
@@ -187,7 +188,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       const { id } = await createOverview(request)
       await openCard(page, id)
 
-      await targetSelect(page).selectOption({ label: "The whole dashboard" })
+      await pickOption(page, targetSelect(page), "The whole dashboard")
       const box = composerBox(page)
       await box.fill("Overall this looks healthy")
 
@@ -306,26 +307,26 @@ for (const colorScheme of ["light", "dark"] as const) {
       await openCard(page, id)
       await expect(entries(page)).toHaveCount(3)
 
-      await scopeSelect(page).selectOption({ label: rpsTitle })
+      await pickOption(page, scopeSelect(page), rpsTitle)
       await expect(page).toHaveURL(/panel=rps/)
       await expect(entries(page)).toHaveCount(1)
       await expect(entries(page)).toContainText("Note on requests")
 
-      await scopeSelect(page).selectOption({ label: "All panels" })
+      await pickOption(page, scopeSelect(page), "All panels")
       await expect(page).not.toHaveURL(/panel=/)
       await expect(entries(page)).toHaveCount(3)
 
-      await showSelect(page).selectOption({ label: "Changes only" })
+      await pickOption(page, showSelect(page), "Changes only")
       await expect(entries(page)).toHaveCount(1)
       await expect(entries(page)).toContainText("Version 1")
       await expect(entryWith(page, "Note on")).toHaveCount(0)
 
-      await showSelect(page).selectOption({ label: "Open comments" })
+      await pickOption(page, showSelect(page), "Open comments")
       await expect(entries(page)).toHaveCount(2)
       await expect(entryWith(page, "Version 1")).toHaveCount(0)
 
-      await showSelect(page).selectOption({ label: "Changes only" })
-      await scopeSelect(page).selectOption({ label: rpsTitle })
+      await pickOption(page, showSelect(page), "Changes only")
+      await pickOption(page, scopeSelect(page), rpsTitle)
       await expect(
         card(page).getByText("No activity matches these filters.")
       ).toBeVisible()
@@ -396,7 +397,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expectPanelsReady(page)
         const finish = await holdRequestsRunning(page)
 
-        await targetSelect(page).selectOption({ label: agentRpsTitle })
+        await pickOption(page, targetSelect(page), agentRpsTitle)
         await composerBox(page).fill(perRoutePrompt)
         await sendToAgentButton(page).click()
 
@@ -682,7 +683,7 @@ for (const colorScheme of ["light", "dark"] as const) {
 
       await openCard(page, id, "?panel=rps&tab=comments")
       await expect(page).not.toHaveURL(/tab=/)
-      await expect(scopeSelect(page)).toHaveValue("rps")
+      await expect(scopeSelect(page)).toContainText(rpsTitle)
       await expect(panel(page, rpsTitle)).toHaveAttribute(
         "data-highlighted",
         ""

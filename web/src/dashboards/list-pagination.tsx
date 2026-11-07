@@ -9,10 +9,10 @@ import {
   PaginationEllipsis,
   PaginationItem,
 } from "@/components/ui/pagination"
+import { pageItems } from "@/lib/paging"
 import { cn } from "@/lib/utils"
 
 import { pageSearch, type ListSearch } from "./list-filters"
-import { pageItems } from "./list-pages"
 
 type ListPaginationProps = {
   page: number

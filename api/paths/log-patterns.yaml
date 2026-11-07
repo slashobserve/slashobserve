@@ -1,0 +1,110 @@
+datasources-uid-log-patterns:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+  post:
+    operationId: logPatterns
+    summary: Group the lines a logs query matches over a range into patterns with counts.
+    description: >-
+      A pattern is a line template with the variable tokens replaced by `<*>`, with the number of lines it covers, ordered by count descending then by pattern.
+      On Loki with the pattern ingester enabled and a query that is a bare stream selector, the patterns come from Loki's pattern index over the whole range (`source` `loki`): `count` sums Loki's samples over the range, `first` and `last` are the first and last sample buckets, `sample` is empty and `lines_sampled` is 0.
+      Otherwise, on a Loki without the pattern ingester, a Loki query with filters or stages, or ClickHouse, the server reads the newest `sample` lines of the query and clusters them itself (`source` `server`): `count` is the lines of the sample in that pattern, `sample` the newest of them, `first` and `last` the times of its oldest and newest sampled lines, and `lines_sampled` the lines read.
+      Either way every pattern carries a `trend` of 30 equal buckets over the range, and a `level`.
+      `lines_matched` is the sum of every pattern's count, before the `limit` cut, and `truncated` says more patterns exist than `limit`.
+      The Loki query must be a log query that starts with a stream selector; the ClickHouse query one SELECT that selects `Timestamp` and `Body`, whose top-level `ORDER BY` and `LIMIT` the server replaces.
+      The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests.
+      Viewers and above may call it, service-account keys included.
+      `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [query, from, to]
+            properties:
+              query:
+                type: string
+                minLength: 1
+                maxLength: 65536
+                description: The logs query the page runs.
+              from:
+                type: string
+                minLength: 1
+                maxLength: 128
+              to:
+                type: string
+                minLength: 1
+                maxLength: 128
+              timezone:
+                type: string
+                minLength: 1
+                maxLength: 64
+                description: The browser's IANA time zone, used to resolve relative times such as `now/d`.
+              limit:
+                type: integer
+                minimum: 1
+                maximum: 100
+                default: 20
+                description: The most patterns to return.
+              sample:
+                type: integer
+                minimum: 100
+                maximum: 5000
+                default: 2000
+                description: The newest lines to read when the server computes the patterns itself.
+    responses:
+      "200":
+        description: The top patterns of the query over the range.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/LogPatterns"
+      "400":
+        description: >-
+          The request is malformed or fails validation, `limit` or `sample` is out of range, or the datasource is not Loki or ClickHouse (`invalid_request`), or the query is longer than 64 KiB (`query_too_long`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        description: The datasource does not exist (`not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: >-
+          The query cannot run: `query_invalid` for a Loki metric query, a ClickHouse query that does not select `Timestamp` or `Body`, or an upstream rejection; `query_forbidden`, `limit_exceeded` or `unknown_macro` as for the explore query; the body carries no `ref`.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        description: The server failed to handle the request, including a datasource call that failed without a classified cause.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "502":
+        description: The datasource is unavailable.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "504":
+        description: The datasource did not answer within the 15 second query timeout, or the request did not finish within 20 seconds.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"

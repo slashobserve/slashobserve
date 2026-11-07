@@ -109,6 +109,8 @@ export type NameListParams = {
   search?: string
   metric?: string
   table?: string
+  from?: string
+  to?: string
 }
 
 export const datasourceKeys = {
@@ -209,6 +211,48 @@ export type ExploreParams = {
   to: string
   limit?: number
   maxDataPoints?: number
+  pageSize?: number
+  page?: number
+  cursor?: string
+}
+
+export type ContextParams = {
+  query: string
+  anchor: string
+  before: number
+  after: number
+  window_ms: number
+}
+
+export type LogFacetsParams = {
+  query: string
+  from: string
+  to: string
+  limit: number
+  fields?: string[]
+}
+
+export type LogPatternsParams = {
+  query: string
+  from: string
+  to: string
+  limit: number
+}
+
+export type TraceStatsParams = { query: string; from: string; to: string }
+export type TraceCompareParams = {
+  selected: string[]
+  baseline: string[]
+  from: string
+  to: string
+}
+export type TraceLogsParams = {
+  traceId: string
+  spanId?: string
+  service?: string
+  from: string
+  to: string
+  limit?: number
 }
 
 export const exploreKeys = {
@@ -217,8 +261,20 @@ export const exploreKeys = {
     ["explore", uid, "query", params] as const,
   tail: (uid: string, query: string, session: number) =>
     ["explore", uid, "tail", query, session] as const,
-  context: (uid: string, anchor: string) =>
-    ["explore", uid, "context", anchor] as const,
+  context: (uid: string, params: ContextParams) =>
+    ["explore", uid, "context", params] as const,
+  trace: (uid: string, id: string, range: { from: string; to: string }) =>
+    ["explore", uid, "trace", id, range] as const,
+  facets: (uid: string, params: LogFacetsParams) =>
+    ["explore", uid, "facets", params] as const,
+  patterns: (uid: string, params: LogPatternsParams) =>
+    ["explore", uid, "patterns", params] as const,
+  traceStats: (uid: string, params: TraceStatsParams) =>
+    ["explore", uid, "trace-stats", params] as const,
+  traceCompare: (uid: string, params: TraceCompareParams) =>
+    ["explore", uid, "trace-compare", params] as const,
+  traceLogs: (uid: string, params: TraceLogsParams) =>
+    ["explore", uid, "trace-logs", params] as const,
   targets: (search: string) => ["explore", "targets", search] as const,
 }
 

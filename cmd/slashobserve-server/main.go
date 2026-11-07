@@ -58,6 +58,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/server"
 	"github.com/slashobserve/slashobserve/internal/server/mcp"
 	"github.com/slashobserve/slashobserve/internal/stars"
+	"github.com/slashobserve/slashobserve/internal/tailhttp"
 	"github.com/slashobserve/slashobserve/internal/users"
 )
 
@@ -400,6 +401,7 @@ func run() error {
 			dashprovision.NewApplyHandler(dashprovision.NewApplier(database, dashboardsService, folderAccess), logger),
 			healthHandler,
 			drafthttp.NewHandler(toolRegistry, logger),
+			tailhttp.NewHandler(registry, proxyRunner, authService, logger),
 		},
 		Public: []server.PublicRegistrar{publicLinksHandler, proxyhttp.NewPublicData(proxyHandler, publicLinks)},
 		Mounts: append([]server.Mount{{

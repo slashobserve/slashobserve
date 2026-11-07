@@ -31,6 +31,8 @@ const (
 	sampleRowsBudget  = 10 << 10
 )
 
+func init() { registerEntries((*Registry).discoveryEntries) }
+
 func (r *Registry) discoveryEntries() []entry {
 	return []entry{
 		{Tool{Name: nameListDatasources, Description: descListDatasources, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MinRole: auth.RoleEditor}, r.listDatasources},
@@ -86,6 +88,28 @@ func (r *Registry) instance(uid string) (datasource.Instance, Result, bool) {
 
 func typeOf(inst datasource.Instance) spec.DatasourceType {
 	return spec.DatasourceType(inst.Datasource.Type())
+}
+
+func isSearch(t spec.DatasourceType) bool {
+	return t == spec.Elasticsearch || t == spec.OpenSearch
+}
+
+func isLogStore(t spec.DatasourceType) bool {
+	return t == spec.Loki || isSearch(t)
+}
+
+func untabledSource(t spec.DatasourceType) string {
+	if isSearch(t) {
+		return "the index pattern"
+	}
+	return "every stream"
+}
+
+func searchName(t spec.DatasourceType) string {
+	if t == spec.OpenSearch {
+		return "OpenSearch"
+	}
+	return "Elasticsearch"
 }
 
 func (r *Registry) discover(ctx context.Context, uid string, req datasource.DiscoverRequest, failStep string) (*datasource.Catalog, Result, bool, error) {
@@ -145,6 +169,8 @@ type listLabelsInput struct {
 	Metric     string `json:"metric"`
 	Table      string `json:"table"`
 	Search     string `json:"search"`
+	From       string `json:"from"`
+	To         string `json:"to"`
 	Limit      *int   `json:"limit"`
 	Offset     *int   `json:"offset"`
 }
@@ -155,8 +181,20 @@ type listLabelValuesInput struct {
 	Metric     string `json:"metric"`
 	Table      string `json:"table"`
 	Search     string `json:"search"`
+	From       string `json:"from"`
+	To         string `json:"to"`
 	Limit      *int   `json:"limit"`
 	Offset     *int   `json:"offset"`
+}
+
+func namesRange(from, to string) (datasource.TimeRange, Result, bool) {
+	switch {
+	case from == "" && to == "":
+		return datasource.TimeRange{}, Result{}, true
+	case from == "" || to == "":
+		return datasource.TimeRange{}, invalid("from and to must be given together"), false
+	}
+	return resolveRange(from, to, time.Now())
 }
 
 func namesLimit(p *int) int {
@@ -277,7 +315,7 @@ func (r *Registry) listInventory(ctx context.Context, in listMetricsInput, offse
 	if !ok || err != nil {
 		return res, err
 	}
-	if inst, ok := r.deps.Datasources.Get(names.Datasource); !ok || typeOf(inst) != spec.Loki {
+	if inst, ok := r.deps.Datasources.Get(names.Datasource); !ok || !isLogStore(typeOf(inst)) {
 		inventories.put(ctx, names.Families)
 	}
 	out := compactInventory(inventoryOut{Datasource: names.Datasource, Scope: in.Scope, FamiliesTotal: names.FamiliesTotal, RuntimeFamilies: names.RuntimeFamilies}, names.Families, offset, names.Truncated)
@@ -390,6 +428,10 @@ func (r *Registry) listLabels(ctx context.Context, input json.RawMessage) (Resul
 	if !ok {
 		return res, nil
 	}
+	rng, res, ok := namesRange(in.From, in.To)
+	if !ok {
+		return res, nil
+	}
 	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
 		Datasource: in.Datasource,
 		Kind:       datasource.DiscoverLabels,
@@ -397,6 +439,7 @@ func (r *Registry) listLabels(ctx context.Context, input json.RawMessage) (Resul
 		Metric:     in.Metric,
 		Table:      in.Table,
 		Limit:      pagedNamesLimit(in.Limit, offset),
+		Range:      rng,
 	}, "labels")
 	if !ok || err != nil {
 		return res, err
@@ -422,6 +465,10 @@ func (r *Registry) listLabelValues(ctx context.Context, input json.RawMessage) (
 	if !ok {
 		return res, nil
 	}
+	rng, res, ok := namesRange(in.From, in.To)
+	if !ok {
+		return res, nil
+	}
 	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
 		Datasource: in.Datasource,
 		Kind:       datasource.DiscoverLabelValues,
@@ -430,6 +477,7 @@ func (r *Registry) listLabelValues(ctx context.Context, input json.RawMessage) (
 		Label:      in.Label,
 		Table:      in.Table,
 		Limit:      pagedNamesLimit(in.Limit, offset),
+		Range:      rng,
 	}, "label values")
 	if !ok || err != nil {
 		return res, err
@@ -586,10 +634,10 @@ func (r *Registry) sampleRows(ctx context.Context, input json.RawMessage) (Resul
 	if !ok {
 		return res, nil
 	}
-	if in.Table == "" && typeOf(inst) != spec.Loki {
+	if in.Table == "" && !isLogStore(typeOf(inst)) {
 		return invalid("table is required"), nil
 	}
-	source := clip(cmp.Or(in.Table, "every stream"), maxStepNameBytes)
+	source := clip(cmp.Or(in.Table, untabledSource(typeOf(inst))), maxStepNameBytes)
 	cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverSampleRows, Table: in.Table, Limit: limit}, "Sampling "+source)
 	if !ok || err != nil {
 		return res, err

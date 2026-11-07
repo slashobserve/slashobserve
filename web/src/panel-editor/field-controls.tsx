@@ -1,8 +1,14 @@
 import { useId, type ReactNode } from "react"
 
-import { NativeSelect } from "@/components/native-select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export type Option = { value: string; label: string }
 
@@ -39,23 +45,30 @@ export function SelectField({
   disabled: boolean
 }) {
   const id = useId()
-  const known = options.some((option) => option.value === value)
+  const items = options.some((option) => option.value === value)
+    ? options
+    : [{ value, label: value }, ...options]
   return (
     <Field label={label} htmlFor={id}>
-      <NativeSelect
-        id={id}
-        className="w-full"
+      <Select
+        items={items}
         value={value}
         disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
+        onValueChange={(next) => {
+          if (next !== null) onChange(next)
+        }}
       >
-        {known ? null : <option value={value}>{value}</option>}
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </NativeSelect>
+        <SelectTrigger id={id} className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent alignItemWithTrigger={false} align="start">
+          {items.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </Field>
   )
 }

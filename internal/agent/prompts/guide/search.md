@@ -1,0 +1,12 @@
+## Elasticsearch and OpenSearch (KQL, Lucene, Query DSL)
+- A request to read or count log lines, messages, errors or events is a logs question: answer it from these datasources.
+- `list_labels` lists the fields, `list_label_values` a field's top values over the range, `sample_rows` (no `table`) reads recent documents with their fields, and `get_schema` lists the indices, or with `table` set to an index the fields with their kinds.
+- A query has one of three forms: KQL by default, such as `service.name:checkout and log.level:error`; Lucene after a `lucene:` prefix; Query DSL when the text starts with `{`. Prefer KQL, and DSL for aggregations.
+- The query kind decides what comes back: an instant query (`instant: true`, or a `logs` panel) returns lines, newest first, in a full-width `logs` panel; a range KQL query returns one series `count`, the documents per interval; a DSL body with `aggs` returns series when it holds a `date_histogram` and a table when it does not, whatever the kind.
+- Field names follow ECS: `@timestamp`, `message`, `log.level`, `service.name`, `trace.id`; use the names `list_labels` shows. A `text` field takes phrases, `message:"connection refused"`; `terms` and facets need a keyword field, a text field's `.keyword`.
+- The time range wraps every query, so write no time filter and no ClickHouse macro; the window is `$__interval` or `$__range`.
+- A `timeseries` of documents per service: `{"aggs":{"errors":{"date_histogram":{"field":"@timestamp","fixed_interval":"$__interval"},"aggs":{"by_service":{"terms":{"field":"service.name","size":5}}}}}}` with `legend` `{{service.name}}`; filter it with a `query` clause in the same body.
+- A `table` of the top services: `{"aggs":{"by_service":{"terms":{"field":"service.name","size":10}}}}` with `format` `table`.
+- `query` variables: `label_values(service.name)` or `label_values(log.level:error, service.name)`.
+- `log_facets` counts a logs query's top field values exactly from one aggregation, so use it to find the service or level behind errors before narrowing the query.
+- `log_context` reads the lines just before and after one line by its `time_ns` anchor; `logs_for_trace` reads the lines of a trace id, narrowed by `service` and a span id; `log_patterns` groups the lines a query matches.

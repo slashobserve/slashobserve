@@ -1,0 +1,17 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "grafana/opensearch-datasource@v2.26.0:src/types.ts",
+    "packages/grafana-data/src/types/dataQuery.ts"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    { "id": "targets[0].query=level", "path": "targets[0].query", "value": "level:error" },
+    { "id": "targets[1]=PPL", "path": "targets[1]", "value": {"refId": "B", "queryType": "PPL", "query": "source = logs | stats count() by host", "format": "table", "timeField": "@timestamp"}, "expect": "excluded" },
+    { "id": "targets[0].luceneQueryType=Logs", "path": "targets[0].luceneQueryType", "value": "Logs", "with": {"targets[0].format": "logs"} },
+    { "id": "targets[0].luceneQueryType=Raw-Data", "path": "targets[0].luceneQueryType", "value": "Raw Data", "with": {"targets[0].format": "table"} },
+    { "id": "targets[0].luceneQueryType=Raw-Document", "path": "targets[0].luceneQueryType", "value": "Raw Document", "with": {"targets[0].format": "table"}, "expect": "convert_noted" },
+    { "id": "targets[0].format=table", "path": "targets[0].format", "value": "table", "expect": "bookkeeping" },
+    { "id": "targets[0].hide=true", "path": "targets[0].hide", "value": true }
+  ]
+}

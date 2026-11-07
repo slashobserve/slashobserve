@@ -39,9 +39,19 @@ type Status struct {
 	UID       string    `json:"uid"`
 	Type      string    `json:"type"`
 	Name      string    `json:"name"`
+	Index     string    `json:"index,omitempty"`
+	TimeField string    `json:"time_field,omitempty"`
 	Healthy   bool      `json:"healthy"`
 	Message   string    `json:"message,omitempty"`
 	CheckedAt time.Time `json:"checked_at"`
+}
+
+func statusFor(in Instance) Status {
+	s := Status{UID: in.UID, Type: in.Datasource.Type(), Name: in.Name}
+	if indexed, ok := in.Datasource.(IndexSource); ok {
+		s.Index, s.TimeField = indexed.Index()
+	}
+	return s
 }
 
 type Registry struct {
@@ -141,13 +151,10 @@ func (r *Registry) status(ctx context.Context, in Instance) Status {
 	case res := <-ch:
 		return res.Val.(Status)
 	case <-ctx.Done():
-		return Status{
-			UID:       in.UID,
-			Type:      in.Datasource.Type(),
-			Name:      in.Name,
-			Message:   healthMessage(ctx.Err()),
-			CheckedAt: time.Now().UTC(),
-		}
+		s := statusFor(in)
+		s.Message = healthMessage(ctx.Err())
+		s.CheckedAt = time.Now().UTC()
+		return s
 	}
 }
 
@@ -166,13 +173,9 @@ func (r *Registry) check(ctx context.Context, in Instance) Status {
 	defer cancel()
 	err := r.safeCheckHealth(checkCtx, in)
 
-	s := Status{
-		UID:       in.UID,
-		Type:      in.Datasource.Type(),
-		Name:      in.Name,
-		Healthy:   err == nil,
-		CheckedAt: time.Now().UTC(),
-	}
+	s := statusFor(in)
+	s.Healthy = err == nil
+	s.CheckedAt = time.Now().UTC()
 	if err != nil {
 		s.Message = healthMessage(err)
 	}
@@ -189,28 +192,34 @@ func (r *Registry) check(ctx context.Context, in Instance) Status {
 }
 
 // Status messages reach browsers and the agent, so an error's own text, which can echo an address or a user, never does.
+var healthTexts = []struct {
+	kind error
+	text string
+}{
+	{ErrTimeout, "Timed out waiting for the datasource"},
+	{context.DeadlineExceeded, "Timed out waiting for the datasource"},
+	{ErrAuthFailed, "The datasource refused the credentials"},
+	{ErrHostNotAllowed, "The ClickHouse user may not connect from this server's address"},
+	{ErrUnavailable, "The datasource is not answering"},
+	{ErrNotReadOnly, "The ClickHouse user must be readonly = 2"},
+	{ErrUnsafeGrant, "The ClickHouse user holds a grant that reaches outside systems; revoke it"},
+	{ErrForbiddenQuery, "The datasource refused the health check"},
+	{ErrLimitExceeded, "The health check hit a datasource limit"},
+	{ErrIsOpenSearch, "The server is OpenSearch, configure it as type opensearch"},
+	{ErrIsElasticsearch, "The server is Elasticsearch, configure it as type elasticsearch"},
+	{ErrUnsupportedVersion, "The datasource version is not supported: Elasticsearch 8.x or 9.x, OpenSearch 2.x or 3.x"},
+	{ErrNoIndex, "The index pattern matches no index"},
+	{ErrNoTimeField, "The time field is missing or is not a date"},
+	{ErrNoRoleField, "A configured field is missing from the mapping"},
+	{ErrInvalidQuery, "The datasource rejected the health check"},
+	{context.Canceled, "The health check was cancelled"},
+}
+
 func healthMessage(err error) string {
-	switch {
-	case errors.Is(err, ErrTimeout), errors.Is(err, context.DeadlineExceeded):
-		return "Timed out waiting for the datasource"
-	case errors.Is(err, ErrAuthFailed):
-		return "The datasource refused the credentials"
-	case errors.Is(err, ErrHostNotAllowed):
-		return "The ClickHouse user may not connect from this server's address"
-	case errors.Is(err, ErrUnavailable):
-		return "The datasource is not answering"
-	case errors.Is(err, ErrNotReadOnly):
-		return "The ClickHouse user must be readonly = 2"
-	case errors.Is(err, ErrUnsafeGrant):
-		return "The ClickHouse user holds a grant that reaches outside systems; revoke it"
-	case errors.Is(err, ErrForbiddenQuery):
-		return "The datasource refused the health check"
-	case errors.Is(err, ErrLimitExceeded):
-		return "The health check hit a datasource limit"
-	case errors.Is(err, ErrInvalidQuery):
-		return "The datasource rejected the health check"
-	case errors.Is(err, context.Canceled):
-		return "The health check was cancelled"
+	for _, h := range healthTexts {
+		if errors.Is(err, h.kind) {
+			return h.text
+		}
 	}
 	return "The health check failed"
 }

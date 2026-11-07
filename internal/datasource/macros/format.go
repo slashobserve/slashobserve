@@ -19,6 +19,9 @@ var (
 		regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`),
 		regexp.MustCompile(`^[0-9]+(\.[0-9]+)?$`),
 	}
+	searchSafeTokens = []*regexp.Regexp{
+		regexp.MustCompile(`^[A-Za-z0-9_*][A-Za-z0-9_.@*-]*$`),
+	}
 
 	singleQuoteEscaper = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
 	doubleQuoteEscaper = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
@@ -56,11 +59,11 @@ func expandVariable(d Dialect, query string, ref spec.Reference, c ctx, vars []d
 		}
 		return escapeForContext(d, ref, c, "raw", v.Values[0], v.Values)
 	}
-	if !v.All && len(v.Values) == 0 {
-		return "", refErrorf(ref, "no value selected for %s", refLabel(ref))
+	if err := checkValues(ref, v); err != nil {
+		return "", err
 	}
-	if slices.ContainsFunc(v.Values, hasControlByte) {
-		return "", refErrorf(ref, "variable %s has a value with a control character", refLabel(ref))
+	if d == Elasticsearch && ref.Format == "" {
+		return searchDefault(ref, c, v)
 	}
 	format := ref.Format
 	if format == "" {
@@ -74,9 +77,39 @@ func expandVariable(d Dialect, query string, ref spec.Reference, c ctx, vars []d
 	return escapeForContext(d, ref, c, format, text, v.Values)
 }
 
+func checkValues(ref spec.Reference, v datasource.Variable) error {
+	if !v.All && len(v.Values) == 0 {
+		return refErrorf(ref, "no value selected for %s", refLabel(ref))
+	}
+	if slices.ContainsFunc(v.Values, hasControlByte) {
+		return refErrorf(ref, "variable %s has a value with a control character", refLabel(ref))
+	}
+	return nil
+}
+
+func searchDefault(ref spec.Reference, c ctx, v datasource.Variable) (string, error) {
+	if len(v.Values) == 0 {
+		return "", noValuesError(ref, v)
+	}
+	if c.kind == ctxString {
+		if len(v.Values) != 1 {
+			return "", refErrorf(ref, "variable %s needs one value inside a quoted string; use a format such as :pipe", refLabel(ref))
+		}
+		return doubleQuoteEscaper.Replace(v.Values[0]), nil
+	}
+	quoted := make([]string, len(v.Values))
+	for i, value := range v.Values {
+		quoted[i] = `"` + doubleQuoteEscaper.Replace(value) + `"`
+	}
+	if len(quoted) == 1 {
+		return quoted[0], nil
+	}
+	return "(" + strings.Join(quoted, " or ") + ")", nil
+}
+
 func expandAdhoc(d Dialect, ref spec.Reference, c ctx, v datasource.Variable) (string, error) {
 	switch {
-	case d == PromQL:
+	case d == PromQL, d == Elasticsearch:
 		return "", refErrorf(ref, "adhoc variable %s applies to every query on its datasource and cannot be referenced", refLabel(ref))
 	case c.kind != ctxCode:
 		return "", refErrorf(ref, "adhoc variable %s is only allowed in code", refLabel(ref))
@@ -182,6 +215,11 @@ func defaultFormat(d Dialect, c ctx) string {
 			return "regex"
 		}
 		return "raw"
+	case Elasticsearch:
+		if c.kind == ctxString {
+			return "raw"
+		}
+		return "doublequote"
 	default:
 		if c.kind == ctxString {
 			return "raw"
@@ -264,21 +302,33 @@ func quoteEach(values []string, quote byte, escaper *strings.Replacer) string {
 	return strings.Join(quoted, ",")
 }
 
+func escapeInString(d Dialect, ref spec.Reference, c ctx, text string) (string, error) {
+	switch {
+	case d == PromQL && c.quote == '`':
+		if strings.ContainsRune(text, '`') {
+			return "", refErrorf(ref, "variable %s cannot contain a backtick in a raw string", refLabel(ref))
+		}
+		return text, nil
+	case (d == PromQL || d == Elasticsearch) && c.quote == '"':
+		return doubleQuoteEscaper.Replace(text), nil
+	default:
+		return singleQuoteEscaper.Replace(text), nil
+	}
+}
+
+func safeTokens(d Dialect) []*regexp.Regexp {
+	switch d {
+	case ClickHouse:
+		return clickHouseSafeTokens
+	case Elasticsearch:
+		return searchSafeTokens
+	}
+	return promSafeTokens
+}
+
 func escapeForContext(d Dialect, ref spec.Reference, c ctx, format, text string, values []string) (string, error) {
 	if c.kind == ctxString {
-		switch {
-		case d == PromQL && c.quote == '`':
-			if strings.ContainsRune(text, '`') {
-				return "", refErrorf(ref, "variable %s cannot contain a backtick in a raw string", refLabel(ref))
-			}
-			return text, nil
-		case d == PromQL && c.quote == '"':
-			return doubleQuoteEscaper.Replace(text), nil
-		case d == PromQL:
-			return singleQuoteEscaper.Replace(text), nil
-		default:
-			return singleQuoteEscaper.Replace(text), nil
-		}
+		return escapeInString(d, ref, c, text)
 	}
 	switch format {
 	case "doublequote":
@@ -291,10 +341,7 @@ func escapeForContext(d Dialect, ref spec.Reference, c ctx, format, text string,
 	case "regex":
 		return "", refErrorf(ref, "format \"regex\" is not allowed in code for variable %s", refLabel(ref))
 	}
-	safe := promSafeTokens
-	if d == ClickHouse {
-		safe = clickHouseSafeTokens
-	}
+	safe := safeTokens(d)
 	for _, value := range values {
 		if !slices.ContainsFunc(safe, func(re *regexp.Regexp) bool { return re.MatchString(value) }) {
 			return "", refErrorf(ref, "a value of %s is not a valid identifier, number or duration for use in code", refLabel(ref))

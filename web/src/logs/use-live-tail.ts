@@ -4,10 +4,15 @@ import { exploreKeys } from "@/api/keys"
 import type { WireFrame } from "@/dashboards/queries"
 
 import { exploreRequest } from "./explore"
-import { emptyTail, mergeTail, tailWindow, type TailBuffer } from "./frames"
+import { mergeTail, startTail, tailWindow, type TailBuffer } from "./frames"
 
 const tailIntervalMs = 2000
-const tailRows = 1000
+export const tailRows = 1000
+const tailWindowMs = 300_000
+
+function oldestKept(now: number): number {
+  return now - tailWindowMs
+}
 
 export function useLiveTail({
   uid,
@@ -27,18 +32,22 @@ export function useLiveTail({
   const tail = useQuery({
     queryKey,
     enabled: running,
-    initialData: () => mergeTail(emptyTail, seed),
+    initialData: () => {
+      const now = Date.now()
+      return startTail(seed, now, oldestKept(now))
+    },
     queryFn: async ({ signal }) => {
+      const now = Date.now()
       const current =
         queryClient.getQueryData<TailBuffer>(queryKey) ??
-        mergeTail(emptyTail, seed)
-      const window = tailWindow(current.newest, Date.now())
+        startTail(seed, now, oldestKept(now))
+      const window = tailWindow(current.newest, now)
       const data = await exploreRequest(
         uid,
         { query, kind: "instant", ...window, limit: tailRows },
         signal
       )
-      return mergeTail(current, data.frames)
+      return mergeTail(current, data.frames, tailRows, oldestKept(Date.now()))
     },
     refetchInterval: (state) =>
       running && state.state.status !== "error" ? tailIntervalMs : false,

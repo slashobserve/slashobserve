@@ -15,6 +15,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/logvolume"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -296,5 +297,119 @@ func TestVolumeAnswersTooManyRequestsWhenEverySlotIsHeld(t *testing.T) {
 	}
 	if ranges, _, _, _ := lokiDS.counts(); ranges != 0 {
 		t.Fatalf("%d upstream calls while every slot is held", ranges)
+	}
+}
+
+type volumeCapabilityDatasource struct {
+	*fakeDatasource
+	onVolume func(req datasource.VolumeRequest) (*logvolume.Histogram, error)
+
+	mu       sync.Mutex
+	requests []datasource.VolumeRequest
+}
+
+func (d *volumeCapabilityDatasource) Type() string { return string(spec.Elasticsearch) }
+
+func (d *volumeCapabilityDatasource) LogVolume(_ context.Context, req datasource.VolumeRequest) (*logvolume.Histogram, error) {
+	d.mu.Lock()
+	d.requests = append(d.requests, req)
+	d.mu.Unlock()
+	return d.onVolume(req)
+}
+
+func (d *volumeCapabilityDatasource) volumeRequests() []datasource.VolumeRequest {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return slices.Clone(d.requests)
+}
+
+func newVolumeCapabilityHarness(t *testing.T) (*harness, *volumeCapabilityDatasource) {
+	t.Helper()
+	hn := newHarness(t)
+	search := &volumeCapabilityDatasource{fakeDatasource: &fakeDatasource{}}
+	registry, err := datasource.NewRegistry(hn.h.logger,
+		datasource.Instance{UID: "prom", Datasource: hn.ds},
+		datasource.Instance{UID: "search", Datasource: search},
+	)
+	if err != nil {
+		t.Fatalf("NewRegistry: %v", err)
+	}
+	hn.runner = queryproxy.NewRunner(registry, hn.h.logger)
+	hn.h.runner, hn.h.registry = hn.runner, registry
+	return hn, search
+}
+
+func TestVolumeAsksACapabilityDatasourceForTheAlignedWindow(t *testing.T) {
+	hn, search := newVolumeCapabilityHarness(t)
+	search.onVolume = func(req datasource.VolumeRequest) (*logvolume.Histogram, error) {
+		h := logvolume.New(req.Range.From, req.Step, req.Buckets())
+		h.Add(req.Range.From, logvolume.Error, 4)
+		h.Add(req.Range.From.Add(2*req.Step), logvolume.Info, 7)
+		h.Add(req.Range.From.Add(59*req.Step), logvolume.Other, 1)
+		return h, nil
+	}
+	body := decodeVolume(t, hn.volume("search", volumeBody(`service.name:checkout`)))
+	reqs := search.volumeRequests()
+	if len(reqs) != 1 {
+		t.Fatalf("%d volume calls, want 1", len(reqs))
+	}
+	got := reqs[0]
+	if got.Step != time.Minute || !got.Range.From.Equal(volumeStart) || !got.Range.To.Equal(volumeStart.Add(time.Hour)) {
+		t.Fatalf("step = %v, range = %v to %v", got.Step, got.Range.From, got.Range.To)
+	}
+	if got.Query.Text != "service.name:checkout" || got.Query.Limits != queryproxy.DraftLimits {
+		t.Fatalf("query = %+v", got.Query)
+	}
+	if body.StepMS != 60000 || len(body.Buckets) != 60 || body.Total != 12 {
+		t.Fatalf("step_ms = %d, %d buckets, total %d", body.StepMS, len(body.Buckets), body.Total)
+	}
+	if b := body.Buckets[0]; b.Error != 4 || b.Start != "2025-10-09T08:54:00Z" {
+		t.Fatalf("bucket 0 = %+v", b)
+	}
+	if b := body.Buckets[2]; b.Info != 7 {
+		t.Fatalf("bucket 2 = %+v", b)
+	}
+	if b := body.Buckets[59]; b.Other != 1 {
+		t.Fatalf("bucket 59 = %+v", b)
+	}
+	if ranges, instants, _, _ := search.counts(); ranges+instants != 0 {
+		t.Fatalf("%d runner queries on the capability path", ranges+instants)
+	}
+	if held := hn.heldSlots(); held != 0 {
+		t.Fatalf("%d slots still held", held)
+	}
+}
+
+func TestVolumeBucketsCapTheBucketCountOnACapabilityDatasource(t *testing.T) {
+	hn, search := newVolumeCapabilityHarness(t)
+	search.onVolume = func(req datasource.VolumeRequest) (*logvolume.Histogram, error) {
+		return logvolume.New(req.Range.From, req.Step, req.Buckets()), nil
+	}
+	body := volumeBody(`*`)
+	body["buckets"] = 200
+	got := decodeVolume(t, hn.volume("search", body))
+	if got.StepMS != 18000 || len(got.Buckets) != 200 {
+		t.Fatalf("step_ms = %d, %d buckets", got.StepMS, len(got.Buckets))
+	}
+}
+
+func TestVolumeMapsCapabilityErrorsAndHoldsOneUpstreamSlot(t *testing.T) {
+	hn, search := newVolumeCapabilityHarness(t)
+	search.onVolume = func(datasource.VolumeRequest) (*logvolume.Histogram, error) {
+		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "the volume needs a KQL, Lucene or filter-only query body")
+	}
+	expectError(t, hn.volume("search", volumeBody(`{"aggs":{}}`)), http.StatusUnprocessableEntity, "query_invalid")
+	search.onVolume = func(datasource.VolumeRequest) (*logvolume.Histogram, error) {
+		return nil, datasource.Errorf(datasource.ErrUnavailable, "connection failed")
+	}
+	expectError(t, hn.volume("search", volumeBody(`*`)), http.StatusBadGateway, "datasource_unavailable")
+	if held := hn.heldSlots(); held != 0 {
+		t.Fatalf("%d slots still held", held)
+	}
+	holdPrincipalSlots(t, hn, "alice")
+	before := len(search.volumeRequests())
+	expectError(t, hn.volume("search", volumeBody(`*`)), http.StatusTooManyRequests, "too_many_requests")
+	if n := len(search.volumeRequests()); n != before {
+		t.Fatalf("%d volume calls while every slot is held", n-before)
 	}
 }
