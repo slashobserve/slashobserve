@@ -14,7 +14,7 @@ The conversation page shows the steps the tools report and the result, never the
 ## The tool loop
 
 The model starts with the prompt, the configured datasources and whether each is healthy, the authoring guide and an example.
-The authoring guide is a core plus one section per datasource type, Prometheus, ClickHouse, Loki and Tempo, and the system text carries only the sections of the configured types.
+The authoring guide is a core plus one section per datasource type, Prometheus, ClickHouse, Loki, Tempo, and one shared by Elasticsearch and OpenSearch, and the system text carries only the sections of the configured types.
 The JSON Schema is not in that text: the model reads it on demand with `get_spec_guide`, which inside a run returns only the schema.
 For a revision it also gets the current version of the dashboard.
 When that version is over 16 KiB as compact JSON, it gets an outline instead: the title, default time range, refresh, tags, links and variables in full, one line for each panel with its id, type, title, row and position, and the full JSON of the panel it was asked about and of any panel whose id the prompt names.

@@ -1,6 +1,6 @@
 ---
 title: Logs and traces
-description: Search logs and traces from Loki, Tempo or ClickHouse with a query or a plain-language question, follow a line to its trace, tail new lines and keep a query as a dashboard panel.
+description: Search logs from Loki, ClickHouse, Elasticsearch or OpenSearch and traces from Tempo or ClickHouse with a query or a plain-language question, follow a line to its trace, tail new lines and keep a query as a dashboard panel.
 ---
 
 The logs page and the trace view let you look at raw lines and spans without building a dashboard first.
@@ -40,7 +40,8 @@ Press **Run query**, or Ctrl+Enter or Cmd+Enter in the editor, to run it over th
 The page shows at most 1,000 lines, newest first.
 On Loki the query must start with a stream selector.
 When a run fails, the box says "No results." with the time and size of the last good run, and on Elasticsearch and OpenSearch a **Check the datasource** link.
-When more lines match than the page shows, the page says so and **Load older** fetches the lines before the oldest one shown.
+When the page shows 1,000 lines it adds the note "Showing the newest 1,000 lines. Narrow the query or the time range."
+The results have no page bar and no way to load older lines, so narrow the query or the time range to reach them.
 **Live tail** and **Add to dashboard** stay disabled until a query has run, and say "Run a query first."
 
 The row above the lines holds **Sort**, **Wrap**, **JSON** and **Columns**.
@@ -52,10 +53,6 @@ The menu on a column heading sorts the loaded lines A to Z or Z to A, moves the 
 Click a line, or focus it and press Enter, to open its details; press `j` and `k` in the list to move to the next and previous line.
 Opening a line adds `line` to the address, closing it removes `line`, and **Copy link** in the line's details copies an address that opens that line.
 When the linked line is not in the results, the page says so and **Clear** removes `line` from the address.
-
-The lines page 100 at a time, and the page size goes from 50 to 500.
-On ClickHouse the page shows the exact count of matching lines and jumps to any page number.
-On Loki the pages follow time, newest first, so the count reads "at least N" until the last page makes it exact, and a page is reached through the page before it.
 
 The volume strip above the lines counts every line the query matches over the whole time range by level, not only the lines shown.
 It comes from its own log volume request, so the lines never wait for it, and it hides when that request fails or while live tail shows its lines.
@@ -198,19 +195,18 @@ Scripts call the same endpoint, `POST /api/v1/datasources/{uid}/log-context`, wi
 
 ## Live tail
 
-**Live tail** opens one stream from the server, which polls the datasource every second for lines newer than the last one it sent and pushes them to the page.
-The browser runs no query of its own and holds no datasource credential.
-Each poll returns at most 500 lines, so a tail shows at most 500 lines per second, and a poll that hit that limit is followed by another at once.
-The page keeps the newest 1,000 lines of the last 5 minutes and drops older ones off the top.
+**Live tail** polls the datasource through the explore query every 2 seconds, asking for the lines from the newest one it holds onward, and adds what comes back to the list.
+Each poll returns at most 1,000 lines, and the poll runs as the signed-in person, under the explore query's limits.
+The page keeps the newest 1,000 lines of the last 5 minutes and drops older ones off the top, and the note under the list says so.
 The tail lists them oldest first with the newest at the bottom, so the sort is fixed while it runs and the search order comes back when you leave it.
-Lines that just arrived are marked for a moment, and a status line above the list tells when the stream started and how many lines it received.
-Scrolling up pauses the list so it stops moving under the pointer, and a pill counts what arrived meanwhile.
+Lines that just arrived are marked for a moment, and a status line above the list tells when the tail started and how many lines it received.
+Scrolling up pauses the list so it stops moving under the pointer, and a button counts what arrived meanwhile.
 **Jump to newest**, **Resume** or scrolling back to the bottom resumes it.
 **Clear** empties the lines shown until you start the tail again.
-A tail stops when you press **Stop live tail**, when the query, the datasource or the time range changes, when the datasource fails five polls in a row, or after 30 minutes.
-Each person may hold 5 tails at a time, and the server 200.
-Documents reach an Elasticsearch or OpenSearch index a few seconds after their timestamp, so each poll there starts 5 seconds before the newest line sent and skips the lines it already sent, and a tail that stops cancels its search because the cluster cancels a search when its connection closes.
-Scripts open the same stream with `GET /api/v1/datasources/{uid}/tail?query=...`, which is Server-Sent Events.
+A tail stops when you press **Stop live tail**, when you run a query or change the time range, or when a poll fails.
+A failed poll shows "Live tail stopped" with the reason and **Start again**.
+The browser polls and does not read the server's stream.
+Scripts can read that stream with `GET /api/v1/datasources/{uid}/tail?query=...`, which sends Server-Sent Events, polls the datasource every second and ends after 30 minutes; see the API reference.
 
 ## Add to dashboard
 
