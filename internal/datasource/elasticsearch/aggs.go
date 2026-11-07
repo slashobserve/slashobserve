@@ -514,7 +514,7 @@ func (f *folder) walkTable(tb *tableBuilder, nodes []aggNode, b bucket, row map[
 }
 
 func withLabel(labels map[string]string, name, value string) map[string]string {
-	out := make(map[string]string, len(labels)+1)
+	out := make(map[string]string, len(labels))
 	maps.Copy(out, labels)
 	out[name] = value
 	return out
