@@ -150,7 +150,7 @@ for (const scheme of ["light", "dark"] as const) {
     test("opens History from the top row and reopens a chat", async ({
       page,
     }) => {
-      await createRequest(page, neverSavesPrompt)
+      const olderId = await createRequest(page, neverSavesPrompt)
       const newerId = await createRequest(page, unanswerablePrompt)
 
       await page.goto("/")
@@ -164,16 +164,21 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(
         aside.getByRole("heading", { level: 2, name: "History" })
       ).toBeFocused()
-      const rows = rowsOf(aside)
-      await expect(rows.nth(0)).toContainText(unanswerablePrompt)
-      await expect(rows.nth(1)).toContainText(neverSavesPrompt)
+      const newer = rowOf(aside, newerId)
+      const older = rowOf(aside, olderId)
+      await expect(newer).toContainText(unanswerablePrompt)
+      await expect(older).toContainText(neverSavesPrompt)
+      await expectNoAnimations(aside)
+      const newerBox = await newer.boundingBox()
+      const olderBox = await older.boundingBox()
+      expect(newerBox!.y).toBeLessThan(olderBox!.y)
 
-      await rows.nth(0).click()
+      await newer.click()
       await expect(page).toHaveURL(new RegExp(`/c/${newerId}$`))
       await expect(aside).toBeVisible()
       await expect(button).toHaveAttribute("aria-expanded", "true")
-      await expect(rows.nth(0)).toHaveAttribute("aria-current", "true")
-      await expect(rows.nth(1)).not.toHaveAttribute("aria-current", "true")
+      await expect(newer).toHaveAttribute("aria-current", "true")
+      await expect(older).not.toHaveAttribute("aria-current", "true")
     })
 
     test("shows a failed chat only in History", async ({ page }) => {
@@ -190,10 +195,10 @@ for (const scheme of ["light", "dark"] as const) {
     test("closes with Escape from a focused row and returns focus", async ({
       page,
     }) => {
-      await createRequest(page, unanswerablePrompt)
+      const id = await createRequest(page, unanswerablePrompt)
       await openHistory(page)
 
-      await rowsOf(panel(page)).first().focus()
+      await rowOf(panel(page), id).focus()
       await page.keyboard.press("Escape")
       await expect(panel(page)).toHaveCount(0)
       await expect(historyButton(page)).toBeFocused()
@@ -218,7 +223,7 @@ for (const scheme of ["light", "dark"] as const) {
         ).toBeFocused()
 
         if (closer === "Escape") {
-          await rowsOf(panel(page)).first().focus()
+          await rowOf(panel(page), id).focus()
           await page.keyboard.press("Escape")
         } else {
           await panel(page).getByRole("button", { name: "Close" }).click()
